@@ -19,8 +19,9 @@
 <body>
     <nav>
         <a href="{{ url_for('main.list_checklists') }}">All Checklists</a> |
-        <a href="{{ url_for('main.new_checklist') }}">New Checklist</a>
-        <a href="{{ url_for('main.list_companies') }}">Companies</a>
+        <a href="{{ url_for('main.new_checklist') }}">New Checklist</a> |
+        <a href="{{ url_for('main.list_companies') }}">Companies</a> |
+        <a href="{{ url_for('main.list_research_sessions') }}">My Research</a> |
     </nav>
     <hr>
     {% include 'main/_flash_messages.html' %}

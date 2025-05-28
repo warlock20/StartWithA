@@ -1,6 +1,6 @@
 # company_research_platform/app/main/routes.py
 
-import datetime
+from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash # Added flash
 from app import db
 from app.models import User, Checklist, ChecklistItem, ResearchSession, ResearchAnswer, Company
@@ -296,8 +296,20 @@ def research_step(session_id, item_id):
             return redirect(url_for('main.view_research_session_summary', session_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
-    progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
-
+    # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
+    progress_percent = (current_item_index) / len(all_items_in_order) * 100 if all_items_in_order else 0
+    
+    previous_item_id = None
+    if current_item_index > 0 and all_items_in_order: # Check if not the first item
+        previous_item_id = all_items_in_order[current_item_index - 1].id
+    ##or
+    #TODO: Handle the case where the session is not calculated correctly for the last question
+    # total_items_count = len(all_items_in_order)
+    # answered_count = 0
+    # if total_items_count > 0:
+    #     # Efficiently count answers for this session
+    #     answered_count = ResearchAnswer.query.filter_by(research_session_id=session.id).count()
+    # progress_percent = (answered_count / total_items_count) * 100 if total_items_count > 0 else 0
 
     return render_template(
         'main/research_step.html',
@@ -307,18 +319,70 @@ def research_step(session_id, item_id):
         answer=research_answer,
         current_item_number=current_item_index + 1,
         total_items=len(all_items_in_order),
-        progress_percent=progress_percent
+        progress_percent=progress_percent,
+        previous_item_id=previous_item_id 
     )
 
 # We also need a route for the session summary. Let's add a placeholder for now.
 @bp.route('/research_session/<int:session_id>/summary', methods=['GET'])
 def view_research_session_summary(session_id):
     session = ResearchSession.query.get_or_404(session_id)
-    # Fetch all answers for this session to display them
-    answers = ResearchAnswer.query.filter_by(research_session_id=session.id).join(ChecklistItem).order_by(ChecklistItem.order).all()
     
-    # To display answers in the correct checklist order, we might need the ordered list again
-    # or ensure the 'answers' query is correctly ordered based on the item's original hierarchy and order.
-    # For simplicity, the join and order by ChecklistItem.order might be sufficient for a basic summary.
+    # Get all items for the checklist in their correct order
+    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     
-    return render_template('main/session_summary.html', title="Research Summary", session=session, answers=answers)
+    # Fetch all answers for this session and put them in a dictionary for easy lookup
+    answers_query = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_dict = {ans.checklist_item_id: ans.answer_text for ans in answers_query}
+    
+    # For completion time: find the latest 'answered_at' timestamp among answers
+    # (This is a bit simplified, as the session.status is 'completed' already)
+    # The template logic for last_answered_at.value is one way, or can be done here.
+
+    return render_template(
+        'main/session_summary.html', 
+        title="Research Summary", 
+        session=session, 
+        all_ordered_items=all_ordered_items, # Pass ordered items
+        answers_dict=answers_dict            # Pass answers dictionary
+        # The old 'answers' variable (a list of ResearchAnswer objects) can be removed if not used
+    )
+    
+@bp.route('/my_research_sessions', methods=['GET'])
+def list_research_sessions():
+    user = get_default_user() # Still using our default user
+    
+    # Fetch all sessions for this user, ordered by start date descending
+    sessions_query = ResearchSession.query.filter_by(user_id=user.id).order_by(ResearchSession.start_date.desc()).all()
+    
+    sessions_data = []
+    for session in sessions_query:
+        data = {
+            'session_obj': session,
+            'company_name': session.company.name, # Assuming session.company relationship works
+            'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
+            'resume_item_id': None
+        }
+        
+        if session.status == 'in_progress':
+            all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+            if all_items_in_order:
+                # Default to the first item if no other logic finds a better place
+                resume_item_id_candidate = all_items_in_order[0].id 
+                for item in all_items_in_order:
+                    answer_exists = ResearchAnswer.query.filter_by(
+                        research_session_id=session.id,
+                        checklist_item_id=item.id
+                    ).first()
+                    if not answer_exists:
+                        resume_item_id_candidate = item.id # Found the first unanswered item
+                        break
+                data['resume_item_id'] = resume_item_id_candidate
+            else: # Checklist has no items, but session is in_progress
+                data['resume_item_id'] = None # Cannot resume if no items
+                
+        sessions_data.append(data)
+
+    return render_template('main/list_research_sessions.html', 
+                           sessions_data=sessions_data, 
+                           title="My Research Sessions")   

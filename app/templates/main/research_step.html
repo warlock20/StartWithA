@@ -32,9 +32,11 @@
             <label for="answer_text">Your Answer/Notes:</label><br>
             <textarea id="answer_text" name="answer_text" rows="8" cols="80" style="width: 100%;">{{ answer.answer_text if answer else '' }}</textarea>
         </div>
-        <br>
+          <br>
+        {% if previous_item_id %}
+            <a href="{{ url_for('main.research_step', session_id=session.id, item_id=previous_item_id) }}" class="button">Previous Item</a>
+        {% endif %}
         <button type="submit">Save and Next</button>
-        {# "Previous" button can be added later by finding previous_item_id #}
     </form>
     <br>
     <p>
