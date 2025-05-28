@@ -1,0 +1,19 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>Checklists</h1>
+    {% if checklists %}
+        <ul>
+            {% for checklist in checklists %}
+                <li>
+                    <a href="{{ url_for('main.view_checklist', checklist_id=checklist.id) }}">{{ checklist.name }}</a>
+                    ({{ checklist.items.count() }} items) - By: {{ checklist.author.username }}
+                </li>
+            {% else %}
+                <li>No checklists yet. <a href="{{ url_for('main.new_checklist') }}">Create one?</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No checklists found. <a href="{{ url_for('main.new_checklist') }}">Create one?</a></p>
+    {% endif %}
+{% endblock %}

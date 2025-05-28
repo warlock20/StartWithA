@@ -1,0 +1,47 @@
+{% extends "main/_base.html" %}
+
+{% macro display_items(items_list, checklist_id, current_level=0) %}
+  <ul class="{{ 'sub-items' if current_level > 0 else '' }}">
+    {% for item in items_list %}
+      <li class="checklist-item">
+        <span>{{ item.order +1 }}. {{ item.text }}</span>
+        
+        {# Form to add a sub-item to this item #}
+        <form method="POST" action="{{ url_for('main.add_checklist_item', checklist_id=checklist_id) }}" style="display: inline; margin-left: 10px;">
+            <input type="hidden" name="parent_id" value="{{ item.id }}">
+            <input type="text" name="item_text" placeholder="Add sub-item" size="30" required>
+            <button type="submit" title="Add sub-item">+</button>
+        </form>
+
+        {% if item.children.all() %}
+          {{ display_items(item.children.order_by(ChecklistItem.order).all(), checklist_id, current_level + 1) }}
+        {% endif %}
+      </li>
+    {% else %}
+      {% if current_level == 0 %}
+      <li>No items in this checklist yet.</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% block content %}
+    <h1>{{ checklist.name }}</h1>
+    <p><em>{{ checklist.description }}</em></p>
+    <p><small>Created by: {{ checklist.author.username }}</small></p>
+    
+    <hr>
+    <h3>Checklist Items:</h3>
+    {{ display_items(items, checklist.id) }}
+    
+    <hr>
+    <h3>Add New Top-Level Item:</h3>
+    <form method="POST" action="{{ url_for('main.add_checklist_item', checklist_id=checklist.id) }}">
+        <div>
+            <label for="item_text">New Item Text:</label><br>
+            <input type="text" id="item_text" name="item_text" required size="70">
+        </div>
+        <br>
+        <button type="submit">Add Top-Level Item</button>
+    </form>
+{% endblock %}
