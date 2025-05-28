@@ -4,14 +4,27 @@
     <h1>Companies</h1>
     <p><a href="{{ url_for('main.new_company') }}">Add New Company</a></p>
     {% if companies %}
-        <ul>
+        <table border="1" style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 8px; text-align: left;">Company Name</th>
+                    <th style="padding: 8px; text-align: left;">Ticker</th>
+                    <th style="padding: 8px; text-align: left;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
             {% for company in companies %}
-                <li>
-                    <strong>{{ company.name }}</strong> ({{ company.ticker_symbol }})
-                    {# We can add a link to a company detail page or actions later #}
-                </li>
+                <tr>
+                    <td style="padding: 8px;">{{ company.name }}</td>
+                    <td style="padding: 8px;">{{ company.ticker_symbol }}</td>
+                    <td style="padding: 8px;">
+                        {# New link to select checklist for this company #}
+                        <a href="{{ url_for('main.select_checklist_for_company', company_id=company.id) }}">Start Research</a>
+                    </td>
+                </tr>
             {% endfor %}
-        </ul>
+            </tbody>
+        </table>
     {% else %}
         <p>No companies have been added yet.</p>
     {% endif %}

@@ -139,6 +139,25 @@ def new_company():
 
     return render_template('main/new_company.html', title="Add New Company")
 
+@bp.route('/company/<int:company_id>/select_checklist', methods=['GET'])
+def select_checklist_for_company(company_id):
+    company = Company.query.get_or_404(company_id)
+    user = get_default_user() # Assuming we're still using default_user
+
+    # Fetch checklists belonging to the current user
+    # If you have a User.checklists relationship, you can use user.checklists
+    # Otherwise, filter by user_id:
+    checklists = Checklist.query.filter_by(user_id=user.id).order_by(Checklist.name).all()
+
+    if not checklists:
+        flash(f"You don't have any checklists yet. Please create one first.", 'warning')
+        return redirect(url_for('main.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company_id)))
+
+    return render_template('main/select_checklist_for_company.html',
+                           company=company,
+                           checklists=checklists,
+                           title=f"Select Checklist for {company.name}")
+
 @bp.route('/research/start', methods=['POST'])
 def start_research_session():
     user = get_default_user() # Assuming default user for now
@@ -153,42 +172,39 @@ def start_research_session():
     existing_session = ResearchSession.query.filter_by(
         user_id=user.id,
         checklist_id=checklist_id,
-        company_id=company_id,
-        status='in_progress' 
+        company_id=company_id
     ).first()
 
     if existing_session:
-        flash('Resuming existing research session for this company and checklist.', 'info')
+        if existing_session.status == 'in_progress':
+            flash('Resuming existing in-progress research session.', 'info')
+            
+            all_items_in_order = get_all_ordered_items_for_checklist(existing_session.checklist_id)
+            redirect_to_item_id = None
+
+            if not all_items_in_order:
+                flash('The checklist for this session has no items!', 'warning')
+                return redirect(url_for('main.view_checklist', checklist_id=existing_session.checklist_id))
+
+            redirect_to_item_id = all_items_in_order[0].id # Default to first item
+            for item in all_items_in_order:
+                answer_exists = ResearchAnswer.query.filter_by(
+                    research_session_id=existing_session.id,
+                    checklist_item_id=item.id
+                ).first()
+                if not answer_exists:
+                    redirect_to_item_id = item.id # Found the first unanswered item
+                    break
+            return redirect(url_for('main.research_step', session_id=existing_session.id, item_id=redirect_to_item_id))
         
-        all_items_in_order = get_all_ordered_items_for_checklist(existing_session.checklist_id)
-        redirect_to_item_id = None
-
-        if not all_items_in_order:
-            flash('The checklist for this session has no items!', 'warning')
-            # This is an edge case, but if the checklist became empty.
-            return redirect(url_for('main.view_checklist', checklist_id=existing_session.checklist_id))
-
-        # Default to the first item if no other logic finds a better place
-        redirect_to_item_id = all_items_in_order[0].id 
-
-        for item in all_items_in_order:
-            answer_exists = ResearchAnswer.query.filter_by(
-                research_session_id=existing_session.id,
-                checklist_item_id=item.id
-            ).first()
-            if not answer_exists:
-                redirect_to_item_id = item.id # Found the first unanswered item
-                break
+        elif existing_session.status == 'completed':
+            flash('This research was already completed. Viewing summary. You can edit answers from there.', 'info')
+            return redirect(url_for('main.view_research_session_summary', session_id=existing_session.id))
         
-        # If all items are answered but session is still 'in_progress' (unlikely but possible)
-        # the loop will complete, and redirect_to_item_id will be the ID of the last item
-        # or the first item if the list was empty after all. The current logic sets it to the 
-        # first item initially, and then the last item if all are answered.
-        # For a better user experience, if all items have answers, we might want to send
-        # them to the summary page or the last item. For now, this takes them to the first unanswered
-        # or the last item if all seem answered.
-
-        return redirect(url_for('main.research_step', session_id=existing_session.id, item_id=redirect_to_item_id))
+        else: # Other statuses, if any - treat as existing, maybe go to summary or first item
+            flash(f'A session for this company and checklist already exists with status: {existing_session.status}.', 'info')
+            # Defaulting to summary for any other existing status for now
+            return redirect(url_for('main.view_research_session_summary', session_id=existing_session.id))
 
     # Create new session if no existing 'in_progress' one is found
     checklist = Checklist.query.get_or_404(checklist_id)

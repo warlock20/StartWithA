@@ -1,0 +1,30 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>You are about to start a research session for: <strong>{{ company.name }} ({{ company.ticker_symbol }})</strong></p>
+
+    {% if checklists %}
+        <form method="POST" action="{{ url_for('main.start_research_session') }}">
+            {# This hidden input passes the company_id to the start_research_session route #}
+            <input type="hidden" name="company_id" value="{{ company.id }}">
+
+            <div>
+                <label for="checklist_id">Choose a checklist:</label><br>
+                <select name="checklist_id" id="checklist_id" required>
+                    <option value="" disabled selected>-- Select a Checklist --</option>
+                    {% for checklist in checklists %}
+                        <option value="{{ checklist.id }}">{{ checklist.name }} ({{ checklist.items.count() }} items)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+            <button type="submit">Start Research with Selected Checklist</button>
+        </form>
+    {% else %}
+        {# This case should ideally be handled by the route redirecting to new_checklist #}
+        <p>You have no checklists available. Please <a href="{{ url_for('main.new_checklist') }}">create a checklist</a> first.</p>
+    {% endif %}
+    <br>
+    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+{% endblock %}
