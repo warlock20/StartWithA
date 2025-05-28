@@ -142,21 +142,56 @@ def new_company():
 @bp.route('/company/<int:company_id>/select_checklist', methods=['GET'])
 def select_checklist_for_company(company_id):
     company = Company.query.get_or_404(company_id)
-    user = get_default_user() # Assuming we're still using default_user
+    user = get_default_user()
 
-    # Fetch checklists belonging to the current user
-    # If you have a User.checklists relationship, you can use user.checklists
-    # Otherwise, filter by user_id:
-    checklists = Checklist.query.filter_by(user_id=user.id).order_by(Checklist.name).all()
+    user_checklists = Checklist.query.filter_by(user_id=user.id).order_by(Checklist.name).all()
 
-    if not checklists:
-        flash(f"You don't have any checklists yet. Please create one first.", 'warning')
+    if not user_checklists:
+        flash("You don't have any checklists yet. Please create one first.", 'warning')
+        # Pass 'next' to redirect back here after creating a checklist
         return redirect(url_for('main.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company_id)))
+
+    checklists_data = []
+    for chk in user_checklists:
+        existing_session = ResearchSession.query.filter_by(
+            user_id=user.id,
+            company_id=company.id,
+            checklist_id=chk.id
+        ).first()
+        
+        session_info = {
+            'checklist_obj': chk, # Store the actual checklist object
+            'existing_session_id': None,
+            'existing_session_status': None,
+            'resume_item_id': None,
+            'item_count': chk.items.count() # Get item count for display
+        }
+
+        if existing_session:
+            session_info['existing_session_id'] = existing_session.id
+            session_info['existing_session_status'] = existing_session.status
+            if existing_session.status == 'in_progress':
+                # Calculate resume_item_id for in-progress sessions
+                all_items = get_all_ordered_items_for_checklist(chk.id)
+                if all_items:
+                    resume_id_candidate = all_items[0].id # Default to first item
+                    for item in all_items:
+                        ans_exists = ResearchAnswer.query.filter_by(
+                            research_session_id=existing_session.id, 
+                            checklist_item_id=item.id
+                        ).first()
+                        if not ans_exists:
+                            resume_id_candidate = item.id
+                            break
+                    session_info['resume_item_id'] = resume_id_candidate
+                # If no items in checklist, resume_item_id remains None
+        
+        checklists_data.append(session_info)
 
     return render_template('main/select_checklist_for_company.html',
                            company=company,
-                           checklists=checklists,
-                           title=f"Select Checklist for {company.name}")
+                           checklists_data=checklists_data, # Pass the enhanced list
+                           title=f"Select or Resume Research for {company.name}")
 
 @bp.route('/research/start', methods=['POST'])
 def start_research_session():
@@ -363,6 +398,29 @@ def view_research_session_summary(session_id):
         answers_dict=answers_dict            # Pass answers dictionary
         # The old 'answers' variable (a list of ResearchAnswer objects) can be removed if not used
     )
+
+@bp.route('/research_session/<int:session_id>/delete', methods=['POST'])
+# @login_required  # Add this later when Flask-Login is implemented
+def delete_research_session(session_id):
+    user = get_default_user() # Get current user (default_user for now)
+    session_to_delete = ResearchSession.query.get_or_404(session_id)
+
+    # Verify that the session belongs to the current user
+    if session_to_delete.user_id != user.id:
+        flash('You do not have permission to delete this session.', 'error')
+        return redirect(url_for('main.list_research_sessions')) # Or abort(403)
+
+    try:
+        # SQLAlchemy will handle deleting associated ResearchAnswer records
+        # due to cascade="all, delete-orphan" on ResearchSession.answers relationship
+        db.session.delete(session_to_delete)
+        db.session.commit()
+        flash('Research session deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback() # Rollback in case of error
+        flash(f'Error deleting research session: {str(e)}', 'error')
+
+    return redirect(url_for('main.list_research_sessions'))
     
 @bp.route('/my_research_sessions', methods=['GET'])
 def list_research_sessions():
