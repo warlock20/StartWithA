@@ -147,50 +147,71 @@ def start_research_session():
 
     if not checklist_id or not company_id:
         flash('Checklist and Company must be selected.', 'error')
-        # Redirect back to where they came from, or a sensible default
-        # For now, let's redirect to checklists list. A more robust solution
-        # would use request.referrer or a hidden 'next' field.
         return redirect(request.referrer or url_for('main.list_checklists'))
 
-    # Check if this exact session already exists and is in progress (optional)
+    # Check if this exact session already exists and is in progress
     existing_session = ResearchSession.query.filter_by(
         user_id=user.id,
         checklist_id=checklist_id,
         company_id=company_id,
-        status='in_progress' # Or any other relevant status
+        status='in_progress' 
     ).first()
 
     if existing_session:
-        flash('A research session for this company and checklist is already in progress.', 'info')
-        # We'll need to define the route for research_step soon
-        # For now, let's just acknowledge. We'll redirect to the first item of this session later.
-        # return redirect(url_for('main.research_step', session_id=existing_session.id, ...first_item_id...))
-        # For now, redirecting to view checklist. This part needs more work once research_step is built.
-        return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+        flash('Resuming existing research session for this company and checklist.', 'info')
+        
+        all_items_in_order = get_all_ordered_items_for_checklist(existing_session.checklist_id)
+        redirect_to_item_id = None
 
+        if not all_items_in_order:
+            flash('The checklist for this session has no items!', 'warning')
+            # This is an edge case, but if the checklist became empty.
+            return redirect(url_for('main.view_checklist', checklist_id=existing_session.checklist_id))
 
-    # Create new session
-    checklist = Checklist.query.get_or_404(checklist_id) # Ensure checklist exists
-    company = Company.query.get_or_404(company_id)       # Ensure company exists
+        # Default to the first item if no other logic finds a better place
+        redirect_to_item_id = all_items_in_order[0].id 
+
+        for item in all_items_in_order:
+            answer_exists = ResearchAnswer.query.filter_by(
+                research_session_id=existing_session.id,
+                checklist_item_id=item.id
+            ).first()
+            if not answer_exists:
+                redirect_to_item_id = item.id # Found the first unanswered item
+                break
+        
+        # If all items are answered but session is still 'in_progress' (unlikely but possible)
+        # the loop will complete, and redirect_to_item_id will be the ID of the last item
+        # or the first item if the list was empty after all. The current logic sets it to the 
+        # first item initially, and then the last item if all are answered.
+        # For a better user experience, if all items have answers, we might want to send
+        # them to the summary page or the last item. For now, this takes them to the first unanswered
+        # or the last item if all seem answered.
+
+        return redirect(url_for('main.research_step', session_id=existing_session.id, item_id=redirect_to_item_id))
+
+    # Create new session if no existing 'in_progress' one is found
+    checklist = Checklist.query.get_or_404(checklist_id)
+    company = Company.query.get_or_404(company_id)
 
     session = ResearchSession(
         user_id=user.id, 
         checklist_id=checklist.id, 
-        company_id=company.id
+        company_id=company.id,
+        status='in_progress' # Explicitly set status
     )
     db.session.add(session)
     db.session.commit()
     flash('New research session started!', 'success')
 
-    # Now, we need to redirect to the first item of this research session.
-    # This requires finding the first ChecklistItem of the checklist.
-    first_item = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).first()
-
-    if first_item:
-        # We need a route like 'research_step' to go to. Let's define it next.
-        return redirect(url_for('main.research_step', session_id=session.id, item_id=first_item.id))
+    first_item = get_all_ordered_items_for_checklist(checklist.id) # Use the helper
+    
+    if first_item: # first_item is now a list
+        return redirect(url_for('main.research_step', session_id=session.id, item_id=first_item[0].id))
     else:
         flash('This checklist has no items to research!', 'warning')
+        # If a session was created but checklist has no items, maybe delete the session or mark as 'empty'?
+        # For now, just redirect.
         return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
 
 def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):

@@ -62,7 +62,7 @@
             <br>
             <p>Alternatively, <a href="{{ url_for('main.new_company', next=url_for('main.view_checklist', checklist_id=checklist.id)) }}">add a new company</a> first.</p>
             <br>
-            <button type="submit">Start Research Session</button>
+            <button type="submit">Start or Resume Research Session</button>
         </form>
     {% else %}
         <p>There are no companies in the system. Please <a href="{{ url_for('main.new_company', next=url_for('main.view_checklist', checklist_id=checklist.id)) }}">add a company</a> before starting research.</p>
