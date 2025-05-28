@@ -1,7 +1,7 @@
 # company_research_platform/run.py
 
 from app import create_app, db
-from app.models import User, Checklist, ChecklistItem # Import your models
+from app.models import User, Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer
 
 # Create the Flask app instance using the factory
 app = create_app()
@@ -21,6 +21,19 @@ def init_db_command():
         db.drop_all()  # Optional: drops all tables first if you want a clean slate
         db.create_all()
     print("Initialized the database.")
+
+@app.shell_context_processor
+def make_shell_context():
+    return {
+        'app': app, 
+        'db': db, 
+        'User': User, 
+        'Checklist': Checklist, 
+        'ChecklistItem': ChecklistItem,
+        'Company': Company,                 
+        'ResearchSession': ResearchSession, 
+        'ResearchAnswer': ResearchAnswer    
+    }    
 
 if __name__ == '__main__':
     app.run(debug=True)

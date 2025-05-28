@@ -1,0 +1,19 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>Add New Company</h1>
+    <form method="POST" action="{{ url_for('main.new_company') }}">
+        <div>
+            <label for="name">Company Name:</label><br>
+            <input type="text" id="name" name="name" required size="50">
+        </div>
+        <br>
+        <div>
+            <label for="ticker_symbol">Ticker Symbol:</label><br>
+            <input type="text" id="ticker_symbol" name="ticker_symbol" required size="20">
+        </div>
+        <br>
+        <button type="submit">Add Company</button>
+    </form>
+    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+{% endblock %}

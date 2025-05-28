@@ -44,4 +44,28 @@
         <br>
         <button type="submit">Add Top-Level Item</button>
     </form>
+    <hr> {# Add a separator #}
+
+    <h3>Start Research with this Checklist</h3>
+    {% if companies and companies|length > 0 %}
+        <form method="POST" action="{{ url_for('main.start_research_session') }}">
+            <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+            <div>
+                <label for="company_id">Select Company to Research:</label><br>
+                <select name="company_id" id="company_id" required>
+                    <option value="" disabled selected>-- Choose a Company --</option>
+                    {% for company in companies %}
+                        <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <br>
+            <p>Alternatively, <a href="{{ url_for('main.new_company', next=url_for('main.view_checklist', checklist_id=checklist.id)) }}">add a new company</a> first.</p>
+            <br>
+            <button type="submit">Start Research Session</button>
+        </form>
+    {% else %}
+        <p>There are no companies in the system. Please <a href="{{ url_for('main.new_company', next=url_for('main.view_checklist', checklist_id=checklist.id)) }}">add a company</a> before starting research.</p>
+    {% endif %}
+    
 {% endblock %}

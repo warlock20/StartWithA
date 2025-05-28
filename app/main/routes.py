@@ -1,8 +1,9 @@
 # company_research_platform/app/main/routes.py
 
+import datetime
 from flask import render_template, request, redirect, url_for, flash # Added flash
 from app import db
-from app.models import User, Checklist, ChecklistItem # Ensure ChecklistItem is here
+from app.models import User, Checklist, ChecklistItem, ResearchSession, ResearchAnswer, Company
 from app.main import bp # Import the blueprint
 
 # Helper function to get or create a default user (for now)
@@ -54,17 +55,18 @@ def new_checklist():
 @bp.route('/checklists/<int:checklist_id>', methods=['GET'])
 def view_checklist(checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
-    # Fetch top-level items, already ordered by ChecklistItem.order
     top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
+    all_companies = Company.query.order_by(Company.name).all() # Fetch companies
 
     return render_template(
         'main/view_checklist.html',
         checklist=checklist,
         items=top_level_items,
         title=checklist.name,
-        ChecklistItem=ChecklistItem  # <--- ADD THIS LINE
+        ChecklistItem=ChecklistItem,
+        companies=all_companies  # <--- Pass companies to the template
     )
-
+    
 @bp.route('/checklists/<int:checklist_id>/add_item', methods=['POST'])
 def add_checklist_item(checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
@@ -102,3 +104,200 @@ def add_checklist_item(checklist_id):
         flash('Item text cannot be empty.', 'error')
         
     return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+
+@bp.route('/companies', methods=['GET'])
+def list_companies():
+    companies = Company.query.order_by(Company.name).all()
+    return render_template('main/list_companies.html', companies=companies, title="Companies")
+
+@bp.route('/companies/new', methods=['GET', 'POST'])
+def new_company():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        ticker_symbol = request.form.get('ticker_symbol', '').upper()
+
+        if not name or not ticker_symbol:
+            flash('Company name and ticker symbol are required.', 'error')
+            return redirect(url_for('main.new_company'))
+
+        existing_company_by_name = Company.query.filter_by(name=name).first()
+        existing_company_by_ticker = Company.query.filter_by(ticker_symbol=ticker_symbol).first()
+
+        if existing_company_by_name:
+            flash(f'A company with the name "{name}" already exists.', 'error')
+        elif existing_company_by_ticker:
+            flash(f'A company with the ticker "{ticker_symbol}" already exists.', 'error')
+        else:
+            company = Company(name=name, ticker_symbol=ticker_symbol)
+            db.session.add(company)
+            db.session.commit()
+            flash(f'Company "{name}" ({ticker_symbol}) added successfully.', 'success')
+            return redirect(url_for('main.list_companies'))
+        
+        # If there was an error, redirect back to the form
+        return redirect(url_for('main.new_company'))
+
+    return render_template('main/new_company.html', title="Add New Company")
+
+@bp.route('/research/start', methods=['POST'])
+def start_research_session():
+    user = get_default_user() # Assuming default user for now
+    checklist_id = request.form.get('checklist_id', type=int)
+    company_id = request.form.get('company_id', type=int)
+
+    if not checklist_id or not company_id:
+        flash('Checklist and Company must be selected.', 'error')
+        # Redirect back to where they came from, or a sensible default
+        # For now, let's redirect to checklists list. A more robust solution
+        # would use request.referrer or a hidden 'next' field.
+        return redirect(request.referrer or url_for('main.list_checklists'))
+
+    # Check if this exact session already exists and is in progress (optional)
+    existing_session = ResearchSession.query.filter_by(
+        user_id=user.id,
+        checklist_id=checklist_id,
+        company_id=company_id,
+        status='in_progress' # Or any other relevant status
+    ).first()
+
+    if existing_session:
+        flash('A research session for this company and checklist is already in progress.', 'info')
+        # We'll need to define the route for research_step soon
+        # For now, let's just acknowledge. We'll redirect to the first item of this session later.
+        # return redirect(url_for('main.research_step', session_id=existing_session.id, ...first_item_id...))
+        # For now, redirecting to view checklist. This part needs more work once research_step is built.
+        return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+
+
+    # Create new session
+    checklist = Checklist.query.get_or_404(checklist_id) # Ensure checklist exists
+    company = Company.query.get_or_404(company_id)       # Ensure company exists
+
+    session = ResearchSession(
+        user_id=user.id, 
+        checklist_id=checklist.id, 
+        company_id=company.id
+    )
+    db.session.add(session)
+    db.session.commit()
+    flash('New research session started!', 'success')
+
+    # Now, we need to redirect to the first item of this research session.
+    # This requires finding the first ChecklistItem of the checklist.
+    first_item = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).first()
+
+    if first_item:
+        # We need a route like 'research_step' to go to. Let's define it next.
+        return redirect(url_for('main.research_step', session_id=session.id, item_id=first_item.id))
+    else:
+        flash('This checklist has no items to research!', 'warning')
+        return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+
+def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
+    """
+    Recursive helper to fetch items and their children in order.
+    """
+    ordered_items = []
+    if parent_item_id is None: # Top-level items
+        items = ChecklistItem.query.filter_by(checklist_id=checklist_id, parent_id=None).order_by(ChecklistItem.order).all()
+    else: # Sub-items
+        items = ChecklistItem.query.filter_by(checklist_id=checklist_id, parent_id=parent_item_id).order_by(ChecklistItem.order).all()
+
+    for item in items:
+        ordered_items.append(item)
+        ordered_items.extend(_get_ordered_checklist_items_recursive(item.id, checklist_id))
+    return ordered_items
+
+def get_all_ordered_items_for_checklist(checklist_id):
+    """
+    Returns a flat list of all checklist items for a given checklist_id,
+    ordered by their sequence and hierarchy (depth-first).
+    """
+    return _get_ordered_checklist_items_recursive(None, checklist_id)
+
+@bp.route('/research_session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
+def research_step(session_id, item_id):
+    session = ResearchSession.query.get_or_404(session_id)
+    current_item = ChecklistItem.query.get_or_404(item_id)
+
+    # Basic security check: ensure the item belongs to the session's checklist
+    if current_item.checklist_id != session.checklist_id:
+        flash('Invalid item for this research session.', 'error')
+        return redirect(url_for('main.list_checklists')) # Or a more appropriate error page
+
+    # Get the full ordered list of items for this session's checklist
+    all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+    if not all_items_in_order:
+        flash('Checklist has no items.', 'error')
+        return redirect(url_for('main.view_checklist', checklist_id=session.checklist_id))
+
+    current_item_index = -1
+    for index, item_obj in enumerate(all_items_in_order):
+        if item_obj.id == current_item.id:
+            current_item_index = index
+            break
+    
+    if current_item_index == -1: # Should not happen if item_id is valid and from this checklist
+        flash('Error finding current item in checklist order.', 'error')
+        return redirect(url_for('main.view_checklist', checklist_id=session.checklist_id))
+
+    # Fetch existing answer for this item in this session
+    research_answer = ResearchAnswer.query.filter_by(
+        research_session_id=session.id,
+        checklist_item_id=current_item.id
+    ).first()
+
+    if request.method == 'POST':
+        answer_text = request.form.get('answer_text')
+        if research_answer:
+            research_answer.answer_text = answer_text
+            research_answer.answered_at = datetime.utcnow()
+        else:
+            research_answer = ResearchAnswer(
+                answer_text=answer_text,
+                research_session_id=session.id,
+                checklist_item_id=current_item.id
+            )
+            db.session.add(research_answer)
+        db.session.commit()
+        flash('Answer saved.', 'success')
+
+        # Determine next item
+        if current_item_index + 1 < len(all_items_in_order):
+            next_item = all_items_in_order[current_item_index + 1]
+            return redirect(url_for('main.research_step', session_id=session.id, item_id=next_item.id))
+        else:
+            # This is the last item
+            session.status = 'completed' # Mark session as completed
+            db.session.commit()
+            flash('Checklist completed! Research session finished.', 'success')
+            # Redirect to a summary page or back to the checklist view for now
+            return redirect(url_for('main.view_research_session_summary', session_id=session.id)) # We'll create this route next
+
+    # For GET request or if POST needs to re-render
+    progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
+
+
+    return render_template(
+        'main/research_step.html',
+        title=f"Research: {session.company.ticker_symbol} - Item {current_item_index + 1}/{len(all_items_in_order)}",
+        session=session,
+        current_item=current_item,
+        answer=research_answer,
+        current_item_number=current_item_index + 1,
+        total_items=len(all_items_in_order),
+        progress_percent=progress_percent
+    )
+
+# We also need a route for the session summary. Let's add a placeholder for now.
+@bp.route('/research_session/<int:session_id>/summary', methods=['GET'])
+def view_research_session_summary(session_id):
+    session = ResearchSession.query.get_or_404(session_id)
+    # Fetch all answers for this session to display them
+    answers = ResearchAnswer.query.filter_by(research_session_id=session.id).join(ChecklistItem).order_by(ChecklistItem.order).all()
+    
+    # To display answers in the correct checklist order, we might need the ordered list again
+    # or ensure the 'answers' query is correctly ordered based on the item's original hierarchy and order.
+    # For simplicity, the join and order by ChecklistItem.order might be sufficient for a basic summary.
+    
+    return render_template('main/session_summary.html', title="Research Summary", session=session, answers=answers)

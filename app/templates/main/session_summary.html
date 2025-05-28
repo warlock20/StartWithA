@@ -1,0 +1,34 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>
+        Company: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
+        Checklist: <strong>{{ session.checklist.name }}</strong><br>
+        Status: <strong>{{ session.status }}</strong><br>
+        Started: {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}
+        {% if session.status == 'completed' and answers|length > 0 and answers[-1].answered_at %}
+            <br>Completed: {{ answers[-1].answered_at.strftime('%Y-%m-%d %H:%M') }}
+        {% endif %}
+    </p>
+
+    <hr>
+    <h3>Answers:</h3>
+    {% if answers %}
+        <dl>
+            {% for ans in answers %}
+                <dt style="font-weight: bold; margin-top: 10px;">{{ ans.item.text }}</dt>
+                <dd style="margin-left: 20px; margin-bottom: 10px; white-space: pre-wrap;">{{ ans.answer_text if ans.answer_text else "No answer provided." }}</dd>
+            {% else %}
+                <p>No answers recorded for this session yet.</p>
+            {% endfor %}
+        </dl>
+    {% else %}
+        <p>No answers recorded for this session yet.</p>
+    {% endif %}
+    <br>
+    <p>
+        <a href="{{ url_for('main.list_checklists') }}">Back to All Checklists</a> |
+        <a href="{{ url_for('main.view_checklist', checklist_id=session.checklist_id) }}">View This Checklist Structure</a>
+    </p>
+{% endblock %}
