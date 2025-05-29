@@ -1,0 +1,30 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <form method="POST" action="{{ url_for('main.register') }}">
+        <div>
+            <label for="username">Username:</label><br>
+            <input type="text" id="username" name="username" value="{{ request.form.username if request.form else '' }}" required size="30">
+        </div>
+        <br>
+        <div>
+            <label for="email">Email:</label><br>
+            <input type="email" id="email" name="email" value="{{ request.form.email if request.form else '' }}" required size="30">
+        </div>
+        <br>
+        <div>
+            <label for="password">Password:</label><br>
+            <input type="password" id="password" name="password" required size="30">
+        </div>
+        <br>
+        <div>
+            <label for="password_confirm">Confirm Password:</label><br>
+            <input type="password" id="password_confirm" name="password_confirm" required size="30">
+        </div>
+        <br>
+        <button type="submit">Register</button>
+    </form>
+    <br>
+    <p>Already have an account? <a href="{{ url_for('main.login') }}">Log in here</a>.</p> {# Link to login page #}
+{% endblock %}

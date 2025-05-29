@@ -1,0 +1,69 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>
+        Company: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
+        Checklist: <strong>{{ session.checklist.name }}</strong><br>
+        Status: <strong>{{ session.status }}</strong><br>
+        Started: {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}
+        {# Assuming answered_at on the last answer approximates completion time #}
+        {% set last_answered_at = namespace(value=None) %}
+        {% for ans in answers if ans.answered_at %}
+            {% if last_answered_at.value == None or ans.answered_at > last_answered_at.value %}
+                {% set last_answered_at.value = ans.answered_at %}
+            {% endif %}
+        {% endfor %}
+        {% if session.status == 'completed' and last_answered_at.value %}
+            <br>Completed: {{ last_answered_at.value.strftime('%Y-%m-%d %H:%M') }}
+        {% endif %}
+    </p>
+
+    {# Add 100% Progress Bar for completed sessions #}
+    {% if session.status == 'completed' %}
+        <div style="width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-bottom:15px;">
+          <div style="width: 100%; background-color: #4CAF50; color: white; text-align: center; line-height: 20px; border-radius: 5px; height: 20px;">
+            100% Complete
+          </div>
+        </div>
+    {% endif %}
+    {# End of Progress Bar #}
+
+    <hr>
+    <h3>Answers:</h3>
+    {# ... rest of the summary page ... #}
+    {# To display answers in the correct checklist order for summary #}
+    {# We need to iterate through all_items_in_order and find their answers #}
+    {# This part needs refinement if answers are not already in perfect order by the query #}
+
+    {% if all_ordered_items and answers_dict %}
+        <dl>
+        {% for item in all_ordered_items %}
+            <dt style="font-weight: bold; margin-top: 10px;">
+                {{ item.text }} 
+                <span style="font-weight:normal; font-size:0.9em; margin-left:10px;">
+                    <a href="{{ url_for('main.research_step', session_id=session.id, item_id=item.id) }}">Edit</a>
+                </span>
+            </dt>
+            <dd style="margin-left: 20px; margin-bottom: 10px; white-space: pre-wrap;">
+                {{ answers_dict.get(item.id, "No answer provided.") }}
+            </dd>
+        {% endfor %}
+        </dl>
+    {% elif answers %} {# Fallback to original simple answer listing if refined variables not present #}
+        <dl>
+            {% for ans in answers %}
+                <dt style="font-weight: bold; margin-top: 10px;">{{ ans.item.text }}</dt>
+                <dd style="margin-left: 20px; margin-bottom: 10px; white-space: pre-wrap;">{{ ans.answer_text if ans.answer_text else "No answer provided." }}</dd>
+            {% endfor %}
+        </dl>
+    {% else %}
+        <p>No answers recorded for this session yet.</p>
+    {% endif %}
+
+    <br>
+    <p>
+        <a href="{{ url_for('main.list_checklists') }}">Back to All Checklists</a> |
+        <a href="{{ url_for('main.view_checklist', checklist_id=session.checklist_id) }}">View This Checklist Structure</a>
+    </p>
+{% endblock %}

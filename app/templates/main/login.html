@@ -1,0 +1,25 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <form method="POST" action="{{ url_for('main.login') }}">
+        <div>
+            <label for="identifier">Username or Email:</label><br>
+            <input type="text" id="identifier" name="identifier" value="{{ request.form.identifier if request.form else '' }}" required size="30">
+        </div>
+        <br>
+        <div>
+            <label for="password">Password:</label><br>
+            <input type="password" id="password" name="password" required size="30">
+        </div>
+        <br>
+        <div>
+            <input type="checkbox" id="remember" name="remember" value="1"> {# Value "1" or any non-empty will be truthy #}
+            <label for="remember">Remember Me</label>
+        </div>
+        <br>
+        <button type="submit">Login</button>
+    </form>
+    <br>
+    <p>Don't have an account? <a href="{{ url_for('main.register') }}">Register here</a>.</p>
+{% endblock %}

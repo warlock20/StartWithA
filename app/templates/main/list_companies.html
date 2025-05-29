@@ -1,0 +1,32 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>Companies</h1>
+    <p><a href="{{ url_for('main.new_company') }}">Add New Company</a></p>
+    {% if companies %}
+        <table border="1" style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 8px; text-align: left;">Company Name</th>
+                    <th style="padding: 8px; text-align: left;">Ticker</th>
+                    <th style="padding: 8px; text-align: left;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for company in companies %}
+                <tr>
+                    <td style="padding: 8px;">{{ company.name }}</td>
+                    <td style="padding: 8px;">{{ company.ticker_symbol }}</td>
+                    <td style="padding: 8px;">
+                        {# New link to select checklist for this company #}
+                        <a href="{{ url_for('main.select_checklist_for_company', company_id=company.id) }}">Start Research</a>
+                        <a href="{{ url_for('main.manage_company_documents', company_id=company.id) }}">Manage Documents</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No companies have been added yet.</p>
+    {% endif %}
+{% endblock %}

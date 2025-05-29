@@ -25,3 +25,7 @@ class Config:
     # You can also load Flask specific config directly if set in .env
     # For example, FLASK_DEBUG=1 or FLASK_ENV=development
     # Though these are often handled by how you run the Flask CLI or app.run()
+    
+    UPLOAD_FOLDER = os.path.join(basedir, 'instance', 'uploads', 'company_documents')
+    ALLOWED_EXTENSIONS = {'pdf', 'txt'} # Allow PDFs and text files for now
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024 # Limit upload size to 16 MB

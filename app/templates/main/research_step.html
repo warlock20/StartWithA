@@ -1,0 +1,45 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>
+        Researching: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
+        Using Checklist: <strong>{{ session.checklist.name }}</strong>
+    </p>
+    
+    {# Progress Bar - Basic Styling #}
+    <div style="width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-bottom:15px;">
+      <div style="width: {{ progress_percent }}%; background-color: #4CAF50; color: white; text-align: center; line-height: 20px; border-radius: 5px; height: 20px;">
+        {{ "%.0f"|format(progress_percent) }}%
+      </div>
+    </div>
+
+    <hr>
+
+    <h3>Item {{ current_item_number }} of {{ total_items }}:</h3>
+    <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
+        <p style="font-size: 1.2em; font-weight: bold;">{{ current_item.text }}</p>
+        {# Display parent item context if this is a sub-item #}
+        {% if current_item.parent %}
+            <p style="font-size: 0.9em; color: #555;">
+                (Sub-item of: {{ current_item.parent.text }})
+            </p>
+        {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('main.research_step', session_id=session.id, item_id=current_item.id) }}">
+        <div>
+            <label for="answer_text">Your Answer/Notes:</label><br>
+            <textarea id="answer_text" name="answer_text" rows="8" cols="80" style="width: 100%;">{{ answer.answer_text if answer else '' }}</textarea>
+        </div>
+          <br>
+        {% if previous_item_id %}
+            <a href="{{ url_for('main.research_step', session_id=session.id, item_id=previous_item_id) }}" class="button">Previous Item</a>
+        {% endif %}
+        <button type="submit">Save and Next</button>
+    </form>
+    <br>
+    <p>
+        <a href="{{ url_for('main.view_checklist', checklist_id=session.checklist_id) }}">Back to Checklist View (progress will be saved)</a>
+    </p>
+{% endblock %}
