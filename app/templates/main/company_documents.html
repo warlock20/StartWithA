@@ -1,0 +1,59 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+
+    <h2>Upload New Document for {{ company.name }}</h2>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('main.manage_company_documents', company_id=company.id) }}">
+        <div>
+            <label for="document_file">Select File (PDF, TXT):</label><br>
+            <input type="file" id="document_file" name="document_file" required>
+        </div>
+        <div>
+            <label for="document_group">Document Group (e.g., Annual Reports, Transcripts):</label><br>
+            <input type="text" id="document_group" name="document_group" required>
+        </div>
+        <div>
+            <label for="document_title">Document Title (e.g., 2023 Annual Report):</label><br>
+            <input type="text" id="document_title" name="document_title" required>
+        </div>
+        <div>
+            <label for="document_date">Document Date (YYYY-MM-DD, optional):</label><br>
+            <input type="date" id="document_date" name="document_date">
+        </div>
+        <div>
+            <label for="description">Description (optional):</label><br>
+            <textarea id="description" name="description" rows="3"></textarea>
+        </div>
+        <br>
+        <button type="submit">Upload Document</button>
+    </form>
+
+    <hr>
+    <h2>Existing Documents</h2>
+    {% if grouped_documents %}
+        {% for group_name, docs_in_group in grouped_documents.items() %}
+            <h3>{{ group_name }}</h3>
+            {% if docs_in_group %}
+                <ul>
+                    {% for doc in docs_in_group %}
+                        <li>
+                            <strong>{{ doc.document_title }}</strong>
+                            {% if doc.document_date %}({{ doc.document_date.strftime('%Y-%m-%d') }}){% endif %}
+                            - <a href="{{ url_for('main.serve_company_document', filepath=doc.stored_filename) }}" target="_blank">View/Download ({{ doc.original_filename }})</a>
+                            <br>
+                            {% if doc.description %}<small><em>{{ doc.description }}</em></small><br>{% endif %}
+                            <small>Uploaded by: {{ doc.uploader.username }} on {{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            {# Add delete/edit links for documents later #}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                 <p>No documents in this group.</p>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <p>No documents uploaded for this company yet.</p>
+    {% endif %}
+{% endblock %}

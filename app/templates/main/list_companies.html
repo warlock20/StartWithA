@@ -20,6 +20,7 @@
                     <td style="padding: 8px;">
                         {# New link to select checklist for this company #}
                         <a href="{{ url_for('main.select_checklist_for_company', company_id=company.id) }}">Start Research</a>
+                        <a href="{{ url_for('main.manage_company_documents', company_id=company.id) }}">Manage Documents</a>
                     </td>
                 </tr>
             {% endfor %}
