@@ -58,10 +58,11 @@ async function submitForAIAnalysis() {
 
         const data = await response.json();
 
-        let prettyResponse = '<strong>AI Analysis Request Processed:</strong><br>';
+        let prettyResponse = '<strong>AI Analysis Result:</strong><br>';
         prettyResponse += 'Status: ' + data.status + '<br>';
         prettyResponse += 'Message: ' + data.message + '<br>';
-        prettyResponse += 'Received Prompt: ' + data.received_prompt + '<br>';
+        prettyResponse += 'Original Prompt: ' + data.received_prompt + '<br>';
+
         if (data.selected_documents_info && data.selected_documents_info.length > 0) {
             prettyResponse += 'Processed Documents:<br><ul>';
             data.selected_documents_info.forEach(function (doc) {
@@ -69,11 +70,19 @@ async function submitForAIAnalysis() {
             });
             prettyResponse += '</ul>';
         } else {
-            prettyResponse += 'No documents were selected or processed.<br>';
+            prettyResponse += 'No documents were specified or processed for context.<br>';
         }
-        if (data.extracted_text_sample) { // NEW: Display text sample
-            prettyResponse += '<strong>Sample of Extracted Text:</strong><br>';
-            prettyResponse += '<pre style="white-space: pre-wrap; border: 1px solid #ccc; padding: 5px; max-height: 200px; overflow-y: auto;">' + escapeHtml(data.extracted_text_sample) + '</pre>';
+
+        if (data.extracted_text_sample) {
+            prettyResponse += '<strong>Sample of Text Provided to AI:</strong><br>';
+            prettyResponse += '<pre style="white-space: pre-wrap; border: 1px solid #ccc; padding: 5px; max-height: 100px; overflow-y: auto;">' + escapeHtml(data.extracted_text_sample) + '</pre>';
+        }
+
+        if (data.ai_suggestion) { // NEW: Display AI Suggestion
+            prettyResponse += '<strong>AI Suggestion:</strong><br>';
+            prettyResponse += '<div style="background-color: #f0f0f0; border: 1px solid #ccc; padding: 10px; margin-top: 5px; white-space: pre-wrap;">' + escapeHtml(data.ai_suggestion) + '</div>';
+            // Optional: Add a button to use this suggestion
+            prettyResponse += '<button type="button" onclick="useAISuggestion(this.previousElementSibling.innerText)">Use this Suggestion</button>';
         }
         resultDiv.innerHTML = prettyResponse;
 
@@ -91,6 +100,16 @@ async function submitForAIAnalysis() {
     } catch (error) {
         console.error('Error submitting for AI analysis:', error);
         resultDiv.innerHTML = '<em style="color:red;">Error: ' + error.message + '</em>';
+    }
+}
+
+function useAISuggestion(suggestionText) {
+    var answerTextarea = document.getElementById('answer_text'); // ID of your main answer textarea
+    if (answerTextarea) {
+        answerTextarea.value = suggestionText;
+        // Optionally, hide the AI document selection section again
+        // var section = document.getElementById('aiDocumentSelection');
+        // if (section) section.style.display = 'none';
     }
 }
 

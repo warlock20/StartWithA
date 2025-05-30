@@ -18,15 +18,15 @@
 </head>
 <body>
     <nav>
-    <a href="{{ url_for('main.list_checklists') }}">All Checklists</a> |
+    <a href="{{ url_for('checklists.list_checklists') }}">All Checklists</a> |
     {% if current_user.is_authenticated %}
-        <a href="{{ url_for('main.new_checklist') }}">New Checklist</a> |
+        <a href="{{ url_for('checklists.new_checklist') }}">New Checklist</a> |
         <a href="{{ url_for('main.list_companies') }}">Companies</a> |
         <a href="{{ url_for('main.list_research_sessions') }}">My Research</a> |
-        <a href="{{ url_for('main.logout') }}">Logout ({{ current_user.username }})</a>
+        <a href="{{ url_for('auth.logout') }}">Logout ({{ current_user.username }})</a>
     {% else %}
-        <a href="{{ url_for('main.register') }}">Register</a> |
-        <a href="{{ url_for('main.login') }}">Login</a>
+        <a href="{{ url_for('auth.register') }}">Register</a> |
+        <a href="{{ url_for('auth.login') }}">Login</a>
     {% endif %}
     </nav>
     <hr>

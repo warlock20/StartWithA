@@ -2,7 +2,7 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <form method="POST" action="{{ url_for('main.register') }}">
+    <form method="POST" action="{{ url_for('auth.register') }}">
         <div>
             <label for="username">Username:</label><br>
             <input type="text" id="username" name="username" value="{{ request.form.username if request.form else '' }}" required size="30">
@@ -26,5 +26,5 @@
         <button type="submit">Register</button>
     </form>
     <br>
-    <p>Already have an account? <a href="{{ url_for('main.login') }}">Log in here</a>.</p> {# Link to login page #}
+    <p>Already have an account? <a href="{{ url_for('auth.login') }}">Log in here</a>.</p> {# Link to login page #}
 {% endblock %}

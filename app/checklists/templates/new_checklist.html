@@ -3,7 +3,7 @@
 {% block content %}
     <h1>Create New Checklist</h1>
     {# If re-rendering after POST error, use provided values, else use defaults from route for GET #}
-    <form method="POST" action="{{ url_for('main.new_checklist') }}">
+    <form method="POST" action="{{ url_for('checklists.new_checklist') }}">
         <div>
             <label for="name">Checklist Name:</label><br>
             <input type="text" id="name" name="name" value="{{ name if name else '' }}" required size="50">

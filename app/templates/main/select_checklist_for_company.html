@@ -25,7 +25,7 @@
             <button type="submit">Start New Research Session</button>
         {% else %}
             <p>No checklists available to start a <em>new</em> research session for this company (all your checklists either have an active or completed session with this company, or you have no checklists).</p>
-            <p>See existing research sessions below, or <a href="{{ url_for('main.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company.id)) }}">create a new checklist</a>.</p>
+            <p>See existing research sessions below, or <a href="{{ url_for('checklists.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company.id)) }}">create a new checklist</a>.</p>
         {% endif %}
     </form>
 

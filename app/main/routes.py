@@ -11,271 +11,17 @@ from werkzeug.utils import secure_filename
 from datetime import datetime 
 import fitz
 
-@bp.route('/register', methods=['GET', 'POST'])
-def register():
-    # If we implement Flask-Login fully, we might want to redirect if user is already logged in
-    # if current_user.is_authenticated:
-    #     return redirect(url_for('main.list_checklists')) # Or a dashboard page
+# For LLM-related functionality, ensure you have the transformers library installed
+from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
 
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        password_confirm = request.form.get('password_confirm')
+# Global variable for the LLM pipeline (loaded once)
+llm_pipeline = None
+LLM_MODEL_NAME = "google/flan-t5-small"
 
-        # Basic Validation
-        if not username or not email or not password or not password_confirm:
-            flash('All fields are required.', 'error')
-            return render_template('main/register.html', title="Register")
-
-        if password != password_confirm:
-            flash('Passwords do not match.', 'error')
-            return render_template('main/register.html', title="Register", username=username, email=email)
-
-        # Check if username or email already exists
-        existing_user_by_username = User.query.filter_by(username=username).first()
-        if existing_user_by_username:
-            flash('That username is already taken. Please choose a different one.', 'error')
-            return render_template('main/register.html', title="Register", email=email) # Keep email if username fails
-
-        existing_user_by_email = User.query.filter_by(email=email).first()
-        if existing_user_by_email:
-            flash('That email address is already registered. Please use a different one or login.', 'error')
-            return render_template('main/register.html', title="Register", username=username) # Keep username if email fails
-        
-        # If all checks pass, create new user
-        new_user = User(username=username, email=email)
-        new_user.set_password(password) # Hash the password
-        
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('main.login')) # Redirect to login page (we'll create this next)
-        except Exception as e:
-            db.session.rollback()
-            flash(f'An error occurred during registration: {str(e)}', 'error')
-            return render_template('main/register.html', title="Register", username=username, email=email)
-
-    # For GET request, just display the form
-    return render_template('main/register.html', title="Register")
-
-@bp.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated: # If user is already logged in, redirect them
-        flash('You are already logged in.', 'info')
-        return redirect(url_for('main.list_research_sessions')) # Or a dashboard page
-
-    if request.method == 'POST':
-        identifier = request.form.get('identifier') # Can be username or email
-        password = request.form.get('password')
-        remember = True if request.form.get('remember') else False # Check for "remember me"
-
-        if not identifier or not password:
-            flash('Both username/email and password are required.', 'error')
-            return render_template('main/login.html', title="Login")
-
-        # Try to find user by username or email
-        user_by_username = User.query.filter_by(username=identifier).first()
-        user_by_email = User.query.filter_by(email=identifier).first()
-
-        user = user_by_username or user_by_email
-
-        if user and user.check_password(password):
-            login_user(user, remember=remember) # Log in the user with Flask-Login
-            flash('Login successful!', 'success')
-
-            # Redirect to the page the user was trying to access, or a default page
-            next_page = request.args.get('next')
-            if next_page:
-                return redirect(next_page)
-            else:
-                # Redirect to a sensible default page after login
-                return redirect(url_for('main.list_research_sessions')) 
-        else:
-            flash('Invalid username/email or password. Please try again.', 'error')
-            return render_template('main/login.html', title="Login", identifier=identifier)
-
-    # For GET request
-    return render_template('main/login.html', title="Login")
-
-@bp.route('/logout')
+@bp.route('/') # Assuming 'bp' is your main blueprint instance
 @login_required
-def logout():
-    logout_user() # Flask-Login function to clear the user session
-    flash('You have been logged out.', 'success')
-    return redirect(url_for('main.login')) # Redirect to login page after logout
-
-@bp.route('/')
-@bp.route('/checklists', methods=['GET'])
-@login_required 
-def list_checklists():
-    # Show checklists for the currently logged-in user
-    checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
-    return render_template('main/list_checklists.html', checklists=checklists, title=f"{current_user.username}'s Checklists")
-
-@bp.route('/checklists/new', methods=['GET', 'POST'])
-@login_required
-def new_checklist():
-    if request.method == 'POST':
-        name = request.form.get('name')
-        description = request.form.get('description')
-
-        if not name:
-            flash('Checklist name is required!', 'error')
-            # For GET request after error, redirect to GET to clear form method
-            return redirect(url_for('main.new_checklist')) 
-
-        new_checklist_obj = Checklist(name=name, description=description, author=current_user)
-        db.session.add(new_checklist_obj)
-        # It's often better to commit the parent object (checklist) first, 
-        # or commit everything at the end. Let's commit at the end for this block.
-
-        # Get initial item texts AND their corresponding LLM prompts
-        item_texts = request.form.getlist('item_text[]')
-        llm_prompts_for_items = request.form.getlist('item_llm_prompt[]') # New list of LLM prompts
-
-        for i, text in enumerate(item_texts):
-            if text.strip(): # Only add non-empty items
-                # Get the corresponding LLM prompt, if available
-                llm_prompt_text = None
-                if i < len(llm_prompts_for_items) and llm_prompts_for_items[i].strip():
-                    llm_prompt_text = llm_prompts_for_items[i].strip()
-
-                item = ChecklistItem(
-                    text=text, 
-                    checklist=new_checklist_obj, 
-                    order=i,
-                    llm_prompt=llm_prompt_text # Save LLM prompt for initial item
-                )
-                db.session.add(item)
-
-        try:
-            db.session.commit() # Commit checklist and all its initial items
-            flash('Checklist created successfully!', 'success')
-            return redirect(url_for('main.view_checklist', checklist_id=new_checklist_obj.id))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error creating checklist: {str(e)}', 'error')
-            # Re-render form with submitted values to allow correction
-            return render_template('main/new_checklist.html', title="New Checklist", 
-                                   name=name, description=description, 
-                                   item_texts=item_texts, llm_prompts_for_items=llm_prompts_for_items)
-
-
-    # For GET request or if POST had errors and re-renders with values
-    # Get potential pre-filled values if re-rendering after a POST error
-    name_val = request.form.get('name', '') if request.method == 'POST' else ''
-    description_val = request.form.get('description', '') if request.method == 'POST' else ''
-    item_texts_val = request.form.getlist('item_text[]') if request.method == 'POST' else ['','',''] # Default 3 empty for GET
-    llm_prompts_val = request.form.getlist('item_llm_prompt[]') if request.method == 'POST' else ['','','']
-
-
-    return render_template('main/new_checklist.html', title="New Checklist",
-                           name=name_val, description=description_val,
-                           # Pass lists for template to iterate if re-populating
-                           # For simplicity on GET, you might just want a fixed number of empty item fields
-                           # or pass the count of fields to generate.
-                           # The template modification below assumes a fixed number of initial item slots.
-                           # To truly re-populate dynamically, it's more complex.
-                           # For now, the GET will show empty fields.
-                           # The POST error re-render above *will* try to use submitted values.
-                           item_texts=item_texts_val, # For re-population on POST error
-                           llm_prompts_for_items=llm_prompts_val # For re-population on POST error
-                           )
-
-@bp.route('/checklist_item/<int:item_id>/delete', methods=['POST'])
-@login_required
-def delete_checklist_item(item_id):
-    item_to_delete = ChecklistItem.query.get_or_404(item_id)
-
-    # Authorization: Ensure the item belongs to a checklist owned by the current user
-    checklist = item_to_delete.checklist # Access the parent checklist
-    if checklist.user_id != current_user.id: # Or checklist.author != current_user
-        flash('You are not authorized to delete items from this checklist.', 'error')
-        # Redirect to a safe page, perhaps the main checklists list or an error page
-        return redirect(url_for('main.list_checklists'))
-
-    # Store checklist_id for redirection before deleting the item
-    parent_checklist_id = item_to_delete.checklist_id
-
-    try:
-        # SQLAlchemy will handle deleting child/sub-items due to 
-        # cascade="all, delete-orphan" on the ChecklistItem.children relationship.
-        db.session.delete(item_to_delete)
-        db.session.commit()
-        flash('Checklist item and its sub-items deleted successfully.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting checklist item: {str(e)}', 'error')
-
-    return redirect(url_for('main.view_checklist', checklist_id=parent_checklist_id))
-    
-@bp.route('/checklists/<int:checklist_id>', methods=['GET'])
-@login_required
-def view_checklist(checklist_id):
-    checklist = Checklist.query.get_or_404(checklist_id)
-    if checklist.author != current_user: # Authorization check
-        flash('You are not authorized to view this checklist.', 'error')
-        return redirect(url_for('main.list_checklists'))
-    top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
-    user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-    
-    return render_template(
-        'main/view_checklist.html',
-        checklist=checklist,
-        items=top_level_items,
-        title=checklist.name,
-        ChecklistItem=ChecklistItem,
-        companies=user_companies 
-    )
-    
-@bp.route('/checklists/<int:checklist_id>/add_item', methods=['POST'])
-@login_required
-def add_checklist_item(checklist_id):
-    checklist = Checklist.query.get_or_404(checklist_id)
-    if checklist.author != current_user: # Authorization check
-        flash('You are not authorized to modify this checklist.', 'error')
-        return redirect(url_for('main.list_checklists')) 
-
-    # For simplicity, assume current user owns this or is default.
-    # Add proper authorization later.
-
-    item_text = request.form.get('item_text')
-    parent_id_str = request.form.get('parent_id') # For sub-items
-    llm_prompt_text = request.form.get('llm_prompt')
-    
-    parent_id = None
-    if parent_id_str and parent_id_str.isdigit():
-        parent_id = int(parent_id_str)
-        # Ensure parent_id belongs to this checklist
-        parent_item_check = ChecklistItem.query.filter_by(id=parent_id, checklist_id=checklist.id).first()
-        if not parent_item_check:
-            flash('Invalid parent item selected.', 'error')
-            return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
-
-    if item_text:
-        # Determine order for the new item
-        if parent_id:
-            current_max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(checklist_id=checklist_id, parent_id=parent_id).scalar()
-        else:
-            current_max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(checklist_id=checklist_id, parent_id=None).scalar()
-        
-        new_order = (current_max_order or -1) + 1
-
-        new_item = ChecklistItem(text=item_text, 
-                                 checklist_id=checklist.id, 
-                                 parent_id=parent_id, 
-                                 order=new_order,
-                                 llm_prompt=llm_prompt_text if llm_prompt_text and llm_prompt_text.strip() else None # Save LLM prompt
-                                 )
-        db.session.add(new_item)
-        db.session.commit()
-        flash('Item added successfully!', 'success')
-    else:
-        flash('Item text cannot be empty.', 'error')
-        
-    return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+def index():
+    return redirect(url_for('checklists.list_checklists'))
 
 @bp.route('/companies', methods=['GET'])
 @login_required
@@ -340,7 +86,7 @@ def select_checklist_for_company(company_id):
     if not user_checklists:
         flash("You don't have any checklists yet. Please create one first.", 'warning')
         # Pass 'next' to redirect back here after creating a checklist
-        return redirect(url_for('main.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company_id)))
+        return redirect(url_for('checklists.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company_id)))
 
     checklists_data = []
     for chk in user_checklists:
@@ -408,7 +154,7 @@ def start_research_session():
     if not checklist_id or not company_id:
         flash('Checklist and Company must be selected.', 'error')
         # Redirect to the page the user came from (request.referrer) or a default page.
-        return redirect(request.referrer or url_for('main.list_checklists'))
+        return redirect(request.referrer or url_for('checklists.list_checklists'))
 
     # 3. Uniqueness Check: Look for any existing research session matching the current user,
     #    the selected company, and the selected checklist, regardless of its status.
@@ -430,7 +176,7 @@ def start_research_session():
             if not all_items_in_order:
                 # Edge case: The checklist associated with the session has no items.
                 flash('The checklist for this session has no items!', 'warning')
-                return redirect(url_for('main.view_checklist', checklist_id=existing_session.checklist_id))
+                return redirect(url_for('checklists.view_checklist', checklist_id=existing_session.checklist_id))
 
             # Determine the specific item to redirect to (first unanswered item).
             redirect_to_item_id = all_items_in_order[0].id  # Default to the first item.
@@ -490,7 +236,7 @@ def start_research_session():
     except Exception as e:
         db.session.rollback() # Rollback in case of database error during commit
         flash(f'Error starting new research session: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('main.list_checklists'))
+        return redirect(request.referrer or url_for('checklists.list_checklists'))
 
 
     # 5d. Redirect the user to the first item of the newly created research session.
@@ -505,7 +251,7 @@ def start_research_session():
         # The session record has been created but will be un-actionable through the research_step.
         # Future improvement: Prevent session creation or delete the empty session.
         flash('This checklist has no items to research!', 'warning')
-        return redirect(url_for('main.view_checklist', checklist_id=checklist_id))
+        return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
     
 def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
     """
@@ -541,13 +287,13 @@ def research_step(session_id, item_id):
     # Basic security check: ensure the item belongs to the session's checklist
     if current_item.checklist_id != session.checklist_id:
         flash('Invalid item for this research session.', 'error')
-        return redirect(url_for('main.list_checklists')) # Or a more appropriate error page
+        return redirect(url_for('checklists.list_checklists')) # Or a more appropriate error page
 
     # Get the full ordered list of items for this session's checklist
     all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
     if not all_items_in_order:
         flash('Checklist has no items.', 'error')
-        return redirect(url_for('main.view_checklist', checklist_id=session.checklist_id))
+        return redirect(url_for('checklists.view_checklist', checklist_id=session.checklist_id))
 
     current_item_index = -1
     for index, item_obj in enumerate(all_items_in_order):
@@ -557,7 +303,7 @@ def research_step(session_id, item_id):
     
     if current_item_index == -1: # Should not happen if item_id is valid and from this checklist
         flash('Error finding current item in checklist order.', 'error')
-        return redirect(url_for('main.view_checklist', checklist_id=session.checklist_id))
+        return redirect(url_for('checklists.view_checklist', checklist_id=session.checklist_id))
 
     company_documents_for_llm = []
     if current_item.llm_prompt:
@@ -645,7 +391,11 @@ def ai_analyze_item(session_id, item_id):
         return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
     
     data = request.get_json()
-    llm_prompt = data.get('llm_actual_prompt', item.llm_prompt)
+    # Use the llm_prompt from the checklist item itself as the primary question
+    llm_question = item.llm_prompt 
+    if not llm_question: # Fallback if somehow llm_prompt on item is empty
+         llm_question = data.get('llm_actual_prompt', "Summarize the key points from the provided text.")
+
     selected_document_ids_str = data.get('selected_document_ids', [])
 
     # In a future step:
@@ -717,17 +467,76 @@ def ai_analyze_item(session_id, item_id):
      # This is where your error occurred (or a similar print statement).
     # These print statements are for debugging and should now work safely:
     print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
-    print(f"LLM Prompt: {llm_prompt}")
+    print(f"LLM Prompt: {llm_question}")
     print(f"Selected Document IDs (raw strings from JSON): {selected_document_ids_str}")
     print(f"Selected Document IDs (integers after conversion): {selected_document_ids}") # This line should now be safe
     
+    
+    ai_suggestion = "LLM analysis could not be performed." # Default message
+
+    # Ensure LLM pipeline is initialized (lazy loading on first request to this route)
+    if llm_pipeline is None:
+        initialize_llm_pipeline()
+
+    if llm_pipeline:
+        if not aggregated_text_content.strip() and selected_document_ids:
+            ai_suggestion = "No text content could be extracted from the selected document(s) to provide to the AI."
+        elif not selected_document_ids:
+             ai_suggestion = "No documents were selected to provide context to the AI for this question."
+             # For some questions, context might not be needed. This logic can be refined.
+             # For now, we assume context is useful if documents can be selected.
+        else:
+            # Prepare the input for the LLM
+            # For text2text-generation, the input is typically a single string.
+            # You might need to instruct the LLM on what to do.
+            # Example: "Answer the following question based on the provided text: {question}\n\nText:\n{context}"
+            # Or for summarization: "Summarize the following text:\n{context}"
+            # Or for FinGPT style: "{instruction}\nInput:\n{context}\nOutput:"
+
+            # Simple Question + Context for FLAN-T5
+            # Ensure the combined text doesn't exceed model's token limit.
+            # tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME) # Get tokenizer for max length
+            # max_input_length = tokenizer.model_max_length - 50 # Reserve some tokens for the question and output
+
+            # For now, a simple concatenation. Proper truncation/chunking is needed for long texts.
+            max_context_len_for_prompt = 3000 # Arbitrary limit for now, to prevent overly long prompts
+            truncated_context = aggregated_text_content[:max_context_len_for_prompt]
+            if len(aggregated_text_content) > max_context_len_for_prompt:
+                truncated_context += "\n... [content truncated] ..."
+
+            prompt_for_llm = f"Based on the following text, answer the question.\n\nText:\n{truncated_context}\n\nQuestion:\n{llm_question}"
+
+            print(f"INFO: Sending prompt to LLM (first 200 chars): {prompt_for_llm[:200]}...")
+
+            try:
+                # Adjust pipeline arguments based on the model and task.
+                # For FLAN-T5 (text2text-generation):
+                # result = llm_pipeline(prompt_for_llm, max_length=150, min_length=10, num_beams=4, early_stopping=True)
+                # For some pipelines, max_length is the length of the generated output.
+                # For others, it might be total input+output. Consult model card.
+                # `max_new_tokens` is often preferred for controlling output length.
+                result = llm_pipeline(prompt_for_llm, max_new_tokens=200) # Generate up to 200 new tokens
+
+                if result and isinstance(result, list) and result[0].get('generated_text'):
+                    ai_suggestion = result[0]['generated_text']
+                    print(f"INFO: LLM suggestion: {ai_suggestion}")
+                else:
+                    ai_suggestion = "LLM returned an unexpected response format."
+                    print(f"WARNING: LLM unexpected result: {result}")
+            except Exception as e:
+                ai_suggestion = f"Error during LLM inference: {str(e)}"
+                print(f"ERROR: LLM inference error: {e}")
+    else:
+        ai_suggestion = "LLM could not be initialized. Please check server logs."
+
     # For this phase, return a placeholder response
     return jsonify({
-        'status': 'success_content_extracted_placeholder',
-        'message': 'Document content extraction attempted. LLM processing is the next step.',
-        'received_prompt': llm_prompt,
-        'selected_documents_info': validated_documents_info, # Should be a list of dicts
-        'extracted_text_sample': extracted_text_sample    # Should be a string
+        'status': 'success_ai_processed' if llm_pipeline else 'error_llm_not_loaded',
+        'message': 'AI analysis performed.' if llm_pipeline else ai_suggestion,
+        'received_prompt': llm_question, # Use the actual question posed to LLM
+        'selected_documents_info': validated_documents_info,
+        'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""), # Still useful for user to see
+        'ai_suggestion': ai_suggestion # The actual suggestion from the LLM
     })
     
 # We also need a route for the session summary. Let's add a placeholder for now.
@@ -931,3 +740,20 @@ def serve_company_document(filepath):
     # So, the actual path is base_upload_folder/filepath
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False) # as_attachment=True for download
                                                                                                 # as_attachment=False to display in browser if possible (PDFs)   
+                                                                                                
+def initialize_llm_pipeline():
+    """Initializes the LLM pipeline if it hasn't been already."""
+    global llm_pipeline
+    if llm_pipeline is None:
+        try:
+            print(f"INFO: Initializing LLM model: {LLM_MODEL_NAME}...")
+            # For tasks like question answering based on context, or summarization,
+            # 'text2text-generation' (for models like T5/BART) or 'question-answering'
+            # or 'summarization' pipelines are suitable.
+            # FinGPT or finance-bench models might use 'text-generation' or a specific fine-tuned task.
+            # Let's start with a general text2text-generation pipeline.
+            llm_pipeline = pipeline("text2text-generation", model=LLM_MODEL_NAME, tokenizer=LLM_MODEL_NAME)
+            print(f"INFO: LLM pipeline ({LLM_MODEL_NAME}) initialized successfully.")
+        except Exception as e:
+            print(f"ERROR: Failed to initialize LLM pipeline - {LLM_MODEL_NAME}: {e}")
+            # llm_pipeline will remain None, so the route can handle this case                                                                                                
