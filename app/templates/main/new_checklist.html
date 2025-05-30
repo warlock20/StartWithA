@@ -2,23 +2,37 @@
 
 {% block content %}
     <h1>Create New Checklist</h1>
+    {# If re-rendering after POST error, use provided values, else use defaults from route for GET #}
     <form method="POST" action="{{ url_for('main.new_checklist') }}">
         <div>
             <label for="name">Checklist Name:</label><br>
-            <input type="text" id="name" name="name" required size="50">
+            <input type="text" id="name" name="name" value="{{ name if name else '' }}" required size="50">
         </div>
         <br>
         <div>
             <label for="description">Description (Optional):</label><br>
-            <textarea id="description" name="description" rows="3" cols="50"></textarea>
+            <textarea id="description" name="description" rows="3" cols="50">{{ description if description else '' }}</textarea>
         </div>
         <br>
         <h3>Initial Items:</h3>
-        <div id="initial-items">
-            <div><input type="text" name="item_text[]" placeholder="Item 1 text" size="70"></div>
-            <div><input type="text" name="item_text[]" placeholder="Item 2 text (optional)" size="70"></div>
-            <div><input type="text" name="item_text[]" placeholder="Item 3 text (optional)" size="70"></div>
+        {# This provides 3 slots for initial items. For dynamic re-population from POST errors,
+           the route passes item_texts and llm_prompts_for_items. We'll use a loop if they exist,
+           otherwise default to 3 empty slots for a GET request.
+        #}
+        {% set num_initial_slots = 3 %}
+        {% for i in range(num_initial_slots) %}
+            <div style="border: 1px solid #eee; padding: 10px; margin-bottom: 10px;">
+                <label for="item_text_{{i}}">Item {{ i+1 }} Text:</label><br>
+                <input type="text" id="item_text_{{i}}" name="item_text[]" 
+                       value="{{ item_texts[i] if item_texts and i < item_texts|length else '' }}" 
+                       placeholder="Item {{ i+1 }} text" size="70">
+                <br>
+                <label for="item_llm_prompt_{{i}}" style="margin-top:5px; display:inline-block;">Optional LLM Prompt for Item {{ i+1 }}:</label><br>
+                <textarea id="item_llm_prompt_{{i}}" name="item_llm_prompt[]" rows="2" cols="70" 
+                          placeholder="E.g., What are the key revenue drivers?">{{ llm_prompts_for_items[i] if llm_prompts_for_items and i < llm_prompts_for_items|length else '' }}</textarea>
             </div>
+        {% endfor %}
+        {# You could add a button here with JavaScript to add more item fields dynamically #}
         <br>
         <button type="submit">Create Checklist</button>
     </form>

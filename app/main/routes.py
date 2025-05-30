@@ -1,5 +1,5 @@
-from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
-from flask_login import current_user, login_required
+from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, send_from_directory
+from flask_login import login_user, current_user, logout_user, login_required 
 from app import db
 from app.models import User, Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument # <--- Ensure CompanyDocument is here
 from app.main import bp # Assuming your blueprint is 'bp'
@@ -120,27 +120,97 @@ def new_checklist():
     if request.method == 'POST':
         name = request.form.get('name')
         description = request.form.get('description')
-        
-        if not name:
-            flash('Checklist name is required!', 'error') # Using flash for feedback
-            return redirect(url_for('main.new_checklist'))
 
-        new_checklist_obj = Checklist(name=name, description=description, author=current_user) 
+        if not name:
+            flash('Checklist name is required!', 'error')
+            # For GET request after error, redirect to GET to clear form method
+            return redirect(url_for('main.new_checklist')) 
+
+        new_checklist_obj = Checklist(name=name, description=description, author=current_user)
         db.session.add(new_checklist_obj)
-        
-        # Add initial items (simple example, could be more dynamic with JS on frontend)
-        item_texts = request.form.getlist('item_text[]') # Allows multiple items
+        # It's often better to commit the parent object (checklist) first, 
+        # or commit everything at the end. Let's commit at the end for this block.
+
+        # Get initial item texts AND their corresponding LLM prompts
+        item_texts = request.form.getlist('item_text[]')
+        llm_prompts_for_items = request.form.getlist('item_llm_prompt[]') # New list of LLM prompts
+
         for i, text in enumerate(item_texts):
             if text.strip(): # Only add non-empty items
-                item = ChecklistItem(text=text, checklist=new_checklist_obj, order=i)
+                # Get the corresponding LLM prompt, if available
+                llm_prompt_text = None
+                if i < len(llm_prompts_for_items) and llm_prompts_for_items[i].strip():
+                    llm_prompt_text = llm_prompts_for_items[i].strip()
+
+                item = ChecklistItem(
+                    text=text, 
+                    checklist=new_checklist_obj, 
+                    order=i,
+                    llm_prompt=llm_prompt_text # Save LLM prompt for initial item
+                )
                 db.session.add(item)
-        
+
+        try:
+            db.session.commit() # Commit checklist and all its initial items
+            flash('Checklist created successfully!', 'success')
+            return redirect(url_for('main.view_checklist', checklist_id=new_checklist_obj.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating checklist: {str(e)}', 'error')
+            # Re-render form with submitted values to allow correction
+            return render_template('main/new_checklist.html', title="New Checklist", 
+                                   name=name, description=description, 
+                                   item_texts=item_texts, llm_prompts_for_items=llm_prompts_for_items)
+
+
+    # For GET request or if POST had errors and re-renders with values
+    # Get potential pre-filled values if re-rendering after a POST error
+    name_val = request.form.get('name', '') if request.method == 'POST' else ''
+    description_val = request.form.get('description', '') if request.method == 'POST' else ''
+    item_texts_val = request.form.getlist('item_text[]') if request.method == 'POST' else ['','',''] # Default 3 empty for GET
+    llm_prompts_val = request.form.getlist('item_llm_prompt[]') if request.method == 'POST' else ['','','']
+
+
+    return render_template('main/new_checklist.html', title="New Checklist",
+                           name=name_val, description=description_val,
+                           # Pass lists for template to iterate if re-populating
+                           # For simplicity on GET, you might just want a fixed number of empty item fields
+                           # or pass the count of fields to generate.
+                           # The template modification below assumes a fixed number of initial item slots.
+                           # To truly re-populate dynamically, it's more complex.
+                           # For now, the GET will show empty fields.
+                           # The POST error re-render above *will* try to use submitted values.
+                           item_texts=item_texts_val, # For re-population on POST error
+                           llm_prompts_for_items=llm_prompts_val # For re-population on POST error
+                           )
+
+@bp.route('/checklist_item/<int:item_id>/delete', methods=['POST'])
+@login_required
+def delete_checklist_item(item_id):
+    item_to_delete = ChecklistItem.query.get_or_404(item_id)
+
+    # Authorization: Ensure the item belongs to a checklist owned by the current user
+    checklist = item_to_delete.checklist # Access the parent checklist
+    if checklist.user_id != current_user.id: # Or checklist.author != current_user
+        flash('You are not authorized to delete items from this checklist.', 'error')
+        # Redirect to a safe page, perhaps the main checklists list or an error page
+        return redirect(url_for('main.list_checklists'))
+
+    # Store checklist_id for redirection before deleting the item
+    parent_checklist_id = item_to_delete.checklist_id
+
+    try:
+        # SQLAlchemy will handle deleting child/sub-items due to 
+        # cascade="all, delete-orphan" on the ChecklistItem.children relationship.
+        db.session.delete(item_to_delete)
         db.session.commit()
-        flash('Checklist created successfully!', 'success')
-        return redirect(url_for('main.view_checklist', checklist_id=new_checklist_obj.id))
+        flash('Checklist item and its sub-items deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting checklist item: {str(e)}', 'error')
 
-    return render_template('main/new_checklist.html', title="New Checklist")
-
+    return redirect(url_for('main.view_checklist', checklist_id=parent_checklist_id))
+    
 @bp.route('/checklists/<int:checklist_id>', methods=['GET'])
 @login_required
 def view_checklist(checklist_id):
@@ -173,6 +243,7 @@ def add_checklist_item(checklist_id):
 
     item_text = request.form.get('item_text')
     parent_id_str = request.form.get('parent_id') # For sub-items
+    llm_prompt_text = request.form.get('llm_prompt')
     
     parent_id = None
     if parent_id_str and parent_id_str.isdigit():
@@ -192,7 +263,12 @@ def add_checklist_item(checklist_id):
         
         new_order = (current_max_order or -1) + 1
 
-        new_item = ChecklistItem(text=item_text, checklist_id=checklist.id, parent_id=parent_id, order=new_order)
+        new_item = ChecklistItem(text=item_text, 
+                                 checklist_id=checklist.id, 
+                                 parent_id=parent_id, 
+                                 order=new_order,
+                                 llm_prompt=llm_prompt_text if llm_prompt_text and llm_prompt_text.strip() else None # Save LLM prompt
+                                 )
         db.session.add(new_item)
         db.session.commit()
         flash('Item added successfully!', 'success')
@@ -483,6 +559,13 @@ def research_step(session_id, item_id):
         flash('Error finding current item in checklist order.', 'error')
         return redirect(url_for('main.view_checklist', checklist_id=session.checklist_id))
 
+    company_documents_for_llm = []
+    if current_item.llm_prompt:
+        company_docs_query = CompanyDocument.query.filter_by(company_id=session.company_id)\
+                                                .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
+                                                .all()
+        company_documents_for_llm = company_docs_query
+        
     # Fetch existing answer for this item in this session
     research_answer = ResearchAnswer.query.filter_by(
         research_session_id=session.id,
@@ -523,6 +606,7 @@ def research_step(session_id, item_id):
     previous_item_id = None
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
+           
     ##or
     #TODO: Handle the case where the session is not calculated correctly for the last question
     # total_items_count = len(all_items_in_order)
@@ -541,9 +625,49 @@ def research_step(session_id, item_id):
         current_item_number=current_item_index + 1,
         total_items=len(all_items_in_order),
         progress_percent=progress_percent,
-        previous_item_id=previous_item_id 
+        previous_item_id=previous_item_id,
+        company_documents=company_documents_for_llm 
     )
+    
+@bp.route('/research_session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
+@login_required
+def ai_analyze_item(session_id, item_id):
+    # Ensure user owns the session, and item belongs to session's checklist
+    session = ResearchSession.query.get_or_404(session_id)
+    if session.researcher != current_user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
 
+    item = ChecklistItem.query.get_or_404(item_id)
+    if item.checklist_id != session.checklist_id:
+        return jsonify({'status': 'error', 'message': 'Invalid item for session'}), 400
+
+    # Get data from the AJAX request (assuming JSON payload later)
+    # For now, let's assume form data if we were to use a standard POST from the aiAnalysisForm
+    data = request.json if request.is_json else request.form
+    llm_prompt = data.get('llm_actual_prompt', item.llm_prompt) # Use submitted prompt or default from item
+    selected_document_ids = data.getlist('selected_document_ids') if request.form else data.get('selected_document_ids', [])
+
+
+    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
+    print(f"LLM Prompt: {llm_prompt}")
+    print(f"Selected Document IDs: {selected_document_ids}")
+
+    # In a future step:
+    # 1. Fetch CompanyDocument objects from selected_document_ids.
+    # 2. Ensure these documents belong to session.company_id and user has access.
+    # 3. Parse content from these documents (e.g., PDF text extraction).
+    # 4. Construct a detailed prompt for the LLM using llm_prompt and document content.
+    # 5. Call the LLM (local or API).
+    # 6. Process the LLM response.
+    # 7. Return the suggestion.
+
+    # For this phase, return a placeholder response
+    return jsonify({
+        'status': 'received_placeholder',
+        'message': 'AI analysis request received. LLM processing is not yet implemented.',
+        'received_prompt': llm_prompt,
+        'received_doc_ids': selected_document_ids
+    })
 # We also need a route for the session summary. Let's add a placeholder for now.
 @bp.route('/research_session/<int:session_id>/summary', methods=['GET'])
 @login_required

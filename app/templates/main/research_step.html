@@ -1,45 +1,99 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
-    <p>
-        Researching: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
-        Using Checklist: <strong>{{ session.checklist.name }}</strong>
-    </p>
-    
-    {# Progress Bar - Basic Styling #}
-    <div style="width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-bottom:15px;">
-      <div style="width: {{ progress_percent }}%; background-color: #4CAF50; color: white; text-align: center; line-height: 20px; border-radius: 5px; height: 20px;">
+<h1>{{ title }}</h1>
+<p>
+    Researching: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
+    Using Checklist: <strong>{{ session.checklist.name }}</strong>
+</p>
+
+{# Progress Bar - Basic Styling #}
+<div style="width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-bottom:15px;">
+    <div
+        style="width: {{ progress_percent }}%; background-color: #4CAF50; color: white; text-align: center; line-height: 20px; border-radius: 5px; height: 20px;">
         {{ "%.0f"|format(progress_percent) }}%
-      </div>
     </div>
+</div>
 
-    <hr>
+<hr>
 
-    <h3>Item {{ current_item_number }} of {{ total_items }}:</h3>
-    <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
-        <p style="font-size: 1.2em; font-weight: bold;">{{ current_item.text }}</p>
-        {# Display parent item context if this is a sub-item #}
-        {% if current_item.parent %}
-            <p style="font-size: 0.9em; color: #555;">
-                (Sub-item of: {{ current_item.parent.text }})
-            </p>
-        {% endif %}
-    </div>
-
-    <form method="POST" action="{{ url_for('main.research_step', session_id=session.id, item_id=current_item.id) }}">
-        <div>
-            <label for="answer_text">Your Answer/Notes:</label><br>
-            <textarea id="answer_text" name="answer_text" rows="8" cols="80" style="width: 100%;">{{ answer.answer_text if answer else '' }}</textarea>
-        </div>
-          <br>
-        {% if previous_item_id %}
-            <a href="{{ url_for('main.research_step', session_id=session.id, item_id=previous_item_id) }}" class="button">Previous Item</a>
-        {% endif %}
-        <button type="submit">Save and Next</button>
-    </form>
-    <br>
-    <p>
-        <a href="{{ url_for('main.view_checklist', checklist_id=session.checklist_id) }}">Back to Checklist View (progress will be saved)</a>
+<h3>Item {{ current_item_number }} of {{ total_items }}:</h3>
+<div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
+    <p style="font-size: 1.2em; font-weight: bold;">{{ current_item.text }}</p>
+    {# Display parent item context if this is a sub-item #}
+    {% if current_item.parent %}
+    <p style="font-size: 0.9em; color: #555;">
+        (Sub-item of: {{ current_item.parent.text }})
     </p>
+    {% endif %}
+    {% if current_item.llm_prompt %}
+    <div style="margin-top:15px; padding:10px; background-color:#eef7ff; border-left: 3px solid #007bff;">
+        <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
+        <button type="button" id="analyzeWithAIButton">Analyze with AI using Company Documents</button>
+    </div>
+
+    {# Hidden section for AI document selection #}
+    <div id="aiDocumentSelection" style="display:none; margin-top:15px; padding:15px; border:1px solid #007bff;">
+        <h4>Select Documents for AI Analysis:</h4>
+        <form id="aiAnalysisForm" data-analysis-url="{{ url_for('main.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}"> 
+            <input type="hidden" name="llm_actual_prompt" value="{{ current_item.llm_prompt }}">
+            {# Add session_id and item_id if submitting via separate AJAX/form to the new AI route #}
+            <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
+            <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
+
+            {% if company_documents %}
+            {% set current_group = namespace(name=None) %}
+            {% for doc in company_documents %}
+            {% if doc.document_group != current_group.name %}
+            {% if not loop.first %}</ul>{% endif %}
+            <h5>{{ doc.document_group }}</h5>
+            <ul style="list-style-type: none; padding-left: 10px;">
+                {% set current_group.name = doc.document_group %}
+                {% endif %}
+                <li>
+                    <input type="checkbox" name="selected_document_ids" value="{{ doc.id }}" id="doc_{{ doc.id }}">
+                    <label for="doc_{{ doc.id }}">
+                        {{ doc.document_title if doc.document_title else doc.original_filename }}
+                        {% if doc.document_date %} ({{ doc.document_date.strftime('%Y-%m-%d') }}){% endif %}
+                    </label>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No company documents found to select for AI analysis. Please <a
+                    href="{{ url_for('main.manage_company_documents', company_id=session.company_id) }}">upload
+                    documents for {{session.company.name}}</a> first.</p>
+            {% endif %}
+
+            {% if company_documents %}
+            <br>
+            <button type="button" id="submitAIAnalysisPlaceholderButton">Submit for AI Analysis (Placeholder)</button>
+            {% endif %}
+        </form>
+        <div id="aiAnalysisResult" style="margin-top:10px;"></div>
+    </div>
+    {% endif %}
+</div>
+
+<form method="POST" action="{{ url_for('main.research_step', session_id=session.id, item_id=current_item.id) }}">
+    <div>
+        <label for="answer_text">Your Answer/Notes:</label><br>
+        <textarea id="answer_text" name="answer_text" rows="8" cols="80"
+            style="width: 100%;">{{ answer.answer_text if answer else '' }}</textarea>
+    </div>
+    <br>
+    {% if previous_item_id %}
+    <a href="{{ url_for('main.research_step', session_id=session.id, item_id=previous_item_id) }}"
+        class="button">Previous Item</a>
+    {% endif %}
+    <button type="submit">Save and Next</button>
+</form>
+<br>
+<p>
+    <a href="{{ url_for('main.view_checklist', checklist_id=session.checklist_id) }}">Back to Checklist View (progress
+        will be saved)</a>
+</p>
+
+<script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
 {% endblock %}
+
