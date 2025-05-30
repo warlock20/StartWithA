@@ -9,7 +9,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime 
-
+import fitz
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -641,16 +641,12 @@ def ai_analyze_item(session_id, item_id):
     if item.checklist_id != session.checklist_id:
         return jsonify({'status': 'error', 'message': 'Invalid item for session'}), 400
 
-    # Get data from the AJAX request (assuming JSON payload later)
-    # For now, let's assume form data if we were to use a standard POST from the aiAnalysisForm
-    data = request.json if request.is_json else request.form
-    llm_prompt = data.get('llm_actual_prompt', item.llm_prompt) # Use submitted prompt or default from item
-    selected_document_ids = data.getlist('selected_document_ids') if request.form else data.get('selected_document_ids', [])
-
-
-    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
-    print(f"LLM Prompt: {llm_prompt}")
-    print(f"Selected Document IDs: {selected_document_ids}")
+    if not request.is_json:
+        return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
+    
+    data = request.get_json()
+    llm_prompt = data.get('llm_actual_prompt', item.llm_prompt)
+    selected_document_ids_str = data.get('selected_document_ids', [])
 
     # In a future step:
     # 1. Fetch CompanyDocument objects from selected_document_ids.
@@ -660,14 +656,80 @@ def ai_analyze_item(session_id, item_id):
     # 5. Call the LLM (local or API).
     # 6. Process the LLM response.
     # 7. Return the suggestion.
+    
+    selected_document_ids = []
+    for doc_id_str in selected_document_ids_str:
+        try:
+            selected_document_ids.append(int(doc_id_str))
+        except ValueError:
+            return jsonify({'status': 'error', 'message': f'Invalid document ID format: {doc_id_str}.'}), 400
 
+    validated_documents_info = []
+    aggregated_text_content = "" # To store text from all selected documents
+
+    if selected_document_ids:
+        company_documents = CompanyDocument.query.filter(
+            CompanyDocument.id.in_(selected_document_ids),
+            CompanyDocument.company_id == session.company_id
+        ).all()
+
+        if len(company_documents) != len(set(selected_document_ids)): # Use set for unique IDs check
+            return jsonify({'status': 'error', 'message': 'Some selected documents are invalid, not found for this company, or duplicates were sent.'}), 400
+            
+        for doc in company_documents:
+            validated_documents_info.append({
+                'id': doc.id, 'title': doc.document_title, 'filename': doc.original_filename
+            })
+            
+            # --- NEW: Document Content Extraction ---
+            try:
+                # Construct the full path to the stored file
+                # doc.stored_filename is like '<company_id>/<uuid_filename_ext>'
+                full_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.stored_filename)
+                
+                if not os.path.exists(full_file_path):
+                    aggregated_text_content += f"\n\n--- ERROR: File not found for document: {doc.original_filename} ---"
+                    print(f"File not found at path: {full_file_path}") # Server log
+                    continue # Skip to next document
+
+                if doc.original_filename.lower().endswith('.pdf'):
+                    with fitz.open(full_file_path) as pdf_doc:
+                        for page_num in range(len(pdf_doc)):
+                            page = pdf_doc.load_page(page_num)
+                            aggregated_text_content += page.get_text("text") + "\n"
+                elif doc.original_filename.lower().endswith('.txt'):
+                    with open(full_file_path, 'r', encoding='utf-8') as txt_file:
+                        aggregated_text_content += txt_file.read() + "\n"
+                else:
+                    aggregated_text_content += f"\n\n--- Unsupported file type for document: {doc.original_filename} ---"
+            except Exception as e:
+                aggregated_text_content += f"\n\n--- ERROR processing document {doc.original_filename}: {str(e)} ---"
+                print(f"Error processing file {full_file_path}: {e}") # Server log
+            # --- END NEW ---
+
+    # --- Placeholder for actual LLM interaction ---
+    # For now, we'll return a sample of the aggregated text.
+    text_sample_limit = 1000 # Show first 1000 characters as a sample
+    extracted_text_sample = aggregated_text_content[:text_sample_limit]
+    if len(aggregated_text_content) > text_sample_limit:
+        extracted_text_sample += "..."
+    # --- End Placeholder ---
+     # This is where your error occurred (or a similar print statement).
+    # These print statements are for debugging and should now work safely:
+    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
+    print(f"LLM Prompt: {llm_prompt}")
+    print(f"Selected Document IDs (raw strings from JSON): {selected_document_ids_str}")
+    print(f"Selected Document IDs (integers after conversion): {selected_document_ids}") # This line should now be safe
+    
     # For this phase, return a placeholder response
     return jsonify({
-        'status': 'received_placeholder',
-        'message': 'AI analysis request received. LLM processing is not yet implemented.',
+        'status': 'success_content_extracted_placeholder',
+        'message': 'Document content extraction attempted. LLM processing is the next step.',
         'received_prompt': llm_prompt,
-        'received_doc_ids': selected_document_ids
+        'selected_documents_info': validated_documents_info, # Should be a list of dicts
+        'extracted_text_sample': extracted_text_sample    # Should be a string
     })
+    
 # We also need a route for the session summary. Let's add a placeholder for now.
 @bp.route('/research_session/<int:session_id>/summary', methods=['GET'])
 @login_required
