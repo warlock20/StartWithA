@@ -2,7 +2,7 @@
 
 {% block content %}
     <h1>Add New Company</h1>
-    <form method="POST" action="{{ url_for('main.new_company') }}">
+    <form method="POST" action="{{ url_for('companies.new_company') }}">
         <div>
             <label for="name">Company Name:</label><br>
             <input type="text" id="name" name="name" required size="50">
@@ -15,5 +15,5 @@
         <br>
         <button type="submit">Add Company</button>
     </form>
-    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+    <p><a href="{{ url_for('companies.list_companies') }}">Back to Companies List</a></p>
 {% endblock %}

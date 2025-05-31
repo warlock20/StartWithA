@@ -2,7 +2,7 @@
 
 {% block content %}
     <h1>Companies</h1>
-    <p><a href="{{ url_for('main.new_company') }}">Add New Company</a></p>
+    <p><a href="{{ url_for('companies.new_company') }}">Add New Company</a></p>
     {% if companies %}
         <table border="1" style="width:100%; border-collapse: collapse;">
             <thead>
@@ -19,8 +19,8 @@
                     <td style="padding: 8px;">{{ company.ticker_symbol }}</td>
                     <td style="padding: 8px;">
                         {# New link to select checklist for this company #}
-                        <a href="{{ url_for('main.select_checklist_for_company', company_id=company.id) }}">Start Research</a>
-                        <a href="{{ url_for('main.manage_company_documents', company_id=company.id) }}">Manage Documents</a>
+                        <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}">Start Research</a>
+                        <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">Manage Documents</a>
                     </td>
                 </tr>
             {% endfor %}

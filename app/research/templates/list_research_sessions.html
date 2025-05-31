@@ -25,12 +25,12 @@
                 {% if data_item.session_obj.status == 'in_progress' %}
                 {% if data_item.resume_item_id %}
                 <a
-                    href="{{ url_for('main.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
+                    href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
                 {% else %}
                 <span>Cannot resume (checklist empty or error)</span>
                 {% endif %}
                 {% elif data_item.session_obj.status == 'completed' %}
-                <a href="{{ url_for('main.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
+                <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
                     Summary</a>
                 {% else %}
                 <span>{{ data_item.session_obj.status|capitalize }}</span>
@@ -41,12 +41,12 @@
             {% if data_item.session_obj.status == 'in_progress' %}
             {% if data_item.resume_item_id %}
             <a
-                href="{{ url_for('main.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
+                href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
             {% else %}
             <span>(Cannot resume)</span>
             {% endif %}
             {% elif data_item.session_obj.status == 'completed' %}
-            <a href="{{ url_for('main.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
+            <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
                 Summary</a>
             {% else %}
             <span>{{ data_item.session_obj.status|capitalize }}</span>
@@ -54,7 +54,7 @@
 
             {# Add Delete Form/Button here, alongside other actions #}
             <form method="POST"
-                action="{{ url_for('main.delete_research_session', session_id=data_item.session_obj.id) }}"
+                action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}"
                 style="display: inline; margin-left: 10px;">
                 {# It's good practice to include a CSRF token here if/when you add Flask-WTF or Flask-SeaSurf #}
                 {# For now, a simple submit button #}
@@ -67,6 +67,6 @@
 </table>
 {% else %}
 <p>You have no research sessions yet.</p>
-<p><a href="{{ url_for('main.list_checklists') }}">Start a new research by selecting a checklist.</a></p>
+<p><a href="{{ url_for('checklists.list_checklists') }}">Start a new research by selecting a checklist.</a></p>
 {% endif %}
 {% endblock %}

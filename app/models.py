@@ -51,10 +51,13 @@ class ChecklistItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(500), nullable=False)
     checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False) # Link to Checklist
-    
     parent_id = db.Column(db.Integer, db.ForeignKey('checklist_item.id'), nullable=True) # For sub-items
     order = db.Column(db.Integer, default=0) # To maintain order
-
+    
+    # If this field is populated, it indicates the item can leverage LLM analysis
+    # and this text can be used as the basis for the LLM query
+    llm_prompt = db.Column(db.Text, nullable=True, default=None) 
+    
     # Relationships: A checklist item can have sub-items
     # 'remote_side=[id]' is used to clarify the self-referential relationship for SQLAlchemy
     children = db.relationship('ChecklistItem', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")

@@ -6,14 +6,14 @@
         <ul>
             {% for checklist in checklists %}
                 <li>
-                    <a href="{{ url_for('main.view_checklist', checklist_id=checklist.id) }}">{{ checklist.name }}</a>
+                    <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}">{{ checklist.name }}</a>
                     ({{ checklist.items.count() }} items) - By: {{ checklist.author.username }}
                 </li>
             {% else %}
-                <li>No checklists yet. <a href="{{ url_for('main.new_checklist') }}">Create one?</a></li>
+                <li>No checklists yet. <a href="{{ url_for('checklists.new_checklist') }}">Create one?</a></li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>No checklists found. <a href="{{ url_for('main.new_checklist') }}">Create one?</a></p>
+        <p>No checklists found. <a href="{{ url_for('checklists.new_checklist') }}">Create one?</a></p>
     {% endif %}
 {% endblock %}
