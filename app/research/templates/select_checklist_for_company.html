@@ -6,7 +6,7 @@
     
     <hr>
     <h3>Start a New Research Session:</h3>
-    <form method="POST" action="{{ url_for('main.start_research_session') }}">
+    <form method="POST" action="{{ url_for('research.start_research_session') }}">
         <input type="hidden" name="company_id" value="{{ company.id }}">
         
         {% set available_for_new_session = checklists_data|selectattr('existing_session_id', 'none')|list %}
@@ -25,7 +25,7 @@
             <button type="submit">Start New Research Session</button>
         {% else %}
             <p>No checklists available to start a <em>new</em> research session for this company (all your checklists either have an active or completed session with this company, or you have no checklists).</p>
-            <p>See existing research sessions below, or <a href="{{ url_for('checklists.new_checklist', next=url_for('main.select_checklist_for_company', company_id=company.id)) }}">create a new checklist</a>.</p>
+            <p>See existing research sessions below, or <a href="{{ url_for('checklists.new_checklist', next=url_for('research.select_checklist_for_company', company_id=company.id)) }}">create a new checklist</a>.</p>
         {% endif %}
     </form>
 
@@ -40,15 +40,15 @@
                     <em>Status: {{ data.existing_session_status|capitalize }}</em><br>
                     {% if data.existing_session_status == 'in_progress' %}
                         {% if data.resume_item_id %}
-                            <a href="{{ url_for('main.research_step', session_id=data.existing_session_id, item_id=data.resume_item_id) }}" class="button">Resume Session</a>
+                            <a href="{{ url_for('research.research_step', session_id=data.existing_session_id, item_id=data.resume_item_id) }}" class="button">Resume Session</a>
                         {% else %}
                             <span>(Checklist might be empty or error determining resume point)</span>
                         {% endif %}
                     {% elif data.existing_session_status == 'completed' %}
-                        <a href="{{ url_for('main.view_research_session_summary', session_id=data.existing_session_id) }}" class="button">View/Edit Summary</a>
+                        <a href="{{ url_for('research.view_research_session_summary', session_id=data.existing_session_id) }}" class="button">View/Edit Summary</a>
                     {% else %}
                         {# Fallback for other potential statuses if any #}
-                        <a href="{{ url_for('main.view_research_session_summary', session_id=data.existing_session_id) }}" class="button">View Details</a>
+                        <a href="{{ url_for('research.view_research_session_summary', session_id=data.existing_session_id) }}" class="button">View Details</a>
                     {% endif %}
                 </li>
             {% endfor %}
@@ -57,5 +57,5 @@
         <p>No existing research sessions found for this company with any of your checklists.</p>
     {% endif %}
     <br>
-    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+    <p><a href="{{ url_for('companies.list_companies') }}">Back to Companies List</a></p>
 {% endblock %}

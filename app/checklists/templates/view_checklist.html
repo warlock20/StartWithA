@@ -58,7 +58,7 @@
 
     <h3>Start Research with this Checklist</h3>
     {% if companies and companies|length > 0 %}
-        <form method="POST" action="{{ url_for('main.start_research_session') }}">
+        <form method="POST" action="{{ url_for('research.start_research_session') }}">
             <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
             <div>
                 <label for="company_id">Select Company to Research:</label><br>
@@ -70,12 +70,12 @@
                 </select>
             </div>
             <br>
-            <p>Alternatively, <a href="{{ url_for('main.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a new company</a> first.</p>
+            <p>Alternatively, <a href="{{ url_for('companies.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a new company</a> first.</p>
             <br>
             <button type="submit">Start or Resume Research Session</button>
         </form>
     {% else %}
-        <p>There are no companies in the system. Please <a href="{{ url_for('main.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a company</a> before starting research.</p>
+        <p>There are no companies in the system. Please <a href="{{ url_for('companies.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a company</a> before starting research.</p>
     {% endif %}
     
 {% endblock %}

@@ -35,7 +35,7 @@
     {# Hidden section for AI document selection #}
     <div id="aiDocumentSelection" style="display:none; margin-top:15px; padding:15px; border:1px solid #007bff;">
         <h4>Select Documents for AI Analysis:</h4>
-        <form id="aiAnalysisForm" data-analysis-url="{{ url_for('main.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}"> 
+        <form id="aiAnalysisForm" data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}"> 
             <input type="hidden" name="llm_actual_prompt" value="{{ current_item.llm_prompt }}">
             {# Add session_id and item_id if submitting via separate AJAX/form to the new AI route #}
             <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
@@ -61,7 +61,7 @@
             </ul>
             {% else %}
             <p>No company documents found to select for AI analysis. Please <a
-                    href="{{ url_for('main.manage_company_documents', company_id=session.company_id) }}">upload
+                    href="{{ url_for('companies.manage_company_documents', company_id=session.company_id) }}">upload
                     documents for {{session.company.name}}</a> first.</p>
             {% endif %}
 
@@ -75,7 +75,7 @@
     {% endif %}
 </div>
 
-<form method="POST" action="{{ url_for('main.research_step', session_id=session.id, item_id=current_item.id) }}">
+<form method="POST" action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
     <div>
         <label for="answer_text">Your Answer/Notes:</label><br>
         <textarea id="answer_text" name="answer_text" rows="8" cols="80"
@@ -83,7 +83,7 @@
     </div>
     <br>
     {% if previous_item_id %}
-    <a href="{{ url_for('main.research_step', session_id=session.id, item_id=previous_item_id) }}"
+    <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
         class="button">Previous Item</a>
     {% endif %}
     <button type="submit">Save and Next</button>

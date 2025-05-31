@@ -2,10 +2,10 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <p><a href="{{ url_for('main.list_companies') }}">Back to Companies List</a></p>
+    <p><a href="{{ url_for('companies.list_companies') }}">Back to Companies List</a></p>
 
     <h2>Upload New Document for {{ company.name }}</h2>
-    <form method="POST" enctype="multipart/form-data" action="{{ url_for('main.manage_company_documents', company_id=company.id) }}">
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">
         <div>
             <label for="document_file">Select File (PDF, TXT):</label><br>
             <input type="file" id="document_file" name="document_file" required>
@@ -41,7 +41,7 @@
                         <li>
                             <strong>{{ doc.document_title }}</strong>
                             {% if doc.document_date %}({{ doc.document_date.strftime('%Y-%m-%d') }}){% endif %}
-                            - <a href="{{ url_for('main.serve_company_document', filepath=doc.stored_filename) }}" target="_blank">View/Download ({{ doc.original_filename }})</a>
+                            - <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}" target="_blank">View/Download ({{ doc.original_filename }})</a>
                             <br>
                             {% if doc.description %}<small><em>{{ doc.description }}</em></small><br>{% endif %}
                             <small>Uploaded by: {{ doc.uploader.username }} on {{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
