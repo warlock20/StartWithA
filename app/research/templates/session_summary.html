@@ -28,9 +28,27 @@
         </div>
     {% endif %}
     {# End of Progress Bar #}
+    
+    <h2>Overall Session Conclusion/Notes</h2>
+    {% if session.conclusion %}
+        <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; white-space: pre-wrap;">
+            {{ session.conclusion }}
+        </div>
+    {% else %}
+        <p><em>No overall conclusion added for this session yet.</em></p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('research.view_research_session_summary', session_id=session.id) }}" style="margin-bottom: 20px;">
+        <div>
+            <label for="conclusion">Add/Edit Conclusion:</label><br>
+            <textarea id="conclusion" name="conclusion" rows="6" style="width: 100%;">{{ session.conclusion if session.conclusion else '' }}</textarea>
+        </div>
+        <br>
+        <button type="submit">Save Conclusion</button>
+    </form>
 
     <hr>
-    <h3>Answers:</h3>
+    <h3>Individual Answers:</h3>
     {# ... rest of the summary page ... #}
     {# To display answers in the correct checklist order for summary #}
     {# We need to iterate through all_items_in_order and find their answers #}

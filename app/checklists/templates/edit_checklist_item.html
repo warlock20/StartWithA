@@ -1,0 +1,21 @@
+{% extends "main/_base.html" %} {# Or your specific blueprint base if you have one #}
+
+{% block content %}
+    <h1>Edit Checklist Item</h1>
+
+    <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
+        {# CSRF token would go here if using Flask-WTF #}
+        <div>
+            <label for="item_text">Item Text:</label><br>
+            <textarea id="item_text" name="item_text" rows="4" cols="70" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+        </div>
+        <br>
+        <div>
+            <label for="llm_prompt">Optional LLM Prompt for this item:</label><br>
+            <textarea id="llm_prompt" name="llm_prompt" rows="4" cols="70" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
+        </div>
+        <br>
+        <button type="submit">Save Changes</button>
+        <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" style="margin-left: 10px;">Cancel</a>
+    </form>
+{% endblock %}

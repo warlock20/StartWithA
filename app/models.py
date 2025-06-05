@@ -96,7 +96,8 @@ class ResearchSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-
+    conclusion = db.Column(db.Text, nullable=True)
+    
     # Relationships:
     # The 'company' attribute is created by the backref from the Company model.
     # If your User model has a 'research_sessions' relationship with a backref='researcher',
@@ -128,14 +129,6 @@ class ResearchAnswer(db.Model):
 
     def __repr__(self):
         return f'<ResearchAnswer {self.id} for Item {self.checklist_item_id} in Session {self.research_session_id}>'
-
-# Optional: Add relationship from User to ResearchSession for easier access
-# In the User model:
-# research_sessions = db.relationship('ResearchSession', backref='researcher', lazy='dynamic')
-
-# Optional: Add relationship from Checklist to ResearchSession
-# In the Checklist model:
-# research_sessions = db.relationship('ResearchSession', backref='applied_checklist', lazy='dynamic')    
 
 class CompanyDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,36 +1,31 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>{{ title if title else "Company Research Platform" }}</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; }
-        nav a { margin-right: 15px; }
-        .flash { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-        .flash.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .flash.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        ul { list-style-type: none; padding-left: 0; }
-        li { margin-bottom: 5px; }
-        .checklist-item { margin-left: 20px; }
-        .sub-items { margin-left: 40px; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <nav>
-    <a href="{{ url_for('checklists.list_checklists') }}">All Checklists</a> |
-    {% if current_user.is_authenticated %}
+        <a href="{{ url_for('checklists.list_checklists') }}">All Checklists</a> |
+        {% if current_user.is_authenticated %}
         <a href="{{ url_for('checklists.new_checklist') }}">New Checklist</a> |
         <a href="{{ url_for('companies.list_companies') }}">Companies</a> |
         <a href="{{ url_for('research.list_research_sessions') }}">My Research</a> |
         <a href="{{ url_for('auth.logout') }}">Logout ({{ current_user.username }})</a>
-    {% else %}
+        {% else %}
         <a href="{{ url_for('auth.register') }}">Register</a> |
         <a href="{{ url_for('auth.login') }}">Login</a>
-    {% endif %}
+        {% endif %}
     </nav>
     <hr>
-    {% include 'main/_flash_messages.html' %} {# Ensure flash messages are displayed #}
-    {% block content %}{% endblock %}
+    <div class="container">
+        {% include 'main/_flash_messages.html' %} {# Or the correct path if _flash_messages.html moved #}
+        {% block content %}{% endblock %}
+    </div>
 </body>
+
 </html>
