@@ -586,16 +586,28 @@ def delete_research_session(session_id):
 @research_bp.route('/sessions', methods=['GET'])
 @login_required
 def list_research_sessions():
+    user = current_user
     # Fetch all sessions for this user, ordered by start date descending
     sessions_query = ResearchSession.query.filter_by(user_id=current_user.id).order_by(ResearchSession.start_date.desc()).all()
     
     sessions_data = []
     for session in sessions_query:
+        # Get the total number of items for the session's checklist
+        total_item_count = ChecklistItem.query.filter_by(checklist_id=session.checklist_id).count()
+
+        # Get the number of items marked as 'satisfied' for this specific session
+        satisfied_count = ResearchAnswer.query.filter_by(
+            research_session_id=session.id,
+            satisfaction_status='satisfied'
+        ).count()
+        
         data = {
             'session_obj': session,
             'company_name': session.company.name, # Assuming session.company relationship works
             'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
-            'resume_item_id': None
+            'resume_item_id': None,
+            'total_item_count': total_item_count, # Add total count to data
+            'satisfied_count': satisfied_count   # Add satisfied count to data
         }
         
         if session.status == 'in_progress':
@@ -609,12 +621,12 @@ def list_research_sessions():
                         checklist_item_id=item.id
                     ).first()
                     if not answer_exists:
-                        resume_item_id_candidate = item.id # Found the first unanswered item
+                        resume_item_id_candidate = item.id 
                         break
                 data['resume_item_id'] = resume_item_id_candidate
             else: # Checklist has no items, but session is in_progress
                 data['resume_item_id'] = None # Cannot resume if no items
-                
+ 
         sessions_data.append(data)
 
     return render_template('list_research_sessions.html', 
