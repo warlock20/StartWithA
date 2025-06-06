@@ -286,6 +286,7 @@ def research_step(session_id, item_id):
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = datetime.utcnow()
+            research_answer.satisfaction_status = satisfaction_status_from_form
         else:
             research_answer = ResearchAnswer(
                 answer_text=answer_text,
