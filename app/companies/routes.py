@@ -104,17 +104,25 @@ def manage_company_documents(company_id):
                 flash(f'Document "{original_fn}" uploaded successfully to group "{doc_group}".', 'success')
             return redirect(url_for('companies.manage_company_documents', company_id=company.id))
 
-
-    documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc(), CompanyDocument.document_title).all()
+    documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc(), CompanyDocument.document_title).all()    
     grouped_documents = {}
     for doc in documents_query:
         group = doc.document_group
         if group not in grouped_documents: grouped_documents[group] = []
         grouped_documents[group].append(doc)
-
+        
+    distinct_group_names_query = db.session.query(CompanyDocument.document_group)\
+                                        .filter(CompanyDocument.user_id == current_user.id)\
+                                        .distinct()\
+                                        .order_by(CompanyDocument.document_group)\
+                                        .all()
+    distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
+    
+                                         
     return render_template('company_documents.html', 
                            company=company, 
                            grouped_documents=grouped_documents,
+                           distinct_group_names=distinct_group_names,
                            title=f"Documents for {company.name}")
 
 # Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint

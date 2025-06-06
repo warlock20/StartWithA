@@ -120,6 +120,7 @@ class ResearchAnswer(db.Model):
     # file_path: For later, when we implement PDF uploads for specific questions
     # file_path = db.Column(db.String(300), nullable=True) 
     answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    satisfaction_status = db.Column(db.String(30), nullable=True, default='neutral')
     
     research_session_id = db.Column(db.Integer, db.ForeignKey('research_session.id'), nullable=False)
     checklist_item_id = db.Column(db.Integer, db.ForeignKey('checklist_item.id'), nullable=False)

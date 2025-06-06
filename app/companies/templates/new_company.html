@@ -1,19 +1,33 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>Add New Company</h1>
-    <form method="POST" action="{{ url_for('companies.new_company') }}">
-        <div>
-            <label for="name">Company Name:</label><br>
-            <input type="text" id="name" name="name" required size="50">
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title text-center">{{ title }}</h1>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('companies.new_company', next=request.args.get('next')) }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Company Name:</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ name if name else '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ticker_symbol" class="form-label">Ticker Symbol:</label>
+                        <input type="text" class="form-control" id="ticker_symbol" name="ticker_symbol" value="{{ ticker_symbol if ticker_symbol else '' }}" required>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Add Company</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <a href="{{ request.args.get('next') or url_for('companies.list_companies') }}">Back to previous page</a>
+            </div>
         </div>
-        <br>
-        <div>
-            <label for="ticker_symbol">Ticker Symbol:</label><br>
-            <input type="text" id="ticker_symbol" name="ticker_symbol" required size="20">
-        </div>
-        <br>
-        <button type="submit">Add Company</button>
-    </form>
-    <p><a href="{{ url_for('companies.list_companies') }}">Back to Companies List</a></p>
+    </div>
+</div>
 {% endblock %}

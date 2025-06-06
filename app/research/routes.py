@@ -282,6 +282,7 @@ def research_step(session_id, item_id):
 
     if request.method == 'POST':
         answer_text = request.form.get('answer_text')
+        satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = datetime.utcnow()
@@ -289,7 +290,8 @@ def research_step(session_id, item_id):
             research_answer = ResearchAnswer(
                 answer_text=answer_text,
                 research_session_id=session.id,
-                checklist_item_id=current_item.id
+                checklist_item_id=current_item.id,
+                satisfaction_status=satisfaction_status_from_form
             )
             db.session.add(research_answer)
         db.session.commit()
@@ -542,7 +544,8 @@ def view_research_session_summary(session_id):
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     answers_query = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
     answers_dict = {ans.checklist_item_id: ans.answer_text for ans in answers_query}
-    
+    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
     # For completion time: find the latest 'answered_at' timestamp among answers
     # (This is a bit simplified, as the session.status is 'completed' already)
     # The template logic for last_answered_at.value is one way, or can be done here.
@@ -552,7 +555,8 @@ def view_research_session_summary(session_id):
         title="Research Summary", 
         session=session, 
         all_ordered_items=all_ordered_items, # Pass ordered items
-        answers_dict=answers_dict            # Pass answers dictionary
+        answers_dict=answers_dict,            # Pass answers dictionary
+        answers_map=answers_map 
         # The old 'answers' variable (a list of ResearchAnswer objects) can be removed if not used
     )
 

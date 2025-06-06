@@ -1,21 +1,31 @@
-{% extends "main/_base.html" %} {# Or your specific blueprint base if you have one #}
+{% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>Edit Checklist Item</h1>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title text-center">{{ title }}</h1>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
+                    <div class="mb-3">
+                        <label for="item_text" class="form-label">Item Text:</label>
+                        <textarea id="item_text" name="item_text" class="form-control" rows="4" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+                    </div>
 
-    <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
-        {# CSRF token would go here if using Flask-WTF #}
-        <div>
-            <label for="item_text">Item Text:</label><br>
-            <textarea id="item_text" name="item_text" rows="4" cols="70" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+                    <div class="mb-3">
+                        <label for="llm_prompt" class="form-label">Optional LLM Prompt for this item:</label>
+                        <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="4" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <br>
-        <div>
-            <label for="llm_prompt">Optional LLM Prompt for this item:</label><br>
-            <textarea id="llm_prompt" name="llm_prompt" rows="4" cols="70" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
-        </div>
-        <br>
-        <button type="submit">Save Changes</button>
-        <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" style="margin-left: 10px;">Cancel</a>
-    </form>
+    </div>
+</div>
 {% endblock %}
