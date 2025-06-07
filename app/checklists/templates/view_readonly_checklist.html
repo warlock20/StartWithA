@@ -1,0 +1,56 @@
+{% extends "main/_base.html" %}
+{# Import the macro from our new file #}
+{% from "_macros.html" import display_items %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1>{{ checklist.name }} </h1><span class="badge bg-secondary">View Mode</span>	
+            <p class="lead">{{ checklist.description }}</p>
+        </div>
+        <div>
+            {# Link to switch to Edit Mode #}
+            <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-warning">Switch to Edit Mode</a>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            Checklist Items
+        </div>
+        <div class="card-body">
+            {% if items %}
+                {# Call the macro with readonly=True #}
+                {{ display_items(items, checklist.id, ChecklistItem, readonly=True) }}
+            {% else %}
+                <p>No items in this checklist yet.</p>
+            {% endif %}
+        </div>
+    </div>
+    <br>
+    <div class="card">
+        <div class="card-header">
+            Start Research with this Checklist
+        </div>
+        <div class="card-body">
+            {% if companies|length > 0 %}
+                <form method="POST" action="{{ url_for('research.start_research_session') }}">
+                    <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">Select Company to Research:</label>
+                        <select name="company_id" id="company_id" class="form-select" required>
+                            <option value="" disabled selected>-- Choose a Company --</option>
+                            {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Start Research Session</button>
+                </form>
+            {% else %}
+                <p>You have no companies added. Please <a href="{{ url_for('companies.new_company') }}">add a company</a> first.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

@@ -76,6 +76,26 @@ def new_checklist():
                            llm_prompts_for_items=llm_prompts_val # For re-population on POST error
                            )
 
+@checklists_bp.route('/<int:checklist_id>/view')
+@login_required
+def view_readonly_checklist(checklist_id):
+    checklist = Checklist.query.get_or_404(checklist_id)
+    if checklist.user_id != current_user.id:
+        flash('You are not authorized to view this checklist.', 'error')
+        return redirect(url_for('checklists.list_checklists'))
+
+    top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
+    user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+    
+    return render_template(
+        'view_readonly_checklist.html',
+        checklist=checklist,
+        items=top_level_items,
+        title=checklist.name,
+        ChecklistItem=ChecklistItem,
+        companies=user_companies 
+    )
+
 @checklists_bp.route('/checklist_item/<int:item_id>/delete', methods=['POST'])
 @login_required
 def delete_checklist_item(item_id):

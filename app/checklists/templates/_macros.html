@@ -1,0 +1,58 @@
+{% macro display_items(items_list, checklist_id, ChecklistItem_model_ref, readonly=False, current_level=0) %}
+  <ul class="list-group {% if current_level > 0 %}list-group-flush{% endif %}">
+    {% for item in items_list %}
+      <li class="list-group-item">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ loop.index }}. {{ item.text }}</h5>
+                {% if item.llm_prompt %}
+                    <small class="text-primary"><em>LLM Prompt: {{ item.llm_prompt|truncate(70) }}</em></small>
+                {% endif %}
+            </div>
+
+            {# Show action buttons ONLY if NOT in readonly mode #}
+            {% if not readonly %}
+                <div class="item-actions text-nowrap">
+                    <a href="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}" class="btn btn-warning btn-sm" title="Edit Item">Edit</a>
+                    {% if not loop.first %}
+                        <form method="POST" action="{{ url_for('checklists.move_checklist_item', item_id=item.id, direction='up') }}" style="display: inline;">
+                            <button type="submit" class="btn btn-light btn-sm" title="Move Up">&uarr;</button>
+                        </form>
+                    {% endif %}
+                    {% if not loop.last %}
+                        <form method="POST" action="{{ url_for('checklists.move_checklist_item', item_id=item.id, direction='down') }}" style="display: inline;">
+                            <button type="submit" class="btn btn-light btn-sm" title="Move Down">&darr;</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# Show Delete and Add Sub-item forms ONLY if NOT in readonly mode #}
+        {% if not readonly %}
+            <form method="POST" action="{{ url_for('checklists.delete_checklist_item', item_id=item.id) }}" style="display: block; margin-top: 8px; margin-bottom: 8px;">
+                <button type="submit" onclick="return confirm('Are you sure you want to delete this item and all its sub-items?');" class="btn btn-danger btn-sm">Delete This Item</button>
+            </form>
+            <div class="add-sub-item-form mt-3 ps-4">
+                <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist_id) }}">
+                   {# ... existing add sub-item form ... #}
+                   <input type="hidden" name="parent_id" value="{{ item.id }}">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" name="item_text" placeholder="Add sub-item text" required>
+                        <button class="btn btn-outline-secondary" type="submit">Add Sub-item</button>
+                    </div>
+                    <textarea name="llm_prompt" class="form-control form-control-sm mt-1" placeholder="Optional: LLM prompt for sub-item" rows="1"></textarea>
+                </form>
+            </div>
+        {% endif %}
+
+        {# Recursive call for children, passing the readonly flag along #}
+        {% if item.children.all() %}
+          <div class="mt-3">
+              {{ display_items(item.children.order_by(ChecklistItem_model_ref.order).all(), checklist_id, ChecklistItem_model_ref, readonly, current_level + 1) }}
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endmacro %}

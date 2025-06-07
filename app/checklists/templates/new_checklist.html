@@ -8,7 +8,7 @@
                 <h1 class="card-title text-center">{{ title }}</h1>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('checklists.new_checklist') }}">
+                <form method="POST" action="{{ url_for('checklists.new_checklist') }}" id="newChecklistForm">
                     <div class="mb-3">
                         <label for="name" class="form-label">Checklist Name:</label>
                         <input type="text" class="form-control" id="name" name="name" value="{{ name if name else '' }}" required>
@@ -20,26 +20,26 @@
                     </div>
 
                     <hr>
-                    <h5>Initial Items (Optional)</h5>
+                    <h5>Initial Items</h5>
 
-                    {% set num_initial_slots = 3 %}
-                    {% for i in range(num_initial_slots) %}
-                        <div class="card bg-light p-3 mb-3">
+                    <div id="initial-items-container">
+                        {# Starts with one item field by default #}
+                        <div class="card bg-light p-3 mb-3 initial-item-group">
                             <div class="mb-2">
-                                <label for="item_text_{{i}}" class="form-label">Item {{ i+1 }} Text:</label>
-                                <input type="text" class="form-control" id="item_text_{{i}}" name="item_text[]" 
-                                       value="{{ item_texts[i] if item_texts and i < item_texts|length else '' }}" 
-                                       placeholder="Item {{ i+1 }} text">
+                                <label class="form-label">Item 1 Text:</label>
+                                <input type="text" class="form-control" name="item_text[]" placeholder="Item 1 text">
                             </div>
                             <div>
-                                <label for="item_llm_prompt_{{i}}" class="form-label">Optional LLM Prompt for Item {{ i+1 }}:</label>
-                                <textarea class="form-control" id="item_llm_prompt_{{i}}" name="item_llm_prompt[]" rows="2" 
-                                          placeholder="E.g., What are the key revenue drivers?">{{ llm_prompts_for_items[i] if llm_prompts_for_items and i < llm_prompts_for_items|length else '' }}</textarea>
+                                <label class="form-label">Optional LLM Prompt for Item 1:</label>
+                                <textarea class="form-control" name="item_llm_prompt[]" rows="2" placeholder="E.g., What are the key revenue drivers?"></textarea>
                             </div>
                         </div>
-                    {% endfor %}
+                    </div>
 
-                    <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Another Item</button>
+
+                    <hr>
+                    <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary btn-lg">Create Checklist</button>
                     </div>
                 </form>
@@ -47,4 +47,10 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{# This block will now link to the external JS file #}
+{% block scripts %}
+    {{ super() }} {# Includes scripts from parent template like Bootstrap's JS #}
+    <script src="{{ url_for('static', filename='js/checklist_form.js') }}" defer></script>
 {% endblock %}
