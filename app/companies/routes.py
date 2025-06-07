@@ -9,11 +9,25 @@ from app import db
 from app.models import User, Company, CompanyDocument # Add other models if needed
 from app.companies import companies_bp
 
-@companies_bp.route('/', methods=['GET']) # Will be /companies/
+@companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
-    companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-    return render_template('list_companies.html', companies=companies, title=f"{current_user.username}'s Companies")
+    # Get all companies for the user
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+
+    # Get a set of IDs for the user's favorite companies for quick checking
+    favorite_ids = {company.id for company in current_user.favorites.all()}
+
+    # Partition the list into favorites and others
+    favorite_companies_list = [company for company in all_user_companies if company.id in favorite_ids]
+    other_companies_list = [company for company in all_user_companies if company.id not in favorite_ids]
+
+    return render_template(
+        'list_companies.html', 
+        favorite_companies=favorite_companies_list,
+        other_companies=other_companies_list,
+        title=f"{current_user.username}'s Companies"
+    )
 
 @companies_bp.route('/new', methods=['GET', 'POST']) # Will be /companies/new
 @login_required
@@ -124,6 +138,28 @@ def manage_company_documents(company_id):
                            grouped_documents=grouped_documents,
                            distinct_group_names=distinct_group_names,
                            title=f"Documents for {company.name}")
+
+@companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
+@login_required
+def toggle_favorite(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization: Ensure user can only favorite their own companies
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company's favorite status.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    if company in current_user.favorites:
+        # If it's already a favorite, remove it
+        current_user.favorites.remove(company)
+        flash(f'"{company.name}" removed from your favorites.', 'info')
+    else:
+        # If it's not a favorite, add it
+        current_user.favorites.append(company)
+        flash(f'"{company.name}" added to your favorites!', 'success')
+
+    db.session.commit()
+    # Redirect back to the page the user was on
+    return redirect(request.referrer or url_for('companies.list_companies'))
 
 # Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint
 # For now, placing it under the /companies prefix.

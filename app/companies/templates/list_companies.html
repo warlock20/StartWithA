@@ -6,31 +6,64 @@
         <a href="{{ url_for('companies.new_company') }}" class="btn btn-success">Add New Company</a>
     </div>
 
-    {% if companies %}
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th scope="col">Company Name</th>
-                    <th scope="col">Ticker</th>
-                    <th scope="col">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for company in companies %}
-                <tr>
-                    <td>{{ company.name }}</td>
-                    <td>{{ company.ticker_symbol }}</td>
-                    <td>
-                        <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-info btn-sm">Start/Resume Research</a>
-                        <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary btn-sm">Manage Documents</a>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <div class="alert alert-info">
-            <p>No companies have been added yet.</p>
+    {# --- FAVORITE COMPANIES SECTION --- #}
+    <h3>⭐ Favorite Companies</h3>
+    {% if favorite_companies %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <tbody>
+                {% for company in favorite_companies %}
+                    <tr>
+                        <td>
+                            <strong>{{ company.name }}</strong> ({{ company.ticker_symbol }})
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-primary btn-sm">Research</a>
+                            <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary btn-sm">Docs</a>
+                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-warning btn-sm" title="Remove from Favorites">Unfavorite</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
+    {% else %}
+        <p class="text-muted">You haven't added any companies to your favorites yet.</p>
     {% endif %}
+
+    <hr class="my-4">
+
+    {# --- OTHER COMPANIES SECTION --- #}
+    <h3>Other Companies</h3>
+    {% if other_companies %}
+         <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <tbody>
+                {% for company in other_companies %}
+                    <tr>
+                        <td>
+                            <strong>{{ company.name }}</strong> ({{ company.ticker_symbol }})
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-primary btn-sm">Research</a>
+                            <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary btn-sm">Docs</a>
+                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Add to Favorites">Favorite</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        {% if not favorite_companies %} {# Only show this if both lists are empty #}
+            <div class="alert alert-info">
+                <p>You have no companies added yet.</p>
+            </div>
+        {% endif %}
+    {% endif %}
+
 {% endblock %}

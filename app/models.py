@@ -6,6 +6,11 @@ from werkzeug.security import generate_password_hash, check_password_hash # Impo
 from flask_login import UserMixin # Import UserMixin
 from app import login_manager # Import login_manager from app/__init__.py
 
+favorite_companies = db.Table('favorite_companies',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('company_id', db.Integer, db.ForeignKey('company.id'), primary_key=True)
+)
+
 # User loader function required by Flask-Login
 # This function is called to reload the user object from the user ID stored in the session
 @login_manager.user_loader
@@ -22,7 +27,8 @@ class User(UserMixin, db.Model): # Add UserMixin here
     checklists = db.relationship('Checklist', backref='author', lazy='dynamic')
     research_sessions = db.relationship('ResearchSession', backref='researcher', lazy='dynamic')
     companies = db.relationship('Company', backref='creator', lazy='dynamic') 
-
+    favorites = db.relationship('Company', secondary=favorite_companies, lazy='dynamic',
+                                backref=db.backref('favorited_by', lazy='dynamic'))
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
