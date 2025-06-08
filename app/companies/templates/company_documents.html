@@ -1,93 +1,115 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>{{ title }}</h1>
+    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
+</div>
 
-    <div class="row">
-        <div class="col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    Upload New Document
-                </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data" action="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">
-                        <div class="mb-3">
-                            <label for="document_file" class="form-label">Select File (PDF, TXT):</label>
-                            <input type="file" class="form-control" id="document_file" name="document_file" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_group" class="form-label">Document Group:</label>
-                            <input type="text" class="form-control" id="document_group" name="document_group" list="existing_document_groups" placeholder="e.g., Annual Reports" required>
-                            <datalist id="existing_document_groups">
-                                {% for group_name in distinct_group_names %}
-                                    <option value="{{ group_name }}">
+{% if company.summary and company.summary != 'No summary available.' %}
+<div class="card mb-4">
+    <div class="card-header">Business Summary</div>
+    <div class="card-body">
+        <p class="card-text" style="max-height: 150px; overflow-y: auto;">{{ company.summary }}</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                Upload New Document
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data"
+                    action="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">
+                    <div class="mb-3">
+                        <label for="document_file" class="form-label">Select File (PDF, TXT):</label>
+                        <input type="file" class="form-control" id="document_file" name="document_file" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="document_group" class="form-label">Document Group:</label>
+                        <input type="text" class="form-control" id="document_group" name="document_group"
+                            list="existing_document_groups" placeholder="e.g., Annual Reports" required>
+                        <datalist id="existing_document_groups">
+                            {% for group_name in distinct_group_names %}
+                            <option value="{{ group_name }}">
                                 {% endfor %}
-                            </datalist>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_title" class="form-label">Document Title:</label>
-                            <input type="text" class="form-control" id="document_title" name="document_title" placeholder="e.g., 2023 Annual Report" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_date" class="form-label">Document Date (Optional):</label>
-                            <input type="date" class="form-control" id="document_date" name="document_date">
-                        </div>
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description (Optional):</label>
-                            <textarea id="description" name="description" class="form-control" rows="3"></textarea>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Upload Document</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    Existing Documents
-                </div>
-                <div class="card-body">
-                    {% if grouped_documents %}
-                        <div class="accordion" id="documentsAccordion">
-                            {% for group_name, docs_in_group in grouped_documents.items() %}
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="heading-{{ loop.index }}">
-                                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse-{{ loop.index }}">
-                                            {{ group_name }}&nbsp;<span class="badge bg-secondary rounded-pill">{{ docs_in_group|length }}</span>
-                                        </button>
-                                    </h2>
-                                    <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
-                                        <div class="accordion-body">
-                                            <ul class="list-group list-group-flush">
-                                                {% for doc in docs_in_group %}
-                                                    <li class="list-group-item">
-                                                        <div class="d-flex w-100 justify-content-between">
-                                                            <div>
-                                                                <h6 class="mb-1">{{ doc.document_title }}</h6>
-                                                                <small class="text-muted">{{ doc.original_filename }}{% if doc.document_date %} | {{ doc.document_date.strftime('%Y-%m-%d') }}{% endif %}</small>
-                                                            </div>
-                                                            <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}" target="_blank" class="btn btn-outline-primary btn-sm">View</a>
-                                                        </div>
-                                                        {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description }}</small></p>{% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p>No documents uploaded for this company yet.</p>
-                    {% endif %}
-                </div>
+                        </datalist>
+                    </div>
+                    <div class="mb-3">
+                        <label for="document_title" class="form-label">Document Title:</label>
+                        <input type="text" class="form-control" id="document_title" name="document_title"
+                            placeholder="e.g., 2023 Annual Report" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="document_date" class="form-label">Document Date (Optional):</label>
+                        <input type="date" class="form-control" id="document_date" name="document_date">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description (Optional):</label>
+                        <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Upload Document</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                Existing Documents
+            </div>
+            <div class="card-body">
+                {% if grouped_documents %}
+                <div class="accordion" id="documentsAccordion">
+                    {% for group_name, docs_in_group in grouped_documents.items() %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}"
+                                aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
+                                aria-controls="collapse-{{ loop.index }}">
+                                {{ group_name }}&nbsp;<span class="badge bg-secondary rounded-pill">{{
+                                    docs_in_group|length }}</span>
+                            </button>
+                        </h2>
+                        <div id="collapse-{{ loop.index }}"
+                            class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                            aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
+                            <div class="accordion-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for doc in docs_in_group %}
+                                    <li class="list-group-item">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <div>
+                                                <h6 class="mb-1">{{ doc.document_title }}</h6>
+                                                <small class="text-muted">{{ doc.original_filename }}{% if
+                                                    doc.document_date %} | {{ doc.document_date.strftime('%Y-%m-%d')
+                                                    }}{% endif %}</small>
+                                            </div>
+                                            <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
+                                                target="_blank" class="btn btn-outline-primary btn-sm">View</a>
+                                        </div>
+                                        {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description
+                                                }}</small></p>{% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>No documents uploaded for this company yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

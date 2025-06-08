@@ -2,30 +2,34 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h1 class="card-title text-center">{{ title }}</h1>
+                <h1 class="card-title text-center">Add New Company</h1>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('companies.new_company', next=request.args.get('next')) }}">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Company Name:</label>
-                        <input type="text" class="form-control" id="name" name="name" value="{{ name if name else '' }}" required>
+                <p>Enter a stock ticker and select its primary exchange to look up a company.</p>
+
+                <form method="POST" action="{{ url_for('companies.new_company') }}">
+                    <div class="row">
+                        <div class="col-sm-8 mb-3">
+                            <label for="base_ticker" class="form-label">Ticker Symbol</label>
+                            <input type="text" class="form-control" id="base_ticker" name="base_ticker" placeholder="e.g., AAPL, SAP, VOW3" required>
+                        </div>
+                        <div class="col-sm-4 mb-3">
+                            <label for="exchange_suffix" class="form-label">Exchange</label>
+                            <select class="form-select" id="exchange_suffix" name="exchange_suffix">
+                                {% for suffix, name in exchanges.items() %}
+                                    <option value="{{ suffix }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="ticker_symbol" class="form-label">Ticker Symbol:</label>
-                        <input type="text" class="form-control" id="ticker_symbol" name="ticker_symbol" value="{{ ticker_symbol if ticker_symbol else '' }}" required>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Add Company</button>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Look Up Company</button>
                     </div>
                 </form>
-            </div>
-            <div class="card-footer">
-                <a href="{{ request.args.get('next') or url_for('companies.list_companies') }}">Back to previous page</a>
             </div>
         </div>
     </div>

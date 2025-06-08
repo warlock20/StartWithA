@@ -1,5 +1,6 @@
 import os
 import uuid
+import yfinance as yf
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
@@ -8,6 +9,21 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import User, Company, CompanyDocument # Add other models if needed
 from app.companies import companies_bp
+
+# You can define this dictionary at the top of your routes.py file
+EXCHANGES = {
+    '': 'USA (Default)',
+    '.DE': 'Germany (XETRA)',
+    '.L': 'United Kingdom (LSE)',
+    '.PA': 'France (Euronext Paris)',
+    '.T': 'Japan (Tokyo)',
+    '.TO': 'Canada (Toronto)',
+    '.NS': 'India (NSE)',
+    '.HK': 'Hong Kong (HKEX)',
+    '.SW': 'Switzerland (SIX)'
+    # Add more as needed
+}
+
 
 @companies_bp.route('/', methods=['GET'])
 @login_required
@@ -29,37 +45,102 @@ def list_companies():
         title=f"{current_user.username}'s Companies"
     )
 
-@companies_bp.route('/new', methods=['GET', 'POST']) # Will be /companies/new
+@companies_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new_company():
     if request.method == 'POST':
-        name = request.form.get('name')
-        ticker_symbol = request.form.get('ticker_symbol', '').upper()
+        base_ticker = request.form.get('base_ticker', '').upper()
+        exchange_suffix = request.form.get('exchange_suffix', '')
 
-        if not name or not ticker_symbol:
-            flash('Company name and ticker symbol are required.', 'error')
-            return render_template('new_company.html', title="Add New Company", name=name, ticker_symbol=ticker_symbol)
+        if not base_ticker:
+            flash('Base Ticker Symbol is required.', 'error')
+            return redirect(url_for('companies.new_company'))
+        
+        # Combine the base ticker and suffix to create the full yfinance ticker
+        full_ticker_symbol = f"{base_ticker}{exchange_suffix}"
 
+        try:
+            company_ticker = yf.Ticker(full_ticker_symbol)
+            info = company_ticker.info
+            
+            if info and info.get('longName'):
+                # --- SUCCESSFUL LOOKUP PATH ---
+                company_name = info.get('longName')
+                company_summary = info.get('longBusinessSummary', 'No summary available.')
 
-        existing_company_by_name = Company.query.filter_by(name=name, user_id=current_user.id).first()
-        existing_company_by_ticker = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
+                # Check if user already has this company
+                existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
+                if existing_company:
+                    flash(f'You have already added "{company_name}" ({full_ticker_symbol}) to your list.', 'info')
+                    return redirect(url_for('companies.list_companies'))
+                
+                return render_template('confirm_company.html',
+                                       title="Confirm Company",
+                                       ticker=full_ticker_symbol, # Pass the full ticker
+                                       name=info.get('longName'),
+                                       summary=info.get('longBusinessSummary', 'No summary available.'))
+            else:
+                # --- FAILED LOOKUP / MANUAL OVERRIDE PATH ---
+                flash(f'Could not automatically find details for ticker "{full_ticker_symbol}". Please enter the company name manually.', 'warning')
+                return render_template('new_company_manual.html',
+                                       title="Add Company Manually",
+                                       ticker=full_ticker_symbol) # Pass the full ticker
+        except Exception as e:
+            print(f"yfinance lookup error for ticker {full_ticker_symbol}: {e}")
+            flash(f'An error occurred while looking up ticker "{full_ticker_symbol}". Please enter details manually.', 'warning')
+            return render_template('new_company_manual.html',
+                                   title="Add Company Manually",
+                                   ticker=full_ticker_symbol)
 
-        if existing_company_by_name:
-            flash(f'You already have a company named "{name}".', 'error')
-        elif existing_company_by_ticker:
-            flash(f'You already have a company with ticker "{ticker_symbol}".', 'error')
-        else:
-            company = Company(name=name, ticker_symbol=ticker_symbol, creator=current_user)
-            db.session.add(company)
-            db.session.commit()
-            flash(f'Company "{name}" ({ticker_symbol}) added successfully.', 'success')
-            next_url = request.args.get('next')
-            if next_url:
-                return redirect(next_url)
-            return redirect(url_for('companies.list_companies'))
+    # For GET request, pass the exchanges dictionary to the template
+    return render_template('new_company.html', 
+                           title="Add New Company", 
+                           exchanges=EXCHANGES)
 
-        return render_template('new_company.html', title="Add New Company", name=name, ticker_symbol=ticker_symbol)
-    return render_template('new_company.html', title="Add New Company")
+@companies_bp.route('/add_confirmed', methods=['POST'])
+@login_required
+def add_company_confirmed():
+    name = request.form.get('name')
+    ticker_symbol = request.form.get('ticker_symbol')
+    summary = request.form.get('summary')
+    
+    # Redundant check, but good for safety if this route is accessed directly
+    existing_company = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
+    if existing_company:
+        flash(f'"{name}" ({ticker_symbol}) is already in your list.', 'info')
+        return redirect(url_for('companies.list_companies'))
+
+    if name and ticker_symbol:
+        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, creator=current_user)
+        db.session.add(company)
+        db.session.commit()
+        flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
+        return redirect(url_for('companies.list_companies'))
+    else:
+        flash('There was an error adding the company. Please try again.', 'error')
+        return redirect(url_for('companies.new_company'))
+
+@companies_bp.route('/<int:company_id>/delete', methods=['POST'])
+@login_required
+def delete_company(company_id):
+    company_to_delete = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company_to_delete.user_id != current_user.id:
+        flash("You are not authorized to delete this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    try:
+        # Deleting the company will now also delete its research sessions,
+        # documents, and favorite entries due to cascade settings.
+        db.session.delete(company_to_delete)
+        db.session.commit()
+        flash(f'Company "{company_to_delete.name}" and all its data have been deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting company: {str(e)}', 'error')
+
+    return redirect(url_for('companies.list_companies'))
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET', 'POST']) # /companies/<id>/documents
 @login_required

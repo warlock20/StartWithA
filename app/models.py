@@ -79,10 +79,12 @@ class Company(db.Model):
     ticker_symbol = db.Column(db.String(20), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    summary = db.Column(db.Text, nullable=True) 
     # Add other company-specific fields if needed later (e.g., industry, exchange)
 
     # Relationship: A company can be part of many research sessions
-    research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic')
+    research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.
