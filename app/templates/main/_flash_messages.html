@@ -1,7 +1,19 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
-      <div class="flash {{ category }}">{{ message }}</div>
+      {# Map our categories to Bootstrap alert classes #}
+      {% set alert_class = 'alert-info' %} {# Default #}
+      {% if category == 'error' %}
+        {% set alert_class = 'alert-danger' %}
+      {% elif category == 'success' %}
+        {% set alert_class = 'alert-success' %}
+      {% elif category == 'warning' %}
+        {% set alert_class = 'alert-warning' %}
+      {% endif %}
+      <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
     {% endfor %}
   {% endif %}
 {% endwith %}

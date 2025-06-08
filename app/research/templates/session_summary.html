@@ -1,69 +1,99 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h1>{{ title }}</h1>
-    <p>
-        Company: <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong><br>
-        Checklist: <strong>{{ session.checklist.name }}</strong><br>
-        Status: <strong>{{ session.status }}</strong><br>
-        Started: {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}
-        {# Assuming answered_at on the last answer approximates completion time #}
-        {% set last_answered_at = namespace(value=None) %}
-        {% for ans in answers if ans.answered_at %}
-            {% if last_answered_at.value == None or ans.answered_at > last_answered_at.value %}
-                {% set last_answered_at.value = ans.answered_at %}
+    <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary">Back to My Research
+        Sessions</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Session Details</div>
+    <div class="card-body">
+        <p><strong>Company:</strong> {{ session.company.name }} ({{ session.company.ticker_symbol }})</p>
+        <p><strong>Checklist:</strong> {{ session.checklist.name }}</p>
+        <p><strong>Status:</strong> <span
+                class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
+                session.status|capitalize }}</span></p>
+        <p><strong>Started:</strong> {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Individual Answers</div>
+    <div class="card-body">
+        {% if all_ordered_items %}
+        <div class="accordion" id="answersAccordion">
+            {% for item in all_ordered_items %}
+            {% set current_ans_obj = answers_map.get(item.id) %}
+            {% set status_class = 'secondary' %}
+            {% set status_text = 'Not Answered' %}
+            {% if current_ans_obj %}
+            {% set status_text = current_ans_obj.satisfaction_status|replace('_', ' ')|capitalize if
+            current_ans_obj.satisfaction_status else 'Answered' %}
+            {% if current_ans_obj.satisfaction_status == 'satisfied' %}{% set status_class = 'success' %}{% endif %}
+            {% if current_ans_obj.satisfaction_status == 'not_satisfied' %}{% set status_class = 'danger' %}{% endif %}
+            {% if current_ans_obj.satisfaction_status == 'needs_attention' %}{% set status_class = 'warning' %}{% endif
+            %}
+            {% if current_ans_obj.satisfaction_status == 'neutral' %}{% set status_class = 'info' %}{% endif %}
             {% endif %}
-        {% endfor %}
-        {% if session.status == 'completed' and last_answered_at.value %}
-            <br>Completed: {{ last_answered_at.value.strftime('%Y-%m-%d %H:%M') }}
-        {% endif %}
-    </p>
 
-    {# Add 100% Progress Bar for completed sessions #}
-    {% if session.status == 'completed' %}
-        <div style="width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-bottom:15px;">
-          <div style="width: 100%; background-color: #4CAF50; color: white; text-align: center; line-height: 20px; border-radius: 5px; height: 20px;">
-            100% Complete
-          </div>
-        </div>
-    {% endif %}
-    {# End of Progress Bar #}
-
-    <hr>
-    <h3>Answers:</h3>
-    {# ... rest of the summary page ... #}
-    {# To display answers in the correct checklist order for summary #}
-    {# We need to iterate through all_items_in_order and find their answers #}
-    {# This part needs refinement if answers are not already in perfect order by the query #}
-
-    {% if all_ordered_items and answers_dict %}
-        <dl>
-        {% for item in all_ordered_items %}
-            <dt style="font-weight: bold; margin-top: 10px;">
-                {{ item.text }} 
-                <span style="font-weight:normal; font-size:0.9em; margin-left:10px;">
-                    <a href="{{ url_for('research.research_step', session_id=session.id, item_id=item.id) }}">Edit</a>
-                </span>
-            </dt>
-            <dd style="margin-left: 20px; margin-bottom: 10px; white-space: pre-wrap;">
-                {{ answers_dict.get(item.id, "No answer provided.") }}
-            </dd>
-        {% endfor %}
-        </dl>
-    {% elif answers %} {# Fallback to original simple answer listing if refined variables not present #}
-        <dl>
-            {% for ans in answers %}
-                <dt style="font-weight: bold; margin-top: 10px;">{{ ans.item.text }}</dt>
-                <dd style="margin-left: 20px; margin-bottom: 10px; white-space: pre-wrap;">{{ ans.answer_text if ans.answer_text else "No answer provided." }}</dd>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-item-{{ item.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse-item-{{ item.id }}" aria-expanded="false"
+                        aria-controls="collapse-item-{{ item.id }}">
+                        <span class="badge bg-{{ status_class }} me-2">{{ status_text }}</span>
+                        {{ loop.index }}. {{ item.text }}
+                    </button>
+                </h2>
+                <div id="collapse-item-{{ item.id }}" class="accordion-collapse collapse"
+                    aria-labelledby="heading-item-{{ item.id }}" data-bs-parent="#answersAccordion">
+                    <div class="accordion-body">
+                        <p><strong>Your Answer:</strong></p>
+                        <div class="p-3 bg-light rounded mb-3">
+                            {{ (current_ans_obj.answer_text if current_ans_obj else 'No answer provided.')|replace('\n',
+                            '<br>')|safe }}
+                        </div>
+                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=item.id) }}"
+                            class="btn btn-outline-secondary btn-sm">Edit Answer & Status</a>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </dl>
-    {% else %}
-        <p>No answers recorded for this session yet.</p>
-    {% endif %}
+        </div>
+        {% else %}
+        <p>This checklist has no items.</p>
+        {% endif %}
+    </div>
+</div>
 
-    <br>
-    <p>
-        <a href="{{ url_for('checklists.list_checklists') }}">Back to All Checklists</a> |
-        <a href="{{ url_for('checklists.view_checklist', checklist_id=session.checklist_id) }}">View This Checklist Structure</a>
-    </p>
+<div class="card mb-4">
+    <div class="card-header">Overall Session Conclusion</div>
+    <div class="card-body">
+        {% if session.conclusion %}
+        <div class="p-3 bg-light rounded">{{ session.conclusion|replace('\n', '<br>')|safe }}</div>
+        {% else %}
+        <p class="text-muted"><em>No overall conclusion added for this session yet.</em></p>
+        {% endif %}
+        <hr>
+        <form method="POST" action="{{ url_for('research.view_research_session_summary', session_id=session.id) }}">
+            <div class="mb-3">
+                <label for="conclusion" class="form-label"><strong>Add/Edit Conclusion:</strong></label>
+                <textarea id="conclusion" name="conclusion" class="form-control"
+                    rows="6">{{ session.conclusion if session.conclusion else '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Conclusion</button>
+        </form>
+    </div>
+</div>
+
+
+
+{# ... (at the bottom of the content block) ... #}
+{# <div class="mt-4">
+    <a href="{{ url_for('research.export_session_to_txt', session_id=session.id) }}" class="btn btn-outline-info">Export
+        to Text</a>
+</div> #}
+
 {% endblock %}

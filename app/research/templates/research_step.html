@@ -82,6 +82,15 @@
             style="width: 100%;">{{ answer.answer_text if answer else '' }}</textarea>
     </div>
     <br>
+    <div>
+        <label for="satisfaction_status">Status for this item:</label><br>
+        <select id="satisfaction_status" name="satisfaction_status">
+            <option value="neutral" {% if answer and answer.satisfaction_status == 'neutral' %}selected{% endif %}>Neutral / Informational</option>
+            <option value="satisfied" {% if answer and answer.satisfaction_status == 'satisfied' %}selected{% endif %}>Satisfied / Met</option>
+            <option value="not_satisfied" {% if answer and answer.satisfaction_status == 'not_satisfied' %}selected{% endif %}>Not Satisfied / Not Met</option>
+            <option value="needs_attention" {% if answer and answer.satisfaction_status == 'needs_attention' %}selected{% endif %}>Needs Attention</option>
+        </select>
+    </div>
     {% if previous_item_id %}
     <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
         class="button">Previous Item</a>

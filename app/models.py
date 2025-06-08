@@ -6,6 +6,11 @@ from werkzeug.security import generate_password_hash, check_password_hash # Impo
 from flask_login import UserMixin # Import UserMixin
 from app import login_manager # Import login_manager from app/__init__.py
 
+favorite_companies = db.Table('favorite_companies',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('company_id', db.Integer, db.ForeignKey('company.id'), primary_key=True)
+)
+
 # User loader function required by Flask-Login
 # This function is called to reload the user object from the user ID stored in the session
 @login_manager.user_loader
@@ -22,7 +27,8 @@ class User(UserMixin, db.Model): # Add UserMixin here
     checklists = db.relationship('Checklist', backref='author', lazy='dynamic')
     research_sessions = db.relationship('ResearchSession', backref='researcher', lazy='dynamic')
     companies = db.relationship('Company', backref='creator', lazy='dynamic') 
-
+    favorites = db.relationship('Company', secondary=favorite_companies, lazy='dynamic',
+                                backref=db.backref('favorited_by', lazy='dynamic'))
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -96,7 +102,8 @@ class ResearchSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'), nullable=False)
-
+    conclusion = db.Column(db.Text, nullable=True)
+    
     # Relationships:
     # The 'company' attribute is created by the backref from the Company model.
     # If your User model has a 'research_sessions' relationship with a backref='researcher',
@@ -119,6 +126,7 @@ class ResearchAnswer(db.Model):
     # file_path: For later, when we implement PDF uploads for specific questions
     # file_path = db.Column(db.String(300), nullable=True) 
     answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    satisfaction_status = db.Column(db.String(30), nullable=True, default='neutral')
     
     research_session_id = db.Column(db.Integer, db.ForeignKey('research_session.id'), nullable=False)
     checklist_item_id = db.Column(db.Integer, db.ForeignKey('checklist_item.id'), nullable=False)
@@ -128,14 +136,6 @@ class ResearchAnswer(db.Model):
 
     def __repr__(self):
         return f'<ResearchAnswer {self.id} for Item {self.checklist_item_id} in Session {self.research_session_id}>'
-
-# Optional: Add relationship from User to ResearchSession for easier access
-# In the User model:
-# research_sessions = db.relationship('ResearchSession', backref='researcher', lazy='dynamic')
-
-# Optional: Add relationship from Checklist to ResearchSession
-# In the Checklist model:
-# research_sessions = db.relationship('ResearchSession', backref='applied_checklist', lazy='dynamic')    
 
 class CompanyDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)

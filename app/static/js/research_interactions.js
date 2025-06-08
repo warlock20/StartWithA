@@ -11,27 +11,36 @@ function toggleAIDocsSelection() {
 
 async function submitForAIAnalysis() {
     var form = document.getElementById('aiAnalysisForm');
+    if (!form) {
+        console.error('AI Analysis Form not found');
+        return; 
+    }
+
+    var resultDiv = document.getElementById('aiAnalysisResult');
+    if (!resultDiv) {
+        console.error('AI Analysis Result div not found');
+        return;
+    }
+
+    // 1. Clear previous results and show the CORRECT loading indicator WITH the spinner
+    resultDiv.innerHTML = '<div class="loader"></div><p><em>AI is analyzing, please wait...</em></p>';
+
     var selectedDocCheckboxes = form.querySelectorAll('input[name="selected_document_ids"]:checked');
     var selectedDocumentIds = [];
-    selectedDocCheckboxes.forEach(function (checkbox) {
+    selectedDocCheckboxes.forEach(function(checkbox) {
         selectedDocumentIds.push(checkbox.value);
     });
 
     var llmPromptInput = form.querySelector('input[name="llm_actual_prompt"]');
-    var llmPrompt = llmPromptInput ? llmPromptInput.value : ''; // Handle if input not found
+    var llmPrompt = llmPromptInput ? llmPromptInput.value : '';
 
-    var resultDiv = document.getElementById('aiAnalysisResult');
-    if (!resultDiv) return; // Guard clause
-
-    resultDiv.innerHTML = '<em>Processing request with prompt: "' + llmPrompt + '" and ' + selectedDocumentIds.length + ' document(s)...</em>';
-
-    const analysisUrl = form.dataset.analysisUrl; // Get URL from data attribute
+    const analysisUrl = form.dataset.analysisUrl;
     if (!analysisUrl) {
-        resultDiv.innerHTML = '<em style="color:red;">Error: Analysis URL not configured.</em>';
+        resultDiv.innerHTML = '<p style="color:red;"><em>Error: Analysis URL not configured. Cannot submit.</em></p>';
         console.error('Error: Analysis URL not found on form data attribute.');
         return;
     }
-
+    
     try {
         const response = await fetch(analysisUrl, {
             method: 'POST',
@@ -44,84 +53,107 @@ async function submitForAIAnalysis() {
                 selected_document_ids: selectedDocumentIds
             })
         });
+        resultDiv.innerHTML = ''; // Clear loader
+        // At this point, the fetch is complete. We will replace the loader with the result or an error.
+        // No need to set resultDiv.innerHTML to the loader again here.
+        // The following lines will overwrite the loader.
 
         if (!response.ok) {
-            // Try to get error message from JSON response if backend sends one
             let errorData;
-            try {
-                errorData = await response.json();
-            } catch (e) {
-                errorData = { message: `HTTP error! status: ${response.status}` };
-            }
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            try { errorData = await response.json(); } catch (e) { errorData = { message: response.statusText || `HTTP error! Status: ${response.status}` }; }
+            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.json(); 
+        
+        let statusClass = '';
+        if (data.status && data.status.startsWith('error_')) {
+            statusClass = 'ai-error';
+        } else if (data.status && data.status.startsWith('warning_')) {
+            statusClass = 'ai-warning';
+        } else if (data.status && data.status.startsWith('success_')) {
+            statusClass = 'ai-success';
+        }
 
-        let prettyResponse = '<strong>AI Analysis Result:</strong><br>';
-        prettyResponse += 'Status: ' + data.status + '<br>';
-        prettyResponse += 'Message: ' + data.message + '<br>';
-        prettyResponse += 'Original Prompt: ' + data.received_prompt + '<br>';
+        let prettyResponse = `<div class="${statusClass}"><h4>AI Analysis Result:</h4>`;
+        prettyResponse += `<p><strong>Status:</strong> ${escapeHtml(data.status)}</p>`;
+        prettyResponse += `<p><strong>Message:</strong> ${escapeHtml(data.message)}</p></div>`;
+        
+        if (data.received_prompt) {
+            prettyResponse += '<p><strong>Original Prompt:</strong> ' + escapeHtml(data.received_prompt) + '</p>';
+        }
 
         if (data.selected_documents_info && data.selected_documents_info.length > 0) {
-            prettyResponse += 'Processed Documents:<br><ul>';
-            data.selected_documents_info.forEach(function (doc) {
-                prettyResponse += '<li>' + (doc.title || doc.filename) + ' (ID: ' + doc.id + ')</li>';
+            prettyResponse += '<p><strong>Processed Documents:</strong></p><ul>';
+            data.selected_documents_info.forEach(function(doc) {
+                prettyResponse += '<li>' + escapeHtml(doc.title || doc.filename) + ' (ID: ' + escapeHtml(doc.id) + ')</li>';
             });
             prettyResponse += '</ul>';
-        } else {
-            prettyResponse += 'No documents were specified or processed for context.<br>';
+        } else if (!data.selected_documents_info && selectedDocumentIds.length > 0 && !data.status.includes("_no_documents_selected")) {
+             prettyResponse += '<p>Documents were selected, but no detailed info returned from server (check server logs for validation issues).</p>';
+        } else if (!data.status.includes("_no_documents_selected")){ // Avoid double message if status already says no docs
+            prettyResponse += '<p>No documents were specified or processed for context.</p>';
         }
 
-        if (data.extracted_text_sample) {
-            prettyResponse += '<strong>Sample of Text Provided to AI:</strong><br>';
-            prettyResponse += '<pre style="white-space: pre-wrap; border: 1px solid #ccc; padding: 5px; max-height: 100px; overflow-y: auto;">' + escapeHtml(data.extracted_text_sample) + '</pre>';
+
+        if (data.extracted_text_sample && data.extracted_text_sample.trim() !== '' && !data.extracted_text_sample.startsWith("---")) { // Only show if meaningful
+            prettyResponse += '<p><strong>Sample of Text Provided to AI:</strong></p>';
+            prettyResponse += '<pre style="white-space: pre-wrap; border: 1px solid #ccc; padding: 5px; max-height: 100px; overflow-y: auto; background-color: #f9f9f9;">' + escapeHtml(data.extracted_text_sample) + '</pre>';
         }
 
-        if (data.ai_suggestion) { // NEW: Display AI Suggestion
-            prettyResponse += '<strong>AI Suggestion:</strong><br>';
-            prettyResponse += '<div style="background-color: #f0f0f0; border: 1px solid #ccc; padding: 10px; margin-top: 5px; white-space: pre-wrap;">' + escapeHtml(data.ai_suggestion) + '</div>';
-            // Optional: Add a button to use this suggestion
-            prettyResponse += '<button type="button" onclick="useAISuggestion(this.previousElementSibling.innerText)">Use this Suggestion</button>';
+        // Display AI suggestion only if the status indicates success or a warning where a suggestion might still be present
+        if (data.ai_suggestion && (data.status.includes('success_') || data.status.includes('warning_'))) {
+            // Avoid showing the default "AI model unavailable" or error messages as a "suggestion" if status is error
+            if (!data.status.startsWith('error_')) {
+                 prettyResponse += '<p><strong>AI Suggestion:</strong></p>';
+                 prettyResponse += '<div id="aiSuggestionText" style="background-color: #f0f0f0; border: 1px solid #ccc; padding: 10px; margin-top: 5px; white-space: pre-wrap;">' + escapeHtml(data.ai_suggestion) + '</div>';
+                 prettyResponse += '<button type="button" onclick="useAISuggestion()" style="margin-top: 5px;">Use this Suggestion</button>';
+            }
         }
         resultDiv.innerHTML = prettyResponse;
 
-        // Helper function to escape HTML (simple version)
-        function escapeHtml(unsafe) {
-            if (unsafe === null || unsafe === undefined) return '';
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-
     } catch (error) {
         console.error('Error submitting for AI analysis:', error);
-        resultDiv.innerHTML = '<em style="color:red;">Error: ' + error.message + '</em>';
+        resultDiv.innerHTML = '<div class="ai-error"><h4>AI Analysis Error:</h4><p><em>' + escapeHtml(error.message) + '</em></p></div>';
     }
 }
 
-function useAISuggestion(suggestionText) {
+// Make sure escapeHtml and useAISuggestion functions are also in this file
+function escapeHtml(unsafe) {
+    if (unsafe === null || unsafe === undefined) return '';
+    return String(unsafe) // Ensure it's a string before replacing
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+function useAISuggestion() {
+    var suggestionTextDiv = document.getElementById('aiSuggestionText');
     var answerTextarea = document.getElementById('answer_text'); // ID of your main answer textarea
-    if (answerTextarea) {
-        answerTextarea.value = suggestionText;
-        // Optionally, hide the AI document selection section again
-        // var section = document.getElementById('aiDocumentSelection');
-        // if (section) section.style.display = 'none';
+    
+    if (suggestionTextDiv && answerTextarea) {
+        answerTextarea.value = suggestionTextDiv.innerText || suggestionTextDiv.textContent; // Use innerText to get displayed text
+    } else {
+        if (!suggestionTextDiv) console.error("AI suggestion text container not found.");
+        if (!answerTextarea) console.error("Main answer textarea not found.");
     }
 }
 
-// Attach event listeners after the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', function () {
-    const analyzeButton = document.getElementById('analyzeWithAIButton'); // Give your "Analyze with AI..." button this ID
+// The DOMContentLoaded listener to attach event handlers should already be in this file.
+// Ensure it's correctly attaching to 'submitAIAnalysisPlaceholderButton'.
+document.addEventListener('DOMContentLoaded', function() {
+    const analyzeButton = document.getElementById('analyzeWithAIButton');
     if (analyzeButton) {
         analyzeButton.addEventListener('click', toggleAIDocsSelection);
     }
 
-    const submitAIButton = document.getElementById('submitAIAnalysisPlaceholderButton'); // Give your "Submit for AI Analysis..." button this ID
+    const submitAIButton = document.getElementById('submitAIAnalysisPlaceholderButton');
     if (submitAIButton) {
+        // Ensure this button type is "button" not "submit" if it's inside the main form,
+        // or that this function prevents default form submission if necessary.
+        // Since it's calling fetch, it shouldn't submit the outer form.
         submitAIButton.addEventListener('click', submitForAIAnalysis);
     }
 });

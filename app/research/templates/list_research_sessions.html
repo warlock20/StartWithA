@@ -1,72 +1,73 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<h1>{{ title }}</h1>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>{{ title }}</h1>
+        {# This button takes the user to select a company, which is the start of the new research flow #}
+        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-success">Start New Research</a>
+    </div>
 
-{% if sessions_data %}
-<table border="1" style="width:100%; border-collapse: collapse;">
-    <thead>
-        <tr>
-            <th style="padding: 8px; text-align: left;">Company</th>
-            <th style="padding: 8px; text-align: left;">Checklist</th>
-            <th style="padding: 8px; text-align: left;">Started On</th>
-            <th style="padding: 8px; text-align: left;">Status</th>
-            <th style="padding: 8px; text-align: left;">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for data_item in sessions_data %}
-        <tr>
-            <td style="padding: 8px;">{{ data_item.company_name }}</td>
-            <td style="padding: 8px;">{{ data_item.checklist_name }}</td>
-            <td style="padding: 8px;">{{ data_item.session_obj.start_date.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td style="padding: 8px;">{{ data_item.session_obj.status|capitalize }}</td>
-            <td style="padding: 8px;">
-                {% if data_item.session_obj.status == 'in_progress' %}
-                {% if data_item.resume_item_id %}
-                <a
-                    href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
-                {% else %}
-                <span>Cannot resume (checklist empty or error)</span>
-                {% endif %}
-                {% elif data_item.session_obj.status == 'completed' %}
-                <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
-                    Summary</a>
-                {% else %}
-                <span>{{ data_item.session_obj.status|capitalize }}</span>
-                {% endif %}
-            </td>
-        </tr>
-        <td style="padding: 8px;">
-            {% if data_item.session_obj.status == 'in_progress' %}
-            {% if data_item.resume_item_id %}
-            <a
-                href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}">Resume</a>
-            {% else %}
-            <span>(Cannot resume)</span>
-            {% endif %}
-            {% elif data_item.session_obj.status == 'completed' %}
-            <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}">View
-                Summary</a>
-            {% else %}
-            <span>{{ data_item.session_obj.status|capitalize }}</span>
-            {% endif %}
+    {% if sessions_data %}
+        <div class="table-responsive"> {# Makes table scroll horizontally on small screens if needed #}
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">Company</th>
+                        <th scope="col">Checklist</th>
+                        <th scope="col">Progress</th>
+                        <th scope="col">Started On</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data_item in sessions_data %}
+                        <tr>
+                            <td>{{ data_item.company_name }}</td>
+                            <td>{{ data_item.checklist_name }}</td>
+                            <td>
+                                {% if data_item.total_item_count > 0 %}
+                                    <span class="badge bg-primary rounded-pill fs-6">
+                                        {{ data_item.satisfied_count }} / {{ data_item.total_item_count }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill fs-6">
+                                        0 / 0
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ data_item.session_obj.start_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if data_item.session_obj.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif data_item.session_obj.status == 'in_progress' %}
+                                    <span class="badge bg-warning text-dark">In Progress</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ data_item.session_obj.status|capitalize }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data_item.session_obj.status == 'in_progress' %}
+                                    {% if data_item.resume_item_id %}
+                                        <a href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}" class="btn btn-primary btn-sm">Resume</a>
+                                    {% endif %}
+                                {% elif data_item.session_obj.status == 'completed' %}
+                                    <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}" class="btn btn-info btn-sm">View Summary</a>
+                                {% endif %}
 
-            {# Add Delete Form/Button here, alongside other actions #}
-            <form method="POST"
-                action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}"
-                style="display: inline; margin-left: 10px;">
-                {# It's good practice to include a CSRF token here if/when you add Flask-WTF or Flask-SeaSurf #}
-                {# For now, a simple submit button #}
-                <button type="submit"
-                    onclick="return confirm('Are you sure you want to delete this research session? This action cannot be undone.');">Delete</button>
-            </form>
-        </td>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>You have no research sessions yet.</p>
-<p><a href="{{ url_for('checklists.list_checklists') }}">Start a new research by selecting a checklist.</a></p>
-{% endif %}
+                                {# Delete Form/Button #}
+                                <form method="POST" action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}" style="display: inline;">
+                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this research session? This action cannot be undone.');" class="btn btn-danger btn-sm">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>You have no research sessions yet.</p>
+        </div>
+    {% endif %}
 {% endblock %}

@@ -49,7 +49,8 @@ def initialize_llm_pipeline():
             # or 'summarization' pipelines are suitable.
             # FinGPT or finance-bench models might use 'text-generation' or a specific fine-tuned task.
             # Let's start with a general text2text-generation pipeline.
-            llm_pipeline = pipeline("text2text-generation", model=LLM_MODEL_NAME, tokenizer=LLM_MODEL_NAME)
+            tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
+            llm_pipeline = pipeline("text2text-generation", model=LLM_MODEL_NAME, tokenizer=tokenizer)
             print(f"INFO: LLM pipeline ({LLM_MODEL_NAME}) initialized successfully.")
         except Exception as e:
             print(f"ERROR: Failed to initialize LLM pipeline - {LLM_MODEL_NAME}: {e}")
@@ -281,14 +282,17 @@ def research_step(session_id, item_id):
 
     if request.method == 'POST':
         answer_text = request.form.get('answer_text')
+        satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = datetime.utcnow()
+            research_answer.satisfaction_status = satisfaction_status_from_form
         else:
             research_answer = ResearchAnswer(
                 answer_text=answer_text,
                 research_session_id=session.id,
-                checklist_item_id=current_item.id
+                checklist_item_id=current_item.id,
+                satisfaction_status=satisfaction_status_from_form
             )
             db.session.add(research_answer)
         db.session.commit()
@@ -339,169 +343,185 @@ def research_step(session_id, item_id):
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required
 def ai_analyze_item(session_id, item_id):
-    # Ensure user owns the session, and item belongs to session's checklist
+    """
+    Handles the AI analysis request for a specific checklist item within a research session.
+    It extracts text from selected documents, calls the LLM, and returns a suggestion.
+    """
     session = ResearchSession.query.get_or_404(session_id)
+    # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
-
+        return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
+    
     item = ChecklistItem.query.get_or_404(item_id)
+    # Validate that the item belongs to this session's checklist
     if item.checklist_id != session.checklist_id:
-        return jsonify({'status': 'error', 'message': 'Invalid item for session'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid item for this session.'}), 400
 
+    # Ensure the request is JSON
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
     
     data = request.get_json()
-    # Use the llm_prompt from the checklist item itself as the primary question
-    llm_question = item.llm_prompt 
-    if not llm_question: # Fallback if somehow llm_prompt on item is empty
-         llm_question = data.get('llm_actual_prompt', "Summarize the key points from the provided text.")
+    # Get the LLM question/prompt, defaulting to the one stored on the checklist item
+    llm_question = data.get('llm_actual_prompt', item.llm_prompt) 
+    if not llm_question: # If somehow still no prompt
+        return jsonify({'status': 'error', 'message': 'No LLM prompt provided or found for this item.'}), 400
 
     selected_document_ids_str = data.get('selected_document_ids', [])
-
-    # In a future step:
-    # 1. Fetch CompanyDocument objects from selected_document_ids.
-    # 2. Ensure these documents belong to session.company_id and user has access.
-    # 3. Parse content from these documents (e.g., PDF text extraction).
-    # 4. Construct a detailed prompt for the LLM using llm_prompt and document content.
-    # 5. Call the LLM (local or API).
-    # 6. Process the LLM response.
-    # 7. Return the suggestion.
     
+    # Convert document IDs from strings to integers
     selected_document_ids = []
     for doc_id_str in selected_document_ids_str:
         try:
             selected_document_ids.append(int(doc_id_str))
         except ValueError:
-            return jsonify({'status': 'error', 'message': f'Invalid document ID format: {doc_id_str}.'}), 400
+            return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}". IDs must be integers.'}), 400
+
+    # Print received data for debugging (server-side)
+    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
+    print(f"LLM Question: {llm_question}")
+    print(f"Selected Document IDs (integers): {selected_document_ids}")
 
     validated_documents_info = []
-    aggregated_text_content = "" # To store text from all selected documents
+    aggregated_text_content = ""
 
+    # Process selected documents if any IDs were provided
     if selected_document_ids:
+        # Fetch CompanyDocument objects, ensuring they belong to the session's company
         company_documents = CompanyDocument.query.filter(
             CompanyDocument.id.in_(selected_document_ids),
-            CompanyDocument.company_id == session.company_id
+            CompanyDocument.company_id == session.company_id 
         ).all()
 
-        if len(company_documents) != len(set(selected_document_ids)): # Use set for unique IDs check
-            return jsonify({'status': 'error', 'message': 'Some selected documents are invalid, not found for this company, or duplicates were sent.'}), 400
+        # Validate that all requested document IDs were found and valid for this company
+        if len(company_documents) != len(set(selected_document_ids)):
+            return jsonify({'status': 'error', 'message': 'Some selected documents are invalid or not found for this company.'}), 400
             
         for doc in company_documents:
             validated_documents_info.append({
                 'id': doc.id, 'title': doc.document_title, 'filename': doc.original_filename
             })
             
-            # --- NEW: Document Content Extraction ---
+            # Extract text content from each validated document
             try:
-                # Construct the full path to the stored file
-                # doc.stored_filename is like '<company_id>/<uuid_filename_ext>'
                 full_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.stored_filename)
-                
                 if not os.path.exists(full_file_path):
-                    aggregated_text_content += f"\n\n--- ERROR: File not found for document: {doc.original_filename} ---"
-                    print(f"File not found at path: {full_file_path}") # Server log
-                    continue # Skip to next document
-
+                    error_msg = f"\n\n--- ERROR: File not found for document: {doc.original_filename} (Path: {full_file_path}) ---"
+                    aggregated_text_content += error_msg
+                    print(error_msg.strip()) # Log server-side
+                    continue # Skip to the next document
+                
                 if doc.original_filename.lower().endswith('.pdf'):
                     with fitz.open(full_file_path) as pdf_doc:
-                        for page_num in range(len(pdf_doc)):
-                            page = pdf_doc.load_page(page_num)
+                        for page in pdf_doc:
                             aggregated_text_content += page.get_text("text") + "\n"
                 elif doc.original_filename.lower().endswith('.txt'):
                     with open(full_file_path, 'r', encoding='utf-8') as txt_file:
                         aggregated_text_content += txt_file.read() + "\n"
                 else:
-                    aggregated_text_content += f"\n\n--- Unsupported file type for document: {doc.original_filename} ---"
+                    aggregated_text_content += f"\n\n--- Skipped unsupported file type: {doc.original_filename} ---"
             except Exception as e:
-                aggregated_text_content += f"\n\n--- ERROR processing document {doc.original_filename}: {str(e)} ---"
-                print(f"Error processing file {full_file_path}: {e}") # Server log
-            # --- END NEW ---
-
-    # --- Placeholder for actual LLM interaction ---
-    # For now, we'll return a sample of the aggregated text.
-    text_sample_limit = 1000 # Show first 1000 characters as a sample
-    extracted_text_sample = aggregated_text_content[:text_sample_limit]
-    if len(aggregated_text_content) > text_sample_limit:
-        extracted_text_sample += "..."
-    # --- End Placeholder ---
-     # This is where your error occurred (or a similar print statement).
-    # These print statements are for debugging and should now work safely:
-    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
-    print(f"LLM Prompt: {llm_question}")
-    print(f"Selected Document IDs (raw strings from JSON): {selected_document_ids_str}")
-    print(f"Selected Document IDs (integers after conversion): {selected_document_ids}") # This line should now be safe
+                error_msg = f"\n\n--- ERROR processing document {doc.original_filename}: {str(e)} ---"
+                aggregated_text_content += error_msg
+                print(f"ERROR: Failed to process file {doc.original_filename}: {e}") # Log server-side
     
-    
-    ai_suggestion = "LLM analysis could not be performed." # Default message
+    # Initialize response variables
+    ai_suggestion = ""
+    response_status = 'pending' # Will be updated based on outcomes
+    response_message = ""     # Will be updated
 
-    # Ensure LLM pipeline is initialized (lazy loading on first request to this route)
-    if llm_pipeline is None:
-        initialize_llm_pipeline()
+    # Check LLM pipeline and input conditions
+    if llm_pipeline is None: # Ensure LLM is initialized (lazy load if not done at app start)
+        initialize_llm_pipeline() 
 
-    if llm_pipeline:
-        if not aggregated_text_content.strip() and selected_document_ids:
-            ai_suggestion = "No text content could be extracted from the selected document(s) to provide to the AI."
-        elif not selected_document_ids:
-             ai_suggestion = "No documents were selected to provide context to the AI for this question."
-             # For some questions, context might not be needed. This logic can be refined.
-             # For now, we assume context is useful if documents can be selected.
+    if not llm_pipeline:
+        response_status = 'error_llm_not_loaded'
+        response_message = "The AI model could not be initialized. Please check server logs or try again later."
+        ai_suggestion = "AI model unavailable."
+    elif not selected_document_ids: # No documents were selected by the user
+        response_status = 'warning_no_documents_selected'
+        response_message = "No documents were selected to provide context to the AI."
+        ai_suggestion = "Please select documents for the AI to analyze with your prompt."
+    else: # Documents were selected, now check if text was extracted
+        # Heuristic to check if any meaningful text was actually extracted (ignoring our error markers)
+        meaningful_text_exists = False
+        if aggregated_text_content.strip(): # Basic check for non-empty
+            temp_text_for_check = aggregated_text_content
+            for marker in ["--- ERROR: File not found ---", "--- ERROR processing document ---", "--- Skipped unsupported file type ---"]: # More generic markers
+                temp_text_for_check = temp_text_for_check.replace(marker, "") # Remove markers
+            if temp_text_for_check.strip(): # Check if anything is left after removing error markers
+                meaningful_text_exists = True
+        
+        if not meaningful_text_exists:
+            response_status = 'warning_no_text_extracted'
+            response_message = "Could not extract usable text from the selected document(s)."
+            ai_suggestion = "No text content available for AI analysis from the selected documents."
         else:
-            # Prepare the input for the LLM
-            # For text2text-generation, the input is typically a single string.
-            # You might need to instruct the LLM on what to do.
-            # Example: "Answer the following question based on the provided text: {question}\n\nText:\n{context}"
-            # Or for summarization: "Summarize the following text:\n{context}"
-            # Or for FinGPT style: "{instruction}\nInput:\n{context}\nOutput:"
+            # Proceed with LLM call as meaningful text (or partially error-annotated text) exists
+            if "--- ERROR" in aggregated_text_content or "--- Skipped" in aggregated_text_content:
+                 response_status = 'warning_partial_text_extraction'
+                 response_message = "Text extracted, but there were issues with some documents (see text sample). AI will proceed with available text."
+            else:
+                 response_status = 'info_processing_llm' # Intermediate status before success/error from LLM
+                 response_message = "Extracted text sent to AI for analysis."
 
-            # Simple Question + Context for FLAN-T5
-            # Ensure the combined text doesn't exceed model's token limit.
-            # tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME) # Get tokenizer for max length
-            # max_input_length = tokenizer.model_max_length - 50 # Reserve some tokens for the question and output
 
-            # For now, a simple concatenation. Proper truncation/chunking is needed for long texts.
-            max_context_len_for_prompt = 3000 # Arbitrary limit for now, to prevent overly long prompts
-            truncated_context = aggregated_text_content[:max_context_len_for_prompt]
-            if len(aggregated_text_content) > max_context_len_for_prompt:
-                truncated_context += "\n... [content truncated] ..."
+            # --- Prepare context and prompt for LLM ---
+            tokenizer = llm_pipeline.tokenizer
+            question_token_ids = tokenizer.encode(llm_question, add_special_tokens=False)
+            instructions = "Answer the following question based only on the provided context. If the answer is not in the context, state that the information is not found in the provided documents."
+            instruction_token_ids = tokenizer.encode(instructions, add_special_tokens=False)
+            template_overhead_tokens = 20 
+            available_for_context_tokens = tokenizer.model_max_length - len(instruction_token_ids) - len(question_token_ids) - template_overhead_tokens
+            if available_for_context_tokens < 50: available_for_context_tokens = 50
+            
+            context_input_ids = tokenizer.encode(aggregated_text_content, max_length=available_for_context_tokens, truncation=True, add_special_tokens=False)
+            truncated_context = tokenizer.decode(context_input_ids, skip_special_tokens=True)
+            prompt_for_llm = f"{instructions}\n\nQUESTION:\n{llm_question}\n\nCONTEXT:\n{truncated_context}\n\nANSWER:"
+            
+            print(f"INFO: Final prompt for LLM (first 300 chars): {prompt_for_llm[:300]}...")
+            print(f"INFO: Context tokens: {len(context_input_ids)}, Question tokens: {len(question_token_ids)}, Instruction tokens: {len(instruction_token_ids)}")
 
-            prompt_for_llm = f"Based on the following text, answer the question.\n\nText:\n{truncated_context}\n\nQuestion:\n{llm_question}"
-
-            print(f"INFO: Sending prompt to LLM (first 200 chars): {prompt_for_llm[:200]}...")
-
+            # --- Call LLM ---
             try:
-                # Adjust pipeline arguments based on the model and task.
-                # For FLAN-T5 (text2text-generation):
-                # result = llm_pipeline(prompt_for_llm, max_length=150, min_length=10, num_beams=4, early_stopping=True)
-                # For some pipelines, max_length is the length of the generated output.
-                # For others, it might be total input+output. Consult model card.
-                # `max_new_tokens` is often preferred for controlling output length.
-                result = llm_pipeline(prompt_for_llm, max_new_tokens=200) # Generate up to 200 new tokens
-
-                if result and isinstance(result, list) and result[0].get('generated_text'):
-                    ai_suggestion = result[0]['generated_text']
-                    print(f"INFO: LLM suggestion: {ai_suggestion}")
+                generated_outputs = llm_pipeline(prompt_for_llm, max_new_tokens=200, min_length=10) # Adjust params as needed
+                if generated_outputs and isinstance(generated_outputs, list) and generated_outputs[0].get('generated_text'):
+                    ai_suggestion = generated_outputs[0]['generated_text'].strip()
+                    if ai_suggestion:
+                        response_status = 'success_ai_suggestion'
+                        response_message = 'AI suggestion generated successfully.'
+                    else:
+                        response_status = 'warning_llm_empty_response'
+                        response_message = 'AI generated an empty suggestion.'
+                        ai_suggestion = "The AI did not provide a suggestion for this query."
                 else:
-                    ai_suggestion = "LLM returned an unexpected response format."
-                    print(f"WARNING: LLM unexpected result: {result}")
+                    response_status = 'error_llm_unexpected_response'
+                    response_message = 'AI returned an unexpected response format.'
+                    ai_suggestion = "Could not understand AI's response."
             except Exception as e:
-                ai_suggestion = f"Error during LLM inference: {str(e)}"
+                response_status = 'error_llm_inference'
+                response_message = f'An error occurred during AI inference: {str(e)}'
+                ai_suggestion = "An error occurred while the AI was processing your request."
                 print(f"ERROR: LLM inference error: {e}")
-    else:
-        ai_suggestion = "LLM could not be initialized. Please check server logs."
 
-    # For this phase, return a placeholder response
+    # Fallback for any unhandled 'pending' status (should ideally not be reached if logic is complete)
+    if response_status == 'pending':
+        response_status = 'error_unknown_processing_issue'
+        response_message = 'An unknown issue occurred during AI analysis processing.'
+        ai_suggestion = 'AI analysis could not be completed due to an unknown issue.'
+
+    # --- Construct and return the JSON response ---
     return jsonify({
-        'status': 'success_ai_processed' if llm_pipeline else 'error_llm_not_loaded',
-        'message': 'AI analysis performed.' if llm_pipeline else ai_suggestion,
-        'received_prompt': llm_question, # Use the actual question posed to LLM
+        'status': response_status,
+        'message': response_message, # This variable is now consistently used
+        'received_prompt': llm_question,
         'selected_documents_info': validated_documents_info,
-        'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""), # Still useful for user to see
-        'ai_suggestion': ai_suggestion # The actual suggestion from the LLM
+        'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""),
+        'ai_suggestion': ai_suggestion
     })
     
 # We also need a route for the session summary. Let's add a placeholder for now.
-@research_bp.route('/session/<int:session_id>/summary', methods=['GET'])
+@research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
 @login_required
 def view_research_session_summary(session_id):
     session = ResearchSession.query.get_or_404(session_id)
@@ -509,13 +529,24 @@ def view_research_session_summary(session_id):
         flash('You are not authorized to view this summary.', 'error')
         return redirect(url_for('research.list_research_sessions'))
     
-    # Get all items for the checklist in their correct order
-    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
+    if request.method == 'POST':
+        # Handle saving the conclusion
+        conclusion_text = request.form.get('conclusion')
+        session.conclusion = conclusion_text # Update the conclusion
+        try:
+            db.session.commit()
+            flash('Session conclusion saved successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error saving conclusion: {str(e)}', 'error')
+        # Redirect to the same page to show the updated summary (or just re-render)
+        return redirect(url_for('research.view_research_session_summary', session_id=session.id))
     
-    # Fetch all answers for this session and put them in a dictionary for easy lookup
+    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     answers_query = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
     answers_dict = {ans.checklist_item_id: ans.answer_text for ans in answers_query}
-    
+    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
     # For completion time: find the latest 'answered_at' timestamp among answers
     # (This is a bit simplified, as the session.status is 'completed' already)
     # The template logic for last_answered_at.value is one way, or can be done here.
@@ -525,7 +556,8 @@ def view_research_session_summary(session_id):
         title="Research Summary", 
         session=session, 
         all_ordered_items=all_ordered_items, # Pass ordered items
-        answers_dict=answers_dict            # Pass answers dictionary
+        answers_dict=answers_dict,            # Pass answers dictionary
+        answers_map=answers_map 
         # The old 'answers' variable (a list of ResearchAnswer objects) can be removed if not used
     )
 
@@ -554,16 +586,28 @@ def delete_research_session(session_id):
 @research_bp.route('/sessions', methods=['GET'])
 @login_required
 def list_research_sessions():
+    user = current_user
     # Fetch all sessions for this user, ordered by start date descending
     sessions_query = ResearchSession.query.filter_by(user_id=current_user.id).order_by(ResearchSession.start_date.desc()).all()
     
     sessions_data = []
     for session in sessions_query:
+        # Get the total number of items for the session's checklist
+        total_item_count = ChecklistItem.query.filter_by(checklist_id=session.checklist_id).count()
+
+        # Get the number of items marked as 'satisfied' for this specific session
+        satisfied_count = ResearchAnswer.query.filter_by(
+            research_session_id=session.id,
+            satisfaction_status='satisfied'
+        ).count()
+        
         data = {
             'session_obj': session,
             'company_name': session.company.name, # Assuming session.company relationship works
             'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
-            'resume_item_id': None
+            'resume_item_id': None,
+            'total_item_count': total_item_count, # Add total count to data
+            'satisfied_count': satisfied_count   # Add satisfied count to data
         }
         
         if session.status == 'in_progress':
@@ -577,12 +621,12 @@ def list_research_sessions():
                         checklist_item_id=item.id
                     ).first()
                     if not answer_exists:
-                        resume_item_id_candidate = item.id # Found the first unanswered item
+                        resume_item_id_candidate = item.id 
                         break
                 data['resume_item_id'] = resume_item_id_candidate
             else: # Checklist has no items, but session is in_progress
                 data['resume_item_id'] = None # Cannot resume if no items
-                
+ 
         sessions_data.append(data)
 
     return render_template('list_research_sessions.html', 

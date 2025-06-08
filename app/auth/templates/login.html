@@ -1,25 +1,38 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
-    <form method="POST" action="{{ url_for('auth.login') }}">
-        <div>
-            <label for="identifier">Username or Email:</label><br>
-            <input type="text" id="identifier" name="identifier" value="{{ request.form.identifier if request.form else '' }}" required size="30">
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title text-center">{{ title }}</h1>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="identifier" class="form-label">Username or Email:</label>
+                        <input type="text" class="form-control" id="identifier" name="identifier" value="{{ request.form.identifier if request.form else '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember" value="1">
+                        <label class="form-check-label" for="remember">Remember Me</label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a>.</p>
+            </div>
         </div>
-        <br>
-        <div>
-            <label for="password">Password:</label><br>
-            <input type="password" id="password" name="password" required size="30">
-        </div>
-        <br>
-        <div>
-            <input type="checkbox" id="remember" name="remember" value="1"> {# Value "1" or any non-empty will be truthy #}
-            <label for="remember">Remember Me</label>
-        </div>
-        <br>
-        <button type="submit">Login</button>
-    </form>
-    <br>
-    <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a>.</p>
+    </div>
+</div>
 {% endblock %}

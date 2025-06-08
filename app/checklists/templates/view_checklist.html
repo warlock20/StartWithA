@@ -1,81 +1,71 @@
 {% extends "main/_base.html" %}
-
-{% macro display_items(items_list, checklist_id, current_level=0) %}
-  <ul class="{{ 'sub-items' if current_level > 0 else '' }}">
-    {% for item in items_list %}
-      <li class="checklist-item">
-        <span>{{ item.order +1 }}. {{ item.text }}</span>
-        {% if item.llm_prompt %}
-            <small style="color: #007bff; display: block;"><em>LLM Prompt: {{ item.llm_prompt|truncate(50) }}</em></small>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist_id) }}" style="display: inline; margin-left: 10px;">
-            <input type="hidden" name="parent_id" value="{{ item.id }}">
-            <input type="text" name="item_text" placeholder="Add sub-item" size="30" required>
-            <textarea name="llm_prompt" placeholder="Optional: LLM prompt for sub-item" rows="1" cols="25" style="display:block; margin-top:5px;"></textarea>
-            <button type="submit" title="Add sub-item">+</button>
-        </form>
-        <form method="POST" action="{{ url_for('checklists.delete_checklist_item', item_id=item.id) }}" style="display: inline-block; margin-left: 5px;">
-            <button type="submit" onclick="return confirm('Are you sure you want to delete this item and all its sub-items?');" style="font-size:0.8em; color:red;">Delete Item</button>
-        </form>
-
-        {% if item.children.all() %}
-          {{ display_items(item.children.order_by(ChecklistItem.order).all(), checklist_id, current_level + 1) }}
-        {% endif %}
-      </li>
-    {% else %}
-      {% if current_level == 0 %}
-      <li>No items in this checklist yet.</li>
-      {% endif %}
-    {% endfor %}
-  </ul>
-{% endmacro %}
-
+{% from "_macros.html" import display_items %}.
 {% block content %}
-    <h1>{{ checklist.name }}</h1>
-    <p><em>{{ checklist.description }}</em></p>
-    <p><small>Created by: {{ checklist.author.username }}</small></p>
-    
-    <hr>
-    <h3>Checklist Items:</h3>
-    {{ display_items(items, checklist.id) }}
-    
-    <hr>
-    <h3>Add New Top-Level Item:</h3>
-    <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <label for="item_text">New Item Text:</label><br>
-            <input type="text" id="item_text" name="item_text" required size="70">
+            <h1>{{ checklist.name }}</h1>
+            <p class="lead">{{ checklist.description }}</p>
         </div>
-        <div> {# New field for LLM Prompt #}
-          <label for="llm_prompt">Optional LLM Prompt for this item:</label><br>
-          <textarea id="llm_prompt" name="llm_prompt" rows="3" cols="70" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?"></textarea>
-        </div>
-        <br>
-        <button type="submit">Add Top-Level Item</button>
-    </form>
-    <hr> {# Add a separator #}
+        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
+    </div>
 
-    <h3>Start Research with this Checklist</h3>
-    {% if companies and companies|length > 0 %}
-        <form method="POST" action="{{ url_for('research.start_research_session') }}">
-            <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
-            <div>
-                <label for="company_id">Select Company to Research:</label><br>
-                <select name="company_id" id="company_id" required>
-                    <option value="" disabled selected>-- Choose a Company --</option>
-                    {% for company in companies %}
-                        <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
-                    {% endfor %}
-                </select>
+    <div class="card mb-4">
+        <div class="card-header">
+            Checklist Items
+        </div>
+        <div class="card-body">
+            {% if items %}
+                {{ display_items(items, checklist.id, ChecklistItem, readonly=False) }}
+            {% else %}
+                <p>No items in this checklist yet. Add one below.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Add New Top-Level Item
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
+                <div class="mb-3">
+                    <label for="item_text" class="form-label">New Top-Level Item Text:</label>
+                    <input type="text" id="item_text" name="item_text" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="llm_prompt" class="form-label">Optional LLM Prompt for this item:</label>
+                    <textarea id="llm_prompt" name="llm_prompt" rows="3" class="form-control" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Top-Level Item</button>
+            </form>
+        </div>
+    </div>
+
+    {# Start Research Section #}
+    {% if companies is defined %} {# This form is from an older workflow, we can keep or remove it #}
+        <div class="card">
+            <div class="card-header">
+                Start Research with this Checklist
             </div>
-            <br>
-            <p>Alternatively, <a href="{{ url_for('companies.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a new company</a> first.</p>
-            <br>
-            <button type="submit">Start or Resume Research Session</button>
-        </form>
-    {% else %}
-        <p>There are no companies in the system. Please <a href="{{ url_for('companies.new_company', next=url_for('checklists.view_checklist', checklist_id=checklist.id)) }}">add a company</a> before starting research.</p>
+            <div class="card-body">
+                {% if companies|length > 0 %}
+                    <form method="POST" action="{{ url_for('research.start_research_session') }}">
+                        <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+                        <div class="mb-3">
+                            <label for="company_id" class="form-label">Select Company to Research:</label>
+                            <select name="company_id" id="company_id" class="form-select" required>
+                                <option value="" disabled selected>-- Choose a Company --</option>
+                                {% for company in companies %}
+                                    <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success">Start Research Session</button>
+                    </form>
+                {% else %}
+                    <p>You have no companies added. Please <a href="{{ url_for('companies.new_company') }}">add a company</a> first.</p>
+                {% endif %}
+            </div>
+        </div>
     {% endif %}
-    
 {% endblock %}
