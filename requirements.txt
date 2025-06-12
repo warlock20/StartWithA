@@ -7,3 +7,4 @@ Werkzeug
 yfinance
 PyMuPDF
 torch
+google-generativeai
