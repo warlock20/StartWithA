@@ -4,7 +4,7 @@
     <h1>{{ title }}</h1>
     <p class="lead">For company: <strong>{{ company.name }} ({{ company.ticker_symbol }})</strong></p>
 
-    <div class="row">
+    <div class="row g-4">
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header">
@@ -26,7 +26,7 @@
                             </div>
                             <button type="submit" class="btn btn-success">Start New Session</button>
                         {% else %}
-                            <div class="alert alert-light">No checklists available to start a new research session for this company.</div>
+                            <div class="alert alert-light">No checklists available to start a <em>new</em> research session for this company.</div>
                         {% endif %}
                     </form>
                     <hr>
