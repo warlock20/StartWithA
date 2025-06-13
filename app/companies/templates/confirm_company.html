@@ -1,37 +1,44 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h1 class="card-title text-center">{{ title }}</h1>
-            </div>
-            <div class="card-body">
-                <h4>Is this the correct company?</h4>
-                <dl class="row">
-                    <dt class="col-sm-3">Company Name</dt>
-                    <dd class="col-sm-9">{{ name }}</dd>
+{# In app/companies/templates/confirm_company.html #}
+<div class="card-body">
+    <h4>Is this the correct company?</h4>
 
-                    <dt class="col-sm-3">Ticker Symbol</dt>
-                    <dd class="col-sm-9">{{ ticker }}</dd>
+    <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}">
+        {# This form tag should wrap all the inputs #}
 
-                    <dt class="col-sm-3">Business Summary</dt>
-                    <dd class="col-sm-9"><p style="max-height: 200px; overflow-y: auto;">{{ summary }}</p></dd>
-                </dl>
+        <dl class="row">
+            <dt class="col-sm-3">Company Name</dt>
+            <dd class="col-sm-9">{{ name }}</dd>
 
-                {# This form POSTs to a new route that handles the actual creation #}
-                <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}">
-                    <input type="hidden" name="name" value="{{ name }}">
-                    <input type="hidden" name="ticker_symbol" value="{{ ticker }}">
-                    <input type="hidden" name="summary" value="{{ summary }}">
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('companies.new_company') }}" class="btn btn-secondary">Cancel / Look Up Different Ticker</a>
-                        <button type="submit" class="btn btn-success">Confirm & Add Company</button>
-                    </div>
-                </form>
-            </div>
+            <dt class="col-sm-3">Ticker Symbol</dt>
+            <dd class="col-sm-9">{{ ticker }}</dd>
+
+            <dt class="col-sm-3">Business Summary</dt>
+            <dd class="col-sm-9"><p style="max-height: 200px; overflow-y: auto;">{{ summary }}</p></dd>
+
+            {# Ensure these editable inputs are INSIDE the form #}
+            <dt class="col-sm-3">Sector</dt>
+            <dd class="col-sm-9">
+                <input type="text" class="form-control form-control-sm" name="sector" value="{{ sector }}">
+            </dd>
+
+            <dt class="col-sm-3">Industry</dt>
+            <dd class="col-sm-9">
+                <input type="text" class="form-control form-control-sm" name="industry" value="{{ industry }}">
+            </dd>
+        </dl>
+
+        {# These hidden inputs are still needed to pass along their values #}
+        <input type="hidden" name="name" value="{{ name }}">
+        <input type="hidden" name="ticker_symbol" value="{{ ticker }}">
+        <input type="hidden" name="summary" value="{{ summary }}">
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('companies.new_company') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">Confirm & Add Company</button>
         </div>
-    </div>
+    </form> {# The form tag should end here #}
 </div>
 {% endblock %}

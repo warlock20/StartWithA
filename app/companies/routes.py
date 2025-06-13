@@ -24,24 +24,23 @@ EXCHANGES = {
     # Add more as needed
 }
 
-
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
     # Get all companies for the user
     all_user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-
+    
     # Get a set of IDs for the user's favorite companies for quick checking
     favorite_ids = {company.id for company in current_user.favorites.all()}
 
-    # Partition the list into favorites and others
-    favorite_companies_list = [company for company in all_user_companies if company.id in favorite_ids]
-    other_companies_list = [company for company in all_user_companies if company.id not in favorite_ids]
+    # Partition the list of company objects into favorites and others
+    favorite_companies = [company for company in all_user_companies if company.id in favorite_ids]
+    other_companies = [company for company in all_user_companies if company.id not in favorite_ids]
 
     return render_template(
         'list_companies.html', 
-        favorite_companies=favorite_companies_list,
-        other_companies=other_companies_list,
+        favorite_companies=favorite_companies,
+        other_companies=other_companies,
         title=f"{current_user.username}'s Companies"
     )
 
@@ -67,7 +66,8 @@ def new_company():
                 # --- SUCCESSFUL LOOKUP PATH ---
                 company_name = info.get('longName')
                 company_summary = info.get('longBusinessSummary', 'No summary available.')
-
+                company_sector = info.get('sector', 'N/A')
+                company_industry = info.get('industry', 'N/A')
                 # Check if user already has this company
                 existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
                 if existing_company:
@@ -76,9 +76,12 @@ def new_company():
                 
                 return render_template('confirm_company.html',
                                        title="Confirm Company",
-                                       ticker=full_ticker_symbol, # Pass the full ticker
-                                       name=info.get('longName'),
-                                       summary=info.get('longBusinessSummary', 'No summary available.'))
+                                       ticker=full_ticker_symbol,
+                                       name=company_name,
+                                       summary=company_summary,
+                                       sector=company_sector,    
+                                       industry=company_industry 
+                                       )
             else:
                 # --- FAILED LOOKUP / MANUAL OVERRIDE PATH ---
                 flash(f'Could not automatically find details for ticker "{full_ticker_symbol}". Please enter the company name manually.', 'warning')
@@ -100,10 +103,16 @@ def new_company():
 @companies_bp.route('/add_confirmed', methods=['POST'])
 @login_required
 def add_company_confirmed():
+    print("\n--- IN add_company_confirmed ROUTE ---")
+    print("Form data received:")
+    for key, value in request.form.items():
+        print(f"  - {key}: '{value}'")
+        
     name = request.form.get('name')
     ticker_symbol = request.form.get('ticker_symbol')
     summary = request.form.get('summary')
-    
+    sector = request.form.get('sector')
+    industry = request.form.get('industry')
     # Redundant check, but good for safety if this route is accessed directly
     existing_company = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
     if existing_company:
@@ -111,7 +120,12 @@ def add_company_confirmed():
         return redirect(url_for('companies.list_companies'))
 
     if name and ticker_symbol:
-        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, creator=current_user)
+        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
+        print("\nAttempting to save new Company object:")
+        print(f"  - Name: '{company.name}'")
+        print(f"  - Ticker: '{company.ticker_symbol}'")
+        print(f"  - Sector: '{company.sector}'")
+        print(f"  - Industry: '{company.industry}'")
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
