@@ -103,8 +103,6 @@ def new_company():
 @companies_bp.route('/add_confirmed', methods=['POST'])
 @login_required
 def add_company_confirmed():
-    print("\n--- IN add_company_confirmed ROUTE ---")
-    print("Form data received:")
     for key, value in request.form.items():
         print(f"  - {key}: '{value}'")
         
@@ -121,11 +119,6 @@ def add_company_confirmed():
 
     if name and ticker_symbol:
         company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
-        print("\nAttempting to save new Company object:")
-        print(f"  - Name: '{company.name}'")
-        print(f"  - Ticker: '{company.ticker_symbol}'")
-        print(f"  - Sector: '{company.sector}'")
-        print(f"  - Industry: '{company.industry}'")
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
