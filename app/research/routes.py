@@ -12,6 +12,9 @@ import fitz
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
 
+# If using Google Generative AI, ensure you have the google-generativeai package installed
+import google.generativeai as genai
+
 # Global variable for the LLM pipeline (loaded once)
 llm_pipeline = None
 LLM_MODEL_NAME = "google/flan-t5-small"
@@ -39,23 +42,16 @@ def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
     return ordered_items
 
 def initialize_llm_pipeline():
-    """Initializes the LLM pipeline if it hasn't been already."""
     global llm_pipeline
     if llm_pipeline is None:
         try:
-            print(f"INFO: Initializing LLM model: {LLM_MODEL_NAME}...")
-            # For tasks like question answering based on context, or summarization,
-            # 'text2text-generation' (for models like T5/BART) or 'question-answering'
-            # or 'summarization' pipelines are suitable.
-            # FinGPT or finance-bench models might use 'text-generation' or a specific fine-tuned task.
-            # Let's start with a general text2text-generation pipeline.
+            print(f"INFO: Initializing local LLM model: {LLM_MODEL_NAME}...")
             tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
             llm_pipeline = pipeline("text2text-generation", model=LLM_MODEL_NAME, tokenizer=tokenizer)
-            print(f"INFO: LLM pipeline ({LLM_MODEL_NAME}) initialized successfully.")
+            print(f"INFO: Local LLM pipeline ({LLM_MODEL_NAME}) initialized successfully.")
         except Exception as e:
-            print(f"ERROR: Failed to initialize LLM pipeline - {LLM_MODEL_NAME}: {e}")
-            # llm_pipeline will remain None, so the route can handle this case 
-                                                                                                           
+            print(f"ERROR: Failed to initialize local LLM pipeline: {e}")
+                                                                                                        
 @research_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
 def select_checklist_for_company(company_id):
@@ -347,13 +343,22 @@ def ai_analyze_item(session_id, item_id):
     Handles the AI analysis request for a specific checklist item within a research session.
     It extracts text from selected documents, calls the LLM, and returns a suggestion.
     """
+    gemini_api_key = current_app.config.get('GEMINI_API_KEY')
+    if not gemini_api_key:
+        return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
+
+    try:
+        genai.configure(api_key=gemini_api_key)
+    except Exception as e:
+        print(f"ERROR: Failed to configure Gemini API: {e}")
+        return jsonify({'status': 'error_config', 'message': 'Failed to configure Gemini API client.'}), 500
+
     session = ResearchSession.query.get_or_404(session_id)
     # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
         return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
     
     item = ChecklistItem.query.get_or_404(item_id)
-    # Validate that the item belongs to this session's checklist
     if item.checklist_id != session.checklist_id:
         return jsonify({'status': 'error', 'message': 'Invalid item for this session.'}), 400
 
@@ -362,10 +367,12 @@ def ai_analyze_item(session_id, item_id):
         return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
     
     data = request.get_json()
-    # Get the LLM question/prompt, defaulting to the one stored on the checklist item
-    llm_question = data.get('llm_actual_prompt', item.llm_prompt) 
-    if not llm_question: # If somehow still no prompt
-        return jsonify({'status': 'error', 'message': 'No LLM prompt provided or found for this item.'}), 400
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Invalid request: No JSON payload found.'}), 400
+    
+    selected_model = data.get('selected_model', 'local') # Default to 'local' if not specified
+    llm_question = data.get('llm_actual_prompt', item.llm_prompt)
+
 
     selected_document_ids_str = data.get('selected_document_ids', [])
     
@@ -426,96 +433,115 @@ def ai_analyze_item(session_id, item_id):
                 print(f"ERROR: Failed to process file {doc.original_filename}: {e}") # Log server-side
     
     # Initialize response variables
-    ai_suggestion = ""
-    response_status = 'pending' # Will be updated based on outcomes
-    response_message = ""     # Will be updated
+    ai_suggestion = "Analysis could not be performed."
+    response_status = 'pending'
+    response_message = ''
 
-    # Check LLM pipeline and input conditions
-    if llm_pipeline is None: # Ensure LLM is initialized (lazy load if not done at app start)
-        initialize_llm_pipeline() 
+    if selected_model == 'gemini':
+        print("INFO: Using Gemini API for analysis.")
+        gemini_api_key = current_app.config.get('GEMINI_API_KEY')
+        if not gemini_api_key:
+            return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured.'}), 500
 
-    if not llm_pipeline:
-        response_status = 'error_llm_not_loaded'
-        response_message = "The AI model could not be initialized. Please check server logs or try again later."
-        ai_suggestion = "AI model unavailable."
-    elif not selected_document_ids: # No documents were selected by the user
-        response_status = 'warning_no_documents_selected'
-        response_message = "No documents were selected to provide context to the AI."
-        ai_suggestion = "Please select documents for the AI to analyze with your prompt."
-    else: # Documents were selected, now check if text was extracted
-        # Heuristic to check if any meaningful text was actually extracted (ignoring our error markers)
-        meaningful_text_exists = False
-        if aggregated_text_content.strip(): # Basic check for non-empty
-            temp_text_for_check = aggregated_text_content
-            for marker in ["--- ERROR: File not found ---", "--- ERROR processing document ---", "--- Skipped unsupported file type ---"]: # More generic markers
-                temp_text_for_check = temp_text_for_check.replace(marker, "") # Remove markers
-            if temp_text_for_check.strip(): # Check if anything is left after removing error markers
-                meaningful_text_exists = True
-        
-        if not meaningful_text_exists:
-            response_status = 'warning_no_text_extracted'
-            response_message = "Could not extract usable text from the selected document(s)."
-            ai_suggestion = "No text content available for AI analysis from the selected documents."
-        else:
-            # Proceed with LLM call as meaningful text (or partially error-annotated text) exists
-            if "--- ERROR" in aggregated_text_content or "--- Skipped" in aggregated_text_content:
-                 response_status = 'warning_partial_text_extraction'
-                 response_message = "Text extracted, but there were issues with some documents (see text sample). AI will proceed with available text."
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel('gemini-2.5-flash-latest')
+            prompt_for_llm = f"You are a financial analyst assistant... CONTEXT:\n{aggregated_text_content}\n\nQUESTION:\n{llm_question}"
+            response = model.generate_content(prompt_for_llm)
+            ai_suggestion = response.text
+            response_status = 'success_ai_suggestion'
+            response_message = 'Suggestion generated by Gemini API.'
+        except Exception as e:
+            response_status = 'error_api_call'
+            response_message = 'An error occurred while calling the Gemini API.'
+            ai_suggestion = f"Gemini API Error: {str(e)}"
+            print(f"ERROR: Gemini API call error: {e}")
+            
+    elif selected_model == 'local':
+            # --- EXECUTE LOCAL HUGGING FACE MODEL LOGIC ---
+            print("INFO: Using local model for analysis.")
+            
+            # Ensure the local model pipeline is initialized (lazy loads on first use)
+            initialize_llm_pipeline()
+            
+            if not llm_pipeline:
+                # This block runs if the initialize_llm_pipeline function failed
+                response_status = 'error_llm_not_loaded'
+                response_message = "The local AI model could not be initialized. Please check server logs."
+                ai_suggestion = "AI model unavailable."
+            elif not aggregated_text_content.strip():
+                # This block runs if documents were selected but no text could be extracted
+                response_status = 'warning_no_text_extracted'
+                response_message = "Could not extract usable text from the selected documents."
+                ai_suggestion = "No text available from selected documents for the AI to analyze."
             else:
-                 response_status = 'info_processing_llm' # Intermediate status before success/error from LLM
-                 response_message = "Extracted text sent to AI for analysis."
+                # If the pipeline is loaded and we have text, proceed with analysis
+                try:
+                    # --- Prepare context and prompt specifically for the local model ---
+                    tokenizer = llm_pipeline.tokenizer
+                    
+                    # Instruction-tune the prompt for better results
+                    instructions = "Answer the following question based only on the provided context. If the answer is not in the context, state that the information is not found in the provided documents."
+                    
+                    # Calculate token counts to avoid exceeding the model's max input length (e.g., 512 for T5-small)
+                    instruction_token_ids = tokenizer.encode(instructions, add_special_tokens=False)
+                    question_token_ids = tokenizer.encode(llm_question, add_special_tokens=False)
+                    template_overhead_tokens = 20 # Estimate for separators like "QUESTION:", "CONTEXT:", etc.
+                    
+                    # Calculate how many tokens are left for the actual document context
+                    available_for_context_tokens = tokenizer.model_max_length - len(instruction_token_ids) - len(question_token_ids) - template_overhead_tokens
+                    
+                    if available_for_context_tokens < 50: # Ensure we have at least some space for context
+                        print("WARNING: Long question/instructions leave little room for document context.")
+                        available_for_context_tokens = 50
 
+                    # Truncate the extracted document text to fit the available token space
+                    context_input_ids = tokenizer.encode(
+                        aggregated_text_content,
+                        max_length=available_for_context_tokens,
+                        truncation=True,
+                        add_special_tokens=False 
+                    )
+                    truncated_context = tokenizer.decode(context_input_ids, skip_special_tokens=True)
 
-            # --- Prepare context and prompt for LLM ---
-            tokenizer = llm_pipeline.tokenizer
-            question_token_ids = tokenizer.encode(llm_question, add_special_tokens=False)
-            instructions = "Answer the following question based only on the provided context. If the answer is not in the context, state that the information is not found in the provided documents."
-            instruction_token_ids = tokenizer.encode(instructions, add_special_tokens=False)
-            template_overhead_tokens = 20 
-            available_for_context_tokens = tokenizer.model_max_length - len(instruction_token_ids) - len(question_token_ids) - template_overhead_tokens
-            if available_for_context_tokens < 50: available_for_context_tokens = 50
-            
-            context_input_ids = tokenizer.encode(aggregated_text_content, max_length=available_for_context_tokens, truncation=True, add_special_tokens=False)
-            truncated_context = tokenizer.decode(context_input_ids, skip_special_tokens=True)
-            prompt_for_llm = f"{instructions}\n\nQUESTION:\n{llm_question}\n\nCONTEXT:\n{truncated_context}\n\nANSWER:"
-            
-            print(f"INFO: Final prompt for LLM (first 300 chars): {prompt_for_llm[:300]}...")
-            print(f"INFO: Context tokens: {len(context_input_ids)}, Question tokens: {len(question_token_ids)}, Instruction tokens: {len(instruction_token_ids)}")
+                    # Construct the final prompt
+                    prompt_for_llm = f"{instructions}\n\nQUESTION:\n{llm_question}\n\nCONTEXT:\n{truncated_context}\n\nANSWER:"
+                    
+                    print(f"INFO: Sending prompt to local LLM. Input tokens approx: {len(tokenizer.encode(prompt_for_llm))}")
 
-            # --- Call LLM ---
-            try:
-                generated_outputs = llm_pipeline(prompt_for_llm, max_new_tokens=200, min_length=10) # Adjust params as needed
-                if generated_outputs and isinstance(generated_outputs, list) and generated_outputs[0].get('generated_text'):
-                    ai_suggestion = generated_outputs[0]['generated_text'].strip()
-                    if ai_suggestion:
-                        response_status = 'success_ai_suggestion'
-                        response_message = 'AI suggestion generated successfully.'
+                    # --- Call the local LLM pipeline ---
+                    generated_outputs = llm_pipeline(prompt_for_llm, max_new_tokens=150, min_length=10)
+                    
+                    if generated_outputs and isinstance(generated_outputs, list) and generated_outputs[0].get('generated_text'):
+                        ai_suggestion = generated_outputs[0]['generated_text'].strip()
+                        if ai_suggestion:
+                            response_status = 'success_ai_suggestion'
+                            response_message = f'Suggestion generated by local model ({LLM_MODEL_NAME}).'
+                        else:
+                            response_status = 'warning_llm_empty_response'
+                            response_message = 'Local model generated an empty suggestion.'
+                            ai_suggestion = "The local AI did not provide a suggestion for this query."
                     else:
-                        response_status = 'warning_llm_empty_response'
-                        response_message = 'AI generated an empty suggestion.'
-                        ai_suggestion = "The AI did not provide a suggestion for this query."
-                else:
-                    response_status = 'error_llm_unexpected_response'
-                    response_message = 'AI returned an unexpected response format.'
-                    ai_suggestion = "Could not understand AI's response."
-            except Exception as e:
-                response_status = 'error_llm_inference'
-                response_message = f'An error occurred during AI inference: {str(e)}'
-                ai_suggestion = "An error occurred while the AI was processing your request."
-                print(f"ERROR: LLM inference error: {e}")
+                        response_status = 'error_llm_unexpected_response'
+                        response_message = 'Local model returned an unexpected response format.'
+                        ai_suggestion = "Could not understand local AI's response."
 
-    # Fallback for any unhandled 'pending' status (should ideally not be reached if logic is complete)
-    if response_status == 'pending':
-        response_status = 'error_unknown_processing_issue'
-        response_message = 'An unknown issue occurred during AI analysis processing.'
-        ai_suggestion = 'AI analysis could not be completed due to an unknown issue.'
+                except Exception as e:
+                    response_status = 'error_llm_inference'
+                    response_message = 'An error occurred during local model inference.'
+                    ai_suggestion = f"Local model error: {str(e)}"
+                    print(f"ERROR: Local model inference error: {e}")
+                              
+    else:
+        response_status = 'error_invalid_model'
+        response_message = f"Invalid model '{selected_model}' selected."
 
     # --- Construct and return the JSON response ---
     return jsonify({
         'status': response_status,
-        'message': response_message, # This variable is now consistently used
+        'message': response_message,
         'received_prompt': llm_question,
-        'selected_documents_info': validated_documents_info,
+        'selected_documents_info': validated_documents_info, # Assuming this is populated
         'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""),
         'ai_suggestion': ai_suggestion
     })

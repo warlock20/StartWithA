@@ -1,102 +1,135 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>{{ session.company.name }} Research</h1>
-    <p class="text-muted">Using checklist: {{ session.checklist.name }}</p>
+<h1>{{ session.company.name }} Research</h1>
+<p class="text-muted">Using checklist: {{ session.checklist.name }}</p>
 
-    {# Progress Bar #}
-    <h5 class="mt-4">Progress (Item {{ current_item_number }} of {{ total_items }})</h5>
-    <div class="progress" style="height: 20px;">
-        <div class="progress-bar" role="progressbar" style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">{{ "%.0f"|format(progress_percent) }}%</div>
+{# Progress Bar #}
+<h5 class="mt-4">Progress (Item {{ current_item_number }} of {{ total_items }})</h5>
+<div class="progress" style="height: 20px;">
+    <div class="progress-bar" role="progressbar" style="width: {{ progress_percent }}%;"
+        aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">{{ "%.0f"|format(progress_percent)
+        }}%</div>
+</div>
+
+<hr>
+
+<div class="card my-4">
+    <div class="card-header">
+        <h5>Checklist Item {{ current_item_number }}:</h5>
     </div>
-
-    <hr>
-
-    <div class="card my-4">
-        <div class="card-header">
-            <h5>Checklist Item {{ current_item_number }}:</h5>
-        </div>
-        <div class="card-body">
-            <p class="card-text fs-5">{{ current_item.text }}</p>
-            {% if current_item.parent %}
-                <p class="card-text text-muted"><small>(Sub-item of: {{ current_item.parent.text }})</small></p>
-            {% endif %}
-        </div>
+    <div class="card-body">
+        <p class="card-text fs-5">{{ current_item.text }}</p>
+        {% if current_item.parent %}
+        <p class="card-text text-muted"><small>(Sub-item of: {{ current_item.parent.text }})</small></p>
+        {% endif %}
     </div>
+</div>
 
-    {# AI Analysis Section, using Accordion for expand/collapse #}
-    {% if current_item.llm_prompt %}
-        <div class="accordion mb-4" id="aiAnalysisAccordion">
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="headingOne">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                        ✨ Analyze with AI using Company Documents
-                    </button>
-                </h2>
-                <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#aiAnalysisAccordion">
-                    <div class="accordion-body">
-                        <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
-                        <form id="aiAnalysisForm" data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
-                            <input type="hidden" name="llm_actual_prompt" value="{{ current_item.llm_prompt }}">
-                            <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
-                            <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
-
-                            <p><strong>Select Documents for AI Context:</strong></p>
-                            {% if company_documents %}
-                                <div class="document-selection-box border p-3" style="max-height: 200px; overflow-y: auto;">
-                                    {% for doc in company_documents %}
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="selected_document_ids" value="{{ doc.id }}" id="doc_{{ doc.id }}">
-                                            <label class="form-check-label" for="doc_{{ doc.id }}">
-                                                {{ doc.document_title if doc.document_title else doc.original_filename }} ({{ doc.document_group }})
-                                            </label>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                                <button type="button" id="submitAIAnalysisPlaceholderButton" class="btn btn-primary mt-3">Submit for AI Analysis</button>
-                            {% else %}
-                                <div class="alert alert-warning">No company documents found to select for AI analysis. <a href="{{ url_for('companies.manage_company_documents', company_id=session.company_id) }}" class="alert-link">Upload documents here.</a></div>
-                            {% endif %}
-                        </form>
-                        <div id="aiAnalysisResult" class="mt-3"></div>
+{# AI Analysis Section, using Accordion for expand/collapse #}
+{% if current_item.llm_prompt %}
+<div class="accordion mb-4" id="aiAnalysisAccordion">
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingOne">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                ✨ Analyze with AI using Company Documents
+            </button>
+        </h2>
+        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne"
+            data-bs-parent="#aiAnalysisAccordion">
+            <div class="accordion-body">
+                <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
+                <form id="aiAnalysisForm"
+                    data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
+                    <input type="hidden" name="llm_actual_prompt" value="{{ current_item.llm_prompt }}">
+                    <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
+                    <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Select AI Model:</strong></label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="selected_ai_model" id="localModel"
+                                value="local" checked>
+                            <label class="form-check-label" for="localModel">
+                                Local Model (Private & Offline)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="selected_ai_model" id="geminiModel"
+                                value="gemini">
+                            <label class="form-check-label" for="geminiModel">
+                                Gemini API (Powerful & Online)
+                            </label>
+                        </div>
                     </div>
-                </div>
+                    <p><strong>Select Documents for AI Context:</strong></p>
+                    {% if company_documents %}
+                    <div class="document-selection-box border p-3" style="max-height: 200px; overflow-y: auto;">
+                        {% for doc in company_documents %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="selected_document_ids"
+                                value="{{ doc.id }}" id="doc_{{ doc.id }}">
+                            <label class="form-check-label" for="doc_{{ doc.id }}">
+                                {{ doc.document_title if doc.document_title else doc.original_filename }} ({{
+                                doc.document_group }})
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" id="submitAIAnalysisPlaceholderButton" class="btn btn-primary mt-3">Submit for
+                        AI Analysis</button>
+                    {% else %}
+                    <div class="alert alert-warning">No company documents found to select for AI analysis. <a
+                            href="{{ url_for('companies.manage_company_documents', company_id=session.company_id) }}"
+                            class="alert-link">Upload documents here.</a></div>
+                    {% endif %}
+                </form>
+                <div id="aiAnalysisResult" class="mt-3"></div>
             </div>
         </div>
-    {% endif %}
-
-    {# Manual Answer Form #}
-    <div class="card">
-        <div class="card-header">Your Answer</div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
-                <div class="mb-3">
-                    <label for="answer_text" class="form-label">Your Answer/Notes:</label>
-                    <textarea class="form-control" id="answer_text" name="answer_text" rows="8">{{ answer.answer_text if answer else '' }}</textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="satisfaction_status" class="form-label">Status for this item:</label>
-                    <select id="satisfaction_status" name="satisfaction_status" class="form-select">
-                        <option value="neutral" {% if not answer or not answer.satisfaction_status or answer.satisfaction_status == 'neutral' %}selected{% endif %}>Neutral / Informational</option>
-                        <option value="satisfied" {% if answer and answer.satisfaction_status == 'satisfied' %}selected{% endif %}>Satisfied / Met</option>
-                        <option value="not_satisfied" {% if answer and answer.satisfaction_status == 'not_satisfied' %}selected{% endif %}>Not Satisfied / Not Met</option>
-                        <option value="needs_attention" {% if answer and answer.satisfaction_status == 'needs_attention' %}selected{% endif %}>Needs Attention</option>
-                    </select>
-                </div>
-                <div class="d-flex justify-content-between">
-                    {% if previous_item_id %}
-                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}" class="btn btn-secondary">Previous Item</a>
-                    {% else %}
-                        <span></span>
-                    {% endif %}
-                    <button type="submit" class="btn btn-success">Save and Next</button>
-                </div>
-            </form>
-        </div>
     </div>
+</div>
+{% endif %}
+
+{# Manual Answer Form #}
+<div class="card">
+    <div class="card-header">Your Answer</div>
+    <div class="card-body">
+        <form method="POST"
+            action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
+            <div class="mb-3">
+                <label for="answer_text" class="form-label">Your Answer/Notes:</label>
+                <textarea class="form-control" id="answer_text" name="answer_text"
+                    rows="8">{{ answer.answer_text if answer else '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="satisfaction_status" class="form-label">Status for this item:</label>
+                <select id="satisfaction_status" name="satisfaction_status" class="form-select">
+                    <option value="neutral" {% if not answer or not answer.satisfaction_status or
+                        answer.satisfaction_status=='neutral' %}selected{% endif %}>Neutral / Informational</option>
+                    <option value="satisfied" {% if answer and answer.satisfaction_status=='satisfied' %}selected{%
+                        endif %}>Satisfied / Met</option>
+                    <option value="not_satisfied" {% if answer and answer.satisfaction_status=='not_satisfied'
+                        %}selected{% endif %}>Not Satisfied / Not Met</option>
+                    <option value="needs_attention" {% if answer and answer.satisfaction_status=='needs_attention'
+                        %}selected{% endif %}>Needs Attention</option>
+                </select>
+            </div>
+            <div class="d-flex justify-content-between">
+                {% if previous_item_id %}
+                <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
+                    class="btn btn-secondary">Previous Item</a>
+                {% else %}
+                <span></span>
+                {% endif %}
+                <button type="submit" class="btn btn-success">Save and Next</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
+{{ super() }}
+<script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
 {% endblock %}
