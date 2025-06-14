@@ -572,41 +572,61 @@ def ai_analyze_item(session_id, item_id):
 @research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
 @login_required
 def view_research_session_summary(session_id):
+    # Fetch the core session object and authorize the user
     session = ResearchSession.query.get_or_404(session_id)
-    if session.researcher != current_user: # Authorization check
+    if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
         return redirect(url_for('research.list_research_sessions'))
     
+    # Handle POST request for updating the session's conclusion
     if request.method == 'POST':
-        # Handle saving the conclusion
-        conclusion_text = request.form.get('conclusion')
-        session.conclusion = conclusion_text # Update the conclusion
+        session.conclusion = request.form.get('conclusion')
         try:
             db.session.commit()
             flash('Session conclusion saved successfully.', 'success')
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        # Redirect to the same page to show the updated summary (or just re-render)
         return redirect(url_for('research.view_research_session_summary', session_id=session.id))
-    
-    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
-    answers_query = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
-    answers_dict = {ans.checklist_item_id: ans.answer_text for ans in answers_query}
-    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
-    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
-    # For completion time: find the latest 'answered_at' timestamp among answers
-    # (This is a bit simplified, as the session.status is 'completed' already)
-    # The template logic for last_answered_at.value is one way, or can be done here.
 
+    # --- GET Request Logic ---
+    # Prepare all data needed for rendering the template
+
+    # 1. Get all checklist items in their correct hierarchical order
+    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
+    
+    # 2. Fetch all answers for this session just once
+    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    
+    # 3. Create a dictionary that maps an item's ID to its full answer object for easy lookup in the template
+    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
+    
+    # 4. Pre-calculate the display values for the intrinsic value form
+    intrinsic_display_value = ''
+    intrinsic_unit = 1 # Default multiplier is 1
+    if session.company.intrinsic_value:
+        val = session.company.intrinsic_value
+        if val >= 1_000_000_000_000:
+            intrinsic_unit = 1_000_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000_000:
+            intrinsic_unit = 1_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000:
+            intrinsic_unit = 1_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        else:
+            intrinsic_display_value = str(val)
+    
+    # 5. Render the template, passing all the prepared data
     return render_template(
         'session_summary.html', 
-        title="Research Summary", 
+        title=f"Research Summary: {session.company.name}", # Use the company name in the title
         session=session, 
-        all_ordered_items=all_ordered_items, # Pass ordered items
-        answers_dict=answers_dict,            # Pass answers dictionary
-        answers_map=answers_map 
-        # The old 'answers' variable (a list of ResearchAnswer objects) can be removed if not used
+        all_ordered_items=all_ordered_items,
+        answers_map=answers_map,
+        intrinsic_display_value=intrinsic_display_value,
+        intrinsic_unit=intrinsic_unit
     )
 
 @research_bp.route('/session/<int:session_id>/delete', methods=['POST'])

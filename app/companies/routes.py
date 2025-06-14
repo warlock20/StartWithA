@@ -220,11 +220,28 @@ def manage_company_documents(company_id):
                                         .all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
     
+    intrinsic_display_value = ''
+    intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
+    if company.intrinsic_value: # 'company' is the object for the current page
+        val = company.intrinsic_value
+        if val >= 1_000_000_000_000:
+            intrinsic_unit = 1_000_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000_000:
+            intrinsic_unit = 1_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000:
+            intrinsic_unit = 1_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        else:
+            intrinsic_display_value = str(val)
                                          
     return render_template('company_documents.html', 
                            company=company, 
                            grouped_documents=grouped_documents,
                            distinct_group_names=distinct_group_names,
+                           intrinsic_display_value=intrinsic_display_value,
+                           intrinsic_unit=intrinsic_unit,
                            title=f"Documents for {company.name}")
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -278,3 +295,34 @@ def serve_company_document(filepath):
 
     # send_from_directory needs the base directory and then the relative path from that directory
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
+
+@companies_bp.route('/<int:company_id>/set_intrinsic_value', methods=['POST'])
+@login_required
+def set_intrinsic_value(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    value_str = request.form.get('value', '').replace(',', '')
+    multiplier_str = request.form.get('unit_multiplier', '1')
+
+    try:
+        if value_str:
+            value_float = float(value_str)
+            multiplier_int = int(multiplier_str)
+            # Calculate the final large number
+            final_intrinsic_value = int(value_float * multiplier_int)
+            company.intrinsic_value = final_intrinsic_value
+        else:
+            company.intrinsic_value = None # Clear the value if input is empty
+
+        db.session.commit()
+        flash("Intrinsic value updated successfully.", "success")
+    except (ValueError, TypeError):
+        flash("Invalid number format for intrinsic value.", "error")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred: {e}", "error")
+
+    return redirect(request.referrer or url_for('companies.manage_company_documents', company_id=company.id))

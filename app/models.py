@@ -78,8 +78,8 @@ class Company(db.Model):
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     summary = db.Column(db.Text, nullable=True) 
     sector = db.Column(db.String(100), nullable=True)
-    industry = db.Column(db.String(150), nullable=True)    
-    # Add other company-specific fields if needed later (e.g., industry, exchange)
+    industry = db.Column(db.String(150), nullable=True)
+    intrinsic_value = db.Column(db.BigInteger, nullable=True)    
 
     # Relationship: A company can be part of many research sessions
     research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")

@@ -15,6 +15,29 @@
 </div>
 {% endif %}
 
+<div class="card mb-4">
+    <div class="card-header">
+        Valuation
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
+            <div class="row align-items-end">
+                <div class="col-md-8">
+                    <label for="intrinsic_value" class="form-label">Your Calculated Intrinsic Value (as Market
+                        Cap)</label>
+                    {# Pre-fill the input with the saved value, formatted with commas for readability #}
+                    <input type="text" class="form-control" id="intrinsic_value" name="intrinsic_value"
+                        value="{{ '{:,}'.format(company.intrinsic_value) if company.intrinsic_value else '' }}"
+                        placeholder="e.g., 1500000000000 or 1,500,000,000,000">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Save Intrinsic Value</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-lg-4 mb-4">
         <div class="card">
