@@ -37,6 +37,55 @@
         </form>
     </div>
 </div>
+{% if '.' not in company.ticker_symbol %}
+{# This company is likely US-listed, so show the fetch feature #}
+<div class="card mb-4">
+    <div class="card-header">
+        Automated Document Fetching (US Companies)
+    </div>
+    <div class="card-body">
+        <p class="card-text text-muted">You can attempt to automatically download recent annual reports (10-K filings)
+            from the SEC EDGAR database.</p>
+        <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="filing_type" class="form-label">Filing Type:</label>
+                    <select id="filing_type" name="filing_type" class="form-select">
+                        <option value="10-K" selected>10-K (Annual)</option>
+                        <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option> {# Placeholder for future
+                        #}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="years" class="form-label">No. of Recent Years:</label>
+                    <select id="years" name="years" class="form-select">
+                        <option value="3">3 Years</option>
+                        <option value="5" selected>5 Years</option>
+                        <option value="10">10 Years</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-info w-100">Fetch Filings</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+{# This company is likely non-US, so show a warning instead #}
+<div class="card mb-4">
+    <div class="card-header">
+        Automated Document Fetching
+    </div>
+    <div class="card-body">
+        <div class="alert alert-secondary" role="alert">
+            This feature is currently available for US-listed companies only. The ticker symbol <strong>{{
+                company.ticker_symbol }}</strong> appears to be for a non-US exchange.
+        </div>
+    </div>
+</div>
+{% endif %}
+
 
 <div class="row">
     <div class="col-lg-4 mb-4">
@@ -108,15 +157,30 @@
                                 <ul class="list-group list-group-flush">
                                     {% for doc in docs_in_group %}
                                     <li class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+
+                                            {# Document Title and Details #}
                                             <div>
                                                 <h6 class="mb-1">{{ doc.document_title }}</h6>
                                                 <small class="text-muted">{{ doc.original_filename }}{% if
                                                     doc.document_date %} | {{ doc.document_date.strftime('%Y-%m-%d')
                                                     }}{% endif %}</small>
                                             </div>
-                                            <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
-                                                target="_blank" class="btn btn-outline-primary btn-sm">View</a>
+
+                                            {# Action Buttons #}
+                                            <div class="text-nowrap">
+                                                <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
+                                                    target="_blank" class="btn btn-outline-primary btn-sm">View</a>
+
+                                                <form method="POST"
+                                                    action="{{ url_for('companies.delete_document', doc_id=doc.id) }}"
+                                                    style="display: inline;">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                        onclick="return confirm('Are you sure you want to permanently delete this document?');"
+                                                        title="Delete Document">Delete</button>
+                                                </form>
+                                            </div>
+
                                         </div>
                                         {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description
                                                 }}</small></p>{% endif %}

@@ -2,14 +2,17 @@ import os
 import uuid
 import yfinance as yf
 from werkzeug.utils import secure_filename
-from datetime import datetime
-
+from datetime import datetime, timedelta 
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db
 from app.models import User, Company, CompanyDocument # Add other models if needed
 from app.companies import companies_bp
 
+from secedgar import filings, FilingType
+from pathlib import Path
+import shutil 
+import re
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
     '': 'USA (Default)',
@@ -27,20 +30,48 @@ EXCHANGES = {
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
-    # Get all companies for the user
-    all_user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-    
-    # Get a set of IDs for the user's favorite companies for quick checking
-    favorite_ids = {company.id for company in current_user.favorites.all()}
+    # Get all companies for the current user
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
 
-    # Partition the list of company objects into favorites and others
-    favorite_companies = [company for company in all_user_companies if company.id in favorite_ids]
-    other_companies = [company for company in all_user_companies if company.id not in favorite_ids]
+    companies_data_list = []
+    # Loop through each company to fetch live data and calculate margin of safety
+    for company in all_user_companies:
+        data = {
+            'company_obj': company,
+            'current_market_cap': None,
+            'margin_of_safety': None
+        }
+        try:
+            # Fetch live data using the yfinance library
+            ticker_info = yf.Ticker(company.ticker_symbol).info
+            market_cap = ticker_info.get('marketCap')
+
+            if market_cap:
+                data['current_market_cap'] = market_cap
+                # Calculate Margin of Safety if intrinsic value is set by the user
+                if company.intrinsic_value and company.intrinsic_value > 0:
+                    margin = ((market_cap - company.intrinsic_value) / market_cap) * 100
+                    data['margin_of_safety'] = round(margin, 2)
+        except Exception as e:
+            # This can happen if yfinance can't fetch data (e.g., delisted ticker, network issue)
+            print(f"Could not fetch market data for {company.ticker_symbol}: {e}")
+
+        companies_data_list.append(data)
+
+    # Partition the enriched data list into favorites and others
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids]
+    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in favorite_ids]
+
+    # Sort both lists by margin of safety (descending, so best deals are on top)
+    # Using a default of -999 for sorting ensures items without a MoS go to the bottom.
+    favorite_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
+    other_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
 
     return render_template(
         'list_companies.html', 
-        favorite_companies=favorite_companies,
-        other_companies=other_companies,
+        favorite_companies_data=favorite_companies_data,
+        other_companies_data=other_companies_data,
         title=f"{current_user.username}'s Companies"
     )
 
@@ -326,3 +357,162 @@ def set_intrinsic_value(company_id):
         flash(f"An error occurred: {e}", "error")
 
     return redirect(request.referrer or url_for('companies.manage_company_documents', company_id=company.id))
+
+# In app/companies/routes.py
+@companies_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
+@login_required
+def delete_document(doc_id):
+    # Fetch the document record from the database
+    doc_to_delete = CompanyDocument.query.get_or_404(doc_id)
+
+    # Authorization: Ensure the user owns the company this document belongs to
+    if doc_to_delete.company.user_id != current_user.id:
+        flash("You are not authorized to delete this document.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Store company_id for redirection before we delete the object
+    company_id = doc_to_delete.company_id
+
+    try:
+        # Step 1: Delete the physical file from the server
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc_to_delete.stored_filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        else:
+            print(f"WARNING: File to delete not found at path: {file_path}")
+
+        # Step 2: Delete the database record
+        db.session.delete(doc_to_delete)
+        db.session.commit()
+        flash("Document deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting document: {e}", "error")
+        print(f"ERROR: Could not delete document {doc_id}: {e}")
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+## In app/companies/routes.py
+@companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
+@login_required
+def fetch_sec_filings(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    filing_type_str = request.form.get('filing_type', '10-K')
+    filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
+    years_to_fetch = request.form.get('years', 5, type=int)
+    
+    user_agent = f"{current_user.username} {current_user.email}"
+    temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    
+    print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
+    
+    try:
+        start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+        
+        filing_docs = filings(cik_lookup=company.ticker_symbol,
+                              filing_type=filing_type_enum,
+                              start_date=start_date,
+                              user_agent=user_agent)
+        
+        filing_docs.save(temp_download_path)
+        
+        company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
+        saved_count = 0
+
+        if company_filing_path.exists():
+            # This loop finds each downloaded file.
+            for submission_file_path in company_filing_path.glob('*.txt'):
+                
+                # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
+
+                if not submission_file_path.is_file():
+                    continue
+
+                print(f"Processing downloaded file: {submission_file_path.name}")
+                
+                with open(submission_file_path, 'r', encoding='utf-8') as f:
+                    full_filing_text = f.read()
+
+                # STEP 1: Parse the Filing Date
+                filing_date_str = "N/A"
+                for line in full_filing_text.splitlines()[:40]:
+                    if "FILED AS OF DATE:" in line:
+                        date_val = line.split(":")[-1].strip()
+                        filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
+                        break
+                
+                # STEP 2: Check for Duplicates
+                doc_title = f"{filing_type_str} Report ({filing_date_str})"
+                existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
+                if existing_doc:
+                    print(f"Skipping already existing filing: {doc_title}")
+                    continue
+
+                # STEP 3: Parse the Clean HTML Content
+                doc_start_pattern = re.compile(r'<DOCUMENT>')
+                doc_end_pattern = re.compile(r'</DOCUMENT>')
+                doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
+                docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
+                
+                html_content = ''
+                for doc_start, doc_end in docs:
+                    doc_text = full_filing_text[doc_start:doc_end]
+                    if doc_type_pattern.search(doc_text):
+                        text_start = re.search(r'<TEXT>', doc_text)
+                        text_end = re.search(r'</TEXT>', doc_text)
+                        if text_start and text_end:
+                            html_content = doc_text[text_start.end():text_end.start()]
+                            html_tag_start = html_content.find('<HTML>')
+                            if html_tag_start != -1:
+                                html_content = html_content[html_tag_start:]
+                            break 
+                
+                if not html_content:
+                    print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
+                    continue
+
+                # STEP 4: Save the Clean HTML and Create DB Record
+                original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
+                stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+                company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
+                os.makedirs(company_permanent_path, exist_ok=True)
+                file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
+
+                with open(file_save_path, 'w', encoding='utf-8') as f_out:
+                    f_out.write(html_content)
+
+                new_doc = CompanyDocument(
+                    company_id=company.id, user_id=current_user.id,
+                    original_filename=original_fn,
+                    stored_filename=os.path.join(str(company.id), stored_fn_uuid),
+                    document_group=f"SEC {filing_type_str} Filings",
+                    document_title=doc_title,
+                    document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+                )
+                db.session.add(new_doc)
+                saved_count += 1
+                
+                # The 'for' loop continues with the next downloaded file...
+        
+        # After the loop is finished, check if anything was saved
+        if saved_count > 0:
+            db.session.commit()
+            flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
+        else:
+            flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred while fetching SEC filings: {e}", "error")
+        print(f"ERROR: SEC Edgar fetch failed: {e}")
+    
+    finally:
+        if temp_download_path.exists():
+            shutil.rmtree(temp_download_path)
+            print(f"Cleaned up temporary directory: {temp_download_path}")
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company.id))
