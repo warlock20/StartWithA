@@ -1,4 +1,4 @@
-from flask import jsonify, render_template, request, redirect, url_for, flash, current_app
+from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required 
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument 
@@ -700,4 +700,70 @@ def list_research_sessions():
     return render_template('list_research_sessions.html', 
                            sessions_data=sessions_data, 
                            title="My Research Sessions")
+    
+@research_bp.route('/session/<int:session_id>/export/txt')
+@login_required
+def export_session_to_txt(session_id):
+    # 1. Fetch session and authorize user
+    session = ResearchSession.query.get_or_404(session_id)
+    if session.researcher != current_user:
+        flash('You are not authorized to export this research session.', 'error')
+        return redirect(url_for('research.list_research_sessions'))
+
+    # 2. Gather all necessary data
+    all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
+    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
+
+    # 3. Construct the text content as a list of strings
+    export_content = []
+    export_content.append(f"# Research Summary: {session.company.name} ({session.company.ticker_symbol})")
+    export_content.append(f"==================================================")
+    export_content.append(f"Checklist Used: {session.checklist.name}")
+    export_content.append(f"Research Date: {session.start_date.strftime('%Y-%m-%d')}")
+    export_content.append(f"Status: {session.status.capitalize()}")
+    export_content.append("\n")
+
+    if session.conclusion:
+        export_content.append(f"## Overall Conclusion")
+        export_content.append(f"--------------------------")
+        export_content.append(session.conclusion)
+        export_content.append("\n")
+
+    export_content.append(f"## Individual Checklist Answers")
+    export_content.append(f"--------------------------------")
+
+    # Helper to recursively get item depth for indentation
+    item_map = {item.id: item for item in all_ordered_items}
+    def get_depth(item_id, depth=0):
+        item = item_map.get(item_id)
+        if item and item.parent_id in item_map:
+            return get_depth(item.parent_id, depth + 1)
+        return depth
+
+    for item in all_ordered_items:
+        indent = "  " * get_depth(item.id)
+        answer_obj = answers_map.get(item.id)
+
+        export_content.append(f"\n{indent}- **{item.text}**")
+
+        if answer_obj:
+            status = answer_obj.satisfaction_status.replace('_', ' ').capitalize() if answer_obj.satisfaction_status else 'Not Set'
+            answer_text = answer_obj.answer_text if answer_obj.answer_text else "No text provided."
+            export_content.append(f"{indent}  - **Status:** {status}")
+            export_content.append(f"{indent}  - **Answer:** {answer_text}")
+        else:
+            export_content.append(f"{indent}  - **Status:** Not Answered")
+
+    # 4. Join the content and prepare the file for download
+    final_text = "\n".join(export_content)
+
+    safe_company_name = "".join(c if c.isalnum() else "_" for c in session.company.name)
+    filename = f"Research_{safe_company_name}_{session_id}.md" # Save as Markdown for nice formatting
+
+    return Response(
+        final_text,
+        mimetype="text/markdown",
+        headers={"Content-Disposition": f"attachment;filename={filename}"}
+    )
    

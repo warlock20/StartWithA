@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta 
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
-from app import db
+from app import db, cache
 from app.models import User, Company, CompanyDocument # Add other models if needed
 from app.companies import companies_bp
 
@@ -27,44 +27,58 @@ EXCHANGES = {
     # Add more as needed
 }
 
+@cache.memoize(timeout=900)
+def get_company_market_data(ticker):
+    """
+    Fetches market data for a given ticker using yfinance.
+    The results of this function will be cached.
+    """
+    print(f"--- MAKING LIVE API CALL for {ticker} ---") # This will only print if not cached
+    try:
+        ticker_info = yf.Ticker(ticker).info
+        # We only need a few key pieces of data
+        market_cap = ticker_info.get('marketCap')
+        # You could also get other data like 'currentPrice', 'dayHigh', 'dayLow' here
+        return {
+            'marketCap': market_cap,
+        }
+    except Exception as e:
+        print(f"yfinance lookup failed for {ticker}: {e}")
+
+
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
-    # Get all companies for the current user
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
-
+    
     companies_data_list = []
-    # Loop through each company to fetch live data and calculate margin of safety
     for company in all_user_companies:
         data = {
             'company_obj': company,
             'current_market_cap': None,
             'margin_of_safety': None
         }
-        try:
-            # Fetch live data using the yfinance library
-            ticker_info = yf.Ticker(company.ticker_symbol).info
-            market_cap = ticker_info.get('marketCap')
-
+        
+        # Call our new cached function to get the data.
+        market_data = get_company_market_data(company.ticker_symbol)
+        
+        # Use the data returned from the helper function.
+        if market_data:
+            market_cap = market_data.get('marketCap') # Get 'marketCap' from the returned dictionary
             if market_cap:
                 data['current_market_cap'] = market_cap
-                # Calculate Margin of Safety if intrinsic value is set by the user
-                if company.intrinsic_value and company.intrinsic_value > 0:
+                # Calculate Margin of Safety if intrinsic value is set
+                if company.intrinsic_value and market_cap > 0:
                     margin = ((market_cap - company.intrinsic_value) / market_cap) * 100
                     data['margin_of_safety'] = round(margin, 2)
-        except Exception as e:
-            # This can happen if yfinance can't fetch data (e.g., delisted ticker, network issue)
-            print(f"Could not fetch market data for {company.ticker_symbol}: {e}")
-
+        
         companies_data_list.append(data)
-
-    # Partition the enriched data list into favorites and others
+        
+    # The rest of the function for partitioning and sorting remains the same
     favorite_ids = {c.id for c in current_user.favorites.all()}
     favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids]
     other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in favorite_ids]
-
-    # Sort both lists by margin of safety (descending, so best deals are on top)
-    # Using a default of -999 for sorting ensures items without a MoS go to the bottom.
+    
     favorite_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
     other_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
 

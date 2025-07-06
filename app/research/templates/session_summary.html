@@ -3,8 +3,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>{{ title }}</h1>
-    <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary">Back to My Research
-        Sessions</a>
+    <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary">Back to My Research Sessions</a>
+    <a href="{{ url_for('research.export_session_to_txt', session_id=session.id) }}" class="btn btn-info">Export to Text File</a>    
 </div>
 
 <div class="card mb-4">
