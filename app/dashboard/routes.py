@@ -49,6 +49,5 @@ def index():
         completed_sessions=completed_sessions_count,
         in_progress_sessions=in_progress_sessions,
         favorite_companies_count=favorite_companies_count,
-        passed_sessions_count=passed_sessions_count, # Now included
         recent_sessions=recent_sessions
     )
