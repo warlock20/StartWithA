@@ -1,6 +1,6 @@
 # Investment Checklist Web App
 
-A web-based platform to help investors systematically evaluate investment opportunities using customizable checklists and research sessions.
+A web application designed to help investors methodically assess investment opportunities through customizable checklists and structured research sessions. It integrates various mental models into a unified workflow for thorough and consistent analysis.
 
 ## Features
 

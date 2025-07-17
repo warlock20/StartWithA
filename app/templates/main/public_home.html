@@ -1,0 +1,41 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <h1 class="display-4">A More Disciplined Approach to Investing</h1>
+    <p class="lead text-muted">Inspired by the wisdom of Charlie Munger, this platform helps you systematically research companies, stress-test your ideas, and build a durable investment thesis using a powerful checklist methodology.</p>
+    <div class="mt-4">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Get Started for Free</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-lg mx-2">Login</a>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Build Your Checklist</h4>
+                    <p class="card-text">Create detailed, hierarchical checklists that reflect your unique investment philosophy. Ensure you never miss a critical step in your due diligence.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Document Your Research</h4>
+                    <p class="card-text">Go through your checklist item by item, documenting your findings, setting satisfaction statuses, and uploading key documents for each company.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Stress-Test Your Thesis</h4>
+                    <p class="card-text">Use integrated AI tools to analyze documents and challenge your assumptions. The goal isn't to confirm your ideas, but to find every reason you might be wrong.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
