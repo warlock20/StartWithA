@@ -41,6 +41,10 @@ async function submitForAIAnalysis() {
         return;
     }
     
+    const selectedModelInput = form.querySelector('input[name="selected_ai_model"]:checked');
+    const selectedModel = selectedModelInput ? selectedModelInput.value : 'local'; // Default to 'local' if none selected
+
+
     try {
         const response = await fetch(analysisUrl, {
             method: 'POST',
@@ -50,7 +54,8 @@ async function submitForAIAnalysis() {
             },
             body: JSON.stringify({
                 llm_actual_prompt: llmPrompt,
-                selected_document_ids: selectedDocumentIds
+                selected_document_ids: selectedDocumentIds,
+                selected_model: selectedModel 
             })
         });
         resultDiv.innerHTML = ''; // Clear loader

@@ -64,11 +64,8 @@ class ChecklistItem(db.Model):
     # and this text can be used as the basis for the LLM query
     llm_prompt = db.Column(db.Text, nullable=True, default=None) 
     
-    # Relationships: A checklist item can have sub-items
-    # 'remote_side=[id]' is used to clarify the self-referential relationship for SQLAlchemy
+    # Relationship: A checklist item can have sub-items (children)
     children = db.relationship('ChecklistItem', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")
-
-    # item_type = db.Column(db.String(50), default='text') # Future: 'text', 'number', 'file_prompt'
 
     def __repr__(self):
         return f'<ChecklistItem {self.text[:30]}...>'
@@ -79,10 +76,14 @@ class Company(db.Model):
     ticker_symbol = db.Column(db.String(20), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
-    # Add other company-specific fields if needed later (e.g., industry, exchange)
+    summary = db.Column(db.Text, nullable=True) 
+    sector = db.Column(db.String(100), nullable=True)
+    industry = db.Column(db.String(150), nullable=True)
+    intrinsic_value = db.Column(db.BigInteger, nullable=True)    
 
     # Relationship: A company can be part of many research sessions
-    research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic')
+    research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.

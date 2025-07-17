@@ -1,65 +1,198 @@
 import os
 import uuid
+import yfinance as yf
 from werkzeug.utils import secure_filename
-from datetime import datetime
-
+from datetime import datetime, timedelta 
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
-from app import db
+from app import db, cache
 from app.models import User, Company, CompanyDocument # Add other models if needed
 from app.companies import companies_bp
+
+from secedgar import filings, FilingType
+from pathlib import Path
+import shutil 
+import re
+# You can define this dictionary at the top of your routes.py file
+EXCHANGES = {
+    '': 'USA (Default)',
+    '.DE': 'Germany (XETRA)',
+    '.L': 'United Kingdom (LSE)',
+    '.PA': 'France (Euronext Paris)',
+    '.T': 'Japan (Tokyo)',
+    '.TO': 'Canada (Toronto)',
+    '.NS': 'India (NSE)',
+    '.HK': 'Hong Kong (HKEX)',
+    '.SW': 'Switzerland (SIX)'
+    # Add more as needed
+}
+
+@cache.memoize(timeout=900)
+def get_company_market_data(ticker):
+    """
+    Fetches market data for a given ticker using yfinance.
+    The results of this function will be cached.
+    """
+    print(f"--- MAKING LIVE API CALL for {ticker} ---") # This will only print if not cached
+    try:
+        ticker_info = yf.Ticker(ticker).info
+        # We only need a few key pieces of data
+        market_cap = ticker_info.get('marketCap')
+        # You could also get other data like 'currentPrice', 'dayHigh', 'dayLow' here
+        return {
+            'marketCap': market_cap,
+        }
+    except Exception as e:
+        print(f"yfinance lookup failed for {ticker}: {e}")
+
 
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
-    # Get all companies for the user
-    all_user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-
-    # Get a set of IDs for the user's favorite companies for quick checking
-    favorite_ids = {company.id for company in current_user.favorites.all()}
-
-    # Partition the list into favorites and others
-    favorite_companies_list = [company for company in all_user_companies if company.id in favorite_ids]
-    other_companies_list = [company for company in all_user_companies if company.id not in favorite_ids]
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    
+    companies_data_list = []
+    for company in all_user_companies:
+        data = {
+            'company_obj': company,
+            'current_market_cap': None,
+            'margin_of_safety': None
+        }
+        
+        # Call our new cached function to get the data.
+        market_data = get_company_market_data(company.ticker_symbol)
+        
+        # Use the data returned from the helper function.
+        if market_data:
+            market_cap = market_data.get('marketCap') # Get 'marketCap' from the returned dictionary
+            if market_cap:
+                data['current_market_cap'] = market_cap
+                # Calculate Margin of Safety if intrinsic value is set
+                if company.intrinsic_value and market_cap > 0:
+                    margin = ((market_cap - company.intrinsic_value) / market_cap) * 100
+                    data['margin_of_safety'] = round(margin, 2)
+        
+        companies_data_list.append(data)
+        
+    # The rest of the function for partitioning and sorting remains the same
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids]
+    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in favorite_ids]
+    
+    favorite_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
+    other_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
 
     return render_template(
         'list_companies.html', 
-        favorite_companies=favorite_companies_list,
-        other_companies=other_companies_list,
+        favorite_companies_data=favorite_companies_data,
+        other_companies_data=other_companies_data,
         title=f"{current_user.username}'s Companies"
     )
 
-@companies_bp.route('/new', methods=['GET', 'POST']) # Will be /companies/new
+@companies_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new_company():
     if request.method == 'POST':
-        name = request.form.get('name')
-        ticker_symbol = request.form.get('ticker_symbol', '').upper()
+        base_ticker = request.form.get('base_ticker', '').upper()
+        exchange_suffix = request.form.get('exchange_suffix', '')
 
-        if not name or not ticker_symbol:
-            flash('Company name and ticker symbol are required.', 'error')
-            return render_template('new_company.html', title="Add New Company", name=name, ticker_symbol=ticker_symbol)
+        if not base_ticker:
+            flash('Base Ticker Symbol is required.', 'error')
+            return redirect(url_for('companies.new_company'))
+        
+        # Combine the base ticker and suffix to create the full yfinance ticker
+        full_ticker_symbol = f"{base_ticker}{exchange_suffix}"
 
+        try:
+            company_ticker = yf.Ticker(full_ticker_symbol)
+            info = company_ticker.info
+            
+            if info and info.get('longName'):
+                # --- SUCCESSFUL LOOKUP PATH ---
+                company_name = info.get('longName')
+                company_summary = info.get('longBusinessSummary', 'No summary available.')
+                company_sector = info.get('sector', 'N/A')
+                company_industry = info.get('industry', 'N/A')
+                # Check if user already has this company
+                existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
+                if existing_company:
+                    flash(f'You have already added "{company_name}" ({full_ticker_symbol}) to your list.', 'info')
+                    return redirect(url_for('companies.list_companies'))
+                
+                return render_template('confirm_company.html',
+                                       title="Confirm Company",
+                                       ticker=full_ticker_symbol,
+                                       name=company_name,
+                                       summary=company_summary,
+                                       sector=company_sector,    
+                                       industry=company_industry 
+                                       )
+            else:
+                # --- FAILED LOOKUP / MANUAL OVERRIDE PATH ---
+                flash(f'Could not automatically find details for ticker "{full_ticker_symbol}". Please enter the company name manually.', 'warning')
+                return render_template('new_company_manual.html',
+                                       title="Add Company Manually",
+                                       ticker=full_ticker_symbol) # Pass the full ticker
+        except Exception as e:
+            print(f"yfinance lookup error for ticker {full_ticker_symbol}: {e}")
+            flash(f'An error occurred while looking up ticker "{full_ticker_symbol}". Please enter details manually.', 'warning')
+            return render_template('new_company_manual.html',
+                                   title="Add Company Manually",
+                                   ticker=full_ticker_symbol)
 
-        existing_company_by_name = Company.query.filter_by(name=name, user_id=current_user.id).first()
-        existing_company_by_ticker = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
+    # For GET request, pass the exchanges dictionary to the template
+    return render_template('new_company.html', 
+                           title="Add New Company", 
+                           exchanges=EXCHANGES)
 
-        if existing_company_by_name:
-            flash(f'You already have a company named "{name}".', 'error')
-        elif existing_company_by_ticker:
-            flash(f'You already have a company with ticker "{ticker_symbol}".', 'error')
-        else:
-            company = Company(name=name, ticker_symbol=ticker_symbol, creator=current_user)
-            db.session.add(company)
-            db.session.commit()
-            flash(f'Company "{name}" ({ticker_symbol}) added successfully.', 'success')
-            next_url = request.args.get('next')
-            if next_url:
-                return redirect(next_url)
-            return redirect(url_for('companies.list_companies'))
+@companies_bp.route('/add_confirmed', methods=['POST'])
+@login_required
+def add_company_confirmed():
+    for key, value in request.form.items():
+        print(f"  - {key}: '{value}'")
+        
+    name = request.form.get('name')
+    ticker_symbol = request.form.get('ticker_symbol')
+    summary = request.form.get('summary')
+    sector = request.form.get('sector')
+    industry = request.form.get('industry')
+    # Redundant check, but good for safety if this route is accessed directly
+    existing_company = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
+    if existing_company:
+        flash(f'"{name}" ({ticker_symbol}) is already in your list.', 'info')
+        return redirect(url_for('companies.list_companies'))
 
-        return render_template('new_company.html', title="Add New Company", name=name, ticker_symbol=ticker_symbol)
-    return render_template('new_company.html', title="Add New Company")
+    if name and ticker_symbol:
+        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
+        db.session.add(company)
+        db.session.commit()
+        flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
+        return redirect(url_for('companies.list_companies'))
+    else:
+        flash('There was an error adding the company. Please try again.', 'error')
+        return redirect(url_for('companies.new_company'))
+
+@companies_bp.route('/<int:company_id>/delete', methods=['POST'])
+@login_required
+def delete_company(company_id):
+    company_to_delete = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company_to_delete.user_id != current_user.id:
+        flash("You are not authorized to delete this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    try:
+        # Deleting the company will now also delete its research sessions,
+        # documents, and favorite entries due to cascade settings.
+        db.session.delete(company_to_delete)
+        db.session.commit()
+        flash(f'Company "{company_to_delete.name}" and all its data have been deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting company: {str(e)}', 'error')
+
+    return redirect(url_for('companies.list_companies'))
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET', 'POST']) # /companies/<id>/documents
 @login_required
@@ -132,11 +265,28 @@ def manage_company_documents(company_id):
                                         .all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
     
+    intrinsic_display_value = ''
+    intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
+    if company.intrinsic_value: # 'company' is the object for the current page
+        val = company.intrinsic_value
+        if val >= 1_000_000_000_000:
+            intrinsic_unit = 1_000_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000_000:
+            intrinsic_unit = 1_000_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        elif val >= 1_000_000:
+            intrinsic_unit = 1_000_000
+            intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
+        else:
+            intrinsic_display_value = str(val)
                                          
     return render_template('company_documents.html', 
                            company=company, 
                            grouped_documents=grouped_documents,
                            distinct_group_names=distinct_group_names,
+                           intrinsic_display_value=intrinsic_display_value,
+                           intrinsic_unit=intrinsic_unit,
                            title=f"Documents for {company.name}")
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -190,3 +340,193 @@ def serve_company_document(filepath):
 
     # send_from_directory needs the base directory and then the relative path from that directory
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
+
+@companies_bp.route('/<int:company_id>/set_intrinsic_value', methods=['POST'])
+@login_required
+def set_intrinsic_value(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    value_str = request.form.get('value', '').replace(',', '')
+    multiplier_str = request.form.get('unit_multiplier', '1')
+
+    try:
+        if value_str:
+            value_float = float(value_str)
+            multiplier_int = int(multiplier_str)
+            # Calculate the final large number
+            final_intrinsic_value = int(value_float * multiplier_int)
+            company.intrinsic_value = final_intrinsic_value
+        else:
+            company.intrinsic_value = None # Clear the value if input is empty
+
+        db.session.commit()
+        flash("Intrinsic value updated successfully.", "success")
+    except (ValueError, TypeError):
+        flash("Invalid number format for intrinsic value.", "error")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred: {e}", "error")
+
+    return redirect(request.referrer or url_for('companies.manage_company_documents', company_id=company.id))
+
+# In app/companies/routes.py
+@companies_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
+@login_required
+def delete_document(doc_id):
+    # Fetch the document record from the database
+    doc_to_delete = CompanyDocument.query.get_or_404(doc_id)
+
+    # Authorization: Ensure the user owns the company this document belongs to
+    if doc_to_delete.company.user_id != current_user.id:
+        flash("You are not authorized to delete this document.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Store company_id for redirection before we delete the object
+    company_id = doc_to_delete.company_id
+
+    try:
+        # Step 1: Delete the physical file from the server
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc_to_delete.stored_filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        else:
+            print(f"WARNING: File to delete not found at path: {file_path}")
+
+        # Step 2: Delete the database record
+        db.session.delete(doc_to_delete)
+        db.session.commit()
+        flash("Document deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting document: {e}", "error")
+        print(f"ERROR: Could not delete document {doc_id}: {e}")
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+## In app/companies/routes.py
+@companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
+@login_required
+def fetch_sec_filings(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    filing_type_str = request.form.get('filing_type', '10-K')
+    filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
+    years_to_fetch = request.form.get('years', 5, type=int)
+    
+    user_agent = f"{current_user.username} {current_user.email}"
+    temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    
+    print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
+    
+    try:
+        start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+        
+        filing_docs = filings(cik_lookup=company.ticker_symbol,
+                              filing_type=filing_type_enum,
+                              start_date=start_date,
+                              user_agent=user_agent)
+        
+        filing_docs.save(temp_download_path)
+        
+        company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
+        saved_count = 0
+
+        if company_filing_path.exists():
+            # This loop finds each downloaded file.
+            for submission_file_path in company_filing_path.glob('*.txt'):
+                
+                # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
+
+                if not submission_file_path.is_file():
+                    continue
+
+                print(f"Processing downloaded file: {submission_file_path.name}")
+                
+                with open(submission_file_path, 'r', encoding='utf-8') as f:
+                    full_filing_text = f.read()
+
+                # STEP 1: Parse the Filing Date
+                filing_date_str = "N/A"
+                for line in full_filing_text.splitlines()[:40]:
+                    if "FILED AS OF DATE:" in line:
+                        date_val = line.split(":")[-1].strip()
+                        filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
+                        break
+                
+                # STEP 2: Check for Duplicates
+                doc_title = f"{filing_type_str} Report ({filing_date_str})"
+                existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
+                if existing_doc:
+                    print(f"Skipping already existing filing: {doc_title}")
+                    continue
+
+                # STEP 3: Parse the Clean HTML Content
+                doc_start_pattern = re.compile(r'<DOCUMENT>')
+                doc_end_pattern = re.compile(r'</DOCUMENT>')
+                doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
+                docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
+                
+                html_content = ''
+                for doc_start, doc_end in docs:
+                    doc_text = full_filing_text[doc_start:doc_end]
+                    if doc_type_pattern.search(doc_text):
+                        text_start = re.search(r'<TEXT>', doc_text)
+                        text_end = re.search(r'</TEXT>', doc_text)
+                        if text_start and text_end:
+                            html_content = doc_text[text_start.end():text_end.start()]
+                            html_tag_start = html_content.find('<HTML>')
+                            if html_tag_start != -1:
+                                html_content = html_content[html_tag_start:]
+                            break 
+                
+                if not html_content:
+                    print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
+                    continue
+
+                # STEP 4: Save the Clean HTML and Create DB Record
+                original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
+                stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+                company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
+                os.makedirs(company_permanent_path, exist_ok=True)
+                file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
+
+                with open(file_save_path, 'w', encoding='utf-8') as f_out:
+                    f_out.write(html_content)
+
+                new_doc = CompanyDocument(
+                    company_id=company.id, user_id=current_user.id,
+                    original_filename=original_fn,
+                    stored_filename=os.path.join(str(company.id), stored_fn_uuid),
+                    document_group=f"SEC {filing_type_str} Filings",
+                    document_title=doc_title,
+                    document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+                )
+                db.session.add(new_doc)
+                saved_count += 1
+                
+                # The 'for' loop continues with the next downloaded file...
+        
+        # After the loop is finished, check if anything was saved
+        if saved_count > 0:
+            db.session.commit()
+            flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
+        else:
+            flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred while fetching SEC filings: {e}", "error")
+        print(f"ERROR: SEC Edgar fetch failed: {e}")
+    
+    finally:
+        if temp_download_path.exists():
+            shutil.rmtree(temp_download_path)
+            print(f"Cleaned up temporary directory: {temp_download_path}")
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company.id))

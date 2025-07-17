@@ -1,0 +1,91 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
+
+{# Stat Cards #}
+<div class="row">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <h5 class="card-title">Companies Tracked</h5>
+                <p class="card-text fs-1 fw-bold">{{ total_companies }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body">
+                <h5 class="card-title">⭐ Favorite Companies</h5>
+                <p class="card-text fs-1 fw-bold">{{ favorite_companies_count }}</p>
+            </div>
+        </div>
+    </div>
+    <!-- <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <h5 class="card-title">🏆 Passed All Checks</h5>
+                <p class="card-text fs-1 fw-bold">{{ passed_sessions_count }}</p>
+            </div>
+        </div>
+    </div> -->
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <h5 class="card-title">Completed Research</h5>
+                <p class="card-text fs-1 fw-bold">{{ completed_sessions }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-dark bg-warning h-100">
+            <div class="card-body">
+                <h5 class="card-title">Research in Progress</h5>
+                <p class="card-text fs-1 fw-bold">{{ in_progress_sessions }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-4">
+
+{# Recent Activity #}
+<h3>Recent Activity</h3>
+{% if recent_sessions %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Company</th>
+                <th>Checklist</th>
+                <th>Status</th>
+                <th>Date Started</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in recent_sessions %}
+            <tr>
+                <td>{{ session.company.name }}</td>
+                <td>{{ session.checklist.name }}</td>
+                <td>
+                    <span
+                        class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
+                        session.status|replace('_', ' ')|capitalize }}</span>
+                </td>
+                <td>{{ session.start_date.strftime('%Y-%m-%d') }}</td>
+                <td class="text-end">
+                    <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}"
+                        class="btn btn-outline-primary btn-sm">View Summary</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p>No research sessions started yet. <a href="{{ url_for('companies.list_companies') }}">Start your first research!</a>
+</p>
+{% endif %}
+
+{% endblock %}

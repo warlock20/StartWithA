@@ -9,7 +9,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Load environment variables from .env file
 # This line will look for a .env file in the current directory (where config.py is)
 # or in parent directories, and load the variables found into the environment.
-load_dotenv(os.path.join(basedir, '.env')) # Explicitly point to .env in project root
+load_dotenv(os.path.join(basedir, '.env_local')) # Explicitly point to .env in project root. Currently, I am loading .env_local
 
 class Config:
     """Base configuration."""
@@ -21,7 +21,9 @@ class Config:
         'sqlite:///' + os.path.join(basedir, 'app.db') # Default if not in .env
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
+    
+    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    print(f"Using Gemini API Key: {GEMINI_API_KEY}")  # Debugging line to check if the key is loaded
     # You can also load Flask specific config directly if set in .env
     # For example, FLASK_DEBUG=1 or FLASK_ENV=development
     # Though these are often handled by how you run the Flask CLI or app.run()
@@ -29,3 +31,6 @@ class Config:
     UPLOAD_FOLDER = os.path.join(basedir, 'instance', 'uploads', 'company_documents')
     ALLOWED_EXTENSIONS = {'pdf', 'txt'} # Allow PDFs and text files for now
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024 # Limit upload size to 16 MB
+    
+    CACHE_TYPE = "SimpleCache"  # Use a simple in-memory cache
+    CACHE_DEFAULT_TIMEOUT = 300 # Default timeout in seconds (e.g., 5 minutes)

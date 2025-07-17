@@ -11,32 +11,24 @@
                 <form method="POST" action="{{ url_for('checklists.new_checklist') }}" id="newChecklistForm">
                     <div class="mb-3">
                         <label for="name" class="form-label">Checklist Name:</label>
-                        <input type="text" class="form-control" id="name" name="name" value="{{ name if name else '' }}" required>
+                        <input type="text" class="form-control" id="name" name="name" required>
                     </div>
 
                     <div class="mb-3">
                         <label for="description" class="form-label">Description (Optional):</label>
-                        <textarea class="form-control" id="description" name="description" rows="3">{{ description if description else '' }}</textarea>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
 
                     <hr>
                     <h5>Initial Items</h5>
 
+                    {# This div will hold our dynamically added item fields #}
                     <div id="initial-items-container">
-                        {# Starts with one item field by default #}
-                        <div class="card bg-light p-3 mb-3 initial-item-group">
-                            <div class="mb-2">
-                                <label class="form-label">Item 1 Text:</label>
-                                <input type="text" class="form-control" name="item_text[]" placeholder="Item 1 text">
-                            </div>
-                            <div>
-                                <label class="form-label">Optional LLM Prompt for Item 1:</label>
-                                <textarea class="form-control" name="item_llm_prompt[]" rows="2" placeholder="E.g., What are the key revenue drivers?"></textarea>
-                            </div>
-                        </div>
+                        {# We'll start with one item field by default, added by JS #}
                     </div>
 
-                    <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Another Item</button>
+                    {# Button to add more item fields #}
+                    <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Initial Item</button>
 
                     <hr>
                     <div class="d-grid gap-2 mt-4">
@@ -49,7 +41,6 @@
 </div>
 {% endblock %}
 
-{# This block will now link to the external JS file #}
 {% block scripts %}
     {{ super() }} {# Includes scripts from parent template like Bootstrap's JS #}
     <script src="{{ url_for('static', filename='js/checklist_form.js') }}" defer></script>

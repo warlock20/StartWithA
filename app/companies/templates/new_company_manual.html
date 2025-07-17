@@ -1,0 +1,45 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title text-center">{{ title }}</h1>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}">
+
+                    <div class="mb-3">
+                        <label for="ticker_symbol" class="form-label">Ticker Symbol:</label>
+                        <input type="text" class="form-control" id="ticker_symbol" name="ticker_symbol"
+                            value="{{ ticker }}" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Company Name:</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+
+                    {# Ensure these optional fields are INSIDE the form #}
+                    <div class="mb-3">
+                        <label for="sector" class="form-label">Sector (Optional):</label>
+                        <input type="text" class="form-control" id="sector" name="sector"
+                            placeholder="e.g., Information Technology">
+                    </div>
+                    <div class="mb-3">
+                        <label for="industry" class="form-label">Industry (Optional):</label>
+                        <input type="text" class="form-control" id="industry" name="industry"
+                            placeholder="e.g., Software—Infrastructure">
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('companies.new_company') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Company</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
