@@ -13,6 +13,9 @@ from secedgar import filings, FilingType
 from pathlib import Path
 import shutil 
 import re
+
+from app.tasks import fetch_sec_filings_task
+
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
     '': 'USA (Default)',
@@ -44,7 +47,6 @@ def get_company_market_data(ticker):
         }
     except Exception as e:
         print(f"yfinance lookup failed for {ticker}: {e}")
-
 
 @companies_bp.route('/', methods=['GET'])
 @login_required
@@ -406,7 +408,132 @@ def delete_document(doc_id):
         print(f"ERROR: Could not delete document {doc_id}: {e}")
 
     return redirect(url_for('companies.manage_company_documents', company_id=company_id))
-## In app/companies/routes.py
+
+# ## In app/companies/routes.py
+# @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
+# @login_required
+# def fetch_sec_filings(company_id):
+#     company = Company.query.get_or_404(company_id)
+#     if company.user_id != current_user.id:
+#         flash("You are not authorized to perform this action.", "error")
+#         return redirect(url_for('companies.list_companies'))
+
+#     filing_type_str = request.form.get('filing_type', '10-K')
+#     filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
+#     years_to_fetch = request.form.get('years', 5, type=int)
+    
+#     user_agent = f"{current_user.username} {current_user.email}"
+#     temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    
+#     print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
+    
+#     try:
+#         start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+        
+#         filing_docs = filings(cik_lookup=company.ticker_symbol,
+#                               filing_type=filing_type_enum,
+#                               start_date=start_date,
+#                               user_agent=user_agent)
+        
+#         filing_docs.save(temp_download_path)
+        
+#         company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
+#         saved_count = 0
+
+#         if company_filing_path.exists():
+#             # This loop finds each downloaded file.
+#             for submission_file_path in company_filing_path.glob('*.txt'):
+                
+#                 # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
+
+#                 if not submission_file_path.is_file():
+#                     continue
+
+#                 print(f"Processing downloaded file: {submission_file_path.name}")
+                
+#                 with open(submission_file_path, 'r', encoding='utf-8') as f:
+#                     full_filing_text = f.read()
+
+#                 # STEP 1: Parse the Filing Date
+#                 filing_date_str = "N/A"
+#                 for line in full_filing_text.splitlines()[:40]:
+#                     if "FILED AS OF DATE:" in line:
+#                         date_val = line.split(":")[-1].strip()
+#                         filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
+#                         break
+                
+#                 # STEP 2: Check for Duplicates
+#                 doc_title = f"{filing_type_str} Report ({filing_date_str})"
+#                 existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
+#                 if existing_doc:
+#                     print(f"Skipping already existing filing: {doc_title}")
+#                     continue
+
+#                 # STEP 3: Parse the Clean HTML Content
+#                 doc_start_pattern = re.compile(r'<DOCUMENT>')
+#                 doc_end_pattern = re.compile(r'</DOCUMENT>')
+#                 doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
+#                 docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
+                
+#                 html_content = ''
+#                 for doc_start, doc_end in docs:
+#                     doc_text = full_filing_text[doc_start:doc_end]
+#                     if doc_type_pattern.search(doc_text):
+#                         text_start = re.search(r'<TEXT>', doc_text)
+#                         text_end = re.search(r'</TEXT>', doc_text)
+#                         if text_start and text_end:
+#                             html_content = doc_text[text_start.end():text_end.start()]
+#                             html_tag_start = html_content.find('<HTML>')
+#                             if html_tag_start != -1:
+#                                 html_content = html_content[html_tag_start:]
+#                             break 
+                
+#                 if not html_content:
+#                     print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
+#                     continue
+
+#                 # STEP 4: Save the Clean HTML and Create DB Record
+#                 original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
+#                 stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+#                 company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
+#                 os.makedirs(company_permanent_path, exist_ok=True)
+#                 file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
+
+#                 with open(file_save_path, 'w', encoding='utf-8') as f_out:
+#                     f_out.write(html_content)
+
+#                 new_doc = CompanyDocument(
+#                     company_id=company.id, user_id=current_user.id,
+#                     original_filename=original_fn,
+#                     stored_filename=os.path.join(str(company.id), stored_fn_uuid),
+#                     document_group=f"SEC {filing_type_str} Filings",
+#                     document_title=doc_title,
+#                     document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+#                 )
+#                 db.session.add(new_doc)
+#                 saved_count += 1
+                
+#                 # The 'for' loop continues with the next downloaded file...
+        
+#         # After the loop is finished, check if anything was saved
+#         if saved_count > 0:
+#             db.session.commit()
+#             flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
+#         else:
+#             flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
+    
+#     except Exception as e:
+#         db.session.rollback()
+#         flash(f"An error occurred while fetching SEC filings: {e}", "error")
+#         print(f"ERROR: SEC Edgar fetch failed: {e}")
+    
+#     finally:
+#         if temp_download_path.exists():
+#             shutil.rmtree(temp_download_path)
+#             print(f"Cleaned up temporary directory: {temp_download_path}")
+
+#     return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
 def fetch_sec_filings(company_id):
@@ -415,118 +542,16 @@ def fetch_sec_filings(company_id):
         flash("You are not authorized to perform this action.", "error")
         return redirect(url_for('companies.list_companies'))
 
-    filing_type_str = request.form.get('filing_type', '10-K')
-    filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
-    years_to_fetch = request.form.get('years', 5, type=int)
+    # Get the 'years' value from the form, defaulting to 5 if not found
+    years_from_form = request.form.get('years', 5, type=int)
     
-    user_agent = f"{current_user.username} {current_user.email}"
-    temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    # When you call .delay(), it returns a task object.
+    task = fetch_sec_filings_task.delay(company.id, current_user.id, years_from_form)
     
-    print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
-    
-    try:
-        start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
-        
-        filing_docs = filings(cik_lookup=company.ticker_symbol,
-                              filing_type=filing_type_enum,
-                              start_date=start_date,
-                              user_agent=user_agent)
-        
-        filing_docs.save(temp_download_path)
-        
-        company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
-        saved_count = 0
-
-        if company_filing_path.exists():
-            # This loop finds each downloaded file.
-            for submission_file_path in company_filing_path.glob('*.txt'):
-                
-                # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
-
-                if not submission_file_path.is_file():
-                    continue
-
-                print(f"Processing downloaded file: {submission_file_path.name}")
-                
-                with open(submission_file_path, 'r', encoding='utf-8') as f:
-                    full_filing_text = f.read()
-
-                # STEP 1: Parse the Filing Date
-                filing_date_str = "N/A"
-                for line in full_filing_text.splitlines()[:40]:
-                    if "FILED AS OF DATE:" in line:
-                        date_val = line.split(":")[-1].strip()
-                        filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
-                        break
-                
-                # STEP 2: Check for Duplicates
-                doc_title = f"{filing_type_str} Report ({filing_date_str})"
-                existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
-                if existing_doc:
-                    print(f"Skipping already existing filing: {doc_title}")
-                    continue
-
-                # STEP 3: Parse the Clean HTML Content
-                doc_start_pattern = re.compile(r'<DOCUMENT>')
-                doc_end_pattern = re.compile(r'</DOCUMENT>')
-                doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
-                docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
-                
-                html_content = ''
-                for doc_start, doc_end in docs:
-                    doc_text = full_filing_text[doc_start:doc_end]
-                    if doc_type_pattern.search(doc_text):
-                        text_start = re.search(r'<TEXT>', doc_text)
-                        text_end = re.search(r'</TEXT>', doc_text)
-                        if text_start and text_end:
-                            html_content = doc_text[text_start.end():text_end.start()]
-                            html_tag_start = html_content.find('<HTML>')
-                            if html_tag_start != -1:
-                                html_content = html_content[html_tag_start:]
-                            break 
-                
-                if not html_content:
-                    print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
-                    continue
-
-                # STEP 4: Save the Clean HTML and Create DB Record
-                original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
-                stored_fn_uuid = f"{uuid.uuid4().hex}.html"
-                company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
-                os.makedirs(company_permanent_path, exist_ok=True)
-                file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
-
-                with open(file_save_path, 'w', encoding='utf-8') as f_out:
-                    f_out.write(html_content)
-
-                new_doc = CompanyDocument(
-                    company_id=company.id, user_id=current_user.id,
-                    original_filename=original_fn,
-                    stored_filename=os.path.join(str(company.id), stored_fn_uuid),
-                    document_group=f"SEC {filing_type_str} Filings",
-                    document_title=doc_title,
-                    document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
-                )
-                db.session.add(new_doc)
-                saved_count += 1
-                
-                # The 'for' loop continues with the next downloaded file...
-        
-        # After the loop is finished, check if anything was saved
-        if saved_count > 0:
-            db.session.commit()
-            flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
-        else:
-            flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
-    
-    except Exception as e:
-        db.session.rollback()
-        flash(f"An error occurred while fetching SEC filings: {e}", "error")
-        print(f"ERROR: SEC Edgar fetch failed: {e}")
-    
-    finally:
-        if temp_download_path.exists():
-            shutil.rmtree(temp_download_path)
-            print(f"Cleaned up temporary directory: {temp_download_path}")
-
-    return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+    # Flash a message to give immediate feedback.
+    flash(f"Request received! {years_from_form} year(s) of filings are being fetched in the background. The page will reload when complete.", "info")
+            
+    # Redirect back to the same page, but add the task_id to the URL as a query parameter.
+    return redirect(url_for('companies.manage_company_documents', 
+                            company_id=company.id, 
+                            task_id=task.id))

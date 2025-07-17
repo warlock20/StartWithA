@@ -1,11 +1,12 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div id="task-polling-status" style="display: none;"></div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>{{ title }}</h1>
     <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
 </div>
-
 {% if company.summary and company.summary != 'No summary available.' %}
 <div class="card mb-4">
     <div class="card-header">Business Summary</div>
@@ -199,4 +200,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+    {{ super() }} {# Includes Bootstrap's JS #}
+    {# LINK YOUR NEW POLLING SCRIPT #}
+    <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 {% endblock %}

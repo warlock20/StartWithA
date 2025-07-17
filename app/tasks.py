@@ -1,0 +1,147 @@
+# In app/tasks.py
+import os
+import shutil
+import uuid
+import re
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import fitz  # PyMuPDF
+from secedgar import filings, FilingType
+from flask import current_app
+
+from app import db, create_app
+from app.models import Company, CompanyDocument, User
+from celery_app import celery
+
+
+@celery.task(bind=True)
+def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
+    """
+    A Celery task to fetch SEC filings in the background.
+    We create a minimal app context ONLY within the task.
+    """
+    # Create an app instance and push a context FOR THIS TASK ONLY
+    app = create_app()
+    with app.app_context():
+        # All your previous task logic can go here.
+        # It now has access to the database and app.config via current_app.
+        company = Company.query.get(company_id)
+        user = User.query.get(user_id)
+        if not company or not user:
+            #print(f"Task failed: Company {company_id} or User {user_id} not found.")
+            return "Task failed: Company or User not found."
+
+        # Use 'current_app' to access config, which is available thanks to the app context.
+        temp_download_path = Path(current_app.instance_path) / f"sec_temp_{self.request.id}"
+        user_agent = f"{user.username} {user.email}"
+        filing_type_str = '10-K'
+        filing_type_enum = FilingType.FILING_10K
+
+        try:
+            #print(f"BACKGROUND TASK ({self.request.id}): Fetching filings for {company.ticker_symbol}...")
+            start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+            
+            filing_docs = filings(
+                cik_lookup=company.ticker_symbol,
+                filing_type=filing_type_enum,
+                start_date=start_date,
+                user_agent=user_agent
+            )
+            filing_docs.save(temp_download_path)
+
+            # The rest of the file processing logic is the same as it was in your route
+            # It opens the downloaded files, parses them, and saves them to the DB.
+            # ... (Paste the entire file processing loop from your old route here) ...
+
+            company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
+            saved_count = 0
+
+            if company_filing_path.exists():
+                # This loop finds each downloaded file.
+                for submission_file_path in company_filing_path.glob('*.txt'):
+                    if not submission_file_path.is_file():
+                        continue
+
+                    print(f"Processing downloaded file: {submission_file_path.name}")
+                        
+                    with open(submission_file_path, 'r', encoding='utf-8') as f:
+                        full_filing_text = f.read()
+
+                    # STEP 1: Parse the Filing Date
+                    filing_date_str = "N/A"
+                    for line in full_filing_text.splitlines()[:40]:
+                        if "FILED AS OF DATE:" in line:
+                            date_val = line.split(":")[-1].strip()
+                            filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
+                            break
+                        
+                    # STEP 2: Check for Duplicates
+                    doc_title = f"{filing_type_str} Report ({filing_date_str})"
+                    existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
+                    if existing_doc:
+                        print(f"Skipping already existing filing: {doc_title}")
+                        continue
+
+                    # STEP 3: Parse the Clean HTML Content
+                    doc_start_pattern = re.compile(r'<DOCUMENT>')
+                    doc_end_pattern = re.compile(r'</DOCUMENT>')
+                    doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
+                    docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
+                        
+                    html_content = ''
+                    for doc_start, doc_end in docs:
+                        doc_text = full_filing_text[doc_start:doc_end]
+                        if doc_type_pattern.search(doc_text):
+                            text_start = re.search(r'<TEXT>', doc_text)
+                            text_end = re.search(r'</TEXT>', doc_text)
+                            if text_start and text_end:
+                                html_content = doc_text[text_start.end():text_end.start()]
+                                html_tag_start = html_content.find('<HTML>')
+                                if html_tag_start != -1:
+                                    html_content = html_content[html_tag_start:]
+                                break 
+                        
+                    if not html_content:
+                        print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
+                        continue
+
+                    # STEP 4: Save the Clean HTML and Create DB Record
+                    original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
+                    stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+                    company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
+                    os.makedirs(company_permanent_path, exist_ok=True)
+                    file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
+
+                    with open(file_save_path, 'w', encoding='utf-8') as f_out:
+                        f_out.write(html_content)
+
+                    new_doc = CompanyDocument(
+                        company_id=company.id, user_id=user.id,
+                        original_filename=original_fn,
+                        stored_filename=os.path.join(str(company.id), stored_fn_uuid),
+                        document_group=f"SEC {filing_type_str} Filings",
+                        document_title=doc_title,
+                        document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+                    )
+                    db.session.add(new_doc)
+                    saved_count += 1
+                                    
+                    # After the loop is finished, check if anything was saved
+            if saved_count > 0:
+                db.session.commit()
+
+            result_message = f"Successfully processed {saved_count} new filings for {company.ticker_symbol}."
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"BACKGROUND TASK FAILED ({self.request.id}) for {company.ticker_symbol}: {e}")
+            # You can use self.update_state to store error info if needed
+            # self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
+            return f"Task failed for {company.ticker_symbol}: {e}"
+        
+        finally:
+            if temp_download_path.exists():
+                shutil.rmtree(temp_download_path)

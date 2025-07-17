@@ -11,6 +11,7 @@ A web-based platform to help investors systematically evaluate investment opport
 - Save answers for each checklist item per research session
 - Resume in-progress research or review completed sessions
 - All data stored in a relational database (SQLite by default)
+- Background task processing with Celery (e.g., for long-running jobs or notifications)
 
 ## Getting Started
 
@@ -60,19 +61,28 @@ flask run
 
 The app will be available at [http://localhost:5000](http://localhost:5000).
 
+### 7. Start Celery Worker
+
+Celery requires a message broker (e.g., Redis). Make sure your broker is running, then start the worker:
+
+```bash
+celery -A app.celery worker --loglevel=info
+```
+
 ## Usage
 
 - Create checklists and companies via the web interface.
 - Start a research session for a company using a checklist.
 - Answer checklist items and track your research progress.
 - Resume unfinished sessions or review completed ones.
+- Background tasks (such as notifications or data processing) are handled by Celery.
 
 ## Project Structure
 
-- `app/` - Flask application code (models, routes, templates)
+- `app/` - Flask application code (models, routes, templates, Celery tasks)
 - `run.py` - Application entry point and CLI commands
 - `config.py` - Configuration (uses `.env`)
-- `.env` - Environment variables (secret keys, DB URL, etc.)
+- `.env` - Environment variables (secret keys, DB URL, broker URL, etc.)
 
 ## Contributing
 

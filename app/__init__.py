@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager # Ensure this is imported
 from config import Config
 from flask_caching import Cache
+from celery_app import celery
 
 db = SQLAlchemy()
 
@@ -20,6 +21,8 @@ def create_app(config_class=Config):
     login_manager.init_app(app) 
     cache.init_app(app)
 
+    celery.conf.update(app.config)
+    
     from app.auth import auth_bp 
     app.register_blueprint(auth_bp) 
     

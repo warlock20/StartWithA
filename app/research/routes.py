@@ -15,6 +15,9 @@ from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or A
 # If using Google Generative AI, ensure you have the google-generativeai package installed
 import google.generativeai as genai
 
+from celery.result import AsyncResult
+from celery_app import celery
+
 # Global variable for the LLM pipeline (loaded once)
 llm_pipeline = None
 LLM_MODEL_NAME = "google/flan-t5-small"
@@ -766,4 +769,34 @@ def export_session_to_txt(session_id):
         mimetype="text/markdown",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
-   
+
+
+@research_bp.route('/task_status/<task_id>')
+@login_required
+def task_status(task_id):
+    """
+    Checks the status of a Celery background task.
+    """
+    # Get the task object from the Celery result backend (Redis)
+    task = celery.AsyncResult(task_id)
+
+    response_data = {
+        'state': task.state
+    }
+
+    if task.state == 'PENDING':
+        # The task is waiting to be picked up by a worker.
+        response_data['status_message'] = 'Task is pending...'
+    elif task.state == 'SUCCESS':
+        # The task completed successfully.
+        # task.info will contain the return value of your task function.
+        response_data['result'] = task.info
+        response_data['status_message'] = 'Task completed successfully!'
+    elif task.state != 'FAILURE':
+        # For other states like 'PROGRESS', if you were to implement them.
+        response_data['status_message'] = 'Task is in progress...'
+    else:
+        # The task failed. task.info will contain the exception.
+        response_data['status_message'] = str(task.info) # The error message
+
+    return jsonify(response_data)

@@ -34,3 +34,6 @@ class Config:
     
     CACHE_TYPE = "SimpleCache"  # Use a simple in-memory cache
     CACHE_DEFAULT_TIMEOUT = 300 # Default timeout in seconds (e.g., 5 minutes)
+    
+    CELERY_BROKER_URL = 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
