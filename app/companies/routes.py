@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument # Add other models if needed
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint
 from app.companies import companies_bp
 
 from secedgar import filings, FilingType
@@ -252,7 +252,7 @@ def manage_company_documents(company_id):
                 db.session.commit()
                 flash(f'Document "{original_fn}" uploaded successfully to group "{doc_group}".', 'success')
             return redirect(url_for('companies.manage_company_documents', company_id=company.id))
-
+    
     documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc(), CompanyDocument.document_title).all()    
     grouped_documents = {}
     for doc in documents_query:
@@ -289,6 +289,7 @@ def manage_company_documents(company_id):
                            distinct_group_names=distinct_group_names,
                            intrinsic_display_value=intrinsic_display_value,
                            intrinsic_unit=intrinsic_unit,
+                           checkpoints=checkpoints,
                            title=f"Documents for {company.name}")
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -555,3 +556,59 @@ def fetch_sec_filings(company_id):
     return redirect(url_for('companies.manage_company_documents', 
                             company_id=company.id, 
                             task_id=task.id))
+    
+
+@companies_bp.route('/<int:company_id>/add_checkpoint', methods=['POST'])
+@login_required
+def add_checkpoint(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    metric = request.form.get('metric')
+    expectation = request.form.get('expectation')
+    target_date_str = request.form.get('target_date')
+
+    if not metric or not expectation or not target_date_str:
+        flash("All fields are required to add a checkpoint.", "error")
+        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+
+    try:
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+
+        new_checkpoint = DestinationCheckpoint(
+            company_id=company.id,
+            user_id=current_user.id,
+            metric=metric,
+            expectation=expectation,
+            target_date=target_date
+            # Status defaults to 'Active' as defined in the model
+        )
+        db.session.add(new_checkpoint)
+        db.session.commit()
+        flash("New destination analysis checkpoint added successfully.", "success")
+
+    except ValueError:
+        flash("Invalid date format. Please use YYYY-MM-DD.", "error")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred: {e}", "error")
+
+    return redirect(url_for('companies.destination_analysis', company_id=company.id))
+
+@companies_bp.route('/<int:company_id>/destination_analysis')
+@login_required
+def destination_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
+
+    return render_template('destination_analysis.html', 
+                           company=company, 
+                           checkpoints=checkpoints,
+                           title=f"Destination Analysis for {company.name}")

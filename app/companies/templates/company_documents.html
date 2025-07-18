@@ -86,7 +86,61 @@
     </div>
 </div>
 {% endif %}
+<!-- <div class="card mb-4">
+    <div class="card-header">
+        Destination Analysis / Thesis Checkpoints
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">Add New Checkpoint</h5>
+        <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}" class="mb-4">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label for="metric" class="form-label">Metric</label>
+                    <input type="text" class="form-control" id="metric" name="metric" placeholder="e.g., Annual Revenue"
+                        required>
+                </div>
+                <div class="col-md-4">
+                    <label for="expectation" class="form-label">Expectation / Target</label>
+                    <input type="text" class="form-control" id="expectation" name="expectation"
+                        placeholder="e.g., > $500 Billion" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="target_date" class="form-label">Target Date</label>
+                    <input type="date" class="form-control" id="target_date" name="target_date" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </div>
+        </form>
 
+        <hr>
+
+        <h5 class="card-title mt-4">Active Checkpoints</h5>
+        {% if checkpoints %}
+        <ul class="list-group">
+            {% for cp in checkpoints %}
+            <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <div>
+                        <p class="mb-1"><strong>Metric:</strong> {{ cp.metric }}</p>
+                        <p class="mb-1"><strong>Expectation:</strong> {{ cp.expectation }}</p>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-end"><strong>Target Date:</strong> {{ cp.target_date.strftime('%Y-%m-%d') }}
+                        </p>
+                        {# We will add a form here later to update the status #}
+                        <span class="badge bg-info">{{ cp.status }}</span>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No checkpoints have been set for this company yet.</p>
+        {% endif %}
+    </div>
+</div> -->
 
 <div class="row">
     <div class="col-lg-4 mb-4">
@@ -202,7 +256,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-    {{ super() }} {# Includes Bootstrap's JS #}
-    {# LINK YOUR NEW POLLING SCRIPT #}
-    <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
+{{ super() }} {# Includes Bootstrap's JS #}
+{# LINK YOUR NEW POLLING SCRIPT #}
+<script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 {% endblock %}

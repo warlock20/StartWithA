@@ -29,6 +29,7 @@ class User(UserMixin, db.Model): # Add UserMixin here
     companies = db.relationship('Company', backref='creator', lazy='dynamic') 
     favorites = db.relationship('Company', secondary=favorite_companies, lazy='dynamic',
                                 backref=db.backref('favorited_by', lazy='dynamic'))
+    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='creator', lazy='dynamic')
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -80,7 +81,8 @@ class Company(db.Model):
     sector = db.Column(db.String(100), nullable=True)
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)    
-
+    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    
     # Relationship: A company can be part of many research sessions
     research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
@@ -165,3 +167,26 @@ class CompanyDocument(db.Model):
 
     def __repr__(self):
         return f'<CompanyDocument {self.original_filename} for Company {self.company_id}>'
+
+# Destination analysis mental model for Companies
+class DestinationCheckpoint(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this checkpoint to a specific Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # Foreign key to link this checkpoint to the User who created it
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    target_date = db.Column(db.Date, nullable=False, index=True)
+    metric = db.Column(db.String(200), nullable=False) # E.g., "Quarterly Revenue", "EPS", "Product Launch"
+    expectation = db.Column(db.Text, nullable=False) # E.g., ">$5 Billion", "Successful and on time"
+
+    # This will be updated by the user later
+    status = db.Column(db.String(30), nullable=False, default='Active') # E.g., 'Active', 'Met', 'Not Met'
+    outcome_notes = db.Column(db.Text, nullable=True) # User's analysis of the outcome
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<DestinationCheckpoint {self.metric} for Company {self.company_id}>'    

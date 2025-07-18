@@ -40,6 +40,8 @@
                     {% endif %}
                 </td>
                 <td class="text-end">
+                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
+                        class="btn btn-success btn-sm mb-1 d-block">Destination Analysis</a>
                     <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}"
                         class="btn btn-primary btn-sm mb-1 d-block">Research</a>
                     <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}"

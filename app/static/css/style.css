@@ -155,3 +155,45 @@ th {
 tbody tr:nth-child(even) { /* Stripe odd rows if you like */
     /* background-color: #f9f9f9; */
 }
+
+/* --- Timeline Styles --- */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+    list-style: none;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    height: 100%;
+    width: 4px;
+    background: #e9ecef; /* Light grey */
+}
+
+.timeline-item {
+    margin-bottom: 20px;
+    position: relative;
+    padding-left: 50px; /* Space for the line and icon */
+}
+
+.timeline-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 44px; /* Width of the circle */
+    height: 44px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 40px;
+    font-size: 1.2rem;
+    border: 2px solid #e9ecef;
+    background-color: #fff;
+    color: #fff; /* White icon color */
+}
+
+.timeline-content {
+    position: relative;
+}
