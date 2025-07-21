@@ -25,7 +25,8 @@
                     <td class="text-end">
                         {# --- Action Buttons --- #}
                         <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="btn btn-success btn-sm" title="Destination Analysis">Destination Analysis</a>
-                        <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-primary btn-sm" title="Start/Resume Research">Research</a>
+                        <!-- <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-primary btn-sm" title="Start/Resume Research">Research</a> -->
+                        <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-primary btn-sm" title="Apply an Analysis Model">Analyze</a>
                         <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary btn-sm" title="Manage Documents">Docs</a>
                         
                         {# --- Toggle Buttons --- #}

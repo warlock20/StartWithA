@@ -800,3 +800,23 @@ def task_status(task_id):
         response_data['status_message'] = str(task.info) # The error message
 
     return jsonify(response_data)
+
+@research_bp.route('/for_company/<int:company_id>/select_model')
+@login_required
+def select_model(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # NEW: Check if there is at least one completed research session for this company
+    has_completed_research = ResearchSession.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        status='completed'
+    ).first() is not None
+
+    return render_template('select_model.html',
+                           company=company,
+                           has_completed_research=has_completed_research, # Pass this flag to the template
+                           title=f"Select Analysis Model for {company.name}")
