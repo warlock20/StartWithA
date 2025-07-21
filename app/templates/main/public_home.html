@@ -2,37 +2,41 @@
 
 {% block content %}
 <div class="container text-center py-5">
-    <h1 class="display-4">A More Disciplined Approach to Investing</h1>
-    <p class="lead text-muted">Inspired by the wisdom of Charlie Munger, this platform helps you systematically research companies, stress-test your ideas, and build a durable investment thesis using a powerful checklist methodology.</p>
+    <h1 class="display-4">Think Better, Invest Better.</h1>
+    <p class="lead text-muted mb-4">
+        A platform for systematic investment research, inspired by the Mental Models of Charlie Munger.
+        <br>
+        Structure your thinking, document your findings, and stress-test your thesis to destroy it before the market does.
+    </p>
     <div class="mt-4">
-        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Get Started for Free</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Start Your Research</a>
         <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-lg mx-2">Login</a>
     </div>
 </div>
 
 <div class="container py-5">
-    <div class="row">
-        <div class="col-lg-4">
+    <div class="row text-center">
+        <div class="col-lg-4 mb-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">Build Your Checklist</h4>
-                    <p class="card-text">Create detailed, hierarchical checklists that reflect your unique investment philosophy. Ensure you never miss a critical step in your due diligence.</p>
+                    <h4 class="card-title">1. Select Your Mental Model</h4>
+                    <p class="card-text">Begin with a proven framework. Use a classic **Checklist** to ensure discipline, or perform a **Destination Analysis** inspired by Nick Sleep to focus on the long-term potential. More models coming soon.</p>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-4 mb-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">Document Your Research</h4>
-                    <p class="card-text">Go through your checklist item by item, documenting your findings, setting satisfaction statuses, and uploading key documents for each company.</p>
+                    <h4 class="card-title">2. Document Systematically</h4>
+                    <p class="card-text">Apply your chosen model rigorously. Go through each point, extract data from documents with AI assistance, record your findings, and mark your conclusions for each criterion.</p>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-4 mb-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">Stress-Test Your Thesis</h4>
-                    <p class="card-text">Use integrated AI tools to analyze documents and challenge your assumptions. The goal isn't to confirm your ideas, but to find every reason you might be wrong.</p>
+                    <h4 class="card-title">3. Invert & Stress-Test</h4>
+                    <p class="card-text">Actively seek out disconfirming evidence. Use integrated tools to find bear cases, track your thesis against future checkpoints, and truly understand the risks. The goal is clarity, not comfort.</p>
                 </div>
             </div>
         </div>

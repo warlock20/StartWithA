@@ -52,42 +52,26 @@ def get_company_market_data(ticker):
 @login_required
 def list_companies():
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
-    
-    companies_data_list = []
-    for company in all_user_companies:
-        data = {
-            'company_obj': company,
-            'current_market_cap': None,
-            'margin_of_safety': None
-        }
-        
-        # Call our new cached function to get the data.
-        market_data = get_company_market_data(company.ticker_symbol)
-        
-        # Use the data returned from the helper function.
-        if market_data:
-            market_cap = market_data.get('marketCap') # Get 'marketCap' from the returned dictionary
-            if market_cap:
-                data['current_market_cap'] = market_cap
-                # Calculate Margin of Safety if intrinsic value is set
-                if company.intrinsic_value and market_cap > 0:
-                    margin = ((market_cap - company.intrinsic_value) / market_cap) * 100
-                    data['margin_of_safety'] = round(margin, 2)
-        
-        companies_data_list.append(data)
-        
-    # The rest of the function for partitioning and sorting remains the same
     favorite_ids = {c.id for c in current_user.favorites.all()}
-    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids]
-    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in favorite_ids]
-    
-    favorite_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
-    other_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
+
+    # Partition into three lists
+    portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
+    favorite_companies = [c for c in all_user_companies if c.id in favorite_ids and not c.is_in_portfolio]
+    other_companies = [c for c in all_user_companies if not c.is_in_portfolio and c.id not in favorite_ids]
+
+    # Sort each list by name for now
+    portfolio_companies.sort(key=lambda x: x.name)
+    favorite_companies.sort(key=lambda x: x.name)
+    other_companies.sort(key=lambda x: x.name)
 
     return render_template(
         'list_companies.html', 
-        favorite_companies_data=favorite_companies_data,
-        other_companies_data=other_companies_data,
+        portfolio_companies=portfolio_companies,
+        favorite_companies=favorite_companies,
+        other_companies=other_companies,
+        # Pass sets of IDs for quick checking in the template's macro
+        portfolio_ids={c.id for c in portfolio_companies},
+        favorite_ids=favorite_ids,
         title=f"{current_user.username}'s Companies"
     )
 
@@ -702,5 +686,27 @@ def edit_checkpoint(checkpoint_id):
     # GET request: Show the edit form, pre-filled with existing data
     return render_template('edit_checkpoint.html', 
                            title="Edit Checkpoint", 
-                           checkpoint=checkpoint)  
+                           checkpoint=checkpoint)
+
+@companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
+@login_required
+def toggle_portfolio(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Flip the boolean status
+    company.is_in_portfolio = not company.is_in_portfolio
+
+    try:
+        db.session.commit()
+        status = "added to" if company.is_in_portfolio else "removed from"
+        flash(f'"{company.name}" has been {status} your active portfolio.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred: {e}", "error")
+
+    return redirect(request.referrer or url_for('companies.list_companies'))  
     

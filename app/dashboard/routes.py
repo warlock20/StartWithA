@@ -1,7 +1,7 @@
 # In app/dashboard/routes.py
 from flask import render_template
 from flask_login import current_user, login_required
-from app.models import Company, ResearchSession, ChecklistItem, ResearchAnswer 
+from app.models import Company, ResearchSession, ChecklistItem, ResearchAnswer, DestinationCheckpoint
 from . import dashboard_bp
 
 @dashboard_bp.route('/')
@@ -51,3 +51,24 @@ def index():
         favorite_companies_count=favorite_companies_count,
         recent_sessions=recent_sessions
     )
+    
+@dashboard_bp.route('/portfolio_timeline')
+@login_required
+def portfolio_timeline():
+    # Get IDs of all companies in the user's portfolio
+    portfolio_company_ids = [
+        c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()
+    ]
+
+    # Fetch all checkpoints for those companies, ordered by target date
+    checkpoints = []
+    if portfolio_company_ids:
+        checkpoints = DestinationCheckpoint.query.filter(
+            DestinationCheckpoint.company_id.in_(portfolio_company_ids)
+        ).order_by(DestinationCheckpoint.target_date.asc()).all()
+
+    return render_template(
+        'portfolio_timeline.html',
+        title="Portfolio Checkpoints Timeline",
+        checkpoints=checkpoints
+    )    

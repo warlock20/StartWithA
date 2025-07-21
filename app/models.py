@@ -82,6 +82,7 @@ class Company(db.Model):
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)    
     destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     # Relationship: A company can be part of many research sessions
     research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
