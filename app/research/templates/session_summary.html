@@ -16,6 +16,7 @@
                 class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
                 session.status|capitalize }}</span></p>
         <p><strong>Started:</strong> {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p><strong>Analysis Model:</strong> Checklist Analysis</p>
     </div>
 </div>
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession
 from app.companies import companies_bp
 
 from secedgar import filings, FilingType
@@ -53,7 +53,11 @@ def get_company_market_data(ticker):
 def list_companies():
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
     favorite_ids = {c.id for c in current_user.favorites.all()}
-
+    
+    completed_sessions = ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()
+    # Create a set of company IDs that are eligible for Destination Analysis
+    eligible_for_da_ids = {session.company_id for session in completed_sessions}
+    
     # Partition into three lists
     portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
     favorite_companies = [c for c in all_user_companies if c.id in favorite_ids and not c.is_in_portfolio]
@@ -69,7 +73,7 @@ def list_companies():
         portfolio_companies=portfolio_companies,
         favorite_companies=favorite_companies,
         other_companies=other_companies,
-        # Pass sets of IDs for quick checking in the template's macro
+        eligible_for_da_ids=eligible_for_da_ids,
         portfolio_ids={c.id for c in portfolio_companies},
         favorite_ids=favorite_ids,
         title=f"{current_user.username}'s Companies"
