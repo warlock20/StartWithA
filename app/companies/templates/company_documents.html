@@ -85,17 +85,6 @@
     </div>
 </div>
 {% endif %}
-<div class="card mb-4">
-    <div class="card-header">
-        Digital Scuttlebutt (News Aggregation)
-    </div>
-    <div class="card-body">
-        <p class="card-text text-muted">Fetch recent news articles about this company from the internet.</p>
-        <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
-            <button type="submit" class="btn btn-info">Fetch Recent News</button>
-        </form>
-    </div>
-</div>
 
 <div class="row">
     <div class="col-lg-4 mb-4">
@@ -208,26 +197,6 @@
             </div>
         </div>
     </div>
-
-    <hr class="my-4">
-    <h3>📰 Recent News</h3>
-
-    {% if articles %}
-    <div class="list-group">
-        {% for article in articles %}
-        <a href="{{ article.url }}" target="_blank" class="list-group-item list-group-item-action">
-            <div class="d-flex w-100 justify-content-between">
-                <h5 class="mb-1">{{ article.title }}</h5>
-                <small class="text-muted">{{ article.published_at.strftime('%Y-%m-%d') }}</small>
-            </div>
-            <p class="mb-1">{{ article.description }}</p>
-            <small class="text-muted">Source: {{ article.source_name }}</small>
-        </a>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-muted">No news articles fetched yet for this company.</p>
-    {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}

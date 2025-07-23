@@ -254,9 +254,7 @@ def manage_company_documents(company_id):
                                         .order_by(CompanyDocument.document_group)\
                                         .all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
-    
-    articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
-    
+        
     intrinsic_display_value = ''
     intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
     if company.intrinsic_value: # 'company' is the object for the current page
@@ -279,7 +277,6 @@ def manage_company_documents(company_id):
                            distinct_group_names=distinct_group_names,
                            intrinsic_display_value=intrinsic_display_value,
                            intrinsic_unit=intrinsic_unit,
-                           articles=articles,
                            title=f"Documents for {company.name}")
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -539,7 +536,7 @@ def fetch_news(company_id):
     flash("Request received! Recent news is being fetched in the background. The page will reload when complete.", "info")
 
     # Redirect back to the same page with the task_id for polling
-    return redirect(url_for('companies.manage_company_documents', 
+    return redirect(url_for('companies.scuttlebutt', 
                             company_id=company.id, 
                             task_id=task.id))
 
@@ -733,4 +730,24 @@ def toggle_portfolio(company_id):
         flash(f"An error occurred: {e}", "error")
 
     return redirect(request.referrer or url_for('companies.list_companies'))  
+
+# In app/companies/routes.py
+
+@companies_bp.route('/<int:company_id>/scuttlebutt')
+@login_required
+def scuttlebutt(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Fetch saved articles for this company, newest first
+    articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
+
+    return render_template(
+        'scuttlebutt.html',
+        title=f"Digital Scuttlebutt for {company.name}",
+        company=company,
+        articles=articles
+    )
     

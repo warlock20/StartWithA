@@ -10,4 +10,8 @@ def index():
 
     # If the user is a visitor (not logged in), show them the new public homepage
     return render_template('main/public_home.html', title='Welcome - Research Platform')
+
+@bp.route('/mental-models')
+def mental_models():
+    return render_template('main/mental_models.html', title="Mental Models")
                                                                                                  

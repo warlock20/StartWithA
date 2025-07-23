@@ -13,18 +13,20 @@
         <thead class="table-dark">
             <tr>
                 <th scope="col">Company</th>
-                <th scope="col">Checklist Name</th>
+                <th scope="col">Model Used</th>
                 <th scope="col">Satisfied Score</th>
-                <th scope="col">Started On</th>
-                <th scope="col">Final Outcome</th> {# Renamed "Status" to "Outcome" for clarity #}
+                <th scope="col">Last Modified</th>
+                <th scope="col">Final Outcome</th>
+                <th scope="col">Next Steps</th>
                 <th class="text-end" scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for data_item in sessions_data %}
             <tr>
-                <td>{{ data_item.company_name }}</td>
-                <td>{{ data_item.checklist_name }}</td>
+                <td>{{ data_item.company_name }}<br><small class="text-muted">{{ data_item.checklist_name }}</small>
+                </td>
+                <td><span class="badge bg-info">Checklist Analysis</span></td>
                 <td>
                     {# This is your existing Score cell - it's perfect as is #}
                     {% if data_item.total_item_count > 0 %}
@@ -52,8 +54,15 @@
                     <span class="badge bg-secondary">{{ data_item.session_obj.status|capitalize }}</span>
                     {% endif %}
                 </td>
+                <td>
+                    <div class="btn-group btn-group-sm mt-1" role="group">
+                        <a href="{{ url_for('companies.destination_analysis', company_id=data_item.session_obj.company_id) }}"
+                            class="btn btn-outline-success">Destination Analysis</a>
+                        <a href="{{ url_for('companies.scuttlebutt', company_id=data_item.session_obj.company_id) }}"
+                            class="btn btn-outline-info">Digital Scuttlebutt</a>
+                    </div>
+                </td>
                 <td class="text-end">
-                    {# --- Action buttons - moved text-end here for better alignment --- #}
                     {% if data_item.session_obj.status == 'in_progress' %}
                     {% if data_item.resume_item_id %}
                     <a href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}"
@@ -63,7 +72,6 @@
                     <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}"
                         class="btn btn-info btn-sm">View Summary</a>
                     {% endif %}
-
                     <form method="POST"
                         action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}"
                         style="display: inline;">

@@ -23,21 +23,35 @@
                     {{ company.sector if company.sector else 'N/A' }}
                 </td>
                 <td class="text-end">
-                    {# --- Action Buttons --- #}
-                    {% if company.id in eligible_for_da_ids %}
-                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
-                        class="btn btn-success btn-sm" title="Destination Analysis">Destination Analysis</a>
-                    {% else %}
-                    <a href="#" class="btn btn-success btn-sm disabled"
-                        title="Complete a checklist research first to enable Destination Analysis">Analysis</a>
-                    {% endif %}
-                    <!-- <a href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}" class="btn btn-primary btn-sm" title="Start/Resume Research">Research</a> -->
-                    <a href="{{ url_for('research.select_model', company_id=company.id) }}"
-                        class="btn btn-primary btn-sm" title="Apply a Checklist Model">Checklists</a>
-                    <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}"
-                        class="btn btn-secondary btn-sm" title="Manage Documents">Docs</a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                            Actions
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item"
+                                    href="{{ url_for('research.select_model', company_id=company.id) }}">Apply Analysis
+                                    Model</a></li>
+                            <li><a class="dropdown-item"
+                                    href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">Manage
+                                    Documents</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                {% if company.id in eligible_for_da_ids %}
+                                <a class="dropdown-item"
+                                    href="{{ url_for('companies.destination_analysis', company_id=company.id) }}">Destination
+                                    Analysis</a>
+                                {% else %}
+                                <a class="dropdown-item disabled" href="#"
+                                    title="Complete a checklist research first to enable">Destination Analysis</a>
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
 
-                    {# --- Toggle Buttons --- #}
+
                     <div class="btn-group btn-group-sm mt-1" role="group">
                         <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}"
                             style="display: inline;">

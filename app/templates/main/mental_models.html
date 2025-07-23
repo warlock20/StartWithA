@@ -1,0 +1,51 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="text-center mb-5">
+        <h1>Mental Models for Investing</h1>
+        <p class="lead">A collection of frameworks to structure your thinking, avoid biases, and build a durable investment thesis.</p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Checklist Analysis</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Inspired by Charlie Munger</h6>
+                    <p class="card-text">The foundation of disciplined research. Use a systematic, item-by-item evaluation to ensure you never miss a critical step in your due diligence. This model helps prevent errors of omission and combats emotional decision-making.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-primary">Go to Checklists</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Destination Analysis</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Inspired by Nick Sleep & Qais Zakaria</h6>
+                    <p class="card-text">A long-term framework for portfolio companies. Instead of focusing on the next quarter, you set multi-year checkpoints for your thesis. This model forces you to think about a company's enduring competitive advantages and long-term trajectory.</p>
+                </div>
+                 <div class="card-footer">
+                    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-success">Go to Companies</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Digital Scuttlebutt</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Inspired by Philip Fisher</h6>
+                    <p class="card-text">A modern approach to "boots-on-the-ground" investigation. Aggregate recent news, press releases, and transcripts to gather qualitative insights and understand the current narrative around a company beyond the financial statements.</p>
+                </div>
+                 <div class="card-footer">
+                    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-info">Go to Companies</a>
+                </div>
+            </div>
+        </div>
+
+        </div>
+{% endblock %}
