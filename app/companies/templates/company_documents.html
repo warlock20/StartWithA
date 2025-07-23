@@ -53,8 +53,7 @@
                     <label for="filing_type" class="form-label">Filing Type:</label>
                     <select id="filing_type" name="filing_type" class="form-select">
                         <option value="10-K" selected>10-K (Annual)</option>
-                        <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option> {# Placeholder for future
-                        #}
+                        <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -86,61 +85,17 @@
     </div>
 </div>
 {% endif %}
-<!-- <div class="card mb-4">
+<div class="card mb-4">
     <div class="card-header">
-        Destination Analysis / Thesis Checkpoints
+        Digital Scuttlebutt (News Aggregation)
     </div>
     <div class="card-body">
-        <h5 class="card-title">Add New Checkpoint</h5>
-        <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}" class="mb-4">
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label for="metric" class="form-label">Metric</label>
-                    <input type="text" class="form-control" id="metric" name="metric" placeholder="e.g., Annual Revenue"
-                        required>
-                </div>
-                <div class="col-md-4">
-                    <label for="expectation" class="form-label">Expectation / Target</label>
-                    <input type="text" class="form-control" id="expectation" name="expectation"
-                        placeholder="e.g., > $500 Billion" required>
-                </div>
-                <div class="col-md-2">
-                    <label for="target_date" class="form-label">Target Date</label>
-                    <input type="date" class="form-control" id="target_date" name="target_date" required>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Add</button>
-                </div>
-            </div>
+        <p class="card-text text-muted">Fetch recent news articles about this company from the internet.</p>
+        <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
+            <button type="submit" class="btn btn-info">Fetch Recent News</button>
         </form>
-
-        <hr>
-
-        <h5 class="card-title mt-4">Active Checkpoints</h5>
-        {% if checkpoints %}
-        <ul class="list-group">
-            {% for cp in checkpoints %}
-            <li class="list-group-item">
-                <div class="d-flex w-100 justify-content-between">
-                    <div>
-                        <p class="mb-1"><strong>Metric:</strong> {{ cp.metric }}</p>
-                        <p class="mb-1"><strong>Expectation:</strong> {{ cp.expectation }}</p>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-end"><strong>Target Date:</strong> {{ cp.target_date.strftime('%Y-%m-%d') }}
-                        </p>
-                        {# We will add a form here later to update the status #}
-                        <span class="badge bg-info">{{ cp.status }}</span>
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No checkpoints have been set for this company yet.</p>
-        {% endif %}
     </div>
-</div> -->
+</div>
 
 <div class="row">
     <div class="col-lg-4 mb-4">
@@ -253,6 +208,26 @@
             </div>
         </div>
     </div>
+
+    <hr class="my-4">
+    <h3>📰 Recent News</h3>
+
+    {% if articles %}
+    <div class="list-group">
+        {% for article in articles %}
+        <a href="{{ article.url }}" target="_blank" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{ article.title }}</h5>
+                <small class="text-muted">{{ article.published_at.strftime('%Y-%m-%d') }}</small>
+            </div>
+            <p class="mb-1">{{ article.description }}</p>
+            <small class="text-muted">Source: {{ article.source_name }}</small>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">No news articles fetched yet for this company.</p>
+    {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}

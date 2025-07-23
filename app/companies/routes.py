@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle
 from app.companies import companies_bp
 
 from secedgar import filings, FilingType
@@ -14,7 +14,7 @@ from pathlib import Path
 import shutil 
 import re
 
-from app.tasks import fetch_sec_filings_task
+from app.tasks import fetch_sec_filings_task, fetch_company_news_task
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -255,6 +255,8 @@ def manage_company_documents(company_id):
                                         .all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
     
+    articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
+    
     intrinsic_display_value = ''
     intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
     if company.intrinsic_value: # 'company' is the object for the current page
@@ -277,7 +279,7 @@ def manage_company_documents(company_id):
                            distinct_group_names=distinct_group_names,
                            intrinsic_display_value=intrinsic_display_value,
                            intrinsic_unit=intrinsic_unit,
-                           checkpoints=checkpoints,
+                           articles=articles,
                            title=f"Documents for {company.name}")
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -522,6 +524,24 @@ def delete_document(doc_id):
 #             print(f"Cleaned up temporary directory: {temp_download_path}")
 
 #     return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+
+@companies_bp.route('/<int:company_id>/fetch_news', methods=['POST'])
+@login_required
+def fetch_news(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task
+    task = fetch_company_news_task.delay(company.id)
+
+    flash("Request received! Recent news is being fetched in the background. The page will reload when complete.", "info")
+
+    # Redirect back to the same page with the task_id for polling
+    return redirect(url_for('companies.manage_company_documents', 
+                            company_id=company.id, 
+                            task_id=task.id))
 
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required

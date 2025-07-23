@@ -16,3 +16,4 @@ matplotlib
 redis
 celery
 secedgar
+requests

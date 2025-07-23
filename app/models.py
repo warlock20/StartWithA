@@ -76,17 +76,19 @@ class Company(db.Model):
     name = db.Column(db.String(150), nullable=False)
     ticker_symbol = db.Column(db.String(20), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
-    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     summary = db.Column(db.Text, nullable=True) 
     sector = db.Column(db.String(100), nullable=True)
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)    
-    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
-    # Relationship: A company can be part of many research sessions
+    # Relationships
     research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    articles = db.relationship('CompanyArticle', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.
@@ -190,4 +192,31 @@ class DestinationCheckpoint(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self):
-        return f'<DestinationCheckpoint {self.metric} for Company {self.company_id}>'    
+        return f'<DestinationCheckpoint {self.metric} for Company {self.company_id}>'
+
+class CompanyArticle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this article to a Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    
+    # The title of the article
+    title = db.Column(db.String(300), nullable=False)
+
+    # The URL to the original article - should be unique to avoid duplicates
+    url = db.Column(db.String(500), nullable=False, unique=True)
+
+    # A short description or snippet of the article
+    description = db.Column(db.Text, nullable=True)
+
+    # The name of the news source (e.g., "Reuters", "Bloomberg")
+    source_name = db.Column(db.String(100), nullable=True)
+
+    # The original publication date of the article
+    published_at = db.Column(db.DateTime, nullable=False, index=True)
+
+    # The date we fetched the article
+    fetched_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<CompanyArticle {self.title[:50]}...>'    

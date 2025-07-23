@@ -3,6 +3,7 @@ import os
 import shutil
 import uuid
 import re
+import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -11,9 +12,86 @@ from secedgar import filings, FilingType
 from flask import current_app
 
 from app import db, create_app
-from app.models import Company, CompanyDocument, User
+from app.models import Company, CompanyDocument, User, CompanyArticle
 from celery_app import celery
+from dateutil.parser import isoparse 
 
+@celery.task(bind=True)
+def fetch_company_news_task(self, company_id):
+    """
+    A Celery task to fetch recent news for a company from NewsAPI.org.
+    """
+    app = create_app()
+    with app.app_context():
+        company = Company.query.get(company_id)
+        if not company:
+            return f"Task failed: Company {company_id} not found."
+
+        api_key = current_app.config.get('NEWS_API_KEY')
+        if not api_key:
+            return "Task failed: News API key is not configured."
+
+        print(f"BACKGROUND TASK ({self.request.id}): Fetching news for {company.name}...")
+
+        try:
+            # Construct the API request URL. We'll search for the company name.
+            # Adding "-stock" or "-shares" can sometimes filter out purely financial market noise.
+            # sortBy=relevancy is a good default.
+            url = (f"https://newsapi.org/v2/everything?"
+                   f"q={company.name}&"
+                   f"sortBy=relevancy&"
+                   f"language=en&"
+                   f"apiKey={api_key}")
+
+            response = requests.get(url)
+            response.raise_for_status() # Raises an error for bad responses (4xx or 5xx)
+
+            data = response.json()
+            articles_from_api = data.get('articles', [])
+
+            new_articles_count = 0
+            for article_data in articles_from_api:
+                article_url = article_data.get('url')
+                if not article_url:
+                    continue
+
+                # Check if we've already saved this article to avoid duplicates
+                existing_article = CompanyArticle.query.filter_by(url=article_url).first()
+                if existing_article:
+                    continue # Skip to the next article
+
+                # Parse the publication date string into a datetime object
+                published_at_str = article_data.get('publishedAt')
+                published_at_dt = None
+                if published_at_str:
+                    try:
+                        published_at_dt = isoparse(published_at_str)
+                    except ValueError:
+                        print(f"Could not parse date: {published_at_str}")
+                        continue # Skip if date is invalid
+
+                new_article = CompanyArticle(
+                    company_id=company.id,
+                    title=article_data.get('title', 'No Title'),
+                    url=article_url,
+                    description=article_data.get('description'),
+                    source_name=article_data.get('source', {}).get('name'),
+                    published_at=published_at_dt
+                )
+                db.session.add(new_article)
+                new_articles_count += 1
+
+            if new_articles_count > 0:
+                db.session.commit()
+
+            result_message = f"Successfully fetched and saved {new_articles_count} new articles for {company.name}."
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+            return f"Task failed: {e}"
 
 @celery.task(bind=True)
 def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):

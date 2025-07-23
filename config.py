@@ -23,7 +23,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-    print(f"Using Gemini API Key: {GEMINI_API_KEY}")  # Debugging line to check if the key is loaded
+    NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
+    print(f"Using Gemini API Key: {GEMINI_API_KEY}")
+    print(f"Using News API Key: {NEWS_API_KEY}")
     # You can also load Flask specific config directly if set in .env
     # For example, FLASK_DEBUG=1 or FLASK_ENV=development
     # Though these are often handled by how you run the Flask CLI or app.run()
