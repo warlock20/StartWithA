@@ -2,7 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     const pollingDiv = document.getElementById('task-polling-status');
-
+    const generateBtn = document.getElementById('generate-ai-summary-btn'); 
     // Return early if the polling div doesn't exist on the page
     if (!pollingDiv) return;
 
@@ -21,7 +21,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 Your request is being processed. This may take a few minutes...
             </div>
         `;
-
+        if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Processing...
+            `;
+        }
         const interval = setInterval(function() {
             // Poll the task_status route
             fetch(`/research/task_status/${taskId}`)
@@ -44,8 +50,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         // Reload the page after a short delay to show the new documents
                         setTimeout(function() {
-                            window.location.reload();
-                        }, 2500); // Wait 2.5 seconds before reloading
+                                // This reloads the page to its base URL, removing the "?task_id=..." part
+                                window.location.href = window.location.pathname;
+                            }, 2500);
                     }
                     // If the task is still PENDING or in another state, the interval will just continue.
                 })
@@ -53,6 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     clearInterval(interval);
                     pollingDiv.innerHTML = `<div class="alert alert-danger">Error: Could not check task status.</div>`;
                     console.error('Polling error:', error);
+
+                    if (generateBtn) {
+                        generateBtn.disabled = false;
+                        generateBtn.innerHTML = '✨ Generate New AI Summary'; // Restore original text
+                    }
                 });
         }, 5000); // Poll every 5 seconds
     }

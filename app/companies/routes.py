@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis
 from app.companies import companies_bp
 
 from secedgar import filings, FilingType
@@ -14,7 +14,7 @@ from pathlib import Path
 import shutil 
 import re
 
-from app.tasks import fetch_sec_filings_task, fetch_company_news_task
+from app.tasks import fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -743,11 +743,28 @@ def scuttlebutt(company_id):
 
     # Fetch saved articles for this company, newest first
     articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
-
+    latest_analysis = company.scuttlebutt_analyses.order_by(ScuttlebuttAnalysis.generated_at.desc()).first()
+    
     return render_template(
         'scuttlebutt.html',
         title=f"Digital Scuttlebutt for {company.name}",
         company=company,
-        articles=articles
+        articles=articles,
+        latest_analysis=latest_analysis 
     )
-    
+
+@companies_bp.route('/<int:company_id>/analyze_scuttlebutt', methods=['POST'])
+@login_required
+def analyze_scuttlebutt(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task
+    task = analyze_scuttlebutt_task.delay(company.id)
+
+    # Redirect back to the Scuttlebutt page with the task_id for polling
+    return redirect(url_for('companies.scuttlebutt', 
+                            company_id=company.id, 
+                            task_id=task.id))    

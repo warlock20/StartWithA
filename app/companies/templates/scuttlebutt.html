@@ -1,26 +1,52 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    {# This is the polling status div for our background task #}
-    <div id="task-polling-status" style="display: none;"></div>
+{# This is the polling status div for our background task #}
+<div id="task-polling-status" style="display: none;"></div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-secondary">Back to Select Model</a>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>{{ title }}</h1>
+    <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-secondary">Back to Select
+        Model</a>
+</div>
+
+<p class="lead">Aggregate recent news and transcripts to perform a modern "Scuttlebutt" analysis.</p>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Fetch Recent News (via NewsAPI.org)
     </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
+            <p class="card-text text-muted">This will start a background task to find and save recent news articles
+                mentioning "{{ company.name }}".</p>
+            <button type="submit" class="btn btn-info">Fetch News Articles</button>
+        </form>
+    </div>
+</div>
 
-    <p class="lead">Aggregate recent news and transcripts to perform a modern "Scuttlebutt" analysis.</p>
-
-    <div class="card mb-4">
-        <div class="card-header">
-            Fetch Recent News (via NewsAPI.org)
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
-                <p class="card-text text-muted">This will start a background task to find and save recent news articles mentioning "{{ company.name }}".</p>
-                <button type="submit" class="btn btn-info">Fetch News Articles</button>
-            </form>
-        </div>
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        AI Analysis of News
+        <form method="POST" action="{{ url_for('companies.analyze_scuttlebutt', company_id=company.id) }}">
+            <button type="submit" class="btn btn-primary" id="generate-ai-summary-btn">
+                ✨ Generate New AI Summary
+            </button>
+        </form>
+    </div>
+    {% if latest_analysis %}
+    <div class="card-body">
+        <h5 class="card-title">Latest Analysis (Generated on {{ latest_analysis.generated_at.strftime('%Y-%m-%d %H:%M')
+            }})</h5>
+        {# Use |safe filter with care, assuming Gemini output is trusted. We could also use
+        <pre> #}
+                <div class="p-3 bg-light rounded mt-3" style="white-space: pre-wrap;">{{ latest_analysis.generated_summary }}</div>
+            </div>
+        {% else %}
+            <div class="card-body">
+                <p class="text-muted">No AI analysis has been generated yet. Click the button to generate one.</p>
+            </div>
+        {% endif %}
     </div>
 
     <hr class="my-4">

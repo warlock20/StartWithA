@@ -10,9 +10,10 @@ from pathlib import Path
 import fitz  # PyMuPDF
 from secedgar import filings, FilingType
 from flask import current_app
+import google.generativeai as genai
 
 from app import db, create_app
-from app.models import Company, CompanyDocument, User, CompanyArticle
+from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis
 from celery_app import celery
 from dateutil.parser import isoparse 
 
@@ -223,3 +224,66 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
         finally:
             if temp_download_path.exists():
                 shutil.rmtree(temp_download_path)
+                
+@celery.task(bind=True)
+def analyze_scuttlebutt_task(self, company_id):
+    """
+    A Celery task to perform AI analysis on a company's fetched news articles.
+    """
+    app = create_app()
+    with app.app_context():
+        company = Company.query.get(company_id)
+        if not company:
+            return f"Task failed: Company {company_id} not found."
+
+        articles = company.articles.order_by(CompanyArticle.published_at.desc()).limit(20).all() # Get up to 20 recent articles
+        if not articles:
+            return "Analysis failed: No articles found for this company to analyze."
+
+        # Concatenate article content to create the context for the LLM
+        context_for_llm = ""
+        for article in articles:
+            context_for_llm += f"Title: {article.title}\n"
+            if article.description:
+                context_for_llm += f"Description: {article.description}\n"
+            context_for_llm += "---\n"
+
+        # Configure Gemini API (ensure API key is in config)
+        gemini_api_key = current_app.config.get('GEMINI_API_KEY')
+        if not gemini_api_key:
+            return "Task failed: Gemini API key is not configured."
+
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+
+            # A powerful prompt to guide the AI
+            prompt = (
+                "You are a financial analyst stress-testing an investment thesis. Based *only* on the context from the following news article titles and descriptions, "
+                "provide a concise summary of recent developments. Then, explicitly identify two potential bull cases (opportunities or positive sentiment) and two "
+                "potential bear cases (risks or negative sentiment). Format your response clearly with 'Summary', 'Bull Cases', and 'Bear Cases' headings.\n\n"
+                f"CONTEXT:\n---\n{context_for_llm[:28000]}\n---\n\n" # Truncate context to be safe
+                "ANALYSIS:"
+            )
+
+            print(f"BACKGROUND TASK ({self.request.id}): Sending Scuttlebutt prompt to Gemini for {company.name}...")
+            response = model.generate_content(prompt)
+
+            ai_summary = response.text
+
+            # Save the new analysis to the database
+            new_analysis = ScuttlebuttAnalysis(
+                company_id=company.id,
+                generated_summary=ai_summary
+            )
+            db.session.add(new_analysis)
+            db.session.commit()
+
+            result_message = f"AI Scuttlebutt analysis for {company.name} completed successfully."
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+            return f"Task failed: {e}"
