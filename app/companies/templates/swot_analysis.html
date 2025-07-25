@@ -1,0 +1,66 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>{{ title }}</h1>
+        <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-secondary">Back to Select Model</a>
+    </div>
+
+    <p class="lead">Use the quadrants below to document the company's Strengths, Weaknesses, Opportunities, and Threats.</p>
+
+    <form method="POST" action="{{ url_for('companies.swot_analysis', company_id=company.id) }}">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Strengths</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">Internal factors that give the company an advantage.</p>
+                        <textarea class="form-control" name="strengths" rows="8">{{ analysis_content.get('strengths', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-danger text-white">
+                         <h5 class="mb-0">Weaknesses</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">Internal factors that are a disadvantage to the company.</p>
+                        <textarea class="form-control" name="weaknesses" rows="8">{{ analysis_content.get('weaknesses', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                         <h5 class="mb-0">Opportunities</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">External factors the company could exploit to its advantage.</p>
+                        <textarea class="form-control" name="opportunities" rows="8">{{ analysis_content.get('opportunities', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-warning text-dark">
+                         <h5 class="mb-0">Threats</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">External factors that could cause trouble for the company.</p>
+                        <textarea class="form-control" name="threats" rows="8">{{ analysis_content.get('threats', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Save SWOT Analysis</button>
+        </div>
+    </form>
+{% endblock %}

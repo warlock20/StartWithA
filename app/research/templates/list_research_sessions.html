@@ -39,7 +39,6 @@
                 </td>
                 <td>{{ data_item.session_obj.start_date.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>
-                    {# --- NEW LOGIC FOR THE OUTCOME CELL --- #}
                     {% if data_item.session_obj.status == 'completed' %}
                     {# For completed sessions, check if the score is 100% #}
                     {% if data_item.total_item_count > 0 and data_item.total_item_count == data_item.satisfied_count %}
@@ -63,22 +62,35 @@
                     </div>
                 </td>
                 <td class="text-end">
-                    {% if data_item.session_obj.status == 'in_progress' %}
-                    {% if data_item.resume_item_id %}
-                    <a href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}"
-                        class="btn btn-primary btn-sm">Resume</a>
+                    <div>
+                        {% if data_item.session_obj.status == 'in_progress' %}
+                        {% if data_item.resume_item_id %}
+                        <a href="{{ url_for('research.research_step', session_id=data_item.session_obj.id, item_id=data_item.resume_item_id) }}"
+                            class="btn btn-primary btn-sm">Resume</a>
+                        {% endif %}
+                        {% elif data_item.session_obj.status == 'completed' %}
+                        <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}"
+                            class="btn btn-info btn-sm">View Summary</a>
+                        {% endif %}
+                        <form method="POST"
+                            action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}"
+                            style="display: inline;">
+                            <button type="submit"
+                                onclick="return confirm('Are you sure you want to delete this research session? This action cannot be undone.');"
+                                class="btn btn-outline-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                    {# --- NEW: Further Analysis section for COMPLETED sessions --- #}
+                    {% if data_item.session_obj.status == 'completed' %}
+                    <div class="mt-2">
+                        <small class="text-muted">Further Analysis:</small>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=data_item.session_obj.company_id) }}"
+                                class="btn btn-outline-secondary">Porter's 5 Forces</a>
+                            {# We can add more model links here in the future #}
+                        </div>
+                    </div>
                     {% endif %}
-                    {% elif data_item.session_obj.status == 'completed' %}
-                    <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}"
-                        class="btn btn-info btn-sm">View Summary</a>
-                    {% endif %}
-                    <form method="POST"
-                        action="{{ url_for('research.delete_research_session', session_id=data_item.session_obj.id) }}"
-                        style="display: inline;">
-                        <button type="submit"
-                            onclick="return confirm('Are you sure you want to delete this research session? This action cannot be undone.');"
-                            class="btn btn-outline-danger btn-sm">Delete</button>
-                    </form>
                 </td>
             </tr>
             {% endfor %}

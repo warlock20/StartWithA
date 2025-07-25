@@ -4,7 +4,7 @@
 <h1 class="mb-4">{{ title }}</h1>
 
 <div class="row g-4">
-    {# --- CARD 1: CHECKLIST ANALYSIS (The Starting Point) --- #}
+    {# --- CHECKLIST ANALYSIS (The Starting Point) --- #}
     <div class="col-md-4">
         <div class="card h-100 border-primary border-2">
             <div class="card-body text-center d-flex flex-column">
@@ -19,8 +19,7 @@
             </div>
         </div>
     </div>
-
-    {# --- CARD 2: DESTINATION ANALYSIS (The Next Step) --- #}
+    {# --- DESTINATION ANALYSIS (The Next Step) --- #}
     <div class="col-md-4">
         <div class="card h-100 {% if not has_completed_research %}bg-light{% endif %}">
             <div class="card-body text-center d-flex flex-column">
@@ -52,6 +51,29 @@
                 </p>
                 <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}"
                     class="btn btn-info mt-auto">Gather Intelligence</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100 {% if has_swot_analysis %}border-info border-2{% endif %}">
+            <div class="card-body text-center d-flex flex-column">
+                <h4 class="card-title">SWOT Analysis
+                    {% if has_swot_analysis %}
+                    <span class="badge bg-info">Completed</span>
+                    {% endif %}
+                </h4>
+                <p class="card-text flex-grow-1">
+                    Perform a high-level strategic analysis by identifying the company's Strengths, Weaknesses,
+                    Opportunities, and Threats.
+                </p>
+                {# Conditionally change the button text and style #}
+                {% if has_swot_analysis %}
+                <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
+                    class="btn btn-outline-info mt-auto">View/Edit SWOT</a>
+                {% else %}
+                <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
+                    class="btn btn-info mt-auto">Start SWOT Analysis</a>
+                {% endif %}
             </div>
         </div>
     </div>

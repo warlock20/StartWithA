@@ -89,6 +89,7 @@ class Company(db.Model):
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     scuttlebutt_analyses = db.relationship('ScuttlebuttAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    qualitative_analyses = db.relationship('QualitativeAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.
@@ -234,3 +235,30 @@ class ScuttlebuttAnalysis(db.Model):
 
     def __repr__(self):
         return f'<ScuttlebuttAnalysis for Company {self.company_id} on {self.generated_at}>'
+
+# In app/models.py
+
+class QualitativeAnalysis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this analysis to a Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # Foreign key to link this analysis to the User who created it
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # This field will store which model is being used, e.g., 'SWOT'
+    model_type = db.Column(db.String(50), nullable=False, index=True)
+
+    # We'll use a JSON field to store the structured data.
+    # For SWOT, it will look like: {"strengths": "...", "weaknesses": "...", ...}
+    content = db.Column(db.JSON, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Ensure a user can only have one of each analysis type per company
+    __table_args__ = (db.UniqueConstraint('company_id', 'user_id', 'model_type', name='uq_user_company_analysis'),)
+
+    def __repr__(self):
+        return f'<QualitativeAnalysis {self.model_type} for Company {self.company_id}>'

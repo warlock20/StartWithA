@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis
 from app.companies import companies_bp
 
 from secedgar import filings, FilingType
@@ -767,4 +767,120 @@ def analyze_scuttlebutt(company_id):
     # Redirect back to the Scuttlebutt page with the task_id for polling
     return redirect(url_for('companies.scuttlebutt', 
                             company_id=company.id, 
-                            task_id=task.id))    
+                            task_id=task.id))
+
+@companies_bp.route('/<int:company_id>/swot', methods=['GET', 'POST'])
+@login_required
+def swot_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Try to find an existing SWOT analysis for this company and user
+    analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='SWOT'
+    ).first()
+
+    if request.method == 'POST':
+        # Get content from the four text areas
+        strengths = request.form.get('strengths', '')
+        weaknesses = request.form.get('weaknesses', '')
+        opportunities = request.form.get('opportunities', '')
+        threats = request.form.get('threats', '')
+
+        # Store the content in a dictionary (JSON)
+        content_data = {
+            'strengths': strengths,
+            'weaknesses': weaknesses,
+            'opportunities': opportunities,
+            'threats': threats
+        }
+
+        if analysis:
+            # If analysis already exists, update its content
+            analysis.content = content_data
+        else:
+            # If no analysis exists, create a new one
+            analysis = QualitativeAnalysis(
+                user_id=current_user.id,
+                company_id=company.id,
+                model_type='SWOT',
+                content=content_data
+            )
+            db.session.add(analysis)
+
+        try:
+            db.session.commit()
+            flash('SWOT analysis saved successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred while saving: {e}', 'error')
+
+        return redirect(url_for('companies.swot_analysis', company_id=company.id))
+
+    # For a GET request, prepare the existing data for the form
+    existing_content = analysis.content if analysis and analysis.content else {}
+
+    return render_template(
+        'swot_analysis.html',
+        title=f"SWOT Analysis for {company.name}",
+        company=company,
+        analysis_content=existing_content # Pass the content dictionary to the template
+    )
+    
+@companies_bp.route('/<int:company_id>/porters_five_forces', methods=['GET', 'POST'])
+@login_required
+def porters_five_forces_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    analysis_type = 'PortersFiveForces'
+    analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type=analysis_type
+    ).first()
+
+    if request.method == 'POST':
+        content_data = {
+            'threat_of_new_entrants': request.form.get('threat_of_new_entrants', ''),
+            'bargaining_power_of_buyers': request.form.get('bargaining_power_of_buyers', ''),
+            'bargaining_power_of_suppliers': request.form.get('bargaining_power_of_suppliers', ''),
+            'threat_of_substitutes': request.form.get('threat_of_substitutes', ''),
+            'industry_rivalry': request.form.get('industry_rivalry', '')
+        }
+
+        if analysis:
+            analysis.content = content_data
+        else:
+            analysis = QualitativeAnalysis(
+                user_id=current_user.id,
+                company_id=company.id,
+                model_type=analysis_type,
+                content=content_data
+            )
+            db.session.add(analysis)
+
+        try:
+            db.session.commit()
+            flash("Porter's Five Forces analysis saved successfully.", 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred while saving: {e}', 'error')
+
+        return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
+
+    existing_content = analysis.content if analysis and analysis.content else {}
+
+    return render_template(
+        'porters_five_forces.html',
+        title=f"Porter's Five Forces for {company.name}",
+        company=company,
+        analysis_content=existing_content
+    )            

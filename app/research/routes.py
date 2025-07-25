@@ -1,7 +1,7 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument 
+from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
@@ -816,7 +816,15 @@ def select_model(company_id):
         status='completed'
     ).first() is not None
 
+    # Check if a SWOT analysis exists for this company
+    has_swot_analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='SWOT'
+    ).first() is not None
+
     return render_template('select_model.html',
                            company=company,
                            has_completed_research=has_completed_research, # Pass this flag to the template
+                           has_swot_analysis=has_swot_analysis, # Pass this flag to the template
                            title=f"Select Analysis Model for {company.name}")
