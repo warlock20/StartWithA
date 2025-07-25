@@ -822,9 +822,16 @@ def select_model(company_id):
         company_id=company.id,
         model_type='SWOT'
     ).first() is not None
+    
+    has_porters_analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='PortersFiveForces'
+    ).first() is not None
 
     return render_template('select_model.html',
                            company=company,
                            has_completed_research=has_completed_research, # Pass this flag to the template
                            has_swot_analysis=has_swot_analysis, # Pass this flag to the template
+                           has_porters_analysis=has_porters_analysis, # Pass this flag to the template
                            title=f"Select Analysis Model for {company.name}")

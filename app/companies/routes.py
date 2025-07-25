@@ -51,31 +51,49 @@ def get_company_market_data(ticker):
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
-    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
-    favorite_ids = {c.id for c in current_user.favorites.all()}
-    
-    completed_sessions = ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()
-    # Create a set of company IDs that are eligible for Destination Analysis
-    eligible_for_da_ids = {session.company_id for session in completed_sessions}
-    
-    # Partition into three lists
-    portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
-    favorite_companies = [c for c in all_user_companies if c.id in favorite_ids and not c.is_in_portfolio]
-    other_companies = [c for c in all_user_companies if not c.is_in_portfolio and c.id not in favorite_ids]
+    # --- 1. Fetch all necessary data in efficient queries ---
 
-    # Sort each list by name for now
-    portfolio_companies.sort(key=lambda x: x.name)
-    favorite_companies.sort(key=lambda x: x.name)
-    other_companies.sort(key=lambda x: x.name)
+    # Get all companies for the current user
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+
+    # Get sets of IDs for categorization
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+
+    # Get sets of company IDs that have a specific analysis completed
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # --- 2. Build the enriched data structure for the template ---
+    companies_data_list = []
+    for company in all_user_companies:
+        data = {
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+        }
+        companies_data_list.append(data)
+
+    # --- 3. Partition the enriched data into the three lists ---
+    portfolio_companies_data = [d for d in companies_data_list if d['company_obj'].id in portfolio_ids]
+    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids and d['company_obj'].id not in portfolio_ids]
+    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in portfolio_ids and d['company_obj'].id not in favorite_ids]
+
+    # Sort each list by company name
+    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
+    favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
+    other_companies_data.sort(key=lambda x: x['company_obj'].name)
 
     return render_template(
         'list_companies.html', 
-        portfolio_companies=portfolio_companies,
-        favorite_companies=favorite_companies,
-        other_companies=other_companies,
-        eligible_for_da_ids=eligible_for_da_ids,
-        portfolio_ids={c.id for c in portfolio_companies},
+        portfolio_companies_data=portfolio_companies_data,
+        favorite_companies_data=favorite_companies_data,
+        other_companies_data=other_companies_data,
+        portfolio_ids=portfolio_ids,
         favorite_ids=favorite_ids,
+        # We no longer need to pass eligible_for_da_ids as it's part of the new structure
         title=f"{current_user.username}'s Companies"
     )
 
@@ -832,7 +850,7 @@ def swot_analysis(company_id):
         analysis_content=existing_content # Pass the content dictionary to the template
     )
     
-@companies_bp.route('/<int:company_id>/porters_five_forces', methods=['GET', 'POST'])
+@companies_bp.route('/<int:company_id>/porters-five-forces', methods=['GET', 'POST'])
 @login_required
 def porters_five_forces_analysis(company_id):
     company = Company.query.get_or_404(company_id)
@@ -883,4 +901,4 @@ def porters_five_forces_analysis(company_id):
         title=f"Porter's Five Forces for {company.name}",
         company=company,
         analysis_content=existing_content
-    )            
+    )
