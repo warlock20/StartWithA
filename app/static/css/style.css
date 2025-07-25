@@ -1,127 +1,70 @@
-/* app/static/css/style.css */
+/* app/static/css/style.css - Corrected Version */
 
-/* A very basic style to test if the file is linked */
+/* ========================================= */
+/* --- 1. Branding & Visual Identity --- */
+/* ========================================= */
+
+/* Define CSS variables for our new brand */
+:root {
+    --primary-dark: #1A374D;
+    --accent-teal: #406882;
+    --secondary-gray: #B1B3B5;
+    --background-light: #F5F7F8;
+    --text-dark: #212529;
+
+    --font-headings: 'Poppins', sans-serif;
+    --font-body: 'Source Serif 4', serif;
+}
+
+/* Apply new base styles for fonts and background */
 body {
-    font-family: Arial, sans-serif;
+    font-family: var(--font-body);
+    background-color: var(--background-light);
+    color: var(--text-dark);
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
 }
 
-.container { /* A general container for page content */
-    width: 80%;
-    margin: auto;
-    overflow: hidden;
-    padding: 0 20px;
-    background-color: #fff; /* Give content area a white background */
-    padding-top: 20px;
-    padding-bottom: 20px;
-    margin-top: 20px; /* Space from top */
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+/* Apply the heading font */
+h1, h2, h3, h4, h5, h6, .card-title {
+    font-family: var(--font-headings);
+    font-weight: 700;
 }
 
-nav {
-    background: #333;
-    color: #fff;
-    padding: 10px 0;
-    text-align: center;
+/* --- Bootstrap Overrides --- */
+
+/* Style the main navigation bar with our custom color */
+/* Note: The HTML needs <nav class="navbar navbar-dark"> for this to apply correctly */
+.navbar.navbar-dark {
+    background-color: var(--primary-dark);
 }
 
-nav a {
-    color: #fff;
-    text-decoration: none;
-    padding: 5px 15px;
+/* Override Bootstrap's primary button color */
+.btn-primary {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
-nav a:hover {
-    background: #555;
-    border-radius: 4px;
+.btn-primary:hover {
+    background-color: #112635; /* A slightly darker shade for hover */
+    border-color: #112635;
 }
 
-h1, h2, h3, h4 {
-    color: #333;
-}
 
-button, input[type="submit"] {
-    background-color: #007bff;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-}
+/* ======================================================= */
+/* --- 2. Fallback & Custom Component Styles --- */
+/* ======================================================= */
 
-button:hover, input[type="submit"]:hover {
-    background-color: #0056b3;
-}
+/* --- Fallback Generic Styles (from your original file) --- */
+/* These will apply to any elements we haven't specifically styled with Bootstrap yet */
 
-a.button { /* For styling links to look like buttons */
-    background-color: #28a745;
-    color: white;
-    padding: 8px 15px;
-    text-decoration: none;
-    border-radius: 4px;
-    display: inline-block; /* Important for padding and margin */
-}
- a.button:hover {
-    background-color: #1e7e34;
- }
-
-
-.loader {
-    border: 4px solid #f3f3f3; /* Light grey */
-    border-top: 4px solid #3498db; /* Blue */
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    display: inline-block; 
-    vertical-align: middle; /* Align with text */
-    margin-right: 10px; /* Space between spinner and text */
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Flash messages styling */
-.flash { 
-    padding: 10px; 
-    margin-bottom: 15px; 
-    border-radius: 5px; 
-    list-style-type: none; /* If you wrap messages in <ul> */
-}
-.flash.success { 
-    background-color: #d4edda; 
-    color: #155724; 
-    border: 1px solid #c3e6cb; 
-}
-.flash.error { 
-    background-color: #f8d7da; 
-    color: #721c24; 
-    border: 1px solid #f5c6cb; 
-}
-.flash.info { 
-    background-color: #d1ecf1; 
-    color: #0c5460; 
-    border: 1px solid #bee5eb; 
-}
-.flash.warning { 
-    background-color: #fff3cd; 
-    color: #856404; 
-    border: 1px solid #ffeeba; 
-}
-
-/* Basic table styling */
+/* Basic table styling for tables WITHOUT class="table" */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
+    background-color: #fff;
 }
 th, td {
     border: 1px solid #ddd;
@@ -132,37 +75,63 @@ th {
     background-color: #f2f2f2;
 }
 
-.ai-error {
-    color: red;
-    border: 1px solid red;
-    padding: 10px;
-    background-color: #ffe0e0;
+/* Basic button styling for buttons WITHOUT class="btn" */
+button {
+    background-color: var(--accent-teal); /* Use a brand color */
+    color: white;
+    padding: 8px 15px;
+    border: none;
     border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+button:hover {
+    opacity: 0.9;
+}
+
+
+/* --- Custom Component Styles --- */
+
+/* Loading Spinner */
+.loader {
+    border: 4px solid #f3f2f2;
+    border-top: 4px solid var(--accent-teal); /* Use our accent color */
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    display: inline-block; 
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* AI Analysis Result Boxes */
+.ai-error {
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    background-color: #f8d7da;
+    border-radius: 0.25rem;
 }
 .ai-warning {
-    color: #856404; /* Bootstrap warning text color */
-    border: 1px solid #ffeeba; /* Bootstrap warning border color */
-    padding: 10px;
-    background-color: #fff3cd; /* Bootstrap warning background color */
-    border-radius: 4px;
-}
-.ai-success { /* Optional: if you want to style success messages too */
-    /* color: green; */
-    /* border: 1px solid green; */
-    /* padding: 10px; */
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 1rem;
+    background-color: #fff3cd;
+    border-radius: 0.25rem;
 }
 
-tbody tr:nth-child(even) { /* Stripe odd rows if you like */
-    /* background-color: #f9f9f9; */
-}
-
-/* --- Timeline Styles --- */
+/* Destination Analysis Timeline */
 .timeline {
     position: relative;
     padding: 20px 0;
     list-style: none;
 }
-
 .timeline:before {
     content: '';
     position: absolute;
@@ -170,20 +139,18 @@ tbody tr:nth-child(even) { /* Stripe odd rows if you like */
     left: 20px;
     height: 100%;
     width: 4px;
-    background: #e9ecef; /* Light grey */
+    background: #e9ecef;
 }
-
 .timeline-item {
     margin-bottom: 20px;
     position: relative;
-    padding-left: 50px; /* Space for the line and icon */
+    padding-left: 50px;
 }
-
 .timeline-icon {
     position: absolute;
     left: 0;
     top: 0;
-    width: 44px; /* Width of the circle */
+    width: 44px;
     height: 44px;
     border-radius: 50%;
     text-align: center;
@@ -191,9 +158,8 @@ tbody tr:nth-child(even) { /* Stripe odd rows if you like */
     font-size: 1.2rem;
     border: 2px solid #e9ecef;
     background-color: #fff;
-    color: #fff; /* White icon color */
+    color: #fff;
 }
-
 .timeline-content {
     position: relative;
 }
