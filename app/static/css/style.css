@@ -163,3 +163,44 @@ button:hover {
 .timeline-content {
     position: relative;
 }
+
+/* In your Branding or a new Components section of style.css */
+.page-header {
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #dee2e6; /* Bootstrap's standard border color */
+}
+
+
+/* --- Checklist Inspector Layout --- */
+.checklist-tree-container {
+    max-height: 80vh; /* Make the tree scrollable if it's very long */
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.checklist-tree-item a {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--text-dark);
+    text-decoration: none;
+    border-radius: 0.25rem;
+    border: 1px solid transparent;
+}
+
+.checklist-tree-item a:hover {
+    background-color: #e9ecef; /* Bootstrap's light gray */
+}
+
+/* This class will be added by JavaScript to the selected item */
+.checklist-tree-item a.active {
+    background-color: var(--primary-dark);
+    color: white;
+    border-color: var(--primary-dark);
+}
+
+/* Indentation for sub-items */
+.checklist-tree ul {
+    list-style-type: none;
+    padding-left: 1.5rem;
+}

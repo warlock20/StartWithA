@@ -1,71 +1,111 @@
 {% extends "main/_base.html" %}
-{% from "_macros.html" import display_items %}.
+{% from "_macros.html" import display_items_for_edit_tree as display_items %}
+
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="page-header d-flex justify-content-between align-items-center">
         <div>
-            <h1>{{ checklist.name }}</h1>
-            <p class="lead">{{ checklist.description }}</p>
+            <h1>{{ checklist.name }} <span class="badge bg-warning text-dark">Edit Mode</span></h1>
+            <p class="lead mb-0">{{ checklist.description }}</p>
         </div>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header">
-            Checklist Items
-        </div>
-        <div class="card-body">
-            {% if items %}
-                {{ display_items(items, checklist.id, ChecklistItem, readonly=False) }}
-            {% else %}
-                <p>No items in this checklist yet. Add one below.</p>
-            {% endif %}
+        <div>
+            <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info">Switch to View Mode</a>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            Add New Top-Level Item
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
-                <div class="mb-3">
-                    <label for="item_text" class="form-label">New Top-Level Item Text:</label>
-                    <input type="text" id="item_text" name="item_text" class="form-control" required>
+    <div class="row mt-4">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">Checklist Structure</div>
+                <div class="card-body checklist-tree-container">
+                    <div class="checklist-tree">
+                    {% if items %}
+                        {{ display_items(items, ChecklistItem) }}
+                    {% else %}
+                        <p class="text-muted">This checklist is empty.</p>
+                    {% endif %}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="llm_prompt" class="form-label">Optional LLM Prompt for this item:</label>
-                    <textarea id="llm_prompt" name="llm_prompt" rows="3" class="form-control" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?"></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Add Top-Level Item</button>
-            </form>
-        </div>
-    </div>
-
-    {# Start Research Section #}
-    {% if companies is defined %} {# This form is from an older workflow, we can keep or remove it #}
-        <div class="card">
-            <div class="card-header">
-                Start Research with this Checklist
             </div>
-            <div class="card-body">
-                {% if companies|length > 0 %}
-                    <form method="POST" action="{{ url_for('research.start_research_session') }}">
-                        <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
-                        <div class="mb-3">
-                            <label for="company_id" class="form-label">Select Company to Research:</label>
-                            <select name="company_id" id="company_id" class="form-select" required>
-                                <option value="" disabled selected>-- Choose a Company --</option>
-                                {% for company in companies %}
-                                    <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
-                                {% endfor %}
-                            </select>
+        </div>
+
+        <div class="col-lg-7">
+            <div id="inspector-panel"
+                 data-edit-url-template="{{ url_for('checklists.edit_checklist_item', item_id=0) }}"
+                 data-delete-url-template="{{ url_for('checklists.delete_checklist_item', item_id=0) }}"
+                 data-move-url-template="{{ url_for('checklists.move_checklist_item', item_id=0, direction='__DIRECTION__') }}">
+
+                <div id="inspector-overview" class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Checklist Overview</h5>
+                        <p class="text-muted">Select an item from the tree on the left to see its specific details and actions.</p>
+                        <hr>
+                        <p><strong>Total Items:</strong> <span class="badge bg-primary rounded-pill">{{ total_items_count }}</span></p>
+                        <div class="mt-4">
+                            <h6>Add New Top-Level Item</h6>
+                            <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
+                                 <div class="mb-3">
+                                    <label for="item_text_top" class="form-label">Item Text:</label>
+                                    <input type="text" id="item_text_top" name="item_text" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="llm_prompt_top" class="form-label">Optional LLM Prompt:</label>
+                                    <textarea id="llm_prompt_top" name="llm_prompt" rows="3" class="form-control" placeholder="E.g., What are the key revenue drivers?"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Top-Level Item</button>
+                            </form>
                         </div>
-                        <button type="submit" class="btn btn-success">Start Research Session</button>
-                    </form>
-                {% else %}
-                    <p>You have no companies added. Please <a href="{{ url_for('companies.new_company') }}">add a company</a> first.</p>
-                {% endif %}
+                    </div>
+                </div>
+
+                <div id="inspector-content" class="d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 id="inspector-item-text" class="mb-0"></h5>
+                            <button type="button" id="inspector-close-btn" class="btn-close" title="Deselect Item" aria-label="Close"></button>
+                        </div>
+                        <div class="card-body">
+                            <div id="inspector-llm-prompt-display" class="alert alert-info" style="display:none;">
+                                <strong>LLM Prompt:</strong> <em id="inspector-llm-prompt"></em>
+                            </div>
+                            <h5 class="mt-3">Actions</h5>
+                            <div class="mb-3">
+                                <a id="inspector-edit-btn" href="#" class="btn btn-warning">Edit Text & Prompt</a>
+                                <form id="inspector-delete-form" method="POST" action="#" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This will delete the item and ALL its sub-items.');">Delete Item</button>
+                                </form>
+                            </div>
+                            <div class="btn-group mb-3">
+                                <form id="inspector-move-up-form" method="POST" action="#" style="display: inline;">
+                                    <button id="inspector-move-up-btn" type="submit" class="btn btn-light" title="Move Up">&uarr; Move Up</button>
+                                </form>
+                                <form id="inspector-move-down-form" method="POST" action="#" style="display: inline;">
+                                    <button id="inspector-move-down-btn" type="submit" class="btn btn-light" title="Move Down">&darr; Move Down</button>
+                                </form>
+                            </div>
+                            <hr>
+                            <h5>Add a Sub-item</h5>
+                            <form id="inspector-add-subitem-form" method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
+                                <input type="hidden" id="inspector-parent-id" name="parent_id" value="">
+                                <div class="mb-2">
+                                    <label for="inspector-subitem-text" class="form-label">Sub-item Text</label>
+                                    <input type="text" class="form-control" name="item_text" id="inspector-subitem-text" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="inspector-subitem-llm" class="form-label">Optional LLM Prompt</label>
+                                    <textarea name="llm_prompt" class="form-control" id="inspector-subitem-llm" rows="2"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-outline-secondary">Add Sub-item</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/checklist_inspector.js') }}" defer></script>
 {% endblock %}

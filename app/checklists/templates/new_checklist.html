@@ -1,40 +1,44 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h1 class="card-title text-center">{{ title }}</h1>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('checklists.new_checklist') }}" id="newChecklistForm">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Checklist Name:</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
+<div class="page-header">
 
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description (Optional):</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="card-title text-center">{{ title }}</h1>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('checklists.new_checklist') }}" id="newChecklistForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Checklist Name:</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
 
-                    <hr>
-                    <h5>Initial Items</h5>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (Optional):</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
 
-                    {# This div will hold our dynamically added item fields #}
-                    <div id="initial-items-container">
-                        {# We'll start with one item field by default, added by JS #}
-                    </div>
+                        <hr>
+                        <h5>Initial Items</h5>
 
-                    {# Button to add more item fields #}
-                    <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Initial Item</button>
+                        {# This div will hold our dynamically added item fields #}
+                        <div id="initial-items-container">
+                            {# We'll start with one item field by default, added by JS #}
+                        </div>
 
-                    <hr>
-                    <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">Create Checklist</button>
-                    </div>
-                </form>
+                        {# Button to add more item fields #}
+                        <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Initial
+                            Item</button>
+
+                        <hr>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">Create Checklist</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -42,6 +46,6 @@
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }} {# Includes scripts from parent template like Bootstrap's JS #}
-    <script src="{{ url_for('static', filename='js/checklist_form.js') }}" defer></script>
+{{ super() }} {# Includes scripts from parent template like Bootstrap's JS #}
+<script src="{{ url_for('static', filename='js/checklist_form.js') }}" defer></script>
 {% endblock %}

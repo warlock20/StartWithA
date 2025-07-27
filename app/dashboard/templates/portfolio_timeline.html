@@ -1,46 +1,50 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div class="page-header">
+
     <h1>{{ title }}</h1>
     <p class="lead">An aggregated timeline of all checkpoints for companies in your active portfolio.</p>
 
     {% if checkpoints %}
-        <ul class="timeline">
-            {% for cp in checkpoints %}
-                {% set status_class = 'bg-secondary' %} {# Default for 'Active' #}
-                {% set icon = '⏳' %}
-                {% if cp.status == 'Met' %}{% set status_class = 'bg-success' %}{% set icon = '✅' %}{% endif %}
-                {% if cp.status == 'Not Met' %}{% set status_class = 'bg-danger' %}{% set icon = '❌' %}{% endif %}
+    <ul class="timeline">
+        {% for cp in checkpoints %}
+        {% set status_class = 'bg-secondary' %} {# Default for 'Active' #}
+        {% set icon = '⏳' %}
+        {% if cp.status == 'Met' %}{% set status_class = 'bg-success' %}{% set icon = '✅' %}{% endif %}
+        {% if cp.status == 'Not Met' %}{% set status_class = 'bg-danger' %}{% set icon = '❌' %}{% endif %}
 
-                <li class="timeline-item">
-                    <div class="timeline-icon {{ status_class }}">
-                        {{ icon }}
+        <li class="timeline-item">
+            <div class="timeline-icon {{ status_class }}">
+                {{ icon }}
+            </div>
+            <div class="timeline-content card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ cp.company.name }}</strong>
+                        <small class="text-muted ms-2">Target Date: {{ cp.target_date.strftime('%B %d, %Y') }}</small>
                     </div>
-                    <div class="timeline-content card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ cp.company.name }}</strong>
-                                <small class="text-muted ms-2">Target Date: {{ cp.target_date.strftime('%B %d, %Y') }}</small>
-                            </div>
-                            <span class="badge {{ status_class }}">{{ cp.status }}</span>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">{{ cp.metric }}</h5>
-                            <p class="card-text"><strong>Expectation:</strong> {{ cp.expectation }}</p>
-                            {% if cp.outcome_notes %}
-                                <p class="card-text bg-light p-2 rounded"><small><strong>Outcome Notes:</strong> {{ cp.outcome_notes }}</small></p>
-                            {% endif %}
-                            {# Link to the full Destination Analysis page for that company #}
-                            <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}" class="btn btn-outline-secondary btn-sm mt-2">Update Status & Notes</a>
-                        </div>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
+                    <span class="badge {{ status_class }}">{{ cp.status }}</span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ cp.metric }}</h5>
+                    <p class="card-text"><strong>Expectation:</strong> {{ cp.expectation }}</p>
+                    {% if cp.outcome_notes %}
+                    <p class="card-text bg-light p-2 rounded"><small><strong>Outcome Notes:</strong> {{ cp.outcome_notes
+                            }}</small></p>
+                    {% endif %}
+                    {# Link to the full Destination Analysis page for that company #}
+                    <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}"
+                        class="btn btn-outline-secondary btn-sm mt-2">Update Status & Notes</a>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
     {% else %}
-        <div class="alert alert-info">
-            No checkpoints found for any companies in your active portfolio.
-        </div>
+    <div class="alert alert-info">
+        No checkpoints found for any companies in your active portfolio.
+    </div>
     {% endif %}
-
+</div>
 {% endblock %}

@@ -1,37 +1,41 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>{{ title }}</h1>
-    <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-success">Create New Checklist</a>
-</div>
+<div class="page-header">
 
-{% if checklists %}
-<div class="row">
-    {% for checklist in checklists %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">{{ checklist.name }}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">{{ checklist.items.count() }} items in the list</h6>
-                <p class="card-text flex-grow-1">
-                    {{ checklist.description|truncate(100) if checklist.description else 'No description provided.' }}
-                </p>
-                <div class="mt-auto"> {# Flexbox utility to push to bottom of card #}
-                    <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
-                        class="btn btn-primary">View</a>
-                    <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
-                        class="btn btn-outline-secondary">Edit & Manage</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>{{ title }}</h1>
+        <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-success">Create New Checklist</a>
+    </div>
+
+    {% if checklists %}
+    <div class="row">
+        {% for checklist in checklists %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ checklist.name }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">{{ checklist.items.count() }} items in the list</h6>
+                    <p class="card-text flex-grow-1">
+                        {{ checklist.description|truncate(100) if checklist.description else 'No description provided.'
+                        }}
+                    </p>
+                    <div class="mt-auto"> {# Flexbox utility to push to bottom of card #}
+                        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
+                            class="btn btn-primary">View</a>
+                        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
+                            class="btn btn-outline-secondary">Edit & Manage</a>
+                    </div>
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
+    {% else %}
+    <div class="alert alert-info">
+        <p>You have no checklists yet. <a href="{{ url_for('checklists.new_checklist') }}" class="alert-link">Create
+                one?</a></p>
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<div class="alert alert-info">
-    <p>You have no checklists yet. <a href="{{ url_for('checklists.new_checklist') }}" class="alert-link">Create
-            one?</a></p>
-</div>
-{% endif %}
 {% endblock %}

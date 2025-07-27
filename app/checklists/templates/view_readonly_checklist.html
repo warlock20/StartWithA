@@ -1,8 +1,10 @@
 {% extends "main/_base.html" %}
 {# Import the macro from our new file #}
-{% from "_macros.html" import display_items %}
 
+{% from "_macros.html" import display_items_for_readonly_view %}
 {% block content %}
+<div class="page-header">
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h1>{{ checklist.name }} </h1><span class="badge bg-secondary">View Mode</span>	
@@ -22,7 +24,7 @@
         <div class="card-body">
             {% if items %}
                 {# Call the macro with readonly=True #}
-                {{ display_items(items, checklist.id, ChecklistItem, readonly=True) }}
+                {{ display_items_for_readonly_view(items, ChecklistItem) }}
             {% else %}
                 <p>No items in this checklist yet.</p>
             {% endif %}
@@ -53,4 +55,5 @@
             {% endif %}
         </div>
     </div>
+</div>
 {% endblock %}
