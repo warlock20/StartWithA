@@ -1,19 +1,21 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header">
+    {# --- Getting Started Tip for New Users --- #}
     {% if total_companies == 0 %}
-    <div class="alert alert-info" role="alert">
-        <h4 class="alert-heading">Welcome to the Research Platform!</h4>
-        <p>It looks like you're new here. A great first step is to add a company to your list so you can begin your
-            research.</p>
-        <hr>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">Add Your First Company</a>
-    </div>
+        <div class="alert alert-info" role="alert">
+            <h4 class="alert-heading">Welcome to the Research Platform!</h4>
+            <p>It looks like you're new here. A great first step is to add a company to your list so you can begin your research.</p>
+            <hr>
+            <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">Add Your First Company</a>
+        </div>
     {% endif %}
-    <h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
 
-    {# Stat Cards #}
+    <div class="page-header">
+        <h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
+    </div>
+    
+    {# --- Stat Cards --- #}
     <div class="row">
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="card text-white bg-primary h-100">
@@ -31,19 +33,11 @@
                 </div>
             </div>
         </div>
-        <!-- <div class="col-lg-3 col-md-6 mb-4">
-        <div class="card text-white bg-success h-100">
-            <div class="card-body">
-                <h5 class="card-title">🏆 Passed All Checks</h5>
-                <p class="card-text fs-1 fw-bold">{{ passed_sessions_count }}</p>
-            </div>
-        </div>
-    </div> -->
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Completed Research</h5>
-                    <p class="card-text fs-1 fw-bold">{{ completed_sessions }}</p>
+                    <h5 class="card-title">🏆 Passed All Checks</h5>
+                    <p class="card-text fs-1 fw-bold">{{ passed_sessions_count }}</p>
                 </div>
             </div>
         </div>
@@ -57,36 +51,34 @@
         </div>
     </div>
 
-    {# --- NEW: Row for Charts --- #}
-    <div class="row mt-4">
+    {# --- Charts Row --- #}
+    <div class="row mt-4 g-4">
         <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    Companies by Sector
-                </div>
-                <div class="card-body">
-                    {# The canvas is where Chart.js will draw the pie chart #}
-                    <canvas id="sectorPieChart"></canvas>
+            <div class="card h-100">
+                <div class="card-header">Companies by Sector</div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    {% if sector_values %}
+                        <canvas id="sectorPieChart"></canvas>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <p class="mb-0">No company sector data to display.</p>
+                            <small>Add companies to see this chart.</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-6">
             <div class="card h-100">
-                <div class="card-header">
-                    Margin of Safety on Favorites
-                </div>
+                <div class="card-header">Margin of Safety on Favorites</div>
                 <div class="card-body d-flex align-items-center justify-content-center">
-                    {# Check if there are any values to plot #}
                     {% if mos_values %}
-                    {# If yes, show the canvas for the chart #}
-                    <canvas id="mosBarChart"></canvas>
+                        <canvas id="mosBarChart"></canvas>
                     {% else %}
-                    {# If no, show the full fallback message in a styled alert box #}
-                    <div class="text-center">
-                        <div class="alert alert-light mb-0" role="alert">
-                            Add favorite companies with a saved intrinsic value to see this chart.
+                        <div class="text-center text-muted">
+                            <p class="mb-0">No data to display.</p>
+                            <small>Add favorite companies with a saved intrinsic value.</small>
                         </div>
-                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -94,183 +86,55 @@
     </div>
 
     <hr class="my-4">
-    {# Recent Activity #}
+
+    {# --- Recent Activity Table --- #}
     <h3>Recent Activity</h3>
     {% if recent_sessions %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Company</th>
-                    <th>Checklist</th>
-                    <th>Status</th>
-                    <th>Date Started</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for session in recent_sessions %}
-                <tr>
-                    <td>{{ session.company.name }}</td>
-                    <td>{{ session.checklist.name }}</td>
-                    <td>
-                        <span
-                            class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
-                            session.status|replace('_', ' ')|capitalize }}</span>
-                    </td>
-                    <td>{{ session.start_date.strftime('%Y-%m-%d') }}</td>
-                    <td class="text-end">
-                        <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}"
-                            class="btn btn-outline-primary btn-sm">View Summary</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Checklist</th>
+                        <th>Status</th>
+                        <th>Date Started</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in recent_sessions %}
+                        <tr>
+                            <td>{{ session.company.name }}</td>
+                            <td>{{ session.checklist.name }}</td>
+                            <td>
+                                <span class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ session.status|replace('_', ' ')|capitalize }}</span>
+                            </td>
+                            <td>{{ session.start_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="text-end">
+                                <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}" class="btn btn-outline-primary btn-sm">View Summary</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-    <p>No research sessions started yet. <a href="{{ url_for('companies.list_companies') }}">Start your first
-            research!</a>
-    </p>
+        <p>No research sessions started yet.</p>
     {% endif %}
-    {% endblock %}
-</div>
-{% block scripts %}
-{{ super() }} {# This includes Chart.js from the base template #}
+{% endblock %}
 
-{# Inject data as JSON to avoid JavaScript parsing issues #}
-<script type="application/json" id="chart-data">
-        {
-            "sectorLabels": {{ sector_labels|tojson|safe }},
-            "sectorValues": {{ sector_values|tojson|safe }},
-            "mosLabels": {{ mos_labels|tojson|safe }},
-            "mosValues": {{ mos_values|tojson|safe }}
-        }
+
+{% block scripts %}
+    {{ super() }} {# This includes the Chart.js library from the base template #}
+
+    <script>
+        const chartData = {
+            sectorLabels: {{ sector_labels|tojson | safe }},
+            sectorValues: {{ sector_values|tojson | safe }},
+            mosLabels: {{ mos_labels|tojson | safe }},
+            mosValues: {{ mos_values|tojson | safe }}
+        };
     </script>
 
-<script>
-    // Wait for the DOM to be fully loaded before running the script
-    document.addEventListener('DOMContentLoaded', function () {
-
-        // Get chart data from the JSON script tag
-        const chartData = JSON.parse(document.getElementById('chart-data').textContent);
-
-        // --- 1. Sector Pie Chart ---
-        const sectorLabels = chartData.sectorLabels;
-        const sectorValues = chartData.sectorValues;
-        const sectorCtx = document.getElementById('sectorPieChart');
-
-        if (sectorCtx && sectorValues.length > 0) {
-            new Chart(sectorCtx, {
-                type: 'pie',
-                data: {
-                    labels: sectorLabels,
-                    datasets: [{
-                        label: '# of Companies',
-                        data: sectorValues,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.8)',
-                            'rgba(54, 162, 235, 0.8)',
-                            'rgba(255, 206, 86, 0.8)',
-                            'rgba(75, 192, 192, 0.8)',
-                            'rgba(153, 102, 255, 0.8)',
-                            'rgba(255, 159, 64, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 255, 255, 1)'
-                        ],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: false,
-                            text: 'Companies by Sector'
-                        }
-                    }
-                }
-            });
-        } else if (sectorCtx) {
-            // Display a message if there's no data for the chart
-            const ctx = sectorCtx.getContext('2d');
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.font = '16px sans-serif';
-            ctx.fillText("No company sector data to display.", sectorCtx.width / 2, sectorCtx.height / 2);
-        }
-
-        // --- 2. Margin of Safety Bar Chart ---
-        const mosLabels = chartData.mosLabels;
-        const mosValues = chartData.mosValues;
-        const mosCtx = document.getElementById('mosBarChart');
-
-        if (mosCtx && mosValues.length > 0) {
-            // Dynamically set bar colors: green for undervalued (MoS <= 0), red for overvalued (MoS > 0)
-            const backgroundColors = mosValues.map(value => value <= 0 ? 'rgba(75, 192, 192, 0.8)' : 'rgba(255, 99, 132, 0.8)');
-
-            new Chart(mosCtx, {
-                type: 'bar',
-                data: {
-                    labels: mosLabels,
-                    datasets: [{
-                        label: 'Margin of Safety (%)',
-                        data: mosValues,
-                        backgroundColor: backgroundColors,
-                        borderColor: 'rgba(255, 255, 255, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    indexAxis: 'y', // Makes the bar chart horizontal for better label readability
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false // Hide legend as the chart is self-explanatory
-                        },
-                        title: {
-                            display: true,
-                            text: 'Positive = Overvalued, Negative = Undervalued'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.raw !== null) {
-                                        label += context.raw + '%';
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                callback: function (value, index, values) {
-                                    return value + '%'; // Add a '%' sign to the x-axis labels
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        } else if (mosCtx) {
-            // Display a message if there's no data for the chart
-            const ctx = mosCtx.getContext('2d');
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.font = '16px sans-serif';
-            ctx.fillText("Add favorite companies with an intrinsic value to see this chart.", mosCtx.width / 2, mosCtx.height / 2);
-        }
-    });
-</script>
+    <script src="{{ url_for('static', filename='js/dashboard_charts.js') }}" defer></script>
 {% endblock %}
