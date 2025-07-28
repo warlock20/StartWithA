@@ -35,14 +35,15 @@ def create_app(config_class=Config):
     from app.research import research_bp 
     app.register_blueprint(research_bp)
     
-    # Blueprints should be registered after extensions are initialized
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
-    # Models are imported. models.py will need to import 'login_manager' from this 'app' package
     from app import models 
     
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp)
+    
+    from app.logs import logs_bp
+    app.register_blueprint(logs_bp)
 
     return app

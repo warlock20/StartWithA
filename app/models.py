@@ -30,6 +30,7 @@ class User(UserMixin, db.Model): # Add UserMixin here
     favorites = db.relationship('Company', secondary=favorite_companies, lazy='dynamic',
                                 backref=db.backref('favorited_by', lazy='dynamic'))
     destination_checkpoints = db.relationship('DestinationCheckpoint', backref='creator', lazy='dynamic')
+    mistake_logs = db.relationship('MistakeLog', backref='author', lazy='dynamic', cascade="all, delete-orphan")
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -262,3 +263,21 @@ class QualitativeAnalysis(db.Model):
 
     def __repr__(self):
         return f'<QualitativeAnalysis {self.model_type} for Company {self.company_id}>'
+    
+class MistakeLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # A description of the investment mistake
+    mistake_description = db.Column(db.Text, nullable=False)
+
+    # The source of the lesson (e.g., "Personal", "Warren Buffett", "Peter Lynch")
+    source = db.Column(db.String(150), nullable=True)
+
+    # The actionable lesson learned from the mistake
+    lesson_learned = db.Column(db.Text, nullable=False)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MistakeLog {self.id} by User {self.user_id}>'    

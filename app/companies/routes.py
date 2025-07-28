@@ -656,6 +656,7 @@ def update_checkpoint(checkpoint_id):
 
     try:
         db.session.commit()
+        print(f"  - COMMIT SUCCEEDED. New status in DB should be: '{checkpoint.status}'")
         flash("Checkpoint updated successfully.", "success")
     except Exception as e:
         db.session.rollback()

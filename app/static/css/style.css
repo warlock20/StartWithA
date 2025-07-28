@@ -204,3 +204,26 @@ button:hover {
     list-style-type: none;
     padding-left: 1.5rem;
 }
+
+/* --- Sticky Footer Styles --- */
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    /* This is the key for the sticky footer */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.content-wrapper {
+    /* This makes the main content area grow to push the footer down */
+    flex: 1 0 auto;
+}
+
+.footer {
+    /* This prevents the footer from shrinking */
+    flex-shrink: 0;
+}

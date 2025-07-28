@@ -1,0 +1,118 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <p class="lead">Document mistakes to build a library of wisdom and avoid repeating errors.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                Add New Entry
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('logs.mistake_log') }}">
+                    <div class="mb-3">
+                        <label for="mistake_description" class="form-label">Mistake Description</label>
+                        <textarea name="mistake_description" id="mistake_description" class="form-control" rows="4"
+                            required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="source" class="form-label">Source (Optional)</label>
+                        <input type="text" name="source" id="source" class="form-control"
+                            placeholder="e.g., Personal, Warren Buffett">
+                    </div>
+                    <div class="mb-3">
+                        <label for="lesson_learned" class="form-label">Lesson Learned</label>
+                        <textarea name="lesson_learned" id="lesson_learned" class="form-control" rows="3"
+                            required></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save to Log</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# In app/logs/templates/mistake_log.html #}
+    <div class="col-lg-8">
+        <h4>Logged Lessons</h4>
+        {% if log_entries %}
+        <div class="accordion" id="mistakeLogAccordion">
+            {% for entry in log_entries %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ entry.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse-{{ entry.id }}" aria-expanded="false"
+                        aria-controls="collapse-{{ entry.id }}">
+                        <strong>Lesson:</strong>&nbsp;{{ entry.lesson_learned|truncate(80) }}
+                    </button>
+                </h2>
+                <div id="collapse-{{ entry.id }}" class="accordion-collapse collapse"
+                    aria-labelledby="heading-{{ entry.id }}" data-bs-parent="#mistakeLogAccordion">
+                    <div class="accordion-body">
+                        <p><strong>Mistake:</strong><br>{{ entry.mistake_description }}</p>
+                        {% if entry.source %}<p><strong>Source:</strong> {{ entry.source }}</p>{% endif %}
+                        <small class="text-muted">Logged on: {{ entry.created_at.strftime('%Y-%m-%d') }}</small>
+                        <hr>
+
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#addToChecklistModal-{{ entry.id }}">
+                            + Add Lesson to Checklist
+                        </button>
+
+                        <div class="modal fade" id="addToChecklistModal-{{ entry.id }}" tabindex="-1"
+                            aria-labelledby="modalLabel-{{ entry.id }}" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel-{{ entry.id }}">Add Lesson to Checklists
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <form method="POST"
+                                        action="{{ url_for('logs.add_to_checklists', mistake_id=entry.id) }}">
+                                        <div class="modal-body">
+                                            <p><strong>Lesson:</strong><br><em>{{ entry.lesson_learned }}</em></p>
+                                            <p>Select which checklists you want to add this lesson to:</p>
+                                            {% if user_checklists %}
+                                            {% for checklist in user_checklists %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="checklist_ids"
+                                                    value="{{ checklist.id }}"
+                                                    id="chk-{{ entry.id }}-{{ checklist.id }}">
+                                                <label class="form-check-label"
+                                                    for="chk-{{ entry.id }}-{{ checklist.id }}">
+                                                    {{ checklist.name }}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                            {% else %}
+                                            <p class="text-danger">You have no checklists to add this to.</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-primary">Save to Selected
+                                                Checklists</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Your mistake log is empty. Add your first entry to get started.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

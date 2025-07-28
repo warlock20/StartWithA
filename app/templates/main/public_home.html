@@ -2,41 +2,51 @@
 
 {% block content %}
 <div class="container text-center py-5">
-    <h1 class="display-4">Think Better, Invest Better.</h1>
-    <p class="lead text-muted mb-4">
-        A platform for systematic investment research, inspired by the Mental Models of Charlie Munger.
-        <br>
-        Structure your thinking, document your findings, and stress-test your thesis to destroy it before the market does.
+    <h1 class="display-4 fw-bold">Invert, Always Invert.</h1>
+    <p class="lead text-muted col-lg-8 mx-auto">
+        Inspired by the wisdom of Charlie Munger, this is not just another stock screener. This is a platform for disciplined thinking. We provide the tools to build, document, and systematically destroy your investment thesis—before the market does.
     </p>
     <div class="mt-4">
-        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Start Your Research</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Build Your First Thesis</a>
         <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-lg mx-2">Login</a>
     </div>
 </div>
 
+<div class="bg-light">
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="fw-light">"It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."</h4>
+                <p class="text-muted">- Charlie Munger</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="container py-5">
-    <div class="row text-center">
-        <div class="col-lg-4 mb-4">
+    <h2 class="text-center mb-4">A Platform for Better Thinking</h2>
+    <div class="row text-center g-4">
+        <div class="col-lg-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">1. Select Your Mental Model</h4>
-                    <p class="card-text">Begin with a proven framework. Use a classic **Checklist** to ensure discipline, or perform a **Destination Analysis** inspired by Nick Sleep to focus on the long-term potential. More models coming soon.</p>
+                    <h4 class="card-title">Structured Analysis</h4>
+                    <p class="card-text">Apply proven mental models like Checklists, SWOT, and Porter's Five Forces to ensure your research is thorough, systematic, and repeatable.</p>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 mb-4">
+        <div class="col-lg-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">2. Document Systematically</h4>
-                    <p class="card-text">Apply your chosen model rigorously. Go through each point, extract data from documents with AI assistance, record your findings, and mark your conclusions for each criterion.</p>
+                    <h4 class="card-title">Thesis Tracking</h4>
+                    <p class="card-text">Use Destination Analysis to set long-term checkpoints for your investments. Track real-world results against your original expectations over time.</p>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 mb-4">
+        <div class="col-lg-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h4 class="card-title">3. Invert & Stress-Test</h4>
-                    <p class="card-text">Actively seek out disconfirming evidence. Use integrated tools to find bear cases, track your thesis against future checkpoints, and truly understand the risks. The goal is clarity, not comfort.</p>
+                    <h4 class="card-title">Continuous Learning</h4>
+                    <p class="card-text">Document lessons from your own and others' failures in your personal Mistake Log, and instantly turn those lessons into active items in your future checklists.</p>
                 </div>
             </div>
         </div>

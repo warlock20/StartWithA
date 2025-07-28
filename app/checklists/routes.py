@@ -225,30 +225,30 @@ def move_checklist_item(item_id, direction):
     if direction == 'up':
         if current_index > 0:
             item_above = siblings[current_index - 1]
-            print(f"DEBUG: Swapping with item above: '{item_above.text}' with order value {item_above.order}")
+            #print(f"DEBUG: Swapping with item above: '{item_above.text}' with order value {item_above.order}")
             item_to_move.order, item_above.order = item_above.order, item_to_move.order
             swap_successful = True
-        else:
-            print("DEBUG: Item is already at the top.")
+        #else:
+            #print("DEBUG: Item is already at the top.")
     elif direction == 'down':
         if current_index < len(siblings) - 1:
             item_below = siblings[current_index + 1]
-            print(f"DEBUG: Swapping with item below: '{item_below.text}' with order value {item_below.order}")
+            #print(f"DEBUG: Swapping with item below: '{item_below.text}' with order value {item_below.order}")
             item_to_move.order, item_below.order = item_below.order, item_to_move.order
             swap_successful = True
-        else:
-            print("DEBUG: Item is already at the bottom.")
+        #else:
+            #print("DEBUG: Item is already at the bottom.")
     
     if swap_successful:
-        print(f"DEBUG: After swap, item '{item_to_move.text}' has new order value {item_to_move.order}")
+        #print(f"DEBUG: After swap, item '{item_to_move.text}' has new order value {item_to_move.order}")
         try:
-            print("DEBUG: Calling db.session.commit()...")
+            #print("DEBUG: Calling db.session.commit()...")
             db.session.commit()
-            print("DEBUG: Commit successful.")
+            #print("DEBUG: Commit successful.")
             flash(f'Item moved successfully.', 'success')
         except Exception as e:
             db.session.rollback()
-            print(f"DEBUG: Commit FAILED. Error: {e}")
+            #print(f"DEBUG: Commit FAILED. Error: {e}")
             flash(f'Error saving item order: {str(e)}', 'error')
     
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))

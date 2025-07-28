@@ -2,6 +2,15 @@
 
 {% block content %}
 <div class="page-header">
+    {% if total_companies == 0 %}
+    <div class="alert alert-info" role="alert">
+        <h4 class="alert-heading">Welcome to the Research Platform!</h4>
+        <p>It looks like you're new here. A great first step is to add a company to your list so you can begin your
+            research.</p>
+        <hr>
+        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">Add Your First Company</a>
+    </div>
+    {% endif %}
     <h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
 
     {# Stat Cards #}
