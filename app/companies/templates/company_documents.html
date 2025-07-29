@@ -89,6 +89,21 @@
     </div>
     {% endif %}
 
+    <div class="card mb-4">
+        <div class="card-header">
+            Quantitative Analysis
+        </div>
+        <div class="card-body">
+            <p class="card-text text-muted">Fetch and store historical financial data (Revenue, Net Income, etc.) to
+                analyze trends.</p>
+            <form method="POST" action="{{ url_for('companies.fetch_financials', company_id=company.id) }}"
+                class="d-inline">
+                <button type="submit" class="btn btn-primary">Fetch Financial History</button>
+            </form>
+            <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-secondary">View
+                Financials</a>
+        </div>
+    </div>
     <div class="row">
         <div class="col-lg-4 mb-4">
             <div class="card">

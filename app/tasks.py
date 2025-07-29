@@ -6,6 +6,8 @@ import re
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
+import yfinance as yf
+import pandas as pd
 
 import fitz  # PyMuPDF
 from secedgar import filings, FilingType
@@ -13,9 +15,90 @@ from flask import current_app
 import google.generativeai as genai
 
 from app import db, create_app
-from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis
+from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData 
 from celery_app import celery
 from dateutil.parser import isoparse 
+
+@celery.task(bind=True)
+def fetch_financial_data_task(self, company_id):
+    """
+    A Celery task to fetch historical financial data for a company.
+    """
+    app = create_app()
+    with app.app_context():
+        company = Company.query.get(company_id)
+        if not company or not company.creator: # Check for company and its user
+            return f"Task failed: Company {company_id} or its creator not found."
+
+        # 1. Determine data depth based on user's subscription tier
+        user = company.creator
+        years_to_fetch = 5 if user.subscription_tier == 'free' else 15
+
+        print(f"BACKGROUND TASK ({self.request.id}): Fetching {years_to_fetch} years of financial data for {company.ticker_symbol}...")
+
+        try:
+            ticker = yf.Ticker(company.ticker_symbol)
+
+            # Define which metrics we want to extract
+            # Key must match the index of the yfinance DataFrame
+            metrics_to_get = {
+                'income_statement': ['Total Revenue', 'Net Income'],
+                'balance_sheet': ['Total Assets', 'Total Liab', 'Stockholders Equity'],
+                'cash_flow': ['Free Cash Flow']
+            }
+
+            # A map to the yfinance functions
+            statement_map = {
+                'income_statement': ticker.income_stmt,
+                'balance_sheet': ticker.balance_sheet,
+                'cash_flow': ticker.cashflow
+            }
+
+            saved_count = 0
+            for statement_type, metrics in metrics_to_get.items():
+                # Get the financial statement DataFrame from yfinance
+                statement_df = statement_map[statement_type]
+                if statement_df.empty:
+                    continue
+
+                # Limit to the number of years for the tier
+                statement_df = statement_df.iloc[:, :years_to_fetch]
+
+                for metric_name in metrics:
+                    if metric_name in statement_df.index:
+                        # Iterate through each column (each column is a period/year)
+                        for period_date, value in statement_df.loc[metric_name].items():
+                            # Check if this data point already exists
+                            existing_data = FinancialData.query.filter_by(
+                                company_id=company.id,
+                                metric_name=metric_name,
+                                period_date=period_date.date()
+                            ).first()
+
+                            if existing_data:
+                                continue # Skip duplicates
+
+                            new_data_point = FinancialData(
+                                company_id=company.id,
+                                statement_type=statement_type,
+                                metric_name=metric_name,
+                                period_date=period_date.date(),
+                                value=int(value) if pd.notna(value) else 0
+                            )
+                            db.session.add(new_data_point)
+                            saved_count += 1
+
+            if saved_count > 0:
+                db.session.commit()
+
+            result_message = f"Successfully saved {saved_count} new financial data points for {company.name}."
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+            return f"Task failed: {e}"
 
 @celery.task(bind=True)
 def fetch_company_news_task(self, company_id):

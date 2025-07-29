@@ -6,6 +6,5 @@ __pycache__/
 *.sqlite3
 app.db # Or your specific database file name if different
 my_research_app.db # From the .env example
-.env # Add this line!
 .env_local
 .env

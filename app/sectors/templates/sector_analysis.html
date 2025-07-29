@@ -1,0 +1,90 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <p class="lead">Your research notebook and question bank for this sector. Distill your findings into reusable
+        checklist items.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Research Notes</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}">
+                    <div class="mb-3">
+                        <label for="notes" class="visually-hidden">Research Notes</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="20"
+                            placeholder="Log your findings, insights, and sources here...">{{ analysis.notes if analysis.notes }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Notes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Question Bank for "{{ analysis.sector_name }}"</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Add specific, reusable questions based on your research notes.</p>
+                <form method="POST"
+                    action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}"
+                    class="mb-4">
+                    <div class="mb-2">
+                        <label for="text" class="form-label">New Question Text:</label>
+                        <textarea name="text" id="text" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label for="llm_prompt" class="form-label">Optional LLM Prompt:</label>
+                        <textarea name="llm_prompt" id="llm_prompt" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm">Add to Bank</button>
+                </form>
+                <hr>
+                <h6>Existing Questions for this Sector:</h6>
+                {% if question_bank_items %}
+                <ul class="list-group list-group-flush">
+                    {% for q in question_bank_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">{{ q.text }}</div>
+                        </div>
+                        <div class="btn-group btn-group-sm align-self-center" style="margin-left: auto;">
+                            <a href="{{ url_for('question_bank.edit_question', item_id=q.id, next=url_for('sectors.notebook', sector_name=analysis.sector_name)) }}"
+                                class="btn btn-outline-secondary me-1" title="Edit">
+                                <span aria-hidden="true">✏️</span>
+                                <span class="visually-hidden">Edit</span>
+                            </a>
+                            <form method="POST"
+                                action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-danger" aria-label="Delete" title="Delete"
+                                    onclick="return confirm('Are you sure?');">
+                                    <span aria-hidden="true">❌</span>
+                                    <span class="visually-hidden">Delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">No questions added yet for this sector.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<div class="mt-4">
+    <a href="{{ url_for('sectors.edit_sector', analysis_id=analysis.id) }}" class="btn btn-outline-secondary">Edit
+        Sector
+        Name</a>
+    <a href="{{ url_for('sectors.index') }}" class="btn btn-secondary">Back to All Sector Notebooks</a>
+</div>
+{% endblock %}

@@ -45,5 +45,11 @@ def create_app(config_class=Config):
     
     from app.logs import logs_bp
     app.register_blueprint(logs_bp)
+    
+    from app.question_bank import question_bank_bp
+    app.register_blueprint(question_bank_bp)
+    
+    from app.sectors import sectors_bp
+    app.register_blueprint(sectors_bp)
 
     return app

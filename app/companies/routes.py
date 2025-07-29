@@ -6,8 +6,9 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
 from app.companies import companies_bp
+from app.tasks import fetch_financial_data_task
 
 from secedgar import filings, FilingType
 from pathlib import Path
@@ -903,3 +904,58 @@ def porters_five_forces_analysis(company_id):
         company=company,
         analysis_content=existing_content
     )
+ 
+
+@companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
+@login_required
+def fetch_financials(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task, passing only the company ID
+    task = fetch_financial_data_task.delay(company.id)
+
+    # Redirect back to the new financials page with the task_id for polling
+    # We will create this page in the next step.
+    return redirect(url_for('companies.financials', 
+                            company_id=company.id, 
+                            task_id=task.id))
+ 
+@companies_bp.route('/<int:company_id>/financials')
+@login_required
+def financials(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Fetch all financial data for this company, ordered by date
+    all_financial_data = company.financial_data.order_by(FinancialData.period_date.asc()).all()
+
+    # --- Prepare data for charts ---
+    # We need to pivot the data from our "long" database format to a "wide" format for charting.
+
+    chart_data = {
+        'revenue': {'labels': [], 'values': []},
+        'net_income': {'labels': [], 'values': []}
+    }
+
+    for data_point in all_financial_data:
+        year = data_point.period_date.strftime('%Y')
+        if data_point.metric_name == 'Total Revenue':
+            if year not in chart_data['revenue']['labels']: # Avoid duplicate years if data is quarterly
+                chart_data['revenue']['labels'].append(year)
+                chart_data['revenue']['values'].append(data_point.value)
+        elif data_point.metric_name == 'Net Income':
+            if year not in chart_data['net_income']['labels']:
+                chart_data['net_income']['labels'].append(year)
+                chart_data['net_income']['values'].append(data_point.value)
+
+    return render_template(
+        'financials.html',
+        title=f"Financials for {company.name}",
+        company=company,
+        chart_data=chart_data # Pass the prepared data to the template
+    )        

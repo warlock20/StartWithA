@@ -31,6 +31,10 @@ class User(UserMixin, db.Model): # Add UserMixin here
                                 backref=db.backref('favorited_by', lazy='dynamic'))
     destination_checkpoints = db.relationship('DestinationCheckpoint', backref='creator', lazy='dynamic')
     mistake_logs = db.relationship('MistakeLog', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    subscription_tier = db.Column(db.String(50), nullable=False, default='free')
+    question_bank_items = db.relationship('QuestionBankItem', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    sector_analyses = db.relationship('SectorAnalysis', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -91,6 +95,7 @@ class Company(db.Model):
     destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     scuttlebutt_analyses = db.relationship('ScuttlebuttAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     qualitative_analyses = db.relationship('QualitativeAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    financial_data = db.relationship('FinancialData', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.
@@ -280,4 +285,67 @@ class MistakeLog(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self):
-        return f'<MistakeLog {self.id} by User {self.user_id}>'    
+        return f'<MistakeLog {self.id} by User {self.user_id}>'
+
+# In app/models.py
+
+class FinancialData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # e.g., 'income_statement', 'balance_sheet', 'cash_flow'
+    statement_type = db.Column(db.String(50), nullable=False, index=True)
+
+    # The name of the line item, e.g., 'Total Revenue', 'Net Income'
+    metric_name = db.Column(db.String(100), nullable=False, index=True)
+
+    # The end date of the financial period (e.g., year or quarter end)
+    period_date = db.Column(db.Date, nullable=False, index=True)
+
+    # The actual value of the metric
+    value = db.Column(db.BigInteger, nullable=False)
+
+    # Ensure we only have one value for each metric on a specific date for a company
+    __table_args__ = (db.UniqueConstraint('company_id', 'metric_name', 'period_date', name='uq_company_metric_period'),)
+
+    def __repr__(self):
+        return f'<FinancialData {self.metric_name} for Company {self.company_id} on {self.period_date}>'  
+    
+class QuestionBankItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # The text of the reusable question
+    text = db.Column(db.Text, nullable=False)
+
+    # An optional, reusable LLM prompt for this question
+    llm_prompt = db.Column(db.Text, nullable=True)
+
+    # The sector tag to categorize the question. Can be null for general questions.
+    sector = db.Column(db.String(100), nullable=True, index=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<QuestionBankItem {self.text[:50]}...>'  
+    
+# In app/models.py
+
+class SectorAnalysis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # The name of the sector being analyzed
+    sector_name = db.Column(db.String(100), nullable=False, index=True)
+
+    # A large text field for free-form research notes
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Ensure a user can only have one analysis notebook per sector name
+    __table_args__ = (db.UniqueConstraint('user_id', 'sector_name', name='uq_user_sector'),)
+
+    def __repr__(self):
+        return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'    

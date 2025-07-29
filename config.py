@@ -39,3 +39,7 @@ class Config:
     
     CELERY_BROKER_URL = 'redis://localhost:6379/0'
     CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+    
+    # Set the default subscription tier for newly registered users.
+    # Use 'premium' for development/testing, change to 'free' for production.
+    DEFAULT_USER_TIER = 'premium'
