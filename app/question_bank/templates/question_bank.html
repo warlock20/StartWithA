@@ -71,11 +71,17 @@
                                 </div>
                                 <div class="d-flex align-items-center">
                                     <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}"
-                                        class="btn btn-sm btn-outline-secondary" title="Edit">✏️</a>
+                                        class="btn btn-outline-secondary btn-sm" title="Edit Question">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
                                     <form method="POST"
-                                        action="{{ url_for('question_bank.delete_question', item_id=q.id) }}">
-                                        <button type="submit" class="btn-close" aria-label="Delete" 
-                                            onclick="return confirm('Are you sure?');"></button>
+                                        action="{{ url_for('question_bank.delete_question', item_id=q.id) }}"
+                                        style="display: inline;">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            title="Delete Question"
+                                            onclick="return confirm('Are you sure you want to delete this question from your bank?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </form>
                                 </div>
                             </li>
