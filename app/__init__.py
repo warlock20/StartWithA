@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager # Ensure this is imported
 from config import Config
 from flask_caching import Cache
+from celery_app import celery
 
 db = SQLAlchemy()
 
@@ -20,6 +21,8 @@ def create_app(config_class=Config):
     login_manager.init_app(app) 
     cache.init_app(app)
 
+    celery.conf.update(app.config)
+    
     from app.auth import auth_bp 
     app.register_blueprint(auth_bp) 
     
@@ -32,14 +35,21 @@ def create_app(config_class=Config):
     from app.research import research_bp 
     app.register_blueprint(research_bp)
     
-    # Blueprints should be registered after extensions are initialized
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
-    # Models are imported. models.py will need to import 'login_manager' from this 'app' package
     from app import models 
     
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp)
+    
+    from app.logs import logs_bp
+    app.register_blueprint(logs_bp)
+    
+    from app.question_bank import question_bank_bp
+    app.register_blueprint(question_bank_bp)
+    
+    from app.sectors import sectors_bp
+    app.register_blueprint(sectors_bp)
 
     return app

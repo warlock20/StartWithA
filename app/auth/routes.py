@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, current_user, logout_user, login_required
 from app import db
 from app.models import User
@@ -34,7 +34,7 @@ def register():
             return render_template('register.html', title="Register", username=username) # Keep username if email fails
         
         # If all checks pass, create new user
-        new_user = User(username=username, email=email)
+        new_user = User(username=username, email=email,subscription_tier=current_app.config['DEFAULT_USER_TIER'])
         new_user.set_password(password) # Hash the password
         
         try:

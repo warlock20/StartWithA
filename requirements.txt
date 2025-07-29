@@ -8,3 +8,13 @@ yfinance
 PyMuPDF
 torch
 google-generativeai
+pandas
+scikit-learn
+requests
+beautifulsoup4
+matplotlib
+redis
+celery
+secedgar
+requests
+pandas

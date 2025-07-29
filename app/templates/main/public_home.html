@@ -1,0 +1,55 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <h1 class="display-4 fw-bold">Invert, Always Invert.</h1>
+    <p class="lead text-muted col-lg-8 mx-auto">
+        Inspired by the wisdom of Charlie Munger, this is not just another stock screener. This is a platform for disciplined thinking. We provide the tools to build, document, and systematically destroy your investment thesis—before the market does.
+    </p>
+    <div class="mt-4">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mx-2">Build Your First Thesis</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-lg mx-2">Login</a>
+    </div>
+</div>
+
+<div class="bg-light">
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="fw-light">"It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."</h4>
+                <p class="text-muted">- Charlie Munger</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <h2 class="text-center mb-4">A Platform for Better Thinking</h2>
+    <div class="row text-center g-4">
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Structured Analysis</h4>
+                    <p class="card-text">Apply proven mental models like Checklists, SWOT, and Porter's Five Forces to ensure your research is thorough, systematic, and repeatable.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Thesis Tracking</h4>
+                    <p class="card-text">Use Destination Analysis to set long-term checkpoints for your investments. Track real-world results against your original expectations over time.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Continuous Learning</h4>
+                    <p class="card-text">Document lessons from your own and others' failures in your personal Mistake Log, and instantly turn those lessons into active items in your future checklists.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

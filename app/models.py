@@ -29,6 +29,12 @@ class User(UserMixin, db.Model): # Add UserMixin here
     companies = db.relationship('Company', backref='creator', lazy='dynamic') 
     favorites = db.relationship('Company', secondary=favorite_companies, lazy='dynamic',
                                 backref=db.backref('favorited_by', lazy='dynamic'))
+    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='creator', lazy='dynamic')
+    mistake_logs = db.relationship('MistakeLog', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    subscription_tier = db.Column(db.String(50), nullable=False, default='free')
+    question_bank_items = db.relationship('QuestionBankItem', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    sector_analyses = db.relationship('SectorAnalysis', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -75,15 +81,21 @@ class Company(db.Model):
     name = db.Column(db.String(150), nullable=False)
     ticker_symbol = db.Column(db.String(20), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
-    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     summary = db.Column(db.Text, nullable=True) 
     sector = db.Column(db.String(100), nullable=True)
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)    
-
-    # Relationship: A company can be part of many research sessions
+    is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    
+    # Relationships
     research_sessions = db.relationship('ResearchSession', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    articles = db.relationship('CompanyArticle', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    documents = db.relationship('CompanyDocument', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    destination_checkpoints = db.relationship('DestinationCheckpoint', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    scuttlebutt_analyses = db.relationship('ScuttlebuttAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    qualitative_analyses = db.relationship('QualitativeAnalysis', backref='company', lazy='dynamic', cascade="all, delete-orphan")
+    financial_data = db.relationship('FinancialData', backref='company', lazy='dynamic', cascade="all, delete-orphan")
     # Optional: Define a unique constraint for (name, user_id) and (ticker_symbol, user_id)
     # if you want a user to not be able to add the same company multiple times,
     # but allow different users to potentially add companies with the same name/ticker.
@@ -165,3 +177,175 @@ class CompanyDocument(db.Model):
 
     def __repr__(self):
         return f'<CompanyDocument {self.original_filename} for Company {self.company_id}>'
+
+class DestinationCheckpoint(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this checkpoint to a specific Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # Foreign key to link this checkpoint to the User who created it
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    target_date = db.Column(db.Date, nullable=False, index=True)
+    metric = db.Column(db.String(200), nullable=False) # E.g., "Quarterly Revenue", "EPS", "Product Launch"
+    expectation = db.Column(db.Text, nullable=False) # E.g., ">$5 Billion", "Successful and on time"
+
+    # This will be updated by the user later
+    status = db.Column(db.String(30), nullable=False, default='Active') # E.g., 'Active', 'Met', 'Not Met'
+    outcome_notes = db.Column(db.Text, nullable=True) # User's analysis of the outcome
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<DestinationCheckpoint {self.metric} for Company {self.company_id}>'
+
+class CompanyArticle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this article to a Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    
+    # The title of the article
+    title = db.Column(db.String(300), nullable=False)
+
+    # The URL to the original article - should be unique to avoid duplicates
+    url = db.Column(db.String(500), nullable=False, unique=True)
+
+    # A short description or snippet of the article
+    description = db.Column(db.Text, nullable=True)
+
+    # The name of the news source (e.g., "Reuters", "Bloomberg")
+    source_name = db.Column(db.String(100), nullable=True)
+
+    # The original publication date of the article
+    published_at = db.Column(db.DateTime, nullable=False, index=True)
+
+    # The date we fetched the article
+    fetched_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<CompanyArticle {self.title[:50]}...>'    
+    
+class ScuttlebuttAnalysis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this analysis to a Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # The full summary text generated by the AI
+    generated_summary = db.Column(db.Text, nullable=False)
+
+    # The date the analysis was generated
+    generated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    def __repr__(self):
+        return f'<ScuttlebuttAnalysis for Company {self.company_id} on {self.generated_at}>'
+
+# In app/models.py
+
+class QualitativeAnalysis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key to link this analysis to a Company
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # Foreign key to link this analysis to the User who created it
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # This field will store which model is being used, e.g., 'SWOT'
+    model_type = db.Column(db.String(50), nullable=False, index=True)
+
+    # We'll use a JSON field to store the structured data.
+    # For SWOT, it will look like: {"strengths": "...", "weaknesses": "...", ...}
+    content = db.Column(db.JSON, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Ensure a user can only have one of each analysis type per company
+    __table_args__ = (db.UniqueConstraint('company_id', 'user_id', 'model_type', name='uq_user_company_analysis'),)
+
+    def __repr__(self):
+        return f'<QualitativeAnalysis {self.model_type} for Company {self.company_id}>'
+    
+class MistakeLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # A description of the investment mistake
+    mistake_description = db.Column(db.Text, nullable=False)
+
+    # The source of the lesson (e.g., "Personal", "Warren Buffett", "Peter Lynch")
+    source = db.Column(db.String(150), nullable=True)
+
+    # The actionable lesson learned from the mistake
+    lesson_learned = db.Column(db.Text, nullable=False)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MistakeLog {self.id} by User {self.user_id}>'
+
+# In app/models.py
+
+class FinancialData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+
+    # e.g., 'income_statement', 'balance_sheet', 'cash_flow'
+    statement_type = db.Column(db.String(50), nullable=False, index=True)
+
+    # The name of the line item, e.g., 'Total Revenue', 'Net Income'
+    metric_name = db.Column(db.String(100), nullable=False, index=True)
+
+    # The end date of the financial period (e.g., year or quarter end)
+    period_date = db.Column(db.Date, nullable=False, index=True)
+
+    # The actual value of the metric
+    value = db.Column(db.BigInteger, nullable=False)
+
+    # Ensure we only have one value for each metric on a specific date for a company
+    __table_args__ = (db.UniqueConstraint('company_id', 'metric_name', 'period_date', name='uq_company_metric_period'),)
+
+    def __repr__(self):
+        return f'<FinancialData {self.metric_name} for Company {self.company_id} on {self.period_date}>'  
+    
+class QuestionBankItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # The text of the reusable question
+    text = db.Column(db.Text, nullable=False)
+
+    # An optional, reusable LLM prompt for this question
+    llm_prompt = db.Column(db.Text, nullable=True)
+
+    # The sector tag to categorize the question. Can be null for general questions.
+    sector = db.Column(db.String(100), nullable=True, index=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<QuestionBankItem {self.text[:50]}...>'  
+    
+# In app/models.py
+
+class SectorAnalysis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # The name of the sector being analyzed
+    sector_name = db.Column(db.String(100), nullable=False, index=True)
+
+    # A large text field for free-form research notes
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Ensure a user can only have one analysis notebook per sector name
+    __table_args__ = (db.UniqueConstraint('user_id', 'sector_name', name='uq_user_sector'),)
+
+    def __repr__(self):
+        return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'    

@@ -1,0 +1,98 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="page-header text-center">
+        <h1>The Research Workflow</h1>
+        <p class="lead">A systematic path from initial idea to long-term monitoring using powerful mental models.</p>
+    </div>
+
+    <div class="row align-items-center mb-5">
+        <div class="col-md-7">
+            <h2>1. Foundational Analysis: The Checklist</h2>
+            <p class="text-muted">Inspired by Charlie Munger</p>
+            <p>The starting point for all disciplined research. A checklist enforces rigor and ensures all key quantitative and qualitative aspects of a business are thoroughly investigated before forming an initial thesis. It is your primary defense against emotional decision-making and errors of omission.</p>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-primary">Go to Checklists</a>
+        </div>
+        <div class="col-md-5">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">How to Use It (Example)</h5>
+                    <p class="card-text">For a company like <strong>Tesla (TSLA)</strong>, a checklist item might be:</p>
+                    <blockquote class="blockquote mb-0">
+                      <p><small><em>"Assess dependence on key suppliers for battery components."</em></small></p>
+                    </blockquote>
+                    <p class="card-text mt-2">Your research would then document the risks and relationships associated with Panasonic, CATL, etc.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+
+    <div class="row align-items-center mb-5">
+        <div class="col-md-5 order-md-last">
+            <h2>2. Strategic Frameworks: SWOT & Porter's</h2>
+            <p class="text-muted">Classic Business Strategy</p>
+            <p>After initial data gathering, use these models to understand the company's strategic position (SWOT) and the competitive dynamics of its industry (Porter's Five Forces). This builds a deeper, qualitative understanding around the numbers.</p>
+            <a href="{{ url_for('companies.list_companies') }}" class="btn btn-info">Analyze a Company</a>
+        </div>
+        <div class="col-md-7">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">How to Use It (Example)</h5>
+                    <p class="card-text">For a company like <strong>Apple (AAPL)</strong>:</p>
+                    <ul class="list-unstyled">
+                        <li><strong>Strength (SWOT):</strong> Its powerful brand and closed ecosystem.</li>
+                        <li><strong>Threat (SWOT):</strong> Increasing antitrust regulation globally.</li>
+                        <li><strong>Bargaining Power of Buyers (Porter's):</strong> Relatively low, due to high switching costs and brand loyalty.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+
+    <div class="row align-items-center mb-5">
+        <div class="col-md-7">
+            <h2>3. Long-Term Monitoring: Destination Analysis</h2>
+            <p class="text-muted">Inspired by Nick Sleep & Qais Zakaria</p>
+            <p>For companies in your portfolio or on your watchlist. Instead of focusing on the next quarter, you set multi-year "checkpoints" for your thesis. This model forces you to think about a company's enduring competitive advantages and long-term trajectory.</p>
+            <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-success">View Checkpoints Timeline</a>
+        </div>
+        <div class="col-md-5">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">How to Use It (Example)</h5>
+                    <p class="card-text">For a company like <strong>Amazon (AMZN)</strong>, a 2-year checkpoint might be:</p>
+                    <ul class="list-unstyled">
+                        <li><strong>Metric:</strong> 'AWS Revenue Growth.'</li>
+                        <li><strong>Expectation:</strong> 'Maintain >25% year-over-year growth.'</li>
+                    </ul>
+                    <p class="card-text mt-2">You would then review this in two years to see if your thesis is on track.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+
+    <div class="row align-items-center">
+        <div class="col-md-5 order-md-last">
+            <h2>4. Continuous Learning: Scuttlebutt & Mistake Log</h2>
+            <p class="text-muted">Inspired by Philip Fisher & Charlie Munger</p>
+            <p>Investing is a process of constant learning. Use the Digital Scuttlebutt tool to stay on top of the current narrative, and the Mistake Log to permanently embed lessons from your own and others' failures into your future process.</p>
+            <a href="{{ url_for('logs.mistake_log') }}" class="btn btn-secondary">Go to Mistake Log</a>
+        </div>
+        <div class="col-md-7">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">How to Use It (Example)</h5>
+                     <p class="card-text">For <strong>Digital Scuttlebutt</strong>, the AI might analyze news for <strong>NVIDIA (NVDA)</strong> and find a <em>Bear Case</em>: "New export restrictions to China."</p>
+                     <p class="card-text mt-2">For the <strong>Mistake Log</strong>, you might log the lesson: <em>"Avoid companies with high customer concentration."</em> and then click a button to add this permanently to your "Initial Screening" checklist.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

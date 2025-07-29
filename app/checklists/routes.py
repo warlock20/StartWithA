@@ -132,6 +132,7 @@ def view_checklist(checklist_id):
         return redirect(url_for('checklists.list_checklists'))
     top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
     user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+    total_items_count = checklist.items.count()
     
     return render_template(
         'view_checklist.html',
@@ -139,109 +140,117 @@ def view_checklist(checklist_id):
         items=top_level_items,  
         title=checklist.name,
         ChecklistItem=ChecklistItem, 
-        companies=user_companies
+        companies=user_companies,
+        total_items_count=total_items_count 
     )
     
-@checklists_bp.route('/checklists/<int:checklist_id>/add_item', methods=['POST'])
+# In app/checklists/routes.py
+
+@checklists_bp.route('/<int:checklist_id>/add_item', methods=['POST'])
 @login_required
 def add_checklist_item(checklist_id):
     checklist = Checklist.query.get_or_404(checklist_id)
-    if checklist.author != current_user: # Authorization check
+    if checklist.user_id != current_user.id:
         flash('You are not authorized to modify this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists')) 
-
-    # For simplicity, assume current user owns this or is default.
-    # Add proper authorization later.
+        return redirect(url_for('checklists.list_checklists'))
 
     item_text = request.form.get('item_text')
-    parent_id_str = request.form.get('parent_id') # For sub-items
+    parent_id_str = request.form.get('parent_id')
     llm_prompt_text = request.form.get('llm_prompt')
-    
     parent_id = None
-    if parent_id_str and parent_id_str.isdigit():
+
+    if parent_id_str and parent_id_str.strip() and parent_id_str.isdigit():
         parent_id = int(parent_id_str)
-        # Ensure parent_id belongs to this checklist
+        # Verify the parent item belongs to the same checklist
         parent_item_check = ChecklistItem.query.filter_by(id=parent_id, checklist_id=checklist.id).first()
         if not parent_item_check:
             flash('Invalid parent item selected.', 'error')
             return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
 
-    if item_text:
-        # Determine order for the new item
-        if parent_id:
-            current_max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(checklist_id=checklist_id, parent_id=parent_id).scalar()
-        else:
-            current_max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(checklist_id=checklist_id, parent_id=None).scalar()
+    if item_text and item_text.strip():
+        # Correctly find the maximum order value among the item's siblings
+        # A sub-item's siblings have the same parent_id.
+        # A top-level item's siblings have parent_id=None.
+        max_order = db.session.query(db.func.max(ChecklistItem.order)).filter_by(
+            checklist_id=checklist.id,
+            parent_id=parent_id
+        ).scalar()
         
-        new_order = (current_max_order or -1) + 1
-
-        new_item = ChecklistItem(text=item_text, 
-                                 checklist_id=checklist.id, 
-                                 parent_id=parent_id, 
-                                 order=new_order,
-                                 llm_prompt=llm_prompt_text if llm_prompt_text and llm_prompt_text.strip() else None # Save LLM prompt
-                                 )
+        # The new order is one greater than the current max, or 0 if no siblings exist.
+        new_order = (max_order or -1) + 1
+        
+        new_item = ChecklistItem(
+            text=item_text.strip(), 
+            checklist_id=checklist.id, 
+            parent_id=parent_id, 
+            order=new_order,
+            llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None
+        )
         db.session.add(new_item)
         db.session.commit()
         flash('Item added successfully!', 'success')
     else:
         flash('Item text cannot be empty.', 'error')
         
-    return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
+    return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
+
+# In app/checklists/routes.py
 
 @checklists_bp.route('/item/<int:item_id>/move/<direction>', methods=['POST'])
 @login_required
 def move_checklist_item(item_id, direction):
+    print(f"\n--- DEBUG: move_checklist_item called for item {item_id}, direction '{direction}' ---")
     item_to_move = ChecklistItem.query.get_or_404(item_id)
     checklist = item_to_move.checklist
 
-    # Authorization: Ensure the item belongs to a checklist owned by the current user
     if checklist.user_id != current_user.id:
         flash('You are not authorized to modify this checklist.', 'error')
         return redirect(url_for('checklists.list_checklists'))
 
-    # Fetch all siblings of the item, including itself, ordered by their current 'order'
     siblings = ChecklistItem.query.filter_by(
         checklist_id=item_to_move.checklist_id,
-        parent_id=item_to_move.parent_id # Handles both top-level and sub-items
+        parent_id=item_to_move.parent_id
     ).order_by(ChecklistItem.order).all()
 
     try:
-        current_index = siblings.index(item_to_move) # Find the item's current position
+        current_index = siblings.index(item_to_move)
     except ValueError:
-        # Should not happen if item_to_move is indeed a sibling
         flash('Error finding item in its sibling list.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
+    print(f"DEBUG: Found item '{item_to_move.text}' at index {current_index} with order value {item_to_move.order}")
+
+    swap_successful = False
     if direction == 'up':
-        if current_index == 0: # Already at the top of its list
-            flash('Item is already at the top.', 'info')
-        else:
-            # Item to swap with is the one before it
+        if current_index > 0:
             item_above = siblings[current_index - 1]
-            # Swap their order values
+            #print(f"DEBUG: Swapping with item above: '{item_above.text}' with order value {item_above.order}")
             item_to_move.order, item_above.order = item_above.order, item_to_move.order
-            flash(f'Item "{item_to_move.text[:30]}..." moved up.', 'success')
+            swap_successful = True
+        #else:
+            #print("DEBUG: Item is already at the top.")
     elif direction == 'down':
-        if current_index == len(siblings) - 1: # Already at the bottom
-            flash('Item is already at the bottom.', 'info')
-        else:
-            # Item to swap with is the one after it
+        if current_index < len(siblings) - 1:
             item_below = siblings[current_index + 1]
-            # Swap their order values
+            #print(f"DEBUG: Swapping with item below: '{item_below.text}' with order value {item_below.order}")
             item_to_move.order, item_below.order = item_below.order, item_to_move.order
-            flash(f'Item "{item_to_move.text[:30]}..." moved down.', 'success')
-    else:
-        flash('Invalid move direction.', 'error')
-        return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error saving item order: {str(e)}', 'error')
-
+            swap_successful = True
+        #else:
+            #print("DEBUG: Item is already at the bottom.")
+    
+    if swap_successful:
+        #print(f"DEBUG: After swap, item '{item_to_move.text}' has new order value {item_to_move.order}")
+        try:
+            #print("DEBUG: Calling db.session.commit()...")
+            db.session.commit()
+            #print("DEBUG: Commit successful.")
+            flash(f'Item moved successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            #print(f"DEBUG: Commit FAILED. Error: {e}")
+            flash(f'Error saving item order: {str(e)}', 'error')
+    
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
 

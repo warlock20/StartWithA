@@ -6,13 +6,17 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument # Add other models if needed
+from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
 from app.companies import companies_bp
+from app.tasks import fetch_financial_data_task
 
 from secedgar import filings, FilingType
 from pathlib import Path
 import shutil 
 import re
+
+from app.tasks import fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
     '': 'USA (Default)',
@@ -45,47 +49,52 @@ def get_company_market_data(ticker):
     except Exception as e:
         print(f"yfinance lookup failed for {ticker}: {e}")
 
-
 @companies_bp.route('/', methods=['GET'])
 @login_required
 def list_companies():
+    # --- 1. Fetch all necessary data in efficient queries ---
+
+    # Get all companies for the current user
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
-    
+
+    # Get sets of IDs for categorization
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+
+    # Get sets of company IDs that have a specific analysis completed
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # --- 2. Build the enriched data structure for the template ---
     companies_data_list = []
     for company in all_user_companies:
         data = {
             'company_obj': company,
-            'current_market_cap': None,
-            'margin_of_safety': None
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
         }
-        
-        # Call our new cached function to get the data.
-        market_data = get_company_market_data(company.ticker_symbol)
-        
-        # Use the data returned from the helper function.
-        if market_data:
-            market_cap = market_data.get('marketCap') # Get 'marketCap' from the returned dictionary
-            if market_cap:
-                data['current_market_cap'] = market_cap
-                # Calculate Margin of Safety if intrinsic value is set
-                if company.intrinsic_value and market_cap > 0:
-                    margin = ((market_cap - company.intrinsic_value) / market_cap) * 100
-                    data['margin_of_safety'] = round(margin, 2)
-        
         companies_data_list.append(data)
-        
-    # The rest of the function for partitioning and sorting remains the same
-    favorite_ids = {c.id for c in current_user.favorites.all()}
-    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids]
-    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in favorite_ids]
-    
-    favorite_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
-    other_companies_data.sort(key=lambda x: x.get('margin_of_safety') or -999, reverse=True)
+
+    # --- 3. Partition the enriched data into the three lists ---
+    portfolio_companies_data = [d for d in companies_data_list if d['company_obj'].id in portfolio_ids]
+    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids and d['company_obj'].id not in portfolio_ids]
+    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in portfolio_ids and d['company_obj'].id not in favorite_ids]
+
+    # Sort each list by company name
+    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
+    favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
+    other_companies_data.sort(key=lambda x: x['company_obj'].name)
 
     return render_template(
         'list_companies.html', 
+        portfolio_companies_data=portfolio_companies_data,
         favorite_companies_data=favorite_companies_data,
         other_companies_data=other_companies_data,
+        portfolio_ids=portfolio_ids,
+        favorite_ids=favorite_ids,
+        # We no longer need to pass eligible_for_da_ids as it's part of the new structure
         title=f"{current_user.username}'s Companies"
     )
 
@@ -250,7 +259,7 @@ def manage_company_documents(company_id):
                 db.session.commit()
                 flash(f'Document "{original_fn}" uploaded successfully to group "{doc_group}".', 'success')
             return redirect(url_for('companies.manage_company_documents', company_id=company.id))
-
+    
     documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc(), CompanyDocument.document_title).all()    
     grouped_documents = {}
     for doc in documents_query:
@@ -264,7 +273,7 @@ def manage_company_documents(company_id):
                                         .order_by(CompanyDocument.document_group)\
                                         .all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
-    
+        
     intrinsic_display_value = ''
     intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
     if company.intrinsic_value: # 'company' is the object for the current page
@@ -406,7 +415,150 @@ def delete_document(doc_id):
         print(f"ERROR: Could not delete document {doc_id}: {e}")
 
     return redirect(url_for('companies.manage_company_documents', company_id=company_id))
-## In app/companies/routes.py
+
+# ## In app/companies/routes.py
+# @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
+# @login_required
+# def fetch_sec_filings(company_id):
+#     company = Company.query.get_or_404(company_id)
+#     if company.user_id != current_user.id:
+#         flash("You are not authorized to perform this action.", "error")
+#         return redirect(url_for('companies.list_companies'))
+
+#     filing_type_str = request.form.get('filing_type', '10-K')
+#     filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
+#     years_to_fetch = request.form.get('years', 5, type=int)
+    
+#     user_agent = f"{current_user.username} {current_user.email}"
+#     temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    
+#     print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
+    
+#     try:
+#         start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+        
+#         filing_docs = filings(cik_lookup=company.ticker_symbol,
+#                               filing_type=filing_type_enum,
+#                               start_date=start_date,
+#                               user_agent=user_agent)
+        
+#         filing_docs.save(temp_download_path)
+        
+#         company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
+#         saved_count = 0
+
+#         if company_filing_path.exists():
+#             # This loop finds each downloaded file.
+#             for submission_file_path in company_filing_path.glob('*.txt'):
+                
+#                 # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
+
+#                 if not submission_file_path.is_file():
+#                     continue
+
+#                 print(f"Processing downloaded file: {submission_file_path.name}")
+                
+#                 with open(submission_file_path, 'r', encoding='utf-8') as f:
+#                     full_filing_text = f.read()
+
+#                 # STEP 1: Parse the Filing Date
+#                 filing_date_str = "N/A"
+#                 for line in full_filing_text.splitlines()[:40]:
+#                     if "FILED AS OF DATE:" in line:
+#                         date_val = line.split(":")[-1].strip()
+#                         filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
+#                         break
+                
+#                 # STEP 2: Check for Duplicates
+#                 doc_title = f"{filing_type_str} Report ({filing_date_str})"
+#                 existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
+#                 if existing_doc:
+#                     print(f"Skipping already existing filing: {doc_title}")
+#                     continue
+
+#                 # STEP 3: Parse the Clean HTML Content
+#                 doc_start_pattern = re.compile(r'<DOCUMENT>')
+#                 doc_end_pattern = re.compile(r'</DOCUMENT>')
+#                 doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
+#                 docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
+                
+#                 html_content = ''
+#                 for doc_start, doc_end in docs:
+#                     doc_text = full_filing_text[doc_start:doc_end]
+#                     if doc_type_pattern.search(doc_text):
+#                         text_start = re.search(r'<TEXT>', doc_text)
+#                         text_end = re.search(r'</TEXT>', doc_text)
+#                         if text_start and text_end:
+#                             html_content = doc_text[text_start.end():text_end.start()]
+#                             html_tag_start = html_content.find('<HTML>')
+#                             if html_tag_start != -1:
+#                                 html_content = html_content[html_tag_start:]
+#                             break 
+                
+#                 if not html_content:
+#                     print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
+#                     continue
+
+#                 # STEP 4: Save the Clean HTML and Create DB Record
+#                 original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
+#                 stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+#                 company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
+#                 os.makedirs(company_permanent_path, exist_ok=True)
+#                 file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
+
+#                 with open(file_save_path, 'w', encoding='utf-8') as f_out:
+#                     f_out.write(html_content)
+
+#                 new_doc = CompanyDocument(
+#                     company_id=company.id, user_id=current_user.id,
+#                     original_filename=original_fn,
+#                     stored_filename=os.path.join(str(company.id), stored_fn_uuid),
+#                     document_group=f"SEC {filing_type_str} Filings",
+#                     document_title=doc_title,
+#                     document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+#                 )
+#                 db.session.add(new_doc)
+#                 saved_count += 1
+                
+#                 # The 'for' loop continues with the next downloaded file...
+        
+#         # After the loop is finished, check if anything was saved
+#         if saved_count > 0:
+#             db.session.commit()
+#             flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
+#         else:
+#             flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
+    
+#     except Exception as e:
+#         db.session.rollback()
+#         flash(f"An error occurred while fetching SEC filings: {e}", "error")
+#         print(f"ERROR: SEC Edgar fetch failed: {e}")
+    
+#     finally:
+#         if temp_download_path.exists():
+#             shutil.rmtree(temp_download_path)
+#             print(f"Cleaned up temporary directory: {temp_download_path}")
+
+#     return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+
+@companies_bp.route('/<int:company_id>/fetch_news', methods=['POST'])
+@login_required
+def fetch_news(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task
+    task = fetch_company_news_task.delay(company.id)
+
+    flash("Request received! Recent news is being fetched in the background. The page will reload when complete.", "info")
+
+    # Redirect back to the same page with the task_id for polling
+    return redirect(url_for('companies.scuttlebutt', 
+                            company_id=company.id, 
+                            task_id=task.id))
+
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
 def fetch_sec_filings(company_id):
@@ -415,118 +567,395 @@ def fetch_sec_filings(company_id):
         flash("You are not authorized to perform this action.", "error")
         return redirect(url_for('companies.list_companies'))
 
-    filing_type_str = request.form.get('filing_type', '10-K')
-    filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
-    years_to_fetch = request.form.get('years', 5, type=int)
+    # Get the 'years' value from the form, defaulting to 5 if not found
+    years_from_form = request.form.get('years', 5, type=int)
     
-    user_agent = f"{current_user.username} {current_user.email}"
-    temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
+    # When you call .delay(), it returns a task object.
+    task = fetch_sec_filings_task.delay(company.id, current_user.id, years_from_form)
     
-    print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
+    # Flash a message to give immediate feedback.
+    flash(f"Request received! {years_from_form} year(s) of filings are being fetched in the background. The page will reload when complete.", "info")
+            
+    # Redirect back to the same page, but add the task_id to the URL as a query parameter.
+    return redirect(url_for('companies.manage_company_documents', 
+                            company_id=company.id, 
+                            task_id=task.id))
     
+
+@companies_bp.route('/<int:company_id>/add_checkpoint', methods=['POST'])
+@login_required
+def add_checkpoint(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    metric = request.form.get('metric')
+    expectation = request.form.get('expectation')
+    target_date_str = request.form.get('target_date')
+
+    if not metric or not expectation or not target_date_str:
+        flash("All fields are required to add a checkpoint.", "error")
+        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+
     try:
-        start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
-        
-        filing_docs = filings(cik_lookup=company.ticker_symbol,
-                              filing_type=filing_type_enum,
-                              start_date=start_date,
-                              user_agent=user_agent)
-        
-        filing_docs.save(temp_download_path)
-        
-        company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
-        saved_count = 0
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
 
-        if company_filing_path.exists():
-            # This loop finds each downloaded file.
-            for submission_file_path in company_filing_path.glob('*.txt'):
-                
-                # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
+        new_checkpoint = DestinationCheckpoint(
+            company_id=company.id,
+            user_id=current_user.id,
+            metric=metric,
+            expectation=expectation,
+            target_date=target_date
+            # Status defaults to 'Active' as defined in the model
+        )
+        db.session.add(new_checkpoint)
+        db.session.commit()
+        flash("New destination analysis checkpoint added successfully.", "success")
 
-                if not submission_file_path.is_file():
-                    continue
-
-                print(f"Processing downloaded file: {submission_file_path.name}")
-                
-                with open(submission_file_path, 'r', encoding='utf-8') as f:
-                    full_filing_text = f.read()
-
-                # STEP 1: Parse the Filing Date
-                filing_date_str = "N/A"
-                for line in full_filing_text.splitlines()[:40]:
-                    if "FILED AS OF DATE:" in line:
-                        date_val = line.split(":")[-1].strip()
-                        filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
-                        break
-                
-                # STEP 2: Check for Duplicates
-                doc_title = f"{filing_type_str} Report ({filing_date_str})"
-                existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
-                if existing_doc:
-                    print(f"Skipping already existing filing: {doc_title}")
-                    continue
-
-                # STEP 3: Parse the Clean HTML Content
-                doc_start_pattern = re.compile(r'<DOCUMENT>')
-                doc_end_pattern = re.compile(r'</DOCUMENT>')
-                doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
-                docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
-                
-                html_content = ''
-                for doc_start, doc_end in docs:
-                    doc_text = full_filing_text[doc_start:doc_end]
-                    if doc_type_pattern.search(doc_text):
-                        text_start = re.search(r'<TEXT>', doc_text)
-                        text_end = re.search(r'</TEXT>', doc_text)
-                        if text_start and text_end:
-                            html_content = doc_text[text_start.end():text_end.start()]
-                            html_tag_start = html_content.find('<HTML>')
-                            if html_tag_start != -1:
-                                html_content = html_content[html_tag_start:]
-                            break 
-                
-                if not html_content:
-                    print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
-                    continue
-
-                # STEP 4: Save the Clean HTML and Create DB Record
-                original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
-                stored_fn_uuid = f"{uuid.uuid4().hex}.html"
-                company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
-                os.makedirs(company_permanent_path, exist_ok=True)
-                file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
-
-                with open(file_save_path, 'w', encoding='utf-8') as f_out:
-                    f_out.write(html_content)
-
-                new_doc = CompanyDocument(
-                    company_id=company.id, user_id=current_user.id,
-                    original_filename=original_fn,
-                    stored_filename=os.path.join(str(company.id), stored_fn_uuid),
-                    document_group=f"SEC {filing_type_str} Filings",
-                    document_title=doc_title,
-                    document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
-                )
-                db.session.add(new_doc)
-                saved_count += 1
-                
-                # The 'for' loop continues with the next downloaded file...
-        
-        # After the loop is finished, check if anything was saved
-        if saved_count > 0:
-            db.session.commit()
-            flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
-        else:
-            flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
-    
+    except ValueError:
+        flash("Invalid date format. Please use YYYY-MM-DD.", "error")
     except Exception as e:
         db.session.rollback()
-        flash(f"An error occurred while fetching SEC filings: {e}", "error")
-        print(f"ERROR: SEC Edgar fetch failed: {e}")
-    
-    finally:
-        if temp_download_path.exists():
-            shutil.rmtree(temp_download_path)
-            print(f"Cleaned up temporary directory: {temp_download_path}")
+        flash(f"An error occurred: {e}", "error")
 
-    return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+    return redirect(url_for('companies.destination_analysis', company_id=company.id))
+
+@companies_bp.route('/<int:company_id>/destination_analysis')
+@login_required
+def destination_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
+
+    return render_template('destination_analysis.html', 
+                           company=company, 
+                           checkpoints=checkpoints,
+                           title=f"Destination Analysis for {company.name}")
+    
+@companies_bp.route('/checkpoint/<int:checkpoint_id>/update', methods=['POST'])
+@login_required
+def update_checkpoint(checkpoint_id):
+    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
+
+    # Authorization check
+    if checkpoint.user_id != current_user.id:
+        flash("You are not authorized to update this checkpoint.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Get data from the form
+    new_status = request.form.get('status')
+    outcome_notes = request.form.get('outcome_notes')
+
+    # Update the checkpoint object
+    checkpoint.status = new_status
+    checkpoint.outcome_notes = outcome_notes
+
+    try:
+        db.session.commit()
+        print(f"  - COMMIT SUCCEEDED. New status in DB should be: '{checkpoint.status}'")
+        flash("Checkpoint updated successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating checkpoint: {e}", "error")
+
+    return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id)) 
+
+# In app/companies/routes.py
+
+@companies_bp.route('/checkpoint/<int:checkpoint_id>/delete', methods=['POST'])
+@login_required
+def delete_checkpoint(checkpoint_id):
+    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
+
+    # Authorization check
+    if checkpoint.user_id != current_user.id:
+        flash("You are not authorized to delete this checkpoint.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    company_id = checkpoint.company_id # Store for redirect before deleting
+    try:
+        db.session.delete(checkpoint)
+        db.session.commit()
+        flash("Checkpoint deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting checkpoint: {e}", "error")
+
+    return redirect(url_for('companies.destination_analysis', company_id=company_id))
+
+# In app/companies/routes.py
+
+@companies_bp.route('/checkpoint/<int:checkpoint_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_checkpoint(checkpoint_id):
+    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
+
+    # Authorization check
+    if checkpoint.user_id != current_user.id:
+        flash("You are not authorized to edit this checkpoint.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    if request.method == 'POST':
+        # Handle the form submission for updating
+        metric = request.form.get('metric')
+        expectation = request.form.get('expectation')
+        target_date_str = request.form.get('target_date')
+
+        if not metric or not expectation or not target_date_str:
+            flash("Metric, Expectation, and Target Date are required.", "error")
+            # Re-render the edit form with an error
+            return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
+
+        try:
+            checkpoint.metric = metric
+            checkpoint.expectation = expectation
+            checkpoint.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+            db.session.commit()
+            flash("Checkpoint updated successfully.", "success")
+            return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id))
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "error")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating checkpoint: {e}", "error")
+
+    # GET request: Show the edit form, pre-filled with existing data
+    return render_template('edit_checkpoint.html', 
+                           title="Edit Checkpoint", 
+                           checkpoint=checkpoint)
+
+@companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
+@login_required
+def toggle_portfolio(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to modify this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Flip the boolean status
+    company.is_in_portfolio = not company.is_in_portfolio
+
+    try:
+        db.session.commit()
+        status = "added to" if company.is_in_portfolio else "removed from"
+        flash(f'"{company.name}" has been {status} your active portfolio.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred: {e}", "error")
+
+    return redirect(request.referrer or url_for('companies.list_companies'))  
+
+# In app/companies/routes.py
+
+@companies_bp.route('/<int:company_id>/scuttlebutt')
+@login_required
+def scuttlebutt(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Fetch saved articles for this company, newest first
+    articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
+    latest_analysis = company.scuttlebutt_analyses.order_by(ScuttlebuttAnalysis.generated_at.desc()).first()
+    
+    return render_template(
+        'scuttlebutt.html',
+        title=f"Digital Scuttlebutt for {company.name}",
+        company=company,
+        articles=articles,
+        latest_analysis=latest_analysis 
+    )
+
+@companies_bp.route('/<int:company_id>/analyze_scuttlebutt', methods=['POST'])
+@login_required
+def analyze_scuttlebutt(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task
+    task = analyze_scuttlebutt_task.delay(company.id)
+
+    # Redirect back to the Scuttlebutt page with the task_id for polling
+    return redirect(url_for('companies.scuttlebutt', 
+                            company_id=company.id, 
+                            task_id=task.id))
+
+@companies_bp.route('/<int:company_id>/swot', methods=['GET', 'POST'])
+@login_required
+def swot_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Try to find an existing SWOT analysis for this company and user
+    analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='SWOT'
+    ).first()
+
+    if request.method == 'POST':
+        # Get content from the four text areas
+        strengths = request.form.get('strengths', '')
+        weaknesses = request.form.get('weaknesses', '')
+        opportunities = request.form.get('opportunities', '')
+        threats = request.form.get('threats', '')
+
+        # Store the content in a dictionary (JSON)
+        content_data = {
+            'strengths': strengths,
+            'weaknesses': weaknesses,
+            'opportunities': opportunities,
+            'threats': threats
+        }
+
+        if analysis:
+            # If analysis already exists, update its content
+            analysis.content = content_data
+        else:
+            # If no analysis exists, create a new one
+            analysis = QualitativeAnalysis(
+                user_id=current_user.id,
+                company_id=company.id,
+                model_type='SWOT',
+                content=content_data
+            )
+            db.session.add(analysis)
+
+        try:
+            db.session.commit()
+            flash('SWOT analysis saved successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred while saving: {e}', 'error')
+
+        return redirect(url_for('companies.swot_analysis', company_id=company.id))
+
+    # For a GET request, prepare the existing data for the form
+    existing_content = analysis.content if analysis and analysis.content else {}
+
+    return render_template(
+        'swot_analysis.html',
+        title=f"SWOT Analysis for {company.name}",
+        company=company,
+        analysis_content=existing_content # Pass the content dictionary to the template
+    )
+    
+@companies_bp.route('/<int:company_id>/porters-five-forces', methods=['GET', 'POST'])
+@login_required
+def porters_five_forces_analysis(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    analysis_type = 'PortersFiveForces'
+    analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type=analysis_type
+    ).first()
+
+    if request.method == 'POST':
+        content_data = {
+            'threat_of_new_entrants': request.form.get('threat_of_new_entrants', ''),
+            'bargaining_power_of_buyers': request.form.get('bargaining_power_of_buyers', ''),
+            'bargaining_power_of_suppliers': request.form.get('bargaining_power_of_suppliers', ''),
+            'threat_of_substitutes': request.form.get('threat_of_substitutes', ''),
+            'industry_rivalry': request.form.get('industry_rivalry', '')
+        }
+
+        if analysis:
+            analysis.content = content_data
+        else:
+            analysis = QualitativeAnalysis(
+                user_id=current_user.id,
+                company_id=company.id,
+                model_type=analysis_type,
+                content=content_data
+            )
+            db.session.add(analysis)
+
+        try:
+            db.session.commit()
+            flash("Porter's Five Forces analysis saved successfully.", 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred while saving: {e}', 'error')
+
+        return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
+
+    existing_content = analysis.content if analysis and analysis.content else {}
+
+    return render_template(
+        'porters_five_forces.html',
+        title=f"Porter's Five Forces for {company.name}",
+        company=company,
+        analysis_content=existing_content
+    )
+ 
+
+@companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
+@login_required
+def fetch_financials(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to perform this action.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Call the background task, passing only the company ID
+    task = fetch_financial_data_task.delay(company.id)
+
+    # Redirect back to the new financials page with the task_id for polling
+    # We will create this page in the next step.
+    return redirect(url_for('companies.financials', 
+                            company_id=company.id, 
+                            task_id=task.id))
+ 
+@companies_bp.route('/<int:company_id>/financials')
+@login_required
+def financials(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this page.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # Fetch all financial data for this company, ordered by date
+    all_financial_data = company.financial_data.order_by(FinancialData.period_date.asc()).all()
+
+    # --- Prepare data for charts ---
+    # We need to pivot the data from our "long" database format to a "wide" format for charting.
+
+    chart_data = {
+        'revenue': {'labels': [], 'values': []},
+        'net_income': {'labels': [], 'values': []}
+    }
+
+    for data_point in all_financial_data:
+        year = data_point.period_date.strftime('%Y')
+        if data_point.metric_name == 'Total Revenue':
+            if year not in chart_data['revenue']['labels']: # Avoid duplicate years if data is quarterly
+                chart_data['revenue']['labels'].append(year)
+                chart_data['revenue']['values'].append(data_point.value)
+        elif data_point.metric_name == 'Net Income':
+            if year not in chart_data['net_income']['labels']:
+                chart_data['net_income']['labels'].append(year)
+                chart_data['net_income']['values'].append(data_point.value)
+
+    return render_template(
+        'financials.html',
+        title=f"Financials for {company.name}",
+        company=company,
+        chart_data=chart_data # Pass the prepared data to the template
+    )        

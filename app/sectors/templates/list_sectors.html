@@ -1,0 +1,43 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        <p class="lead">Your collection of deep-dive research notebooks for specific industries and sectors.</p>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Start Research on a New Sector</h5>
+            <form method="POST" action="{{ url_for('sectors.index') }}" class="row g-2">
+                <div class="col-auto flex-grow-1">
+                    <label for="sector_name" class="visually-hidden">Sector Name</label>
+                    <input type="text" class="form-control" id="sector_name" name="sector_name" placeholder="e.g., Shipping, Semiconductors, Banking..." required>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Create Notebook</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <h4>Your Notebooks</h4>
+    {% if sector_analyses %}
+        <div class="list-group">
+            {% for analysis in sector_analyses %}
+                <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ analysis.sector_name }}</h5>
+                        <small class="text-muted">Last updated: {{ analysis.updated_at.strftime('%Y-%m-%d') }}</small>
+                    </div>
+                    <p class="mb-1 text-muted">
+                        {{ analysis.notes|striptags|truncate(150) if analysis.notes else 'No notes yet.' }}
+                    </p>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>You haven't started any sector research. Create your first notebook above.</p>
+    {% endif %}
+
+{% endblock %}

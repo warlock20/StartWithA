@@ -1,7 +1,7 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument 
+from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
@@ -14,6 +14,9 @@ from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or A
 
 # If using Google Generative AI, ensure you have the google-generativeai package installed
 import google.generativeai as genai
+
+from celery.result import AsyncResult
+from celery_app import celery
 
 # Global variable for the LLM pipeline (loaded once)
 llm_pipeline = None
@@ -766,4 +769,69 @@ def export_session_to_txt(session_id):
         mimetype="text/markdown",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
-   
+
+
+@research_bp.route('/task_status/<task_id>')
+@login_required
+def task_status(task_id):
+    """
+    Checks the status of a Celery background task.
+    """
+    # Get the task object from the Celery result backend (Redis)
+    task = celery.AsyncResult(task_id)
+
+    response_data = {
+        'state': task.state
+    }
+
+    if task.state == 'PENDING':
+        # The task is waiting to be picked up by a worker.
+        response_data['status_message'] = 'Task is pending...'
+    elif task.state == 'SUCCESS':
+        # The task completed successfully.
+        # task.info will contain the return value of your task function.
+        response_data['result'] = task.info
+        response_data['status_message'] = 'Task completed successfully!'
+    elif task.state != 'FAILURE':
+        # For other states like 'PROGRESS', if you were to implement them.
+        response_data['status_message'] = 'Task is in progress...'
+    else:
+        # The task failed. task.info will contain the exception.
+        response_data['status_message'] = str(task.info) # The error message
+
+    return jsonify(response_data)
+
+@research_bp.route('/for_company/<int:company_id>/select_model')
+@login_required
+def select_model(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash("You are not authorized to access this company.", "error")
+        return redirect(url_for('companies.list_companies'))
+
+    # NEW: Check if there is at least one completed research session for this company
+    has_completed_research = ResearchSession.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        status='completed'
+    ).first() is not None
+
+    # Check if a SWOT analysis exists for this company
+    has_swot_analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='SWOT'
+    ).first() is not None
+    
+    has_porters_analysis = QualitativeAnalysis.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id,
+        model_type='PortersFiveForces'
+    ).first() is not None
+
+    return render_template('select_model.html',
+                           company=company,
+                           has_completed_research=has_completed_research, # Pass this flag to the template
+                           has_swot_analysis=has_swot_analysis, # Pass this flag to the template
+                           has_porters_analysis=has_porters_analysis, # Pass this flag to the template
+                           title=f"Select Analysis Model for {company.name}")

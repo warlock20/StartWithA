@@ -1,0 +1,94 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <p class="lead">Your personal library of reusable checklist questions. Tag questions by sector to quickly add them
+        to relevant checklists.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">Add New Question</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('question_bank.index') }}">
+                    <div class="mb-3">
+                        <label for="text" class="form-label">Question Text</label>
+                        <textarea name="text" id="text" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="llm_prompt" class="form-label">Optional LLM Prompt</label>
+                        <textarea name="llm_prompt" id="llm_prompt" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sector" class="form-label">Sector Tag (Optional)</label>
+                        <input type="text" name="sector" id="sector" class="form-control"
+                            placeholder="Leave blank for 'General' or select/type a sector"
+                            list="existing_sectors_datalist">
+                        <datalist id="existing_sectors_datalist">
+                            {% for s in existing_sectors %}
+                            <option value="{{ s }}">
+                                {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save to Bank</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# In app/question_bank/templates/question_bank.html #}
+
+    <div class="col-lg-8">
+        <h4>Your Saved Questions</h4>
+        {% if grouped_questions %}
+        <div class="accordion" id="questionBankAccordion">
+            {% for sector, questions_in_group in grouped_questions.items() %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ sector|urlencode }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-{{ sector|urlencode }}"
+                        aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
+                        aria-controls="collapse-{{ sector|urlencode }}">
+                        {{ sector }}
+                        <span class="badge bg-secondary rounded-pill ms-2">{{ questions_in_group|length }}</span>
+                    </button>
+                </h2>
+                <div id="collapse-{{ sector|urlencode }}"
+                    class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                    aria-labelledby="heading-{{ sector|urlencode }}" data-bs-parent="#questionBankAccordion">
+                    <div class="accordion-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for q in questions_in_group %}
+                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ q.text }}</div>
+                                    {% if q.llm_prompt %}<small class="text-primary">LLM Prompt: {{
+                                        q.llm_prompt|truncate(50) }}</small>{% endif %}
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="Edit">✏️</a>
+                                    <form method="POST"
+                                        action="{{ url_for('question_bank.delete_question', item_id=q.id) }}">
+                                        <button type="submit" class="btn-close" aria-label="Delete" 
+                                            onclick="return confirm('Are you sure?');"></button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Your question bank is empty.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

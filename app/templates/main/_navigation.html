@@ -1,55 +1,80 @@
- <!-- <nav>
-        <a href="{{ url_for('checklists.list_checklists') }}">All Checklists</a> |
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('checklists.new_checklist') }}">New Checklist</a> |
-        <a href="{{ url_for('companies.list_companies') }}">Companies</a> |
-        <a href="{{ url_for('research.list_research_sessions') }}">My Research</a> |
-        <a href="{{ url_for('auth.logout') }}">Logout ({{ current_user.username }})</a>
-        {% else %}
-        <a href="{{ url_for('auth.register') }}">Register</a> |
-        <a href="{{ url_for('auth.login') }}">Login</a>
-        {% endif %}
-    </nav> -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-        {# In _navigation.html #}
+        {# This link now correctly points to the dashboard for logged-in users and homepage for visitors #}
+        {% if current_user.is_authenticated %}
         <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">Research Platform</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        {% else %}
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">Research Platform</a>
+        {% endif %}
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+            aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
+
         <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            {# --- Links for LOGGED-IN USERS --- #}
+            {% if current_user.is_authenticated %}
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('checklists.list_checklists') }}">My Checklists</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('companies.list_companies') }}">My Companies</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('research.list_research_sessions') }}">My Research</a>
-                    </li>
-                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('companies.list_companies') }}">My Companies</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('research.list_research_sessions') }}">My Research</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarToolsDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        Analysis Tools
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarToolsDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('checklists.list_checklists') }}">My
+                                Checklists</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('dashboard.portfolio_timeline') }}">Upcoming
+                                Checkpoints</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('logs.mistake_log') }}">Mistake Log</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li> 
+                        <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">Question Bank</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.mental_models') }}">Learn About Models</a>
+                </li>
             </ul>
-            <ul class="navbar-nav">
+            {% endif %}
+
+            {# --- Links for ALL USERS (Login/Logout, Profile) --- #}
+            <ul class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ current_user.username }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                            <li><a class="dropdown-item" href="#">Profile</a></li> {# Placeholder #}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
-                        </ul>
-                    </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ current_user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
+                        <li><a class="dropdown-item" href="#">Profile</a></li> {# Placeholder for Profile Page #}
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                    </ul>
+                </li>
                 {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.mental_models') }}">Our Philosophy</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                </li>
                 {% endif %}
             </ul>
         </div>

@@ -1,0 +1,114 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>{{ title }}</h1>
+    <p class="lead">Applying the <strong>Destination Analysis</strong> mental model for <strong>{{ company.name }}</strong>.</p>
+    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Add New Checkpoint</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label for="metric" class="form-label">Metric</label>
+                    <input type="text" class="form-control" id="metric" name="metric" placeholder="e.g., Annual Revenue"
+                        required>
+                </div>
+                <div class="col-md-4">
+                    <label for="expectation" class="form-label">Expectation / Target</label>
+                    <input type="text" class="form-control" id="expectation" name="expectation"
+                        placeholder="e.g., > $500 Billion" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="target_date" class="form-label">Target Date</label>
+                    <input type="date" class="form-control" id="target_date" name="target_date" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<hr class="my-4">
+
+<h3>Checkpoints Timeline</h3>
+{% if checkpoints %}
+<ul class="timeline">
+    {% for cp in checkpoints %}
+    {% set status_class = 'bg-secondary' %} {# Default for 'Active' #}
+    {% set icon = '⏳' %}
+    {% if cp.status == 'Met' %}
+    {% set status_class = 'bg-success' %}
+    {% set icon = '✅' %}
+    {% elif cp.status == 'Not Met' %}
+    {% set status_class = 'bg-danger' %}
+    {% set icon = '❌' %}
+    {% endif %}
+
+    <li class="timeline-item">
+        <div class="timeline-icon {{ status_class }}">
+            {{ icon }}
+        </div>
+        <div class="timeline-content card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Target Date: {{ cp.target_date.strftime('%B %d, %Y') }}</strong>
+                <div>
+                    <a href="{{ url_for('companies.edit_checkpoint', checkpoint_id=cp.id) }}"
+                        class="btn btn-outline-secondary btn-sm">Edit</a>
+                    <form method="POST" action="{{ url_for('companies.delete_checkpoint', checkpoint_id=cp.id) }}"
+                        style="display: inline;" class="ms-1">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                            onclick="return confirm('Are you sure you want to delete this checkpoint?');">Delete</button>
+                    </form>
+                </div>
+                <span class="badge {{ status_class }}">{{ cp.status }}</span>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">{{ cp.metric }}</h5>
+                <p class="card-text"><strong>Expectation:</strong> {{ cp.expectation }}</p>
+
+                {% if cp.outcome_notes %}
+                <hr>
+                <p class="card-text"><strong>Outcome Notes:</strong></p>
+                <p class="card-text bg-light p-2 rounded"><small>{{ cp.outcome_notes }}</small></p>
+                {% endif %}
+
+                <hr>
+                <form method="POST" action="{{ url_for('companies.update_checkpoint', checkpoint_id=cp.id) }}">
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label for="outcome_notes_{{cp.id}}" class="form-label visually-hidden">Outcome
+                                Notes</label>
+                            <textarea name="outcome_notes" id="outcome_notes_{{cp.id}}"
+                                class="form-control form-control-sm" rows="1"
+                                placeholder="Add outcome notes...">{{ cp.outcome_notes if cp.outcome_notes }}</textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status_{{cp.id}}" class="form-label visually-hidden">Status</label>
+                            <select name="status" id="status_{{cp.id}}" class="form-select form-select-sm">
+                                <option value="Active" {% if cp.status=='Active' %}selected{% endif %}>Active</option>
+                                <option value="Met" {% if cp.status=='Met' %}selected{% endif %}>Met</toption>
+                                <option value="Not Met" {% if cp.status=='Not Met' %}selected{% endif %}>Not Met
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-secondary btn-sm w-100">Update</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No checkpoints have been set for this company yet.</p>
+{% endif %}
+
+{% endblock %}

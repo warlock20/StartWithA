@@ -1,0 +1,38 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <h1>{{ title }}</h1>
+        <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary">Back to Company Dashboard</a>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Revenue Trend</div>
+                <div class="card-body">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Net Income Trend</div>
+                <div class="card-body">
+                    <canvas id="netIncomeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+
+    <script>
+        const pageChartData = {{ chart_data|tojson }};
+    </script>
+
+    <script src="{{ url_for('static', filename='js/financials_charts.js') }}" defer></script>
+{% endblock %}

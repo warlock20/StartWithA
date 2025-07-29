@@ -1,0 +1,44 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>{{ title }}</h1>
+        {# This link could go back to the research list or the model selection page #}
+        <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary">Back to My Research</a>
+    </div>
+    <p class="lead">Analyze the competitive landscape and profitability potential of the company's industry.</p>
+
+    <form method="POST" action="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}">
+        <div class="list-group">
+            <div class="list-group-item">
+                <label for="threat_of_new_entrants" class="form-label h5">1. Threat of New Entrants</label>
+                <p class="text-muted small">How easy is it for new competitors to enter the market? (e.g., barriers to entry, economies of scale)</p>
+                <textarea class="form-control" name="threat_of_new_entrants" rows="4">{{ analysis_content.get('threat_of_new_entrants', '') }}</textarea>
+            </div>
+            <div class="list-group-item">
+                <label for="bargaining_power_of_buyers" class="form-label h5">2. Bargaining Power of Buyers</label>
+                <p class="text-muted small">How much power do customers have to drive down prices? (e.g., number of customers, sensitivity to price)</p>
+                <textarea class="form-control" name="bargaining_power_of_buyers" rows="4">{{ analysis_content.get('bargaining_power_of_buyers', '') }}</textarea>
+            </div>
+            <div class="list-group-item">
+                <label for="bargaining_power_of_suppliers" class="form-label h5">3. Bargaining Power of Suppliers</label>
+                <p class="text-muted small">How much power do suppliers have to increase input costs? (e.g., number of suppliers, uniqueness of service)</p>
+                <textarea class="form-control" name="bargaining_power_of_suppliers" rows="4">{{ analysis_content.get('bargaining_power_of_suppliers', '') }}</textarea>
+            </div>
+            <div class="list-group-item">
+                <label for="threat_of_substitutes" class="form-label h5">4. Threat of Substitute Products or Services</label>
+                <p class="text-muted small">How likely are customers to switch to a different type of product or service? (e.g., video calls as a substitute for air travel)</p>
+                <textarea class="form-control" name="threat_of_substitutes" rows="4">{{ analysis_content.get('threat_of_substitutes', '') }}</textarea>
+            </div>
+            <div class="list-group-item">
+                <label for="industry_rivalry" class="form-label h5">5. Intensity of Rivalry Among Existing Competitors</label>
+                <p class="text-muted small">How many competitors are there and how strong are they? (e.g., industry growth rate, product differentiation)</p>
+                <textarea class="form-control" name="industry_rivalry" rows="4">{{ analysis_content.get('industry_rivalry', '') }}</textarea>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Save Analysis</button>
+        </div>
+    </form>
+{% endblock %}
