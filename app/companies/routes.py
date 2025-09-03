@@ -277,7 +277,7 @@ def add_document(company_id):
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
 @login_required
-def manage_company_documents(company_id):
+def company_dashboard(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         abort(403)

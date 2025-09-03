@@ -15,10 +15,14 @@ favorite_companies = db.Table(
     db.Column("company_id", db.Integer, db.ForeignKey("company.id"), primary_key=True),
 )
 
-competitors_association = db.Table('competitors_association',
-    db.Column('company_id', db.Integer, db.ForeignKey('company.id'), primary_key=True),
-    db.Column('competitor_id', db.Integer, db.ForeignKey('company.id'), primary_key=True)
+competitors_association = db.Table(
+    "competitors_association",
+    db.Column("company_id", db.Integer, db.ForeignKey("company.id"), primary_key=True),
+    db.Column(
+        "competitor_id", db.Integer, db.ForeignKey("company.id"), primary_key=True
+    ),
 )
+
 
 # User loader function required by Flask-Login
 # This function is called to reload the user object from the user ID stored in the session
@@ -181,14 +185,21 @@ class Company(db.Model):
     financial_data = db.relationship(
         "FinancialData", backref="company", lazy="dynamic", cascade="all, delete-orphan"
     )
+    journal_entries = db.relationship(
+        "JournalEntry", backref="company", lazy="dynamic", cascade="all, delete-orphan"
+    )
+
     competitors = db.relationship(
-        'Company',  # The relationship is with the Company model itself
-        secondary=competitors_association, # Use our association table to link them
+        "Company",  # The relationship is with the Company model itself
+        secondary=competitors_association,  # Use our association table to link them
         primaryjoin=(competitors_association.c.company_id == id),
         secondaryjoin=(competitors_association.c.competitor_id == id),
-        backref=db.backref('competed_by', lazy='dynamic'), # Allows finding who competes WITH this company
-        lazy='dynamic'
+        backref=db.backref(
+            "competed_by", lazy="dynamic"
+        ),  # Allows finding who competes WITH this company
+        lazy="dynamic",
     )
+
     def __repr__(self):
         return f"<Company {self.ticker_symbol} - {self.name}>"
 
@@ -480,3 +491,20 @@ class SectorAnalysis(db.Model):
 
     def __repr__(self):
         return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
+
+
+class JournalEntry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=True)
+
+    # Optional: Tags for categorizing entries, like "Competitor Analysis", "Red Flag"
+    tags = db.Column(db.String(200), nullable=True)
+
+    entry_date = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<JournalEntry "{self.title}">'
