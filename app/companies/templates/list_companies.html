@@ -41,7 +41,7 @@
                                 <span class="visually-hidden">Toggle Dropdown</span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">Manage Documents</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">Company Dashboard</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}" class="dropdown-item p-0">
