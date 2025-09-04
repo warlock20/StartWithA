@@ -37,8 +37,6 @@ def create_app(config_class=Config):
     
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
-
-    from app import models 
     
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp)
@@ -51,5 +49,8 @@ def create_app(config_class=Config):
     
     from app.sectors import sectors_bp
     app.register_blueprint(sectors_bp)
+    
+    from app.journal import journal_bp
+    app.register_blueprint(journal_bp)
 
     return app

@@ -1,0 +1,62 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <h1>{{ title }}</h1>
+        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to My Companies</a>
+    </div>
+    <p class="lead">Log your findings, insights, and competitor analysis to build your investment thesis over time.</p>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <h4>Entries</h4>
+            {% if journal_entries %}
+                <div class="accordion" id="journalAccordion">
+                    {% for entry in journal_entries %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading-{{ entry.id }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ entry.id }}">
+                                    {{ entry.title }} <small class="text-muted ms-3">{{ entry.entry_date.strftime('%Y-%m-%d') }}</small>
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ entry.id }}" class="accordion-collapse collapse" data-bs-parent="#journalAccordion">
+                                <div class="accordion-body">
+                                    <div style="white-space: pre-wrap;">{{ entry.content }}</div>
+                                    {% if entry.tags %}<p class="mt-3"><small>Tags: <span class="badge bg-secondary">{{ entry.tags }}</span></small></p>{% endif %}
+                                    {# Edit/Delete buttons can be added here later #}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No journal entries yet. Add your first one!</p>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Add New Journal Entry</div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('journal.index', company_id=company.id) }}">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" name="title" id="title" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Content / Notes</label>
+                            <textarea name="content" id="content" class="form-control" rows="8"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags (Optional, comma-separated)</label>
+                            <input type="text" name="tags" id="tags" class="form-control" placeholder="e.g., Competitor Analysis, Red Flag">
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Save Entry</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

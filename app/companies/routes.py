@@ -2,18 +2,15 @@ import os
 import uuid
 import yfinance as yf
 from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta 
-from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory
+from datetime import datetime
+from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort
 from flask_login import current_user, login_required
 from app import db, cache
 from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
 from app.companies import companies_bp
 from app.tasks import fetch_financial_data_task
 
-from secedgar import filings, FilingType
-from pathlib import Path
-import shutil 
-import re
+from itertools import groupby
 
 from app.tasks import fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 
@@ -203,43 +200,50 @@ def delete_company(company_id):
 
     return redirect(url_for('companies.list_companies'))
 
-@companies_bp.route('/<int:company_id>/documents', methods=['GET', 'POST']) # /companies/<id>/documents
+
+# In app/companies/routes.py
+# Make sure datetime, uuid, secure_filename, os, etc. are imported at the top of the file
+
+@companies_bp.route('/<int:company_id>/add_document', methods=['POST'])
 @login_required
-def manage_company_documents(company_id):
+def add_document(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
-        flash("You are not authorized to manage documents for this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        abort(403)
 
-    if request.method == 'POST':
-        if 'document_file' not in request.files: # Copied from previous implementation
-            flash('No file part', 'error')
-            return redirect(request.url)
-        file = request.files['document_file']
-        if file.filename == '':
-            flash('No selected file', 'error')
-            return redirect(request.url)
+    # --- Basic File Checks ---
+    if 'document_file' not in request.files:
+        flash('No file part in request.', 'error')
+        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+    
+    file = request.files['document_file']
+    if file.filename == '':
+        flash('No file selected for upload.', 'error')
+        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
 
-        doc_group = request.form.get('document_group')
-        doc_title = request.form.get('document_title')
-        doc_date_str = request.form.get('document_date')
-        doc_description = request.form.get('description')
+    # --- Get all form data ---
+    doc_group = request.form.get('document_group')
+    doc_title = request.form.get('document_title')
+    doc_date_str = request.form.get('document_date')
+    doc_description = request.form.get('description')
 
-        if not doc_group or not doc_title:
-            flash('Document group and title are required.', 'error')
-        elif file:
-            original_fn = secure_filename(file.filename)
-            file_ext = os.path.splitext(original_fn)[1].lower() # Get extension like .pdf
-            allowed_extensions_str = {f".{ext}" for ext in current_app.config['ALLOWED_EXTENSIONS']}
+    # --- Full Validation and Processing Logic ---
+    if not doc_group or not doc_title:
+        flash('Document group and title are required.', 'error')
+    elif file:
+        original_fn = secure_filename(file.filename)
+        file_ext = os.path.splitext(original_fn)[1].lower()
+        # Ensure ALLOWED_EXTENSIONS is a set, e.g. {'pdf', 'txt'}
+        allowed_extensions = current_app.config['ALLOWED_EXTENSIONS']
 
-            if file_ext not in allowed_extensions_str:
-                flash(f'File type {file_ext} not allowed. Allowed types: {current_app.config["ALLOWED_EXTENSIONS"]}', 'error')
-            else:
+        if not original_fn.lower().endswith(tuple(f".{ext}" for ext in allowed_extensions)):
+            flash(f'File type not allowed. Allowed types are: {", ".join(allowed_extensions)}', 'error')
+        else:
+            try:
                 stored_fn = f"{uuid.uuid4().hex}{file_ext}"
                 company_specific_upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
                 os.makedirs(company_specific_upload_path, exist_ok=True)
-                file_save_path = os.path.join(company_specific_upload_path, stored_fn)
-                file.save(file_save_path)
+                file.save(os.path.join(company_specific_upload_path, stored_fn))
 
                 document_date_obj = None
                 if doc_date_str:
@@ -247,36 +251,56 @@ def manage_company_documents(company_id):
                         document_date_obj = datetime.strptime(doc_date_str, '%Y-%m-%d').date()
                     except ValueError:
                         flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
-
+                        # It might be better to return and not save if date is invalid
+                        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+                
                 new_doc = CompanyDocument(
-                    company_id=company.id, user_id=current_user.id,
+                    company_id=company.id, 
+                    user_id=current_user.id,
                     original_filename=original_fn,
                     stored_filename=os.path.join(str(company.id), stored_fn),
-                    document_group=doc_group, document_title=doc_title,
-                    document_date=document_date_obj, description=doc_description
+                    document_group=doc_group, 
+                    document_title=doc_title,
+                    document_date=document_date_obj, 
+                    description=doc_description
                 )
                 db.session.add(new_doc)
                 db.session.commit()
-                flash(f'Document "{original_fn}" uploaded successfully to group "{doc_group}".', 'success')
-            return redirect(url_for('companies.manage_company_documents', company_id=company.id))
+                flash(f'Document "{original_fn}" uploaded successfully.', 'success')
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f"An error occurred during upload: {e}", "error")
+                print(f"ERROR: Document upload failed: {e}")
     
-    documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc(), CompanyDocument.document_title).all()    
-    grouped_documents = {}
-    for doc in documents_query:
-        group = doc.document_group
-        if group not in grouped_documents: grouped_documents[group] = []
-        grouped_documents[group].append(doc)
-        
-    distinct_group_names_query = db.session.query(CompanyDocument.document_group)\
-                                        .filter(CompanyDocument.user_id == current_user.id)\
-                                        .distinct()\
-                                        .order_by(CompanyDocument.document_group)\
-                                        .all()
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+
+@companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
+@login_required
+def company_dashboard(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        abort(403)
+
+    # Data for Documents Tab
+    documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc()).all()
+    grouped_documents = {group: list(docs) for group, docs in groupby(documents_query, key=lambda doc: doc.document_group)}
+    distinct_group_names_query = db.session.query(CompanyDocument.document_group).filter(CompanyDocument.user_id == current_user.id).distinct().order_by(CompanyDocument.document_group).all()
     distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
-        
+
+    # Data for Competitors Tab
+    current_competitors = company.competitors.order_by(Company.name).all()
+    current_competitor_ids = {c.id for c in current_competitors}
+    potential_competitors = Company.query.filter(
+        Company.user_id == current_user.id,
+        Company.id != company_id,
+        ~Company.id.in_(current_competitor_ids)
+    ).order_by(Company.name).all()
+
+    # Data for Overview Tab (Intrinsic Value form)
     intrinsic_display_value = ''
-    intrinsic_unit = 1 # Default multiplier is 1 (for plain number)
-    if company.intrinsic_value: # 'company' is the object for the current page
+    intrinsic_unit = 1
+    if company.intrinsic_value:
         val = company.intrinsic_value
         if val >= 1_000_000_000_000:
             intrinsic_unit = 1_000_000_000_000
@@ -289,14 +313,18 @@ def manage_company_documents(company_id):
             intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
         else:
             intrinsic_display_value = str(val)
-                                         
-    return render_template('company_documents.html', 
-                           company=company, 
-                           grouped_documents=grouped_documents,
-                           distinct_group_names=distinct_group_names,
-                           intrinsic_display_value=intrinsic_display_value,
-                           intrinsic_unit=intrinsic_unit,
-                           title=f"Documents for {company.name}")
+
+    return render_template(
+        'company_documents.html', 
+        company=company, 
+        grouped_documents=grouped_documents,
+        distinct_group_names=distinct_group_names,
+        intrinsic_display_value=intrinsic_display_value,
+        intrinsic_unit=intrinsic_unit,
+        current_competitors=current_competitors,
+        potential_competitors=potential_competitors,
+        title=f"Dashboard for {company.name}"
+    )
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
 @login_required
@@ -416,131 +444,6 @@ def delete_document(doc_id):
 
     return redirect(url_for('companies.manage_company_documents', company_id=company_id))
 
-# ## In app/companies/routes.py
-# @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
-# @login_required
-# def fetch_sec_filings(company_id):
-#     company = Company.query.get_or_404(company_id)
-#     if company.user_id != current_user.id:
-#         flash("You are not authorized to perform this action.", "error")
-#         return redirect(url_for('companies.list_companies'))
-
-#     filing_type_str = request.form.get('filing_type', '10-K')
-#     filing_type_enum = FilingType.FILING_10K if filing_type_str == '10-K' else FilingType.FILING_10Q
-#     years_to_fetch = request.form.get('years', 5, type=int)
-    
-#     user_agent = f"{current_user.username} {current_user.email}"
-#     temp_download_path = Path(current_app.instance_path) / "sec_temp_downloads"
-    
-#     print(f"Fetching {years_to_fetch} year(s) of {filing_type_str} filings for {company.ticker_symbol}...")
-    
-#     try:
-#         start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
-        
-#         filing_docs = filings(cik_lookup=company.ticker_symbol,
-#                               filing_type=filing_type_enum,
-#                               start_date=start_date,
-#                               user_agent=user_agent)
-        
-#         filing_docs.save(temp_download_path)
-        
-#         company_filing_path = temp_download_path / company.ticker_symbol.upper() / filing_type_str
-#         saved_count = 0
-
-#         if company_filing_path.exists():
-#             # This loop finds each downloaded file.
-#             for submission_file_path in company_filing_path.glob('*.txt'):
-                
-#                 # ALL OF THE LOGIC BELOW THIS LINE MUST BE INDENTED INSIDE THIS FOR LOOP
-
-#                 if not submission_file_path.is_file():
-#                     continue
-
-#                 print(f"Processing downloaded file: {submission_file_path.name}")
-                
-#                 with open(submission_file_path, 'r', encoding='utf-8') as f:
-#                     full_filing_text = f.read()
-
-#                 # STEP 1: Parse the Filing Date
-#                 filing_date_str = "N/A"
-#                 for line in full_filing_text.splitlines()[:40]:
-#                     if "FILED AS OF DATE:" in line:
-#                         date_val = line.split(":")[-1].strip()
-#                         filing_date_str = f"{date_val[0:4]}-{date_val[4:6]}-{date_val[6:8]}"
-#                         break
-                
-#                 # STEP 2: Check for Duplicates
-#                 doc_title = f"{filing_type_str} Report ({filing_date_str})"
-#                 existing_doc = CompanyDocument.query.filter_by(company_id=company.id, document_title=doc_title).first()
-#                 if existing_doc:
-#                     print(f"Skipping already existing filing: {doc_title}")
-#                     continue
-
-#                 # STEP 3: Parse the Clean HTML Content
-#                 doc_start_pattern = re.compile(r'<DOCUMENT>')
-#                 doc_end_pattern = re.compile(r'</DOCUMENT>')
-#                 doc_type_pattern = re.compile(r'<TYPE>' + re.escape(filing_type_str))
-#                 docs = list(zip([m.end() for m in doc_start_pattern.finditer(full_filing_text)], [m.start() for m in doc_end_pattern.finditer(full_filing_text)]))
-                
-#                 html_content = ''
-#                 for doc_start, doc_end in docs:
-#                     doc_text = full_filing_text[doc_start:doc_end]
-#                     if doc_type_pattern.search(doc_text):
-#                         text_start = re.search(r'<TEXT>', doc_text)
-#                         text_end = re.search(r'</TEXT>', doc_text)
-#                         if text_start and text_end:
-#                             html_content = doc_text[text_start.end():text_end.start()]
-#                             html_tag_start = html_content.find('<HTML>')
-#                             if html_tag_start != -1:
-#                                 html_content = html_content[html_tag_start:]
-#                             break 
-                
-#                 if not html_content:
-#                     print(f"WARNING: Could not extract clean HTML from {submission_file_path.name}")
-#                     continue
-
-#                 # STEP 4: Save the Clean HTML and Create DB Record
-#                 original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
-#                 stored_fn_uuid = f"{uuid.uuid4().hex}.html"
-#                 company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
-#                 os.makedirs(company_permanent_path, exist_ok=True)
-#                 file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
-
-#                 with open(file_save_path, 'w', encoding='utf-8') as f_out:
-#                     f_out.write(html_content)
-
-#                 new_doc = CompanyDocument(
-#                     company_id=company.id, user_id=current_user.id,
-#                     original_filename=original_fn,
-#                     stored_filename=os.path.join(str(company.id), stored_fn_uuid),
-#                     document_group=f"SEC {filing_type_str} Filings",
-#                     document_title=doc_title,
-#                     document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
-#                 )
-#                 db.session.add(new_doc)
-#                 saved_count += 1
-                
-#                 # The 'for' loop continues with the next downloaded file...
-        
-#         # After the loop is finished, check if anything was saved
-#         if saved_count > 0:
-#             db.session.commit()
-#             flash(f'Successfully fetched and saved {saved_count} new {filing_type_str} filing(s).', 'success')
-#         else:
-#             flash(f'No new {filing_type_str} filings found for "{company.ticker_symbol}" in the selected date range. They may already be in your list.', 'info')
-    
-#     except Exception as e:
-#         db.session.rollback()
-#         flash(f"An error occurred while fetching SEC filings: {e}", "error")
-#         print(f"ERROR: SEC Edgar fetch failed: {e}")
-    
-#     finally:
-#         if temp_download_path.exists():
-#             shutil.rmtree(temp_download_path)
-#             print(f"Cleaned up temporary directory: {temp_download_path}")
-
-#     return redirect(url_for('companies.manage_company_documents', company_id=company.id))
-
 @companies_bp.route('/<int:company_id>/fetch_news', methods=['POST'])
 @login_required
 def fetch_news(company_id):
@@ -581,7 +484,7 @@ def fetch_sec_filings(company_id):
                             company_id=company.id, 
                             task_id=task.id))
     
-
+    
 @companies_bp.route('/<int:company_id>/add_checkpoint', methods=['POST'])
 @login_required
 def add_checkpoint(company_id):
@@ -665,8 +568,6 @@ def update_checkpoint(checkpoint_id):
 
     return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id)) 
 
-# In app/companies/routes.py
-
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/delete', methods=['POST'])
 @login_required
 def delete_checkpoint(checkpoint_id):
@@ -687,8 +588,6 @@ def delete_checkpoint(checkpoint_id):
         flash(f"Error deleting checkpoint: {e}", "error")
 
     return redirect(url_for('companies.destination_analysis', company_id=company_id))
-
-# In app/companies/routes.py
 
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -750,8 +649,6 @@ def toggle_portfolio(company_id):
         flash(f"An error occurred: {e}", "error")
 
     return redirect(request.referrer or url_for('companies.list_companies'))  
-
-# In app/companies/routes.py
 
 @companies_bp.route('/<int:company_id>/scuttlebutt')
 @login_required
@@ -905,7 +802,6 @@ def porters_five_forces_analysis(company_id):
         analysis_content=existing_content
     )
  
-
 @companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
 @login_required
 def fetch_financials(company_id):
@@ -958,4 +854,36 @@ def financials(company_id):
         title=f"Financials for {company.name}",
         company=company,
         chart_data=chart_data # Pass the prepared data to the template
-    )        
+    )
+
+@companies_bp.route('/<int:company_id>/add_competitor', methods=['POST'])
+@login_required
+def add_competitor(company_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        abort(403) # Use abort for unauthorized actions
+
+    competitor_id = request.form.get('competitor_id', type=int)
+    if competitor_id:
+        competitor = Company.query.get_or_404(competitor_id)
+        if competitor.user_id == current_user.id and competitor not in company.competitors:
+            company.competitors.append(competitor)
+            db.session.commit()
+            flash(f'"{competitor.name}" added as a competitor.', 'success')
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+
+@companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
+@login_required
+def remove_competitor(company_id, competitor_id):
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        abort(403)
+
+    competitor = Company.query.get_or_404(competitor_id)
+    if competitor in company.competitors:
+        company.competitors.remove(competitor)
+        db.session.commit()
+        flash(f'"{competitor.name}" removed from competitors.', 'info')
+
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))            

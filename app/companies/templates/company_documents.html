@@ -1,225 +1,293 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1>{{ title }}</h1>
+    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
+</div>
 
-    <div id="task-polling-status" style="display: none;"></div>
+<ul class="nav nav-tabs mt-4" id="companyDashboardTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane"
+            type="button" role="tab">Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-pane" type="button"
+            role="tab">Documents</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="competitors-tab" data-bs-toggle="tab" data-bs-target="#competitors-pane"
+            type="button" role="tab">Competitors</button>
+    </li>
+</ul>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-secondary">Back to Companies List</a>
-    </div>
-    {% if company.summary and company.summary != 'No summary available.' %}
-    <div class="card mb-4">
-        <div class="card-header">Business Summary</div>
-        <div class="card-body">
-            <p class="card-text" style="max-height: 150px; overflow-y: auto;">{{ company.summary }}</p>
-        </div>
-    </div>
-    {% endif %}
+<div class="tab-content" id="companyDashboardTabContent">
 
-    <div class="card mb-4">
-        <div class="card-header">
-            Valuation
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
-                <div class="row align-items-end">
-                    <div class="col-md-8">
-                        <label for="intrinsic_value" class="form-label">Your Calculated Intrinsic Value (as Market
-                            Cap)</label>
-                        {# Pre-fill the input with the saved value, formatted with commas for readability #}
-                        <input type="text" class="form-control" id="intrinsic_value" name="intrinsic_value"
-                            value="{{ '{:,}'.format(company.intrinsic_value) if company.intrinsic_value else '' }}"
-                            placeholder="e.g., 1500000000000 or 1,500,000,000,000">
-                    </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-primary w-100">Save Intrinsic Value</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% if '.' not in company.ticker_symbol %}
-    {# This company is likely US-listed, so show the fetch feature #}
-    <div class="card mb-4">
-        <div class="card-header">
-            Automated Document Fetching (US Companies)
-        </div>
-        <div class="card-body">
-            <p class="card-text text-muted">You can attempt to automatically download recent annual reports (10-K
-                filings)
-                from the SEC EDGAR database.</p>
-            <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
-                <div class="row align-items-end">
-                    <div class="col-md-4">
-                        <label for="filing_type" class="form-label">Filing Type:</label>
-                        <select id="filing_type" name="filing_type" class="form-select">
-                            <option value="10-K" selected>10-K (Annual)</option>
-                            <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
+    <div class="tab-pane fade show active p-3 border border-top-0 rounded-bottom" id="overview-pane" role="tabpanel">
+        {% if company.summary and company.summary != 'No summary available.' %}
+        <h5>Business Summary</h5>
+        <p class="card-text mb-4" style="max-height: 150px; overflow-y: auto;">{{ company.summary }}</p>
+        {% endif %}
+
+        <h5>Valuation</h5>
+        <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
+            <div class="row align-items-end">
+                <div class="col-md-8">
+                    <label for="value" class="form-label">Your Calculated Intrinsic Value (as Market Cap)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="text" class="form-control" id="value" name="value"
+                            value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
+                            placeholder="e.g., 1.5">
+                        <select class="form-select" name="unit_multiplier" style="max-width: 120px;">
+                            <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
+                            <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million</option>
+                            <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>Billion
+                            </option>
+                            <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>
+                                Trillion</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="years" class="form-label">No. of Recent Years:</label>
-                        <select id="years" name="years" class="form-select">
-                            <option value="3">3 Years</option>
-                            <option value="5" selected>5 Years</option>
-                            <option value="10">10 Years</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-info w-100">Fetch Filings</button>
-                    </div>
                 </div>
-            </form>
-        </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Save Intrinsic Value</button>
+                </div>
+            </div>
+        </form>
     </div>
-    {% else %}
-    {# This company is likely non-US, so show a warning instead #}
-    <div class="card mb-4">
-        <div class="card-header">
-            Automated Document Fetching
-        </div>
-        <div class="card-body">
-            <div class="alert alert-secondary" role="alert">
-                This feature is currently available for US-listed companies only. The ticker symbol <strong>{{
-                    company.ticker_symbol }}</strong> appears to be for a non-US exchange.
+
+    <div class="tab-pane fade p-3 border border-top-0 rounded-bottom" id="documents-pane" role="tabpanel">
+        {% if '.' not in company.ticker_symbol %}
+        {# This company is likely US-listed, so show the fetch feature #}
+        <div class="card mb-4">
+            <div class="card-header">
+                Automated Document Fetching (US Companies)
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted">You can attempt to automatically download recent annual reports (10-K
+                    filings)
+                    from the SEC EDGAR database.</p>
+                <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label for="filing_type" class="form-label">Filing Type:</label>
+                            <select id="filing_type" name="filing_type" class="form-select">
+                                <option value="10-K" selected>10-K (Annual)</option>
+                                <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="years" class="form-label">No. of Recent Years:</label>
+                            <select id="years" name="years" class="form-select">
+                                <option value="3">3 Years</option>
+                                <option value="5" selected>5 Years</option>
+                                <option value="10">10 Years</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-info w-100">Fetch Filings</button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
-    {% endif %}
-
-    <div class="card mb-4">
-        <div class="card-header">
-            Quantitative Analysis
-        </div>
-        <div class="card-body">
-            <p class="card-text text-muted">Fetch and store historical financial data (Revenue, Net Income, etc.) to
-                analyze trends.</p>
-            <form method="POST" action="{{ url_for('companies.fetch_financials', company_id=company.id) }}"
-                class="d-inline">
-                <button type="submit" class="btn btn-primary">Fetch Financial History</button>
-            </form>
-            <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-secondary">View
-                Financials</a>
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-lg-4 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    Upload New Document
-                </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data"
-                        action="{{ url_for('companies.manage_company_documents', company_id=company.id) }}">
-                        <div class="mb-3">
-                            <label for="document_file" class="form-label">Select File (PDF, TXT):</label>
-                            <input type="file" class="form-control" id="document_file" name="document_file" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_group" class="form-label">Document Group:</label>
-                            <input type="text" class="form-control" id="document_group" name="document_group"
-                                list="existing_document_groups" placeholder="e.g., Annual Reports" required>
-                            <datalist id="existing_document_groups">
-                                {% for group_name in distinct_group_names %}
-                                <option value="{{ group_name }}">
-                                    {% endfor %}
-                            </datalist>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_title" class="form-label">Document Title:</label>
-                            <input type="text" class="form-control" id="document_title" name="document_title"
-                                placeholder="e.g., 2023 Annual Report" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="document_date" class="form-label">Document Date (Optional):</label>
-                            <input type="date" class="form-control" id="document_date" name="document_date">
-                        </div>
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description (Optional):</label>
-                            <textarea id="description" name="description" class="form-control" rows="3"></textarea>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Upload Document</button>
-                        </div>
-                    </form>
+        {% else %}
+        {# This company is likely non-US, so show a warning instead #}
+        <div class="card mb-4">
+            <div class="card-header">
+                Automated Document Fetching
+            </div>
+            <div class="card-body">
+                <div class="alert alert-secondary" role="alert">
+                    This feature is currently available for US-listed companies only. The ticker symbol <strong>{{
+                        company.ticker_symbol }}</strong> appears to be for a non-US exchange.
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    Existing Documents
-                </div>
-                <div class="card-body">
-                    {% if grouped_documents %}
-                    <div class="accordion" id="documentsAccordion">
-                        {% for group_name, docs_in_group in grouped_documents.items() %}
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="heading-{{ loop.index }}">
-                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
-                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}"
-                                    aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
-                                    aria-controls="collapse-{{ loop.index }}">
-                                    {{ group_name }}&nbsp;<span class="badge bg-secondary rounded-pill">{{
-                                        docs_in_group|length }}</span>
-                                </button>
-                            </h2>
-                            <div id="collapse-{{ loop.index }}"
-                                class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
-                                aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
-                                <div class="accordion-body">
-                                    <ul class="list-group list-group-flush">
-                                        {% for doc in docs_in_group %}
-                                        <li class="list-group-item">
-                                            <div class="d-flex w-100 justify-content-between align-items-center">
-
-                                                {# Document Title and Details #}
-                                                <div>
-                                                    <h6 class="mb-1">{{ doc.document_title }}</h6>
-                                                    <small class="text-muted">{{ doc.original_filename }}{% if
-                                                        doc.document_date %} | {{ doc.document_date.strftime('%Y-%m-%d')
-                                                        }}{% endif %}</small>
-                                                </div>
-
-                                                {# Action Buttons #}
-                                                <div class="text-nowrap">
-                                                    <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
-                                                        target="_blank" class="btn btn-outline-primary btn-sm">View</a>
-
-                                                    <form method="POST"
-                                                        action="{{ url_for('companies.delete_document', doc_id=doc.id) }}"
-                                                        style="display: inline;">
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                                            onclick="return confirm('Are you sure you want to permanently delete this document?');"
-                                                            title="Delete Document">Delete</button>
-                                                    </form>
-                                                </div>
-
-                                            </div>
-                                            {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description
-                                                    }}</small></p>{% endif %}
-                                        </li>
+        <div class="card mb-4">
+            <div class="card-header">
+                Quantitative Analysis
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted">Fetch and store historical financial data (Revenue, Net Income, etc.) to
+                    analyze trends.</p>
+                <form method="POST" action="{{ url_for('companies.fetch_financials', company_id=company.id) }}"
+                    class="d-inline">
+                    <button type="submit" class="btn btn-primary">Fetch Financial History</button>
+                </form>
+                <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-secondary">View
+                    Financials</a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        Upload New Document
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data"
+                            action="{{ url_for('companies.add_document', company_id=company.id) }}">
+                            <div class="mb-3">
+                                <label for="document_file" class="form-label">Select File (PDF, TXT):</label>
+                                <input type="file" class="form-control" id="document_file" name="document_file"
+                                    required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="document_group" class="form-label">Document Group:</label>
+                                <input type="text" class="form-control" id="document_group" name="document_group"
+                                    list="existing_document_groups" placeholder="e.g., Annual Reports" required>
+                                <datalist id="existing_document_groups">
+                                    {% for group_name in distinct_group_names %}
+                                    <option value="{{ group_name }}">
                                         {% endfor %}
-                                    </ul>
+                                </datalist>
+                            </div>
+                            <div class="mb-3">
+                                <label for="document_title" class="form-label">Document Title:</label>
+                                <input type="text" class="form-control" id="document_title" name="document_title"
+                                    placeholder="e.g., 2023 Annual Report" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="document_date" class="form-label">Document Date (Optional):</label>
+                                <input type="date" class="form-control" id="document_date" name="document_date">
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description (Optional):</label>
+                                <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Upload Document</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        Existing Documents
+                    </div>
+                    <div class="card-body">
+                        {% if grouped_documents %}
+                        <div class="accordion" id="documentsAccordion">
+                            {% for group_name, docs_in_group in grouped_documents.items() %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                                        type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapse-{{ loop.index }}"
+                                        aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
+                                        aria-controls="collapse-{{ loop.index }}">
+                                        {{ group_name }}&nbsp;<span class="badge bg-secondary rounded-pill">{{
+                                            docs_in_group|length }}</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ loop.index }}"
+                                    class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                                    aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
+                                    <div class="accordion-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for doc in docs_in_group %}
+                                            <li class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+
+                                                    {# Document Title and Details #}
+                                                    <div>
+                                                        <h6 class="mb-1">{{ doc.document_title }}</h6>
+                                                        <small class="text-muted">{{ doc.original_filename }}{% if
+                                                            doc.document_date %} | {{
+                                                            doc.document_date.strftime('%Y-%m-%d')
+                                                            }}{% endif %}</small>
+                                                    </div>
+
+                                                    {# Action Buttons #}
+                                                    <div class="text-nowrap">
+                                                        <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
+                                                            target="_blank"
+                                                            class="btn btn-outline-primary btn-sm">View</a>
+
+                                                        <form method="POST"
+                                                            action="{{ url_for('companies.delete_document', doc_id=doc.id) }}"
+                                                            style="display: inline;">
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                                onclick="return confirm('Are you sure you want to permanently delete this document?');"
+                                                                title="Delete Document">Delete</button>
+                                                        </form>
+                                                    </div>
+
+                                                </div>
+                                                {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description
+                                                        }}</small></p>{% endif %}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
+                        {% else %}
+                        <p>No documents uploaded for this company yet.</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p>No documents uploaded for this company yet.</p>
-                    {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade p-3 border border-top-0 rounded-bottom" id="competitors-pane" role="tabpanel">
+        <div class="card mb-4">
+            <div class="card-header">
+                Competitor Analysis
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">Add a Competitor</h5>
+                <p class="card-text text-muted">Link this company to its competitors from your existing company
+                    list.</p>
+
+                <form method="POST" action="{{ url_for('companies.add_competitor', company_id=company.id) }}">
+                    <div class="input-group">
+                        <select name="competitor_id" class="form-select" required>
+                            <option value="" disabled selected>-- Select a company to add as a competitor --
+                            </option>
+                            {% for p_comp in potential_competitors %}
+                            <option value="{{ p_comp.id }}">{{ p_comp.name }} ({{ p_comp.ticker_symbol }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+
+                <hr>
+
+                <h5 class="card-title mt-4">Current Competitors</h5>
+                {% if current_competitors %}
+                <ul class="list-group">
+                    {% for comp in current_competitors %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('companies.manage_company_documents', company_id=comp.id) }}">{{
+                            comp.name
+                            }}</a>
+                        <form method="POST"
+                            action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No competitors have been linked yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
-{{ super() }} {# Includes Bootstrap's JS #}
-{# LINK YOUR NEW POLLING SCRIPT #}
-<script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 {% endblock %}
