@@ -1,0 +1,198 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>💀 Idea Graveyard</h1>
+    <p class="text-muted">Learn from killed ideas - patterns reveal your investing blind spots</p>
+</div>
+
+<!-- Statistics about killed ideas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ killed_ideas|length }}</h3>
+                <small class="text-muted">Total Ideas Killed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ kill_reasons|length }}</h3>
+                <small class="text-muted">Different Kill Reasons</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                {% set most_common = kill_reasons|dictsort(false, 'value')|first %}
+                <h3>{{ most_common[1]|length if most_common else 0 }}</h3>
+                <small class="text-muted">Most Common Reason</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                {% set recent_count = killed_ideas|selectattr('killed_at', 'gt', 
+                    (current_time - timedelta(days=30)))|list|length %}
+                <h3>{{ recent_count }}</h3>
+                <small class="text-muted">Killed Last 30 Days</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis by kill reason -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Kill Reasons Analysis</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Kill Reason</th>
+                        <th>Count</th>
+                        <th>Ideas</th>
+                        <th>Learning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reason, ideas in kill_reasons.items()|sort(attribute='1', reverse=true) %}
+                    <tr>
+                        <td><strong>{{ reason }}</strong></td>
+                        <td>
+                            <span class="badge bg-danger">{{ ideas|length }}</span>
+                        </td>
+                        <td>
+                            {% for idea in ideas[:3] %}
+                                <small>{{ idea.name }}{% if not loop.last %}, {% endif %}</small>
+                            {% endfor %}
+                            {% if ideas|length > 3 %}
+                                <small class="text-muted">and {{ ideas|length - 3 }} more...</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary" 
+                                    onclick="addToMistakeLog('{{ reason }}')">
+                                Add to Mistake Log
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Complete list of killed ideas -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">All Killed Ideas</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Idea</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Killed</th>
+                        <th>Reason</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for idea in killed_ideas %}
+                    <tr>
+                        <td>
+                            <strong>{{ idea.name }}</strong>
+                            {% if idea.ticker_symbol %}
+                                <span class="badge bg-secondary">{{ idea.ticker_symbol }}</span>
+                            {% endif %}
+                            {% if idea.thesis_summary %}
+                                <br><small class="text-muted">{{ idea.thesis_summary|truncate(80) }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ idea.idea_type|capitalize }}</span>
+                        </td>
+                        <td>
+                            <small>{{ idea.source or '-' }}</small>
+                        </td>
+                        <td>
+                            <small>{{ idea.killed_at.strftime('%Y-%m-%d') if idea.killed_at else '-' }}</small>
+                        </td>
+                        <td>
+                            <small class="text-danger">{{ idea.kill_reason|truncate(100) }}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="resurrectIdea({{ idea.id }})">
+                                Resurrect
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="viewDetails({{ idea.id }})">
+                                Details
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Learning panel -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0">💡 Learning from the Graveyard</h6>
+    </div>
+    <div class="card-body">
+        <p>Review your killed ideas periodically to:</p>
+        <ul class="mb-0">
+            <li>Identify patterns in what you reject (potential blind spots)</li>
+            <li>Refine your kill criteria based on what actually kills ideas</li>
+            <li>Occasionally resurrect ideas if market conditions change</li>
+            <li>Track which sources generate too many bad ideas</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    function addToMistakeLog(reason) {
+        // This would redirect to the mistake log with pre-filled lesson
+        window.location.href = "{{ url_for('logs.mistake_log') }}?lesson=" + encodeURIComponent(reason);
+    }
+    
+    function resurrectIdea(ideaId) {
+        if (confirm('Resurrect this idea and move it back to inbox?')) {
+            // POST to resurrect endpoint
+            fetch(`/ideas/${ideaId}/resurrect`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        }
+    }
+    
+    function viewDetails(ideaId) {
+        window.location.href = `/ideas/${ideaId}/details`;
+    }
+</script>
+{% endblock %}

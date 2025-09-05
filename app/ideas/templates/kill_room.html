@@ -1,0 +1,195 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main kill interface -->
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0">🎯 Kill Room: {{ idea.name }}</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Progress bar -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Progress: {{ (existing_answers|length) }} / {{ total_criteria }} criteria</span>
+                            <span>{{ "%.0f"|format(progress_percent) }}%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {{ progress_percent }}%">
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if current_criterion %}
+                        <!-- Current question -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h4 class="mb-0">Question {{ current_index + 1 }} of {{ total_criteria }}</h4>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="mb-3">{{ current_criterion.question }}</h5>
+                                
+                                {% if current_criterion.help_text %}
+                                    <div class="alert alert-info">
+                                        <small>{{ current_criterion.help_text }}</small>
+                                    </div>
+                                {% endif %}
+
+                                {% if current_criterion.failure_reason %}
+                                    <div class="alert alert-warning">
+                                        <strong>Why this matters:</strong> {{ current_criterion.failure_reason }}
+                                    </div>
+                                {% endif %}
+
+                                <!-- Answer form -->
+                                <form method="POST" action="{{ url_for('ideas.kill_room', idea_id=idea.id) }}">
+                                    <div class="mb-3">
+                                        <label class="form-label">Your Assessment:</label>
+                                        <div class="btn-group d-block" role="group">
+                                            <input type="radio" class="btn-check" name="passed" 
+                                                   id="pass" value="true" required>
+                                            <label class="btn btn-outline-success" for="pass" style="width: 50%">
+                                                ✅ Yes / Pass
+                                            </label>
+
+                                            <input type="radio" class="btn-check" name="passed" 
+                                                   id="fail" value="false" required>
+                                            <label class="btn btn-outline-danger" for="fail" style="width: 50%">
+                                                ❌ No / Fail (Kill the idea)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="notes" class="form-label">
+                                            Quick Notes <small class="text-muted">(optional)</small>
+                                        </label>
+                                        <textarea class="form-control" id="notes" name="notes" rows="2"
+                                                  placeholder="Brief reasoning for your decision..."></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        Submit & Continue
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Completed all criteria - survived! -->
+                        <div class="alert alert-success">
+                            <h4>🎉 This idea survived the kill checklist!</h4>
+                            <p>It passed all {{ total_criteria }} criteria and is ready for deep research.</p>
+                            <a href="{{ url_for('ideas.promote_to_company', idea_id=idea.id) }}" 
+                               class="btn btn-success">Promote to Company Research</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with idea details and previous answers -->
+        <div class="col-lg-4">
+            <!-- Idea details -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Idea Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Type:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-primary">{{ idea.idea_type|capitalize }}</span>
+                        </dd>
+                        
+                        {% if idea.ticker_symbol %}
+                        <dt class="col-sm-4">Ticker:</dt>
+                        <dd class="col-sm-8">{{ idea.ticker_symbol }}</dd>
+                        {% endif %}
+                        
+                        {% if idea.source %}
+                        <dt class="col-sm-4">Source:</dt>
+                        <dd class="col-sm-8">{{ idea.source }}</dd>
+                        {% endif %}
+                        
+                        {% if idea.thesis_summary %}
+                        <dt class="col-sm-4">Thesis:</dt>
+                        <dd class="col-sm-8">{{ idea.thesis_summary }}</dd>
+                        {% endif %}
+                        
+                        <dt class="col-sm-4">Added:</dt>
+                        <dd class="col-sm-8">{{ idea.created_at.strftime('%Y-%m-%d') }}</dd>
+                    </dl>
+                    
+                    {% if idea.initial_notes %}
+                    <hr>
+                    <h6>Initial Notes:</h6>
+                    <p class="small">{{ idea.initial_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Previous answers in this session -->
+            {% if existing_answers %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Previous Answers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for criterion_id, answer in existing_answers.items() %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <small class="text-muted">{{ answer.criterion.question }}</small>
+                                </div>
+                                <div class="ms-2">
+                                    {% if answer.passed %}
+                                        <span class="badge bg-success">✅</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">❌</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if answer.notes %}
+                                <small class="text-muted">{{ answer.notes }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Timer/discipline reminder -->
+<div class="position-fixed bottom-0 end-0 p-3">
+    <div class="toast show" role="alert">
+        <div class="toast-header">
+            <strong class="me-auto">⏱️ Time Check</strong>
+        </div>
+        <div class="toast-body">
+            Remember: Kill decisions should be quick. Trust your first instinct.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Track time spent on this decision
+    const startTime = Date.now();
+    
+    // Warn if taking too long
+    setTimeout(() => {
+        if (!document.querySelector('form').submitted) {
+            alert('You\'ve been thinking for 5 minutes. Remember: kill decisions should be quick. If you\'re unsure, that\'s often a signal to kill the idea.');
+        }
+    }, 5 * 60 * 1000);
+</script>
+{% endblock %}

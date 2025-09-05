@@ -67,7 +67,13 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     sector_analyses = db.relationship(
         "SectorAnalysis", backref="author", lazy="dynamic", cascade="all, delete-orphan"
     )
-
+    idea_pipeline = db.relationship('IdeaPipeline', backref='author', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    kill_checklists = db.relationship('KillChecklist', backref='author', 
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    kill_sessions = db.relationship('KillSession', backref='user', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -508,3 +514,103 @@ class JournalEntry(db.Model):
 
     def __repr__(self):
         return f'<JournalEntry "{self.title}">'
+
+class IdeaPipeline(db.Model):
+    __tablename__ = 'idea_pipeline'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    idea_type = db.Column(db.String(50), nullable=False, default='company')
+    ticker_symbol = db.Column(db.String(20))
+    source = db.Column(db.String(200))
+    thesis_summary = db.Column(db.Text)
+    initial_notes = db.Column(db.Text)
+    status = db.Column(db.String(50), default='inbox', index=True)
+    kill_reason = db.Column(db.Text)
+    failed_criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    killed_at = db.Column(db.DateTime)
+    promoted_at = db.Column(db.DateTime)
+    last_reviewed_at = db.Column(db.DateTime)
+    priority = db.Column(db.Integer, default=0)
+    promoted_to_company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    kill_sessions = db.relationship('KillSession', backref='idea', lazy='dynamic', cascade='all, delete-orphan')
+    promoted_to_company = db.relationship('Company', foreign_keys=[promoted_to_company_id])
+
+    def __repr__(self):
+        return f'<IdeaPipeline {self.name} - {self.status}>'
+
+class KillChecklist(db.Model):
+    __tablename__ = 'kill_checklist'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_default = db.Column(db.Boolean, default=False)
+    applicable_to = db.Column(db.String(100), default='all')
+    criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
+    kill_sessions = db.relationship('KillSession', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
+    total_ideas_evaluated = db.Column(db.Integer, default=0)
+    total_ideas_killed = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def kill_rate(self):
+        if self.total_ideas_evaluated == 0: return 0
+        return round((self.total_ideas_killed / self.total_ideas_evaluated) * 100, 1)
+
+    @property
+    def criteria_count(self):
+        return self.criteria.count()
+
+    def __repr__(self):
+        return f'<KillChecklist {self.name}>'
+
+class KillCriterion(db.Model):
+    __tablename__ = 'kill_criterion'
+    id = db.Column(db.Integer, primary_key=True)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    question = db.Column(db.String(500), nullable=False)
+    failure_reason = db.Column(db.Text)
+    help_text = db.Column(db.Text)
+    order = db.Column(db.Integer, default=0)
+    times_evaluated = db.Column(db.Integer, default=0)
+    times_failed = db.Column(db.Integer, default=0)
+    killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
+
+    @property
+    def failure_rate(self):
+        if self.times_evaluated == 0: return 0
+        return round((self.times_failed / self.times_evaluated) * 100, 1)
+
+    def __repr__(self):
+        return f'<KillCriterion {self.question[:50]}>'
+
+class KillSession(db.Model):
+    __tablename__ = 'kill_session'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
+    answers = db.relationship('KillAnswer', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+    time_taken_seconds = db.Column(db.Integer)
+
+    def __repr__(self):
+        return f'<KillSession for Idea {self.idea_id}>'
+
+class KillAnswer(db.Model):
+    __tablename__ = 'kill_answer'
+    id = db.Column(db.Integer, primary_key=True)
+    kill_session_id = db.Column(db.Integer, db.ForeignKey('kill_session.id'), nullable=False)
+    criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False)
+    passed = db.Column(db.Boolean)
+    notes = db.Column(db.Text)
+    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    criterion = db.relationship('KillCriterion')
+
+    def __repr__(self):
+        return f'<KillAnswer {self.passed}>'

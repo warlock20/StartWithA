@@ -52,5 +52,8 @@ def create_app(config_class=Config):
     
     from app.journal import journal_bp
     app.register_blueprint(journal_bp)
+    
+    from app.ideas import ideas_bp
+    app.register_blueprint(ideas_bp)
 
     return app

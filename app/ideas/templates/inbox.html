@@ -1,0 +1,133 @@
+<!-- app/ideas/templates/inbox.html -->
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>💡 Idea Inbox</h1>
+            <p class="text-muted">Quick capture, quick kill. Don't let ideas linger.</p>
+        </div>
+        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Quick Capture
+        </a>
+    </div>
+
+    <!-- Quick Stats Bar to motivate action -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">{{ ideas|length }}</h3>
+                    <small class="text-muted">Ideas Waiting</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">
+                        {% if ideas|length > 0 %}
+                            {{ ((ideas|length) * 5) }} min
+                        {% else %}
+                            0 min
+                        {% endif %}
+                    </h3>
+                    <small class="text-muted">Est. Time to Clear (5 min/idea)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    {% if ideas|length > 0 %}
+                        {% set oldest = ideas[-1] %}
+                        <h3 class="mb-0">{{ (now - oldest.created_at).days }}</h3>
+                        <small class="text-muted">Days Since Oldest</small>
+                    {% else %}
+                        <h3 class="mb-0">✨</h3>
+                        <small class="text-muted">Inbox Clear!</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The actual inbox -->
+    {% if ideas %}
+        <div class="row">
+            {% for idea in ideas %}
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100 shadow-sm hover-shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="card-title mb-1">
+                                    {{ idea.name }}
+                                    {% if idea.ticker_symbol %}
+                                        <span class="badge bg-secondary">{{ idea.ticker_symbol }}</span>
+                                    {% endif %}
+                                </h5>
+                                <span class="badge bg-light text-dark">{{ idea.idea_type|capitalize }}</span>
+                            </div>
+                            <small class="text-muted">{{ idea.created_at.strftime('%b %d') }}</small>
+                        </div>
+
+                        {% if idea.thesis_summary %}
+                            <p class="card-text">
+                                <strong>Thesis:</strong> {{ idea.thesis_summary|truncate(150) }}
+                            </p>
+                        {% endif %}
+
+                        {% if idea.source %}
+                            <p class="text-muted mb-2">
+                                <small><i class="bi bi-lightbulb"></i> Source: {{ idea.source }}</small>
+                            </p>
+                        {% endif %}
+
+                        <div class="d-flex gap-2 mt-3">
+                            {% if default_kill_checklist %}
+                                <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" 
+                                   class="btn btn-danger flex-grow-1">
+                                    🎯 Enter Kill Room
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('ideas.create_kill_checklist') }}" 
+                                   class="btn btn-warning flex-grow-1">
+                                    Create Kill Checklist First
+                                </a>
+                            {% endif %}
+                            <button class="btn btn-outline-secondary" 
+                                    onclick="editIdea({{ idea.id }})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty state - encourage capturing ideas -->
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h3 class="mt-3">Your inbox is clear!</h3>
+            <p class="text-muted">
+                Capture ideas as they come. Read something interesting? Heard a tip? 
+                Notice a trend? Don't let good ideas slip away.
+            </p>
+            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg mt-3">
+                <i class="bi bi-plus-circle"></i> Capture Your First Idea
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}

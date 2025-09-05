@@ -1,0 +1,120 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h2>Create Kill Checklist</h2>
+                <p class="text-muted mb-0">Design criteria to eliminate bad ideas quickly - any "No" kills the idea</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ideas.create_kill_checklist') }}" id="killChecklistForm">
+                    <!-- Basic info -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="name" class="form-label">Checklist Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   placeholder="e.g., Quick Value Filter, Tech Stock Killer" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="is_default" 
+                                       name="is_default" value="true">
+                                <label class="form-check-label" for="is_default">
+                                    Set as default checklist
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"
+                                  placeholder="When to use this checklist..."></textarea>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Kill criteria -->
+                    <h5>Kill Criteria</h5>
+                    <p class="text-muted">Add yes/no questions. If ANY answer is "No", the idea dies.</p>
+                    
+                    <div id="criteria-container">
+                        <!-- Criteria will be added here dynamically -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="add-criterion-btn">
+                        + Add Criterion
+                    </button>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Submit buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Create Kill Checklist</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Examples panel -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6>📝 Writing Effective Kill Criteria</h6>
+                <ul class="small mb-0">
+                    <li>Make questions binary (clear yes/no answer)</li>
+                    <li>Focus on dealbreakers, not nice-to-haves</li>
+                    <li>Be specific with thresholds (e.g., "P/E < 30" not "reasonable valuation")</li>
+                    <li>Order by importance - put the easiest/quickest to answer first</li>
+                    <li>Include a mix of quantitative and qualitative criteria</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let criterionCount = 0;
+
+function addCriterion() {
+    criterionCount++;
+    const container = document.getElementById('criteria-container');
+    
+    const criterionDiv = document.createElement('div');
+    criterionDiv.className = 'card mb-3 criterion-item';
+    criterionDiv.innerHTML = `
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+                <label class="form-label fw-bold">Criterion ${criterionCount}</label>
+                <button type="button" class="btn-close" onclick="this.closest('.criterion-item').remove()"></button>
+            </div>
+            <div class="mb-2">
+                <input type="text" class="form-control" name="criterion_question[]" 
+                       placeholder="Yes/no question (e.g., 'Can I understand this business?')" required>
+            </div>
+            <div>
+                <textarea class="form-control" name="criterion_reason[]" rows="2"
+                          placeholder="Why this matters (shown when criterion fails)"></textarea>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(criterionDiv);
+}
+
+// Add some default criteria on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Add 5 blank criteria to start
+    for (let i = 0; i < 5; i++) {
+        addCriterion();
+    }
+    
+    document.getElementById('add-criterion-btn').addEventListener('click', addCriterion);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📋 Kill Checklists</h1>
+        <p class="text-muted mb-0">Design your criteria for eliminating bad ideas quickly</p>
+    </div>
+    <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Create New Checklist
+    </a>
+</div>
+
+{% if checklists %}
+    <div class="row">
+        {% for checklist in checklists %}
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100 {% if checklist.is_default %}border-primary{% endif %}">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            {{ checklist.name }}
+                            {% if checklist.is_default %}
+                                <span class="badge bg-primary ms-2">Default</span>
+                            {% endif %}
+                        </h5>
+                        <span class="badge bg-secondary">{{ checklist.criteria_count }} criteria</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if checklist.description %}
+                        <p class="card-text">{{ checklist.description }}</p>
+                    {% endif %}
+                    
+                    <!-- Statistics -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h4>{{ checklist.total_ideas_evaluated }}</h4>
+                            <small class="text-muted">Evaluated</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ checklist.total_ideas_killed }}</h4>
+                            <small class="text-muted">Killed</small>
+                        </div>
+                        <div class="col-4">
+                            <h4>{{ checklist.kill_rate }}%</h4>
+                            <small class="text-muted">Kill Rate</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Sample criteria -->
+                    <h6>Criteria Preview:</h6>
+                    <ol class="small">
+                        {% for criterion in checklist.criteria.limit(3).all() %}
+                            <li>{{ criterion.question }}</li>
+                        {% endfor %}
+                        {% if checklist.criteria_count > 3 %}
+                            <li class="text-muted">...and {{ checklist.criteria_count - 3 }} more</li>
+                        {% endif %}
+                    </ol>
+                    
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}" 
+                           class="btn btn-outline-primary btn-sm">Edit</a>
+                        {% if not checklist.is_default %}
+                            <form method="POST" action="{{ url_for('ideas.set_default_checklist', checklist_id=checklist.id) }}" 
+                                  style="display: inline;">
+                                <button type="submit" class="btn btn-outline-success btn-sm">Set as Default</button>
+                            </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('ideas.delete_kill_checklist', checklist_id=checklist.id) }}" 
+                              style="display: inline;">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Delete this kill checklist? This cannot be undone.');">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        <h5>No Kill Checklists Yet</h5>
+        <p>Create your first kill checklist to start filtering ideas systematically.</p>
+        <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-primary">Create Your First Kill Checklist</a>
+    </div>
+{% endif %}
+
+<!-- Suggested starter checklist -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0">💡 Suggested Kill Criteria to Get Started</h6>
+    </div>
+    <div class="card-body">
+        <p>Here are some proven kill criteria from successful investors:</p>
+        <ul class="small">
+            <li><strong>"Can I understand this business in 5 minutes?"</strong> - Complexity is the enemy of execution</li>
+            <li><strong>"Is the valuation reasonable (P/E < 30)?"</strong> - Price discipline prevents most mistakes</li>
+            <li><strong>"Does management have significant skin in the game (>5% ownership)?"</strong> - Alignment matters</li>
+            <li><strong>"Is this within my circle of competence?"</strong> - Stay in your lane</li>
+            <li><strong>"Can I identify a sustainable competitive advantage?"</strong> - No moat = commodity business</li>
+            <li><strong>"Is the balance sheet healthy (Debt/Equity < 0.5)?"</strong> - Leverage kills in downturns</li>
+            <li><strong>"Would I be comfortable owning this for 10 years?"</strong> - Think long-term</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
