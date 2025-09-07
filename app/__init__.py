@@ -55,5 +55,8 @@ def create_app(config_class=Config):
     
     from app.ideas import ideas_bp
     app.register_blueprint(ideas_bp)
+    
+    from app.research_workflow import research_workflow_bp
+    app.register_blueprint(research_workflow_bp)
 
     return app
