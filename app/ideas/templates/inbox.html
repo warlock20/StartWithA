@@ -1,4 +1,3 @@
-<!-- app/ideas/templates/inbox.html -->
 {% extends "main/_base.html" %}
 
 {% block content %}
@@ -13,7 +12,6 @@
         </a>
     </div>
 
-    <!-- Quick Stats Bar to motivate action -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card text-center">
@@ -40,8 +38,8 @@
         <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    {% if ideas|length > 0 %}
-                        {% set oldest = ideas[-1] %}
+                    {% if ideas and ideas|sort(attribute='created_at') %}
+                        {% set oldest = ideas|sort(attribute='created_at')|first %}
                         <h3 class="mb-0">{{ (now - oldest.created_at).days }}</h3>
                         <small class="text-muted">Days Since Oldest</small>
                     {% else %}
@@ -53,7 +51,6 @@
         </div>
     </div>
 
-    <!-- The actual inbox -->
     {% if ideas %}
         <div class="row">
             {% for idea in ideas %}
@@ -68,7 +65,7 @@
                                         <span class="badge bg-secondary">{{ idea.ticker_symbol }}</span>
                                     {% endif %}
                                 </h5>
-                                <span class="badge bg-light text-dark">{{ idea.idea_type|capitalize }}</span>
+                                <span class="badge {% if idea.status == 'survived' %}bg-success{% else %}bg-light text-dark{% endif %}">{{ idea.idea_type|capitalize }}</span>
                             </div>
                             <small class="text-muted">{{ idea.created_at.strftime('%b %d') }}</small>
                         </div>
@@ -86,7 +83,12 @@
                         {% endif %}
 
                         <div class="d-flex gap-2 mt-3">
-                            {% if default_kill_checklist %}
+                            {% if idea.status == 'survived' %}
+                                <a href="{{ url_for('ideas.promote_to_company', idea_id=idea.id) }}"
+                                   class="btn btn-success flex-grow-1">
+                                    🎉 Promote to Company
+                                </a>
+                            {% elif default_kill_checklist %}
                                 <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" 
                                    class="btn btn-danger flex-grow-1">
                                     🎯 Enter Kill Room
@@ -97,10 +99,9 @@
                                     Create Kill Checklist First
                                 </a>
                             {% endif %}
-                            <button class="btn btn-outline-secondary" 
-                                    onclick="editIdea({{ idea.id }})">
+                            <a href="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}" class="btn btn-outline-secondary" title="Edit Idea">
                                 <i class="bi bi-pencil"></i>
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -108,7 +109,6 @@
             {% endfor %}
         </div>
     {% else %}
-        <!-- Empty state - encourage capturing ideas -->
         <div class="text-center py-5">
             <i class="bi bi-inbox display-1 text-muted"></i>
             <h3 class="mt-3">Your inbox is clear!</h3>

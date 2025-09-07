@@ -515,6 +515,7 @@ class JournalEntry(db.Model):
     def __repr__(self):
         return f'<JournalEntry "{self.title}">'
 
+
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'
     id = db.Column(db.Integer, primary_key=True)
@@ -539,6 +540,7 @@ class IdeaPipeline(db.Model):
 
     def __repr__(self):
         return f'<IdeaPipeline {self.name} - {self.status}>'
+
 
 class KillChecklist(db.Model):
     __tablename__ = 'kill_checklist'
@@ -567,6 +569,7 @@ class KillChecklist(db.Model):
     def __repr__(self):
         return f'<KillChecklist {self.name}>'
 
+
 class KillCriterion(db.Model):
     __tablename__ = 'kill_criterion'
     id = db.Column(db.Integer, primary_key=True)
@@ -587,6 +590,7 @@ class KillCriterion(db.Model):
     def __repr__(self):
         return f'<KillCriterion {self.question[:50]}>'
 
+
 class KillSession(db.Model):
     __tablename__ = 'kill_session'
     id = db.Column(db.Integer, primary_key=True)
@@ -602,6 +606,7 @@ class KillSession(db.Model):
     def __repr__(self):
         return f'<KillSession for Idea {self.idea_id}>'
 
+
 class KillAnswer(db.Model):
     __tablename__ = 'kill_answer'
     id = db.Column(db.Integer, primary_key=True)
@@ -614,3 +619,5 @@ class KillAnswer(db.Model):
 
     def __repr__(self):
         return f'<KillAnswer {self.passed}>'
+    
+

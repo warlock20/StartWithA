@@ -6,7 +6,6 @@
     <p class="text-muted">Learn from killed ideas - patterns reveal your investing blind spots</p>
 </div>
 
-<!-- Statistics about killed ideas -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card text-center">
@@ -36,16 +35,13 @@
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                {% set recent_count = killed_ideas|selectattr('killed_at', 'gt', 
-                    (current_time - timedelta(days=30)))|list|length %}
-                <h3>{{ recent_count }}</h3>
+                <h3>{{ recent_kill_count }}</h3>
                 <small class="text-muted">Killed Last 30 Days</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Analysis by kill reason -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Kill Reasons Analysis</h5>
@@ -90,7 +86,6 @@
     </div>
 </div>
 
-<!-- Complete list of killed ideas -->
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">All Killed Ideas</h5>
@@ -150,7 +145,6 @@
     </div>
 </div>
 
-<!-- Learning panel -->
 <div class="card mt-4">
     <div class="card-header bg-light">
         <h6 class="mb-0">💡 Learning from the Graveyard</h6>
