@@ -1,0 +1,197 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📓 Decision Journal</h1>
+        <p class="text-muted mb-0">Track and learn from your investment decisions</p>
+    </div>
+    <a href="{{ url_for('analytics.new_decision') }}" class="btn btn-success">
+        + Record New Decision
+    </a>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_decisions }}</h3>
+                <small class="text-muted">Total Decisions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ invest_decisions }}</h3>
+                <small class="text-muted">Invest Decisions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ win_rate }}%</h3>
+                <small class="text-muted">Win Rate</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ avg_return }}%</h3>
+                <small class="text-muted">Avg Return</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Decision List -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#all">All Decisions</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#pending">Pending Outcomes</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#completed">With Outcomes</a>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- All Decisions -->
+            <div class="tab-pane fade show active" id="all">
+                {% if decisions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Company</th>
+                                <th>Decision</th>
+                                <th>Confidence</th>
+                                <th>Expected Return</th>
+                                <th>Actual Return</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for decision in decisions %}
+                            <tr>
+                                <td>{{ decision.decision_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <strong>{{ decision.company.name if decision.company else 'Unknown' }}</strong>
+                                </td>
+                                <td>
+                                    {% if decision.decision_type == 'invest' %}
+                                        <span class="badge bg-success">Invest</span>
+                                    {% elif decision.decision_type == 'pass' %}
+                                        <span class="badge bg-danger">Pass</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ decision.decision_type|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if decision.confidence_score %}
+                                        {{ decision.confidence_score }}/10
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if decision.expected_return %}
+                                        {{ decision.expected_return }}%
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if decision.actual_return is not none %}
+                                        <span class="{% if decision.actual_return > 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ decision.actual_return }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" 
+                                                onclick="viewDecision({{ decision.id }})">View</button>
+                                        {% if decision.actual_return is none %}
+                                        <a href="{{ url_for('analytics.update_decision_outcome', decision_id=decision.id) }}" 
+                                           class="btn btn-outline-success">Update Outcome</a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No decisions recorded yet</p>
+                    <a href="{{ url_for('analytics.new_decision') }}" class="btn btn-primary">
+                        Record Your First Decision
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Pending Outcomes Tab -->
+            <div class="tab-pane fade" id="pending">
+                {% set pending = decisions|selectattr('actual_return', 'none')|list %}
+                {% if pending %}
+                    <!-- Similar table structure, filtered for pending -->
+                {% else %}
+                    <p class="text-center text-muted py-4">No decisions pending outcomes</p>
+                {% endif %}
+            </div>
+            
+            <!-- Completed Outcomes Tab -->
+            <div class="tab-pane fade" id="completed">
+                {% set completed = decisions|selectattr('actual_return', 'defined')|list %}
+                {% if completed %}
+                    <!-- Similar table structure, filtered for completed -->
+                {% else %}
+                    <p class="text-center text-muted py-4">No decisions with recorded outcomes</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Decision Detail Modal -->
+<div class="modal fade" id="decisionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Decision Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="decisionDetails">
+                <!-- Content loaded via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function viewDecision(decisionId) {
+    // This would load decision details via AJAX
+    // For now, just show a placeholder
+    const modal = new bootstrap.Modal(document.getElementById('decisionModal'));
+    document.getElementById('decisionDetails').innerHTML = 'Loading decision details...';
+    modal.show();
+}
+</script>
+{% endblock %}

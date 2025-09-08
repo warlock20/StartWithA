@@ -5,6 +5,7 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        TemplateStep, Company, Checklist, IdeaPipeline,
                        ResearchSession, ChecklistItem, ResearchAnswer)
 from app.research_workflow import research_workflow_bp
+from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta
 import json
 
@@ -173,6 +174,12 @@ def start_project():
     try:
         db.session.add(project)
         db.session.commit()
+        log_research_activity(
+            current_user.id,
+            'research_started',
+            company_id=company_id,
+            project_id=project.id
+        )
         flash(f'Research project started for {company.name}!', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
     except Exception as e:
@@ -216,7 +223,8 @@ def project_dashboard(project_id):
                           project=project,
                           recent_sessions=recent_sessions,
                           time_breakdown=time_breakdown,
-                          next_steps=next_steps)
+                          next_steps=next_steps,
+                          datetime=datetime)
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
 @login_required
@@ -344,6 +352,13 @@ def complete_step(project_id):
     
     try:
         db.session.commit()
+        log_research_activity(
+            current_user.id,
+            'step_completed',
+            project_id=project_id,
+            duration_minutes=session.duration_minutes,
+            details={'step_name': step['name']}
+        )
         
         if project.status == 'completed':
             return redirect(url_for('research_workflow.project_summary', project_id=project_id))
@@ -384,35 +399,45 @@ def project_summary(project_id):
 @research_workflow_bp.route('/projects/<int:project_id>/decision', methods=['POST'])
 @login_required
 def save_decision(project_id):
-    """Save the investment decision for a project"""
     project = ResearchProject.query.get_or_404(project_id)
-    
+
     if project.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
-    
-    # Save decision
-    project.decision = request.form.get('decision')
+
+    # --- Get form data ---
+    decision = request.form.get('decision')
+    project.decision = decision # Save the decision to the project
     project.decision_confidence = request.form.get('confidence', type=int)
     project.decision_notes = request.form.get('decision_notes')
     project.decision_date = datetime.utcnow()
-    
+
     # Parse key findings
     green_flags = request.form.get('green_flags', '').split('\n')
     red_flags = request.form.get('red_flags', '').split('\n')
     project.green_flags = [f.strip() for f in green_flags if f.strip()]
     project.red_flags = [f.strip() for f in red_flags if f.strip()]
-    
+
     # Update template success metrics
     if project.decision == 'invest':
         project.template.successful_investments += 1
     elif project.decision == 'pass':
         project.template.failed_investments += 1
-    
+
+    # --- NEW LOGIC TO UNIFY WATCHLISTS ---
+    flash_message = 'Investment decision saved!' # Default message
+
+    if decision == 'watchlist':
+        company_to_watch = project.company
+        if company_to_watch not in current_user.favorites:
+            current_user.favorites.append(company_to_watch)
+            # Update flash message to inform the user
+            flash_message = f'Decision saved. "{company_to_watch.name}" has been added to your Favorites/Watchlist.'
+
     try:
         db.session.commit()
-        flash('Investment decision saved!', 'success')
-        
+        flash(flash_message, 'success') # Use the dynamic flash message
+
         if project.decision == 'invest':
             # Redirect to portfolio or next steps
             return redirect(url_for('companies.list_companies'))
@@ -583,3 +608,187 @@ def delete_template(template_id):
         flash(f'Error deleting template: {str(e)}', 'error')
     
     return redirect(url_for('research_workflow.template_list'))
+
+@research_workflow_bp.route('/projects/<int:project_id>/update-thesis', methods=['POST'])
+@login_required
+def update_thesis(project_id):
+    """Update the investment thesis for a research project"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    thesis = request.form.get('investment_thesis', '').strip()
+    project.investment_thesis = thesis
+    project.last_worked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        flash('Investment thesis updated', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating thesis: {str(e)}', 'error')
+    
+    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/add-finding', methods=['POST'])
+@login_required
+def add_finding(project_id):
+    """Add a key finding to a research project"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    finding_type = request.form.get('finding_type')  # 'green_flag' or 'red_flag'
+    finding_text = request.form.get('finding_text', '').strip()
+    
+    if not finding_text:
+        return jsonify({'error': 'Finding text is required'}), 400
+    
+    if finding_type == 'green_flag':
+        if not project.green_flags:
+            project.green_flags = []
+        project.green_flags = project.green_flags + [finding_text]
+    elif finding_type == 'red_flag':
+        if not project.red_flags:
+            project.red_flags = []
+        project.red_flags = project.red_flags + [finding_text]
+    else:
+        return jsonify({'error': 'Invalid finding type'}), 400
+    
+    project.last_worked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Finding added'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@research_workflow_bp.route('/projects/<int:project_id>/abandon', methods=['POST'])
+@login_required
+def abandon_project(project_id):
+    """Abandon a research project"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    project.status = 'abandoned'
+    project.completed_at = datetime.utcnow()
+    
+    # Optional: Record reason for abandonment
+    reason = request.form.get('reason', '')
+    if reason:
+        if not project.decision_notes:
+            project.decision_notes = ''
+        project.decision_notes += f"\n\nAbandoned: {reason}"
+    
+    try:
+        db.session.commit()
+        flash(f'Project "{project.project_name}" has been abandoned', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error abandoning project: {str(e)}', 'error')
+    
+    return redirect(url_for('research_workflow.my_projects'))
+
+@research_workflow_bp.route('/projects/<int:project_id>/skip-step/<int:step_index>', methods=['POST'])
+@login_required
+def skip_step(project_id, step_index):
+    """Skip a non-critical step in the workflow"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    step = project.template.get_step(step_index)
+    if not step:
+        return jsonify({'error': 'Invalid step'}), 400
+    
+    # Check if step is required/critical
+    if step.get('required', False):
+        return jsonify({'error': 'Cannot skip required steps'}), 400
+    
+    # Mark step as completed with a note that it was skipped
+    if step_index not in project.completed_steps:
+        project.completed_steps = project.completed_steps + [step_index]
+    
+    if not project.step_notes:
+        project.step_notes = {}
+    project.step_notes[str(step_index)] = "[SKIPPED]"
+    
+    # Move to next step
+    if step_index + 1 < len(project.template.workflow_steps):
+        project.current_step_index = step_index + 1
+    else:
+        project.status = 'completed'
+        project.completed_at = datetime.utcnow()
+    
+    project.last_worked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Step skipped'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@research_workflow_bp.route('/quick-start', methods=['GET'])
+@login_required
+def quick_start_guide():
+    """Show a quick start guide for new users"""
+    # Get sample templates or create starter templates
+    starter_templates = ResearchTemplate.query.filter_by(
+        user_id=current_user.id
+    ).limit(3).all()
+    
+    if not starter_templates:
+        # Optionally create a default template for new users
+        default_template = create_default_template_for_user(current_user)
+        if default_template:
+            starter_templates = [default_template]
+    
+    return render_template('quick_start.html',
+                          title="Quick Start Guide",
+                          starter_templates=starter_templates)
+
+def create_default_template_for_user(user):
+    """Helper function to create a default research template for new users"""
+    default_steps = [
+        {'order': 1, 'name': 'Initial Financial Screening', 'type': 'checklist', 
+         'config': {}, 'required': True, 'estimated_minutes': 30},
+        {'order': 2, 'name': 'Business Model Analysis', 'type': 'custom', 
+         'config': {}, 'required': True, 'estimated_minutes': 60},
+        {'order': 3, 'name': 'Management Assessment', 'type': 'custom', 
+         'config': {}, 'required': False, 'estimated_minutes': 45},
+        {'order': 4, 'name': 'Competitive Position Review', 'type': 'competitor_analysis', 
+         'config': {}, 'required': True, 'estimated_minutes': 90},
+        {'order': 5, 'name': 'Valuation Analysis', 'type': 'valuation', 
+         'config': {}, 'required': True, 'estimated_minutes': 120},
+        {'order': 6, 'name': 'Risk Assessment', 'type': 'custom', 
+         'config': {}, 'required': True, 'estimated_minutes': 60},
+        {'order': 7, 'name': 'Investment Thesis', 'type': 'thesis_writing', 
+         'config': {}, 'required': True, 'estimated_minutes': 45}
+    ]
+    
+    template = ResearchTemplate(
+        author=user,
+        name="Fundamental Analysis Template",
+        description="A comprehensive template for fundamental stock analysis covering financials, business quality, and valuation",
+        investment_style="value",
+        workflow_steps=default_steps,
+        is_active=True
+    )
+    
+    try:
+        db.session.add(template)
+        db.session.commit()
+        return template
+    except:
+        db.session.rollback()
+        return None

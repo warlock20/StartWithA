@@ -58,5 +58,8 @@ def create_app(config_class=Config):
     
     from app.research_workflow import research_workflow_bp
     app.register_blueprint(research_workflow_bp)
+    
+    from app.analytics import analytics_bp
+    app.register_blueprint(analytics_bp)
 
     return app

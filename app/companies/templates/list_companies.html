@@ -220,7 +220,36 @@
     </div>
 </div>
 {% endif %}
-
+{% if current_user.metrics %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">📊 Your Research Stats</h5>
+        <div class="row text-center">
+            <div class="col">
+                <h4>{{ current_user.metrics.total_ideas_captured }}</h4>
+                <small class="text-muted">Ideas Captured</small>
+            </div>
+            <div class="col">
+                <h4>{{ "%.0f"|format(current_user.metrics.kill_rate) }}%</h4>
+                <small class="text-muted">Kill Rate</small>
+            </div>
+            <div class="col">
+                <h4>{{ "%.1f"|format(current_user.metrics.total_research_hours) }}h</h4>
+                <small class="text-muted">Research Time</small>
+            </div>
+            <div class="col">
+                <h4>{{ current_user.metrics.research_streak_days }}d</h4>
+                <small class="text-muted">Current Streak</small>
+            </div>
+        </div>
+        <div class="text-center mt-3">
+            <a href="{{ url_for('analytics.dashboard') }}" class="btn btn-sm btn-outline-primary">
+                View Full Analytics →
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
 {# --- ACTIVE PORTFOLIO SECTION --- #}
 <h3>📈 Active Portfolio</h3>
 {% if portfolio_companies_data %}

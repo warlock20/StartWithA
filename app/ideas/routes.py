@@ -8,6 +8,7 @@ from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
 from app.ideas import ideas_bp
 from datetime import datetime, timedelta
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
+from app.analytics.utils import log_research_activity
 
 @ideas_bp.route('/inbox')
 @login_required
@@ -58,6 +59,12 @@ def add_idea():
         try:
             db.session.add(new_idea)
             db.session.commit()
+            log_research_activity(
+                current_user.id,
+                'idea_captured',
+                idea_id=new_idea.id,
+                details={'source': source, 'type': idea_type}
+            )
             flash(f'"{name}" added to your idea inbox!', 'success')
             return redirect(url_for('ideas.inbox'))
         except Exception as e:
@@ -119,6 +126,12 @@ def kill_room(idea_id):
             kill_session.checklist.total_ideas_evaluated += 1
             kill_session.checklist.total_ideas_killed += 1
             db.session.commit()
+            log_research_activity(
+            current_user.id,
+            'idea_killed',
+            idea_id=idea.id,
+            details={'reason': current_criterion.question}
+        )
             flash(f'"{idea.name}" has been killed. Reason: {current_criterion.question}', 'info')
             return redirect(url_for('ideas.graveyard'))
 
@@ -131,7 +144,16 @@ def kill_room(idea_id):
             kill_session.completed_at = datetime.utcnow()
             kill_session.checklist.total_ideas_evaluated += 1
             db.session.commit()
-            
+            company = Company(
+                name=idea.name, ticker_symbol=idea.ticker_symbol,
+                creator=current_user, summary=idea.thesis_summary
+            )
+            log_research_activity(
+                current_user.id,
+                'idea_promoted',
+                idea_id=idea.id,
+                company_id=company.id
+            )
             if idea.ticker_symbol:
                 flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
                 return redirect(url_for('ideas.promote_to_company', idea_id=idea.id))

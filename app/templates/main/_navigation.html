@@ -69,6 +69,24 @@
                         <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li>
                     </ul>
                 </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarAnalyticsDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        📊 Analytics
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarAnalyticsDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">
+                                📈 Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.time_analysis') }}">
+                                ⏱️ Time Analysis</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.decision_journal_list') }}">
+                                📓 Decision Journal</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.idea_sources') }}">
+                                💡 Idea Sources</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.research_patterns') }}">
+                                🔍 Research Patterns</a></li>
+                    </ul>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.mental_models') }}">Learn About Models</a>
                 </li>

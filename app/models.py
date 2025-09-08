@@ -81,6 +81,14 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                    lazy='dynamic', cascade='all, delete-orphan')
     template_steps = db.relationship('TemplateStep', backref='creator', 
                                     lazy='dynamic', cascade='all, delete-orphan')
+    metrics = db.relationship('ResearchMetrics', backref='user', 
+                             uselist=False, cascade='all, delete-orphan')
+    source_analyses = db.relationship('IdeaSourceAnalysis', backref='user',
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    research_logs = db.relationship('ResearchLog', backref='user',
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    decision_journals = db.relationship('DecisionJournal', backref='user',
+                                       lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -168,12 +176,6 @@ class Company(db.Model):
     )
     articles = db.relationship(
         "CompanyArticle",
-        backref="company",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    documents = db.relationship(
-        "CompanyDocument",
         backref="company",
         lazy="dynamic",
         cascade="all, delete-orphan",
@@ -627,420 +629,412 @@ class KillAnswer(db.Model):
 
     def __repr__(self):
         return f'<KillAnswer {self.passed}>'
+# Add these new models to app/models.py after your existing IdeaPipeline models
+
+class ResearchTemplate(db.Model):
+    """
+    A research template is a reusable workflow that defines how an investor
+    analyzes opportunities. Think of it as a 'recipe' for research that ensures
+    consistency while allowing flexibility for different investment styles.
+    """
+    __tablename__ = 'research_template'
     
-
-# app/ideas/routes.py
-
-from flask import render_template, request, redirect, url_for, flash, jsonify
-from flask_login import current_user, login_required
-from app import db
-from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
-                       KillSession, KillAnswer, Company)
-from app.ideas import ideas_bp
-from datetime import datetime, timedelta
-from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
-
-@ideas_bp.route('/inbox')
-@login_required
-def inbox():
-    """Display the user's idea inbox - ideas waiting to be evaluated"""
-    # Query for ideas that are in the inbox or survived but have not been promoted
-    ideas = IdeaPipeline.query.filter(
-        IdeaPipeline.user_id == current_user.id,
-        IdeaPipeline.status.in_(['inbox', 'survived'])
-    ).order_by(IdeaPipeline.created_at.desc()).all()
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    default_kill_checklist = KillChecklist.query.filter_by(
-        user_id=current_user.id, 
-        is_default=True
-    ).first()
+    # Basic template information
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    investment_style = db.Column(db.String(100))  # 'value', 'growth', 'special_situations', etc.
     
-    return render_template('inbox.html', 
-                          title="Idea Inbox",
-                          ideas=ideas,
-                          default_kill_checklist=default_kill_checklist,
-                          now=datetime.utcnow()
-                          )
-
-@ideas_bp.route('/add', methods=['GET', 'POST'])
-@login_required
-def add_idea():
-    """Quick capture for new ideas"""
-    if request.method == 'POST':
-        name = request.form.get('name')
-        idea_type = request.form.get('idea_type', 'company')
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-        full_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
-        source = request.form.get('source')
-        thesis = request.form.get('thesis_summary')
-        notes = request.form.get('initial_notes')
-        
-        if not name:
-            flash('Idea name is required', 'error')
-            return redirect(url_for('ideas.add_idea'))
-        
-        new_idea = IdeaPipeline(
-            author=current_user, name=name, idea_type=idea_type,
-            ticker_symbol=full_ticker, source=source, thesis_summary=thesis,
-            initial_notes=notes, status='inbox'
-        )
-        
-        try:
-            db.session.add(new_idea)
-            db.session.commit()
-            flash(f'"{name}" added to your idea inbox!', 'success')
-            return redirect(url_for('ideas.inbox'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error adding idea: {str(e)}', 'error')
+    # The workflow is stored as JSON to allow maximum flexibility
+    # Each step can reference different types of analysis tools
+    workflow_steps = db.Column(db.JSON, nullable=False)
     
-    return render_template('add_idea.html', title="Quick Capture", exchanges=EXCHANGES)
-
-@ideas_bp.route('/<int:idea_id>/kill', methods=['GET', 'POST'])
-@login_required
-def kill_room(idea_id):
-    """The kill room - evaluate an idea against kill criteria"""
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-
-    if idea.user_id != current_user.id:
-        flash('You do not have access to this idea', 'error')
-        return redirect(url_for('ideas.inbox'))
-
-    kill_session = KillSession.query.filter_by(
-        user_id=current_user.id, idea_id=idea.id, outcome=None
-    ).first()
-
-    if not kill_session:
-        kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
-        if not kill_checklist:
-            flash('Please create a kill checklist first', 'warning')
-            return redirect(url_for('ideas.create_kill_checklist'))
-        kill_session = KillSession(user_id=current_user.id, idea=idea, checklist=kill_checklist)
-        db.session.add(kill_session)
-        idea.status = 'killing'
-        db.session.commit()
-
-    criteria = kill_session.checklist.criteria.order_by(KillCriterion.order).all()
-    existing_answers = {ans.criterion_id: ans for ans in kill_session.answers.all()}
+    # Templates can be shared with the community (future feature)
+    is_public = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
     
-    current_criterion = None
-    current_index = 0
-    for i, criterion in enumerate(criteria):
-        if criterion.id not in existing_answers:
-            current_criterion = criterion
-            current_index = i
-            break
+    # Track usage and effectiveness
+    times_used = db.Column(db.Integer, default=0)
+    successful_investments = db.Column(db.Integer, default=0)
+    failed_investments = db.Column(db.Integer, default=0)
+    average_research_hours = db.Column(db.Float)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    research_projects = db.relationship('ResearchProject', backref='template', 
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    
+    @property
+    def success_rate(self):
+        """Calculate the success rate of investments made using this template"""
+        total = self.successful_investments + self.failed_investments
+        if total == 0:
+            return 0
+        return round((self.successful_investments / total) * 100, 1)
+    
+    @property
+    def step_count(self):
+        """Number of steps in this template's workflow"""
+        return len(self.workflow_steps) if self.workflow_steps else 0
+    
+    def get_step(self, step_index):
+        """Safely get a specific step from the workflow"""
+        if self.workflow_steps and 0 <= step_index < len(self.workflow_steps):
+            return self.workflow_steps[step_index]
+        return None
+    
+    def __repr__(self):
+        return f'<ResearchTemplate {self.name}>'
 
-    if request.method == 'POST' and current_criterion:
-        passed = request.form.get('passed') == 'true'
-        notes = request.form.get('notes', '')
-        answer = KillAnswer(session=kill_session, criterion=current_criterion, passed=passed, notes=notes)
-        db.session.add(answer)
-        current_criterion.times_evaluated += 1
-        
-        if not passed:
-            current_criterion.times_failed += 1
-            idea.status = 'killed'
-            idea.kill_reason = current_criterion.question
-            idea.failed_criterion = current_criterion
-            idea.killed_at = datetime.utcnow()
-            kill_session.outcome = 'killed'
-            kill_session.completed_at = datetime.utcnow()
-            kill_session.checklist.total_ideas_evaluated += 1
-            kill_session.checklist.total_ideas_killed += 1
-            db.session.commit()
-            flash(f'"{idea.name}" has been killed. Reason: {current_criterion.question}', 'info')
-            return redirect(url_for('ideas.graveyard'))
 
-        db.session.commit()
+class ResearchProject(db.Model):
+    """
+    A research project is an active execution of a research template for a specific
+    company. It tracks progress, time spent, findings, and ultimately the investment
+    decision. This is where templates become actionable.
+    """
+    __tablename__ = 'research_project'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
+    
+    # If this project originated from an idea in the pipeline
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    
+    # Project metadata
+    project_name = db.Column(db.String(200))
+    investment_thesis = db.Column(db.Text)  # Evolving thesis as research progresses
+    
+    # Progress tracking
+    current_step_index = db.Column(db.Integer, default=0)
+    completed_steps = db.Column(db.JSON, default=list)  # Array of completed step indices
+    step_notes = db.Column(db.JSON, default=dict)  # Notes for each step
+    
+    # Status tracking
+    status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned'
+    
+    # Time tracking - crucial for understanding where effort goes
+    total_hours_spent = db.Column(db.Float, default=0.0)
+    time_per_step = db.Column(db.JSON, default=dict)  # Track time for each step
+    last_worked_at = db.Column(db.DateTime)
+    
+    # Decision tracking
+    decision = db.Column(db.String(50))  # 'invest', 'pass', 'watchlist', 'needs_more_work'
+    decision_date = db.Column(db.DateTime)
+    decision_confidence = db.Column(db.Integer)  # 1-10 scale
+    decision_notes = db.Column(db.Text)
+    
+    # If invested, track the outcome
+    investment_amount = db.Column(db.Float)
+    investment_date = db.Column(db.Date)
+    exit_date = db.Column(db.Date)
+    return_percentage = db.Column(db.Float)
+    
+    # Key findings that influenced the decision
+    key_findings = db.Column(db.JSON, default=list)
+    red_flags = db.Column(db.JSON, default=list)
+    green_flags = db.Column(db.JSON, default=list)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    
+    # Relationships
+    company = db.relationship('Company', backref='research_projects')
+    idea = db.relationship('IdeaPipeline', backref='research_project')
+    work_sessions = db.relationship('WorkSession', backref='project', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    
+    @property
+    def progress_percentage(self):
+        """Calculate the completion percentage of this project"""
+        if not self.template or not self.template.workflow_steps:
+            return 0
+        total_steps = len(self.template.workflow_steps)
+        if total_steps == 0:
+            return 0
+        return round((len(self.completed_steps) / total_steps) * 100, 1)
+    
+    @property
+    def current_step(self):
+        """Get the current step details from the template"""
+        if self.template:
+            return self.template.get_step(self.current_step_index)
+        return None
+    
+    @property
+    def is_overdue(self):
+        """Check if this project has been idle too long"""
+        if self.status != 'active' or not self.last_worked_at:
+            return False
+        days_idle = (datetime.utcnow() - self.last_worked_at).days
+        return days_idle > 14  # Consider overdue after 2 weeks of inactivity
+    
+    def __repr__(self):
+        return f'<ResearchProject {self.project_name or f"Company {self.company_id}"}>'
 
-        if current_index == len(criteria) - 1:
-            idea.status = 'survived'
-            idea.promoted_at = datetime.utcnow()
-            kill_session.outcome = 'survived'
-            kill_session.completed_at = datetime.utcnow()
-            kill_session.checklist.total_ideas_evaluated += 1
-            db.session.commit()
-            
-            if idea.ticker_symbol:
-                flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
-                return redirect(url_for('ideas.promote_to_company', idea_id=idea.id))
-            else:
-                flash(f'🎉 Idea "{idea.name}" survived the kill checklist!', 'success')
-                return redirect(url_for('ideas.inbox'))
-        
-        return redirect(url_for('ideas.kill_room', idea_id=idea.id))
 
-    progress_percent = (len(existing_answers) / len(criteria)) * 100 if criteria else 0
-    return render_template('kill_room.html', title=f"Kill Room: {idea.name}", idea=idea,
-                           session=kill_session, current_criterion=current_criterion,
-                           current_index=current_index, total_criteria=len(criteria),
-                           progress_percent=progress_percent, existing_answers=existing_answers)
+class WorkSession(db.Model):
+    """
+    A work session tracks individual research sessions within a project.
+    This granular tracking helps investors understand their time allocation
+    and identify which parts of their process are most time-consuming.
+    """
+    __tablename__ = 'work_session'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # What was worked on
+    step_index = db.Column(db.Integer)
+    step_name = db.Column(db.String(200))
+    
+    # Time tracking
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime)
+    duration_minutes = db.Column(db.Integer)
+    
+    # Work product
+    notes = db.Column(db.Text)
+    findings = db.Column(db.JSON)  # Structured findings
+    documents_reviewed = db.Column(db.JSON)  # List of documents consulted
+    
+    # Quality markers
+    confidence_level = db.Column(db.Integer)  # 1-10 scale for this session's work
+    needs_followup = db.Column(db.Boolean, default=False)
+    followup_notes = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<WorkSession {self.id} for Project {self.research_project_id}>'
 
-@ideas_bp.route('/graveyard')
-@login_required
-def graveyard():
-    killed_ideas = current_user.idea_pipeline.filter_by(status='killed').order_by(IdeaPipeline.killed_at.desc()).all()
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and idea.killed_at > thirty_days_ago)
-    kill_reasons = {}
-    for idea in killed_ideas:
-        reason = idea.kill_reason or "Unknown"
-        if reason not in kill_reasons:
-            kill_reasons[reason] = []
-        kill_reasons[reason].append(idea)
-    return render_template('graveyard.html', title="Idea Graveyard", killed_ideas=killed_ideas,
-                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count)
 
-@ideas_bp.route('/kill-checklists')
-@login_required
-def manage_kill_checklists():
-    checklists = current_user.kill_checklists.all()
-    return render_template('manage_kill_checklists.html', title="Kill Checklists", checklists=checklists)
+class TemplateStep(db.Model):
+    """
+    A library of reusable research steps that can be assembled into templates.
+    This allows users to build templates from pre-defined components while
+    still maintaining flexibility to create custom steps.
+    """
+    __tablename__ = 'template_step'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system-provided steps
+    
+    # Step definition
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    step_type = db.Column(db.String(50), nullable=False)  # 'checklist', 'model', 'document_review', 'valuation', 'custom'
+    
+    # Configuration for the step
+    config = db.Column(db.JSON)  # Type-specific configuration
+    
+    # Expected time and importance
+    estimated_minutes = db.Column(db.Integer, default=60)
+    is_critical = db.Column(db.Boolean, default=False)  # Must be completed
+    
+    # Guidance for completing this step
+    instructions = db.Column(db.Text)
+    success_criteria = db.Column(db.Text)
+    common_pitfalls = db.Column(db.Text)
+    
+    # For learning and improvement
+    times_used = db.Column(db.Integer, default=0)
+    average_actual_minutes = db.Column(db.Float)
+    skip_rate = db.Column(db.Float)  # How often this step gets skipped
+    
+    # Categorization
+    category = db.Column(db.String(100))  # 'fundamental', 'technical', 'qualitative', etc.
+    tags = db.Column(db.JSON, default=list)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<TemplateStep {self.name}>'    
+    
+# Add these new models to app/models.py
 
-@ideas_bp.route('/kill-checklists/new', methods=['GET', 'POST'])
-@login_required
-def create_kill_checklist():
-    if request.method == 'POST':
-        name = request.form.get('name')
-        if not name:
-            flash('Checklist name is required', 'error')
-            return redirect(url_for('ideas.create_kill_checklist'))
-        
-        is_default = request.form.get('is_default') == 'true'
-        if is_default:
-            KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
-        
-        checklist = KillChecklist(
-            author=current_user, name=name, description=request.form.get('description'), is_default=is_default
-        )
-        db.session.add(checklist)
-        db.session.flush()
-        
-        criteria_questions = request.form.getlist('criterion_question[]')
-        criteria_reasons = request.form.getlist('criterion_reason[]')
-        for i, question in enumerate(criteria_questions):
-            if question.strip():
-                criterion = KillCriterion(
-                    kill_checklist=checklist, question=question.strip(),
-                    failure_reason=criteria_reasons[i] if i < len(criteria_reasons) else '', order=i
-                )
-                db.session.add(criterion)
-        
-        db.session.commit()
-        flash(f'Kill checklist "{name}" created!', 'success')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+class ResearchMetrics(db.Model):
+    """
+    Aggregated metrics for a user's research performance.
+    Updated periodically to provide dashboard insights.
+    """
+    __tablename__ = 'research_metrics'
     
-    return render_template('create_kill_checklist.html', title="Create Kill Checklist")
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Idea Pipeline Metrics
+    total_ideas_captured = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    ideas_promoted = db.Column(db.Integer, default=0)
+    ideas_in_pipeline = db.Column(db.Integer, default=0)
+    average_days_to_decision = db.Column(db.Float)
+    
+    # Kill Rate Analysis
+    kill_rate = db.Column(db.Float)  # Percentage
+    most_common_kill_reason = db.Column(db.String(500))
+    fastest_kill_minutes = db.Column(db.Integer)
+    slowest_kill_minutes = db.Column(db.Integer)
+    
+    # Research Time Metrics
+    total_research_hours = db.Column(db.Float, default=0)
+    average_hours_per_company = db.Column(db.Float)
+    average_hours_per_decision = db.Column(db.Float)
+    most_time_consuming_step = db.Column(db.String(200))
+    
+    # Decision Quality Metrics
+    total_investment_decisions = db.Column(db.Integer, default=0)
+    invest_decisions = db.Column(db.Integer, default=0)
+    pass_decisions = db.Column(db.Integer, default=0)
+    average_confidence_score = db.Column(db.Float)
+    
+    # Success Tracking (if they track outcomes)
+    winning_investments = db.Column(db.Integer, default=0)
+    losing_investments = db.Column(db.Integer, default=0)
+    average_return = db.Column(db.Float)
+    best_investment_return = db.Column(db.Float)
+    worst_investment_return = db.Column(db.Float)
+    
+    # Source Quality
+    best_idea_source = db.Column(db.String(200))
+    best_source_success_rate = db.Column(db.Float)
+    
+    # Behavioral Patterns
+    most_productive_day = db.Column(db.String(20))  # Monday, Tuesday, etc.
+    most_productive_hour = db.Column(db.Integer)  # 0-23
+    average_session_duration = db.Column(db.Float)  # minutes
+    research_streak_days = db.Column(db.Integer, default=0)
+    last_research_date = db.Column(db.Date)
+    
+    # Timestamps
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ResearchMetrics for User {self.user_id}>'
 
-@ideas_bp.route('/kill-checklists/<int:checklist_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_kill_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You do not have permission to edit this checklist.', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
-    
-    if request.method == 'POST':
-        checklist.name = request.form.get('name')
-        checklist.description = request.form.get('description')
-        is_default = request.form.get('is_default') == 'true'
-        if is_default and not checklist.is_default:
-            KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
-        checklist.is_default = is_default
-        
-        criteria_ids = request.form.getlist('criterion_id[]')
-        criteria_questions = request.form.getlist('criterion_question[]')
-        criteria_reasons = request.form.getlist('criterion_reason[]')
-        
-        existing_criterion_ids = {c.id for c in checklist.criteria}
-        submitted_criterion_ids = {int(id) for id in criteria_ids if id}
-        ids_to_delete = existing_criterion_ids - submitted_criterion_ids
-        if ids_to_delete:
-            KillCriterion.query.filter(KillCriterion.id.in_(ids_to_delete)).delete(synchronize_session=False)
-        
-        for i, question in enumerate(criteria_questions):
-            if question.strip():
-                criterion_id = criteria_ids[i] if i < len(criteria_ids) and criteria_ids[i] else None
-                if criterion_id:
-                    criterion = KillCriterion.query.get(criterion_id)
-                    criterion.question = question.strip()
-                    criterion.failure_reason = criteria_reasons[i] if i < len(criteria_reasons) else ''
-                    criterion.order = i
-                else:
-                    criterion = KillCriterion(
-                        kill_checklist=checklist, question=question.strip(),
-                        failure_reason=criteria_reasons[i] if i < len(criteria_reasons) else '', order=i
-                    )
-                    db.session.add(criterion)
-        
-        db.session.commit()
-        flash(f'Kill checklist "{checklist.name}" updated!', 'success')
-        return redirect(url_for('ideas.manage_kill_checklists'))
-    
-    return render_template('edit_kill_checklist.html', title="Edit Kill Checklist", checklist=checklist)
 
-@ideas_bp.route('/kill-checklists/<int:checklist_id>/delete', methods=['POST'])
-@login_required
-def delete_kill_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('You do not have permission to delete this checklist.', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+class IdeaSourceAnalysis(db.Model):
+    """
+    Track the quality of different idea sources to identify
+    which inputs generate the best investment opportunities.
+    """
+    __tablename__ = 'idea_source_analysis'
     
-    db.session.delete(checklist)
-    db.session.commit()
-    flash(f'Kill checklist "{checklist.name}" has been deleted.', 'success')
-    return redirect(url_for('ideas.manage_kill_checklists'))
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    source_name = db.Column(db.String(200), nullable=False)
+    
+    # Volume metrics
+    total_ideas = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    ideas_promoted = db.Column(db.Integer, default=0)
+    ideas_invested = db.Column(db.Integer, default=0)
+    
+    # Quality metrics
+    survival_rate = db.Column(db.Float)  # % that pass kill test
+    investment_rate = db.Column(db.Float)  # % that become investments
+    average_research_hours = db.Column(db.Float)
+    average_confidence = db.Column(db.Float)
+    
+    # Outcome tracking
+    successful_investments = db.Column(db.Integer, default=0)
+    failed_investments = db.Column(db.Integer, default=0)
+    average_return = db.Column(db.Float)
+    
+    last_idea_date = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'source_name', name='_user_source_uc'),
+    )
+    
+    def __repr__(self):
+        return f'<IdeaSourceAnalysis {self.source_name}>'
 
-@ideas_bp.route('/<int:idea_id>/promote', methods=['GET', 'POST'])
-@login_required
-def promote_to_company(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if not idea.ticker_symbol:
-        flash(f'Cannot promote "{idea.name}". Only ideas with a ticker symbol can be promoted to a company.', 'error')
-        return redirect(url_for('ideas.inbox'))
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
-    
-    if request.method == 'POST':
-        company = Company(
-            name=idea.name, ticker_symbol=idea.ticker_symbol,
-            creator=current_user, summary=idea.thesis_summary
-        )
-        db.session.add(company)
-        db.session.flush()
-        idea.promoted_to_company = company
-        idea.status = 'promoted'
-        idea.promoted_at = datetime.utcnow()
-        db.session.commit()
-        flash(f'"{idea.name}" promoted to your companies list! You can now begin deep research.', 'success')
-        return redirect(url_for('research.select_checklist_for_company', company_id=company.id))
-    
-    return render_template('promote_idea.html', title="Promote to Company", idea=idea, datetime=datetime)
 
-@ideas_bp.route('/<int:idea_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+class ResearchLog(db.Model):
+    """
+    Detailed log of all research activities for pattern analysis.
+    This is the raw data that feeds into aggregated metrics.
+    """
+    __tablename__ = 'research_log'
     
-    if request.method == 'POST':
-        idea.name = request.form.get('name', idea.name)
-        idea.idea_type = request.form.get('idea_type', idea.idea_type)
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-        idea.ticker_symbol = f"{base_ticker}{exchange_suffix}" if base_ticker else None
-        idea.source = request.form.get('source')
-        idea.thesis_summary = request.form.get('thesis_summary')
-        idea.initial_notes = request.form.get('initial_notes')
-        
-        try:
-            db.session.commit()
-            flash('Idea updated successfully', 'success')
-            return redirect(url_for('ideas.inbox'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error updating idea: {str(e)}', 'error')
-            
-    base_ticker, exchange_suffix = '', ''
-    if idea.ticker_symbol:
-        if '.' in idea.ticker_symbol:
-            parts = idea.ticker_symbol.rsplit('.', 1)
-            base_ticker = parts[0]
-            exchange_suffix = '.' + parts[1]
-        else:
-            base_ticker = idea.ticker_symbol
-            
-    return render_template('edit_idea.html', title="Edit Idea", idea=idea,
-                           exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # What was done
+    activity_type = db.Column(db.String(50), nullable=False)
+    # Types: 'idea_captured', 'idea_killed', 'idea_promoted', 'research_started',
+    # 'step_completed', 'decision_made', 'thesis_updated', 'document_uploaded', etc.
+    
+    # Associated entities
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    
+    # Activity details
+    details = db.Column(db.JSON)  # Flexible field for activity-specific data
+    duration_minutes = db.Column(db.Integer)
+    
+    # When it happened
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    day_of_week = db.Column(db.Integer)  # 0=Monday, 6=Sunday
+    hour_of_day = db.Column(db.Integer)  # 0-23
+    
+    def __repr__(self):
+        return f'<ResearchLog {self.activity_type} at {self.timestamp}>'
 
-@ideas_bp.route('/<int:idea_id>/delete', methods=['POST'])
-@login_required
-def delete_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
-    
-    try:
-        db.session.delete(idea)
-        db.session.commit()
-        flash(f'"{idea.name}" deleted permanently', 'info')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting idea: {str(e)}', 'error')
-    
-    return redirect(url_for('ideas.inbox'))
 
-@ideas_bp.route('/<int:idea_id>/resurrect', methods=['POST'])
-@login_required
-def resurrect_idea(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+class DecisionJournal(db.Model):
+    """
+    Track investment decisions with pre-mortem and post-mortem analysis.
+    This helps investors learn from both good and bad decisions.
+    """
+    __tablename__ = 'decision_journal'
     
-    idea.status = 'inbox'
-    idea.kill_reason = None
-    idea.failed_criterion_id = None
-    idea.killed_at = None
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
     
-    try:
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@ideas_bp.route('/<int:idea_id>/mark_someday', methods=['GET'])
-@login_required
-def mark_someday(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
+    # Decision details
+    decision_type = db.Column(db.String(20), nullable=False)  # 'invest', 'pass', 'exit'
+    decision_date = db.Column(db.Date, nullable=False)
+    confidence_score = db.Column(db.Integer)  # 1-10
     
-    idea.status = 'someday'
-    idea.last_reviewed_at = datetime.utcnow()
+    # Pre-mortem (filled when making decision)
+    investment_thesis = db.Column(db.Text)
+    expected_return = db.Column(db.Float)  # Percentage
+    expected_timeframe = db.Column(db.Integer)  # Months
+    key_assumptions = db.Column(db.JSON)  # List of assumptions
+    biggest_risks = db.Column(db.JSON)  # List of risks
+    exit_criteria = db.Column(db.Text)  # What would make you sell?
     
-    try:
-        db.session.commit()
-        flash(f'"{idea.name}" moved to Someday/Maybe', 'info')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating idea: {str(e)}', 'error')
+    # Post-mortem (filled later)
+    actual_return = db.Column(db.Float)
+    actual_timeframe = db.Column(db.Integer)  # Months
+    outcome_date = db.Column(db.Date)
+    outcome_notes = db.Column(db.Text)
     
-    return redirect(url_for('ideas.inbox'))
-
-@ideas_bp.route('/kill-checklists/<int:checklist_id>/set-default', methods=['POST'])
-@login_required
-def set_default_checklist(checklist_id):
-    checklist = KillChecklist.query.get_or_404(checklist_id)
-    if checklist.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+    # Learning
+    what_went_right = db.Column(db.Text)
+    what_went_wrong = db.Column(db.Text)
+    lessons_learned = db.Column(db.Text)
+    would_repeat = db.Column(db.Boolean)
     
-    KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
-    checklist.is_default = True
+    # Categorization for pattern analysis
+    mistake_category = db.Column(db.String(100))  # 'valuation', 'thesis_wrong', 'timing', etc.
+    success_category = db.Column(db.String(100))  # 'thesis_correct', 'patience', 'contrarian', etc.
     
-    try:
-        db.session.commit()
-        flash(f'"{checklist.name}" set as default kill checklist', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating checklist: {str(e)}', 'error')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    return redirect(url_for('ideas.manage_kill_checklists'))
-
-@ideas_bp.route('/<int:idea_id>/details')
-@login_required
-def idea_details(idea_id):
-    idea = IdeaPipeline.query.get_or_404(idea_id)
-    if idea.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('ideas.inbox'))
-    return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+    def __repr__(self):
+        return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'    
