@@ -226,19 +226,21 @@
         <h5 class="card-title">📊 Your Research Stats</h5>
         <div class="row text-center">
             <div class="col">
-                <h4>{{ current_user.metrics.total_ideas_captured }}</h4>
+                <h4>{{ current_user.metrics.total_ideas_captured or 0 }}</h4>
                 <small class="text-muted">Ideas Captured</small>
             </div>
             <div class="col">
-                <h4>{{ "%.0f"|format(current_user.metrics.kill_rate) }}%</h4>
+                {# FIX: Provide a default value of 0 if kill_rate is None #}
+                <h4>{{ "%.0f"|format(current_user.metrics.kill_rate or 0) }}%</h4>
                 <small class="text-muted">Kill Rate</small>
             </div>
             <div class="col">
-                <h4>{{ "%.1f"|format(current_user.metrics.total_research_hours) }}h</h4>
+                {# FIX: Provide a default value of 0 if total_research_hours is None #}
+                <h4>{{ "%.1f"|format(current_user.metrics.total_research_hours or 0) }}h</h4>
                 <small class="text-muted">Research Time</small>
             </div>
             <div class="col">
-                <h4>{{ current_user.metrics.research_streak_days }}d</h4>
+                <h4>{{ current_user.metrics.research_streak_days or 0 }}d</h4>
                 <small class="text-muted">Current Streak</small>
             </div>
         </div>

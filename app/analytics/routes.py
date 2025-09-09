@@ -5,7 +5,7 @@ from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
                        DecisionJournal, ResearchLog, Company)
 from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
-                                get_time_allocation_data, log_research_activity)
+                                get_time_allocation_data, log_research_activity, KillSession)
 from datetime import datetime, timedelta
 import json
 
@@ -45,7 +45,7 @@ def dashboard():
                 'hours': round(minutes / 60, 1)
             })
     
-    return render_template('dashboard.html',
+    return render_template('analytics_dashboard.html',
                           title="Research Analytics",
                           metrics=metrics,
                           time_data=time_data,

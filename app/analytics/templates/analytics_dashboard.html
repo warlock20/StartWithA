@@ -225,7 +225,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Time allocation chart
-const timeData = {{ time_by_day_chart|safe }};
+const timeData = {{ time_by_day_chart|tojson|safe if time_by_day_chart is defined else '[]' }};
 
 if (timeData && timeData.length > 0) {
     const ctx = document.getElementById('timeChart').getContext('2d');

@@ -50,9 +50,6 @@ def create_app(config_class=Config):
     from app.sectors import sectors_bp
     app.register_blueprint(sectors_bp)
     
-    from app.journal import journal_bp
-    app.register_blueprint(journal_bp)
-    
     from app.ideas import ideas_bp
     app.register_blueprint(ideas_bp)
     
@@ -61,5 +58,8 @@ def create_app(config_class=Config):
     
     from app.analytics import analytics_bp
     app.register_blueprint(analytics_bp)
+    
+    from app.journal_enhanced import journal_enhanced_bp
+    app.register_blueprint(journal_enhanced_bp)
 
     return app

@@ -74,3 +74,6 @@ All three features are powerful and interconnected. The logical build order:
 3. **Interactive Document Q&A:** Feed insights directly into the Research Journal.
 
 **Does this strategic plan work for you? If so, we can begin with Step 1: Competitor Tracking, starting with the database model changes.**
+
+
+--- Fix Reduantancy.... Combine My Research projects and My companies page

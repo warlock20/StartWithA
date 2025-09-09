@@ -87,6 +87,32 @@
                                 🔍 Research Patterns</a></li>
                     </ul>
                 </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarJournalDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        📔 Journal
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarJournalDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.journal_home') }}">
+                                📝 All Entries</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
+                                ➕ New Entry</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.learning_notes') }}">
+                                📚 Learning Notes</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.review_queue') }}">
+                                🔄 Review Queue
+                                {% set queue = get_review_queue(current_user.id) %}
+                                {% if queue and queue.total_items > 0 %}
+                                <span class="badge bg-danger">{{ queue.total_items }}</span>
+                                {% endif %}
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.search') }}">
+                                🔍 Search</a></li>
+                    </ul>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.mental_models') }}">Learn About Models</a>
                 </li>

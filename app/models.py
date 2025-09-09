@@ -89,6 +89,14 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                    lazy='dynamic', cascade='all, delete-orphan')
     decision_journals = db.relationship('DecisionJournal', backref='user',
                                        lazy='dynamic', cascade='all, delete-orphan')
+    journal_entries = db.relationship('JournalEntry', backref='author',
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    thesis_evolutions = db.relationship('ThesisEvolution', backref='author',
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    learning_notes = db.relationship('LearningNote', backref='author',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    journal_templates = db.relationship('JournalTemplate', backref='author',
+                                       lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -507,24 +515,6 @@ class SectorAnalysis(db.Model):
 
     def __repr__(self):
         return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
-
-
-class JournalEntry(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=True)
-
-    # Optional: Tags for categorizing entries, like "Competitor Analysis", "Red Flag"
-    tags = db.Column(db.String(200), nullable=True)
-
-    entry_date = db.Column(db.DateTime, index=True, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<JournalEntry "{self.title}">'
-
 
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'
@@ -1038,3 +1028,209 @@ class DecisionJournal(db.Model):
     
     def __repr__(self):
         return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'    
+    
+
+class JournalEntry(db.Model):
+    """
+    Enhanced journal entries that capture investment thinking over time.
+    These are more structured than simple notes, designed to build knowledge.
+    """
+    __tablename__ = 'journal_entry'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Entry metadata
+    title = db.Column(db.String(200))
+    entry_type = db.Column(db.String(50), nullable=False, default='observation')
+    # Types: 'observation', 'thesis_update', 'question', 'insight', 'lesson_learned', 
+    # 'market_thought', 'meeting_notes', 'earnings_reaction', 'news_analysis'
+    
+    # Content
+    content = db.Column(db.Text, nullable=False)
+    
+    # Structured elements (optional)
+    key_insight = db.Column(db.Text)  # The main takeaway
+    action_items = db.Column(db.JSON)  # List of follow-up actions
+    questions_raised = db.Column(db.JSON)  # Questions to investigate
+    
+    # Mood/Sentiment tracking
+    sentiment = db.Column(db.String(20))  # 'bullish', 'bearish', 'neutral', 'uncertain'
+    conviction_level = db.Column(db.Integer)  # 1-10 scale
+    
+    # Associations
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    
+    # Tags for categorization and search
+    tags = db.Column(db.JSON, default=list)
+    
+    # Source/Context
+    source = db.Column(db.String(200))  # 'earnings_call', 'article', 'conversation', etc.
+    source_url = db.Column(db.String(500))
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Review tracking
+    last_reviewed = db.Column(db.DateTime)
+    review_count = db.Column(db.Integer, default=0)
+    is_starred = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    company = db.relationship('Company', backref='journal_entries')
+    attachments = db.relationship('JournalAttachment', backref='entry', 
+                                 lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<JournalEntry {self.title or self.id}>'
+
+
+class JournalAttachment(db.Model):
+    """
+    Attachments for journal entries - images, charts, documents.
+    """
+    __tablename__ = 'journal_attachment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'), nullable=False)
+    
+    filename = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50))  # 'image', 'pdf', 'spreadsheet', etc.
+    file_path = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)  # In bytes
+    
+    caption = db.Column(db.Text)
+    
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<JournalAttachment {self.filename}>'
+
+
+class ThesisEvolution(db.Model):
+    """
+    Track how investment theses change over time.
+    This helps identify pattern recognition and decision evolution.
+    """
+    __tablename__ = 'thesis_evolution'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    
+    # Thesis version
+    version = db.Column(db.Integer, default=1)
+    thesis = db.Column(db.Text, nullable=False)
+    
+    # What changed from previous version
+    change_summary = db.Column(db.Text)
+    change_trigger = db.Column(db.String(200))  # What caused the update
+    
+    # Conviction tracking
+    conviction_level = db.Column(db.Integer)  # 1-10
+    position_sizing = db.Column(db.String(50))  # 'starter', 'half', 'full', 'oversized'
+    
+    # Key factors at this point
+    bull_case = db.Column(db.JSON)  # List of bullish points
+    bear_case = db.Column(db.JSON)  # List of bearish points
+    key_metrics = db.Column(db.JSON)  # Important metrics at this time
+    
+    # Status
+    is_current = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='thesis_versions')
+    linked_journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    
+    def __repr__(self):
+        return f'<ThesisEvolution v{self.version} for Company {self.company_id}>'
+
+
+class LearningNote(db.Model):
+    """
+    Structured learning notes that capture investment lessons.
+    These are meant to be reviewed and internalized over time.
+    """
+    __tablename__ = 'learning_note'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Learning content
+    title = db.Column(db.String(200), nullable=False)
+    lesson = db.Column(db.Text, nullable=False)
+    
+    # Categorization
+    category = db.Column(db.String(100))  # 'mistake', 'success', 'process', 'market_wisdom'
+    subcategory = db.Column(db.String(100))  # More specific classification
+    
+    # Context
+    context = db.Column(db.Text)  # The situation that led to this learning
+    
+    # Application
+    how_to_apply = db.Column(db.Text)  # How to use this lesson in future
+    
+    # Examples
+    examples = db.Column(db.JSON)  # Specific examples of this lesson
+    anti_examples = db.Column(db.JSON)  # Counter-examples
+    
+    # Source
+    source_type = db.Column(db.String(50))  # 'experience', 'book', 'mentor', 'article'
+    source_detail = db.Column(db.String(200))
+    
+    # Related entities
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    
+    # Review and reinforcement
+    times_reviewed = db.Column(db.Integer, default=0)
+    last_reviewed = db.Column(db.DateTime)
+    importance = db.Column(db.Integer, default=5)  # 1-10 scale
+    
+    # Spaced repetition
+    next_review_date = db.Column(db.Date)
+    review_interval_days = db.Column(db.Integer, default=7)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Tags for cross-referencing
+    tags = db.Column(db.JSON, default=list)
+    
+    def __repr__(self):
+        return f'<LearningNote {self.title}>'
+
+
+class JournalTemplate(db.Model):
+    """
+    Templates for different types of journal entries to ensure consistency.
+    """
+    __tablename__ = 'journal_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system templates
+    
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    entry_type = db.Column(db.String(50), nullable=False)
+    
+    # Template structure
+    prompts = db.Column(db.JSON)  # List of questions/prompts to answer
+    required_fields = db.Column(db.JSON)  # Fields that must be filled
+    
+    # Example content
+    example_content = db.Column(db.Text)
+    
+    is_active = db.Column(db.Boolean, default=True)
+    is_public = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<JournalTemplate {self.name}>'
