@@ -117,7 +117,9 @@
                             <span class="visually-hidden">Toggle Dropdown</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('journal.index', company_id=company.id) }}">
+                            {# FIX: Changed endpoint from 'journal.index' to 'journal_enhanced.search' #}
+                            <li><a class="dropdown-item"
+                                    href="{{ url_for('journal_enhanced.search', company_id=company.id) }}">
                                     📓 Research Journal</a>
                             </li>
                             <li><a class="dropdown-item"

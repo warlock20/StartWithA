@@ -1,0 +1,241 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>❌ Mistake Log</h1>
+        <p class="text-muted mb-0">Learn from failures to improve your investment process</p>
+    </div>
+    <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-success">
+        + Log New Mistake
+    </a>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ mistakes|length }}</h3>
+                <small class="text-muted">Total Mistakes Logged</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</h3>
+                <small class="text-muted">Estimated Cost</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ most_common_count }}</h3>
+                <small class="text-muted">{{ most_common_type|replace('_', ' ')|title if most_common_type else 'N/A'
+                    }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</h3>
+                <small class="text-muted">Mistakes That Prevented Others</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mistakes by Category -->
+<div class="card mb-4">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#all">All Mistakes</a>
+            </li>
+            {% for type_name, type_mistakes in by_type.items() %}
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#{{ type_name }}">
+                    {{ type_name|replace('_', ' ')|title }} ({{ type_mistakes|length }})
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- All Mistakes Tab -->
+            <div class="tab-pane fade show active" id="all">
+                {% if mistakes %}
+                <div class="accordion" id="mistakesAccordion">
+                    {% for mistake in mistakes %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#mistake-{{ mistake.id }}">
+                                <div class="d-flex justify-content-between w-100 me-3">
+                                    <span>
+                                        <strong>{{ mistake.title }}</strong>
+                                        <span class="badge bg-danger ms-2">Severity: {{ mistake.severity }}/10</span>
+                                        {% if mistake.cost_estimate %}
+                                        <span class="badge bg-warning ms-1">${{ "{:,.0f}".format(mistake.cost_estimate)
+                                            }}</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="text-muted">
+                                        {{ mistake.occurred_date.strftime('%b %d, %Y') if mistake.occurred_date else
+                                        'Date unknown' }}
+                                    </span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="mistake-{{ mistake.id }}" class="accordion-collapse collapse"
+                            data-bs-parent="#mistakesAccordion">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Description:</h6>
+                                        <p>{{ mistake.description }}</p>
+
+                                        {% if mistake.root_cause %}
+                                        <h6>Root Cause:</h6>
+                                        <p>{{ mistake.root_cause }}</p>
+                                        {% endif %}
+
+                                        {% if mistake.contributing_factors %}
+                                        <h6>Contributing Factors:</h6>
+                                        <ul>
+                                            {% for factor in mistake.contributing_factors %}
+                                            <li>{{ factor }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>🎓 Lesson Learned:</h6>
+                                        <p class="text-primary">{{ mistake.lesson_learned }}</p>
+
+                                        {% if mistake.prevention_steps %}
+                                        <h6>Prevention Steps:</h6>
+                                        <ul>
+                                            {% for step in mistake.prevention_steps %}
+                                            <li>{{ step }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+
+                                        {% if mistake.process_changes %}
+                                        <h6>Process Changes:</h6>
+                                        <p>{{ mistake.process_changes }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="text-muted">
+                                            Reviewed {{ mistake.times_reviewed }} times
+                                            {% if mistake.last_reviewed %}
+                                            | Last: {{ mistake.last_reviewed.strftime('%b %d') }}
+                                            {% endif %}
+                                            {% if mistake.prevented_similar > 0 %}
+                                            | <span class="text-success">Prevented {{ mistake.prevented_similar }}
+                                                similar mistakes</span>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary"
+                                            onclick="reviewMistake({{ mistake.id }}, false)">
+                                            Mark Reviewed
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success"
+                                            onclick="reviewMistake({{ mistake.id }}, true)">
+                                            Prevented Similar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-4">No mistakes logged yet</p>
+                {% endif %}
+            </div>
+
+            <!-- Category-specific tabs -->
+            {% for type_name, type_mistakes in by_type.items() %}
+            <div class="tab-pane fade" id="{{ type_name }}">
+                <!-- Similar structure as above but filtered for specific type -->
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Learning Insights -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">💡 Key Insights from Your Mistakes</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Most Expensive Mistakes:</h6>
+                <ol>
+                    {% for mistake in mistakes|sort(attribute='cost_estimate', reverse=true)[:3] %}
+                    {% if mistake.cost_estimate %}
+                    <li>
+                        {{ mistake.title }} - ${{ "{:,.0f}".format(mistake.cost_estimate) }}
+                        <br><small class="text-muted">Lesson: {{ mistake.lesson_learned|truncate(100) }}</small>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ol>
+            </div>
+            <div class="col-md-6">
+                <h6>Most Reviewed Mistakes:</h6>
+                <ol>
+                    {% for mistake in mistakes|sort(attribute='times_reviewed', reverse=true)[:3] %}
+                    {% if mistake.times_reviewed > 0 %}
+                    <li>
+                        {{ mistake.title }} - Reviewed {{ mistake.times_reviewed }}x
+                        <br><small class="text-muted">Type: {{ mistake.mistake_type|replace('_', ' ')|title }}</small>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    function reviewMistake(mistakeId, preventedSimilar) {
+        fetch(`/learning/mistakes/${mistakeId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prevented_similar: preventedSimilar
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+    }
+</script>
+{% endblock %}

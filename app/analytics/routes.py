@@ -237,7 +237,9 @@ def update_decision_outcome(decision_id):
        
        try:
            db.session.commit()
-           
+           if decision.actual_return is not None and not decision.postmortem:
+               flash('Consider creating a postmortem for this investment to capture learnings', 'info')
+               
            # Update user metrics
            update_user_metrics(current_user.id)
            

@@ -65,7 +65,6 @@
                             <hr class="dropdown-divider">
                         </li>
                         <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">Question Bank</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('logs.mistake_log') }}">Mistake Log</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li>
                     </ul>
                 </li>
@@ -111,6 +110,29 @@
                             </a></li>
                         <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.search') }}">
                                 🔍 Search</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarLearningDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        🎓 Learning
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarLearningDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('learning.learning_dashboard') }}">
+                                📊 Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">
+                                📝 Weekly Review</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                                ❌ Mistake Log</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('learning.pattern_recognition') }}">
+                                🔍 Pattern Recognition</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('learning.learning_paths') }}">
+                                📚 Learning Paths</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('learning.review_calendar') }}">
+                                📅 Review Calendar</a></li>
                     </ul>
                 </li>
                 <li class="nav-item">

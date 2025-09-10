@@ -1,0 +1,248 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>📊 Investment Postmortem</h1>
+    <p class="text-muted">
+        Analyzing: {{ decision.company.name if decision.company else 'Investment' }}
+        {% if decision.decision_date %}
+            | Decision Date: {{ decision.decision_date.strftime('%B %d, %Y') }}
+        {% endif %}
+    </p>
+</div>
+
+<!-- Original Decision Summary -->
+<div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Original Investment Decision</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Decision:</strong> 
+                    <span class="badge bg-{{ 'success' if decision.decision_type == 'invest' else 'danger' }}">
+                        {{ decision.decision_type|upper }}
+                    </span>
+                </p>
+                <p><strong>Confidence:</strong> {{ decision.confidence_score }}/10</p>
+                <p><strong>Expected Return:</strong> {{ decision.expected_return }}%</p>
+                <p><strong>Expected Timeframe:</strong> {{ decision.expected_timeframe }} months</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Original Thesis:</strong></p>
+                <p class="small">{{ decision.investment_thesis|truncate(300) if decision.investment_thesis else 'Not recorded' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('learning.investment_postmortem', decision_id=decision.id) }}">
+    <!-- Investment Details -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">📈 Investment Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="entry_date" class="form-label">Entry Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="entry_date" name="entry_date" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="exit_date" class="form-label">Exit Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="exit_date" name="exit_date" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="entry_price" class="form-label">Entry Price</label>
+                    <input type="number" class="form-control" id="entry_price" name="entry_price" 
+                           step="0.01" placeholder="$">
+                </div>
+                <div class="col-md-3">
+                    <label for="exit_price" class="form-label">Exit Price</label>
+                    <input type="number" class="form-control" id="exit_price" name="exit_price" 
+                           step="0.01" placeholder="$">
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <label for="total_return" class="form-label">Total Return (%) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="total_return" name="total_return" 
+                           step="0.1" placeholder="e.g., 25.5" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="benchmark_return" class="form-label">Benchmark Return (%)</label>
+                    <input type="number" class="form-control" id="benchmark_return" name="benchmark_return" 
+                           step="0.1" placeholder="S&P 500 return">
+                </div>
+                <div class="col-md-4">
+                    <label for="outcome" class="form-label">Overall Outcome <span class="text-danger">*</span></label>
+                    <select class="form-select" id="outcome" name="outcome" required>
+                        <option value="">-- Select --</option>
+                        <option value="success">✅ Success</option>
+                        <option value="failure">❌ Failure</option>
+                        <option value="mixed">🔄 Mixed</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Thesis Analysis -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">🎯 Thesis Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="thesis_accuracy" class="form-label">How Accurate Was Your Thesis?</label>
+                <select class="form-select" id="thesis_accuracy" name="thesis_accuracy">
+                    <option value="correct">✅ Correct - played out as expected</option>
+                    <option value="partially_correct">⚠️ Partially Correct - some aspects wrong</option>
+                    <option value="wrong">❌ Wrong - thesis didn't play out</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="thesis_playing_out" class="form-label">How Did The Thesis Play Out?</label>
+                <textarea class="form-control" id="thesis_playing_out" name="thesis_playing_out" rows="3"
+                          placeholder="Describe what actually happened vs. what you expected"></textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label for="unexpected_developments" class="form-label">Unexpected Developments</label>
+                <textarea class="form-control" id="unexpected_developments" name="unexpected_developments" rows="3"
+                          placeholder="What surprised you? (one per line)"></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Decision Quality -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">🧠 Decision Quality Assessment</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="decision_quality_score" class="form-label">Decision Quality (1-10)</label>
+                    <input type="range" class="form-range" id="decision_quality_score" name="decision_quality_score" 
+                           min="1" max="10" value="5">
+                    <div class="text-center"><span id="qualityValue">5</span></div>
+                    <small class="text-muted">Rate the quality of your decision process, not the outcome</small>
+                </div>
+                <div class="col-md-4">
+                    <label for="process_followed" class="form-label">Did You Follow Your Process?</label>
+                    <select class="form-select" id="process_followed" name="process_followed">
+                        <option value="true">✅ Yes - followed my process</option>
+                        <option value="false">❌ No - deviated from process</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="would_repeat" class="form-label">Would You Make This Decision Again?</label>
+                    <select class="form-select" id="would_repeat" name="would_repeat">
+                        <option value="true">✅ Yes - same information, same decision</option>
+                        <option value="false">❌ No - would do differently</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <label for="emotional_factors" class="form-label">Emotional Factors</label>
+                <textarea class="form-control" id="emotional_factors" name="emotional_factors" rows="2"
+                          placeholder="Did emotions influence this investment? How?"></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- What Went Well/Poorly -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">✅ What Went Well</h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" id="what_went_well" name="what_went_well" rows="4"
+                              placeholder="List what went well (one per line)"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">❌ What Went Poorly</h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" id="what_went_poorly" name="what_went_poorly" rows="4"
+                              placeholder="List what went poorly (one per line)"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lucky Breaks -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">🍀 Lucky Breaks (Be Honest!)</h5>
+        </div>
+        <div class="card-body">
+            <textarea class="form-control" id="lucky_breaks" name="lucky_breaks" rows="2"
+                      placeholder="What good fortune helped this investment? (one per line)"></textarea>
+            <small class="text-muted">Acknowledging luck helps separate skill from chance</small>
+        </div>
+    </div>
+    
+    <!-- Key Learnings -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">🎓 Key Learnings</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="primary_lesson" class="form-label">
+                    Primary Lesson <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control" id="primary_lesson" name="primary_lesson" rows="2"
+                          placeholder="What's the most important lesson from this investment?" required></textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label for="process_improvements" class="form-label">Process Improvements</label>
+                <textarea class="form-control" id="process_improvements" name="process_improvements" rows="3"
+                          placeholder="How will you improve your process based on this experience? (one per line)"></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Submit -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ url_for('analytics.decision_journal_list') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-lg">Complete Postmortem</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Update quality score display
+document.getElementById('decision_quality_score').addEventListener('input', function(e) {
+    document.getElementById('qualityValue').textContent = e.target.value;
+});
+
+// Calculate return if prices provided
+document.getElementById('exit_price').addEventListener('input', calculateReturn);
+document.getElementById('entry_price').addEventListener('input', calculateReturn);
+
+function calculateReturn() {
+    const entry = parseFloat(document.getElementById('entry_price').value);
+    const exit = parseFloat(document.getElementById('exit_price').value);
+    
+    if (entry && exit) {
+        const returnPct = ((exit - entry) / entry * 100).toFixed(2);
+        document.getElementById('total_return').value = returnPct;
+    }
+}
+</script>
+{% endblock %}

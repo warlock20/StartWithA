@@ -54,10 +54,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     destination_checkpoints = db.relationship(
         "DestinationCheckpoint", backref="creator", lazy="dynamic"
     )
-    mistake_logs = db.relationship(
-        "MistakeLog", backref="author", lazy="dynamic", cascade="all, delete-orphan"
-    )
-    subscription_tier = db.Column(db.String(50), nullable=False, default="free")
+    iption_tier = db.Column(db.String(50), nullable=False, default="free")
     question_bank_items = db.relationship(
         "QuestionBankItem",
         backref="author",
@@ -208,9 +205,6 @@ class Company(db.Model):
     )
     financial_data = db.relationship(
         "FinancialData", backref="company", lazy="dynamic", cascade="all, delete-orphan"
-    )
-    journal_entries = db.relationship(
-        "JournalEntry", backref="company", lazy="dynamic", cascade="all, delete-orphan"
     )
 
     competitors = db.relationship(
@@ -427,26 +421,6 @@ class QualitativeAnalysis(db.Model):
     def __repr__(self):
         return f"<QualitativeAnalysis {self.model_type} for Company {self.company_id}>"
 
-
-class MistakeLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
-    # A description of the investment mistake
-    mistake_description = db.Column(db.Text, nullable=False)
-
-    # The source of the lesson (e.g., "Personal", "Warren Buffett", "Peter Lynch")
-    source = db.Column(db.String(150), nullable=True)
-
-    # The actionable lesson learned from the mistake
-    lesson_learned = db.Column(db.Text, nullable=False)
-
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f"<MistakeLog {self.id} by User {self.user_id}>"
-
-
 class FinancialData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
@@ -473,7 +447,6 @@ class FinancialData(db.Model):
     def __repr__(self):
         return f"<FinancialData {self.metric_name} for Company {self.company_id} on {self.period_date}>"
 
-
 class QuestionBankItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -491,7 +464,6 @@ class QuestionBankItem(db.Model):
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"
-
 
 class SectorAnalysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -541,7 +513,6 @@ class IdeaPipeline(db.Model):
     def __repr__(self):
         return f'<IdeaPipeline {self.name} - {self.status}>'
 
-
 class KillChecklist(db.Model):
     __tablename__ = 'kill_checklist'
     id = db.Column(db.Integer, primary_key=True)
@@ -569,7 +540,6 @@ class KillChecklist(db.Model):
     def __repr__(self):
         return f'<KillChecklist {self.name}>'
 
-
 class KillCriterion(db.Model):
     __tablename__ = 'kill_criterion'
     id = db.Column(db.Integer, primary_key=True)
@@ -590,7 +560,6 @@ class KillCriterion(db.Model):
     def __repr__(self):
         return f'<KillCriterion {self.question[:50]}>'
 
-
 class KillSession(db.Model):
     __tablename__ = 'kill_session'
     id = db.Column(db.Integer, primary_key=True)
@@ -605,7 +574,6 @@ class KillSession(db.Model):
 
     def __repr__(self):
         return f'<KillSession for Idea {self.idea_id}>'
-
 
 class KillAnswer(db.Model):
     __tablename__ = 'kill_answer'
@@ -1234,3 +1202,245 @@ class JournalTemplate(db.Model):
     
     def __repr__(self):
         return f'<JournalTemplate {self.name}>'
+    
+# Add these new models to app/models.py
+
+class MistakeLog(db.Model):
+    """
+    Detailed log of investment mistakes for pattern recognition and learning.
+    """
+    __tablename__ = 'mistake_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Mistake details
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    
+    # Categorization
+    mistake_type = db.Column(db.String(100), nullable=False)
+    # Types: 'analysis_error', 'emotional_decision', 'process_failure', 
+    # 'information_gap', 'timing', 'position_sizing', 'thesis_drift'
+    
+    severity = db.Column(db.Integer, default=5)  # 1-10 scale
+    cost_estimate = db.Column(db.Float)  # Estimated $ cost or % loss
+    
+    # Context
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    occurred_date = db.Column(db.Date)
+    
+    # Root cause analysis
+    root_cause = db.Column(db.Text)
+    contributing_factors = db.Column(db.JSON)  # List of factors
+    
+    # Prevention
+    lesson_learned = db.Column(db.Text, nullable=False)
+    prevention_steps = db.Column(db.JSON)  # List of steps to prevent recurrence
+    process_changes = db.Column(db.Text)  # Changes made to investment process
+    
+    # Review tracking
+    times_reviewed = db.Column(db.Integer, default=0)
+    last_reviewed = db.Column(db.DateTime)
+    prevented_similar = db.Column(db.Integer, default=0)  # Times prevented similar mistake
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='mistake_logs')
+    decision = db.relationship('DecisionJournal', backref='mistakes')
+    
+    def __repr__(self):
+        return f'<MistakeLog {self.title}>'
+
+
+class WeeklyReview(db.Model):
+    """
+    Structured weekly reviews to maintain learning momentum.
+    """
+    __tablename__ = 'weekly_review'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    week_start = db.Column(db.Date, nullable=False)
+    week_end = db.Column(db.Date, nullable=False)
+    
+    # Activities summary
+    ideas_captured = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    research_hours = db.Column(db.Float, default=0)
+    decisions_made = db.Column(db.Integer, default=0)
+    
+    # Reflections
+    biggest_win = db.Column(db.Text)
+    biggest_challenge = db.Column(db.Text)
+    key_learnings = db.Column(db.JSON)  # List of learnings
+    
+    # Market observations
+    market_thoughts = db.Column(db.Text)
+    opportunities_identified = db.Column(db.JSON)  # List of opportunities
+    risks_identified = db.Column(db.JSON)  # List of risks
+    
+    # Planning
+    next_week_priorities = db.Column(db.JSON)  # List of priorities
+    companies_to_research = db.Column(db.JSON)  # List of company IDs or names
+    
+    # Accountability
+    last_week_goals_achieved = db.Column(db.JSON)  # What was accomplished
+    goals_completion_rate = db.Column(db.Integer)  # Percentage
+    
+    # Sentiment tracking
+    confidence_level = db.Column(db.Integer)  # 1-10
+    market_sentiment = db.Column(db.String(50))  # 'bullish', 'bearish', 'neutral'
+    
+    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<WeeklyReview {self.week_start}>'
+
+
+class InvestmentPostMortem(db.Model):
+    """
+    Detailed post-mortem analysis of completed investments.
+    """
+    __tablename__ = 'investment_postmortem'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    
+    # Investment details
+    entry_date = db.Column(db.Date, nullable=False)
+    exit_date = db.Column(db.Date, nullable=False)
+    holding_period_days = db.Column(db.Integer)
+    
+    # Performance
+    entry_price = db.Column(db.Float)
+    exit_price = db.Column(db.Float)
+    total_return = db.Column(db.Float)  # Percentage
+    annualized_return = db.Column(db.Float)
+    
+    # vs Benchmark
+    benchmark_return = db.Column(db.Float)  # S&P 500 or relevant benchmark
+    alpha = db.Column(db.Float)  # Excess return
+    
+    # Analysis
+    outcome = db.Column(db.String(50))  # 'success', 'failure', 'mixed'
+    
+    # What happened
+    thesis_accuracy = db.Column(db.String(50))  # 'correct', 'partially_correct', 'wrong'
+    thesis_playing_out = db.Column(db.Text)  # How the thesis played out
+    unexpected_developments = db.Column(db.JSON)  # List of surprises
+    
+    # Decision quality analysis
+    decision_quality_score = db.Column(db.Integer)  # 1-10
+    process_followed = db.Column(db.Boolean)
+    emotional_factors = db.Column(db.Text)
+    
+    # Learnings
+    what_went_well = db.Column(db.JSON)  # List of positives
+    what_went_poorly = db.Column(db.JSON)  # List of negatives
+    lucky_breaks = db.Column(db.JSON)  # Acknowledge luck
+    
+    # Key lessons
+    primary_lesson = db.Column(db.Text)
+    secondary_lessons = db.Column(db.JSON)
+    
+    # Process improvements
+    process_improvements = db.Column(db.JSON)  # Changes to make
+    would_repeat = db.Column(db.Boolean)
+    
+    # Supporting documents
+    attachments = db.Column(db.JSON)  # Links or filenames
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='postmortems')
+    decision = db.relationship('DecisionJournal', backref='postmortem')
+    
+    def __repr__(self):
+        return f'<InvestmentPostMortem {self.company_id}>'
+
+
+class LearningPath(db.Model):
+    """
+    Structured learning paths for improving specific skills.
+    """
+    __tablename__ = 'learning_path'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    skill_area = db.Column(db.String(100))  # 'valuation', 'industry_analysis', etc.
+    
+    # Path structure
+    total_steps = db.Column(db.Integer)
+    completed_steps = db.Column(db.Integer, default=0)
+    
+    # Content
+    learning_resources = db.Column(db.JSON)  # Books, courses, articles
+    practice_exercises = db.Column(db.JSON)  # Practical exercises
+    milestones = db.Column(db.JSON)  # Key milestones to achieve
+    
+    # Progress tracking
+    current_step = db.Column(db.Integer, default=1)
+    progress_notes = db.Column(db.JSON)  # Notes for each step
+    
+    # Completion
+    started_at = db.Column(db.DateTime)
+    target_completion = db.Column(db.Date)
+    completed_at = db.Column(db.DateTime)
+    
+    status = db.Column(db.String(50), default='planned')  # 'planned', 'active', 'completed', 'paused'
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<LearningPath {self.name}>'
+
+
+class PatternRecognition(db.Model):
+    """
+    Identified patterns in investment behavior and outcomes.
+    """
+    __tablename__ = 'pattern_recognition'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    pattern_name = db.Column(db.String(200), nullable=False)
+    pattern_type = db.Column(db.String(100))  # 'success_pattern', 'failure_pattern', 'behavioral'
+    
+    description = db.Column(db.Text, nullable=False)
+    
+    # Evidence
+    occurrences = db.Column(db.Integer, default=1)
+    examples = db.Column(db.JSON)  # List of specific examples
+    
+    # Impact
+    impact_score = db.Column(db.Integer)  # 1-10
+    financial_impact = db.Column(db.Text)  # Estimated financial impact
+    
+    # Action plan
+    how_to_leverage = db.Column(db.Text)  # For success patterns
+    how_to_avoid = db.Column(db.Text)  # For failure patterns
+    
+    # Validation
+    confidence_level = db.Column(db.Integer)  # 1-10
+    needs_more_data = db.Column(db.Boolean, default=False)
+    
+    identified_date = db.Column(db.Date, default=datetime.utcnow().date)
+    last_observed = db.Column(db.Date)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<PatternRecognition {self.pattern_name}>'

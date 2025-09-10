@@ -208,6 +208,7 @@ def entry_detail(entry_id):
                             related_entries=related_entries,
                             attachments=attachments)   
 @journal_enhanced_bp.route('/entry/<int:entry_id>/edit', methods=['GET', 'POST'])
+
 @login_required
 def edit_entry(entry_id):
    """Edit a journal entry"""

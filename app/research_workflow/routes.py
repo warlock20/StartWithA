@@ -352,6 +352,9 @@ def complete_step(project_id):
     
     try:
         db.session.commit()
+        completed_count = current_user.research_projects.filter_by(status='completed').count()
+        if completed_count % 5 == 0:  # Every 5 completions
+            flash('You have enough data for pattern recognition. Visit the Learning Center to identify patterns.', 'info')
         log_research_activity(
             current_user.id,
             'step_completed',

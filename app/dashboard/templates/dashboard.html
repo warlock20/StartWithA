@@ -1,86 +1,44 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-{# --- Getting Started Tip for New Users --- #}
-{% if total_companies == 0 %}
-<div class="alert alert-info" role="alert">
-    <h4 class="alert-heading">Welcome to the Research Platform!</h4>
-    <p>It looks like you're new here. A great first step is to add a company to your list so you can begin your
-        research.</p>
-    <hr>
-    <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">Add Your First Company</a>
-</div>
-{% endif %}
-
 <div class="page-header">
     <h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
 </div>
 
-{# --- Stat Cards --- #}
 <div class="row">
     <div class="col-lg-3 col-md-6 mb-4">
-        <div class="card text-white bg-primary h-100">
-            <div class="card-body">
-                <h5 class="card-title">Companies Tracked</h5>
-                <p class="card-text fs-1 fw-bold">{{ total_companies }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-4">
-        <div class="card text-white bg-info h-100">
-            <div class="card-body">
-                <h5 class="card-title">⭐ Favorite Companies</h5>
-                <p class="card-text fs-1 fw-bold">{{ favorite_companies_count }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-4">
-        <div class="card text-white bg-success h-100">
-            <div class="card-body">
-                <h5 class="card-title">🏆 Passed All Checks</h5>
-                <p class="card-text fs-1 fw-bold">{{ passed_sessions_count }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-4">
-        <div class="card text-dark bg-warning h-100">
-            <div class="card-body">
-                <h5 class="card-title">Research in Progress</h5>
-                <p class="card-text fs-1 fw-bold">{{ in_progress_sessions }}</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-{# --- Charts Row --- #}
-<div class="row mt-4 g-4">
-    <div class="col-lg-6">
         <div class="card h-100">
-            <div class="card-header">Companies by Sector</div>
-            <div class="card-body d-flex align-items-center justify-content-center">
-                {% if sector_values %}
-                <canvas id="sectorPieChart"></canvas>
-                {% else %}
-                <div class="text-center text-muted">
-                    <p class="mb-0">No company sector data to display.</p>
-                    <small>Add companies to see this chart.</small>
-                </div>
-                {% endif %}
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">Ideas in Inbox</h5>
+                <p class="card-text fs-1 fw-bold">{{ inbox_count }}</p>
+                <a href="{{ url_for('ideas.inbox') }}" class="btn btn-primary">Process Inbox</a>
             </div>
         </div>
     </div>
-    <div class="col-lg-6">
+    <div class="col-lg-3 col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">Margin of Safety on Favorites</div>
-            <div class="card-body d-flex align-items-center justify-content-center">
-                {% if mos_values %}
-                <canvas id="mosBarChart"></canvas>
-                {% else %}
-                <div class="text-center text-muted">
-                    <p class="mb-0">No data to display.</p>
-                    <small>Add favorite companies with a saved intrinsic value.</small>
-                </div>
-                {% endif %}
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">Active Research</h5>
+                <p class="card-text fs-1 fw-bold">{{ active_projects_count }}</p>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary">View Projects</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">Portfolio Companies</h5>
+                <p class="card-text fs-1 fw-bold">{{ portfolio_count }}</p>
+                <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-primary">View Portfolio</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">Upcoming Checkpoints</h5>
+                <p class="card-text fs-1 fw-bold">{{ upcoming_checkpoints|length }}</p>
+                <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-outline-primary">View Timeline</a>
             </div>
         </div>
     </div>
@@ -88,57 +46,64 @@
 
 <hr class="my-4">
 
-{# --- Recent Activity Table --- #}
-<h3>Recent Activity</h3>
-{% if recent_sessions %}
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Company</th>
-                <th>Checklist</th>
-                <th>Status</th>
-                <th>Date Started</th>
-                <th class="text-end">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for session in recent_sessions %}
-            <tr>
-                <td>{{ session.company.name }}</td>
-                <td>{{ session.checklist.name }}</td>
-                <td>
-                    <span
-                        class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
-                        session.status|replace('_', ' ')|capitalize }}</span>
-                </td>
-                <td>{{ session.start_date.strftime('%Y-%m-%d') }}</td>
-                <td class="text-end">
-                    <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}"
-                        class="btn btn-outline-primary btn-sm">View Summary</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🔥 Continue Your Research</h5>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if active_projects_list %}
+                    <ul class="list-group list-group-flush">
+                    {% for project in active_projects_list %}
+                        <li class="list-group-item">
+                            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="text-decoration-none text-dark">
+                                <strong>{{ project.company.name }}</strong>
+                                <div class="progress mt-1" style="height: 10px;">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ project.progress_percentage }}%;"></div>
+                                </div>
+                                <small class="text-muted">{{ project.progress_percentage }}% complete - {{ project.template.name }}</small>
+                            </a>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No active research projects.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🗓️ Upcoming Checkpoints (Next 90 Days)</h5>
+                <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if upcoming_checkpoints %}
+                    <ul class="list-group list-group-flush">
+                    {% for cp in upcoming_checkpoints %}
+                        <li class="list-group-item">
+                            <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}" class="text-decoration-none text-dark">
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>{{ cp.company.name }}</strong>: {{ cp.metric }}</span>
+                                    <span class="badge bg-warning text-dark">{{ cp.target_date.strftime('%b %d, %Y') }}</span>
+                                </div>
+                            </a>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No checkpoints are due in the next 90 days.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
-{% else %}
-<p>No research sessions started yet.</p>
-{% endif %}
 {% endblock %}
 
-
 {% block scripts %}
-{{ super() }} {# This includes the Chart.js library from the base template #}
-
-<script>
-    const chartData = {
-        sectorLabels: {{ sector_labels| tojson | safe if sector_labels is defined else '[]' }},
-    sectorValues: { { sector_values | tojson | safe if sector_values is defined else '[]' } },
-    mosLabels: { { mos_labels | tojson | safe if mos_labels is defined else '[]' } },
-    mosValues: { { mos_values | tojson | safe if mos_values is defined else '[]' } }
-        };
-</script>
-
-<script src="{{ url_for('static', filename='js/dashboard_charts.js') }}" defer></script>
+    {{ super() }}
+    {# No longer need the dashboard_charts.js script #}
 {% endblock %}

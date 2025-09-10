@@ -1,16 +1,15 @@
+# In app/__init__.py
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager # Ensure this is imported
+from flask_login import LoginManager, current_user
 from config import Config
 from flask_caching import Cache
 from celery_app import celery
 
 db = SQLAlchemy()
-
-login_manager = LoginManager() # 1. login_manager instance created at module level
+login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
-
 cache = Cache()
 
 def create_app(config_class=Config):
@@ -23,43 +22,41 @@ def create_app(config_class=Config):
 
     celery.conf.update(app.config)
     
+    # (Blueprint registrations remain the same)
     from app.auth import auth_bp 
     app.register_blueprint(auth_bp) 
-    
     from app.checklists import checklists_bp 
     app.register_blueprint(checklists_bp) 
-    
     from app.companies import companies_bp 
     app.register_blueprint(companies_bp)
-    
     from app.research import research_bp 
     app.register_blueprint(research_bp)
-    
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
-    
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp)
-    
-    from app.logs import logs_bp
-    app.register_blueprint(logs_bp)
-    
+    from app.learning import learning_bp
+    app.register_blueprint(learning_bp)
     from app.question_bank import question_bank_bp
     app.register_blueprint(question_bank_bp)
-    
     from app.sectors import sectors_bp
     app.register_blueprint(sectors_bp)
-    
     from app.ideas import ideas_bp
     app.register_blueprint(ideas_bp)
-    
     from app.research_workflow import research_workflow_bp
     app.register_blueprint(research_workflow_bp)
-    
     from app.analytics import analytics_bp
     app.register_blueprint(analytics_bp)
-    
     from app.journal_enhanced import journal_enhanced_bp
     app.register_blueprint(journal_enhanced_bp)
+
+    # This makes the get_review_queue function available in all templates.
+    from app.journal_enhanced.utils import get_review_queue
+
+    @app.context_processor
+    def inject_review_queue():
+        # The key in the returned dictionary is the name the template will use.
+        # The value is the Python function itself.
+        return dict(get_review_queue=get_review_queue)
 
     return app
