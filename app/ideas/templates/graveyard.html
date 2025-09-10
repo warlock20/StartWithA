@@ -166,7 +166,7 @@
 <script>
     function addToMistakeLog(reason) {
         // This would redirect to the mistake log with pre-filled lesson
-        window.location.href = "{{ url_for('logs.mistake_log') }}?lesson=" + encodeURIComponent(reason);
+        window.location.href = "{{ url_for('learning.mistake_log') }}?lesson=" + encodeURIComponent(reason);
     }
     
     function resurrectIdea(ideaId) {

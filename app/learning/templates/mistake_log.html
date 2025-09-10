@@ -189,7 +189,8 @@
             <div class="col-md-6">
                 <h6>Most Expensive Mistakes:</h6>
                 <ol>
-                    {% for mistake in mistakes|sort(attribute='cost_estimate', reverse=true)[:3] %}
+                    {# Wrap the sort filter in parentheses before slicing #}
+                    {% for mistake in (mistakes|sort(attribute='cost_estimate', reverse=true))[:3] %}
                     {% if mistake.cost_estimate %}
                     <li>
                         {{ mistake.title }} - ${{ "{:,.0f}".format(mistake.cost_estimate) }}
@@ -202,7 +203,8 @@
             <div class="col-md-6">
                 <h6>Most Reviewed Mistakes:</h6>
                 <ol>
-                    {% for mistake in mistakes|sort(attribute='times_reviewed', reverse=true)[:3] %}
+                    {# Also wrap this sort filter in parentheses #}
+                    {% for mistake in (mistakes|sort(attribute='times_reviewed', reverse=true))[:3] %}
                     {% if mistake.times_reviewed > 0 %}
                     <li>
                         {{ mistake.title }} - Reviewed {{ mistake.times_reviewed }}x

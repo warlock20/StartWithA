@@ -1,0 +1,292 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📚 Learning Paths</h1>
+        <p class="text-muted mb-0">Structured programs to improve your investment skills</p>
+    </div>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newPathModal">
+        + Create Learning Path
+    </button>
+</div>
+
+<!-- Active Learning Paths -->
+{% set active_paths = paths|selectattr('status', 'equalto', 'active')|list %}
+{% if active_paths %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🎯 Active Learning Paths</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for path in active_paths %}
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ path.name }}</h5>
+                        <p class="card-text">{{ path.description }}</p>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Progress</span>
+                                <span>{{ path.completed_steps }}/{{ path.total_steps }} steps</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ (path.completed_steps / path.total_steps * 100) if path.total_steps else 0 }}%">
+                                    {{ ((path.completed_steps / path.total_steps * 100)|round) if path.total_steps else 0 }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2">
+                            <strong>Skill Area:</strong> 
+                            <span class="badge bg-info">{{ path.skill_area|replace('_', ' ')|title }}</span>
+                        </p>
+                        
+                        <p class="mb-2">
+                            <strong>Current Step:</strong> Step {{ path.current_step }}
+                            {% if path.milestones and path.current_step <= path.milestones|length %}
+                                - {{ path.milestones[path.current_step - 1] }}
+                            {% endif %}
+                        </p>
+                        
+                        {% if path.target_completion %}
+                        <p class="mb-2">
+                            <strong>Target:</strong> {{ path.target_completion.strftime('%B %d, %Y') }}
+                        </p>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-primary btn-sm" onclick="viewPath({{ path.id }})">
+                                Continue Learning
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="pausePath({{ path.id }})">
+                                Pause
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Suggested Learning Paths -->
+{% if suggested_paths %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">💡 Suggested Learning Paths</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Based on your recent mistakes and patterns, we recommend:</p>
+        <div class="row">
+            {% for suggestion in suggested_paths %}
+            <div class="col-lg-4 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ suggestion.name }}</h6>
+                        <p class="card-text small">{{ suggestion.description }}</p>
+                        <p class="mb-2">
+                            <span class="badge bg-secondary">{{ suggestion.skill_area|replace('_', ' ')|title }}</span>
+                        </p>
+                        <button class="btn btn-sm btn-outline-primary" 
+                                onclick="startSuggestedPath('{{ suggestion.name }}', '{{ suggestion.skill_area }}')">
+                            Start This Path
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Completed Paths -->
+{% set completed_paths = paths|selectattr('status', 'equalto', 'completed')|list %}
+{% if completed_paths %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">✅ Completed Learning Paths</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Path Name</th>
+                        <th>Skill Area</th>
+                        <th>Completed</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for path in completed_paths %}
+                    <tr>
+                        <td>{{ path.name }}</td>
+                        <td><span class="badge bg-success">{{ path.skill_area|replace('_', ' ')|title }}</span></td>
+                        <td>{{ path.completed_at.strftime('%b %d, %Y') if path.completed_at else 'N/A' }}</td>
+                        <td>
+                            {% if path.started_at and path.completed_at %}
+                                {{ (path.completed_at - path.started_at).days }} days
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewPath({{ path.id }})">
+                                Review
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Learning Resources Library -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">📖 Learning Resources</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6>📚 Books</h6>
+                <ul class="small">
+                    <li>"The Intelligent Investor" - Benjamin Graham</li>
+                    <li>"Common Stocks and Uncommon Profits" - Philip Fisher</li>
+                    <li>"One Up On Wall Street" - Peter Lynch</li>
+                    <li>"The Most Important Thing" - Howard Marks</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6>🎓 Courses</h6>
+                <ul class="small">
+                    <li>Financial Statement Analysis</li>
+                    <li>Business Valuation Methods</li>
+                    <li>Industry Analysis Frameworks</li>
+                    <li>Risk Management Strategies</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6>🔧 Practice Exercises</h6>
+                <ul class="small">
+                    <li>10-K Reading Challenge</li>
+                    <li>DCF Model Building</li>
+                    <li>Competitive Analysis Project</li>
+                    <li>Historical Case Studies</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Path Modal -->
+<div class="modal fade" id="newPathModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Learning Path</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('learning.create_learning_path') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="path_name" class="form-label">Path Name</label>
+                        <input type="text" class="form-control" id="path_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="path_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="path_description" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="skill_area" class="form-label">Skill Area</label>
+                            <select class="form-select" id="skill_area" name="skill_area">
+                                <option value="valuation">Valuation</option>
+                                <option value="financial_analysis">Financial Analysis</option>
+                                <option value="industry_analysis">Industry Analysis</option>
+                                <option value="risk_management">Risk Management</option>
+                                <option value="behavioral_finance">Behavioral Finance</option>
+                                <option value="portfolio_management">Portfolio Management</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="target_completion" class="form-label">Target Completion</label>
+                            <input type="date" class="form-control" id="target_completion" name="target_completion">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label class="form-label">Learning Milestones</label>
+                        <div id="milestones-container">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" name="milestones[]" 
+                                       placeholder="Milestone 1">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addMilestone()">
+                            + Add Milestone
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Path</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function addMilestone() {
+    const container = document.getElementById('milestones-container');
+    const count = container.children.length + 1;
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control" name="milestones[]" 
+               placeholder="Milestone ${count}">
+        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">
+            Remove
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function viewPath(pathId) {
+    // In production, this would navigate to a detailed path view
+    window.location.href = `/learning/paths/${pathId}`;
+}
+
+function pausePath(pathId) {
+    if (confirm('Pause this learning path?')) {
+        // In production, this would update the path status
+        fetch(`/learning/paths/${pathId}/pause`, {
+            method: 'POST'
+        }).then(() => location.reload());
+    }
+}
+
+function startSuggestedPath(name, skillArea) {
+    document.getElementById('path_name').value = name;
+    document.getElementById('skill_area').value = skillArea;
+    new bootstrap.Modal(document.getElementById('newPathModal')).show();
+}
+</script>
+{% endblock %}

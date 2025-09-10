@@ -4,7 +4,7 @@ from app import db
 from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
                        PatternRecognition, LearningPath, DecisionJournal,
                        ResearchProject, IdeaPipeline, JournalEntry,
-                       ResearchLog, WorkSession)
+                       ResearchLog, WorkSession, LearningNote)
 import statistics
 
 def get_weekly_metrics(user_id, week_start):

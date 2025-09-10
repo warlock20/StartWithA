@@ -54,7 +54,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     destination_checkpoints = db.relationship(
         "DestinationCheckpoint", backref="creator", lazy="dynamic"
     )
-    iption_tier = db.Column(db.String(50), nullable=False, default="free")
+    subscription_tier  = db.Column(db.String(50), nullable=False, default="free")
     question_bank_items = db.relationship(
         "QuestionBankItem",
         backref="author",
@@ -94,6 +94,16 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                     lazy='dynamic', cascade='all, delete-orphan')
     journal_templates = db.relationship('JournalTemplate', backref='author',
                                        lazy='dynamic', cascade='all, delete-orphan')
+    mistake_logs = db.relationship('MistakeLog', backref='user',
+                                  lazy='dynamic', cascade='all, delete-orphan')
+    weekly_reviews = db.relationship('WeeklyReview', backref='user',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    postmortems = db.relationship('InvestmentPostMortem', backref='user',
+                                 lazy='dynamic', cascade='all, delete-orphan')
+    learning_paths = db.relationship('LearningPath', backref='user',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    patterns = db.relationship('PatternRecognition', backref='user',
+                              lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

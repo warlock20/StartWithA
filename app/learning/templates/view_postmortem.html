@@ -1,0 +1,155 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>📊 Investment Postmortem</h1>
+    <p class="text-muted">
+        {{ postmortem.company.name if postmortem.company else 'Investment' }}
+        | Completed: {{ postmortem.created_at.strftime('%B %d, %Y') }}
+    </p>
+</div>
+
+<!-- Performance Summary -->
+<div class="card mb-4 {% if postmortem.total_return > 0 %}border-success{% else %}border-danger{% endif %}">
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <h3 class="{% if postmortem.total_return > 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ postmortem.total_return }}%
+                </h3>
+                <small class="text-muted">Total Return</small>
+            </div>
+            <div class="col-md-3">
+                <h3>{{ postmortem.holding_period_days }} days</h3>
+                <small class="text-muted">Holding Period</small>
+            </div>
+            <div class="col-md-3">
+                <h3>{{ postmortem.annualized_return|round(1) if postmortem.annualized_return else 'N/A' }}%</h3>
+                <small class="text-muted">Annualized Return</small>
+            </div>
+            <div class="col-md-3">
+                <h3>{{ postmortem.alpha|round(1) if postmortem.alpha else 'N/A' }}%</h3>
+                <small class="text-muted">Alpha vs Benchmark</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Thesis Analysis -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">🎯 Thesis Analysis</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Thesis Accuracy:</strong> 
+            <span class="badge bg-{{ 'success' if postmortem.thesis_accuracy == 'correct' else 'warning' if postmortem.thesis_accuracy == 'partially_correct' else 'danger' }}">
+                {{ postmortem.thesis_accuracy|replace('_', ' ')|title }}
+            </span>
+        </p>
+        
+        {% if postmortem.thesis_playing_out %}
+        <p><strong>How It Played Out:</strong></p>
+        <p>{{ postmortem.thesis_playing_out }}</p>
+        {% endif %}
+        
+        {% if postmortem.unexpected_developments %}
+        <p><strong>Unexpected Developments:</strong></p>
+        <ul>
+            {% for development in postmortem.unexpected_developments %}
+            <li>{{ development }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Decision Quality -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">✅ What Went Well</h5>
+            </div>
+            <div class="card-body">
+                {% if postmortem.what_went_well %}
+                <ul>
+                    {% for item in postmortem.what_went_well %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">Not recorded</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">❌ What Went Poorly</h5>
+            </div>
+            <div class="card-body">
+                {% if postmortem.what_went_poorly %}
+                <ul>
+                    {% for item in postmortem.what_went_poorly %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">Not recorded</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Learnings -->
+<div class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🎓 Key Learnings</h5>
+    </div>
+    <div class="card-body">
+        <h6>Primary Lesson:</h6>
+        <p class="lead">{{ postmortem.primary_lesson }}</p>
+        
+        {% if postmortem.process_improvements %}
+        <h6>Process Improvements:</h6>
+        <ul>
+            {% for improvement in postmortem.process_improvements %}
+            <li>{{ improvement }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Meta Information -->
+<div class="card">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Decision Quality Score:</strong> {{ postmortem.decision_quality_score }}/10</p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Process Followed:</strong> 
+                    {% if postmortem.process_followed %}
+                        <span class="text-success">✅ Yes</span>
+                    {% else %}
+                        <span class="text-danger">❌ No</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Would Repeat:</strong> 
+                    {% if postmortem.would_repeat %}
+                        <span class="text-success">✅ Yes</span>
+                    {% else %}
+                        <span class="text-danger">❌ No</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
