@@ -54,10 +54,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     destination_checkpoints = db.relationship(
         "DestinationCheckpoint", backref="creator", lazy="dynamic"
     )
-    mistake_logs = db.relationship(
-        "MistakeLog", backref="author", lazy="dynamic", cascade="all, delete-orphan"
-    )
-    subscription_tier = db.Column(db.String(50), nullable=False, default="free")
+    subscription_tier  = db.Column(db.String(50), nullable=False, default="free")
     question_bank_items = db.relationship(
         "QuestionBankItem",
         backref="author",
@@ -67,7 +64,47 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     sector_analyses = db.relationship(
         "SectorAnalysis", backref="author", lazy="dynamic", cascade="all, delete-orphan"
     )
-
+    idea_pipeline = db.relationship('IdeaPipeline', backref='author', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    kill_checklists = db.relationship('KillChecklist', backref='author', 
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    kill_sessions = db.relationship('KillSession', backref='user', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    research_templates = db.relationship('ResearchTemplate', backref='author', 
+                                        lazy='dynamic', cascade='all, delete-orphan')
+    research_projects = db.relationship('ResearchProject', backref='researcher', 
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    work_sessions = db.relationship('WorkSession', backref='user', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    template_steps = db.relationship('TemplateStep', backref='creator', 
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    metrics = db.relationship('ResearchMetrics', backref='user', 
+                             uselist=False, cascade='all, delete-orphan')
+    source_analyses = db.relationship('IdeaSourceAnalysis', backref='user',
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    research_logs = db.relationship('ResearchLog', backref='user',
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    decision_journals = db.relationship('DecisionJournal', backref='user',
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    journal_entries = db.relationship('JournalEntry', backref='author',
+                                     lazy='dynamic', cascade='all, delete-orphan')
+    thesis_evolutions = db.relationship('ThesisEvolution', backref='author',
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    learning_notes = db.relationship('LearningNote', backref='author',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    journal_templates = db.relationship('JournalTemplate', backref='author',
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    mistake_logs = db.relationship('MistakeLog', backref='user',
+                                  lazy='dynamic', cascade='all, delete-orphan')
+    weekly_reviews = db.relationship('WeeklyReview', backref='user',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    postmortems = db.relationship('InvestmentPostMortem', backref='user',
+                                 lazy='dynamic', cascade='all, delete-orphan')
+    learning_paths = db.relationship('LearningPath', backref='user',
+                                    lazy='dynamic', cascade='all, delete-orphan')
+    patterns = db.relationship('PatternRecognition', backref='user',
+                              lazy='dynamic', cascade='all, delete-orphan')
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -158,12 +195,6 @@ class Company(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    documents = db.relationship(
-        "CompanyDocument",
-        backref="company",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
     destination_checkpoints = db.relationship(
         "DestinationCheckpoint",
         backref="company",
@@ -184,9 +215,6 @@ class Company(db.Model):
     )
     financial_data = db.relationship(
         "FinancialData", backref="company", lazy="dynamic", cascade="all, delete-orphan"
-    )
-    journal_entries = db.relationship(
-        "JournalEntry", backref="company", lazy="dynamic", cascade="all, delete-orphan"
     )
 
     competitors = db.relationship(
@@ -403,26 +431,6 @@ class QualitativeAnalysis(db.Model):
     def __repr__(self):
         return f"<QualitativeAnalysis {self.model_type} for Company {self.company_id}>"
 
-
-class MistakeLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
-    # A description of the investment mistake
-    mistake_description = db.Column(db.Text, nullable=False)
-
-    # The source of the lesson (e.g., "Personal", "Warren Buffett", "Peter Lynch")
-    source = db.Column(db.String(150), nullable=True)
-
-    # The actionable lesson learned from the mistake
-    lesson_learned = db.Column(db.Text, nullable=False)
-
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f"<MistakeLog {self.id} by User {self.user_id}>"
-
-
 class FinancialData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
@@ -449,7 +457,6 @@ class FinancialData(db.Model):
     def __repr__(self):
         return f"<FinancialData {self.metric_name} for Company {self.company_id} on {self.period_date}>"
 
-
 class QuestionBankItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -467,7 +474,6 @@ class QuestionBankItem(db.Model):
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"
-
 
 class SectorAnalysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -492,19 +498,959 @@ class SectorAnalysis(db.Model):
     def __repr__(self):
         return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
 
-
-class JournalEntry(db.Model):
+class IdeaPipeline(db.Model):
+    __tablename__ = 'idea_pipeline'
     id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=True)
-
-    # Optional: Tags for categorizing entries, like "Competitor Analysis", "Red Flag"
-    tags = db.Column(db.String(200), nullable=True)
-
-    entry_date = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    idea_type = db.Column(db.String(50), nullable=False, default='company')
+    ticker_symbol = db.Column(db.String(20))
+    source = db.Column(db.String(200))
+    thesis_summary = db.Column(db.Text)
+    initial_notes = db.Column(db.Text)
+    status = db.Column(db.String(50), default='inbox', index=True)
+    kill_reason = db.Column(db.Text)
+    failed_criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    killed_at = db.Column(db.DateTime)
+    promoted_at = db.Column(db.DateTime)
+    last_reviewed_at = db.Column(db.DateTime)
+    priority = db.Column(db.Integer, default=0)
+    promoted_to_company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    kill_sessions = db.relationship('KillSession', backref='idea', lazy='dynamic', cascade='all, delete-orphan')
+    promoted_to_company = db.relationship('Company', foreign_keys=[promoted_to_company_id])
 
     def __repr__(self):
-        return f'<JournalEntry "{self.title}">'
+        return f'<IdeaPipeline {self.name} - {self.status}>'
+
+class KillChecklist(db.Model):
+    __tablename__ = 'kill_checklist'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_default = db.Column(db.Boolean, default=False)
+    applicable_to = db.Column(db.String(100), default='all')
+    criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
+    kill_sessions = db.relationship('KillSession', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
+    total_ideas_evaluated = db.Column(db.Integer, default=0)
+    total_ideas_killed = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def kill_rate(self):
+        if self.total_ideas_evaluated == 0: return 0
+        return round((self.total_ideas_killed / self.total_ideas_evaluated) * 100, 1)
+
+    @property
+    def criteria_count(self):
+        return self.criteria.count()
+
+    def __repr__(self):
+        return f'<KillChecklist {self.name}>'
+
+class KillCriterion(db.Model):
+    __tablename__ = 'kill_criterion'
+    id = db.Column(db.Integer, primary_key=True)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    question = db.Column(db.String(500), nullable=False)
+    failure_reason = db.Column(db.Text)
+    help_text = db.Column(db.Text)
+    order = db.Column(db.Integer, default=0)
+    times_evaluated = db.Column(db.Integer, default=0)
+    times_failed = db.Column(db.Integer, default=0)
+    killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
+
+    @property
+    def failure_rate(self):
+        if self.times_evaluated == 0: return 0
+        return round((self.times_failed / self.times_evaluated) * 100, 1)
+
+    def __repr__(self):
+        return f'<KillCriterion {self.question[:50]}>'
+
+class KillSession(db.Model):
+    __tablename__ = 'kill_session'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
+    answers = db.relationship('KillAnswer', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+    time_taken_seconds = db.Column(db.Integer)
+
+    def __repr__(self):
+        return f'<KillSession for Idea {self.idea_id}>'
+
+class KillAnswer(db.Model):
+    __tablename__ = 'kill_answer'
+    id = db.Column(db.Integer, primary_key=True)
+    kill_session_id = db.Column(db.Integer, db.ForeignKey('kill_session.id'), nullable=False)
+    criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False)
+    passed = db.Column(db.Boolean)
+    notes = db.Column(db.Text)
+    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    criterion = db.relationship('KillCriterion')
+
+    def __repr__(self):
+        return f'<KillAnswer {self.passed}>'
+# Add these new models to app/models.py after your existing IdeaPipeline models
+
+class ResearchTemplate(db.Model):
+    """
+    A research template is a reusable workflow that defines how an investor
+    analyzes opportunities. Think of it as a 'recipe' for research that ensures
+    consistency while allowing flexibility for different investment styles.
+    """
+    __tablename__ = 'research_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Basic template information
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    investment_style = db.Column(db.String(100))  # 'value', 'growth', 'special_situations', etc.
+    
+    # The workflow is stored as JSON to allow maximum flexibility
+    # Each step can reference different types of analysis tools
+    workflow_steps = db.Column(db.JSON, nullable=False)
+    
+    # Templates can be shared with the community (future feature)
+    is_public = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Track usage and effectiveness
+    times_used = db.Column(db.Integer, default=0)
+    successful_investments = db.Column(db.Integer, default=0)
+    failed_investments = db.Column(db.Integer, default=0)
+    average_research_hours = db.Column(db.Float)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    research_projects = db.relationship('ResearchProject', backref='template', 
+                                       lazy='dynamic', cascade='all, delete-orphan')
+    
+    @property
+    def success_rate(self):
+        """Calculate the success rate of investments made using this template"""
+        total = self.successful_investments + self.failed_investments
+        if total == 0:
+            return 0
+        return round((self.successful_investments / total) * 100, 1)
+    
+    @property
+    def step_count(self):
+        """Number of steps in this template's workflow"""
+        return len(self.workflow_steps) if self.workflow_steps else 0
+    
+    def get_step(self, step_index):
+        """Safely get a specific step from the workflow"""
+        if self.workflow_steps and 0 <= step_index < len(self.workflow_steps):
+            return self.workflow_steps[step_index]
+        return None
+    
+    def __repr__(self):
+        return f'<ResearchTemplate {self.name}>'
+
+
+class ResearchProject(db.Model):
+    """
+    A research project is an active execution of a research template for a specific
+    company. It tracks progress, time spent, findings, and ultimately the investment
+    decision. This is where templates become actionable.
+    """
+    __tablename__ = 'research_project'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
+    
+    # If this project originated from an idea in the pipeline
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    
+    # Project metadata
+    project_name = db.Column(db.String(200))
+    investment_thesis = db.Column(db.Text)  # Evolving thesis as research progresses
+    
+    # Progress tracking
+    current_step_index = db.Column(db.Integer, default=0)
+    completed_steps = db.Column(db.JSON, default=list)  # Array of completed step indices
+    step_notes = db.Column(db.JSON, default=dict)  # Notes for each step
+    
+    # Status tracking
+    status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned'
+    
+    # Time tracking - crucial for understanding where effort goes
+    total_hours_spent = db.Column(db.Float, default=0.0)
+    time_per_step = db.Column(db.JSON, default=dict)  # Track time for each step
+    last_worked_at = db.Column(db.DateTime)
+    
+    # Decision tracking
+    decision = db.Column(db.String(50))  # 'invest', 'pass', 'watchlist', 'needs_more_work'
+    decision_date = db.Column(db.DateTime)
+    decision_confidence = db.Column(db.Integer)  # 1-10 scale
+    decision_notes = db.Column(db.Text)
+    
+    # If invested, track the outcome
+    investment_amount = db.Column(db.Float)
+    investment_date = db.Column(db.Date)
+    exit_date = db.Column(db.Date)
+    return_percentage = db.Column(db.Float)
+    
+    # Key findings that influenced the decision
+    key_findings = db.Column(db.JSON, default=list)
+    red_flags = db.Column(db.JSON, default=list)
+    green_flags = db.Column(db.JSON, default=list)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    
+    # Relationships
+    company = db.relationship('Company', backref='research_projects')
+    idea = db.relationship('IdeaPipeline', backref='research_project')
+    work_sessions = db.relationship('WorkSession', backref='project', 
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    
+    @property
+    def progress_percentage(self):
+        """Calculate the completion percentage of this project"""
+        if not self.template or not self.template.workflow_steps:
+            return 0
+        total_steps = len(self.template.workflow_steps)
+        if total_steps == 0:
+            return 0
+        return round((len(self.completed_steps) / total_steps) * 100, 1)
+    
+    @property
+    def current_step(self):
+        """Get the current step details from the template"""
+        if self.template:
+            return self.template.get_step(self.current_step_index)
+        return None
+    
+    @property
+    def is_overdue(self):
+        """Check if this project has been idle too long"""
+        if self.status != 'active' or not self.last_worked_at:
+            return False
+        days_idle = (datetime.utcnow() - self.last_worked_at).days
+        return days_idle > 14  # Consider overdue after 2 weeks of inactivity
+    
+    def __repr__(self):
+        return f'<ResearchProject {self.project_name or f"Company {self.company_id}"}>'
+
+
+class WorkSession(db.Model):
+    """
+    A work session tracks individual research sessions within a project.
+    This granular tracking helps investors understand their time allocation
+    and identify which parts of their process are most time-consuming.
+    """
+    __tablename__ = 'work_session'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # What was worked on
+    step_index = db.Column(db.Integer)
+    step_name = db.Column(db.String(200))
+    
+    # Time tracking
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime)
+    duration_minutes = db.Column(db.Integer)
+    
+    # Work product
+    notes = db.Column(db.Text)
+    findings = db.Column(db.JSON)  # Structured findings
+    documents_reviewed = db.Column(db.JSON)  # List of documents consulted
+    
+    # Quality markers
+    confidence_level = db.Column(db.Integer)  # 1-10 scale for this session's work
+    needs_followup = db.Column(db.Boolean, default=False)
+    followup_notes = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<WorkSession {self.id} for Project {self.research_project_id}>'
+
+
+class TemplateStep(db.Model):
+    """
+    A library of reusable research steps that can be assembled into templates.
+    This allows users to build templates from pre-defined components while
+    still maintaining flexibility to create custom steps.
+    """
+    __tablename__ = 'template_step'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system-provided steps
+    
+    # Step definition
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    step_type = db.Column(db.String(50), nullable=False)  # 'checklist', 'model', 'document_review', 'valuation', 'custom'
+    
+    # Configuration for the step
+    config = db.Column(db.JSON)  # Type-specific configuration
+    
+    # Expected time and importance
+    estimated_minutes = db.Column(db.Integer, default=60)
+    is_critical = db.Column(db.Boolean, default=False)  # Must be completed
+    
+    # Guidance for completing this step
+    instructions = db.Column(db.Text)
+    success_criteria = db.Column(db.Text)
+    common_pitfalls = db.Column(db.Text)
+    
+    # For learning and improvement
+    times_used = db.Column(db.Integer, default=0)
+    average_actual_minutes = db.Column(db.Float)
+    skip_rate = db.Column(db.Float)  # How often this step gets skipped
+    
+    # Categorization
+    category = db.Column(db.String(100))  # 'fundamental', 'technical', 'qualitative', etc.
+    tags = db.Column(db.JSON, default=list)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<TemplateStep {self.name}>'    
+    
+# Add these new models to app/models.py
+
+class ResearchMetrics(db.Model):
+    """
+    Aggregated metrics for a user's research performance.
+    Updated periodically to provide dashboard insights.
+    """
+    __tablename__ = 'research_metrics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Idea Pipeline Metrics
+    total_ideas_captured = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    ideas_promoted = db.Column(db.Integer, default=0)
+    ideas_in_pipeline = db.Column(db.Integer, default=0)
+    average_days_to_decision = db.Column(db.Float)
+    
+    # Kill Rate Analysis
+    kill_rate = db.Column(db.Float)  # Percentage
+    most_common_kill_reason = db.Column(db.String(500))
+    fastest_kill_minutes = db.Column(db.Integer)
+    slowest_kill_minutes = db.Column(db.Integer)
+    
+    # Research Time Metrics
+    total_research_hours = db.Column(db.Float, default=0)
+    average_hours_per_company = db.Column(db.Float)
+    average_hours_per_decision = db.Column(db.Float)
+    most_time_consuming_step = db.Column(db.String(200))
+    
+    # Decision Quality Metrics
+    total_investment_decisions = db.Column(db.Integer, default=0)
+    invest_decisions = db.Column(db.Integer, default=0)
+    pass_decisions = db.Column(db.Integer, default=0)
+    average_confidence_score = db.Column(db.Float)
+    
+    # Success Tracking (if they track outcomes)
+    winning_investments = db.Column(db.Integer, default=0)
+    losing_investments = db.Column(db.Integer, default=0)
+    average_return = db.Column(db.Float)
+    best_investment_return = db.Column(db.Float)
+    worst_investment_return = db.Column(db.Float)
+    
+    # Source Quality
+    best_idea_source = db.Column(db.String(200))
+    best_source_success_rate = db.Column(db.Float)
+    
+    # Behavioral Patterns
+    most_productive_day = db.Column(db.String(20))  # Monday, Tuesday, etc.
+    most_productive_hour = db.Column(db.Integer)  # 0-23
+    average_session_duration = db.Column(db.Float)  # minutes
+    research_streak_days = db.Column(db.Integer, default=0)
+    last_research_date = db.Column(db.Date)
+    
+    # Timestamps
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ResearchMetrics for User {self.user_id}>'
+
+
+class IdeaSourceAnalysis(db.Model):
+    """
+    Track the quality of different idea sources to identify
+    which inputs generate the best investment opportunities.
+    """
+    __tablename__ = 'idea_source_analysis'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    source_name = db.Column(db.String(200), nullable=False)
+    
+    # Volume metrics
+    total_ideas = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    ideas_promoted = db.Column(db.Integer, default=0)
+    ideas_invested = db.Column(db.Integer, default=0)
+    
+    # Quality metrics
+    survival_rate = db.Column(db.Float)  # % that pass kill test
+    investment_rate = db.Column(db.Float)  # % that become investments
+    average_research_hours = db.Column(db.Float)
+    average_confidence = db.Column(db.Float)
+    
+    # Outcome tracking
+    successful_investments = db.Column(db.Integer, default=0)
+    failed_investments = db.Column(db.Integer, default=0)
+    average_return = db.Column(db.Float)
+    
+    last_idea_date = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'source_name', name='_user_source_uc'),
+    )
+    
+    def __repr__(self):
+        return f'<IdeaSourceAnalysis {self.source_name}>'
+
+
+class ResearchLog(db.Model):
+    """
+    Detailed log of all research activities for pattern analysis.
+    This is the raw data that feeds into aggregated metrics.
+    """
+    __tablename__ = 'research_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # What was done
+    activity_type = db.Column(db.String(50), nullable=False)
+    # Types: 'idea_captured', 'idea_killed', 'idea_promoted', 'research_started',
+    # 'step_completed', 'decision_made', 'thesis_updated', 'document_uploaded', etc.
+    
+    # Associated entities
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    
+    # Activity details
+    details = db.Column(db.JSON)  # Flexible field for activity-specific data
+    duration_minutes = db.Column(db.Integer)
+    
+    # When it happened
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    day_of_week = db.Column(db.Integer)  # 0=Monday, 6=Sunday
+    hour_of_day = db.Column(db.Integer)  # 0-23
+    
+    def __repr__(self):
+        return f'<ResearchLog {self.activity_type} at {self.timestamp}>'
+
+
+class DecisionJournal(db.Model):
+    """
+    Track investment decisions with pre-mortem and post-mortem analysis.
+    This helps investors learn from both good and bad decisions.
+    """
+    __tablename__ = 'decision_journal'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    
+    # Decision details
+    decision_type = db.Column(db.String(20), nullable=False)  # 'invest', 'pass', 'exit'
+    decision_date = db.Column(db.Date, nullable=False)
+    confidence_score = db.Column(db.Integer)  # 1-10
+    
+    # Pre-mortem (filled when making decision)
+    investment_thesis = db.Column(db.Text)
+    expected_return = db.Column(db.Float)  # Percentage
+    expected_timeframe = db.Column(db.Integer)  # Months
+    key_assumptions = db.Column(db.JSON)  # List of assumptions
+    biggest_risks = db.Column(db.JSON)  # List of risks
+    exit_criteria = db.Column(db.Text)  # What would make you sell?
+    
+    # Post-mortem (filled later)
+    actual_return = db.Column(db.Float)
+    actual_timeframe = db.Column(db.Integer)  # Months
+    outcome_date = db.Column(db.Date)
+    outcome_notes = db.Column(db.Text)
+    
+    # Learning
+    what_went_right = db.Column(db.Text)
+    what_went_wrong = db.Column(db.Text)
+    lessons_learned = db.Column(db.Text)
+    would_repeat = db.Column(db.Boolean)
+    
+    # Categorization for pattern analysis
+    mistake_category = db.Column(db.String(100))  # 'valuation', 'thesis_wrong', 'timing', etc.
+    success_category = db.Column(db.String(100))  # 'thesis_correct', 'patience', 'contrarian', etc.
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'    
+    
+
+class JournalEntry(db.Model):
+    """
+    Enhanced journal entries that capture investment thinking over time.
+    These are more structured than simple notes, designed to build knowledge.
+    """
+    __tablename__ = 'journal_entry'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Entry metadata
+    title = db.Column(db.String(200))
+    entry_type = db.Column(db.String(50), nullable=False, default='observation')
+    # Types: 'observation', 'thesis_update', 'question', 'insight', 'lesson_learned', 
+    # 'market_thought', 'meeting_notes', 'earnings_reaction', 'news_analysis'
+    
+    # Content
+    content = db.Column(db.Text, nullable=False)
+    
+    # Structured elements (optional)
+    key_insight = db.Column(db.Text)  # The main takeaway
+    action_items = db.Column(db.JSON)  # List of follow-up actions
+    questions_raised = db.Column(db.JSON)  # Questions to investigate
+    
+    # Mood/Sentiment tracking
+    sentiment = db.Column(db.String(20))  # 'bullish', 'bearish', 'neutral', 'uncertain'
+    conviction_level = db.Column(db.Integer)  # 1-10 scale
+    
+    # Associations
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    
+    # Tags for categorization and search
+    tags = db.Column(db.JSON, default=list)
+    
+    # Source/Context
+    source = db.Column(db.String(200))  # 'earnings_call', 'article', 'conversation', etc.
+    source_url = db.Column(db.String(500))
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Review tracking
+    last_reviewed = db.Column(db.DateTime)
+    review_count = db.Column(db.Integer, default=0)
+    is_starred = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    company = db.relationship('Company', backref='journal_entries')
+    attachments = db.relationship('JournalAttachment', backref='entry', 
+                                 lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<JournalEntry {self.title or self.id}>'
+
+
+class JournalAttachment(db.Model):
+    """
+    Attachments for journal entries - images, charts, documents.
+    """
+    __tablename__ = 'journal_attachment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'), nullable=False)
+    
+    filename = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50))  # 'image', 'pdf', 'spreadsheet', etc.
+    file_path = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)  # In bytes
+    
+    caption = db.Column(db.Text)
+    
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<JournalAttachment {self.filename}>'
+
+
+class ThesisEvolution(db.Model):
+    """
+    Track how investment theses change over time.
+    This helps identify pattern recognition and decision evolution.
+    """
+    __tablename__ = 'thesis_evolution'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    
+    # Thesis version
+    version = db.Column(db.Integer, default=1)
+    thesis = db.Column(db.Text, nullable=False)
+    
+    # What changed from previous version
+    change_summary = db.Column(db.Text)
+    change_trigger = db.Column(db.String(200))  # What caused the update
+    
+    # Conviction tracking
+    conviction_level = db.Column(db.Integer)  # 1-10
+    position_sizing = db.Column(db.String(50))  # 'starter', 'half', 'full', 'oversized'
+    
+    # Key factors at this point
+    bull_case = db.Column(db.JSON)  # List of bullish points
+    bear_case = db.Column(db.JSON)  # List of bearish points
+    key_metrics = db.Column(db.JSON)  # Important metrics at this time
+    
+    # Status
+    is_current = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='thesis_versions')
+    linked_journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    
+    def __repr__(self):
+        return f'<ThesisEvolution v{self.version} for Company {self.company_id}>'
+
+
+class LearningNote(db.Model):
+    """
+    Structured learning notes that capture investment lessons.
+    These are meant to be reviewed and internalized over time.
+    """
+    __tablename__ = 'learning_note'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Learning content
+    title = db.Column(db.String(200), nullable=False)
+    lesson = db.Column(db.Text, nullable=False)
+    
+    # Categorization
+    category = db.Column(db.String(100))  # 'mistake', 'success', 'process', 'market_wisdom'
+    subcategory = db.Column(db.String(100))  # More specific classification
+    
+    # Context
+    context = db.Column(db.Text)  # The situation that led to this learning
+    
+    # Application
+    how_to_apply = db.Column(db.Text)  # How to use this lesson in future
+    
+    # Examples
+    examples = db.Column(db.JSON)  # Specific examples of this lesson
+    anti_examples = db.Column(db.JSON)  # Counter-examples
+    
+    # Source
+    source_type = db.Column(db.String(50))  # 'experience', 'book', 'mentor', 'article'
+    source_detail = db.Column(db.String(200))
+    
+    # Related entities
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    
+    # Review and reinforcement
+    times_reviewed = db.Column(db.Integer, default=0)
+    last_reviewed = db.Column(db.DateTime)
+    importance = db.Column(db.Integer, default=5)  # 1-10 scale
+    
+    # Spaced repetition
+    next_review_date = db.Column(db.Date)
+    review_interval_days = db.Column(db.Integer, default=7)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Tags for cross-referencing
+    tags = db.Column(db.JSON, default=list)
+    
+    def __repr__(self):
+        return f'<LearningNote {self.title}>'
+
+
+class JournalTemplate(db.Model):
+    """
+    Templates for different types of journal entries to ensure consistency.
+    """
+    __tablename__ = 'journal_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system templates
+    
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    entry_type = db.Column(db.String(50), nullable=False)
+    
+    # Template structure
+    prompts = db.Column(db.JSON)  # List of questions/prompts to answer
+    required_fields = db.Column(db.JSON)  # Fields that must be filled
+    
+    # Example content
+    example_content = db.Column(db.Text)
+    
+    is_active = db.Column(db.Boolean, default=True)
+    is_public = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<JournalTemplate {self.name}>'
+    
+# Add these new models to app/models.py
+
+class MistakeLog(db.Model):
+    """
+    Detailed log of investment mistakes for pattern recognition and learning.
+    """
+    __tablename__ = 'mistake_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Mistake details
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    
+    # Categorization
+    mistake_type = db.Column(db.String(100), nullable=False)
+    # Types: 'analysis_error', 'emotional_decision', 'process_failure', 
+    # 'information_gap', 'timing', 'position_sizing', 'thesis_drift'
+    
+    severity = db.Column(db.Integer, default=5)  # 1-10 scale
+    cost_estimate = db.Column(db.Float)  # Estimated $ cost or % loss
+    
+    # Context
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    occurred_date = db.Column(db.Date)
+    
+    # Root cause analysis
+    root_cause = db.Column(db.Text)
+    contributing_factors = db.Column(db.JSON)  # List of factors
+    
+    # Prevention
+    lesson_learned = db.Column(db.Text, nullable=False)
+    prevention_steps = db.Column(db.JSON)  # List of steps to prevent recurrence
+    process_changes = db.Column(db.Text)  # Changes made to investment process
+    
+    # Review tracking
+    times_reviewed = db.Column(db.Integer, default=0)
+    last_reviewed = db.Column(db.DateTime)
+    prevented_similar = db.Column(db.Integer, default=0)  # Times prevented similar mistake
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='mistake_logs')
+    decision = db.relationship('DecisionJournal', backref='mistakes')
+    
+    def __repr__(self):
+        return f'<MistakeLog {self.title}>'
+
+
+class WeeklyReview(db.Model):
+    """
+    Structured weekly reviews to maintain learning momentum.
+    """
+    __tablename__ = 'weekly_review'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    week_start = db.Column(db.Date, nullable=False)
+    week_end = db.Column(db.Date, nullable=False)
+    
+    # Activities summary
+    ideas_captured = db.Column(db.Integer, default=0)
+    ideas_killed = db.Column(db.Integer, default=0)
+    research_hours = db.Column(db.Float, default=0)
+    decisions_made = db.Column(db.Integer, default=0)
+    
+    # Reflections
+    biggest_win = db.Column(db.Text)
+    biggest_challenge = db.Column(db.Text)
+    key_learnings = db.Column(db.JSON)  # List of learnings
+    
+    # Market observations
+    market_thoughts = db.Column(db.Text)
+    opportunities_identified = db.Column(db.JSON)  # List of opportunities
+    risks_identified = db.Column(db.JSON)  # List of risks
+    
+    # Planning
+    next_week_priorities = db.Column(db.JSON)  # List of priorities
+    companies_to_research = db.Column(db.JSON)  # List of company IDs or names
+    
+    # Accountability
+    last_week_goals_achieved = db.Column(db.JSON)  # What was accomplished
+    goals_completion_rate = db.Column(db.Integer)  # Percentage
+    
+    # Sentiment tracking
+    confidence_level = db.Column(db.Integer)  # 1-10
+    market_sentiment = db.Column(db.String(50))  # 'bullish', 'bearish', 'neutral'
+    
+    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<WeeklyReview {self.week_start}>'
+
+
+class InvestmentPostMortem(db.Model):
+    """
+    Detailed post-mortem analysis of completed investments.
+    """
+    __tablename__ = 'investment_postmortem'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    
+    # Investment details
+    entry_date = db.Column(db.Date, nullable=False)
+    exit_date = db.Column(db.Date, nullable=False)
+    holding_period_days = db.Column(db.Integer)
+    
+    # Performance
+    entry_price = db.Column(db.Float)
+    exit_price = db.Column(db.Float)
+    total_return = db.Column(db.Float)  # Percentage
+    annualized_return = db.Column(db.Float)
+    
+    # vs Benchmark
+    benchmark_return = db.Column(db.Float)  # S&P 500 or relevant benchmark
+    alpha = db.Column(db.Float)  # Excess return
+    
+    # Analysis
+    outcome = db.Column(db.String(50))  # 'success', 'failure', 'mixed'
+    
+    # What happened
+    thesis_accuracy = db.Column(db.String(50))  # 'correct', 'partially_correct', 'wrong'
+    thesis_playing_out = db.Column(db.Text)  # How the thesis played out
+    unexpected_developments = db.Column(db.JSON)  # List of surprises
+    
+    # Decision quality analysis
+    decision_quality_score = db.Column(db.Integer)  # 1-10
+    process_followed = db.Column(db.Boolean)
+    emotional_factors = db.Column(db.Text)
+    
+    # Learnings
+    what_went_well = db.Column(db.JSON)  # List of positives
+    what_went_poorly = db.Column(db.JSON)  # List of negatives
+    lucky_breaks = db.Column(db.JSON)  # Acknowledge luck
+    
+    # Key lessons
+    primary_lesson = db.Column(db.Text)
+    secondary_lessons = db.Column(db.JSON)
+    
+    # Process improvements
+    process_improvements = db.Column(db.JSON)  # Changes to make
+    would_repeat = db.Column(db.Boolean)
+    
+    # Supporting documents
+    attachments = db.Column(db.JSON)  # Links or filenames
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    company = db.relationship('Company', backref='postmortems')
+    decision = db.relationship('DecisionJournal', backref='postmortem')
+    
+    def __repr__(self):
+        return f'<InvestmentPostMortem {self.company_id}>'
+
+
+class LearningPath(db.Model):
+    """
+    Structured learning paths for improving specific skills.
+    """
+    __tablename__ = 'learning_path'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    skill_area = db.Column(db.String(100))  # 'valuation', 'industry_analysis', etc.
+    
+    # Path structure
+    total_steps = db.Column(db.Integer)
+    completed_steps = db.Column(db.Integer, default=0)
+    
+    # Content
+    learning_resources = db.Column(db.JSON)  # Books, courses, articles
+    practice_exercises = db.Column(db.JSON)  # Practical exercises
+    milestones = db.Column(db.JSON)  # Key milestones to achieve
+    
+    # Progress tracking
+    current_step = db.Column(db.Integer, default=1)
+    progress_notes = db.Column(db.JSON)  # Notes for each step
+    
+    # Completion
+    started_at = db.Column(db.DateTime)
+    target_completion = db.Column(db.Date)
+    completed_at = db.Column(db.DateTime)
+    
+    status = db.Column(db.String(50), default='planned')  # 'planned', 'active', 'completed', 'paused'
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<LearningPath {self.name}>'
+
+
+class PatternRecognition(db.Model):
+    """
+    Identified patterns in investment behavior and outcomes.
+    """
+    __tablename__ = 'pattern_recognition'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    pattern_name = db.Column(db.String(200), nullable=False)
+    pattern_type = db.Column(db.String(100))  # 'success_pattern', 'failure_pattern', 'behavioral'
+    
+    description = db.Column(db.Text, nullable=False)
+    
+    # Evidence
+    occurrences = db.Column(db.Integer, default=1)
+    examples = db.Column(db.JSON)  # List of specific examples
+    
+    # Impact
+    impact_score = db.Column(db.Integer)  # 1-10
+    financial_impact = db.Column(db.Text)  # Estimated financial impact
+    
+    # Action plan
+    how_to_leverage = db.Column(db.Text)  # For success patterns
+    how_to_avoid = db.Column(db.Text)  # For failure patterns
+    
+    # Validation
+    confidence_level = db.Column(db.Integer)  # 1-10
+    needs_more_data = db.Column(db.Boolean, default=False)
+    
+    identified_date = db.Column(db.Date, default=datetime.utcnow().date)
+    last_observed = db.Column(db.Date)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<PatternRecognition {self.pattern_name}>'

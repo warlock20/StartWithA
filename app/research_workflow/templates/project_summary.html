@@ -1,0 +1,115 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ title }}</h1>
+        <p class="text-muted mb-0">Review your findings and make a final investment decision.</p>
+    </div>
+    <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary">Back to My Projects</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Investment Decision</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('research_workflow.save_decision', project_id=project.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Decision:</strong></label>
+                        <div class="btn-group d-block" role="group">
+                            <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
+                            <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest</label>
+
+                            <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
+                            <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass</label>
+
+                            <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
+                            <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watchlist</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confidence" class="form-label"><strong>Confidence Level (1-10):</strong></label>
+                        <input type="range" class="form-range" min="1" max="10" step="1" id="confidence" name="confidence" value="5">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="decision_notes" class="form-label"><strong>Final Thesis / Rationale:</strong></label>
+                        <textarea class="form-control" name="decision_notes" rows="4" placeholder="Summarize the core reasons for your decision..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="green_flags" class="form-label"><strong>Key Green Flags (one per line):</strong></label>
+                            <textarea class="form-control" name="green_flags" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="red_flags" class="form-label"><strong>Key Red Flags (one per line):</strong></label>
+                            <textarea class="form-control" name="red_flags" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">Save Final Decision</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Compiled Research Notes</h5>
+            </div>
+            <div class="card-body">
+                {% if all_notes %}
+                    <div class="accordion" id="notesAccordion">
+                        {% for note in all_notes %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#note-{{ loop.index0 }}">
+                                    {{ note.step_name }}
+                                </button>
+                            </h2>
+                            <div id="note-{{ loop.index0 }}" class="accordion-collapse collapse" data-bs-parent="#notesAccordion">
+                                <div class="accordion-body" style="white-space: pre-wrap;">{{ note.notes }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No notes were recorded for this project.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Project Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Company:</dt>
+                    <dd class="col-sm-7">{{ project.company.name }}</dd>
+
+                    <dt class="col-sm-5">Template:</dt>
+                    <dd class="col-sm-7">{{ project.template.name }}</dd>
+
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7"><span class="badge bg-success">{{ project.status|capitalize }}</span></dd>
+
+                    <dt class="col-sm-5">Completed:</dt>
+                    <dd class="col-sm-7">{{ project.completed_at.strftime('%Y-%m-%d') if project.completed_at else 'N/A' }}</dd>
+
+                    <dt class="col-sm-5">Time Spent:</dt>
+                    <dd class="col-sm-7">{{ project.total_hours_spent|round(1) }} hours</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

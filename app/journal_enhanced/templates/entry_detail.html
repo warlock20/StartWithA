@@ -1,0 +1,229 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ entry.title or "Journal Entry" }}</h1>
+        <p class="text-muted mb-0">
+            {{ entry.created_at.strftime('%B %d, %Y at %H:%M') }}
+            {% if entry.company %}
+                | {{ entry.company.name }}
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <button class="btn btn-outline-warning" onclick="toggleStar({{ entry.id }})">
+            {% if entry.is_starred %}⭐ Starred{% else %}☆ Star{% endif %}
+        </button>
+        <a href="{{ url_for('journal_enhanced.edit_entry', entry_id=entry.id) }}" 
+           class="btn btn-outline-primary">Edit</a>
+        <button class="btn btn-outline-danger" onclick="archiveEntry({{ entry.id }})">
+            Archive
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Entry Metadata -->
+        <div class="mb-3">
+            <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+            {% if entry.sentiment %}
+                <span class="badge bg-info">{{ entry.sentiment|title }}</span>
+            {% endif %}
+            {% if entry.conviction_level %}
+                <span class="badge bg-primary">Conviction: {{ entry.conviction_level }}/10</span>
+            {% endif %}
+            {% if entry.source %}
+                <span class="badge bg-light text-dark">Source: {{ entry.source }}</span>
+            {% endif %}
+        </div>
+        
+        <!-- Main Content -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="entry-content">
+                    {{ entry.content|replace('\n', '<br>')|safe }}
+                </div>
+                
+                {% if entry.key_insight %}
+                <div class="alert alert-success mt-4">
+                    <h6>💡 Key Insight:</h6>
+                    <p class="mb-0">{{ entry.key_insight }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Action Items -->
+        {% if entry.action_items %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">✅ Action Items</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    {% for item in entry.action_items %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Questions Raised -->
+        {% if entry.questions_raised %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">❓ Questions Raised</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    {% for question in entry.questions_raised %}
+                    <li>{{ question }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Attachments -->
+        {% if attachments %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">📎 Attachments</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for attachment in attachments %}
+                    <div class="col-md-4 mb-2">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                {% if attachment.file_type in ['png', 'jpg', 'jpeg', 'gif'] %}
+                                    <img src="{{ url_for('static', filename='uploads/journal/' + current_user.id|string + '/' + attachment.filename) }}" 
+                                         class="img-fluid mb-2" alt="{{ attachment.filename }}">
+                                {% else %}
+                                    <i class="bi bi-file-earmark fs-1"></i>
+                                {% endif %}
+                                <p class="mb-0 small">{{ attachment.filename }}</p>
+                                <small class="text-muted">{{ (attachment.file_size / 1024)|round(1) }} KB</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Tags -->
+        {% if entry.tags %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">🏷️ Tags</h6>
+            </div>
+            <div class="card-body">
+                {% for tag in entry.tags %}
+                <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}" 
+                   class="badge bg-primary text-decoration-none me-1 mb-1">
+                    #{{ tag }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Entry Stats -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">📊 Entry Stats</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Reviews:</dt>
+                    <dd class="col-sm-6">{{ entry.review_count }}</dd>
+                    
+                    <dt class="col-sm-6">Last Reviewed:</dt>
+                    <dd class="col-sm-6">
+                        {% if entry.last_reviewed %}
+                            {{ entry.last_reviewed.strftime('%b %d') }}
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-6">Created:</dt>
+                    <dd class="col-sm-6">{{ entry.created_at.strftime('%b %d, %Y') }}</dd>
+                    
+                    {% if entry.updated_at != entry.created_at %}
+                    <dt class="col-sm-6">Updated:</dt>
+                    <dd class="col-sm-6">{{ entry.updated_at.strftime('%b %d, %Y') }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        
+        <!-- Related Entries -->
+        {% if related_entries %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">🔗 Related Entries</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for related in related_entries %}
+                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=related.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <strong>{{ related.title or "Untitled" }}</strong><br>
+                        <small class="text-muted">
+                            {{ related.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function toggleStar(entryId) {
+    fetch(`/journal/entry/${entryId}/star`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.starred !== undefined) {
+            location.reload();
+        }
+    });
+}
+
+function archiveEntry(entryId) {
+    if (confirm('Archive this entry? You can still access it from the archive.')) {
+        fetch(`/journal/entry/${entryId}/archive`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = "{{ url_for('journal_enhanced.journal_home') }}";
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

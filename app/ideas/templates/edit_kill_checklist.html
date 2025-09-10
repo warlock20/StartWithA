@@ -1,0 +1,109 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h2>Edit Kill Checklist</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="name" class="form-label">Checklist Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ checklist.name }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="is_default" name="is_default" value="true" {% if checklist.is_default %}checked{% endif %}>
+                                <label class="form-check-label" for="is_default">
+                                    Set as default checklist
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ checklist.description or '' }}</textarea>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5>Kill Criteria</h5>
+                    
+                    <div id="criteria-container">
+                        {% for criterion in checklist.criteria.order_by('order').all() %}
+                        <div class="card mb-3 criterion-item">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <label class="form-label fw-bold">Criterion</label>
+                                    <button type="button" class="btn-close" onclick="this.closest('.criterion-item').remove()"></button>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="hidden" name="criterion_id[]" value="{{ criterion.id }}">
+                                    <input type="text" class="form-control" name="criterion_question[]" value="{{ criterion.question }}" required>
+                                </div>
+                                <div>
+                                    <textarea class="form-control" name="criterion_reason[]" rows="2">{{ criterion.failure_reason or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="add-criterion-btn">
+                        + Add Criterion
+                    </button>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let criterionCount = {{ checklist.criteria.count() }};
+
+function addCriterion() {
+    criterionCount++;
+    const container = document.getElementById('criteria-container');
+    
+    const criterionDiv = document.createElement('div');
+    criterionDiv.className = 'card mb-3 criterion-item';
+    criterionDiv.innerHTML = `
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+                <label class="form-label fw-bold">Criterion ${criterionCount}</label>
+                <button type="button" class="btn-close" onclick="this.closest('.criterion-item').remove()"></button>
+            </div>
+            <div class="mb-2">
+                <input type="hidden" name="criterion_id[]" value="">
+                <input type="text" class="form-control" name="criterion_question[]" 
+                       placeholder="Yes/no question (e.g., 'Can I understand this business?')" required>
+            </div>
+            <div>
+                <textarea class="form-control" name="criterion_reason[]" rows="2"
+                          placeholder="Why this matters (shown when criterion fails)"></textarea>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(criterionDiv);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('add-criterion-btn').addEventListener('click', addCriterion);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,143 @@
+<!-- app/ideas/templates/add_idea.html -->
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">💡 Quick Capture</h3>
+                <small>Don't overthink it. Capture now, evaluate later.</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm">
+                    <!-- The only required field - keep it simple -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            What's the idea? <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               id="name" 
+                               name="name" 
+                               placeholder="e.g., Tesla, Indian IT sector, Battery technology..."
+                               required 
+                               autofocus>
+                        <small class="form-text text-muted">
+                            Company name, sector, theme, or investment concept
+                        </small>
+                    </div>
+
+                    <!-- Optional but helpful fields -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="idea_type" class="form-label">Type</label>
+                            <select class="form-select" id="idea_type" name="idea_type">
+                                <option value="company" selected>Company</option>
+                                <option value="sector">Sector/Industry</option>
+                                <option value="theme">Theme/Trend</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ticker_symbol" class="form-label">
+                                Ticker (if applicable)
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="ticker_symbol" 
+                                   name="ticker_symbol" 
+                                   placeholder="TSLA"
+                                   style="text-transform: uppercase;">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="source" class="form-label">
+                            Where did this idea come from?
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="source" 
+                               name="source" 
+                               placeholder="Buffett letter, friend's recommendation, noticed while shopping...">
+                        <small class="form-text text-muted">
+                            Tracking sources helps you identify your best idea generators
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="thesis_summary" class="form-label">
+                            One-sentence thesis (optional)
+                        </label>
+                        <textarea class="form-control" 
+                                  id="thesis_summary" 
+                                  name="thesis_summary" 
+                                  rows="2" 
+                                  placeholder="Why might this be interesting? What's the opportunity?"></textarea>
+                    </div>
+
+                    <!-- Advanced section - collapsed by default -->
+                    <div class="accordion mb-3" id="advancedAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#advancedFields">
+                                    Additional Notes (Optional)
+                                </button>
+                            </h2>
+                            <div id="advancedFields" 
+                                 class="accordion-collapse collapse" 
+                                 data-bs-parent="#advancedAccordion">
+                                <div class="accordion-body">
+                                    <textarea class="form-control" 
+                                              name="initial_notes" 
+                                              rows="4" 
+                                              placeholder="Any other context, thoughts, or reminders..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-inbox"></i> Add to Inbox
+                        </button>
+                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tips card -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">💭 Capture Tips</h6>
+                <ul class="mb-0">
+                    <li>Don't self-censor - let the kill checklist do that</li>
+                    <li>Capture immediately when you encounter an idea</li>
+                    <li>Include the source to track what generates good ideas</li>
+                    <li>You can always add more detail if it survives</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-uppercase the ticker field
+    document.getElementById('ticker_symbol').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+
+    // Quick keyboard shortcut - Ctrl+Enter to submit
+    document.getElementById('quickCaptureForm').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            this.submit();
+        }
+    });
+</script>
+{% endblock %}

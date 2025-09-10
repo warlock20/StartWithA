@@ -1,0 +1,66 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>{{ title }}</h1>
+    <p class="text-muted">Find specific entries in your research journal.</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('journal_enhanced.search') }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-lg-6">
+                    <label for="q" class="form-label">Search Term</label>
+                    <input type="text" class="form-control" id="q" name="q" value="{{ query or '' }}" placeholder="Search content, titles, and insights...">
+                </div>
+                <div class="col-lg-4">
+                    <label for="company_id" class="form-label">Company</label>
+                    <select class="form-select" id="company_id" name="company_id">
+                        <option value="">-- Any Company --</option>
+                        {% for company in companies %}
+                            <option value="{{ company.id }}" {% if filters.company_id == company.id %}selected{% endif %}>
+                                {{ company.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h4>Results ({{ results|length }})</h4>
+<hr>
+
+{% if results %}
+    <div class="list-group">
+        {% for entry in results %}
+        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">
+                    {% if entry.is_starred %}⭐ {% endif %}
+                    {{ entry.title or 'Untitled Entry' }}
+                </h5>
+                <small>{{ entry.created_at.strftime('%Y-%m-%d') }}</small>
+            </div>
+            <p class="mb-1">{{ entry.content|truncate(200) }}</p>
+            <small>
+                <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+                {% if entry.company %}
+                    <span class="badge bg-primary">{{ entry.company.name }}</span>
+                {% endif %}
+            </small>
+        </a>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center text-muted py-5">
+        <p>No journal entries found matching your criteria.</p>
+    </div>
+{% endif %}
+
+{% endblock %}

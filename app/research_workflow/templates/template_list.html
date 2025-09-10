@@ -1,0 +1,240 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📊 Research Templates</h1>
+        <p class="text-muted mb-0">Systematic workflows for different investment approaches</p>
+    </div>
+    <div>
+        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary">
+            My Projects
+        </a>
+        <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Create Template
+        </a>
+    </div>
+</div>
+
+<!-- Statistics cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ templates|length }}</h3>
+                <small class="text-muted">Templates Created</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ active_projects }}</h3>
+                <small class="text-muted">Active Projects</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_projects }}</h3>
+                <small class="text-muted">Total Projects</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_research_hours }}h</h3>
+                <small class="text-muted">Research Time</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Templates grid -->
+{% if templates %}
+<div class="row">
+    {% for template in templates %}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 {% if not template.is_active %}opacity-75{% endif %}">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        {{ template.name }}
+                        {% if not template.is_active %}
+                            <span class="badge bg-secondary ms-2">Inactive</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-primary">{{ template.step_count }} steps</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if template.description %}
+                    <p class="card-text">{{ template.description }}</p>
+                {% endif %}
+                
+                {% if template.investment_style %}
+                    <p class="mb-2">
+                        <strong>Style:</strong> 
+                        <span class="badge bg-info">{{ template.investment_style|capitalize }}</span>
+                    </p>
+                {% endif %}
+                
+                <!-- Workflow preview -->
+                <h6>Workflow Steps:</h6>
+                <ol class="small">
+                    {% for step in template.workflow_steps[:3] %}
+                        <li>{{ step.name }}</li>
+                    {% endfor %}
+                    {% if template.step_count > 3 %}
+                        <li class="text-muted">...and {{ template.step_count - 3 }} more steps</li>
+                    {% endif %}
+                </ol>
+                
+                <!-- Statistics -->
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <h5>{{ template.times_used }}</h5>
+                        <small class="text-muted">Uses</small>
+                    </div>
+                    <div class="col-4">
+                        <h5>{{ template.success_rate }}%</h5>
+                        <small class="text-muted">Success</small>
+                    </div>
+                    <div class="col-4">
+                        <h5>
+                            {% set total_mins = 0 %}
+                            {% for step in template.workflow_steps %}
+                                {% set total_mins = total_mins + (step.estimated_minutes|default(60)) %}
+                            {% endfor %}
+                            {{ (total_mins / 60)|round(1) }}h
+                        </h5>
+                        <small class="text-muted">Est. Time</small>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-primary btn-sm" 
+                            onclick="showStartProjectModal({{ template.id }}, '{{ template.name }}')">
+                        Start New Project
+                    </button>
+                    <div>
+                        <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" 
+                           class="btn btn-outline-secondary btn-sm">Edit</a>
+                        {% if template.times_used == 0 %}
+                        <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}" 
+                              style="display: inline;">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Delete this template?');">Delete</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <h5>No Research Templates Yet</h5>
+    <p>Create your first research template to systematize your investment analysis process.</p>
+    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">Create Your First Template</a>
+</div>
+{% endif %}
+
+<!-- Start Project Modal -->
+<div class="modal fade" id="startProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Start Research Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('research_workflow.start_project') }}">
+                <div class="modal-body">
+                    <input type="hidden" id="template_id" name="template_id">
+                    <p>Using template: <strong id="template_name_display"></strong></p>
+                    
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">Select Company to Research</label>
+                        <select class="form-select" id="company_id" name="company_id" required>
+                            <option value="">-- Choose a company --</option>
+                            {% for company in current_user.companies.order_by('name').all() %}
+                                <option value="{{ company.id }}">
+                                    {{ company.name }} 
+                                    {% if company.ticker_symbol %}({{ company.ticker_symbol }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Suggested Templates -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0">💡 Suggested Template Structures</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6>Value Investor Template</h6>
+                <ol class="small">
+                    <li>Quick financial health check</li>
+                    <li>Business quality assessment</li>
+                    <li>Management evaluation</li>
+                    <li>Competitive position analysis</li>
+                    <li>Valuation work</li>
+                    <li>Risk assessment</li>
+                    <li>Investment thesis</li>
+                </ol>
+            </div>
+            <div class="col-md-4">
+                <h6>Growth Investor Template</h6>
+                <ol class="small">
+                    <li>TAM and market opportunity</li>
+                    <li>Unit economics analysis</li>
+                    <li>Growth drivers assessment</li>
+                    <li>Competitive moat analysis</li>
+                    <li>Management vision check</li>
+                    <li>Valuation scenarios</li>
+                    <li>Scaling risks review</li>
+                </ol>
+            </div>
+            <div class="col-md-4">
+                <h6>Special Situations Template</h6>
+                <ol class="small">
+                    <li>Situation overview</li>
+                    <li>Catalyst identification</li>
+                    <li>Downside protection</li>
+                    <li>Timeline analysis</li>
+                    <li>Key stakeholder review</li>
+                    <li>Scenario modeling</li>
+                    <li>Risk/reward assessment</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function showStartProjectModal(templateId, templateName) {
+    document.getElementById('template_id').value = templateId;
+    document.getElementById('template_name_display').textContent = templateName;
+    new bootstrap.Modal(document.getElementById('startProjectModal')).show();
+}
+</script>
+{% endblock %}
