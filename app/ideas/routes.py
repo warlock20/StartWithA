@@ -24,11 +24,12 @@ def inbox():
         user_id=current_user.id, 
         is_default=True
     ).first()
-    
+    all_kill_checklists = KillChecklist.query.filter_by(user_id=current_user.id).all()
     return render_template('inbox.html', 
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
+                          all_kill_checklists=all_kill_checklists,
                           now=datetime.utcnow()
                           )
 
@@ -73,30 +74,43 @@ def add_idea():
     
     return render_template('add_idea.html', title="Quick Capture", exchanges=EXCHANGES)
 
+# In app/ideas/routes.py
+
 @ideas_bp.route('/<int:idea_id>/kill', methods=['GET', 'POST'])
 @login_required
 def kill_room(idea_id):
     """The kill room - evaluate an idea against kill criteria"""
     idea = IdeaPipeline.query.get_or_404(idea_id)
+    checklist_id = request.args.get('checklist_id', type=int) # Get checklist_id from URL
 
     if idea.user_id != current_user.id:
         flash('You do not have access to this idea', 'error')
         return redirect(url_for('ideas.inbox'))
 
+    # Logic to find or create a kill session
     kill_session = KillSession.query.filter_by(
         user_id=current_user.id, idea_id=idea.id, outcome=None
     ).first()
 
     if not kill_session:
-        kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
+        kill_checklist = None
+        if checklist_id:
+            # Use the checklist passed from the URL
+            kill_checklist = KillChecklist.query.filter_by(id=checklist_id, user_id=current_user.id).first()
+        else:
+            # Fallback to the default checklist if no ID is passed
+            kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
+
         if not kill_checklist:
-            flash('Please create a kill checklist first', 'warning')
-            return redirect(url_for('ideas.create_kill_checklist'))
+            flash('Please create a kill checklist first or set one as default.', 'warning')
+            return redirect(url_for('ideas.manage_kill_checklists'))
+            
         kill_session = KillSession(user_id=current_user.id, idea=idea, checklist=kill_checklist)
         db.session.add(kill_session)
         idea.status = 'killing'
         db.session.commit()
 
+    # The rest of your kill_room function remains the same...
     criteria = kill_session.checklist.criteria.order_by(KillCriterion.order).all()
     existing_answers = {ans.criterion_id: ans for ans in kill_session.answers.all()}
     
@@ -137,31 +151,27 @@ def kill_room(idea_id):
 
         db.session.commit()
 
-        if current_index == len(criteria) - 1:
-            idea.status = 'survived'
-            idea.promoted_at = datetime.utcnow()
-            kill_session.outcome = 'survived'
-            kill_session.completed_at = datetime.utcnow()
-            kill_session.checklist.total_ideas_evaluated += 1
-            db.session.commit()
-            company = Company(
-                name=idea.name, ticker_symbol=idea.ticker_symbol,
-                creator=current_user, summary=idea.thesis_summary
-            )
-            log_research_activity(
-                current_user.id,
-                'idea_promoted',
-                idea_id=idea.id,
-                company_id=company.id
-            )
-            if idea.ticker_symbol:
-                flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
-                return redirect(url_for('ideas.promote_to_company', idea_id=idea.id))
-            else:
-                flash(f'🎉 Idea "{idea.name}" survived the kill checklist!', 'success')
-                return redirect(url_for('ideas.inbox'))
+        next_criterion_found = False
+        for i, criterion in enumerate(criteria):
+            if criterion.id not in {ans.criterion_id for ans in kill_session.answers.all()}:
+                return redirect(url_for('ideas.kill_room', idea_id=idea.id, checklist_id=kill_session.checklist.id))
         
-        return redirect(url_for('ideas.kill_room', idea_id=idea.id))
+        # If no next criterion is found, the idea survived
+        idea.status = 'survived'
+        idea.promoted_at = datetime.utcnow()
+        kill_session.outcome = 'survived'
+        kill_session.completed_at = datetime.utcnow()
+        kill_session.checklist.total_ideas_evaluated += 1
+        db.session.commit()
+        
+        log_research_activity(
+            current_user.id,
+            'idea_promoted',
+            idea_id=idea.id
+        )
+        flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
+        return redirect(url_for('ideas.promote_to_company', idea_id=idea.id))
+
 
     progress_percent = (len(existing_answers) / len(criteria)) * 100 if criteria else 0
     return render_template('kill_room.html', title=f"Kill Room: {idea.name}", idea=idea,
