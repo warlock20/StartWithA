@@ -15,7 +15,17 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="idea_type" class="form-label">Type</label>
+                        <label for="idea_purpose" class="form-label">Purpose <span class="text-danger">*</span></label>
+                        <select class="form-select" id="idea_purpose" name="idea_purpose" required>
+                            <option value="investment" {% if idea.idea_purpose == 'investment' %}selected{% endif %}>🎯 Investment Screening</option>
+                            <option value="learning" {% if idea.idea_purpose == 'learning' %}selected{% endif %}>📚 Learning & Understanding</option>
+                            <option value="research" {% if idea.idea_purpose == 'research' %}selected{% endif %}>🔍 Research & Analysis</option>
+                        </select>
+                        <small class="form-text text-muted">Investment ideas go through kill checklist, learning ideas focus on education</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="idea_type" class="form-label">Subject Type</label>
                         <select class="form-select" id="idea_type" name="idea_type">
                             <option value="company" {% if idea.idea_type == 'company' %}selected{% endif %}>Company</option>
                             <option value="sector" {% if idea.idea_type == 'sector' %}selected{% endif %}>Sector/Industry</option>

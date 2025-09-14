@@ -1,0 +1,410 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📊 {{ template.name }}</h1>
+        {% if template.description %}
+            <p class="text-muted mb-0">{{ template.description }}</p>
+        {% endif %}
+    </div>
+    <div>
+        <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Templates
+        </a>
+        <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit Template
+        </a>
+        <button class="btn btn-success" onclick="showStartProjectModal({{ template.id }}, '{{ template.name }}')">
+            <i class="bi bi-play-circle"></i> Start New Project
+        </button>
+    </div>
+</div>
+
+<!-- Template Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ template.workflow_steps|length }}</h3>
+                <small class="text-muted">Total Steps</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_hours }}h</h3>
+                <small class="text-muted">Estimated Time</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ template.times_used }}</h3>
+                <small class="text-muted">Times Used</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ active_projects }}</h3>
+                <small class="text-muted">Active Projects</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Details -->
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Workflow Steps Visualization -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📋 Workflow Steps</h5>
+            </div>
+            <div class="card-body">
+                {% if template.workflow_steps %}
+                <div class="workflow-visualization">
+                    {% for step in template.workflow_steps %}
+                    <div class="workflow-step mb-4 p-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="step-header">
+                                <span class="step-number badge bg-primary me-2">{{ loop.index }}</span>
+                                <h6 class="d-inline-block mb-0">{{ step.name }}</h6>
+                            </div>
+                            <div class="step-meta text-end">
+                                <span class="badge bg-secondary me-1">
+                                    {% if step.type == 'checklist' %}📋 Investment Checklist (Custom)
+                                    {% elif step.type == 'investment_checklist_reference' %}📊 Investment Checklist (Existing)
+                                    {% elif step.type == 'kill_checklist_reference' %}⚡ Kill Checklist
+                                    {% elif step.type == 'model' %}🧠 Mental Model
+                                    {% elif step.type == 'document_review' %}📄 Document Analysis
+                                    {% elif step.type == 'valuation' %}💰 Valuation Work
+                                    {% elif step.type == 'competitor_analysis' %}🎯 Competitor Analysis
+                                    {% elif step.type == 'thesis_writing' %}✍️ Investment Thesis
+                                    {% else %}⚙️ Custom Task{% endif %}
+                                </span>
+                                <span class="badge bg-info">{{ step.estimated_minutes|default(60) }} min</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step-specific configuration -->
+                        {% if step.type == 'checklist' and step.config and step.config.checklist_items %}
+                        <div class="step-config mt-3">
+                            <h6 class="text-muted mb-2">Checklist Items:</h6>
+                            <ul class="list-group list-group-flush">
+                                {% for item in step.config.checklist_items %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span>{{ item.item }}</span>
+                                    {% if item.prompt %}
+                                    <span class="badge bg-light text-dark" title="Has LLM Analysis Prompt: {{ item.prompt }}">🤖</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% elif step.type == 'investment_checklist_reference' and step.config and step.config.checklist_id %}
+                        <div class="step-config mt-3">
+                            <p class="text-muted mb-0">
+                                <strong>Investment Checklist:</strong> 
+                                {% for cl in current_user.checklists.all() %}
+                                    {% if cl.id == step.config.checklist_id %}{{ cl.name }}{% endif %}
+                                {% endfor %}
+                            </p>
+                            <small class="text-success">
+                                <i class="bi bi-upload"></i> Supports document upload and LLM analysis
+                            </small>
+                        </div>
+                        {% elif step.type == 'kill_checklist_reference' and step.config and step.config.kill_checklist_id %}
+                        <div class="step-config mt-3">
+                            <p class="text-muted mb-0">
+                                <strong>Kill Checklist:</strong> 
+                                {% for kc in current_user.kill_checklists.all() %}
+                                    {% if kc.id == step.config.kill_checklist_id %}{{ kc.name }}{% endif %}
+                                {% endfor %}
+                            </p>
+                        </div>
+                        {% elif step.type == 'model' and step.config and step.config.model_type %}
+                        <div class="step-config mt-3">
+                            <p class="text-muted mb-0">
+                                <strong>Mental Model:</strong> {{ step.config.model_type }}
+                            </p>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Connection line to next step -->
+                        {% if not loop.last %}
+                        <div class="workflow-connector text-center mt-3">
+                            <i class="bi bi-arrow-down text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No workflow steps defined.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Template Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📝 Template Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    {% if template.investment_style %}
+                    <dt class="col-sm-5">Investment Style:</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge bg-info">{{ template.investment_style|title }}</span>
+                    </dd>
+                    {% endif %}
+                    
+                    {% if template.research_subject_types %}
+                    <dt class="col-sm-5">Subject Type:</dt>
+                    <dd class="col-sm-7">
+                        {% set subject_type = template.research_subject_types[0] %}
+                        <span class="badge bg-secondary">
+                            {% if subject_type == 'company' %}🏢 Companies
+                            {% elif subject_type == 'sector' %}🏭 Sectors
+                            {% elif subject_type == 'theme' %}💡 Themes
+                            {% elif subject_type == 'market' %}🌍 Markets
+                            {% elif subject_type == 'strategy' %}📊 Strategies
+                            {% else %}{{ subject_type|title }}{% endif %}
+                        </span>
+                    </dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-5">Created:</dt>
+                    <dd class="col-sm-7">{{ template.created_at.strftime('%Y-%m-%d') if template.created_at else 'N/A' }}</dd>
+                    
+                    <dt class="col-sm-5">Last Updated:</dt>
+                    <dd class="col-sm-7">{{ template.updated_at.strftime('%Y-%m-%d') if template.updated_at else 'N/A' }}</dd>
+                    
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        {% if template.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Archived</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        
+        <!-- Step Types Breakdown -->
+        {% if step_types_count %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Step Types Breakdown</h5>
+            </div>
+            <div class="card-body">
+                {% for step_type, count in step_types_count.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>
+                        {% if step_type == 'checklist' %}📋 Investment Checklist (Custom)
+                        {% elif step_type == 'investment_checklist_reference' %}📊 Investment Checklist (Existing)
+                        {% elif step_type == 'kill_checklist_reference' %}⚡ Kill Checklist
+                        {% elif step_type == 'model' %}🧠 Mental Model
+                        {% elif step_type == 'document_review' %}📄 Document Analysis
+                        {% elif step_type == 'valuation' %}💰 Valuation Work
+                        {% elif step_type == 'competitor_analysis' %}🎯 Competitor Analysis
+                        {% elif step_type == 'thesis_writing' %}✍️ Investment Thesis
+                        {% else %}⚙️ Custom Task{% endif %}
+                    </span>
+                    <span class="badge bg-primary">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Performance Stats -->
+        {% if completed_projects %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📈 Performance Stats</h5>
+            </div>
+            <div class="card-body">
+                {% set invest_decisions = completed_projects|selectattr('decision', 'equalto', 'invest')|list|length %}
+                {% set pass_decisions = completed_projects|selectattr('decision', 'equalto', 'pass')|list|length %}
+                {% set watchlist_decisions = completed_projects|selectattr('decision', 'equalto', 'watchlist')|list|length %}
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-success">{{ invest_decisions }}</h4>
+                        <small class="text-muted">Invest</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-danger">{{ pass_decisions }}</h4>
+                        <small class="text-muted">Pass</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-warning">{{ watchlist_decisions }}</h4>
+                        <small class="text-muted">Watch</small>
+                    </div>
+                </div>
+                
+                {% if completed_projects|length > 0 %}
+                <hr>
+                <p class="mb-0 text-center">
+                    <strong>Success Rate:</strong> 
+                    <span class="badge bg-{% if (invest_decisions / completed_projects|length * 100) >= 50 %}success{% else %}warning{% endif %}">
+                        {{ "%.0f"|format(invest_decisions / completed_projects|length * 100) }}%
+                    </span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Start Project Modal -->
+<div class="modal fade" id="startProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Start Research Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('research_workflow.start_project') }}">
+                <div class="modal-body">
+                    <input type="hidden" id="template_id" name="template_id">
+                    <p>Using template: <strong id="template_name_display"></strong></p>
+                    
+                    <!-- Research Subject Type Selection -->
+                    <div class="mb-3">
+                        <label for="subject_type" class="form-label">What are you researching?</label>
+                        <select class="form-select" id="subject_type" name="subject_type" onchange="updateSubjectFields()" required>
+                            {% if template.research_subject_types %}
+                                {% set subject_type = template.research_subject_types[0] %}
+                                <option value="{{ subject_type }}" selected>
+                                    {% if subject_type == 'company' %}🏢 Company
+                                    {% elif subject_type == 'sector' %}🏭 Sector/Industry
+                                    {% elif subject_type == 'market' %}🌍 Market/Geography
+                                    {% elif subject_type == 'theme' %}💡 Investment Theme
+                                    {% elif subject_type == 'strategy' %}🎯 Investment Strategy
+                                    {% else %}{{ subject_type|title }}{% endif %}
+                                </option>
+                            {% else %}
+                                <option value="company">🏢 Company</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <!-- Company Selection (shown for company type) -->
+                    <div class="mb-3" id="company_selection">
+                        <label for="company_id" class="form-label">Select Company</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">-- Choose a company --</option>
+                            {% for company in current_user.companies.order_by('name').all() %}
+                                <option value="{{ company.id }}">
+                                    {{ company.name }} 
+                                    {% if company.ticker_symbol %}({{ company.ticker_symbol }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Manual Subject Name (shown for non-company types) -->
+                    <div class="mb-3" id="manual_subject" style="display: none;">
+                        <label for="subject_name" class="form-label">Subject Name</label>
+                        <input type="text" class="form-control" id="subject_name" name="subject_name" placeholder="e.g., Healthcare Sector, European Markets, AI Theme">
+                        <small class="form-text text-muted">Enter the name of what you're researching</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function showStartProjectModal(templateId, templateName) {
+    document.getElementById('template_id').value = templateId;
+    document.getElementById('template_name_display').textContent = templateName;
+    
+    // Reset form to default state
+    const subjectTypeSelect = document.getElementById('subject_type');
+    if (subjectTypeSelect.options.length > 0) {
+        subjectTypeSelect.value = subjectTypeSelect.options[0].value;
+    }
+    updateSubjectFields();
+    
+    new bootstrap.Modal(document.getElementById('startProjectModal')).show();
+}
+
+function updateSubjectFields() {
+    const subjectType = document.getElementById('subject_type').value;
+    const companySelection = document.getElementById('company_selection');
+    const manualSubject = document.getElementById('manual_subject');
+    const companySelect = document.getElementById('company_id');
+    const subjectNameInput = document.getElementById('subject_name');
+    
+    if (subjectType === 'company') {
+        companySelection.style.display = 'block';
+        manualSubject.style.display = 'none';
+        companySelect.required = true;
+        subjectNameInput.required = false;
+    } else {
+        companySelection.style.display = 'none';
+        manualSubject.style.display = 'block';
+        companySelect.required = false;
+        subjectNameInput.required = true;
+        
+        // Update placeholder based on type
+        const placeholders = {
+            'sector': 'e.g., Technology Sector, Healthcare, Energy',
+            'market': 'e.g., European Markets, Emerging Markets, US Small Caps',
+            'theme': 'e.g., AI Revolution, ESG Investing, Digital Transformation',
+            'strategy': 'e.g., Value Investing, Growth Strategy, Dividend Focus'
+        };
+        subjectNameInput.placeholder = placeholders[subjectType] || 'Enter subject name';
+    }
+}
+</script>
+
+<style>
+.workflow-step {
+    border-left: 4px solid #007bff !important;
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+}
+
+.workflow-step:hover {
+    background-color: #e9ecef;
+    transform: translateX(2px);
+}
+
+.workflow-connector {
+    margin: 1rem 0;
+}
+
+.step-number {
+    min-width: 30px;
+    display: inline-flex;
+    justify-content: center;
+}
+
+.step-config {
+    background-color: white;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}

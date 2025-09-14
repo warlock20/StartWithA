@@ -1,0 +1,195 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">{{ step.name }}</h4>
+                    <small class="text-muted">{{ project.subject_display_name }} • {{ kill_checklist.name }}</small>
+                </div>
+                <span class="badge bg-warning text-dark">Kill Checklist</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Screening Step:</strong> This is a kill checklist designed to filter out unsuitable investments quickly. 
+                    If any critical criteria fail, consider stopping the research here.
+                </div>
+                
+                <form method="POST" action="{{ url_for('research_workflow.complete_kill_checklist_step', project_id=project.id, session_id=session.id) }}" id="killChecklistForm">
+                    <input type="hidden" name="kill_checklist_id" value="{{ kill_checklist.id }}">
+                    
+                    <div class="mb-4">
+                        <h6>Screening Criteria:</h6>
+                        <div class="kill-checklist-items">
+                            {% for item in kill_checklist.items %}
+                            <div class="card mb-3 kill-checklist-item">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title">{{ item.item_text }}</h6>
+                                            {% if item.description %}
+                                            <p class="card-text text-muted">{{ item.description }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="ms-3">
+                                            <div class="btn-group" role="group">
+                                                <input type="radio" class="btn-check" name="result_{{ item.id }}" value="pass" id="pass_{{ item.id }}">
+                                                <label class="btn btn-outline-success" for="pass_{{ item.id }}">Pass</label>
+                                                
+                                                <input type="radio" class="btn-check" name="result_{{ item.id }}" value="fail" id="fail_{{ item.id }}">
+                                                <label class="btn btn-outline-danger" for="fail_{{ item.id }}">Fail</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <label class="form-label" for="notes_{{ item.id }}">Notes & Evidence:</label>
+                                        <textarea class="form-control" name="notes_{{ item.id }}" id="notes_{{ item.id }}" rows="2" placeholder="Findings, data, rationale for your assessment..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="overall_assessment" class="form-label">Overall Assessment:</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="overall_result" value="proceed" id="proceed">
+                            <label class="btn btn-outline-success" for="proceed">
+                                <i class="bi bi-check-circle me-2"></i>Proceed with Investment Research
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="overall_result" value="kill" id="kill">
+                            <label class="btn btn-outline-danger" for="kill">
+                                <i class="bi bi-x-circle me-2"></i>Kill Investment (Stop Here)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="step_notes" class="form-label">Summary & Next Steps:</label>
+                        <textarea class="form-control" id="step_notes" name="step_notes" rows="3" placeholder="Key findings, concerns, recommendations..."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-secondary">Back to Project</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Complete Screening</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Screening Progress</h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">Step {{ step_index + 1 }} of {{ project.template.workflow_steps|length }}</small>
+                <div class="progress mt-2">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ ((step_index) / project.template.workflow_steps|length * 100)|round }}%"></div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Company Info:</h6>
+                    <p class="mb-1"><strong>{{ project.company.name }}</strong></p>
+                    <p class="text-muted small">{{ project.company.sector }} • {{ project.company.market_cap_category }}</p>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Screening Stats:</h6>
+                    <div class="d-flex justify-content-between">
+                        <span>Pass:</span>
+                        <span class="badge bg-success" id="pass-count">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Fail:</span>
+                        <span class="badge bg-danger" id="fail-count">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Remaining:</span>
+                        <span class="badge bg-secondary" id="remaining-count">{{ kill_checklist.items|length }}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Session Timer:</h6>
+                    <div id="timer" class="badge bg-info fs-6">00:00:00</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Screening Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small">
+                    <li>⚡ Be decisive - this is meant to filter quickly</li>
+                    <li>🔍 Look for red flags and deal-breakers</li>
+                    <li>📊 Use hard data when available</li>
+                    <li>🛑 Don't hesitate to kill if criteria fail</li>
+                    <li>📝 Document your reasoning clearly</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Timer functionality
+let startTime = new Date("{{ session.start_time }}");
+function updateTimer() {
+    const now = new Date();
+    const elapsed = now - startTime;
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    document.getElementById('timer').textContent = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+setInterval(updateTimer, 1000);
+updateTimer();
+
+// Live stats updating
+function updateStats() {
+    const passCount = document.querySelectorAll('input[value="pass"]:checked').length;
+    const failCount = document.querySelectorAll('input[value="fail"]:checked').length;
+    const totalItems = {{ kill_checklist.items|length }};
+    const remaining = totalItems - passCount - failCount;
+    
+    document.getElementById('pass-count').textContent = passCount;
+    document.getElementById('fail-count').textContent = failCount;
+    document.getElementById('remaining-count').textContent = remaining;
+    
+    // Auto-suggest overall result based on failures
+    if (failCount > 0) {
+        document.getElementById('kill').checked = true;
+    } else if (remaining === 0) {
+        document.getElementById('proceed').checked = true;
+    }
+}
+
+// Add event listeners to all radio buttons
+document.querySelectorAll('input[type="radio"][name^="result_"]').forEach(radio => {
+    radio.addEventListener('change', updateStats);
+});
+
+// Auto-save progress
+function saveProgress() {
+    const formData = new FormData(document.getElementById('killChecklistForm'));
+    fetch('{{ url_for("research_workflow.save_kill_checklist_progress", project_id=project.id, session_id=session.id) }}', {
+        method: 'POST',
+        body: formData
+    });
+}
+
+setInterval(saveProgress, 30000);
+</script>
+{% endblock %}

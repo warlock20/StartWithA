@@ -11,8 +11,8 @@
                     <p class="hero-subtitle">Your systematic approach to intelligent investing</p>
                     <div class="hero-stats mt-4">
                         <div class="stat-item">
-                            <span class="stat-number">{{ checklist_count or 0 }}</span>
-                            <span class="stat-label">Investment Checklists</span>
+                            <span class="stat-number">{{ template_count or 0 }}</span>
+                            <span class="stat-label">Research Templates</span>
                         </div>
                         <div class="stat-divider">•</div>
                         <div class="stat-item">
@@ -29,15 +29,55 @@
             </div>
             <div class="col-lg-4">
                 <div class="hero-actions">
-                    {% if checklist_count == 0 %}
+                    <!-- Quick Actions Button -->
+                    <div class="quick-actions-container">
+                        <div class="dropdown">
+                            <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button" 
+                                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-plus-circle me-2"></i> Quick Add
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="quickActionsDropdown">
+                                <li class="dropdown-header">Create New</li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
+                                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                                        <div>
+                                            <strong>Investment Idea</strong>
+                                            <small class="d-block text-muted">Capture ideas for screening</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                        <div>
+                                            <strong>Mistake Log</strong>
+                                            <small class="d-block text-muted">Document learning opportunities</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
+                                        <i class="bi bi-journal-text text-info me-2"></i>
+                                        <div>
+                                            <strong>Journal Entry</strong>
+                                            <small class="d-block text-muted">Record thoughts and insights</small>
+                                        </div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if template_count == 0 %}
                     <div class="action-card urgent">
                         <div class="action-icon">
                             <i class="bi bi-exclamation-triangle"></i>
                         </div>
                         <div class="action-content">
-                            <h6>Critical: No Investment System</h6>
-                            <p>Without checklists, you're flying blind. Create your systematic framework now.</p>
-                            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-warning">Build Your System</a>
+                            <h6>Critical: No Research Framework</h6>
+                            <p>Without systematic templates, you're missing opportunities and making emotional decisions.</p>
+                            <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-warning">Build Your System</a>
                         </div>
                     </div>
                     {% endif %}
@@ -64,11 +104,11 @@
                             <i class="bi bi-search"></i>
                         </div>
                         <div class="framework-title">
-                            <h3>Investment Analysis</h3>
-                            <p>Systematic evaluation framework for identifying quality opportunities</p>
+                            <h3>Research Templates</h3>
+                            <p>Systematic workflows for comprehensive investment research</p>
                         </div>
                         <div class="framework-status">
-                            {% if checklist_count > 0 %}
+                            {% if template_count > 0 %}
                                 <span class="status-indicator active"></span>
                                 <span class="status-text">ACTIVE</span>
                             {% else %}
@@ -79,38 +119,42 @@
                     </div>
                     
                     <div class="framework-body">
-                        {% if user_checklists %}
+                        {% if user_templates %}
                             <div class="framework-metrics">
                                 <div class="metric">
-                                    <span class="metric-value">{{ checklist_count }}</span>
-                                    <span class="metric-label">Active Checklists</span>
+                                    <span class="metric-value">{{ template_count }}</span>
+                                    <span class="metric-label">Active Templates</span>
                                 </div>
                                 <div class="metric">
-                                    {% set total_criteria = 0 %}
-                                    {% for checklist in user_checklists %}
-                                        {% set total_criteria = total_criteria + checklist.items.count() %}
+                                    {% set total_steps = 0 %}
+                                    {% for template in user_templates %}
+                                        {% set total_steps = total_steps + template.step_count %}
                                     {% endfor %}
-                                    <span class="metric-value">{{ total_criteria }}</span>
-                                    <span class="metric-label">Total Criteria</span>
+                                    <span class="metric-value">{{ total_steps }}</span>
+                                    <span class="metric-label">Total Steps</span>
                                 </div>
                             </div>
                             
                             <div class="checklist-preview">
-                                <h6 class="preview-title">Your Analysis Tools</h6>
-                                {% for checklist in user_checklists[:3] %}
+                                <h6 class="preview-title">Your Research Templates</h6>
+                                {% for template in user_templates[:3] %}
                                 <div class="checklist-item">
                                     <div class="checklist-info">
-                                        <span class="checklist-name">{{ checklist.name }}</span>
-                                        <span class="checklist-meta">{{ checklist.items.count() }} criteria</span>
+                                        <span class="checklist-name">{{ template.name }}</span>
+                                        <span class="checklist-meta">
+                                            {{ template.step_count }} steps
+                                            {% if template.investment_style %} • {{ template.investment_style|capitalize }}{% endif %}
+                                            {% if template.times_used > 0 %} • Used {{ template.times_used }}x{% endif %}
+                                        </span>
                                     </div>
-                                    <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="checklist-action">
+                                    <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" class="checklist-action">
                                         <i class="bi bi-arrow-right"></i>
                                     </a>
                                 </div>
                                 {% endfor %}
-                                {% if user_checklists|length > 3 %}
+                                {% if user_templates|length > 3 %}
                                 <div class="checklist-more">
-                                    <a href="{{ url_for('checklists.list_checklists') }}">+{{ user_checklists|length - 3 }} more frameworks</a>
+                                    <a href="{{ url_for('research_workflow.template_list') }}">+{{ user_templates|length - 3 }} more templates</a>
                                 </div>
                                 {% endif %}
                             </div>
@@ -119,15 +163,14 @@
                                 <div class="empty-illustration">
                                     <i class="bi bi-clipboard-x"></i>
                                 </div>
-                                <h6 class="empty-title">No Investment Framework</h6>
+                                <h6 class="empty-title">No Research Templates</h6>
                                 <p class="empty-description">
-                                    Professional investors rely on systematic checklists to avoid emotional decisions 
-                                    and maintain consistency. Without these tools, you're vulnerable to cognitive biases 
-                                    that destroy returns.
+                                    Professional investors rely on systematic research workflows to maintain consistency 
+                                    and thoroughness. Create templates to standardize your investment analysis process.
                                 </p>
                                 <div class="empty-actions">
-                                    <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-primary">
-                                        Build Analysis Framework
+                                    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
+                                        Create Research Template
                                     </a>
                                     <a href="{{ url_for('main.mental_models') }}" class="btn btn-outline-secondary">
                                         Learn Our Philosophy
@@ -407,7 +450,116 @@
     /* Action Cards */
     .hero-actions {
         display: flex;
+        flex-direction: column;
+        gap: 1rem;
         justify-content: flex-end;
+        align-items: flex-end;
+    }
+
+    /* Quick Actions Button */
+    .quick-actions-container {
+        margin-bottom: 1rem;
+    }
+
+    .quick-add-btn {
+        background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: var(--shadow-medium);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .quick-add-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-heavy);
+        background: linear-gradient(135deg, #2980b9 0%, var(--accent-blue) 100%);
+    }
+
+    .quick-add-btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+
+    .quick-add-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .quick-add-btn:hover::before {
+        left: 100%;
+    }
+
+    .dropdown-menu {
+        border: none;
+        border-radius: 12px;
+        padding: 0.5rem 0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        border: 1px solid var(--border-color);
+        min-width: 280px;
+        background: var(--background-white);
+        backdrop-filter: blur(10px);
+    }
+
+    .dropdown-header {
+        padding: 0.75rem 1rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .dropdown-item {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background: var(--background-light);
+        transform: translateX(2px);
+    }
+
+    .dropdown-item:focus {
+        background: var(--background-light);
+        box-shadow: inset 3px 0 0 var(--accent-blue);
+    }
+
+    .dropdown-item i {
+        width: 20px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .dropdown-item div {
+        flex: 1;
+    }
+
+    .dropdown-item strong {
+        display: block;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .dropdown-item small {
+        font-size: 0.8rem;
+        line-height: 1.3;
     }
 
     .action-card {

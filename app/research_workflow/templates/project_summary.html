@@ -4,7 +4,13 @@
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1>{{ title }}</h1>
-        <p class="text-muted mb-0">Review your findings and make a final investment decision.</p>
+        {% if project.research_subject_type == 'company' %}
+            <p class="text-muted mb-0">Review your findings and make a final investment decision.</p>
+        {% elif project.research_subject_type == 'sector' %}
+            <p class="text-muted mb-0">Review your findings and make a final sector assessment decision.</p>
+        {% else %}
+            <p class="text-muted mb-0">Review your findings and make a final research decision.</p>
+        {% endif %}
     </div>
     <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary">Back to My Projects</a>
 </div>
@@ -13,21 +19,47 @@
     <div class="col-lg-8">
         <div class="card mb-4 border-primary">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Investment Decision</h4>
+                {% if project.research_subject_type == 'company' %}
+                    <h4 class="mb-0">Investment Decision</h4>
+                {% elif project.research_subject_type == 'sector' %}
+                    <h4 class="mb-0">Sector Assessment</h4>
+                {% else %}
+                    <h4 class="mb-0">Research Decision</h4>
+                {% endif %}
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('research_workflow.save_decision', project_id=project.id) }}">
                     <div class="mb-3">
                         <label class="form-label"><strong>Decision:</strong></label>
                         <div class="btn-group d-block" role="group">
-                            <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
-                            <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest</label>
+                            {% if project.research_subject_type == 'company' %}
+                                <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
+                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest</label>
 
-                            <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
-                            <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass</label>
+                                <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
+                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass</label>
 
-                            <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
-                            <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watchlist</label>
+                                <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
+                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watchlist</label>
+                            {% elif project.research_subject_type == 'sector' %}
+                                <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
+                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest in Sector</label>
+
+                                <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
+                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass on Sector</label>
+
+                                <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
+                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watch Sector</label>
+                            {% else %}
+                                <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
+                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Positive</label>
+
+                                <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
+                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Negative</label>
+
+                                <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
+                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Neutral</label>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -37,17 +69,37 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="decision_notes" class="form-label"><strong>Final Thesis / Rationale:</strong></label>
-                        <textarea class="form-control" name="decision_notes" rows="4" placeholder="Summarize the core reasons for your decision..."></textarea>
+                        {% if project.research_subject_type == 'company' %}
+                            <label for="decision_notes" class="form-label"><strong>Final Investment Thesis:</strong></label>
+                            <textarea class="form-control" name="decision_notes" rows="4" placeholder="Summarize the core reasons for your investment decision..."></textarea>
+                        {% elif project.research_subject_type == 'sector' %}
+                            <label for="decision_notes" class="form-label"><strong>Sector Assessment Summary:</strong></label>
+                            <textarea class="form-control" name="decision_notes" rows="4" placeholder="Summarize your sector outlook and investment rationale..."></textarea>
+                        {% else %}
+                            <label for="decision_notes" class="form-label"><strong>Research Summary:</strong></label>
+                            <textarea class="form-control" name="decision_notes" rows="4" placeholder="Summarize your key findings and conclusions..."></textarea>
+                        {% endif %}
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="green_flags" class="form-label"><strong>Key Green Flags (one per line):</strong></label>
+                            {% if project.research_subject_type == 'company' %}
+                                <label for="green_flags" class="form-label"><strong>Key Positives (one per line):</strong></label>
+                            {% elif project.research_subject_type == 'sector' %}
+                                <label for="green_flags" class="form-label"><strong>Sector Tailwinds (one per line):</strong></label>
+                            {% else %}
+                                <label for="green_flags" class="form-label"><strong>Key Positives (one per line):</strong></label>
+                            {% endif %}
                             <textarea class="form-control" name="green_flags" rows="3"></textarea>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="red_flags" class="form-label"><strong>Key Red Flags (one per line):</strong></label>
+                            {% if project.research_subject_type == 'company' %}
+                                <label for="red_flags" class="form-label"><strong>Key Risks (one per line):</strong></label>
+                            {% elif project.research_subject_type == 'sector' %}
+                                <label for="red_flags" class="form-label"><strong>Sector Headwinds (one per line):</strong></label>
+                            {% else %}
+                                <label for="red_flags" class="form-label"><strong>Key Risks (one per line):</strong></label>
+                            {% endif %}
                             <textarea class="form-control" name="red_flags" rows="3"></textarea>
                         </div>
                     </div>
@@ -93,8 +145,13 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-5">Company:</dt>
-                    <dd class="col-sm-7">{{ project.company.name }}</dd>
+                    {% if project.research_subject_type == 'company' %}
+                        <dt class="col-sm-5">Company:</dt>
+                        <dd class="col-sm-7">{{ project.company.name if project.company else project.research_subject_name }}</dd>
+                    {% else %}
+                        <dt class="col-sm-5">{{ project.research_subject_type.title() }}:</dt>
+                        <dd class="col-sm-7">{{ project.research_subject_name }}</dd>
+                    {% endif %}
 
                     <dt class="col-sm-5">Template:</dt>
                     <dd class="col-sm-7">{{ project.template.name }}</dd>

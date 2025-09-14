@@ -2,15 +2,15 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-10">
         <div class="card border-success">
             <div class="card-header bg-success text-white">
-                <h2 class="mb-0">🎉 Promote Idea to Full Research</h2>
+                <h2 class="mb-0">🎉 Promote "{{ idea.name }}" to Research</h2>
             </div>
             <div class="card-body">
                 <div class="alert alert-success">
-                    <h5>Congratulations! "{{ idea.name }}" survived the kill checklist.</h5>
-                    <p>This idea has passed your initial filters and deserves deeper research.</p>
+                    <h5>Congratulations! This {{ idea.idea_type }} idea survived the initial screening.</h5>
+                    <p>It has passed your filters and is ready for systematic research.</p>
                 </div>
                 
                 <!-- Show idea summary -->
@@ -23,8 +23,33 @@
                             <dt class="col-sm-3">Name:</dt>
                             <dd class="col-sm-9">{{ idea.name }}</dd>
                             
-                            <dt class="col-sm-3">Type:</dt>
-                            <dd class="col-sm-9">{{ idea.idea_type|capitalize }}</dd>
+                            <dt class="col-sm-3">Purpose:</dt>
+                            <dd class="col-sm-9">
+                                {% if idea.idea_purpose == 'learning' %}
+                                    📚 Learning & Understanding
+                                {% elif idea.idea_purpose == 'research' %}
+                                    🔍 Research & Analysis
+                                {% else %}
+                                    🎯 Investment Screening
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-3">Subject Type:</dt>
+                            <dd class="col-sm-9">
+                                {% if idea.idea_type == 'company' %}
+                                    🏢 Company
+                                {% elif idea.idea_type == 'sector' %}
+                                    🏭 Sector/Industry  
+                                {% elif idea.idea_type == 'market' %}
+                                    🌍 Market/Geography
+                                {% elif idea.idea_type == 'theme' %}
+                                    💡 Investment Theme
+                                {% elif idea.idea_type == 'strategy' %}
+                                    🎯 Investment Strategy
+                                {% else %}
+                                    {{ idea.idea_type|capitalize }}
+                                {% endif %}
+                            </dd>
                             
                             {% if idea.ticker_symbol %}
                             <dt class="col-sm-3">Ticker:</dt>
@@ -47,30 +72,95 @@
                     </div>
                 </div>
                 
-                <!-- Promotion form -->
-                <form method="POST" action="{{ url_for('ideas.promote_to_company', idea_id=idea.id) }}">
-                    <h5>Next Steps</h5>
-                    <p>This idea will be converted to a Company in your research list, where you can:</p>
-                    <ul>
-                        <li>Run it through your detailed investment checklists</li>
-                        <li>Upload and analyze documents</li>
-                        <li>Perform SWOT analysis and other mental models</li>
-                        <li>Set destination analysis checkpoints</li>
-                        <li>Track it in your portfolio if you decide to invest</li>
-                    </ul>
-                    
-                    <div class="alert alert-info">
-                        <strong>Remember:</strong> Passing the kill checklist doesn't mean you should invest. 
-                        It only means the idea is worth the time for deep research.
+                <!-- Promotion options -->
+                <div class="row">
+                    {% if idea.idea_type == 'company' %}
+                    <!-- Company-specific promotion options -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">🏢 Add to My Companies</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>Create a permanent company entry in your research database:</p>
+                                <ul>
+                                    <li>Track fundamentals and documents</li>
+                                    <li>Monitor across multiple research sessions</li>
+                                    <li>Build long-term investment case</li>
+                                    <li>Portfolio tracking capability</li>
+                                </ul>
+                                
+                                <form method="POST" action="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}">
+                                    <input type="hidden" name="action" value="create_company">
+                                    <button type="submit" class="btn btn-primary btn-block">
+                                        Add to Companies & Start Research
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
+                    {% endif %}
                     
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-secondary">Back to Inbox</a>
-                        <button type="submit" class="btn btn-success btn-lg">
-                            Promote to Company & Start Research
-                        </button>
+                    <!-- Research Project option (available for all types) -->
+                    <div class="{% if idea.idea_type == 'company' %}col-md-6{% else %}col-12{% endif %} mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">📊 Start Research Project</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>Begin systematic research using a template:</p>
+                                <ul>
+                                    <li>Structured workflow approach</li>
+                                    <li>Step-by-step analysis process</li>
+                                    <li>Time tracking and progress monitoring</li>
+                                    <li>Professional research documentation</li>
+                                </ul>
+                                
+                                {% if templates %}
+                                <form method="POST" action="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}">
+                                    <input type="hidden" name="action" value="create_research_project">
+                                    
+                                    <div class="mb-3">
+                                        <label for="template_id" class="form-label">Choose Research Template:</label>
+                                        <select class="form-select" id="template_id" name="template_id" required>
+                                            <option value="">-- Select template --</option>
+                                            {% for template in templates %}
+                                                <option value="{{ template.id }}">
+                                                    {{ template.name }}
+                                                    {% if template.investment_style %} ({{ template.investment_style|capitalize }}){% endif %}
+                                                    - {{ template.step_count }} steps
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-success btn-block">
+                                        Start Research Project
+                                    </button>
+                                </form>
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    <strong>No Research Templates Available</strong><br>
+                                    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-sm btn-primary mt-2">
+                                        Create Your First Template
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                </form>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <strong>Remember:</strong> Surviving the screening doesn't guarantee investment success. 
+                    It only means the idea merits thorough research and analysis.
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('ideas.inbox') }}" class="btn btn-secondary">
+                        ← Back to Inbox
+                    </a>
+                </div>
             </div>
         </div>
     </div>

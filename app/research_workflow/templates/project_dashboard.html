@@ -6,8 +6,12 @@
         <h1>{{ project.project_name }}</h1>
         <p class="text-muted mb-0">
             Template: {{ project.template.name }} |
-            Company: {{ project.company.name }}
-            {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+            {% if project.research_subject_type == 'company' and project.company %}
+                Company: {{ project.company.name }}
+                {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+            {% else %}
+                {{ project.research_subject_type.title() }}: {{ project.research_subject_name }}
+            {% endif %}
         </p>
     </div>
     <div>
@@ -174,11 +178,20 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
-                        class="btn btn-outline-primary">View Company Docs</a>
+                    {% if project.company_id %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
+                            class="btn btn-outline-primary">View Company Docs</a>
 
-                    <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
-                        class="btn btn-outline-secondary">Research Journal</a>
+                        <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
+                            class="btn btn-outline-secondary">Research Journal</a>
+                    {% else %}
+                        <a href="{{ url_for('journal_enhanced.search') }}"
+                            class="btn btn-outline-secondary">Research Journal</a>
+                        
+                        <button class="btn btn-outline-muted" disabled>
+                            📁 No Company Documents
+                        </button>
+                    {% endif %}
 
                     {% if project.progress_percentage == 100 %}
                     <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"

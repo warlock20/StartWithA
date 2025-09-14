@@ -65,6 +65,13 @@
                                 <span class="badge bg-secondary">{{ idea.ticker_symbol }}</span>
                                 {% endif %}
                             </h5>
+                            {% if idea.idea_purpose == 'learning' %}
+                                <span class="badge bg-info">📚 Learning</span>
+                            {% elif idea.idea_purpose == 'research' %}
+                                <span class="badge bg-primary">🔍 Research</span>
+                            {% else %}
+                                <span class="badge bg-warning">🎯 Investment</span>
+                            {% endif %}
                             <span
                                 class="badge {% if idea.status == 'survived' %}bg-success{% else %}bg-light text-dark{% endif %}">{{
                                 idea.idea_type|capitalize }}</span>
@@ -85,17 +92,25 @@
                     {% endif %}
 
                     <div class="d-flex gap-2 mt-3">
-                        {% if idea.status == 'survived' %}
-                        <a href="{{ url_for('ideas.promote_to_company', idea_id=idea.id) }}"
+                        {% if idea.status == 'survived' or idea.idea_purpose in ['learning', 'research'] %}
+                        <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}"
                             class="btn btn-success flex-grow-1">
-                            Promote to Company
+                            {% if idea.idea_purpose == 'learning' %}
+                                Start Learning Project
+                            {% elif idea.idea_purpose == 'research' %}
+                                Start Research Project
+                            {% elif idea.idea_type == 'company' %}
+                                Promote to Company
+                            {% else %}
+                                Start Research Project
+                            {% endif %}
                         </a>
-                        {% elif default_kill_checklist %}
+                        {% elif idea.idea_purpose == 'investment' and default_kill_checklist %}
                         {# SCENARIO 1: A default checklist exists - show a simple button #}
                         <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="btn btn-danger flex-grow-1">
                             Enter Kill Room
                         </a>
-                        {% elif all_kill_checklists %}
+                        {% elif idea.idea_purpose == 'investment' and all_kill_checklists %}
                         {# SCENARIO 2: No default, but other checklists exist - show a dropdown #}
                         <div class="btn-group flex-grow-1">
                             <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown"

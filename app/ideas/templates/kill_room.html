@@ -82,8 +82,14 @@
                         <div class="alert alert-success">
                             <h4>🎉 This idea survived the kill checklist!</h4>
                             <p>It passed all {{ total_criteria }} criteria and is ready for deep research.</p>
-                            <a href="{{ url_for('ideas.promote_to_company', idea_id=idea.id) }}" 
-                               class="btn btn-success">Promote to Company Research</a>
+                            <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" 
+                               class="btn btn-success">
+                                {% if idea.idea_type == 'company' %}
+                                    Promote to Company Research
+                                {% else %}
+                                    Start Research Project
+                                {% endif %}
+                            </a>
                         </div>
                     {% endif %}
                 </div>

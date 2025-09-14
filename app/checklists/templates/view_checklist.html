@@ -8,6 +8,11 @@
             <p class="lead mb-0">{{ checklist.description }}</p>
         </div>
         <div>
+            {% if research_context %}
+                <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success">
+                    <i class="bi bi-arrow-left"></i> Return to Research Project
+                </a>
+            {% endif %}
             <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info">Switch to View Mode</a>
             <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
         </div>

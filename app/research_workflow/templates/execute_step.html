@@ -41,8 +41,10 @@
                             <li>Competitive positioning</li>
                         </ul>
                     </div>
-                    <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}" 
-                       class="btn btn-primary" target="_blank">Open Company Documents</a>
+                    {% if project.company_id %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}" 
+                           class="btn btn-primary" target="_blank">Open Company Documents</a>
+                    {% endif %}
                     
                 {% elif step.type == 'valuation' %}
                     <div class="alert alert-info">
