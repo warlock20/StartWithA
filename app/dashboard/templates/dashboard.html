@@ -1,140 +1,1171 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    {# --- Getting Started Tip for New Users --- #}
-    {% if total_companies == 0 %}
-        <div class="alert alert-info" role="alert">
-            <h4 class="alert-heading">Welcome to the Research Platform!</h4>
-            <p>It looks like you're new here. A great first step is to add a company to your list so you can begin your research.</p>
-            <hr>
-            <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">Add Your First Company</a>
-        </div>
-    {% endif %}
-
-    <div class="page-header">
-        <h1 class="mb-4">Welcome back, {{ current_user.username }}!</h1>
-    </div>
-    
-    {# --- Stat Cards --- #}
-    <div class="row">
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="card text-white bg-primary h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Companies Tracked</h5>
-                    <p class="card-text fs-1 fw-bold">{{ total_companies }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="card text-white bg-info h-100">
-                <div class="card-body">
-                    <h5 class="card-title">⭐ Favorite Companies</h5>
-                    <p class="card-text fs-1 fw-bold">{{ favorite_companies_count }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="card text-white bg-success h-100">
-                <div class="card-body">
-                    <h5 class="card-title">🏆 Passed All Checks</h5>
-                    <p class="card-text fs-1 fw-bold">{{ passed_sessions_count }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="card text-dark bg-warning h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Research in Progress</h5>
-                    <p class="card-text fs-1 fw-bold">{{ in_progress_sessions }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# --- Charts Row --- #}
-    <div class="row mt-4 g-4">
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">Companies by Sector</div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    {% if sector_values %}
-                        <canvas id="sectorPieChart"></canvas>
-                    {% else %}
-                        <div class="text-center text-muted">
-                            <p class="mb-0">No company sector data to display.</p>
-                            <small>Add companies to see this chart.</small>
+<!-- Professional Hero Section -->
+<section class="dashboard-hero py-5 mb-4">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="hero-content">
+                    <h1 class="hero-title">Welcome back, {{ current_user.username }}</h1>
+                    <p class="hero-subtitle">Your systematic approach to intelligent investing</p>
+                    <div class="hero-stats mt-4">
+                        <div class="stat-item">
+                            <span class="stat-number">{{ template_count or 0 }}</span>
+                            <span class="stat-label">Research Templates</span>
                         </div>
+                        <div class="stat-divider">•</div>
+                        <div class="stat-item">
+                            <span class="stat-number">{{ kill_checklist_count or 0 }}</span>
+                            <span class="stat-label">Kill Checklists</span>
+                        </div>
+                        <div class="stat-divider">•</div>
+                        <div class="stat-item">
+                            <span class="stat-number">{{ inbox_count }}</span>
+                            <span class="stat-label">Ideas Awaiting Analysis</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="hero-actions">
+                    <!-- Quick Actions Button -->
+                    <div class="quick-actions-container">
+                        <div class="dropdown">
+                            <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button" 
+                                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-plus-circle me-2"></i> Quick Add
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="quickActionsDropdown">
+                                <li class="dropdown-header">Create New</li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
+                                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                                        <div>
+                                            <strong>Investment Idea</strong>
+                                            <small class="d-block text-muted">Capture ideas for screening</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                        <div>
+                                            <strong>Mistake Log</strong>
+                                            <small class="d-block text-muted">Document learning opportunities</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
+                                        <i class="bi bi-journal-text text-info me-2"></i>
+                                        <div>
+                                            <strong>Journal Entry</strong>
+                                            <small class="d-block text-muted">Record thoughts and insights</small>
+                                        </div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if template_count == 0 %}
+                    <div class="action-card urgent">
+                        <div class="action-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6>Critical: No Research Framework</h6>
+                            <p>Without systematic templates, you're missing opportunities and making emotional decisions.</p>
+                            <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-warning">Build Your System</a>
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-lg-6">
-            <div class="card h-100">
-                <div class="card-header">Margin of Safety on Favorites</div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    {% if mos_values %}
-                        <canvas id="mosBarChart"></canvas>
-                    {% else %}
-                        <div class="text-center text-muted">
-                            <p class="mb-0">No data to display.</p>
-                            <small>Add favorite companies with a saved intrinsic value.</small>
+    </div>
+</section>
+
+<!-- Systematic Framework Section -->
+<section class="framework-section mb-5">
+    <div class="container-fluid">
+        <div class="section-header text-center mb-4">
+            <h2 class="section-title">Your Systematic Investment Framework</h2>
+            <p class="section-subtitle">The foundation of disciplined, emotion-free investing</p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Investment Analysis Framework -->
+            <div class="col-lg-6">
+                <div class="framework-card investment-framework">
+                    <div class="framework-header">
+                        <div class="framework-icon investment">
+                            <i class="bi bi-search"></i>
                         </div>
-                    {% endif %}
+                        <div class="framework-title">
+                            <h3>Research Templates</h3>
+                            <p>Systematic workflows for comprehensive investment research</p>
+                        </div>
+                        <div class="framework-status">
+                            {% if template_count > 0 %}
+                                <span class="status-indicator active"></span>
+                                <span class="status-text">ACTIVE</span>
+                            {% else %}
+                                <span class="status-indicator inactive"></span>
+                                <span class="status-text">SETUP REQUIRED</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="framework-body">
+                        {% if user_templates %}
+                            <div class="framework-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">{{ template_count }}</span>
+                                    <span class="metric-label">Active Templates</span>
+                                </div>
+                                <div class="metric">
+                                    {% set total_steps = 0 %}
+                                    {% for template in user_templates %}
+                                        {% set total_steps = total_steps + template.step_count %}
+                                    {% endfor %}
+                                    <span class="metric-value">{{ total_steps }}</span>
+                                    <span class="metric-label">Total Steps</span>
+                                </div>
+                            </div>
+                            
+                            <div class="checklist-preview">
+                                <h6 class="preview-title">Your Research Templates</h6>
+                                {% for template in user_templates[:3] %}
+                                <div class="checklist-item">
+                                    <div class="checklist-info">
+                                        <span class="checklist-name">{{ template.name }}</span>
+                                        <span class="checklist-meta">
+                                            {{ template.step_count }} steps
+                                            {% if template.investment_style %} • {{ template.investment_style|capitalize }}{% endif %}
+                                            {% if template.times_used > 0 %} • Used {{ template.times_used }}x{% endif %}
+                                        </span>
+                                    </div>
+                                    <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" class="checklist-action">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                                {% if user_templates|length > 3 %}
+                                <div class="checklist-more">
+                                    <a href="{{ url_for('research_workflow.template_list') }}">+{{ user_templates|length - 3 }} more templates</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="framework-empty">
+                                <div class="empty-illustration">
+                                    <i class="bi bi-clipboard-x"></i>
+                                </div>
+                                <h6 class="empty-title">No Research Templates</h6>
+                                <p class="empty-description">
+                                    Professional investors rely on systematic research workflows to maintain consistency 
+                                    and thoroughness. Create templates to standardize your investment analysis process.
+                                </p>
+                                <div class="empty-actions">
+                                    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
+                                        Create Research Template
+                                    </a>
+                                    <a href="{{ url_for('main.mental_models') }}" class="btn btn-outline-secondary">
+                                        Learn Our Philosophy
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Initial Filtering Framework -->
+            <div class="col-lg-6">
+                <div class="framework-card protection-framework">
+                    <div class="framework-header">
+                        <div class="framework-icon protection">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <div class="framework-title">
+                            <h3>Initial Filtering</h3>
+                            <p>Kill checklists to rapidly eliminate poor investment opportunities</p>
+                        </div>
+                        <div class="framework-status">
+                            {% if kill_checklist_count > 0 %}
+                                <span class="status-indicator active"></span>
+                                <span class="status-text">ACTIVE</span>
+                            {% else %}
+                                <span class="status-indicator inactive"></span>
+                                <span class="status-text">SETUP REQUIRED</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="framework-body">
+                        {% if user_kill_checklists %}
+                            <div class="framework-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">{{ kill_checklist_count }}</span>
+                                    <span class="metric-label">Kill Lists</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">
+                                        {% set total_criteria = user_kill_checklists|sum(attribute='criteria_count') %}
+                                        {{ total_criteria or 0 }}
+                                    </span>
+                                    <span class="metric-label">Filter Criteria</span>
+                                </div>
+                            </div>
+                            
+                            <div class="checklist-preview">
+                                <h6 class="preview-title">Your Filtering Tools</h6>
+                                {% for kill_checklist in user_kill_checklists[:3] %}
+                                <div class="checklist-item">
+                                    <div class="checklist-info">
+                                        <span class="checklist-name">{{ kill_checklist.name }}</span>
+                                        <span class="checklist-meta">
+                                            {{ kill_checklist.criteria_count }} criteria
+                                            {% if kill_checklist.kill_rate %}
+                                                • {{ kill_checklist.kill_rate }}% rejection rate
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=kill_checklist.id) }}" class="checklist-action">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                                {% if user_kill_checklists|length > 3 %}
+                                <div class="checklist-more">
+                                    <a href="{{ url_for('ideas.manage_kill_checklists') }}">+{{ user_kill_checklists|length - 3 }} more kill lists</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="framework-empty">
+                                <div class="empty-illustration">
+                                    <i class="bi bi-shield-slash"></i>
+                                </div>
+                                <h6 class="empty-title">No Initial Filtering</h6>
+                                <p class="empty-description">
+                                    Time is your most valuable asset. Kill checklists help you rapidly eliminate 
+                                    poor investment opportunities, focusing your energy on genuine prospects.
+                                </p>
+                                <div class="empty-actions">
+                                    <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="btn btn-danger">
+                                        Create Kill Checklist
+                                    </a>
+                                    <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                                        View Ideas to Screen
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</section>
 
-    <hr class="my-4">
-
-    {# --- Recent Activity Table --- #}
-    <h3>Recent Activity</h3>
-    {% if recent_sessions %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Company</th>
-                        <th>Checklist</th>
-                        <th>Status</th>
-                        <th>Date Started</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for session in recent_sessions %}
-                        <tr>
-                            <td>{{ session.company.name }}</td>
-                            <td>{{ session.checklist.name }}</td>
-                            <td>
-                                <span class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ session.status|replace('_', ' ')|capitalize }}</span>
-                            </td>
-                            <td>{{ session.start_date.strftime('%Y-%m-%d') }}</td>
-                            <td class="text-end">
-                                <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}" class="btn btn-outline-primary btn-sm">View Summary</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- Activity Section -->
+<section class="activity-section">
+    <div class="container-fluid">
+        <div class="row g-4">
+            <!-- Active Research -->
+            <div class="col-lg-6">
+                <div class="activity-card research-activity">
+                    <div class="activity-header">
+                        <div class="activity-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="activity-title">
+                            <h4>Active Research</h4>
+                            <p>Continue your systematic company analysis</p>
+                        </div>
+                        <a href="{{ url_for('research_workflow.my_projects') }}" class="activity-link">View All</a>
+                    </div>
+                    <div class="activity-body">
+                        {% if active_projects_list %}
+                            <div class="research-list">
+                                {% for project in active_projects_list %}
+                                <div class="research-item">
+                                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="research-link">
+                                        <div class="research-info">
+                                            <h6 class="research-name">{{ project.company.name }}</h6>
+                                            <div class="research-meta">
+                                                <span class="template">{{ project.template.name }}</span>
+                                                <span class="progress-text">{{ project.progress_percentage }}% complete</span>
+                                            </div>
+                                            <div class="research-progress">
+                                                <div class="progress-bar-custom" style="width: {{ project.progress_percentage }}%;"></div>
+                                            </div>
+                                        </div>
+                                        {% if project.is_overdue %}
+                                        <span class="research-status overdue">OVERDUE</span>
+                                        {% endif %}
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="activity-empty">
+                                <i class="bi bi-search"></i>
+                                <h6>No Active Research</h6>
+                                <p>Start researching companies systematically with proven templates</p>
+                                <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-primary">Browse Templates</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Portfolio Monitoring -->
+            <div class="col-lg-6">
+                <div class="activity-card monitoring-activity">
+                    <div class="activity-header">
+                        <div class="activity-icon">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="activity-title">
+                            <h4>Portfolio Monitoring</h4>
+                            <p>Track thesis validation checkpoints</p>
+                        </div>
+                        <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="activity-link">View Timeline</a>
+                    </div>
+                    <div class="activity-body">
+                        {% if upcoming_checkpoints %}
+                            <div class="checkpoint-list">
+                                {% for cp in upcoming_checkpoints %}
+                                <div class="checkpoint-item">
+                                    <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}" class="checkpoint-link">
+                                        <div class="checkpoint-info">
+                                            <h6 class="checkpoint-company">{{ cp.company.name }}</h6>
+                                            <div class="checkpoint-metric">{{ cp.metric }}</div>
+                                        </div>
+                                        <div class="checkpoint-date">
+                                            <span class="date-text">{{ cp.target_date.strftime('%b %d') }}</span>
+                                            <span class="date-year">{{ cp.target_date.strftime('%Y') }}</span>
+                                        </div>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="activity-empty">
+                                <i class="bi bi-calendar-plus"></i>
+                                <h6>No Upcoming Checkpoints</h6>
+                                <p>Set thesis validation points to monitor your investments systematically</p>
+                                <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-outline-secondary">Set Checkpoints</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-    {% else %}
-        <p>No research sessions started yet.</p>
-    {% endif %}
+    </div>
+</section>
 {% endblock %}
 
-
 {% block scripts %}
-    {{ super() }} {# This includes the Chart.js library from the base template #}
+{{ super() }}
 
-    <script>
-        const chartData = {
-            sectorLabels: {{ sector_labels|tojson | safe }},
-            sectorValues: {{ sector_values|tojson | safe }},
-            mosLabels: {{ mos_labels|tojson | safe }},
-            mosValues: {{ mos_values|tojson | safe }}
-        };
-    </script>
+<style>
+    /* Professional Dashboard Styling */
+    :root {
+        --primary-dark: #1a1f2e;
+        --primary-light: #2c3e50;
+        --accent-blue: #3498db;
+        --accent-green: #27ae60;
+        --accent-red: #e74c3c;
+        --accent-orange: #f39c12;
+        --text-primary: #2c3e50;
+        --text-secondary: #7f8c8d;
+        --text-muted: #95a5a6;
+        --border-color: #ecf0f1;
+        --background-light: #f8f9fa;
+        --background-white: #ffffff;
+        --shadow-light: 0 2px 4px rgba(0,0,0,0.04);
+        --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
+        --shadow-heavy: 0 8px 32px rgba(0,0,0,0.12);
+    }
 
-    <script src="{{ url_for('static', filename='js/dashboard_charts.js') }}" defer></script>
+    /* Hero Section */
+    .dashboard-hero {
+        background: linear-gradient(135deg, var(--background-light) 0%, #e8f4f8 100%);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+        margin-bottom: 0;
+    }
+
+    .hero-stats {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-blue);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .stat-divider {
+        color: var(--text-muted);
+        font-size: 1.5rem;
+    }
+
+    /* Action Cards */
+    .hero-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        justify-content: flex-end;
+        align-items: flex-end;
+    }
+
+    /* Quick Actions Button */
+    .quick-actions-container {
+        margin-bottom: 1rem;
+    }
+
+    .quick-add-btn {
+        background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: var(--shadow-medium);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .quick-add-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-heavy);
+        background: linear-gradient(135deg, #2980b9 0%, var(--accent-blue) 100%);
+    }
+
+    .quick-add-btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+
+    .quick-add-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .quick-add-btn:hover::before {
+        left: 100%;
+    }
+
+    .dropdown-menu {
+        border: none;
+        border-radius: 12px;
+        padding: 0.5rem 0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        border: 1px solid var(--border-color);
+        min-width: 280px;
+        background: var(--background-white);
+        backdrop-filter: blur(10px);
+    }
+
+    .dropdown-header {
+        padding: 0.75rem 1rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .dropdown-item {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background: var(--background-light);
+        transform: translateX(2px);
+    }
+
+    .dropdown-item:focus {
+        background: var(--background-light);
+        box-shadow: inset 3px 0 0 var(--accent-blue);
+    }
+
+    .dropdown-item i {
+        width: 20px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .dropdown-item div {
+        flex: 1;
+    }
+
+    .dropdown-item strong {
+        display: block;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .dropdown-item small {
+        font-size: 0.8rem;
+        line-height: 1.3;
+    }
+
+    .action-card {
+        background: var(--background-white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-medium);
+        border: 1px solid var(--border-color);
+        max-width: 320px;
+        transition: all 0.3s ease;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-heavy);
+    }
+
+    .action-card.urgent {
+        border-left: 4px solid var(--accent-orange);
+    }
+
+    .action-card.ready {
+        border-left: 4px solid var(--accent-green);
+    }
+
+    .action-card .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .action-card.urgent .action-icon {
+        background: rgba(243, 156, 18, 0.1);
+        color: var(--accent-orange);
+    }
+
+    .action-card.ready .action-icon {
+        background: rgba(39, 174, 96, 0.1);
+        color: var(--accent-green);
+    }
+
+    .action-content h6 {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .action-content p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    /* Section Headers */
+    .section-header {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .section-subtitle {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+    }
+
+    /* Framework Cards */
+    .framework-card {
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow-light);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .framework-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-heavy);
+    }
+
+    .framework-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+    }
+
+    .framework-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .framework-icon.investment {
+        background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+    }
+
+    .framework-icon.protection {
+        background: linear-gradient(135deg, var(--accent-red) 0%, #ec7063 100%);
+    }
+
+    .framework-title {
+        flex: 1;
+    }
+
+    .framework-title h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .framework-title p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .framework-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .status-indicator.active {
+        background: var(--accent-green);
+    }
+
+    .status-indicator.inactive {
+        background: var(--accent-orange);
+    }
+
+    .status-text {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+
+    .status-indicator.active + .status-text {
+        color: var(--accent-green);
+    }
+
+    .status-indicator.inactive + .status-text {
+        color: var(--accent-orange);
+    }
+
+    /* Framework Body */
+    .framework-body {
+        padding: 1.5rem;
+    }
+
+    .framework-metrics {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .metric {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-align: center;
+    }
+
+    /* Checklist Preview */
+    .preview-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+
+    .checklist-item:last-child {
+        border-bottom: none;
+    }
+
+    .checklist-item:hover {
+        background: var(--background-light);
+        margin: 0 -1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        border-radius: 8px;
+    }
+
+    .checklist-info {
+        flex: 1;
+    }
+
+    .checklist-name {
+        display: block;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .checklist-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .checklist-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--background-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+    }
+
+    .checklist-action:hover {
+        background: var(--accent-blue);
+        color: white;
+        transform: translateX(2px);
+    }
+
+    .checklist-more {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .checklist-more a {
+        font-size: 0.85rem;
+        color: var(--accent-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .checklist-more a:hover {
+        text-decoration: underline;
+    }
+
+    /* Framework Empty States */
+    .framework-empty {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .empty-illustration {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--background-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        color: var(--text-muted);
+        font-size: 2rem;
+    }
+
+    .empty-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-description {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        max-width: 280px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .empty-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    /* Activity Cards */
+    .activity-section {
+        padding: 2rem 0;
+        background: var(--background-light);
+    }
+
+    .activity-card {
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: var(--shadow-light);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .activity-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .activity-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--background-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent-blue);
+        font-size: 1.2rem;
+    }
+
+    .activity-title {
+        flex: 1;
+    }
+
+    .activity-title h4 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-title p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .activity-link {
+        font-size: 0.85rem;
+        color: var(--accent-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .activity-link:hover {
+        text-decoration: underline;
+    }
+
+    .activity-body {
+        padding: 1.25rem;
+    }
+
+    /* Research Items */
+    .research-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .research-item {
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .research-item:hover {
+        background: var(--background-light);
+    }
+
+    .research-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 8px;
+    }
+
+    .research-info {
+        flex: 1;
+    }
+
+    .research-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .research-meta {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .template {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .progress-text {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--accent-blue);
+    }
+
+    .research-progress {
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .progress-bar-custom {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+
+    .research-status.overdue {
+        font-size: 0.7rem;
+        background: var(--accent-red);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+
+    /* Checkpoint Items */
+    .checkpoint-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .checkpoint-item {
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .checkpoint-item:hover {
+        background: var(--background-light);
+    }
+
+    .checkpoint-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 8px;
+    }
+
+    .checkpoint-info {
+        flex: 1;
+    }
+
+    .checkpoint-company {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .checkpoint-metric {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .checkpoint-date {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .date-text {
+        font-weight: 600;
+        color: var(--accent-orange);
+        font-size: 0.9rem;
+    }
+
+    .date-year {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    /* Activity Empty States */
+    .activity-empty {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .activity-empty i {
+        font-size: 3rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .activity-empty h6 {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .activity-empty p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+
+        .hero-stats {
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .stat-item {
+            min-width: 100px;
+        }
+
+        .framework-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .framework-status {
+            align-self: flex-end;
+        }
+
+        .framework-metrics {
+            justify-content: space-around;
+        }
+
+        .action-card {
+            max-width: 100%;
+        }
+
+        .hero-actions {
+            justify-content: center;
+            margin-top: 2rem;
+        }
+    }
+</style>
 {% endblock %}

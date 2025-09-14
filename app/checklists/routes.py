@@ -134,10 +134,15 @@ def view_checklist(checklist_id):
     user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
     total_items_count = checklist.items.count()
     
+    # Check if this checklist is being accessed from a research workflow
+    from flask import session as flask_session
+    research_context = flask_session.get('research_context')
+    
     return render_template(
         'view_checklist.html',
         checklist=checklist,
-        items=top_level_items,  
+        items=top_level_items,
+        research_context=research_context,  
         title=checklist.name,
         ChecklistItem=ChecklistItem, 
         companies=user_companies,

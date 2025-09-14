@@ -1,0 +1,79 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h2>{{ title }}</h2>
+                <p class="text-muted mb-0">Distill an experience or idea into a reusable lesson.</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('journal_enhanced.new_learning_note') }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Lesson Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="e.g., Avoid Cyclical Businesses at the Peak" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lesson" class="form-label">The Core Lesson <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="lesson" name="lesson" rows="4" placeholder="What is the key takeaway or mental model?" required></textarea>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="mistake">Mistake</option>
+                                <option value="success">Success</option>
+                                <option value="process">Process Improvement</option>
+                                <option value="market_wisdom" selected>Market Wisdom</option>
+                                <option value="valuation">Valuation</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="importance" class="form-label">Importance (1-10)</label>
+                            <input type="range" class="form-range" id="importance" name="importance" min="1" max="10" value="5">
+                            <div class="text-center"><span id="importanceValue">5</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="context" class="form-label">Context</label>
+                        <textarea class="form-control" id="context" name="context" rows="2" placeholder="What situation or event prompted this lesson?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="how_to_apply" class="form-label">How to Apply This Lesson</label>
+                        <textarea class="form-control" id="how_to_apply" name="how_to_apply" rows="2" placeholder="How will you use this in the future? e.g., 'Add to my pre-investment checklist'"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">Related Company (Optional)</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">-- None --</option>
+                            {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('journal_enhanced.learning_notes') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Lesson</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.getElementById('importance').addEventListener('input', function (e) {
+        document.getElementById('importanceValue').textContent = e.target.value;
+    });
+</script>
+{% endblock %}

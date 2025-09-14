@@ -1,0 +1,181 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>{{ title }}</h1>
+    <p class="text-muted">
+        Project: {{ project.project_name }} | 
+        Step {{ step_index + 1 }} of {{ project.template.step_count }}
+    </p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Step Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Step Type:</dt>
+                    <dd class="col-sm-9">{{ step.type|replace('_', ' ')|title }}</dd>
+                    
+                    <dt class="col-sm-3">Estimated Time:</dt>
+                    <dd class="col-sm-9">{{ step.estimated_minutes }} minutes</dd>
+                    
+                    {% if step.config %}
+                    <dt class="col-sm-3">Configuration:</dt>
+                    <dd class="col-sm-9">{{ step.config }}</dd>
+                    {% endif %}
+                </dl>
+                
+                <!-- Step-specific content based on type -->
+                {% if step.type == 'document_review' %}
+                    <div class="alert alert-info">
+                        <h6>Document Review Guidelines</h6>
+                        <p>Review the company's documents focusing on:</p>
+                        <ul>
+                            <li>Key financial metrics and trends</li>
+                            <li>Management discussion of strategy</li>
+                            <li>Risk factors and challenges</li>
+                            <li>Competitive positioning</li>
+                        </ul>
+                    </div>
+                    {% if project.company_id %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}" 
+                           class="btn btn-primary" target="_blank">Open Company Documents</a>
+                    {% endif %}
+                    
+                {% elif step.type == 'valuation' %}
+                    <div class="alert alert-info">
+                        <h6>Valuation Work</h6>
+                        <p>Perform your valuation analysis using your preferred method:</p>
+                        <ul>
+                            <li>DCF Model</li>
+                            <li>Comparable Company Analysis</li>
+                            <li>Asset-based Valuation</li>
+                            <li>Earnings Multiple Analysis</li>
+                        </ul>
+                    </div>
+                    
+                {% elif step.type == 'competitor_analysis' %}
+                    <div class="alert alert-info">
+                        <h6>Competitor Analysis</h6>
+                        <p>Analyze the competitive landscape:</p>
+                        <ul>
+                            <li>Identify main competitors</li>
+                            <li>Compare business models</li>
+                            <li>Assess relative strengths/weaknesses</li>
+                            <li>Evaluate competitive moat</li>
+                        </ul>
+                    </div>
+                    
+                {% elif step.type == 'thesis_writing' %}
+                    <div class="alert alert-info">
+                        <h6>Investment Thesis</h6>
+                        <p>Synthesize your research into a clear investment thesis covering:</p>
+                        <ul>
+                            <li>Investment case summary</li>
+                            <li>Key value drivers</li>
+                            <li>Major risks and mitigants</li>
+                            <li>Expected return scenario</li>
+                        </ul>
+                    </div>
+                {% endif %}
+                
+                <!-- Notes form -->
+                <hr>
+                <form method="POST" action="{{ url_for('research_workflow.complete_step', project_id=project.id) }}">
+                    <input type="hidden" name="step_index" value="{{ step_index }}">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">
+                            <strong>Your Notes & Findings</strong>
+                        </label>
+                        <textarea class="form-control" id="notes" name="notes" rows="10"
+                                  placeholder="Document your findings, observations, and conclusions from this step..."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" 
+                           class="btn btn-secondary">Back to Dashboard</a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            Complete Step & Continue
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Timer -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">⏱️ Session Timer</h6>
+            </div>
+            <div class="card-body text-center">
+                <h2 id="timer">00:00:00</h2>
+                <small class="text-muted">Started: {{ session.start_time.strftime('%H:%M') }}</small>
+            </div>
+        </div>
+        
+        <!-- Previous steps notes -->
+        {% if project.step_notes %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Previous Step Notes</h6>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="previousNotesAccordion">
+                    {% for note_index, note_text in project.step_notes.items() %}
+                        {% set note_step = project.template.get_step(note_index|int) %}
+                        {% if note_step %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#note-{{ note_index }}">
+                                    {{ note_step.name }}
+                                </button>
+                            </h2>
+                            <div id="note-{{ note_index }}" class="accordion-collapse collapse" 
+                                 data-bs-parent="#previousNotesAccordion">
+                                <div class="accordion-body">
+                                    <small>{{ note_text|truncate(200) }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Timer functionality
+const startTime = new Date('{{ session.start_time.isoformat() }}');
+
+function updateTimer() {
+    const now = new Date();
+    const elapsed = Math.floor((now - startTime) / 1000);
+    
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const seconds = elapsed % 60;
+    
+    document.getElementById('timer').textContent = 
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+setInterval(updateTimer, 1000);
+updateTimer();
+</script>
+{% endblock %}

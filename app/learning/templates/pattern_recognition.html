@@ -1,0 +1,391 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>🔍 Pattern Recognition</h1>
+    <p class="text-muted">Identify recurring patterns in your investment behavior and outcomes</p>
+</div>
+
+<!-- Pattern Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ success_patterns|length }}</h3>
+                <small class="text-muted">Success Patterns</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-danger">{{ failure_patterns|length }}</h3>
+                <small class="text-muted">Failure Patterns</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ behavioral_patterns|length }}</h3>
+                <small class="text-muted">Behavioral Patterns</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ patterns|length }}</h3>
+                <small class="text-muted">Total Patterns</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Categories -->
+<div class="card mb-4">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#all-patterns">
+                    All Patterns ({{ patterns|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#success-patterns">
+                    ✅ Success ({{ success_patterns|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#failure-patterns">
+                    ❌ Failure ({{ failure_patterns|length }})
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#behavioral-patterns">
+                    🧠 Behavioral ({{ behavioral_patterns|length }})
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- All Patterns -->
+            <div class="tab-pane fade show active" id="all-patterns">
+                {% if patterns %}
+                <div class="row">
+                    {% for pattern in patterns %}
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100 pattern-card" data-pattern-id="{{ pattern.id }}">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ pattern.pattern_name }}</h6>
+                                    <span
+                                        class="badge bg-{{ 'success' if pattern.pattern_type == 'success_pattern' else 'danger' if pattern.pattern_type == 'failure_pattern' else 'info' }}">
+                                        {{ pattern.pattern_type|replace('_', ' ')|title }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">{{ pattern.description }}</p>
+
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        Occurrences: {{ pattern.occurrences }} |
+                                        Confidence: {{ pattern.confidence_level }}/10 |
+                                        Impact: {{ pattern.impact_score or 'Not rated' }}/10
+                                    </small>
+                                </div>
+
+                                {% if pattern.how_to_leverage %}
+                                <div class="alert alert-success">
+                                    <strong>How to Leverage:</strong> {{ pattern.how_to_leverage }}
+                                </div>
+                                {% endif %}
+
+                                {% if pattern.how_to_avoid %}
+                                <div class="alert alert-danger">
+                                    <strong>How to Avoid:</strong> {{ pattern.how_to_avoid }}
+                                </div>
+                                {% endif %}
+
+                                {% if pattern.financial_impact %}
+                                <p><strong>Financial Impact:</strong> {{ pattern.financial_impact }}</p>
+                                {% endif %}
+
+                                <div class="pattern-actions" style="display: none;">
+                                    <hr>
+                                    <div class="mb-2">
+                                        <label class="form-label">Impact Score (1-10):</label>
+                                        <input type="range" class="form-range impact-score" min="1" max="10"
+                                            value="{{ pattern.impact_score or 5 }}">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Confidence Level (1-10):</label>
+                                        <input type="range" class="form-range confidence-level" min="1" max="10"
+                                            value="{{ pattern.confidence_level or 5 }}">
+                                    </div>
+                                    {% if pattern.pattern_type == 'success_pattern' %}
+                                    <div class="mb-2">
+                                        <label class="form-label">How to Leverage:</label>
+                                        <textarea class="form-control leverage-text"
+                                            rows="2">{{ pattern.how_to_leverage or '' }}</textarea>
+                                    </div>
+                                    {% else %}
+                                    <div class="mb-2">
+                                        <label class="form-label">How to Avoid:</label>
+                                        <textarea class="form-control avoid-text"
+                                            rows="2">{{ pattern.how_to_avoid or '' }}</textarea>
+                                    </div>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-success save-pattern">Save Changes</button>
+                                </div>
+
+                                <button class="btn btn-sm btn-outline-primary edit-pattern">
+                                    Edit Details
+                                </button>
+                            </div>
+                            <div class="card-footer text-muted">
+                                <small>
+                                    Identified: {{ pattern.identified_date.strftime('%b %d, %Y') }}
+                                    {% if pattern.last_observed %}
+                                    | Last seen: {{ pattern.last_observed.strftime('%b %d') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No patterns identified yet. Patterns will appear as you log more decisions and
+                        outcomes.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Success Patterns -->
+            <div class="tab-pane fade" id="success-patterns">
+                {% if success_patterns %}
+                <div class="alert alert-success mb-3">
+                    <strong>🎯 Success Patterns:</strong> These are your winning behaviors. Repeat them consistently!
+                </div>
+                <div class="row">
+                    {% for pattern in success_patterns %}
+                    <!-- Similar card structure as above -->
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100 border-success">
+                            <div class="card-body">
+                                <h6 class="card-title text-success">{{ pattern.pattern_name }}</h6>
+                                <p class="card-text">{{ pattern.description }}</p>
+                                <p><strong>Occurrences:</strong> {{ pattern.occurrences }}</p>
+                                {% if pattern.how_to_leverage %}
+                                <div class="alert alert-success">
+                                    <strong>Action:</strong> {{ pattern.how_to_leverage }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-4">No success patterns identified yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Failure Patterns -->
+            <div class="tab-pane fade" id="failure-patterns">
+                {% if failure_patterns %}
+                <div class="alert alert-danger mb-3">
+                    <strong>⚠️ Failure Patterns:</strong> These behaviors lead to poor outcomes. Actively avoid them!
+                </div>
+                <div class="row">
+                    {% for pattern in failure_patterns %}
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100 border-danger">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger">{{ pattern.pattern_name }}</h6>
+                                <p class="card-text">{{ pattern.description }}</p>
+                                <p><strong>Occurrences:</strong> {{ pattern.occurrences }}</p>
+                                {% if pattern.how_to_avoid %}
+                                <div class="alert alert-danger">
+                                    <strong>Prevention:</strong> {{ pattern.how_to_avoid }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-4">No failure patterns identified yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Behavioral Patterns -->
+            <div class="tab-pane fade" id="behavioral-patterns">
+                {% if behavioral_patterns %}
+                <div class="alert alert-info mb-3">
+                    <strong>🧠 Behavioral Patterns:</strong> These are your tendencies and habits. Understanding them
+                    helps you make better decisions.
+                </div>
+                <div class="row">
+                    {% for pattern in behavioral_patterns %}
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100 border-info">
+                            <div class="card-body">
+                                <h6 class="card-title text-info">{{ pattern.pattern_name }}</h6>
+                                <p class="card-text">{{ pattern.description }}</p>
+                                <p><strong>Occurrences:</strong> {{ pattern.occurrences }}</p>
+                                {% if pattern.financial_impact %}
+                                <p><strong>Impact:</strong> {{ pattern.financial_impact }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-4">No behavioral patterns identified yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Analysis Insights -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">💡 Pattern Insights & Actions</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Top Success Drivers:</h6>
+                {% if success_patterns %}
+                <ol>
+                    {% for pattern in success_patterns|sort(attribute='occurrences', reverse=true)[:3] %}
+                    <li>
+                        <strong>{{ pattern.pattern_name }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            {{ pattern.occurrences }} occurrences
+                            {% if pattern.how_to_leverage %}
+                            | Action: {{ pattern.how_to_leverage|truncate(50) }}
+                            {% endif %}
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="text-muted">No success patterns yet</p>
+                {% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <h6>Top Failure Triggers:</h6>
+                {% if failure_patterns %}
+                <ol>
+                    {% for pattern in failure_patterns|sort(attribute='occurrences', reverse=true)[:3] %}
+                    <li>
+                        <strong>{{ pattern.pattern_name }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            {{ pattern.occurrences }} occurrences
+                            {% if pattern.how_to_avoid %}
+                            | Prevention: {{ pattern.how_to_avoid|truncate(50) }}
+                            {% endif %}
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="text-muted">No failure patterns yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <hr>
+
+        <h6>📊 Pattern Statistics:</h6>
+        <div class="row text-center">
+            <div class="col-md-3">
+                <h5>{{ patterns|selectattr('confidence_level', 'ge', 7)|list|length }}</h5>
+                <small class="text-muted">High Confidence Patterns</small>
+            </div>
+            <div class="col-md-3">
+                <h5>{{ patterns|selectattr('impact_score', 'ge', 7)|list|length }}</h5>
+                <small class="text-muted">High Impact Patterns</small>
+            </div>
+            <div class="col-md-3">
+                <h5>{{ patterns|selectattr('needs_more_data', 'equalto', true)|list|length }}</h5>
+                <small class="text-muted">Need More Data</small>
+            </div>
+            <div class="col-md-3">
+                <h5>{{ patterns|sum(attribute='occurrences') }}</h5>
+                <small class="text-muted">Total Occurrences</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Edit pattern functionality
+    document.querySelectorAll('.edit-pattern').forEach(button => {
+        button.addEventListener('click', function () {
+            const card = this.closest('.pattern-card');
+            const actions = card.querySelector('.pattern-actions');
+
+            if (actions.style.display === 'none') {
+                actions.style.display = 'block';
+                this.textContent = 'Cancel';
+            } else {
+                actions.style.display = 'none';
+                this.textContent = 'Edit Details';
+            }
+        });
+    });
+
+    // Save pattern changes
+    document.querySelectorAll('.save-pattern').forEach(button => {
+        button.addEventListener('click', function () {
+            const card = this.closest('.pattern-card');
+            const patternId = card.dataset.patternId;
+
+            const data = {
+                impact_score: parseInt(card.querySelector('.impact-score').value),
+                confidence_level: parseInt(card.querySelector('.confidence-level').value)
+            };
+
+            const leverageText = card.querySelector('.leverage-text');
+            if (leverageText) {
+                data.how_to_leverage = leverageText.value;
+            }
+
+            const avoidText = card.querySelector('.avoid-text');
+            if (avoidText) {
+                data.how_to_avoid = avoidText.value;
+            }
+
+            fetch(`/learning/patterns/${patternId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        location.reload();
+                    }
+                });
+        });
+    });
+</script>
+{% endblock %}

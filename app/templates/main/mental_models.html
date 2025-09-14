@@ -1,98 +1,208 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <div class="page-header text-center">
-        <h1>The Research Workflow</h1>
-        <p class="lead">A systematic path from initial idea to long-term monitoring using powerful mental models.</p>
-    </div>
-
-    <div class="row align-items-center mb-5">
-        <div class="col-md-7">
-            <h2>1. Foundational Analysis: The Checklist</h2>
-            <p class="text-muted">Inspired by Charlie Munger</p>
-            <p>The starting point for all disciplined research. A checklist enforces rigor and ensures all key quantitative and qualitative aspects of a business are thoroughly investigated before forming an initial thesis. It is your primary defense against emotional decision-making and errors of omission.</p>
-            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-primary">Go to Checklists</a>
-        </div>
-        <div class="col-md-5">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title">How to Use It (Example)</h5>
-                    <p class="card-text">For a company like <strong>Tesla (TSLA)</strong>, a checklist item might be:</p>
-                    <blockquote class="blockquote mb-0">
-                      <p><small><em>"Assess dependence on key suppliers for battery components."</em></small></p>
-                    </blockquote>
-                    <p class="card-text mt-2">Your research would then document the risks and relationships associated with Panasonic, CATL, etc.</p>
+    <!-- Header Section -->
+    <section class="py-5 bg-white border-bottom">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10 text-center">
+                    <h1 class="display-4 fw-bold text-dark mb-4">Mental Models & Investment Framework</h1>
+                    <p class="lead mb-3 text-dark">
+                        <strong>Every great investor needs their own systematic approach.</strong>
+                    </p>
+                    <p class="fs-5 text-muted mb-4">
+                        Transform proven mental models into personalized, actionable checklists that evolve with your experience and prevent costly mistakes.
+                    </p>
+                    
+                    <div class="card border shadow-sm mt-4">
+                        <div class="card-body p-4">
+                            <h4 class="text-dark mb-3">The Core Philosophy</h4>
+                            <p class="text-muted mb-0">
+                                This platform helps you create and refine your <strong>personal investment checklist</strong> - a living document that captures your investment principles, lessons learned, and systematic approach to evaluating opportunities.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+    </section>
+
+    <div class="container py-5">
+        <!-- Tool 1: Personal Investment Checklist -->
+        <section class="mb-6">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h2 class="h1 text-dark mb-3">1. Personal Investment Checklist</h2>
+                    <p class="text-muted mb-3">Inspired by Charlie Munger's systematic approach</p>
+                    <p class="mb-4"><strong>This is your core tool.</strong> Your personalized checklist enforces discipline and ensures you evaluate every opportunity through your unique investment lens. It captures your hard-won lessons and prevents repeating past mistakes.</p>
+                    
+                    <div class="mb-4">
+                        <h5 class="text-dark mb-3">What makes YOUR checklist special:</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">• <strong>Personalized items</strong> based on your investment style</li>
+                            <li class="mb-2">• <strong>Evolving content</strong> that grows from your mistakes and wins</li>
+                            <li class="mb-2">• <strong>Quick reference</strong> for consistent decision-making</li>
+                            <li class="mb-2">• <strong>Defense mechanism</strong> against emotional investing</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-dark">
+                            Build Your Checklist →
+                        </a>
+                        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-outline-dark">
+                            Test on New Idea →
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="card border">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="card-title mb-0 text-dark">Your Checklist in Action</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text mb-3">Your personalized Tesla evaluation might include:</p>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <small><strong>Supply Chain Risk:</strong><br>
+                                <em>"Assess dependence on key battery suppliers - learned from my 2021 chip shortage losses"</em></small>
+                            </div>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <small><strong>CEO Risk:</strong><br>
+                                <em>"Evaluate key-person dependency - added after my Twitter acquisition concerns"</em></small>
+                            </div>
+                            <p class="card-text text-muted"><small>Each item reflects YOUR experience and learning.</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tool 2: Strategic Frameworks -->
+        <section class="mb-6 border-top pt-5">
+            <div class="row align-items-center">
+                <div class="col-md-5 order-md-last">
+                    <h2 class="h1 text-dark mb-3">2. Strategic Frameworks</h2>
+                    <p class="text-muted mb-3">SWOT Analysis & Porter's Five Forces</p>
+                    <p class="mb-4">After initial data gathering, use these models to understand the company's strategic position (SWOT) and the competitive dynamics of its industry (Porter's Five Forces). This builds a deeper, qualitative understanding around the numbers.</p>
+                    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-dark">Analyze a Company →</a>
+                </div>
+                <div class="col-md-7">
+                    <div class="card border">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="card-title mb-0 text-dark">Example: Apple (AAPL)</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2"><strong>Strength (SWOT):</strong> Its powerful brand and closed ecosystem.</li>
+                                <li class="mb-2"><strong>Threat (SWOT):</strong> Increasing antitrust regulation globally.</li>
+                                <li class="mb-0"><strong>Bargaining Power of Buyers (Porter's):</strong> Relatively low, due to high switching costs and brand loyalty.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tool 3: Long-Term Monitoring -->
+        <section class="mb-6 border-top pt-5">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h2 class="h1 text-dark mb-3">3. Destination Analysis</h2>
+                    <p class="text-muted mb-3">Long-term thesis tracking (Inspired by Nick Sleep & Qais Zakaria)</p>
+                    <p class="mb-4">For companies in your portfolio or on your watchlist. Instead of focusing on the next quarter, you set multi-year "checkpoints" for your thesis. This model forces you to think about a company's enduring competitive advantages and long-term trajectory.</p>
+                    <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-outline-dark">View Checkpoints Timeline →</a>
+                </div>
+                <div class="col-md-5">
+                    <div class="card border">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="card-title mb-0 text-dark">Example: Amazon (AMZN)</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text mb-3">A 2-year checkpoint might be:</p>
+                            <ul class="list-unstyled mb-3">
+                                <li class="mb-2"><strong>Metric:</strong> AWS Revenue Growth</li>
+                                <li class="mb-0"><strong>Expectation:</strong> Maintain >25% year-over-year growth</li>
+                            </ul>
+                            <p class="card-text text-muted mb-0"><small>You would then review this in two years to see if your thesis is on track.</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tool 4: Learning System -->
+        <section class="mb-6 border-top pt-5">
+            <div class="row align-items-center">
+                <div class="col-md-5 order-md-last">
+                    <h2 class="h1 text-dark mb-3">4. Learning System</h2>
+                    <p class="text-muted mb-3">Digital Scuttlebutt & Mistake Log (Inspired by Philip Fisher & Charlie Munger)</p>
+                    <p class="mb-4">Investing is a process of constant learning. Use the Digital Scuttlebutt tool to stay on top of the current narrative, and the Mistake Log to permanently embed lessons from your own and others' failures into your future process.</p>
+                    <a href="{{ url_for('learning.mistake_log') }}" class="btn btn-outline-dark">Go to Mistake Log →</a>
+                </div>
+                <div class="col-md-7">
+                    <div class="card border">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="card-title mb-0 text-dark">How to Use It</h5>
+                        </div>
+                        <div class="card-body">
+                             <p class="card-text mb-3">For <strong>Digital Scuttlebutt</strong>, the AI might analyze news for <strong>NVIDIA (NVDA)</strong> and find a <em>Bear Case</em>: "New export restrictions to China."</p>
+                             <p class="card-text mb-0">For the <strong>Mistake Log</strong>, you might log the lesson: <em>"Avoid companies with high customer concentration."</em> and then click a button to add this permanently to your "Initial Screening" checklist.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
-
-    <hr class="my-4">
-
-    <div class="row align-items-center mb-5">
-        <div class="col-md-5 order-md-last">
-            <h2>2. Strategic Frameworks: SWOT & Porter's</h2>
-            <p class="text-muted">Classic Business Strategy</p>
-            <p>After initial data gathering, use these models to understand the company's strategic position (SWOT) and the competitive dynamics of its industry (Porter's Five Forces). This builds a deeper, qualitative understanding around the numbers.</p>
-            <a href="{{ url_for('companies.list_companies') }}" class="btn btn-info">Analyze a Company</a>
-        </div>
-        <div class="col-md-7">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title">How to Use It (Example)</h5>
-                    <p class="card-text">For a company like <strong>Apple (AAPL)</strong>:</p>
-                    <ul class="list-unstyled">
-                        <li><strong>Strength (SWOT):</strong> Its powerful brand and closed ecosystem.</li>
-                        <li><strong>Threat (SWOT):</strong> Increasing antitrust regulation globally.</li>
-                        <li><strong>Bargaining Power of Buyers (Porter's):</strong> Relatively low, due to high switching costs and brand loyalty.</li>
-                    </ul>
+    
+    <!-- Call to Action Section -->
+    <section class="py-5 bg-light border-top">
+        <div class="container text-center">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h2 class="h1 text-dark mb-4">Ready to Build Your Investment System?</h2>
+                    <p class="lead mb-4 text-muted">Every successful investor has a systematic approach. Yours should be unique to your experience, lessons, and investment philosophy.</p>
+                    
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="card border shadow-sm">
+                                <div class="card-body p-4">
+                                    <h4 class="text-dark mb-3">Start Your Journey</h4>
+                                    <p class="card-text text-muted mb-4">Begin with our proven mental models, then customize them based on your experience. Your checklist will become more valuable with every investment decision.</p>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-dark btn-lg">
+                                            Create My First Checklist
+                                        </a>
+                                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-dark btn-lg">
+                                            Start with an Idea
+                                        </a>
+                                    </div>
+                                    
+                                    <p class="text-muted mt-3 mb-0">
+                                        <small>Join thousands of investors who've systematized their decision-making process</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <hr class="my-4">
-
-    <div class="row align-items-center mb-5">
-        <div class="col-md-7">
-            <h2>3. Long-Term Monitoring: Destination Analysis</h2>
-            <p class="text-muted">Inspired by Nick Sleep & Qais Zakaria</p>
-            <p>For companies in your portfolio or on your watchlist. Instead of focusing on the next quarter, you set multi-year "checkpoints" for your thesis. This model forces you to think about a company's enduring competitive advantages and long-term trajectory.</p>
-            <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-success">View Checkpoints Timeline</a>
-        </div>
-        <div class="col-md-5">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title">How to Use It (Example)</h5>
-                    <p class="card-text">For a company like <strong>Amazon (AMZN)</strong>, a 2-year checkpoint might be:</p>
-                    <ul class="list-unstyled">
-                        <li><strong>Metric:</strong> 'AWS Revenue Growth.'</li>
-                        <li><strong>Expectation:</strong> 'Maintain >25% year-over-year growth.'</li>
-                    </ul>
-                    <p class="card-text mt-2">You would then review this in two years to see if your thesis is on track.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <hr class="my-4">
-
-    <div class="row align-items-center">
-        <div class="col-md-5 order-md-last">
-            <h2>4. Continuous Learning: Scuttlebutt & Mistake Log</h2>
-            <p class="text-muted">Inspired by Philip Fisher & Charlie Munger</p>
-            <p>Investing is a process of constant learning. Use the Digital Scuttlebutt tool to stay on top of the current narrative, and the Mistake Log to permanently embed lessons from your own and others' failures into your future process.</p>
-            <a href="{{ url_for('logs.mistake_log') }}" class="btn btn-secondary">Go to Mistake Log</a>
-        </div>
-        <div class="col-md-7">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title">How to Use It (Example)</h5>
-                     <p class="card-text">For <strong>Digital Scuttlebutt</strong>, the AI might analyze news for <strong>NVIDIA (NVDA)</strong> and find a <em>Bear Case</em>: "New export restrictions to China."</p>
-                     <p class="card-text mt-2">For the <strong>Mistake Log</strong>, you might log the lesson: <em>"Avoid companies with high customer concentration."</em> and then click a button to add this permanently to your "Initial Screening" checklist.</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Custom Styles -->
+    <style>
+        .mb-6 {
+            margin-bottom: 4rem !important;
+        }
+        
+        .card {
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 
 {% endblock %}

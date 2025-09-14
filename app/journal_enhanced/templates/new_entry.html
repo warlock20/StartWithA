@@ -1,0 +1,216 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h2>New Journal Entry</h2>
+                <p class="text-muted mb-0">Capture your investment thinking</p>
+            </div>
+            <div class="card-body">
+                <!-- Template Selector -->
+                {% if templates %}
+                <div class="mb-3">
+                    <label class="form-label">Use Template:</label>
+                    <div class="btn-group" role="group">
+                        {% for template in templates[:4] %}
+                        <button type="button" class="btn btn-outline-primary btn-sm"
+                            onclick="loadTemplate({{ template.id }}, {{ template.prompts|tojson }})">
+                            {{ template.name }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data">
+                    <!-- Basic Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                placeholder="Optional - summarize your entry">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="entry_type" class="form-label">Entry Type</label>
+                            <select class="form-select" id="entry_type" name="entry_type">
+                                <option value="observation">Observation</option>
+                                <option value="thesis_update">Thesis Update</option>
+                                <option value="question">Question</option>
+                                <option value="insight">Insight</option>
+                                <option value="lesson_learned">Lesson Learned</option>
+                                <option value="market_thought">Market Thought</option>
+                                <option value="meeting_notes">Meeting Notes</option>
+                                <option value="earnings_reaction">Earnings Reaction</option>
+                                <option value="news_analysis">News Analysis</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Company Association -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="company_id" class="form-label">Company (Optional)</label>
+                            <select class="form-select" id="company_id" name="company_id">
+                                <option value="">-- No specific company --</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}" {% if preset_company_id==company.id %}selected{% endif
+                                    %}>
+                                    {{ company.name }} {% if company.ticker_symbol %}({{ company.ticker_symbol }}){%
+                                    endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="source" class="form-label">Source</label>
+                            <input type="text" class="form-control" id="source" name="source"
+                                placeholder="e.g., Q3 Earnings Call, WSJ Article">
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="mb-3">
+                        <label for="content" class="form-label">
+                            Content <span class="text-danger">*</span>
+                            <small class="text-muted">(Use #hashtags for easy searching)</small>
+                        </label>
+                        <textarea class="form-control" id="content" name="content" rows="8" required
+                            placeholder="What's on your mind?"></textarea>
+                    </div>
+
+                    <!-- Template Prompts (shown when template selected) -->
+                    <div id="templatePrompts" class="mb-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6>Template Prompts:</h6>
+                            <ul id="promptsList" class="mb-0"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Key Insight -->
+                    <div class="mb-3">
+                        <label for="key_insight" class="form-label">Key Insight</label>
+                        <input type="text" class="form-control" id="key_insight" name="key_insight"
+                            placeholder="What's the main takeaway?">
+                    </div>
+
+                    <!-- Sentiment and Conviction -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="sentiment" class="form-label">Sentiment</label>
+                            <select class="form-select" id="sentiment" name="sentiment">
+                                <option value="">-- None --</option>
+                                <option value="bullish">🐂 Bullish</option>
+                                <option value="bearish">🐻 Bearish</option>
+                                <option value="neutral">😐 Neutral</option>
+                                <option value="uncertain">🤔 Uncertain</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="conviction" class="form-label">Conviction Level (1-10)</label>
+                            <input type="range" class="form-range" id="conviction" name="conviction" min="1" max="10"
+                                value="5">
+                            <div class="text-center">
+                                <span id="convictionValue">5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Items and Questions -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="action_items" class="form-label">Action Items</label>
+                            <textarea class="form-control" id="action_items" name="action_items" rows="3"
+                                placeholder="One per line"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="questions_raised" class="form-label">Questions Raised</label>
+                            <textarea class="form-control" id="questions_raised" name="questions_raised" rows="3"
+                                placeholder="One per line"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- File Attachments -->
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">Attachments</label>
+                        <input type="file" class="form-control" id="attachments" name="attachments" multiple
+                            accept=".png,.jpg,.jpeg,.gif,.pdf,.xlsx,.xls,.doc,.docx">
+                        <small class="text-muted">Attach charts, documents, or images</small>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Save Entry</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Update conviction display
+    document.getElementById('conviction').addEventListener('input', function (e) {
+        document.getElementById('convictionValue').textContent = e.target.value;
+    });
+
+    // Load template prompts
+    function loadTemplate(templateId, prompts) {
+        if (prompts && prompts.length > 0) {
+            const promptsList = document.getElementById('promptsList');
+            promptsList.innerHTML = '';
+            prompts.forEach(prompt => {
+                const li = document.createElement('li');
+                li.textContent = prompt;
+                promptsList.appendChild(li);
+            });
+            document.getElementById('templatePrompts').style.display = 'block';
+        }
+    }
+
+    // Auto-save draft (optional)
+    let autoSaveTimer;
+    const contentField = document.getElementById('content');
+
+    contentField.addEventListener('input', function () {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function () {
+            // Save to localStorage
+            const draft = {
+                title: document.getElementById('title').value,
+                content: contentField.value,
+                key_insight: document.getElementById('key_insight').value,
+                company_id: document.getElementById('company_id').value
+            };
+            localStorage.setItem('journal_draft', JSON.stringify(draft));
+            console.log('Draft saved');
+        }, 2000);
+    });
+
+    // Load draft on page load
+    window.addEventListener('load', function () {
+        const draft = localStorage.getItem('journal_draft');
+        if (draft) {
+            const data = JSON.parse(draft);
+            if (confirm('Resume your previous draft?')) {
+                document.getElementById('title').value = data.title || '';
+                document.getElementById('content').value = data.content || '';
+                document.getElementById('key_insight').value = data.key_insight || '';
+                if (data.company_id) {
+                    document.getElementById('company_id').value = data.company_id;
+                }
+            }
+        }
+    });
+
+    // Clear draft on successful submission
+    document.querySelector('form').addEventListener('submit', function () {
+        localStorage.removeItem('journal_draft');
+    });
+</script>
+{% endblock %}

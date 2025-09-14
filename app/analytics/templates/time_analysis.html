@@ -1,0 +1,247 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>⏱️ Time Analysis</h1>
+    <p class="text-muted">Understand where your research time goes</p>
+</div>
+
+<!-- Time period selector -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('analytics.time_analysis') }}" class="row align-items-end">
+            <div class="col-auto">
+                <label for="days" class="form-label">Time Period:</label>
+                <select name="days" id="days" class="form-select" onchange="this.form.submit()">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                    <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+                </select>
+            </div>
+            <div class="col">
+                <strong>Total Time:</strong> {{ "%.1f"|format(time_data.total_minutes / 60) }} hours
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Time by Step Type -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Time by Research Step</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="stepChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Time by Company -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Time by Company</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="companyChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Productivity by Hour -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Activity by Hour of Day</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="hourChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Productivity by Day of Week -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Activity by Day of Week</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dayChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Breakdown -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Detailed Time Breakdown</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Top Time-Consuming Steps</h6>
+                <div class="list-group">
+                    {# FIX: Wrapped the sorted list in parentheses before slicing #}
+                    {% for step, minutes in (time_data.by_type.items()|sort(attribute=1, reverse=true))[:5] %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ step }}</span>
+                        <span class="badge bg-primary rounded-pill">{{ "%.1f"|format(minutes / 60) }}h</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Most Researched Companies</h6>
+                <div class="list-group">
+                    {# FIX: Wrapped the sorted list in parentheses before slicing #}
+                    {% for company, minutes in (time_data.by_company.items()|sort(attribute=1, reverse=true))[:5] %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ company }}</span>
+                        <span class="badge bg-success rounded-pill">{{ "%.1f"|format(minutes / 60) }}h</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Step type chart
+const stepData = {{ step_chart_data|safe }};
+if (stepData && stepData.length > 0) {
+    new Chart(document.getElementById('stepChart'), {
+        type: 'doughnut',
+        data: {
+            labels: stepData.map(d => d.step),
+            datasets: [{
+                data: stepData.map(d => d.hours),
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                   'rgba(255, 159, 64, 0.8)'
+               ]
+           }]
+       },
+       options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           plugins: {
+               legend: {
+                   position: 'right'
+               },
+               tooltip: {
+                   callbacks: {
+                       label: function(context) {
+                           return context.label + ': ' + context.parsed + ' hours';
+                       }
+                   }
+               }
+           }
+       }
+   });
+}
+
+// Company chart
+const companyData = {{ company_chart_data|safe }};
+if (companyData && companyData.length > 0) {
+   new Chart(document.getElementById('companyChart'), {
+       type: 'bar',
+       data: {
+           labels: companyData.map(d => d.company),
+           datasets: [{
+               label: 'Hours',
+               data: companyData.map(d => d.hours),
+               backgroundColor: 'rgba(75, 192, 192, 0.8)'
+           }]
+       },
+       options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           scales: {
+               y: {
+                   beginAtZero: true,
+                   ticks: {
+                       callback: function(value) {
+                           return value + 'h';
+                       }
+                   }
+               }
+           }
+       }
+   });
+}
+
+// Hour of day chart
+const hourData = {{ productivity_by_hour|tojson }};
+if (Object.keys(hourData).length > 0) {
+   const hours = Array.from({length: 24}, (_, i) => i);
+   const hourCounts = hours.map(h => hourData[h] || 0);
+   
+   new Chart(document.getElementById('hourChart'), {
+       type: 'line',
+       data: {
+           labels: hours.map(h => h + ':00'),
+           datasets: [{
+               label: 'Activity Count',
+               data: hourCounts,
+               borderColor: 'rgb(255, 99, 132)',
+               backgroundColor: 'rgba(255, 99, 132, 0.2)',
+               tension: 0.1
+           }]
+       },
+       options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           scales: {
+               y: {
+                   beginAtZero: true
+               }
+           }
+       }
+   });
+}
+
+// Day of week chart
+const dayData = {{ productivity_by_day|tojson }};
+if (Object.keys(dayData).length > 0) {
+   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+   const dayCounts = [0, 1, 2, 3, 4, 5, 6].map(d => dayData[d] || 0);
+   
+   new Chart(document.getElementById('dayChart'), {
+       type: 'bar',
+       data: {
+           labels: days,
+           datasets: [{
+               label: 'Activity Count',
+               data: dayCounts,
+               backgroundColor: 'rgba(54, 162, 235, 0.8)'
+           }]
+       },
+       options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           scales: {
+               y: {
+                   beginAtZero: true
+               }
+           }
+       }
+   });
+}
+</script>
+{% endblock %}

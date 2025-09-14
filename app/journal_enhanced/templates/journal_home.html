@@ -1,0 +1,218 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📔 Research Journal</h1>
+        <p class="text-muted mb-0">Capture insights, track thesis evolution, and build knowledge</p>
+    </div>
+    <div>
+        <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-success">
+            + New Entry
+        </a>
+        <a href="{{ url_for('journal_enhanced.search') }}" class="btn btn-outline-primary">
+            🔍 Search
+        </a>
+    </div>
+</div>
+
+<!-- Review Alert -->
+{% if review_queue.total_items > 0 %}
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <strong>📚 Review Queue:</strong> You have {{ review_queue.total_items }} items due for review.
+    <a href="{{ url_for('journal_enhanced.review_queue') }}" class="alert-link">Review Now →</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Quick Entry for Active Companies -->
+{% if active_companies %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Quick Entry</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for company in active_companies[:6] %}
+            <div class="col-md-2 mb-2">
+                <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id) }}" 
+                   class="btn btn-outline-primary btn-sm w-100">
+                    {{ company.ticker_symbol or company.name[:10] }}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Statistics Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ stats.total_entries }}</h3>
+                <small class="text-muted">Total Entries</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ stats.recent_entries }}</h3>
+                <small class="text-muted">Last 7 Days</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ stats.total_lessons }}</h3>
+                <small class="text-muted">Learning Notes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ stats.pending_reviews }}</h3>
+                <small class="text-muted">Pending Reviews</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Entries -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Entries</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_entries %}
+                <div class="list-group list-group-flush">
+                    {% for entry in recent_entries %}
+                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    {% if entry.is_starred %}⭐{% endif %}
+                                    {{ entry.title or "Untitled Entry" }}
+                                </h6>
+                                <p class="mb-1 text-muted small">
+                                    {{ entry.content|truncate(150) }}
+                                </p>
+                                <div>
+                                    <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+                                    {% if entry.company %}
+                                        <span class="badge bg-primary">{{ entry.company.name }}</span>
+                                    {% endif %}
+                                    {% if entry.sentiment %}
+                                        <span class="badge bg-info">{{ entry.sentiment|title }}</span>
+                                    {% endif %}
+                                    {% for tag in (entry.tags or [])[:3] %}
+                                        <span class="badge bg-light text-dark">#{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="text-end ms-3">
+                                <small class="text-muted">
+                                    {{ entry.created_at.strftime('%b %d') }}<br>
+                                    {{ entry.created_at.strftime('%H:%M') }}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <p>No journal entries yet</p>
+                    <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary">
+                        Create Your First Entry
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Starred Entries -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">⭐ Starred Entries</h6>
+            </div>
+            <div class="card-body p-0">
+                {% if starred_entries %}
+                <div class="list-group list-group-flush">
+                    {% for entry in starred_entries %}
+                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <strong>{{ entry.title or "Untitled" }}</strong><br>
+                        <small class="text-muted">
+                            {{ entry.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-3 text-center text-muted">
+                    <small>No starred entries</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Top Tags -->
+        {% if stats.top_tags %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">🏷️ Top Tags</h6>
+            </div>
+            <div class="card-body">
+                {% for tag, count in stats.top_tags %}
+                <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}" 
+                   class="badge bg-primary text-decoration-none me-1 mb-1">
+                    #{{ tag }} ({{ count }})
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Quick Links -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Links</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('journal_enhanced.learning_notes') }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        📚 Learning Notes
+                    </a>
+                    <a href="{{ url_for('journal_enhanced.manage_templates') }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        📝 Templates
+                    </a>
+                    <a href="{{ url_for('journal_enhanced.export_journal') }}" 
+                       class="btn btn-outline-info btn-sm">
+                        📤 Export Journal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Add any journal-specific JavaScript here
+</script>
+{% endblock %}

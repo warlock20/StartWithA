@@ -1,0 +1,221 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1>📅 Review Calendar</h1>
+    <p class="text-muted">Stay on track with scheduled reviews and reflections</p>
+</div>
+
+<!-- Upcoming Reviews -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🔔 Upcoming Reviews</h5>
+    </div>
+    <div class="card-body">
+        {% if schedule %}
+        <div class="list-group">
+            {% for item in schedule %}
+            <div class="list-group-item {% if item.status == 'overdue' %}list-group-item-danger{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">
+                            {{ item.type }}
+                            {% if item.status == 'overdue' %}
+                                <span class="badge bg-danger ms-2">Overdue</span>
+                            {% endif %}
+                        </h6>
+                        <p class="mb-1">{{ item.description }}</p>
+                        <small class="text-muted">
+                            {% if item.status == 'overdue' %}
+                                Was due: {{ item.date.strftime('%B %d, %Y') }}
+                            {% else %}
+                                Scheduled: {{ item.date.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div>
+                        {% if item.type == 'Weekly Review' or item.type == 'Overdue Weekly Review' %}
+                            <a href="{{ url_for('learning.weekly_review') }}" class="btn btn-primary">
+                                Start Review
+                            </a>
+                        {% elif 'Postmortem' in item.type %}
+                            <a href="{{ url_for('analytics.decision_journal_list') }}" class="btn btn-primary">
+                                View Decisions
+                            </a>
+                        {% elif 'Pattern' in item.type %}
+                            <a href="{{ url_for('learning.pattern_recognition') }}" class="btn btn-primary">
+                                Analyze Patterns
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-3">No scheduled reviews at this time</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Calendar View -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📆 Monthly View</h5>
+            </div>
+            <div class="card-body">
+                <div id="calendar" class="table-responsive">
+                    <!-- Simple calendar grid -->
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr class="text-center">
+                                <th>Mon</th>
+                                <th>Tue</th>
+                                <th>Wed</th>
+                                <th>Thu</th>
+                                <th>Fri</th>
+                                <th>Sat</th>
+                                <th>Sun</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- This would be populated dynamically in production -->
+                            <tr>
+                                <td class="p-3"></td>
+                                <td class="p-3"></td>
+                                <td class="p-3"></td>
+                                <td class="p-3"></td>
+                                <td class="p-3">
+                                    <small class="text-muted">1</small>
+                                </td>
+                                <td class="p-3 bg-light">
+                                    <small class="text-muted">2</small>
+                                    <br>
+                                    <span class="badge bg-info">Monthly Review</span>
+                                </td>
+                                <td class="p-3 bg-light">
+                                    <small class="text-muted">3</small>
+                                    <br>
+                                    <span class="badge bg-primary">Weekly Review</span>
+                                </td>
+                            </tr>
+                            <!-- Additional weeks would follow -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <span class="badge bg-primary">Weekly Review</span>
+                    <span class="badge bg-info">Monthly Review</span>
+                    <span class="badge bg-success">Quarterly Review</span>
+                    <span class="badge bg-warning">Learning Notes Due</span>
+                    <span class="badge bg-danger">Overdue</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Review History -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📜 Recent Review History</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if past_reviews %}
+                <div class="list-group list-group-flush">
+                    <!-- Weekly Reviews -->
+                    {% if past_reviews.weekly %}
+                    <div class="list-group-item">
+                        <h6>Weekly Reviews</h6>
+                        {% for review in past_reviews.weekly[:3] %}
+                        <a href="{{ url_for('learning.view_weekly_review', review_id=review.id) }}" 
+                           class="d-block small mb-1">
+                            Week of {{ review.week_start.strftime('%b %d') }}
+                            {% if review.confidence_level %}
+                                - Confidence: {{ review.confidence_level }}/10
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Postmortems -->
+                    {% if past_reviews.postmortems %}
+                    <div class="list-group-item">
+                        <h6>Investment Postmortems</h6>
+                        {% for postmortem in past_reviews.postmortems[:3] %}
+                        <a href="{{ url_for('learning.view_postmortem', postmortem_id=postmortem.id) }}" 
+                           class="d-block small mb-1">
+                            {{ postmortem.company.name if postmortem.company else 'Unknown' }}
+                            - {{ postmortem.created_at.strftime('%b %d') }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Mistake Reviews -->
+                    {% if past_reviews.mistakes %}
+                    <div class="list-group-item">
+                        <h6>Recently Reviewed Mistakes</h6>
+                        {% for mistake in past_reviews.mistakes[:3] %}
+                        <div class="small mb-1">
+                            {{ mistake.title|truncate(30) }}
+                            - Reviewed {{ mistake.times_reviewed }}x
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="p-3 text-center text-muted">
+                    <p>No review history yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Review Discipline Score -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">📊 Review Discipline</h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <h4>{{ past_reviews.weekly|length if past_reviews.weekly else 0 }}/12</h4>
+                <small class="text-muted">Weekly Reviews (Last 12 Weeks)</small>
+                <div class="progress mt-2">
+                    <div class="progress-bar bg-primary" style="width: {{ ((past_reviews.weekly|length if past_reviews.weekly else 0) / 12 * 100)|round }}%"></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <h4>{{ past_reviews.postmortems|length if past_reviews.postmortems else 0 }}</h4>
+                <small class="text-muted">Postmortems Completed</small>
+            </div>
+            <div class="col-md-3">
+                <h4>{{ past_reviews.mistakes|selectattr('times_reviewed', 'gt', 2)|list|length }}</h4>
+                <small class="text-muted">Well-Reviewed Mistakes</small>
+            </div>
+            <div class="col-md-3">
+                {% set total_reviews = (past_reviews.weekly|length if past_reviews.weekly else 0) + 
+                                       (past_reviews.postmortems|length if past_reviews.postmortems else 0) %}
+                <h4>{{ total_reviews }}</h4>
+                <small class="text-muted">Total Reviews</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Could add a full calendar library here for better visualization
+// For now, keeping it simple with the table view
+</script>
+{% endblock %}
