@@ -121,52 +121,13 @@
                         Start New Project
                     </button>
                     <div>
-                        <a href="{{ url_for('research_workflow.view_template', template_id=template.id) }}" 
-                           class="btn btn-outline-info btn-sm">
-                            <i class="bi bi-eye me-1"></i>View
-                        </a>
                         <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" 
-                           class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-pencil me-1"></i>Edit
-                        </a>
-                        
-                        <div class="btn-group" role="group">
-                            {% if template.times_used == 0 %}
-                            <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}" 
-                                  style="display: inline;">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('Delete this template? This action cannot be undone.');">
-                                    <i class="bi bi-trash me-1"></i>Delete
-                                </button>
-                            </form>
-                            {% else %}
-                            <form method="POST" action="{{ url_for('research_workflow.force_delete_template', template_id=template.id) }}" 
-                                  style="display: inline;">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('⚠️ WARNING: This template has been used in {{ template.times_used }} project(s). Deleting it will not affect existing projects, but you won\'t be able to recreate this exact template easily.\\n\\nAre you sure you want to delete it?');">
-                                    <i class="bi bi-trash me-1"></i>Delete
-                                </button>
-                            </form>
-                            {% endif %}
-                            
-                            <form method="POST" action="{{ url_for('research_workflow.archive_template', template_id=template.id) }}" 
-                                  style="display: inline;">
-                                <button type="submit" class="btn btn-outline-warning btn-sm"
-                                        title="Hide this template from the active list (recommended)"
-                                        onclick="return confirm('Archive this template? You can restore it later.');">
-                                    <i class="bi bi-archive me-1"></i>Archive
-                                </button>
-                            </form>
-                        </div>
-                        
-                        <!-- Restore button for archived templates -->
-                        {% if not template.is_active %}
-                        <form method="POST" action="{{ url_for('research_workflow.restore_template', template_id=template.id) }}" 
+                           class="btn btn-outline-secondary btn-sm">Edit</a>
+                        {% if template.times_used == 0 %}
+                        <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}" 
                               style="display: inline;">
-                            <button type="submit" class="btn btn-outline-success btn-sm ms-2"
-                                    title="Restore this template to active status">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Restore
-                            </button>
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Delete this template?');">Delete</button>
                         </form>
                         {% endif %}
                     </div>
@@ -197,22 +158,9 @@
                     <input type="hidden" id="template_id" name="template_id">
                     <p>Using template: <strong id="template_name_display"></strong></p>
                     
-                    <!-- Research Subject Type Selection -->
                     <div class="mb-3">
-                        <label for="subject_type" class="form-label">What are you researching?</label>
-                        <select class="form-select" id="subject_type" name="subject_type" onchange="updateSubjectFields()" required>
-                            <option value="company">📊 Company</option>
-                            <option value="sector">🏭 Sector/Industry</option>
-                            <option value="market">🌍 Market/Geography</option>
-                            <option value="theme">💡 Investment Theme</option>
-                            <option value="strategy">🎯 Investment Strategy</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Company Selection (shown for company type) -->
-                    <div class="mb-3" id="company_selection">
-                        <label for="company_id" class="form-label">Select Company</label>
-                        <select class="form-select" id="company_id" name="company_id">
+                        <label for="company_id" class="form-label">Select Company to Research</label>
+                        <select class="form-select" id="company_id" name="company_id" required>
                             <option value="">-- Choose a company --</option>
                             {% for company in current_user.companies.order_by('name').all() %}
                                 <option value="{{ company.id }}">
@@ -221,13 +169,6 @@
                                 </option>
                             {% endfor %}
                         </select>
-                    </div>
-                    
-                    <!-- Manual Subject Name (shown for non-company types) -->
-                    <div class="mb-3" id="manual_subject" style="display: none;">
-                        <label for="subject_name" class="form-label">Subject Name</label>
-                        <input type="text" class="form-control" id="subject_name" name="subject_name" placeholder="e.g., Healthcare Sector, European Markets, AI Theme">
-                        <small class="form-text text-muted">Enter the name of what you're researching</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -239,203 +180,48 @@
     </div>
 </div>
 
-<!-- Subject-Specific Template Suggestions -->
+<!-- Suggested Templates -->
 <div class="card mt-4">
     <div class="card-header bg-light">
-        <h6 class="mb-0">💡 Research Templates by Subject Type</h6>
+        <h6 class="mb-0">💡 Suggested Template Structures</h6>
     </div>
     <div class="card-body">
-        <!-- Tab navigation -->
-        <ul class="nav nav-pills mb-3" id="template-suggestions-tab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="company-tab" data-bs-toggle="pill" data-bs-target="#company-templates" type="button" role="tab">
-                    📊 Company Analysis
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sector-tab" data-bs-toggle="pill" data-bs-target="#sector-templates" type="button" role="tab">
-                    🏭 Sector Research
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="market-tab" data-bs-toggle="pill" data-bs-target="#market-templates" type="button" role="tab">
-                    🌍 Market Analysis
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="theme-tab" data-bs-toggle="pill" data-bs-target="#theme-templates" type="button" role="tab">
-                    💡 Theme Research
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="strategy-tab" data-bs-toggle="pill" data-bs-target="#strategy-templates" type="button" role="tab">
-                    🎯 Strategy Development
-                </button>
-            </li>
-        </ul>
-        
-        <!-- Tab content -->
-        <div class="tab-content" id="template-suggestions-content">
-            <!-- Company Templates -->
-            <div class="tab-pane fade show active" id="company-templates" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6>Value Analysis</h6>
-                        <ol class="small">
-                            <li>Financial health check</li>
-                            <li>Business quality assessment</li>
-                            <li>Management evaluation</li>
-                            <li>Competitive position</li>
-                            <li>Valuation work</li>
-                            <li>Risk assessment</li>
-                            <li>Investment thesis</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-4">
-                        <h6>Growth Analysis</h6>
-                        <ol class="small">
-                            <li>Market opportunity (TAM/SAM)</li>
-                            <li>Unit economics analysis</li>
-                            <li>Growth drivers assessment</li>
-                            <li>Competitive moat analysis</li>
-                            <li>Management vision check</li>
-                            <li>Valuation scenarios</li>
-                            <li>Scaling risks review</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-4">
-                        <h6>Turnaround/Special Situations</h6>
-                        <ol class="small">
-                            <li>Situation overview</li>
-                            <li>Catalyst identification</li>
-                            <li>Downside protection</li>
-                            <li>Timeline analysis</li>
-                            <li>Key stakeholder review</li>
-                            <li>Scenario modeling</li>
-                            <li>Risk/reward assessment</li>
-                        </ol>
-                    </div>
-                </div>
+        <div class="row">
+            <div class="col-md-4">
+                <h6>Value Investor Template</h6>
+                <ol class="small">
+                    <li>Quick financial health check</li>
+                    <li>Business quality assessment</li>
+                    <li>Management evaluation</li>
+                    <li>Competitive position analysis</li>
+                    <li>Valuation work</li>
+                    <li>Risk assessment</li>
+                    <li>Investment thesis</li>
+                </ol>
             </div>
-            
-            <!-- Sector Templates -->
-            <div class="tab-pane fade" id="sector-templates" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Sector Deep Dive</h6>
-                        <ol class="small">
-                            <li>Industry structure analysis</li>
-                            <li>Key players mapping</li>
-                            <li>Growth drivers & headwinds</li>
-                            <li>Regulatory environment</li>
-                            <li>Technology disruption risks</li>
-                            <li>Valuation benchmarks</li>
-                            <li>Investment opportunities</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Sector Rotation Analysis</h6>
-                        <ol class="small">
-                            <li>Economic cycle positioning</li>
-                            <li>Historical performance patterns</li>
-                            <li>Current valuation vs. history</li>
-                            <li>Momentum indicators</li>
-                            <li>Relative strength analysis</li>
-                            <li>Risk/reward assessment</li>
-                            <li>Timing considerations</li>
-                        </ol>
-                    </div>
-                </div>
+            <div class="col-md-4">
+                <h6>Growth Investor Template</h6>
+                <ol class="small">
+                    <li>TAM and market opportunity</li>
+                    <li>Unit economics analysis</li>
+                    <li>Growth drivers assessment</li>
+                    <li>Competitive moat analysis</li>
+                    <li>Management vision check</li>
+                    <li>Valuation scenarios</li>
+                    <li>Scaling risks review</li>
+                </ol>
             </div>
-            
-            <!-- Market Templates -->
-            <div class="tab-pane fade" id="market-templates" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Geographic Market Research</h6>
-                        <ol class="small">
-                            <li>Economic fundamentals</li>
-                            <li>Political & regulatory climate</li>
-                            <li>Market structure & access</li>
-                            <li>Currency considerations</li>
-                            <li>Key sectors & opportunities</li>
-                            <li>Risk assessment</li>
-                            <li>Entry strategy</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Market Segment Analysis</h6>
-                        <ol class="small">
-                            <li>Segment definition & sizing</li>
-                            <li>Growth characteristics</li>
-                            <li>Competitive landscape</li>
-                            <li>Valuation multiples</li>
-                            <li>Liquidity considerations</li>
-                            <li>Risk factors</li>
-                            <li>Portfolio allocation</li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Theme Templates -->
-            <div class="tab-pane fade" id="theme-templates" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Thematic Investment Research</h6>
-                        <ol class="small">
-                            <li>Theme definition & scope</li>
-                            <li>Market size & growth potential</li>
-                            <li>Key enablers & drivers</li>
-                            <li>Winners vs. losers framework</li>
-                            <li>Pure plays vs. exposure</li>
-                            <li>Timeline & milestones</li>
-                            <li>Portfolio construction</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>ESG Theme Analysis</h6>
-                        <ol class="small">
-                            <li>ESG criteria definition</li>
-                            <li>Regulatory tailwinds</li>
-                            <li>Consumer adoption trends</li>
-                            <li>Technology maturation</li>
-                            <li>Investment universe mapping</li>
-                            <li>Impact measurement</li>
-                            <li>Performance vs. benchmarks</li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Strategy Templates -->
-            <div class="tab-pane fade" id="strategy-templates" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Strategy Development</h6>
-                        <ol class="small">
-                            <li>Investment philosophy</li>
-                            <li>Target market/universe</li>
-                            <li>Selection criteria</li>
-                            <li>Risk management rules</li>
-                            <li>Portfolio construction</li>
-                            <li>Performance benchmarks</li>
-                            <li>Review & refinement process</li>
-                        </ol>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Strategy Backtesting</h6>
-                        <ol class="small">
-                            <li>Historical data collection</li>
-                            <li>Signal generation rules</li>
-                            <li>Transaction cost modeling</li>
-                            <li>Performance attribution</li>
-                            <li>Risk-adjusted returns</li>
-                            <li>Sensitivity analysis</li>
-                            <li>Implementation considerations</li>
-                        </ol>
-                    </div>
-                </div>
+            <div class="col-md-4">
+                <h6>Special Situations Template</h6>
+                <ol class="small">
+                    <li>Situation overview</li>
+                    <li>Catalyst identification</li>
+                    <li>Downside protection</li>
+                    <li>Timeline analysis</li>
+                    <li>Key stakeholder review</li>
+                    <li>Scenario modeling</li>
+                    <li>Risk/reward assessment</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -448,41 +234,7 @@
 function showStartProjectModal(templateId, templateName) {
     document.getElementById('template_id').value = templateId;
     document.getElementById('template_name_display').textContent = templateName;
-    
-    // Reset form to default state
-    document.getElementById('subject_type').value = 'company';
-    updateSubjectFields();
-    
     new bootstrap.Modal(document.getElementById('startProjectModal')).show();
-}
-
-function updateSubjectFields() {
-    const subjectType = document.getElementById('subject_type').value;
-    const companySelection = document.getElementById('company_selection');
-    const manualSubject = document.getElementById('manual_subject');
-    const companySelect = document.getElementById('company_id');
-    const subjectNameInput = document.getElementById('subject_name');
-    
-    if (subjectType === 'company') {
-        companySelection.style.display = 'block';
-        manualSubject.style.display = 'none';
-        companySelect.required = true;
-        subjectNameInput.required = false;
-    } else {
-        companySelection.style.display = 'none';
-        manualSubject.style.display = 'block';
-        companySelect.required = false;
-        subjectNameInput.required = true;
-        
-        // Update placeholder based on type
-        const placeholders = {
-            'sector': 'e.g., Technology Sector, Healthcare, Energy',
-            'market': 'e.g., European Markets, Emerging Markets, US Small Caps',
-            'theme': 'e.g., AI Revolution, ESG Investing, Digital Transformation',
-            'strategy': 'e.g., Value Investing, Growth Strategy, Dividend Focus'
-        };
-        subjectNameInput.placeholder = placeholders[subjectType] || 'Enter subject name';
-    }
 }
 </script>
 {% endblock %}

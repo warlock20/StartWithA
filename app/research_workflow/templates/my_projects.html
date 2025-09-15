@@ -178,18 +178,18 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">✅ Recently Completed Projects</h5>
-        <div class="btn-group btn-group-sm" role="group">
+        <div class="btn-group btn-group-sm project-filter-group" role="group">
             <input type="radio" class="btn-check" name="project-type-filter" id="all-types" value="all" checked>
-            <label class="btn btn-outline-secondary" for="all-types">All</label>
+            <label class="btn btn-outline-primary" for="all-types">All</label>
             
             <input type="radio" class="btn-check" name="project-type-filter" id="company-type" value="company">
-            <label class="btn btn-outline-secondary" for="company-type">Companies</label>
+            <label class="btn btn-outline-primary" for="company-type">Companies</label>
             
             <input type="radio" class="btn-check" name="project-type-filter" id="sector-type" value="sector">
-            <label class="btn btn-outline-secondary" for="sector-type">Sectors</label>
+            <label class="btn btn-outline-primary" for="sector-type">Sectors</label>
             
             <input type="radio" class="btn-check" name="project-type-filter" id="theme-type" value="theme">
-            <label class="btn btn-outline-secondary" for="theme-type">Themes</label>
+            <label class="btn btn-outline-primary" for="theme-type">Themes</label>
         </div>
     </div>
     <div class="card-body">
@@ -249,6 +249,11 @@
                                     {% endif %}
                                 </form>
                             {% endif %}
+                            <form method="POST" action="{{ url_for('research_workflow.delete_project', project_id=project.id) }}" 
+                                  style="display: inline;" class="ms-1"
+                                  onsubmit="return confirm('Are you sure you want to permanently delete this completed project? This action cannot be undone and you will lose all research data.');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

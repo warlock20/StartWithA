@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort
 from flask_login import current_user, login_required
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
@@ -126,11 +126,13 @@ def new_entry():
                     file.save(filepath)
                     
                     # Create attachment record
+                    # Store relative path for URL generation
+                    relative_path = f"uploads/journal/{current_user.id}/{filename}"
                     attachment = JournalAttachment(
                         entry=entry,
                         filename=filename,
                         file_type=filename.rsplit('.', 1)[1].lower(),
-                        file_path=filepath,
+                        file_path=relative_path,
                         file_size=os.path.getsize(filepath)
                     )
                     db.session.add(attachment)
@@ -148,7 +150,7 @@ def new_entry():
                 )
             
             flash('Journal entry created successfully!', 'success')
-            return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+            return redirect(url_for('journal_enhanced.journal_home'))
             
         except Exception as e:
             db.session.rollback()
@@ -191,10 +193,7 @@ def entry_detail(entry_id):
         flash('Access denied', 'error')
         return redirect(url_for('journal_enhanced.journal_home'))
     
-    # Update review tracking
-    entry.last_reviewed = datetime.utcnow()
-    entry.review_count += 1
-    db.session.commit()
+    # Don't automatically mark as reviewed - let user control this manually
     
     # Get related entries
     related_entries = get_related_entries(entry, limit=5)
@@ -526,10 +525,11 @@ def review_learning_note(note_id):
 def review_queue():
    """Show items due for review"""
    queue = get_review_queue(current_user.id)
-   
+
    return render_template('review_queue.html',
                          title="Review Queue",
                          learning_notes=queue['learning_notes'],
+                         pending_entries=queue['pending_entries'],
                          starred_entries=queue['starred_entries'],
                          total_items=queue['total_items'])
 
@@ -631,3 +631,147 @@ def export_journal():
    # Could add CSV, Markdown, or other formats
    flash('Export format not supported', 'error')
    return redirect(url_for('journal_enhanced.journal_home'))
+
+@journal_enhanced_bp.route('/attachment/<int:attachment_id>')
+@login_required
+def view_attachment(attachment_id):
+    """Serve attachment files for viewing/downloading"""
+    attachment = JournalAttachment.query.get_or_404(attachment_id)
+    
+    # Security check: ensure user owns the journal entry
+    if attachment.entry.user_id != current_user.id:
+        abort(403)
+    
+    # Get the file path
+    if attachment.file_path:
+        file_path = attachment.file_path
+    else:
+        # Fallback to constructed path
+        file_path = f"uploads/journal/{current_user.id}/{attachment.filename}"
+    
+    # Full file path
+    full_path = os.path.join(os.getcwd(), 'app', 'static', file_path)
+    
+    if not os.path.exists(full_path):
+        flash('Attachment file not found', 'error')
+        abort(404)
+    
+    # Get directory and filename
+    directory = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+    
+    try:
+        return send_from_directory(directory, filename, as_attachment=False)
+    except Exception as e:
+        flash('Error accessing attachment', 'error')
+        abort(500)
+
+@journal_enhanced_bp.route('/attachment/<int:attachment_id>/download')
+@login_required  
+def download_attachment(attachment_id):
+    """Download attachment files"""
+    attachment = JournalAttachment.query.get_or_404(attachment_id)
+    
+    # Security check: ensure user owns the journal entry
+    if attachment.entry.user_id != current_user.id:
+        abort(403)
+    
+    # Get the file path
+    if attachment.file_path:
+        file_path = attachment.file_path
+    else:
+        # Fallback to constructed path
+        file_path = f"uploads/journal/{current_user.id}/{attachment.filename}"
+    
+    # Full file path
+    full_path = os.path.join(os.getcwd(), 'app', 'static', file_path)
+    
+    if not os.path.exists(full_path):
+        flash('Attachment file not found', 'error')
+        abort(404)
+    
+    # Get directory and filename
+    directory = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+    
+    try:
+        return send_from_directory(directory, filename, as_attachment=True)
+    except Exception as e:
+        flash('Error downloading attachment', 'error')
+        abort(500)
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/delete', methods=['POST'])
+@login_required
+def delete_entry(entry_id):
+    """Delete a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        # Delete associated attachments and their files
+        for attachment in entry.attachments:
+            # Delete the file from filesystem
+            if attachment.file_path:
+                full_path = os.path.join(os.getcwd(), 'app', 'static', attachment.file_path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+
+        # Delete the entry (cascades to attachments)
+        db.session.delete(entry)
+        db.session.commit()
+
+        flash('Journal entry deleted successfully', 'success')
+        return redirect(url_for('journal_enhanced.journal_home'))
+
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting entry', 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_pending', methods=['POST'])
+@login_required
+def mark_entry_pending(entry_id):
+    """Mark entry as pending review"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        entry.last_reviewed = None
+        db.session.commit()
+        flash('Entry marked as pending review', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating entry status', 'error')
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_reviewed', methods=['POST'])
+@login_required
+def mark_entry_reviewed(entry_id):
+    """Mark entry as reviewed"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        from datetime import datetime
+        entry.last_reviewed = datetime.utcnow()
+        entry.review_count += 1
+        db.session.commit()
+        flash('Entry marked as reviewed', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating entry status', 'error')
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))

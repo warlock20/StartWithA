@@ -886,4 +886,127 @@ def remove_competitor(company_id, competitor_id):
         db.session.commit()
         flash(f'"{competitor.name}" removed from competitors.', 'info')
 
-    return redirect(url_for('companies.manage_company_documents', company_id=company_id))            
+    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+
+# API endpoints for company search modal
+@companies_bp.route('/api/companies/search')
+@login_required
+def api_search_companies():
+    """AJAX endpoint for searching companies - searches both user's companies and Yahoo Finance"""
+    from flask import jsonify
+
+    query = request.args.get('q', '').strip()
+    if len(query) < 1:
+        return jsonify({'user_companies': [], 'yahoo_suggestion': None})
+
+    # Search in user's existing companies by name and ticker
+    user_companies = Company.query.filter(
+        Company.user_id == current_user.id,
+        db.or_(
+            Company.name.ilike(f'%{query}%'),
+            Company.ticker_symbol.ilike(f'%{query}%')
+        )
+    ).order_by(Company.name).limit(10).all()
+
+    user_company_data = []
+    for company in user_companies:
+        user_company_data.append({
+            'id': company.id,
+            'name': company.name,
+            'ticker_symbol': company.ticker_symbol,
+            'industry': company.industry,
+            'sector': company.sector,
+            'source': 'existing'
+        })
+
+    # If query looks like a ticker (short, uppercase), try Yahoo Finance lookup
+    yahoo_suggestion = None
+    if len(query) <= 6 and query.replace('.', '').isalnum():
+        try:
+            ticker_symbol = query.upper()
+            # Check if this ticker already exists for the user
+            existing = Company.query.filter_by(
+                ticker_symbol=ticker_symbol,
+                user_id=current_user.id
+            ).first()
+
+            if not existing:
+                company_ticker = yf.Ticker(ticker_symbol)
+                info = company_ticker.info
+
+                if info and info.get('longName'):
+                    yahoo_suggestion = {
+                        'ticker_symbol': ticker_symbol,
+                        'name': info.get('longName'),
+                        'industry': info.get('industry', ''),
+                        'sector': info.get('sector', ''),
+                        'summary': info.get('longBusinessSummary', ''),
+                        'source': 'yahoo_finance'
+                    }
+        except Exception as e:
+            print(f"Yahoo Finance lookup error for {query}: {e}")
+            pass
+
+    return jsonify({
+        'user_companies': user_company_data,
+        'yahoo_suggestion': yahoo_suggestion
+    })
+
+@companies_bp.route('/api/companies/create', methods=['POST'])
+@login_required
+def api_create_company():
+    """AJAX endpoint for creating new companies"""
+    from flask import jsonify
+
+    try:
+        data = request.get_json()
+
+        name = data.get('name', '').strip()
+        ticker_symbol = data.get('ticker_symbol', '').strip().upper()
+        industry = data.get('industry', '').strip() or None
+        sector = data.get('sector', '').strip() or None
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Company name is required'})
+
+        # Check if company with same name or ticker already exists for this user
+        existing = Company.query.filter(
+            Company.user_id == current_user.id,
+            db.or_(
+                Company.name.ilike(name),
+                db.and_(Company.ticker_symbol == ticker_symbol, ticker_symbol != '')
+            )
+        ).first()
+
+        if existing:
+            return jsonify({
+                'success': False,
+                'error': 'Company with this name or ticker already exists'
+            })
+
+        # Create new company
+        company = Company(
+            user_id=current_user.id,
+            name=name,
+            ticker_symbol=ticker_symbol if ticker_symbol else None,
+            industry=industry,
+            sector=sector
+        )
+
+        db.session.add(company)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'company': {
+                'id': company.id,
+                'name': company.name,
+                'ticker_symbol': company.ticker_symbol,
+                'industry': company.industry,
+                'sector': company.sector
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})            

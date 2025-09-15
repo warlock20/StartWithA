@@ -54,27 +54,34 @@ def get_review_queue(user_id):
     Get learning notes and important entries due for review.
     """
     today = date.today()
-    
+
     # Learning notes due for review
     learning_notes = LearningNote.query.filter(
         LearningNote.user_id == user_id,
         LearningNote.next_review_date <= today
     ).order_by(LearningNote.importance.desc()).all()
-    
-    # Starred entries not reviewed in 30+ days
+
+    # New entries that have never been reviewed (pending review)
+    pending_entries = JournalEntry.query.filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.last_reviewed.is_(None),
+        JournalEntry.is_archived == False
+    ).order_by(JournalEntry.created_at.desc()).all()
+
+    # Starred entries not reviewed in 30+ days (excluding ones already in pending)
     starred_entries = JournalEntry.query.filter(
         JournalEntry.user_id == user_id,
         JournalEntry.is_starred == True,
-        db.or_(
-            JournalEntry.last_reviewed.is_(None),
-            JournalEntry.last_reviewed < datetime.utcnow() - timedelta(days=30)
-        )
+        JournalEntry.last_reviewed.isnot(None),  # Exclude never-reviewed entries (they're in pending)
+        JournalEntry.last_reviewed < datetime.utcnow() - timedelta(days=30),
+        JournalEntry.is_archived == False
     ).all()
-    
+
     return {
         'learning_notes': learning_notes,
+        'pending_entries': pending_entries,
         'starred_entries': starred_entries,
-        'total_items': len(learning_notes) + len(starred_entries)
+        'total_items': len(learning_notes) + len(pending_entries) + len(starred_entries)
     }
 
 def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
@@ -222,10 +229,20 @@ def get_journal_statistics(user_id):
     
     # Learning notes stats
     total_lessons = LearningNote.query.filter_by(user_id=user_id).count()
-    pending_reviews = LearningNote.query.filter(
+
+    # Pending reviews: Learning notes + Journal entries that have never been reviewed
+    pending_learning_notes = LearningNote.query.filter(
         LearningNote.user_id == user_id,
         LearningNote.next_review_date <= date.today()
     ).count()
+
+    pending_journal_entries = JournalEntry.query.filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.last_reviewed.is_(None),
+        JournalEntry.is_archived == False
+    ).count()
+
+    pending_reviews = pending_learning_notes + pending_journal_entries
     
     return {
         'total_entries': total_entries,
