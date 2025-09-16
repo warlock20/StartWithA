@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
-from app.models import User, Checklist, ChecklistItem, Company # Add Company if used in view_checklist for the form
+from app.models import User, Checklist, ChecklistItem, Company, QuestionBankItem # Add QuestionBankItem for integration
 from app.checklists import checklists_bp # Import the new blueprint
 
 
@@ -70,10 +70,23 @@ def new_checklist():
     llm_prompts_val = request.form.getlist('item_llm_prompt[]') if request.method == 'POST' else ['','','']
 
 
+    # Get Question Bank items for integration
+    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.sector, QuestionBankItem.text).all()
+
+    # Group questions by sector for better organization
+    questions_by_sector = {}
+    for item in question_bank_items:
+        sector = item.sector if item.sector else "General"
+        if sector not in questions_by_sector:
+            questions_by_sector[sector] = []
+        questions_by_sector[sector].append(item)
+
     return render_template('new_checklist.html', title="New Checklist",
                            name=name_val, description=description_val,
                            item_texts=item_texts_val, # For re-population on POST error
-                           llm_prompts_for_items=llm_prompts_val # For re-population on POST error
+                           llm_prompts_for_items=llm_prompts_val, # For re-population on POST error
+                           questions_by_sector=questions_by_sector,
+                           total_questions=len(question_bank_items)
                            )
 
 @checklists_bp.route('/<int:checklist_id>/view')
@@ -137,16 +150,29 @@ def view_checklist(checklist_id):
     # Check if this checklist is being accessed from a research workflow
     from flask import session as flask_session
     research_context = flask_session.get('research_context')
-    
+
+    # Get Question Bank items for integration
+    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.sector, QuestionBankItem.text).all()
+
+    # Group questions by sector for better organization
+    questions_by_sector = {}
+    for item in question_bank_items:
+        sector = item.sector if item.sector else "General"
+        if sector not in questions_by_sector:
+            questions_by_sector[sector] = []
+        questions_by_sector[sector].append(item)
+
     return render_template(
         'view_checklist.html',
         checklist=checklist,
         items=top_level_items,
-        research_context=research_context,  
+        research_context=research_context,
         title=checklist.name,
-        ChecklistItem=ChecklistItem, 
+        ChecklistItem=ChecklistItem,
         companies=user_companies,
-        total_items_count=total_items_count 
+        total_items_count=total_items_count,
+        questions_by_sector=questions_by_sector,
+        total_questions=len(question_bank_items)
     )
     
 # In app/checklists/routes.py

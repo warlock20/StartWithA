@@ -2,26 +2,32 @@
 {% from "_macros.html" import display_items_for_edit_tree as display_items %}
 
 {% block content %}
-    <div class="page-header d-flex justify-content-between align-items-center">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1>{{ checklist.name }} <span class="badge bg-warning text-dark">Edit Mode</span></h1>
-            <p class="lead mb-0">{{ checklist.description }}</p>
+            <h1>✏️ {{ checklist.name }} <span class="badge bg-warning">Edit Mode</span></h1>
+            <p class="text-muted mb-0">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
         </div>
         <div>
             {% if research_context %}
-                <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success">
+                <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-outline-success">
                     <i class="bi bi-arrow-left"></i> Return to Research Project
                 </a>
             {% endif %}
-            <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info">Switch to View Mode</a>
-            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-secondary">Back to All Checklists</a>
+            <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-outline-info">
+                <i class="bi bi-eye"></i> Switch to View Mode
+            </a>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to All Checklists
+            </a>
         </div>
     </div>
 
     <div class="row mt-4">
         <div class="col-lg-5">
             <div class="card h-100">
-                <div class="card-header">Checklist Structure</div>
+                <div class="card-header">
+                    <h5 class="mb-0">🌳 Checklist Structure</h5>
+                </div>
                 <div class="card-body checklist-tree-container">
                     <div class="checklist-tree">
                     {% if items %}
@@ -48,6 +54,65 @@
                         <p><strong>Total Items:</strong> <span class="badge bg-primary rounded-pill">{{ total_items_count }}</span></p>
                         <div class="mt-4">
                             <h6>Add New Top-Level Item</h6>
+
+                            <!-- Question Bank Integration -->
+                            {% if total_questions > 0 %}
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>🏦 Question Bank</strong>
+                                            <small class="d-block text-muted">{{ total_questions }} questions available</small>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
+                                                data-bs-target="#editQuestionBankCollapse" aria-expanded="false">
+                                            <i class="bi bi-search"></i> Browse
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="collapse mb-3" id="editQuestionBankCollapse">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <p class="text-muted mb-3">
+                                            <small>Click on a question to add it to this checklist.</small>
+                                        </p>
+
+                                        {% for sector, questions in questions_by_sector.items() %}
+                                        <div class="mb-3">
+                                            <h6 class="text-primary">{{ sector }}</h6>
+                                            <div class="row">
+                                                {% for question in questions %}
+                                                <div class="col-12 mb-2">
+                                                    <div class="card question-card-edit" style="cursor: pointer;"
+                                                         onclick="addQuestionToEditForm('{{ question.text|replace("'", "\\'") }}', '{{ question.llm_prompt|replace("'", "\\'")|default('', true) }}')">
+                                                        <div class="card-body py-2">
+                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                <div class="flex-grow-1">
+                                                                    <p class="mb-1 small">{{ question.text }}</p>
+                                                                    {% if question.llm_prompt %}
+                                                                    <small class="text-muted">
+                                                                        <i class="bi bi-robot"></i> Has LLM prompt
+                                                                    </small>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <span class="badge bg-success">+ Add</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
                             <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}">
                                  <div class="mb-3">
                                     <label for="item_text_top" class="form-label">Item Text:</label>
@@ -57,7 +122,15 @@
                                     <label for="llm_prompt_top" class="form-label">Optional LLM Prompt:</label>
                                     <textarea id="llm_prompt_top" name="llm_prompt" rows="3" class="form-control" placeholder="E.g., What are the key revenue drivers?"></textarea>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Add Top-Level Item</button>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">Add Top-Level Item</button>
+                                    {% if total_questions > 0 %}
+                                    <button type="button" class="btn btn-outline-success" data-bs-toggle="collapse"
+                                            data-bs-target="#editQuestionBankCollapse">
+                                        📚 Add from Question Bank
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -113,4 +186,79 @@
 {% block scripts %}
     {{ super() }}
     <script src="{{ url_for('static', filename='js/checklist_inspector.js') }}" defer></script>
+
+    <style>
+    .question-card-edit {
+        transition: all 0.2s ease;
+        border: 1px solid #dee2e6;
+    }
+
+    .question-card-edit:hover {
+        border-color: #198754;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+
+    .question-card-edit:hover .badge {
+        background-color: #20c997 !important;
+    }
+    </style>
+
+    <script>
+    // Function to add a question from Question Bank to the edit form
+    function addQuestionToEditForm(questionText, llmPrompt) {
+        // Fill in the form fields
+        document.getElementById('item_text_top').value = questionText;
+        document.getElementById('llm_prompt_top').value = llmPrompt || '';
+
+        // Close the question bank collapse
+        const questionBankCollapse = document.getElementById('editQuestionBankCollapse');
+        if (questionBankCollapse) {
+            const bsCollapse = bootstrap.Collapse.getInstance(questionBankCollapse);
+            if (bsCollapse) {
+                bsCollapse.hide();
+            }
+        }
+
+        // Focus on the submit button to indicate the form is ready
+        const submitButton = document.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.focus();
+            // Add visual feedback
+            submitButton.classList.add('btn-success');
+            submitButton.classList.remove('btn-primary');
+            submitButton.textContent = 'Add This Question';
+
+            // Reset button after a moment
+            setTimeout(() => {
+                submitButton.classList.remove('btn-success');
+                submitButton.classList.add('btn-primary');
+                submitButton.textContent = 'Add Top-Level Item';
+            }, 2000);
+        }
+
+        // Show success message
+        showTemporaryMessage('Question loaded into form!', 'success');
+    }
+
+    // Helper function to show temporary messages (same as in new_checklist.html)
+    function showTemporaryMessage(message, type = 'success') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(alertDiv);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+    </script>
 {% endblock %}

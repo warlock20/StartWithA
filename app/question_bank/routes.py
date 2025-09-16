@@ -47,10 +47,11 @@ def index():
             grouped_questions[sector_key] = []
         grouped_questions[sector_key].append(q)
         
-    return render_template('question_bank.html', 
+    return render_template('question_bank.html',
                            title="My Question Bank",
                            grouped_questions=grouped_questions,
-                           existing_sectors=existing_sectors)
+                           existing_sectors=existing_sectors,
+                           total_questions=len(all_questions))
 
 @question_bank_bp.route('/<int:item_id>/delete', methods=['POST'])
 @login_required

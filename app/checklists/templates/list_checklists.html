@@ -1,41 +1,68 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header">
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-success">Create New Checklist</a>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>✅ {{ title }}</h1>
+        <p class="text-muted mb-0">Organize and manage your investment analysis frameworks</p>
     </div>
+    <div>
+        <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create New Checklist
+        </a>
+    </div>
+</div>
 
-    {% if checklists %}
-    <div class="row">
-        {% for checklist in checklists %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">{{ checklist.name }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">{{ checklist.items.count() }} items in the list</h6>
-                    <p class="card-text flex-grow-1">
-                        {{ checklist.description|truncate(100) if checklist.description else 'No description provided.'
-                        }}
-                    </p>
-                    <div class="mt-auto"> {# Flexbox utility to push to bottom of card #}
-                        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
-                            class="btn btn-primary">View</a>
-                        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
-                            class="btn btn-outline-secondary">Edit & Manage</a>
-                    </div>
+{% if checklists %}
+<div class="row g-4">
+    {% for checklist in checklists %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">{{ checklist.name }}</h6>
+                <span class="badge bg-secondary">{{ checklist.items.count() }} items</span>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="text-muted flex-grow-1 mb-3">
+                    {{ checklist.description|truncate(120) if checklist.description else 'No description provided.' }}
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
+                        class="btn btn-outline-primary">
+                        <i class="bi bi-eye"></i> View Checklist
+                    </a>
+                    <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
+                        class="btn btn-outline-secondary">
+                        <i class="bi bi-pencil"></i> Edit & Manage
+                    </a>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div class="alert alert-info">
-        <p>You have no checklists yet. <a href="{{ url_for('checklists.new_checklist') }}" class="alert-link">Create
-                one?</a></p>
-    </div>
-    {% endif %}
+    {% endfor %}
 </div>
+{% else %}
+<div class="text-center py-5">
+    <div class="mb-3">
+        <i class="bi bi-list-check text-muted" style="font-size: 3rem;"></i>
+    </div>
+    <h5>No Investment Checklists Yet</h5>
+    <p class="text-muted mb-4">
+        Create your first checklist to organize and standardize your investment analysis process.
+    </p>
+    <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-primary empty-state-btn">
+        <i class="bi bi-plus-circle"></i> Create Your First Checklist
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+.empty-state-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+</style>
 {% endblock %}

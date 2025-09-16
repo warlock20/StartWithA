@@ -1,14 +1,24 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>➕ {{ title }}</h1>
+        <p class="text-muted mb-0">Create a structured framework for investment analysis</p>
+    </div>
+    <div>
+        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Checklists
+        </a>
+    </div>
+</div>
 
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h1 class="card-title text-center">{{ title }}</h1>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📝 Checklist Details</h5>
+            </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('checklists.new_checklist') }}" id="newChecklistForm">
                         <div class="mb-3">
@@ -24,18 +34,79 @@
                         <hr>
                         <h5>Initial Items</h5>
 
+                        <!-- Question Bank Integration -->
+                        {% if total_questions > 0 %}
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">🏦 Question Bank <span class="badge bg-secondary">{{ total_questions }} available</span></h6>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
+                                            data-bs-target="#questionBankCollapse" aria-expanded="false">
+                                        <i class="bi bi-search"></i> Browse Questions
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="collapse" id="questionBankCollapse">
+                                <div class="card-body">
+                                    <p class="text-muted mb-3">
+                                        <small>Select questions from your Question Bank to quickly add them to this checklist.</small>
+                                    </p>
+
+                                    {% for sector, questions in questions_by_sector.items() %}
+                                    <div class="mb-3">
+                                        <h6 class="text-primary">{{ sector }}</h6>
+                                        <div class="row">
+                                            {% for question in questions %}
+                                            <div class="col-12 mb-2">
+                                                <div class="card question-card" style="cursor: pointer;"
+                                                     onclick="addQuestionToChecklist('{{ question.text|replace("'", "\\'") }}', '{{ question.llm_prompt|replace("'", "\\'")|default('', true) }}')">
+                                                    <div class="card-body py-2">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div class="flex-grow-1">
+                                                                <p class="mb-1">{{ question.text }}</p>
+                                                                {% if question.llm_prompt %}
+                                                                <small class="text-muted">
+                                                                    <i class="bi bi-robot"></i> Has LLM prompt
+                                                                </small>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <span class="badge bg-primary">+ Add</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {# This div will hold our dynamically added item fields #}
                         <div id="initial-items-container">
                             {# We'll start with one item field by default, added by JS #}
                         </div>
 
                         {# Button to add more item fields #}
-                        <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Initial
-                            Item</button>
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" class="btn btn-secondary btn-sm" id="add-item-btn">+ Add Manual Item</button>
+                            {% if total_questions > 0 %}
+                            <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="collapse"
+                                    data-bs-target="#questionBankCollapse">
+                                📚 Add from Question Bank
+                            </button>
+                            {% endif %}
+                        </div>
 
                         <hr>
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">Create Checklist</button>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Create Checklist
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -48,4 +119,139 @@
 {% block scripts %}
 {{ super() }} {# Includes scripts from parent template like Bootstrap's JS #}
 <script src="{{ url_for('static', filename='js/checklist_form.js') }}" defer></script>
+
+<style>
+.question-card {
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+}
+
+.question-card:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.question-card:hover .badge {
+    background-color: #198754 !important;
+}
+
+.question-card:hover .badge::after {
+    content: "ed";
+}
+</style>
+
+<script>
+// Function to add a question from the Question Bank to the checklist
+function addQuestionToChecklist(questionText, llmPrompt) {
+    const container = document.getElementById('initial-items-container');
+
+    // First, look for an empty existing field
+    const allItemGroups = container.querySelectorAll('.initial-item-group');
+    let targetItemGroup = null;
+
+    // Find the first empty item group
+    for (let itemGroup of allItemGroups) {
+        const textInput = itemGroup.querySelector('input[name="item_text[]"]');
+        if (textInput && textInput.value.trim() === '') {
+            targetItemGroup = itemGroup;
+            break;
+        }
+    }
+
+    // If no empty field found, create a new one
+    if (!targetItemGroup) {
+        document.getElementById('add-item-btn').click();
+        targetItemGroup = container.lastElementChild;
+    }
+
+    if (targetItemGroup) {
+        // Fill in the question text
+        const textInput = targetItemGroup.querySelector('input[name="item_text[]"]');
+        if (textInput) {
+            textInput.value = questionText;
+        }
+
+        // Fill in the LLM prompt if available
+        const promptTextarea = targetItemGroup.querySelector('textarea[name="item_llm_prompt[]"]');
+        if (promptTextarea && llmPrompt) {
+            promptTextarea.value = llmPrompt;
+        }
+
+        // Scroll to the added item
+        targetItemGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Add a visual feedback
+        targetItemGroup.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            targetItemGroup.style.backgroundColor = '';
+        }, 1500);
+    }
+
+    // Optionally close the question bank collapse
+    const questionBankCollapse = document.getElementById('questionBankCollapse');
+    if (questionBankCollapse) {
+        const bsCollapse = bootstrap.Collapse.getInstance(questionBankCollapse);
+        if (bsCollapse) {
+            bsCollapse.hide();
+        }
+    }
+
+    // Show success message
+    showTemporaryMessage('Question added to checklist!', 'success');
+}
+
+// Helper function to show temporary messages
+function showTemporaryMessage(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+
+// Add search functionality for Question Bank
+document.addEventListener('DOMContentLoaded', function() {
+    // Add search input to Question Bank if it has questions
+    const questionBankBody = document.querySelector('#questionBankCollapse .card-body');
+    if (questionBankBody && {{ total_questions }} > 5) {
+        const searchInput = document.createElement('div');
+        searchInput.className = 'mb-3';
+        searchInput.innerHTML = `
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Search questions..."
+                   id="questionSearch">
+        `;
+        questionBankBody.insertBefore(searchInput, questionBankBody.firstChild.nextSibling);
+
+        // Add search functionality
+        document.getElementById('questionSearch').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const questionCards = document.querySelectorAll('.question-card');
+
+            questionCards.forEach(card => {
+                const questionText = card.querySelector('p').textContent.toLowerCase();
+                const parentCol = card.closest('.col-12');
+
+                if (questionText.includes(searchTerm)) {
+                    parentCol.style.display = 'block';
+                } else {
+                    parentCol.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
