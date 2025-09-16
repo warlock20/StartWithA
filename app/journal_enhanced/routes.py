@@ -8,6 +8,7 @@ from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        get_review_queue, update_thesis_version,
                                        calculate_next_review_date, search_journal,
+                                      get_all_user_tags,
                                        get_journal_statistics, create_default_templates)
 from datetime import datetime, timedelta
 import os
@@ -536,40 +537,64 @@ def review_queue():
 @journal_enhanced_bp.route('/search')
 @login_required
 def search():
-   """Search journal entries"""
-   query = request.args.get('q', '')
-   company_id = request.args.get('company_id', type=int)
-   entry_type = request.args.get('entry_type')
-   sentiment = request.args.get('sentiment')
-   starred_only = request.args.get('starred_only') == 'true'
-   date_from = request.args.get('date_from')
-   date_to = request.args.get('date_to')
-   
-   filters = {}
-   if company_id:
-       filters['company_id'] = company_id
-   if entry_type:
-       filters['entry_type'] = entry_type
-   if sentiment:
-       filters['sentiment'] = sentiment
-   if starred_only:
-       filters['starred_only'] = True
-   if date_from:
-       filters['date_from'] = datetime.strptime(date_from, '%Y-%m-%d')
-   if date_to:
-       filters['date_to'] = datetime.strptime(date_to, '%Y-%m-%d')
-   
-   results = search_journal(current_user.id, query, filters)
-   
-   # Get companies for filter dropdown
-   companies = current_user.companies.order_by(Company.name).all()
-   
-   return render_template('search_results.html',
-                         title="Search Results",
-                         query=query,
-                         results=results,
-                         filters=filters,
-                         companies=companies)
+    """Enhanced search for knowledge hub with advanced filtering"""
+    query = request.args.get('q', '')
+    company_id = request.args.get('company_id', type=int)
+    entry_type = request.args.get('entry_type')
+    sentiment = request.args.get('sentiment')
+    starred_only = request.args.get('starred_only') == 'true'
+    reviewed_only = request.args.get('reviewed_only') == 'true'
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    review_date_from = request.args.get('review_date_from')
+    review_date_to = request.args.get('review_date_to')
+    selected_tags = request.args.getlist('tags')
+
+    filters = {}
+    if company_id:
+        filters['company_id'] = company_id
+    if entry_type:
+        filters['entry_type'] = entry_type
+    if sentiment:
+        filters['sentiment'] = sentiment
+    if starred_only:
+        filters['starred_only'] = True
+    if reviewed_only:
+        filters['reviewed_only'] = True
+    if date_from:
+        filters['date_from'] = datetime.strptime(date_from, '%Y-%m-%d')
+    if date_to:
+        filters['date_to'] = datetime.strptime(date_to, '%Y-%m-%d')
+    if review_date_from:
+        filters['review_date_from'] = datetime.strptime(review_date_from, '%Y-%m-%d')
+    if review_date_to:
+        filters['review_date_to'] = datetime.strptime(review_date_to, '%Y-%m-%d')
+    if selected_tags:
+        filters['tags'] = selected_tags
+
+    results = search_journal(current_user.id, query, filters)
+
+    # Get all available tags for the filter UI
+    all_tags = get_all_user_tags(current_user.id)
+
+    # Get companies for filter dropdown
+    companies = current_user.companies.order_by(Company.name).all()
+
+    # Get entry types
+    entry_types = db.session.query(JournalEntry.entry_type.distinct()).filter_by(
+        user_id=current_user.id
+    ).all()
+    entry_types = [t[0] for t in entry_types]
+
+    return render_template('search_results.html',
+                          title="Knowledge Hub Search",
+                          query=query,
+                          results=results,
+                          filters=request.args.to_dict(flat=False),
+                          selected_tags=selected_tags,
+                          all_tags=all_tags,
+                          companies=companies,
+                          entry_types=entry_types)
 
 @journal_enhanced_bp.route('/templates')
 @login_required
@@ -753,10 +778,65 @@ def mark_entry_pending(entry_id):
 
     return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
 
+@journal_enhanced_bp.route('/entry/<int:entry_id>/review', methods=['POST'])
+@login_required
+def review_entry(entry_id):
+    """Enhanced review entry with notes and knowledge tags"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        from datetime import datetime
+
+        # Update review information
+        entry.last_reviewed = datetime.utcnow()
+        entry.review_count += 1
+
+        # Add review notes if provided
+        review_notes = request.form.get('review_notes', '').strip()
+        if review_notes:
+            entry.review_notes = review_notes
+
+        # Handle knowledge tags
+        knowledge_tags = request.form.get('knowledge_tags', '').strip()
+        if knowledge_tags:
+            # Parse knowledge tags and add to existing tags
+            new_tags = [tag.strip() for tag in knowledge_tags.split(',') if tag.strip()]
+            existing_tags = entry.tags or []
+
+            # Merge tags, avoiding duplicates
+            all_tags = list(set(existing_tags + new_tags))
+            entry.tags = all_tags
+
+        db.session.commit()
+        flash('Entry reviewed successfully! Added to your knowledge base.', 'success')
+
+        # Return JSON response for AJAX calls, otherwise redirect
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify({
+                'success': True,
+                'message': 'Entry reviewed successfully',
+                'review_count': entry.review_count,
+                'last_reviewed': entry.last_reviewed.strftime('%Y-%m-%d %H:%M')
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        flash('Error reviewing entry', 'error')
+
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
 @journal_enhanced_bp.route('/entry/<int:entry_id>/mark_reviewed', methods=['POST'])
 @login_required
 def mark_entry_reviewed(entry_id):
-    """Mark entry as reviewed"""
+    """Quick mark entry as reviewed (for backward compatibility)"""
     entry = JournalEntry.query.get_or_404(entry_id)
 
     # Security check: ensure user owns the entry

@@ -24,8 +24,8 @@
             📋 Mark as Pending
         </button>
         {% else %}
-        <button class="btn btn-outline-success" onclick="markReviewed({{ entry.id }})">
-            ✅ Mark as Reviewed
+        <button class="btn btn-outline-success" onclick="openEntryReviewModal({{ entry.id }})">
+            📚 Review Entry
         </button>
         {% endif %}
 
@@ -74,6 +74,18 @@
                 <div class="alert alert-success mt-4">
                     <h6>💡 Key Insight:</h6>
                     <p class="mb-0">{{ entry.key_insight }}</p>
+                </div>
+                {% endif %}
+
+                {% if entry.review_notes %}
+                <div class="alert alert-info mt-4">
+                    <h6>📝 Review Notes:</h6>
+                    <p class="mb-0">{{ entry.review_notes }}</p>
+                    {% if entry.last_reviewed %}
+                    <small class="text-muted">
+                        <em>Added during review on {{ entry.last_reviewed.strftime('%B %d, %Y at %H:%M') }}</em>
+                    </small>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -264,6 +276,10 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Include Review Entry Modal -->
+{% include 'components/review_entry_modal.html' %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -343,6 +359,23 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+
+    function openEntryReviewModal(entryId) {
+        // Prepare entry data for the modal
+        const entryData = {
+            title: {{ (entry.title or 'Untitled Entry')|tojson|safe }},
+            entry_type: {{ (entry.entry_type|replace('_', ' ')|title)|tojson|safe }},
+            company: {% if entry.company %}{{ entry.company.name|tojson|safe }}{% else %}null{% endif %},
+            sentiment: {% if entry.sentiment %}{{ (entry.sentiment|title)|tojson|safe }}{% else %}null{% endif %},
+            created_at: {{ entry.created_at.strftime('%b %d, %Y')|tojson|safe }},
+            content: {{ entry.content|tojson|safe }},
+            key_insight: {% if entry.key_insight %}{{ entry.key_insight|tojson|safe }}{% else %}null{% endif %},
+            tags: {% if entry.tags %}{{ entry.tags|tojson|safe }}{% else %}[]{% endif %}
+        };
+
+        // Open the review modal with entry data
+        openReviewModal(entryId, entryData);
     }
 
     function markReviewed(entryId) {

@@ -1,0 +1,428 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h2>Edit Journal Entry</h2>
+                <p class="text-muted mb-0">Update your investment thinking</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('journal_enhanced.edit_entry', entry_id=entry.id) }}" enctype="multipart/form-data">
+                    <!-- Basic Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                value="{{ entry.title or '' }}"
+                                placeholder="Optional - summarize your entry">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="entry_type" class="form-label">Entry Type</label>
+                            <select class="form-select" id="entry_type" name="entry_type">
+                                <option value="observation" {{ 'selected' if entry.entry_type == 'observation' else '' }}>Observation</option>
+                                <option value="thesis_update" {{ 'selected' if entry.entry_type == 'thesis_update' else '' }}>Thesis Update</option>
+                                <option value="question" {{ 'selected' if entry.entry_type == 'question' else '' }}>Question</option>
+                                <option value="insight" {{ 'selected' if entry.entry_type == 'insight' else '' }}>Insight</option>
+                                <option value="lesson_learned" {{ 'selected' if entry.entry_type == 'lesson_learned' else '' }}>Lesson Learned</option>
+                                <option value="market_thought" {{ 'selected' if entry.entry_type == 'market_thought' else '' }}>Market Thought</option>
+                                <option value="meeting_notes" {{ 'selected' if entry.entry_type == 'meeting_notes' else '' }}>Meeting Notes</option>
+                                <option value="earnings_reaction" {{ 'selected' if entry.entry_type == 'earnings_reaction' else '' }}>Earnings Reaction</option>
+                                <option value="news_analysis" {{ 'selected' if entry.entry_type == 'news_analysis' else '' }}>News Analysis</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Company Association -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Company (Optional)</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
+                                    🏢 Select Company
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="clearCompanyBtn" onclick="clearSelectedCompany()"
+                                    style="display: {{ 'block' if entry.company else 'none' }};">
+                                    ❌ Clear
+                                </button>
+                            </div>
+                            <input type="hidden" id="company_id" name="company_id" value="{{ entry.company_id or '' }}">
+                            <div id="selectedCompanyInfo" class="mt-2" style="display: {{ 'block' if entry.company else 'none' }};">
+                                <div class="alert alert-info mb-0">
+                                    <small><strong>Selected:</strong>
+                                        <span id="companyDisplayInfo">
+                                            {% if entry.company %}
+                                                {{ entry.company.name }}
+                                                {% if entry.company.ticker %}({{ entry.company.ticker }}){% endif %}
+                                            {% endif %}
+                                        </span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="sourceField">
+                            <label for="source" class="form-label">Source</label>
+                            <input type="text" class="form-control" id="source" name="source"
+                                value="{{ entry.source or '' }}"
+                                placeholder="e.g., Q3 Earnings Call, WSJ Article">
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="mb-3">
+                        <label for="content" class="form-label">
+                            Content <span class="text-danger">*</span>
+                            <small class="text-muted">(Use #hashtags for easy searching)</small>
+                        </label>
+                        <textarea class="form-control" id="content" name="content" rows="8" required
+                            placeholder="What's on your mind?">{{ entry.content or '' }}</textarea>
+                    </div>
+
+                    <!-- Advanced Fields (for Observation type) -->
+                    <div id="advancedFields" style="display: {{ 'block' if entry.entry_type == 'observation' else 'none' }};">
+                        <!-- Key Insight -->
+                        <div class="mb-3">
+                            <label for="key_insight" class="form-label">Key Insight</label>
+                            <input type="text" class="form-control" id="key_insight" name="key_insight"
+                                value="{{ entry.key_insight or '' }}"
+                                placeholder="What's the main takeaway?">
+                        </div>
+
+                        <!-- Sentiment and Conviction -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="sentiment" class="form-label">Sentiment</label>
+                                <select class="form-select" id="sentiment" name="sentiment">
+                                    <option value="">Select sentiment</option>
+                                    <option value="positive" {{ 'selected' if entry.sentiment == 'positive' else '' }}>Positive</option>
+                                    <option value="neutral" {{ 'selected' if entry.sentiment == 'neutral' else '' }}>Neutral</option>
+                                    <option value="negative" {{ 'selected' if entry.sentiment == 'negative' else '' }}>Negative</option>
+                                    <option value="uncertain" {{ 'selected' if entry.sentiment == 'uncertain' else '' }}>Uncertain</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="conviction" class="form-label">Conviction Level (1-10)</label>
+                                <input type="number" class="form-control" id="conviction" name="conviction"
+                                    value="{{ entry.conviction_level or '' }}"
+                                    min="1" max="10" placeholder="How confident are you?">
+                            </div>
+                        </div>
+
+                        <!-- Action Items and Questions -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="action_items" class="form-label">Action Items</label>
+                                <textarea class="form-control" id="action_items" name="action_items" rows="3"
+                                    placeholder="One per line">{% if entry.action_items %}{{ entry.action_items | join('\n') }}{% endif %}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="questions_raised" class="form-label">Questions Raised</label>
+                                <textarea class="form-control" id="questions_raised" name="questions_raised" rows="3"
+                                    placeholder="One per line">{% if entry.questions_raised %}{{ entry.questions_raised | join('\n') }}{% endif %}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Attachments -->
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">Add New Attachments</label>
+                        <input type="file" class="form-control" id="attachments" name="attachments" multiple
+                            accept=".png,.jpg,.jpeg,.gif,.pdf,.xlsx,.xls,.doc,.docx">
+                        <small class="text-muted">Attach charts, documents, or images</small>
+                    </div>
+
+                    <!-- Existing Attachments -->
+                    {% if entry.attachments %}
+                    <div class="mb-3">
+                        <label class="form-label">Current Attachments</label>
+                        <div class="row">
+                            {% for attachment in entry.attachments %}
+                            <div class="col-md-4 mb-2">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <!-- File Icon/Preview -->
+                                        {% if attachment.file_type in ['png', 'jpg', 'jpeg', 'gif', 'webp'] %}
+                                        <img src="{{ url_for('journal_enhanced.view_attachment', attachment_id=attachment.id) }}"
+                                            class="img-fluid mb-2" style="max-height: 80px;" alt="{{ attachment.filename }}">
+                                        {% elif attachment.file_type == 'pdf' %}
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-1 mb-2"></i>
+                                        {% else %}
+                                        <i class="bi bi-file-earmark fs-1 text-muted mb-2"></i>
+                                        {% endif %}
+
+                                        <h6 class="card-title small">{{ attachment.filename|truncate(20) }}</h6>
+                                        <p class="card-text small text-muted">
+                                            {{ (attachment.file_size / 1024)|round(1) }} KB
+                                        </p>
+
+                                        <div class="btn-group w-100" role="group">
+                                            <a href="{{ url_for('journal_enhanced.view_attachment', attachment_id=attachment.id) }}"
+                                                target="_blank" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('journal_enhanced.download_attachment', attachment_id=attachment.id) }}"
+                                                class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Submit -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Update Entry</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Company Search Modal -->
+{% include 'components/company_search_modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Handle entry type changes
+    document.getElementById('entry_type').addEventListener('change', function(e) {
+        const entryType = e.target.value;
+        const advancedFields = document.getElementById('advancedFields');
+        const sourceField = document.getElementById('sourceField');
+
+        if (entryType === 'observation') {
+            // Show all fields for observations
+            advancedFields.style.display = 'block';
+            sourceField.style.display = 'block';
+        } else {
+            // Hide advanced fields for other entry types
+            advancedFields.style.display = 'none';
+            sourceField.style.display = 'none';
+
+            // Clear advanced field values when hidden
+            document.getElementById('key_insight').value = '';
+            document.getElementById('action_items').value = '';
+            document.getElementById('questions_raised').value = '';
+            document.getElementById('sentiment').value = '';
+            document.getElementById('conviction').value = '';
+            document.getElementById('source').value = '';
+        }
+    });
+
+    // Company Modal Functionality
+    let selectedCompany = null;
+    let searchTimeout = null;
+
+    // Initialize modal event listeners when modal opens
+    function initializeModalEventListeners() {
+        const searchInput = document.getElementById('companySearch');
+        const addNewCompanyBtn = document.getElementById('addNewCompanyBtn');
+        const confirmBtn = document.getElementById('confirmCompanySelection');
+        const newCompanyTicker = document.getElementById('newCompanyTicker');
+
+        if (searchInput && !searchInput.hasAttribute('data-listeners-attached')) {
+            // Search companies with debouncing
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.trim();
+                clearTimeout(searchTimeout);
+
+                if (query.length < 2) {
+                    document.getElementById('searchResults').style.display = 'none';
+                    document.getElementById('quickAddForm').style.display = 'none';
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    searchCompanies(query);
+                }, 300);
+            });
+
+            // Quick add company
+            if (addNewCompanyBtn) {
+                addNewCompanyBtn.addEventListener('click', function() {
+                    const ticker = newCompanyTicker.value.trim().toUpperCase();
+                    if (ticker) {
+                        addNewCompany(ticker);
+                    }
+                });
+            }
+
+            // Confirm selection
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function() {
+                    if (selectedCompany) {
+                        handleCompanySelection(selectedCompany);
+                        bootstrap.Modal.getInstance(document.getElementById('companySearchModal')).hide();
+                    }
+                });
+            }
+
+            searchInput.setAttribute('data-listeners-attached', 'true');
+        }
+    }
+
+    // Open company modal
+    function openCompanyModal(callback) {
+        const modal = new bootstrap.Modal(document.getElementById('companySearchModal'));
+
+        // Set callback for company selection
+        window.modalCallback = callback;
+
+        // Clear previous state
+        document.getElementById('companySearch').value = '';
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('quickAddForm').style.display = 'none';
+        selectedCompany = null;
+        updateConfirmButton();
+
+        modal.show();
+
+        // Initialize event listeners after modal is shown
+        setTimeout(initializeModalEventListeners, 100);
+    }
+
+    // Search companies
+    function searchCompanies(query) {
+        fetch(`/companies/search?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('searchResults');
+                const quickAddDiv = document.getElementById('quickAddForm');
+
+                if (data.companies && data.companies.length > 0) {
+                    displaySearchResults(data.companies);
+                    resultsDiv.style.display = 'block';
+                    quickAddDiv.style.display = 'none';
+                } else {
+                    resultsDiv.style.display = 'none';
+
+                    // Show quick add if query looks like ticker
+                    if (query.match(/^[A-Z]{1,5}$/)) {
+                        document.getElementById('newCompanyTicker').value = query;
+                        quickAddDiv.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error searching companies:', error);
+            });
+    }
+
+    // Display search results
+    function displaySearchResults(companies) {
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = '';
+
+        companies.slice(0, 5).forEach(company => {
+            const div = document.createElement('div');
+            div.className = 'list-group-item list-group-item-action company-result';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${company.name}</strong>
+                        ${company.ticker ? `<span class="badge bg-primary ms-1">${company.ticker}</span>` : ''}
+                        ${company.sector ? `<br><small class="text-muted">${company.sector}</small>` : ''}
+                    </div>
+                </div>
+            `;
+            div.addEventListener('click', () => selectCompany(company, div));
+            resultsDiv.appendChild(div);
+        });
+    }
+
+    // Select company
+    function selectCompany(company, element) {
+        // Remove previous selection
+        document.querySelectorAll('.company-result').forEach(el => el.classList.remove('active'));
+
+        // Mark as selected
+        element.classList.add('active');
+        selectedCompany = company;
+        updateConfirmButton();
+    }
+
+    // Add new company via Yahoo Finance
+    function addNewCompany(ticker) {
+        const addBtn = document.getElementById('addNewCompanyBtn');
+        const originalText = addBtn.textContent;
+        addBtn.textContent = 'Adding...';
+        addBtn.disabled = true;
+
+        fetch('/companies/add_from_yahoo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ticker: ticker })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                selectedCompany = data.company;
+                updateConfirmButton();
+
+                // Clear quick add form
+                document.getElementById('quickAddForm').style.display = 'none';
+                document.getElementById('newCompanyTicker').value = '';
+
+                // Show success message
+                const resultsDiv = document.getElementById('searchResults');
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Success!</strong> Added ${data.company.name} (${data.company.ticker})
+                    </div>
+                `;
+                resultsDiv.style.display = 'block';
+            } else {
+                alert('Error adding company: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding company:', error);
+            alert('Error adding company');
+        })
+        .finally(() => {
+            addBtn.textContent = originalText;
+            addBtn.disabled = false;
+        });
+    }
+
+    // Update confirm button state
+    function updateConfirmButton() {
+        const confirmBtn = document.getElementById('confirmCompanySelection');
+        if (confirmBtn) {
+            confirmBtn.disabled = !selectedCompany;
+            if (selectedCompany) {
+                confirmBtn.textContent = `Select ${selectedCompany.name}`;
+            } else {
+                confirmBtn.textContent = 'Select Company';
+            }
+        }
+    }
+
+    // Handle company selection callback
+    function handleCompanySelection(company) {
+        document.getElementById('company_id').value = company.id;
+        document.getElementById('companyDisplayInfo').textContent =
+            `${company.name}${company.ticker ? ` (${company.ticker})` : ''}`;
+        document.getElementById('selectedCompanyInfo').style.display = 'block';
+        document.getElementById('clearCompanyBtn').style.display = 'block';
+    }
+
+    // Clear selected company
+    function clearSelectedCompany() {
+        document.getElementById('company_id').value = '';
+        document.getElementById('selectedCompanyInfo').style.display = 'none';
+        document.getElementById('clearCompanyBtn').style.display = 'none';
+    }
+</script>
+{% endblock %}

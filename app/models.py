@@ -1111,6 +1111,7 @@ class JournalEntry(db.Model):
     # Review tracking
     last_reviewed = db.Column(db.DateTime)
     review_count = db.Column(db.Integer, default=0)
+    review_notes = db.Column(db.Text)  # Notes added during review process
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     

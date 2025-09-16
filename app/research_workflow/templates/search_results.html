@@ -1,66 +1,314 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <h1>{{ title }}</h1>
-    <p class="text-muted">Find specific entries in your research journal.</p>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>🔍 Knowledge Hub Search</h1>
+        <p class="text-muted mb-0">
+            {% if query %}
+                {{ results|length }} results for "{{ query }}"
+            {% else %}
+                Browse your knowledge hub
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+            ← Back to Journal
+        </a>
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters" aria-expanded="false">
+            🎛️ Filters
+        </button>
+    </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ url_for('journal_enhanced.search') }}">
-            <div class="row g-2 align-items-end">
-                <div class="col-lg-6">
-                    <label for="q" class="form-label">Search Term</label>
-                    <input type="text" class="form-control" id="q" name="q" value="{{ query or '' }}" placeholder="Search content, titles, and insights...">
-                </div>
-                <div class="col-lg-4">
-                    <label for="company_id" class="form-label">Company</label>
-                    <select class="form-select" id="company_id" name="company_id">
-                        <option value="">-- Any Company --</option>
-                        {% for company in companies %}
-                            <option value="{{ company.id }}" {% if filters.company_id == company.id %}selected{% endif %}>
+<!-- Advanced Search Filters -->
+<div class="collapse mb-4" id="searchFilters">
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0">Advanced Search & Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('journal_enhanced.search') }}">
+                <div class="row">
+                    <!-- Search Query -->
+                    <div class="col-md-6 mb-3">
+                        <label for="q" class="form-label">Search Text</label>
+                        <input type="text" class="form-control" id="q" name="q"
+                               value="{{ query }}"
+                               placeholder="Search in content, titles, insights, and review notes...">
+                    </div>
+
+                    <!-- Company Filter -->
+                    <div class="col-md-3 mb-3">
+                        <label for="company_id" class="form-label">Company</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">All Companies</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}"
+                                    {{ 'selected' if filters.get('company_id') and filters.company_id[0]|int == company.id else '' }}>
                                 {{ company.name }}
                             </option>
-                        {% endfor %}
-                    </select>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Entry Type Filter -->
+                    <div class="col-md-3 mb-3">
+                        <label for="entry_type" class="form-label">Entry Type</label>
+                        <select class="form-select" id="entry_type" name="entry_type">
+                            <option value="">All Types</option>
+                            {% for type in entry_types %}
+                            <option value="{{ type }}"
+                                    {{ 'selected' if filters.get('entry_type') and filters.entry_type[0] == type else '' }}>
+                                {{ type|replace('_', ' ')|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="col-lg-2">
-                    <button type="submit" class="btn btn-primary w-100">Search</button>
+
+                <div class="row">
+                    <!-- Knowledge Tags Filter -->
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Knowledge Tags</label>
+                        <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                            <div class="mb-2">
+                                <small class="text-muted">Select tags to filter by:</small>
+                            </div>
+                            {% for tag in all_tags %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="tag_{{ loop.index }}"
+                                       name="tags" value="{{ tag }}"
+                                       {{ 'checked' if tag in selected_tags else '' }}>
+                                <label class="form-check-label" for="tag_{{ loop.index }}">
+                                    <span class="badge bg-primary">#{{ tag }}</span>
+                                </label>
+                            </div>
+                            {% endfor %}
+                            {% if not all_tags %}
+                            <small class="text-muted">No tags available</small>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </form>
+
+                <div class="row">
+                    <!-- Status Filters -->
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="starred_only" name="starred_only" value="true"
+                                   {{ 'checked' if filters.get('starred_only') and filters.starred_only[0] == 'true' else '' }}>
+                            <label class="form-check-label" for="starred_only">
+                                ⭐ Starred only
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reviewed_only" name="reviewed_only" value="true"
+                                   {{ 'checked' if filters.get('reviewed_only') and filters.reviewed_only[0] == 'true' else '' }}>
+                            <label class="form-check-label" for="reviewed_only">
+                                ✅ Reviewed only (Knowledge Hub)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Creation Date Range -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Creation Date Range</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="date" class="form-control form-control-sm" name="date_from"
+                                       value="{{ filters.get('date_from', [''])[0] }}" placeholder="From">
+                            </div>
+                            <div class="col">
+                                <input type="date" class="form-control form-control-sm" name="date_to"
+                                       value="{{ filters.get('date_to', [''])[0] }}" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Date Range -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Review Date Range</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="date" class="form-control form-control-sm" name="review_date_from"
+                                       value="{{ filters.get('review_date_from', [''])[0] }}" placeholder="From">
+                            </div>
+                            <div class="col">
+                                <input type="date" class="form-control form-control-sm" name="review_date_to"
+                                       value="{{ filters.get('review_date_to', [''])[0] }}" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="submit" class="btn btn-primary">🔍 Search</button>
+                        <a href="{{ url_for('journal_enhanced.search') }}" class="btn btn-outline-secondary">Clear Filters</a>
+                    </div>
+                    <div>
+                        <small class="text-muted">{{ results|length }} result{{ 's' if results|length != 1 else '' }} found</small>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
-<h4>Results ({{ results|length }})</h4>
-<hr>
-
-{% if results %}
-    <div class="list-group">
+<!-- Search Results -->
+<div class="row">
+    {% if results %}
         {% for entry in results %}
-        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" class="list-group-item list-group-item-action">
-            <div class="d-flex w-100 justify-content-between">
-                <h5 class="mb-1">
-                    {% if entry.is_starred %}⭐ {% endif %}
-                    {{ entry.title or 'Untitled Entry' }}
-                </h5>
-                <small>{{ entry.created_at.strftime('%Y-%m-%d') }}</small>
+        <div class="col-12 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">
+                                <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
+                                   class="text-decoration-none">
+                                    {{ entry.title or "Untitled Entry" }}
+                                </a>
+                            </h6>
+                            <div class="mb-2">
+                                <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+
+                                {% if entry.company %}
+                                <span class="badge bg-primary">{{ entry.company.name }}</span>
+                                {% endif %}
+
+                                {% if entry.sentiment %}
+                                <span class="badge bg-info">{{ entry.sentiment|title }}</span>
+                                {% endif %}
+
+                                {% if entry.is_starred %}
+                                <span class="badge bg-warning">⭐ Starred</span>
+                                {% endif %}
+
+                                {% if entry.last_reviewed %}
+                                <span class="badge bg-success">✅ Reviewed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">
+                                Created: {{ entry.created_at.strftime('%b %d, %Y') }}
+                                {% if entry.last_reviewed %}
+                                <br>Reviewed: {{ entry.last_reviewed.strftime('%b %d, %Y') }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Content Preview -->
+                    <div class="mb-3">
+                        <p class="text-muted mb-1">
+                            {{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}
+                        </p>
+
+                        {% if entry.key_insight %}
+                        <div class="alert alert-success py-2 mb-2">
+                            <strong>💡 Key Insight:</strong> {{ entry.key_insight[:150] }}{% if entry.key_insight|length > 150 %}...{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if entry.review_notes %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <strong>📝 Review Notes:</strong> {{ entry.review_notes[:150] }}{% if entry.review_notes|length > 150 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tags -->
+                    {% if entry.tags %}
+                    <div class="mb-2">
+                        {% for tag in entry.tags %}
+                        <a href="{{ url_for('journal_enhanced.search', tags=[tag]) }}"
+                           class="badge bg-primary text-decoration-none me-1">
+                            #{{ tag }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Stats -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                Review count: {{ entry.review_count }}
+                                {% if entry.conviction_level %}
+                                | Conviction: {{ entry.conviction_level }}/10
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <p class="mb-1">{{ entry.content|truncate(200) }}</p>
-            <small>
-                <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
-                {% if entry.company %}
-                    <span class="badge bg-primary">{{ entry.company.name }}</span>
-                {% endif %}
-            </small>
-        </a>
+        </div>
         {% endfor %}
-    </div>
-{% else %}
-    <div class="text-center text-muted py-5">
-        <p>No journal entries found matching your criteria.</p>
-    </div>
+    {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-search" style="font-size: 3rem; color: var(--bs-secondary);"></i>
+                </div>
+                <h4>No results found</h4>
+                <p class="text-muted mb-4">
+                    {% if query %}
+                        No entries match your search criteria.
+                    {% else %}
+                        Start by entering a search term or applying filters.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-primary">
+                    ← Back to Journal Home
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if results and results|length >= 20 %}
+<div class="text-center mt-4">
+    <p class="text-muted">
+        Showing {{ results|length }} results. Use more specific filters to narrow down your search.
+    </p>
+</div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-expand filters if any are active
+    const hasActiveFilters = {{ 'true' if (query or filters.get('company_id') or filters.get('entry_type') or selected_tags or filters.get('starred_only') or filters.get('reviewed_only')) else 'false' }};
+
+    if (hasActiveFilters) {
+        const filtersCollapse = document.getElementById('searchFilters');
+        if (filtersCollapse) {
+            const bsCollapse = new bootstrap.Collapse(filtersCollapse, {
+                show: true
+            });
+        }
+    }
+
+    // Handle tag checkbox interactions
+    const tagCheckboxes = document.querySelectorAll('input[name="tags"]');
+    tagCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Could add real-time filtering here if desired
+        });
+    });
+});
+</script>
 {% endblock %}

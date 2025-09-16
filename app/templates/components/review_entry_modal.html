@@ -1,0 +1,243 @@
+<!-- Review Entry Modal -->
+<div class="modal fade" id="reviewEntryModal" tabindex="-1" aria-labelledby="reviewEntryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reviewEntryModalLabel">📚 Review Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="reviewEntryForm" method="POST">
+                <div class="modal-body">
+                    <!-- Entry Preview -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">📄 Entry Preview</h6>
+                        </div>
+                        <div class="card-body">
+                            <h6 id="entryTitle" class="text-primary mb-2"></h6>
+                            <div id="entryMeta" class="mb-3">
+                                <!-- Entry type, company, date badges will be inserted here -->
+                            </div>
+                            <div id="entryContent" class="mb-3">
+                                <!-- Entry content will be inserted here -->
+                            </div>
+                            <div id="entryInsight" style="display: none;">
+                                <div class="alert alert-success">
+                                    <h6>💡 Key Insight:</h6>
+                                    <p id="entryInsightText" class="mb-0"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Notes -->
+                    <div class="mb-4">
+                        <label for="reviewNotes" class="form-label">
+                            <strong>📝 Review Notes</strong>
+                            <small class="text-muted">(What did you learn? Any new insights?)</small>
+                        </label>
+                        <textarea class="form-control" id="reviewNotes" name="review_notes" rows="4"
+                            placeholder="Reflect on this entry... What insights did you gain? How does this connect to your broader investment thinking?"></textarea>
+                    </div>
+
+                    <!-- Knowledge Tags -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <strong>🏷️ Knowledge Tags</strong>
+                            <small class="text-muted">(Organize this knowledge for future reference)</small>
+                        </label>
+
+                        <!-- Existing tags from content -->
+                        <div id="existingTags" class="mb-2">
+                            <small class="text-muted">From content:</small>
+                            <div id="existingTagsList">
+                                <!-- Existing hashtags will be displayed here -->
+                            </div>
+                        </div>
+
+                        <!-- Suggested knowledge categories -->
+                        <div class="mb-3">
+                            <small class="text-muted">Quick add knowledge categories:</small>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('strategy')">
+                                    #strategy
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('valuation')">
+                                    #valuation
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('risk')">
+                                    #risk
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('management')">
+                                    #management
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('lesson-learned')">
+                                    #lesson-learned
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" onclick="addKnowledgeTag('research-method')">
+                                    #research-method
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Custom tag input -->
+                        <div class="input-group">
+                            <span class="input-group-text">#</span>
+                            <input type="text" class="form-control" id="customTag" placeholder="Add custom tag">
+                            <button type="button" class="btn btn-outline-secondary" onclick="addCustomKnowledgeTag()">
+                                Add Tag
+                            </button>
+                        </div>
+
+                        <!-- Selected knowledge tags -->
+                        <div id="knowledgeTags" class="mt-3">
+                            <small class="text-muted">Knowledge tags for this entry:</small>
+                            <div id="knowledgeTagsList" class="mt-2">
+                                <!-- Selected knowledge tags will appear here -->
+                            </div>
+                        </div>
+
+                        <!-- Hidden input to store tags -->
+                        <input type="hidden" id="knowledgeTagsInput" name="knowledge_tags">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        ✅ Mark as Reviewed
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables for review modal
+let currentEntryId = null;
+let knowledgeTagsSet = new Set();
+
+// Function to open review modal
+function openReviewModal(entryId, entryData) {
+    currentEntryId = entryId;
+
+    // Clear previous state
+    knowledgeTagsSet.clear();
+    document.getElementById('reviewNotes').value = '';
+    document.getElementById('customTag').value = '';
+
+    // Populate entry data
+    document.getElementById('entryTitle').textContent = entryData.title || 'Untitled Entry';
+
+    // Populate meta information
+    let metaHtml = '';
+    metaHtml += `<span class="badge bg-secondary">${entryData.entry_type}</span> `;
+    if (entryData.company) {
+        metaHtml += `<span class="badge bg-primary">${entryData.company}</span> `;
+    }
+    if (entryData.sentiment) {
+        metaHtml += `<span class="badge bg-info">${entryData.sentiment}</span> `;
+    }
+    metaHtml += `<span class="badge bg-light text-dark">${entryData.created_at}</span>`;
+    document.getElementById('entryMeta').innerHTML = metaHtml;
+
+    // Populate content (truncated)
+    const content = entryData.content || '';
+    const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
+    document.getElementById('entryContent').innerHTML = `<p class="text-muted">${truncatedContent.replace(/\n/g, '<br>')}</p>`;
+
+    // Show key insight if exists
+    if (entryData.key_insight) {
+        document.getElementById('entryInsightText').textContent = entryData.key_insight;
+        document.getElementById('entryInsight').style.display = 'block';
+    } else {
+        document.getElementById('entryInsight').style.display = 'none';
+    }
+
+    // Show existing tags from content
+    if (entryData.tags && entryData.tags.length > 0) {
+        let tagsHtml = '';
+        entryData.tags.forEach(tag => {
+            tagsHtml += `<span class="badge bg-primary me-1">#${tag}</span>`;
+        });
+        document.getElementById('existingTagsList').innerHTML = tagsHtml;
+    } else {
+        document.getElementById('existingTagsList').innerHTML = '<span class="text-muted">No existing tags</span>';
+    }
+
+    // Set form action
+    document.getElementById('reviewEntryForm').action = `/journal/entry/${entryId}/review`;
+
+    // Update knowledge tags display
+    updateKnowledgeTagsDisplay();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('reviewEntryModal'));
+    modal.show();
+}
+
+// Function to add knowledge tag
+function addKnowledgeTag(tag) {
+    knowledgeTagsSet.add(tag);
+    updateKnowledgeTagsDisplay();
+}
+
+// Function to add custom knowledge tag
+function addCustomKnowledgeTag() {
+    const customTag = document.getElementById('customTag').value.trim().toLowerCase();
+    if (customTag) {
+        knowledgeTagsSet.add(customTag);
+        document.getElementById('customTag').value = '';
+        updateKnowledgeTagsDisplay();
+    }
+}
+
+// Function to remove knowledge tag
+function removeKnowledgeTag(tag) {
+    knowledgeTagsSet.delete(tag);
+    updateKnowledgeTagsDisplay();
+}
+
+// Function to update knowledge tags display
+function updateKnowledgeTagsDisplay() {
+    const container = document.getElementById('knowledgeTagsList');
+    const hiddenInput = document.getElementById('knowledgeTagsInput');
+
+    if (knowledgeTagsSet.size === 0) {
+        container.innerHTML = '<span class="text-muted">No knowledge tags selected</span>';
+        hiddenInput.value = '';
+        return;
+    }
+
+    let tagsHtml = '';
+    knowledgeTagsSet.forEach(tag => {
+        tagsHtml += `
+            <span class="badge bg-success me-1 mb-1">
+                #${tag}
+                <button type="button" class="btn-close btn-close-white ms-1"
+                        onclick="removeKnowledgeTag('${tag}')"
+                        style="font-size: 0.7em;"
+                        aria-label="Remove tag"></button>
+            </span>
+        `;
+    });
+
+    container.innerHTML = tagsHtml;
+    hiddenInput.value = Array.from(knowledgeTagsSet).join(',');
+}
+
+// Handle Enter key in custom tag input
+document.addEventListener('DOMContentLoaded', function() {
+    const customTagInput = document.getElementById('customTag');
+    if (customTagInput) {
+        customTagInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomKnowledgeTag();
+            }
+        });
+    }
+});
+</script>
