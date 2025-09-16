@@ -11,7 +11,7 @@ from app.checklists import checklists_bp # Import the new blueprint
 def list_checklists():
     # Show checklists for the currently logged-in user
     checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
-    return render_template('list_checklists.html', checklists=checklists, title=f"{current_user.username}'s Checklists")
+    return render_template('list_checklists.html', checklists=checklists, title=f"Investment Checklists")
 
 @checklists_bp.route('/checklists/new', methods=['GET', 'POST'])
 @login_required
