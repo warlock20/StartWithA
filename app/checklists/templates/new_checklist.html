@@ -146,7 +146,9 @@
                                         <div class="accordion-body">
                                             {% for question in questions %}
                                             <div class="pro-list-item" style="cursor: pointer;"
-                                                onclick="addQuestionToChecklist('{{ question.text|replace("'", "\\'") }}', '{{ question.llm_prompt|replace("'", "\\'")|default('', true) }}')">
+                                                data-question-text="{{ question.text|replace('"', '&quot;') }}"
+                                                data-question-prompt="{{ question.llm_prompt|default('', true)|replace('"', '&quot;') }}"
+                                                onclick="addQuestionToChecklist(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'))">
                                                 <div class="list-item-content">
                                                     <small class="list-item-title">{{ question.text }}</small>
                                                 </div>
