@@ -6,6 +6,7 @@ transformers
 Werkzeug
 yfinance
 PyMuPDF
+python-docx
 torch
 google-generativeai
 pandas
@@ -18,3 +19,4 @@ celery
 secedgar
 requests
 pandas
+openai

@@ -1,0 +1,345 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📜 Import History</h1>
+        <p class="text-muted mb-0">View and manage your document import history</p>
+    </div>
+    <div>
+        <a href="{{ url_for('checklists.import_document') }}" class="btn btn-primary">
+            <i class="bi bi-upload"></i> Import New Document
+        </a>
+        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Checklists
+        </a>
+    </div>
+</div>
+
+{% if imports %}
+<!-- Filter and Sort Options -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="searchFilter"
+                           placeholder="Search by filename..." onkeyup="filterImports()">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter" onchange="filterImports()">
+                    <option value="">All Statuses</option>
+                    <option value="completed">Completed</option>
+                    <option value="processing">Processing</option>
+                    <option value="failed">Failed</option>
+                    <option value="uploaded">Uploaded</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="providerFilter" onchange="filterImports()">
+                    <option value="">All Providers</option>
+                    <option value="openai">OpenAI GPT-4</option>
+                    <option value="gemini">Google Gemini</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Records -->
+<div class="row g-4" id="importsList">
+    {% for import_record in imports %}
+    <div class="col-lg-6 import-item"
+         data-filename="{{ import_record.filename.lower() }}"
+         data-status="{{ import_record.status }}"
+         data-provider="{{ import_record.llm_provider or '' }}">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-file-earmark-text text-primary me-2"></i>
+                    <h6 class="mb-0 fw-bold">{{ import_record.filename|truncate(30) }}</h6>
+                </div>
+                <div class="d-flex align-items-center">
+                    {% if import_record.status == 'completed' %}
+                    <span class="badge bg-success">✅ Completed</span>
+                    {% elif import_record.status == 'processing' %}
+                    <span class="badge bg-warning">⏳ Processing</span>
+                    {% elif import_record.status == 'failed' %}
+                    <span class="badge bg-danger">❌ Failed</span>
+                    {% else %}
+                    <span class="badge bg-secondary">📤 Uploaded</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <!-- Import Details -->
+                <div class="mb-3">
+                    <div class="row text-sm">
+                        <div class="col-6">
+                            <small class="text-muted">Date:</small>
+                            <div>{{ import_record.created_at.strftime('%b %d, %Y') }}</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Time:</small>
+                            <div>{{ import_record.created_at.strftime('%I:%M %p') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if import_record.llm_provider %}
+                <div class="mb-3">
+                    <small class="text-muted">AI Provider:</small>
+                    <div>
+                        {% if import_record.llm_provider == 'openai' %}
+                        🧠 OpenAI GPT-4
+                        {% elif import_record.llm_provider == 'gemini' %}
+                        ⭐ Google Gemini
+                        {% else %}
+                        {{ import_record.llm_provider|title }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if import_record.processing_approach %}
+                <div class="mb-3">
+                    <small class="text-muted">Approach:</small>
+                    <div>
+                        {% if import_record.processing_approach == 'interactive' %}
+                        <i class="bi bi-pencil-square"></i> Interactive Review
+                        {% else %}
+                        <i class="bi bi-lightning"></i> Immediate Creation
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if import_record.status == 'completed' and import_record.processed_items %}
+                <div class="mb-3">
+                    <small class="text-muted">Extracted Items:</small>
+                    <div>{{ import_record.processed_items|length }} items</div>
+                </div>
+                {% endif %}
+
+                {% if import_record.status == 'completed' and import_record.processing_time %}
+                <div class="mb-3">
+                    <small class="text-muted">Processing Time:</small>
+                    <div>{{ "%.1f"|format(import_record.processing_time) }}s</div>
+                </div>
+                {% endif %}
+
+                {% if import_record.status == 'failed' and import_record.error_message %}
+                <div class="mb-3">
+                    <small class="text-muted text-danger">Error:</small>
+                    <div class="text-danger small">{{ import_record.error_message|truncate(100) }}</div>
+                </div>
+                {% endif %}
+
+                <!-- Suggested Checklist Info (if available) -->
+                {% if import_record.status == 'completed' and import_record.suggested_name %}
+                <div class="mb-3 p-2 bg-light rounded">
+                    <small class="text-muted">Suggested Checklist:</small>
+                    <div class="fw-medium">{{ import_record.suggested_name }}</div>
+                    {% if import_record.suggested_description %}
+                    <div class="text-muted small">{{ import_record.suggested_description|truncate(80) }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Actions -->
+                <div class="mt-auto">
+                    <div class="d-grid gap-2">
+                        {% if import_record.status == 'completed' %}
+                        <a href="{{ url_for('checklists.process_document', import_id=import_record.id) }}"
+                           class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye"></i> View Results
+                        </a>
+                        {% if import_record.processing_approach == 'interactive' %}
+                        <a href="{{ url_for('checklists.create_from_import_interactive', import_id=import_record.id) }}"
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-pencil-square"></i> Edit & Create
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('checklists.create_from_import', import_id=import_record.id) }}"
+                           class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-plus-circle"></i> Create Checklist
+                        </a>
+                        {% endif %}
+
+                        {% elif import_record.status == 'processing' %}
+                        <a href="{{ url_for('checklists.process_document', import_id=import_record.id) }}"
+                           class="btn btn-warning btn-sm">
+                            <i class="bi bi-hourglass-split"></i> Check Status
+                        </a>
+
+                        {% elif import_record.status == 'failed' %}
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('checklists.process_document', import_id=import_record.id) }}"
+                               class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-exclamation-circle"></i> View Error
+                            </a>
+                            <a href="{{ url_for('checklists.import_document') }}"
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-upload"></i> Retry
+                            </a>
+                        </div>
+
+                        {% else %}
+                        <a href="{{ url_for('checklists.process_document', import_id=import_record.id) }}"
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-play"></i> Start Processing
+                        </a>
+                        {% endif %}
+
+                        <!-- Delete Button -->
+                        <form method="POST" action="{{ url_for('checklists.delete_import', import_id=import_record.id) }}"
+                              class="delete-form">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                    onclick="return confirm('Are you sure you want to delete this import record?')">
+                                <i class="bi bi-trash"></i> Delete Record
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- No Results Message -->
+<div id="noResults" class="text-center py-5 d-none">
+    <i class="bi bi-funnel text-muted" style="font-size: 3rem;"></i>
+    <h5 class="mt-3">No imports match your filters</h5>
+    <p class="text-muted">Try adjusting your search criteria or clearing the filters.</p>
+    <button class="btn btn-outline-primary" onclick="clearFilters()">
+        <i class="bi bi-x-circle"></i> Clear Filters
+    </button>
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="text-center py-5">
+    <div class="mb-3">
+        <i class="bi bi-clock-history text-muted" style="font-size: 3rem;"></i>
+    </div>
+    <h5>No Import History</h5>
+    <p class="text-muted mb-4">
+        You haven't imported any documents yet. Upload your first document to get started.
+    </p>
+    <a href="{{ url_for('checklists.import_document') }}" class="btn btn-primary">
+        <i class="bi bi-upload"></i> Import Your First Document
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+.import-item {
+    transition: all 0.3s ease;
+}
+
+.import-item.filtered-out {
+    display: none !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.delete-form {
+    margin: 0;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .col-md-3, .col-md-4, .col-md-2 {
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+
+<script>
+function filterImports() {
+    const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const providerFilter = document.getElementById('providerFilter').value;
+
+    const importItems = document.querySelectorAll('.import-item');
+    let visibleCount = 0;
+
+    importItems.forEach(item => {
+        const filename = item.dataset.filename;
+        const status = item.dataset.status;
+        const provider = item.dataset.provider;
+
+        const matchesSearch = !searchTerm || filename.includes(searchTerm);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesProvider = !providerFilter || provider === providerFilter;
+
+        if (matchesSearch && matchesStatus && matchesProvider) {
+            item.classList.remove('filtered-out');
+            visibleCount++;
+        } else {
+            item.classList.add('filtered-out');
+        }
+    });
+
+    // Show/hide no results message
+    const noResults = document.getElementById('noResults');
+    if (visibleCount === 0 && importItems.length > 0) {
+        noResults.classList.remove('d-none');
+    } else {
+        noResults.classList.add('d-none');
+    }
+}
+
+function clearFilters() {
+    document.getElementById('searchFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('providerFilter').value = '';
+    filterImports();
+}
+
+// Prevent accidental deletion
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.delete-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const filename = this.closest('.import-item').querySelector('.fw-bold').textContent;
+            if (!confirm(`Are you sure you want to delete the import record for "${filename}"?\n\nThis action cannot be undone.`)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+
+// Auto-refresh processing items every 30 seconds
+{% if imports %}
+const processingItems = document.querySelectorAll('[data-status="processing"]');
+if (processingItems.length > 0) {
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+}
+{% endif %}
+</script>
+{% endblock %}

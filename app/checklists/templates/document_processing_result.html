@@ -1,0 +1,283 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>🤖 Processing Complete</h1>
+        <p class="text-muted mb-0">AI has analyzed your document and extracted checklist items</p>
+    </div>
+    <div>
+        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Checklists
+        </a>
+    </div>
+</div>
+
+{% if import_record.status == 'processing' %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Processing...</span>
+                </div>
+                <h5>Processing Your Document</h5>
+                <p class="text-muted">
+                    Our AI is analyzing "{{ import_record.filename }}" and extracting checklist items.
+                    This usually takes 30-60 seconds.
+                </p>
+                <div class="mt-4">
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 5 seconds while processing
+setTimeout(function() {
+    location.reload();
+}, 5000);
+</script>
+
+{% elif import_record.status == 'failed' %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">❌ Processing Failed</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h6>Error Details:</h6>
+                    <p class="mb-0">{{ import_record.error_message or 'An unknown error occurred during processing.' }}</p>
+                </div>
+
+                <div class="mt-4">
+                    <p><strong>Troubleshooting suggestions:</strong></p>
+                    <ul>
+                        <li>Ensure your document contains readable text (not just images)</li>
+                        <li>Try a different file format (PDF, DOCX, or TXT)</li>
+                        <li>Check if the document is password-protected</li>
+                        <li>Verify the file isn't corrupted</li>
+                    </ul>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <a href="{{ url_for('checklists.import_document') }}" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Try Again
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif import_record.status == 'completed' %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">✅ Processing Results</h5>
+                <span class="badge bg-success">{{ import_record.processed_items|length }} items extracted</span>
+            </div>
+            <div class="card-body">
+                <!-- Processing Summary -->
+                <div class="alert alert-success">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <div>
+                            <strong>Success!</strong> Extracted {{ import_record.processed_items|length }} checklist items from "{{ import_record.filename }}"
+                            {% if import_record.processing_time %}
+                            <small class="text-muted">(processed in {{ "%.1f"|format(import_record.processing_time) }}s)</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggested Checklist Info -->
+                <div class="mb-4">
+                    <h6>📋 Suggested Checklist Details</h6>
+                    <div class="p-3 bg-light rounded">
+                        <div class="mb-2">
+                            <strong>Name:</strong> {{ import_record.suggested_name or 'Imported Checklist' }}
+                        </div>
+                        <div>
+                            <strong>Description:</strong> {{ import_record.suggested_description or 'Checklist imported from document' }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extracted Items Preview -->
+                <div class="mb-4">
+                    <h6>📝 Extracted Items Preview</h6>
+                    <div class="preview-items" style="max-height: 400px; overflow-y: auto;">
+                        {% for item in import_record.processed_items[:10] %}
+                        <div class="item-preview mb-2 p-2 border rounded">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="fw-medium">{{ item.text }}</div>
+                                    {% if item.category %}
+                                    <span class="badge bg-secondary mt-1">{{ item.category }}</span>
+                                    {% endif %}
+                                    {% if item.llm_prompt %}
+                                    <div class="mt-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-lightbulb"></i> Suggested prompt: {{ item.llm_prompt|truncate(80) }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% if item.confidence %}
+                                <span class="badge {% if item.confidence >= 0.8 %}bg-success{% elif item.confidence >= 0.6 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ (item.confidence * 100)|round }}%
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {% if import_record.processed_items|length > 10 %}
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                ... and {{ import_record.processed_items|length - 10 }} more items
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    {% if import_record.processing_approach == 'interactive' %}
+                    <a href="{{ url_for('checklists.create_from_import', import_id=import_record.id) }}"
+                       class="btn btn-primary">
+                        <i class="bi bi-pencil-square"></i> Review & Edit Items
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('checklists.create_from_import', import_id=import_record.id) }}"
+                       class="btn btn-success">
+                        <i class="bi bi-plus-circle"></i> Create Checklist
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('checklists.import_document') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-upload"></i> Import Another
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">📊 Processing Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted">File:</small>
+                    <div>{{ import_record.filename }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Processed:</small>
+                    <div>{{ import_record.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">AI Provider:</small>
+                    <div>
+                        {% if import_record.llm_provider == 'openai' %}
+                        🧠 OpenAI GPT-4
+                        {% elif import_record.llm_provider == 'gemini' %}
+                        ⭐ Google Gemini
+                        {% else %}
+                        {{ import_record.llm_provider|title }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Approach:</small>
+                    <div>
+                        {% if import_record.processing_approach == 'interactive' %}
+                        <i class="bi bi-pencil-square"></i> Interactive Review
+                        {% else %}
+                        <i class="bi bi-lightning"></i> Immediate Creation
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if import_record.processing_time %}
+                <div class="mb-3">
+                    <small class="text-muted">Processing Time:</small>
+                    <div>{{ "%.1f"|format(import_record.processing_time) }} seconds</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">💡 Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check text-success"></i>
+                        Items with higher confidence scores are more reliable
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check text-success"></i>
+                        Review suggested LLM prompts for AI-assisted analysis
+                    </li>
+                    <li class="mb-0">
+                        <i class="bi bi-check text-success"></i>
+                        You can always edit items after creating the checklist
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+.item-preview {
+    transition: all 0.2s ease;
+}
+
+.item-preview:hover {
+    background-color: var(--gray-50);
+    border-color: var(--primary-600) !important;
+}
+
+.preview-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.preview-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.preview-items::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.preview-items::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+{% endblock %}

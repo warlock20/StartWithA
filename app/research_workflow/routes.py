@@ -7,7 +7,7 @@ from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
 import json
-import google.generativeai as genai
+from app.services.llm_service import generate_ai_content
 
 @research_workflow_bp.route('/templates')
 @login_required
@@ -1314,13 +1314,7 @@ def analyze_checklist_item(project_id, session_id):
             'message': 'Gemini API key not configured. Please check server configuration.'
         }), 500
     
-    try:
-        genai.configure(api_key=gemini_api_key)
-    except Exception as e:
-        return jsonify({
-            'status': 'error_config', 
-            'message': f'Failed to configure Gemini API: {str(e)}'
-        }), 500
+    # LLM service will handle API configuration automatically
     
     # Parse request data
     if not request.is_json:
@@ -1402,11 +1396,9 @@ User's Analysis Request:
     else:
         analysis_context += "\n\nNo documents were provided for analysis."
     
-    # Call Gemini API
+    # Generate AI analysis using unified LLM service
     try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(analysis_context)
-        ai_suggestion = response.text
+        ai_suggestion = generate_ai_content(analysis_context)
         
         return jsonify({
             'status': 'success_analysis_complete',
