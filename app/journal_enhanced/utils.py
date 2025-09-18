@@ -4,6 +4,7 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
                        JournalTemplate, Company)
 import re
 from collections import Counter
+from sqlalchemy import text
 
 def extract_tags_from_content(content):
     """
@@ -28,14 +29,21 @@ def get_related_entries(entry, limit=5):
         ).order_by(JournalEntry.created_at.desc()).limit(limit).all()
         related.extend(company_entries)
     
-    # Same tags entries
+    # Same tags entries - PostgreSQL compatible approach
     if entry.tags:
+        # Use text-based search in the JSON field to avoid operator issues
         tag_entries = JournalEntry.query.filter(
-            JournalEntry.tags.op('@>')(entry.tags),
+            JournalEntry.tags.isnot(None),
             JournalEntry.id != entry.id,
             JournalEntry.user_id == entry.user_id
-        ).limit(limit).all()
-        related.extend(tag_entries)
+        ).all()
+
+        # Filter in Python to avoid complex JSON operations
+        for tag_entry in tag_entries:
+            if tag_entry.tags and any(tag in entry.tags for tag in tag_entry.tags):
+                related.append(tag_entry)
+                if len(related) >= limit * 2:  # Get more since we're filtering
+                    break
     
     # Remove duplicates and limit
     seen = set()
@@ -54,27 +62,34 @@ def get_review_queue(user_id):
     Get learning notes and important entries due for review.
     """
     today = date.today()
-    
+
     # Learning notes due for review
     learning_notes = LearningNote.query.filter(
         LearningNote.user_id == user_id,
         LearningNote.next_review_date <= today
     ).order_by(LearningNote.importance.desc()).all()
-    
-    # Starred entries not reviewed in 30+ days
+
+    # New entries that have never been reviewed (pending review)
+    pending_entries = JournalEntry.query.filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.last_reviewed.is_(None),
+        JournalEntry.is_archived == False
+    ).order_by(JournalEntry.created_at.desc()).all()
+
+    # Starred entries not reviewed in 30+ days (excluding ones already in pending)
     starred_entries = JournalEntry.query.filter(
         JournalEntry.user_id == user_id,
         JournalEntry.is_starred == True,
-        db.or_(
-            JournalEntry.last_reviewed.is_(None),
-            JournalEntry.last_reviewed < datetime.utcnow() - timedelta(days=30)
-        )
+        JournalEntry.last_reviewed.isnot(None),  # Exclude never-reviewed entries (they're in pending)
+        JournalEntry.last_reviewed < datetime.utcnow() - timedelta(days=30),
+        JournalEntry.is_archived == False
     ).all()
-    
+
     return {
         'learning_notes': learning_notes,
+        'pending_entries': pending_entries,
         'starred_entries': starred_entries,
-        'total_items': len(learning_notes) + len(starred_entries)
+        'total_items': len(learning_notes) + len(pending_entries) + len(starred_entries)
     }
 
 def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
@@ -144,51 +159,85 @@ def calculate_next_review_date(learning_note):
 
 def search_journal(user_id, query, filters=None):
     """
-    Search journal entries with various filters.
+    Enhanced search for journal entries with knowledge hub filters.
     """
     # Base query
     search = JournalEntry.query.filter_by(user_id=user_id, is_archived=False)
-    
-    # Text search in content and title
+
+    # Text search in content, title, key_insight, and review_notes
     if query:
         search_pattern = f'%{query}%'
         search = search.filter(
             db.or_(
                 JournalEntry.content.ilike(search_pattern),
                 JournalEntry.title.ilike(search_pattern),
-                JournalEntry.key_insight.ilike(search_pattern)
+                JournalEntry.key_insight.ilike(search_pattern),
+                JournalEntry.review_notes.ilike(search_pattern)
             )
         )
-    
+
     # Apply filters
     if filters:
         if filters.get('company_id'):
             search = search.filter_by(company_id=filters['company_id'])
-        
+
         if filters.get('entry_type'):
             search = search.filter_by(entry_type=filters['entry_type'])
-        
+
         if filters.get('sentiment'):
             search = search.filter_by(sentiment=filters['sentiment'])
-        
+
         if filters.get('starred_only'):
             search = search.filter_by(is_starred=True)
-        
+
+        if filters.get('reviewed_only'):
+            search = search.filter(JournalEntry.last_reviewed.isnot(None))
+
+        # Creation date filters
         if filters.get('date_from'):
             search = search.filter(JournalEntry.created_at >= filters['date_from'])
-        
+
         if filters.get('date_to'):
             search = search.filter(JournalEntry.created_at <= filters['date_to'])
-        
-        if filters.get('tags'):
-            # Filter by tags (requires all specified tags)
-            for tag in filters['tags']:
-                search = search.filter(JournalEntry.tags.contains([tag]))
-    
-    # Order by relevance (most recent first for now)
-    results = search.order_by(JournalEntry.created_at.desc()).all()
-    
-    return results
+
+        # Review date filters (knowledge hub specific)
+        if filters.get('review_date_from'):
+            search = search.filter(JournalEntry.last_reviewed >= filters['review_date_from'])
+
+        if filters.get('review_date_to'):
+            search = search.filter(JournalEntry.last_reviewed <= filters['review_date_to'])
+
+    # Get initial results
+    initial_results = search.order_by(JournalEntry.created_at.desc()).all()
+
+    # Apply tag filtering in Python (PostgreSQL compatibility)
+    if filters and filters.get('tags'):
+        filtered_results = []
+        for entry in initial_results:
+            if entry.tags and all(tag in entry.tags for tag in filters['tags']):
+                filtered_results.append(entry)
+        return filtered_results
+
+    return initial_results
+
+def get_all_user_tags(user_id):
+    """
+    Get all unique tags used by a user, sorted by frequency.
+    """
+    # Get all entries with tags
+    entries_with_tags = JournalEntry.query.filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.tags.isnot(None)
+    ).all()
+
+    # Collect all tags
+    tag_counter = Counter()
+    for entry in entries_with_tags:
+        if entry.tags:
+            tag_counter.update(entry.tags)
+
+    # Return tags sorted by frequency (most common first)
+    return [tag for tag, count in tag_counter.most_common()]
 
 def get_journal_statistics(user_id):
     """
@@ -222,10 +271,20 @@ def get_journal_statistics(user_id):
     
     # Learning notes stats
     total_lessons = LearningNote.query.filter_by(user_id=user_id).count()
-    pending_reviews = LearningNote.query.filter(
+
+    # Pending reviews: Learning notes + Journal entries that have never been reviewed
+    pending_learning_notes = LearningNote.query.filter(
         LearningNote.user_id == user_id,
         LearningNote.next_review_date <= date.today()
     ).count()
+
+    pending_journal_entries = JournalEntry.query.filter(
+        JournalEntry.user_id == user_id,
+        JournalEntry.last_reviewed.is_(None),
+        JournalEntry.is_archived == False
+    ).count()
+
+    pending_reviews = pending_learning_notes + pending_journal_entries
     
     return {
         'total_entries': total_entries,

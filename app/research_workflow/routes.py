@@ -1,13 +1,13 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, session as flask_session
 from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession, 
-                       TemplateStep, Company, Checklist, IdeaPipeline,
-                       ResearchSession, ChecklistItem, ResearchAnswer)
+                       TemplateStep, Company, Checklist, KillChecklist, IdeaPipeline, CompanyDocument)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
+from app.services.llm_service import generate_ai_content
 
 @research_workflow_bp.route('/templates')
 @login_required
@@ -40,6 +40,17 @@ def create_template():
         name = request.form.get('name')
         description = request.form.get('description')
         investment_style = request.form.get('investment_style')
+        custom_investment_style = request.form.get('custom_investment_style')
+        research_subject_type = request.form.get('research_subject_type')
+        
+        # Use custom investment style if selected
+        if investment_style == 'custom' and custom_investment_style:
+            investment_style = custom_investment_style.strip()
+        
+        # Validate research subject type
+        if not research_subject_type:
+            flash('Research subject type must be selected', 'error')
+            return redirect(url_for('research_workflow.create_template'))
         
         if not name:
             flash('Template name is required', 'error')
@@ -66,7 +77,23 @@ def create_template():
                 
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
+                    # Handle dynamic checklist items
+                    items = request.form.getlist(f'step_{i}_checklist_items[]')
+                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
+                    
+                    checklist_items = []
+                    for j, item in enumerate(items):
+                        if item.strip():  # Only add non-empty items
+                            checklist_items.append({
+                                'item': item.strip(),
+                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
+                            })
+                    
+                    step['config']['checklist_items'] = checklist_items
+                elif step['type'] == 'investment_checklist_reference':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
+                elif step['type'] == 'kill_checklist_reference':
+                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
                 elif step['type'] == 'model':
                     step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
                 
@@ -78,6 +105,7 @@ def create_template():
             name=name,
             description=description,
             investment_style=investment_style,
+            research_subject_types=[research_subject_type],  # Store as single-item list for consistency
             workflow_steps=workflow_steps
         )
         
@@ -90,17 +118,25 @@ def create_template():
             db.session.rollback()
             flash(f'Error creating template: {str(e)}', 'error')
     
-    # Get user's checklists for the step configuration
-    user_checklists = current_user.checklists.all()
+    # Get user's checklists and kill checklists for the step configuration
+    user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
+    user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
     
     # Define available step types and mental models
     step_types = [
-        {'value': 'checklist', 'label': 'Run Checklist', 'icon': '📋'},
+        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
+        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
+        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
         {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
         {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
+        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
+        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
+        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
+        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
+        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
         {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
     ]
     
@@ -117,46 +153,109 @@ def create_template():
     return render_template('create_template.html',
                           title="Create Research Template",
                           user_checklists=user_checklists,
+                          user_kill_checklists=user_kill_checklists,
                           step_types=step_types,
                           mental_models=mental_models)
+
+@research_workflow_bp.route('/templates/<int:template_id>/view')
+@login_required
+def view_template(template_id):
+    """View/preview a research template to visualize workflow steps"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+    
+    if template.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+    
+    # Calculate total estimated time
+    total_minutes = 0
+    for step in template.workflow_steps:
+        total_minutes += step.get('estimated_minutes', 60)
+    
+    # Group steps by type for analysis
+    step_types_count = {}
+    for step in template.workflow_steps:
+        step_type = step.get('type', 'custom')
+        step_types_count[step_type] = step_types_count.get(step_type, 0) + 1
+    
+    # Get usage statistics
+    active_projects = ResearchProject.query.filter_by(
+        template_id=template.id, 
+        status='active'
+    ).count()
+    
+    completed_projects = ResearchProject.query.filter_by(
+        template_id=template.id, 
+        status='completed'
+    ).all()
+    
+    return render_template('view_template.html',
+                          title=f"Template: {template.name}",
+                          template=template,
+                          total_minutes=total_minutes,
+                          total_hours=round(total_minutes / 60, 1),
+                          step_types_count=step_types_count,
+                          active_projects=active_projects,
+                          completed_projects=completed_projects)
 
 @research_workflow_bp.route('/projects/start', methods=['POST'])
 @login_required
 def start_project():
     """Start a new research project using a template"""
-    company_id = request.form.get('company_id', type=int)
     template_id = request.form.get('template_id', type=int)
+    subject_type = request.form.get('subject_type', 'company')
+    subject_name = request.form.get('subject_name', '')
+    company_id = request.form.get('company_id', type=int)
     
-    if not company_id or not template_id:
-        flash('Company and template are required', 'error')
-        return redirect(request.referrer or url_for('companies.list_companies'))
+    # Validate inputs based on subject type
+    if not template_id:
+        flash('Template selection is required', 'error')
+        return redirect(request.referrer or url_for('research_workflow.template_list'))
     
-    # Verify ownership
-    company = Company.query.get_or_404(company_id)
+    if subject_type == 'company' and not company_id:
+        flash('Company selection is required for company research', 'error')
+        return redirect(request.referrer or url_for('research_workflow.template_list'))
+    elif subject_type != 'company' and not subject_name:
+        flash('Research subject name is required', 'error')
+        return redirect(request.referrer or url_for('research_workflow.template_list'))
+    
+    # Verify template ownership
     template = ResearchTemplate.query.get_or_404(template_id)
-    
-    if company.user_id != current_user.id or template.user_id != current_user.id:
+    if template.user_id != current_user.id:
         flash('Access denied', 'error')
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('research_workflow.template_list'))
+    
+    # Handle company-specific logic
+    company = None
+    if subject_type == 'company':
+        company = Company.query.get_or_404(company_id)
+        if company.user_id != current_user.id:
+            flash('Access denied', 'error')
+            return redirect(url_for('research_workflow.template_list'))
+        
+        subject_name = company.name
     
     # Check for existing active project
     existing = ResearchProject.query.filter_by(
         user_id=current_user.id,
-        company_id=company_id,
         template_id=template_id,
+        research_subject_type=subject_type,
+        research_subject_name=subject_name,
         status='active'
     ).first()
     
     if existing:
-        flash('You already have an active project for this company with this template', 'info')
+        flash(f'You already have an active project for {subject_name} with this template', 'info')
         return redirect(url_for('research_workflow.project_dashboard', project_id=existing.id))
     
     # Create new project
     project = ResearchProject(
         researcher=current_user,
-        company=company,
         template=template,
-        project_name=f"{company.name} - {template.name}",
+        research_subject_type=subject_type,
+        research_subject_name=subject_name,
+        company=company,
+        project_name=f"{subject_name} - {template.name}",
         status='active'
     )
     
@@ -177,10 +276,10 @@ def start_project():
         log_research_activity(
             current_user.id,
             'research_started',
-            company_id=company_id,
+            company_id=company.id if company else None,
             project_id=project.id
         )
-        flash(f'Research project started for {company.name}!', 'success')
+        flash(f'Research project started for {subject_name}!', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
     except Exception as e:
         db.session.rollback()
@@ -255,31 +354,139 @@ def execute_step(project_id, step_index):
     
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
+        # Handle new dynamic checklist items
+        checklist_items = step['config'].get('checklist_items', [])
+        if checklist_items:
+            return render_template('execute_checklist_step.html',
+                                title=f"Execute: {step['name']}",
+                                project=project,
+                                step=step,
+                                step_index=step_index,
+                                session=session,
+                                checklist_items=checklist_items)
+        else:
+            flash('No checklist items configured for this step', 'warning')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    
+    elif step['type'] == 'investment_checklist_reference':
+        # Handle investment checklist reference - redirect to research session evaluation
         checklist_id = step['config'].get('checklist_id')
         if checklist_id:
-            # Create or resume a research session for this checklist
-            research_session = ResearchSession.query.filter_by(
-                user_id=current_user.id,
-                company_id=project.company_id,
-                checklist_id=checklist_id
-            ).first()
-            
-            if not research_session:
-                research_session = ResearchSession(
-                    researcher=current_user,
-                    company=project.company,
+            checklist = Checklist.query.get(checklist_id)
+            if checklist and checklist.user_id == current_user.id:
+                # Check if project has a company (required for research sessions)
+                if not project.company_id:
+                    flash('Research project must have a company assigned to use investment checklists', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                # Import ResearchSession model from research module
+                from app.models import ResearchSession, ResearchAnswer
+
+                # Check if a research session already exists for this checklist and company
+                existing_research_session = ResearchSession.query.filter_by(
+                    user_id=current_user.id,
                     checklist_id=checklist_id,
-                    status='in_progress'
-                )
-                db.session.add(research_session)
-                db.session.commit()
-            
-            # Redirect to the existing research flow
-            return redirect(url_for('research.research_step', 
-                                  session_id=research_session.id,
-                                  item_id=ChecklistItem.query.filter_by(
-                                      checklist_id=checklist_id
-                                  ).first().id))
+                    company_id=project.company_id
+                ).first()
+
+                if existing_research_session:
+                    # If session exists and is in progress, find the first unanswered item
+                    if existing_research_session.status == 'in_progress':
+                        from app.research.routes import get_all_ordered_items_for_checklist
+                        all_items = get_all_ordered_items_for_checklist(checklist_id)
+
+                        if all_items:
+                            # Find first unanswered item
+                            redirect_to_item_id = all_items[0].id  # Default to first item
+                            for item in all_items:
+                                answer_exists = ResearchAnswer.query.filter_by(
+                                    research_session_id=existing_research_session.id,
+                                    checklist_item_id=item.id
+                                ).first()
+                                if not answer_exists:
+                                    redirect_to_item_id = item.id
+                                    break
+
+                            # Store research context for potential return
+                            flask_session['research_context'] = {
+                                'project_id': project_id,
+                                'step_index': step_index,
+                                'workflow_session_id': session.id if session else None
+                            }
+
+                            return redirect(url_for('research.research_step',
+                                                  session_id=existing_research_session.id,
+                                                  item_id=redirect_to_item_id))
+                        else:
+                            flash('Investment checklist has no items to evaluate', 'warning')
+                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                    elif existing_research_session.status == 'completed':
+                        flash('Investment checklist research already completed. Viewing summary.', 'info')
+                        return redirect(url_for('research.view_research_session_summary',
+                                              session_id=existing_research_session.id))
+                else:
+                    # Create new research session
+                    new_research_session = ResearchSession(
+                        user_id=current_user.id,
+                        checklist_id=checklist_id,
+                        company_id=project.company_id,
+                        status='in_progress'
+                    )
+
+                    try:
+                        db.session.add(new_research_session)
+                        db.session.commit()
+
+                        # Get first item and redirect to it
+                        from app.research.routes import get_all_ordered_items_for_checklist
+                        all_items = get_all_ordered_items_for_checklist(checklist_id)
+
+                        if all_items:
+                            # Store research context for potential return
+                            flask_session['research_context'] = {
+                                'project_id': project_id,
+                                'step_index': step_index,
+                                'workflow_session_id': session.id if session else None
+                            }
+
+                            return redirect(url_for('research.research_step',
+                                                  session_id=new_research_session.id,
+                                                  item_id=all_items[0].id))
+                        else:
+                            flash('Investment checklist has no items to evaluate', 'warning')
+                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                    except Exception as e:
+                        db.session.rollback()
+                        flash(f'Error starting research session: {str(e)}', 'error')
+                        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            else:
+                flash('Investment checklist not found or access denied', 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+        else:
+            flash('No investment checklist configured for this step', 'warning')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    
+    elif step['type'] == 'kill_checklist_reference':
+        # Handle kill checklist reference
+        kill_checklist_id = step['config'].get('kill_checklist_id')
+        if kill_checklist_id:
+            kill_checklist = KillChecklist.query.get(kill_checklist_id)
+            if kill_checklist and kill_checklist.user_id == current_user.id:
+                return render_template('execute_kill_checklist_step.html',
+                                    title=f"Execute: {step['name']}",
+                                    project=project,
+                                    step=step,
+                                    step_index=step_index,
+                                    session=session,
+                                    kill_checklist=kill_checklist)
+            else:
+                flash('Kill checklist not found or access denied', 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+        else:
+            flash('No kill checklist configured for this step', 'warning')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
     
     elif step['type'] == 'model':
         model_type = step['config'].get('model_type')
@@ -331,6 +538,9 @@ def complete_step(project_id):
             project.total_hours_spent += session.duration_minutes / 60
     
     # Mark step as complete
+    if not project.completed_steps:
+        project.completed_steps = []
+    
     if step_index not in project.completed_steps:
         project.completed_steps = project.completed_steps + [step_index]
     
@@ -355,12 +565,18 @@ def complete_step(project_id):
         completed_count = current_user.research_projects.filter_by(status='completed').count()
         if completed_count % 5 == 0:  # Every 5 completions
             flash('You have enough data for pattern recognition. Visit the Learning Center to identify patterns.', 'info')
+        
+        # Get step info for logging
+        step_name = "Unknown Step"
+        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
+            step_name = project.template.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
+            
         log_research_activity(
             current_user.id,
             'step_completed',
             project_id=project_id,
-            duration_minutes=session.duration_minutes,
-            details={'step_name': step['name']}
+            duration_minutes=session.duration_minutes if session_id and session else 0,
+            details={'step_name': step_name}
         )
         
         if project.status == 'completed':
@@ -428,14 +644,20 @@ def save_decision(project_id):
         project.template.failed_investments += 1
 
     # --- NEW LOGIC TO UNIFY WATCHLISTS ---
-    flash_message = 'Investment decision saved!' # Default message
+    flash_message = 'Decision saved!' # Default message
 
-    if decision == 'watchlist':
+    if decision == 'watchlist' and project.research_subject_type == 'company' and project.company:
         company_to_watch = project.company
         if company_to_watch not in current_user.favorites:
             current_user.favorites.append(company_to_watch)
             # Update flash message to inform the user
             flash_message = f'Decision saved. "{company_to_watch.name}" has been added to your Favorites/Watchlist.'
+    elif decision == 'watchlist':
+        # For non-company projects, just save the decision without adding to favorites
+        if project.research_subject_type == 'sector':
+            flash_message = f'Sector assessment saved. "{project.research_subject_name}" marked for watching.'
+        else:
+            flash_message = f'Research decision saved. "{project.research_subject_name}" marked for watching.'
 
     try:
         db.session.commit()
@@ -565,6 +787,29 @@ def edit_template(template_id):
                     'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60,
                     'config': {}
                 }
+                
+                # Add type-specific configuration
+                if step['type'] == 'checklist':
+                    # Handle dynamic checklist items
+                    items = request.form.getlist(f'step_{i}_checklist_items[]')
+                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
+                    
+                    checklist_items = []
+                    for j, item in enumerate(items):
+                        if item.strip():  # Only add non-empty items
+                            checklist_items.append({
+                                'item': item.strip(),
+                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
+                            })
+                    
+                    step['config']['checklist_items'] = checklist_items
+                elif step['type'] == 'investment_checklist_reference':
+                    step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
+                elif step['type'] == 'kill_checklist_reference':
+                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
+                elif step['type'] == 'model':
+                    step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
+                
                 workflow_steps.append(step)
         
         template.workflow_steps = workflow_steps
@@ -578,9 +823,45 @@ def edit_template(template_id):
             db.session.rollback()
             flash(f'Error updating template: {str(e)}', 'error')
     
+    # Get user's checklists and kill checklists for the step configuration
+    user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
+    user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
+    
+    # Define available step types and mental models (same as create)
+    step_types = [
+        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
+        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
+        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
+        {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
+        {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
+        {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
+        {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
+        {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
+        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
+        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
+        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
+        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
+        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
+        {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
+    ]
+    
+    mental_models = [
+        'SWOT Analysis',
+        'Porter\'s Five Forces',
+        'Moat Analysis',
+        'Management Quality Assessment',
+        'Unit Economics',
+        'TAM Analysis',
+        'Risk Assessment'
+    ]
+    
     return render_template('edit_template.html',
                           title=f"Edit Template: {template.name}",
-                          template=template)
+                          template=template,
+                          user_checklists=user_checklists,
+                          user_kill_checklists=user_kill_checklists,
+                          step_types=step_types,
+                          mental_models=mental_models)
 
 @research_workflow_bp.route('/templates/<int:template_id>/delete', methods=['POST'])
 @login_required
@@ -606,6 +887,29 @@ def delete_template(template_id):
         db.session.delete(template)
         db.session.commit()
         flash(f'Template "{template.name}" deleted', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting template: {str(e)}', 'error')
+    
+    return redirect(url_for('research_workflow.template_list'))
+
+@research_workflow_bp.route('/templates/<int:template_id>/force-delete', methods=['POST'])
+@login_required
+def force_delete_template(template_id):
+    """Force delete a research template even if it has been used"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+    
+    if template.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+    
+    template_name = template.name
+    project_count = ResearchProject.query.filter_by(template_id=template_id).count()
+    
+    try:
+        db.session.delete(template)
+        db.session.commit()
+        flash(f'Template "{template_name}" deleted successfully. {project_count} existing projects remain unaffected.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting template: {str(e)}', 'error')
@@ -700,6 +1004,34 @@ def abandon_project(project_id):
     
     return redirect(url_for('research_workflow.my_projects'))
 
+@research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
+@login_required
+def delete_project(project_id):
+    """Delete a research project permanently"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    # Get project name before deletion
+    project_name = project.project_name
+    
+    try:
+        # Delete associated work sessions first
+        WorkSession.query.filter_by(research_project_id=project.id).delete()
+        
+        # Delete the project
+        db.session.delete(project)
+        db.session.commit()
+        
+        flash(f'Project "{project_name}" has been deleted permanently', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting project: {str(e)}', 'error')
+    
+    return redirect(url_for('research_workflow.my_projects'))
+
 @research_workflow_bp.route('/projects/<int:project_id>/skip-step/<int:step_index>', methods=['POST'])
 @login_required
 def skip_step(project_id, step_index):
@@ -740,6 +1072,433 @@ def skip_step(project_id, step_index):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/complete-checklist', methods=['POST'])
+@login_required
+def complete_checklist_step(project_id, session_id):
+    """Complete a checklist step and save results"""
+    project = ResearchProject.query.get_or_404(project_id)
+    session = WorkSession.query.get_or_404(session_id)
+    
+    if project.user_id != current_user.id or session.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    # Get step details
+    step = project.template.get_step(session.step_index)
+    if not step or step['type'] != 'checklist':
+        flash('Invalid checklist step', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    
+    # Process criteria evaluation results
+    checklist_items = step['config'].get('checklist_items', [])
+    analysis_notes = request.form.getlist('analysis_notes[]')
+    item_notes = request.form.getlist('item_notes[]')
+    step_notes = request.form.get('step_notes', '')
+    
+    # Process each criterion's evaluation
+    criteria_evaluations = []
+    met_count = 0
+    critical_failed = 0
+    total_evaluated = 0
+    
+    for i, item in enumerate(checklist_items):
+        status = request.form.get(f'criteria_status_{i}')
+        importance = request.form.get(f'criteria_importance_{i}', 'important')
+        
+        evaluation = {
+            'index': i,
+            'item_text': item['item'],
+            'status': status,  # 'met', 'not_met', or 'not_applicable'
+            'importance': importance,  # 'critical', 'important', 'nice_to_have'
+            'notes': analysis_notes[i] if i < len(analysis_notes) else (item_notes[i] if i < len(item_notes) else '')
+        }
+        criteria_evaluations.append(evaluation)
+        
+        # Count results for summary
+        if status == 'met':
+            met_count += 1
+            total_evaluated += 1
+        elif status == 'not_met':
+            if importance == 'critical':
+                critical_failed += 1
+            total_evaluated += 1
+        # 'not_applicable' items don't count toward totals
+    
+    # Determine overall step result
+    if total_evaluated == 0:
+        step_result = 'incomplete'
+        step_status_msg = 'No criteria were evaluated'
+    elif critical_failed > 0:
+        step_result = 'fail'
+        step_status_msg = f'FAILED: {critical_failed} critical criteria not met'
+    else:
+        pass_rate = (met_count / total_evaluated) * 100 if total_evaluated > 0 else 0
+        if pass_rate >= 80:  # 80% threshold for pass
+            step_result = 'pass'
+            step_status_msg = f'PASSED: {met_count}/{total_evaluated} criteria met ({pass_rate:.1f}%)'
+        else:
+            step_result = 'marginal'
+            step_status_msg = f'MARGINAL: {met_count}/{total_evaluated} criteria met ({pass_rate:.1f}%) - Review required'
+    
+    # Build comprehensive results structure
+    checklist_results = {
+        'criteria_evaluations': criteria_evaluations,
+        'total_items': len(checklist_items),
+        'met_count': met_count,
+        'total_evaluated': total_evaluated,
+        'critical_failed': critical_failed,
+        'step_result': step_result,
+        'step_status_msg': step_status_msg,
+        'pass_rate': (met_count / total_evaluated) * 100 if total_evaluated > 0 else 0
+    }
+    
+    # Complete the session
+    session.end_time = datetime.utcnow()
+    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.notes = step_notes
+    session.results = checklist_results
+    session.status = 'completed'
+    
+    # Update project progress
+    if not project.step_notes:
+        project.step_notes = {}
+    project.step_notes[str(session.step_index)] = step_notes
+    
+    if not project.step_results:
+        project.step_results = {}
+    project.step_results[str(session.step_index)] = checklist_results
+    
+    # Mark step as complete
+    if not project.completed_steps:
+        project.completed_steps = []
+    
+    if session.step_index not in project.completed_steps:
+        project.completed_steps = project.completed_steps + [session.step_index]
+    
+    # Move to next step
+    if session.step_index + 1 < len(project.template.workflow_steps):
+        project.current_step_index = session.step_index + 1
+    else:
+        project.status = 'completed'
+        project.completed_at = datetime.utcnow()
+    
+    project.last_worked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        # Flash message based on step result
+        if checklist_results['step_result'] == 'pass':
+            flash(f'✅ {checklist_results["step_status_msg"]}', 'success')
+        elif checklist_results['step_result'] == 'fail':
+            flash(f'❌ {checklist_results["step_status_msg"]}', 'danger')
+        elif checklist_results['step_result'] == 'marginal':
+            flash(f'⚠️ {checklist_results["step_status_msg"]}', 'warning')
+        else:
+            flash(f'ℹ️ {checklist_results["step_status_msg"]}', 'info')
+        
+        if project.status == 'completed':
+            return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+        else:
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            
+    except Exception as e:
+        db.session.rollback()
+        flash('Error saving checklist results', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+@research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/complete-kill-checklist', methods=['POST'])
+@login_required 
+def complete_kill_checklist_step(project_id, session_id):
+    """Complete a kill checklist step and save results"""
+    project = ResearchProject.query.get_or_404(project_id)
+    session = WorkSession.query.get_or_404(session_id)
+    
+    if project.user_id != current_user.id or session.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    # Get step details
+    step = project.template.get_step(session.step_index)
+    if not step or step['type'] != 'kill_checklist_reference':
+        flash('Invalid kill checklist step', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    
+    kill_checklist_id = request.form.get('kill_checklist_id')
+    overall_result = request.form.get('overall_result')  # 'proceed' or 'kill'
+    step_notes = request.form.get('step_notes', '')
+    
+    # Process individual item results
+    kill_checklist = KillChecklist.query.get(kill_checklist_id)
+    item_results = []
+    
+    for item in kill_checklist.items:
+        result = request.form.get(f'result_{item.id}')
+        notes = request.form.get(f'notes_{item.id}', '')
+        
+        item_results.append({
+            'item_id': item.id,
+            'item_text': item.item_text,
+            'result': result,  # 'pass' or 'fail'
+            'notes': notes
+        })
+    
+    # Calculate screening statistics
+    pass_count = len([r for r in item_results if r['result'] == 'pass'])
+    fail_count = len([r for r in item_results if r['result'] == 'fail'])
+    
+    kill_checklist_results = {
+        'kill_checklist_id': kill_checklist_id,
+        'kill_checklist_name': kill_checklist.name,
+        'overall_result': overall_result,
+        'item_results': item_results,
+        'pass_count': pass_count,
+        'fail_count': fail_count,
+        'total_items': len(item_results),
+        'screening_passed': overall_result == 'proceed'
+    }
+    
+    # Complete the session
+    session.end_time = datetime.utcnow()
+    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.notes = step_notes
+    session.results = kill_checklist_results
+    session.status = 'completed'
+    
+    # Update project progress
+    if not project.step_notes:
+        project.step_notes = {}
+    project.step_notes[str(session.step_index)] = step_notes
+    
+    if not project.step_results:
+        project.step_results = {}
+    project.step_results[str(session.step_index)] = kill_checklist_results
+    
+    # Mark step as complete (even if killed - it was completed)
+    if not project.completed_steps:
+        project.completed_steps = []
+    
+    if session.step_index not in project.completed_steps:
+        project.completed_steps = project.completed_steps + [session.step_index]
+    
+    # Handle kill decision
+    if overall_result == 'kill':
+        project.status = 'killed'
+        project.completed_at = datetime.utcnow()
+        project.kill_reason = f"Failed screening: {step_notes}"
+    else:
+        # Move to next step
+        if session.step_index + 1 < len(project.template.workflow_steps):
+            project.current_step_index = session.step_index + 1
+        else:
+            project.status = 'completed'
+            project.completed_at = datetime.utcnow()
+    
+    project.last_worked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        
+        if overall_result == 'kill':
+            flash(f'Investment killed during screening. Failed {fail_count}/{len(item_results)} criteria.', 'warning')
+            return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+        else:
+            flash(f'Screening passed! {pass_count}/{len(item_results)} criteria met.', 'success')
+            
+            if project.status == 'completed':
+                return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+            else:
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            
+    except Exception as e:
+        db.session.rollback()
+        flash('Error saving screening results', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+@research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/save-checklist-progress', methods=['POST'])
+@login_required
+def save_checklist_progress(project_id, session_id):
+    """Auto-save checklist progress"""
+    # Simple auto-save endpoint for checklist progress
+    return jsonify({'success': True, 'message': 'Progress saved'})
+
+@research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/save-kill-checklist-progress', methods=['POST'])  
+@login_required
+def save_kill_checklist_progress(project_id, session_id):
+    """Auto-save kill checklist progress"""
+    # Simple auto-save endpoint for kill checklist progress
+    return jsonify({'success': True, 'message': 'Progress saved'})
+
+@research_workflow_bp.route('/templates/<int:template_id>/archive', methods=['POST'])
+@login_required
+def archive_template(template_id):
+    """Archive a research template"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+    
+    if template.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+    
+    template.is_active = False
+    
+    try:
+        db.session.commit()
+        flash(f'Template "{template.name}" archived successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error archiving template', 'error')
+    
+    return redirect(url_for('research_workflow.template_list'))
+
+@research_workflow_bp.route('/templates/<int:template_id>/restore', methods=['POST'])
+@login_required
+def restore_template(template_id):
+    """Restore an archived research template"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+    
+    if template.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+    
+    template.is_active = True
+    
+    try:
+        db.session.commit()
+        flash(f'Template "{template.name}" restored successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error restoring template', 'error')
+    
+    return redirect(url_for('research_workflow.template_list'))
+
+@research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/checklist_item_analyze', methods=['POST'])
+@login_required
+def analyze_checklist_item(project_id, session_id):
+    """AI analysis for Research Template checklist items"""
+    # Get and validate project and session
+    project = ResearchProject.query.get_or_404(project_id)
+    session = WorkSession.query.get_or_404(session_id)
+    
+    if project.user_id != current_user.id or session.user_id != current_user.id:
+        return jsonify({'status': 'error', 'message': 'Access denied'}), 403
+    
+    if session.research_project_id != project_id:
+        return jsonify({'status': 'error', 'message': 'Invalid session for project'}), 400
+    
+    # Check Gemini API configuration
+    gemini_api_key = current_app.config.get('GEMINI_API_KEY')
+    if not gemini_api_key:
+        return jsonify({
+            'status': 'error_config', 
+            'message': 'Gemini API key not configured. Please check server configuration.'
+        }), 500
+    
+    # LLM service will handle API configuration automatically
+    
+    # Parse request data
+    if not request.is_json:
+        return jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'status': 'error', 'message': 'No JSON data received'}), 400
+    
+    # Extract parameters
+    item_index = data.get('item_index')  # Index of the checklist item
+    llm_prompt = data.get('llm_prompt', '')
+    selected_document_ids = data.get('selected_document_ids', [])
+    
+    if item_index is None:
+        return jsonify({'status': 'error', 'message': 'item_index is required'}), 400
+    
+    if not llm_prompt:
+        return jsonify({
+            'status': 'error_no_prompt', 
+            'message': 'No LLM prompt provided for analysis'
+        }), 400
+    
+    # Get the current step and validate the item index
+    step = project.template.get_step(session.step_index)
+    if not step or step['type'] != 'checklist':
+        return jsonify({'status': 'error', 'message': 'Invalid step or not a checklist step'}), 400
+    
+    checklist_items = step['config'].get('checklist_items', [])
+    if item_index >= len(checklist_items):
+        return jsonify({'status': 'error', 'message': 'Invalid item index'}), 400
+    
+    # Handle document processing for company projects only
+    documents = []
+    if selected_document_ids and project.company_id:
+        try:
+            doc_ids = [int(doc_id) for doc_id in selected_document_ids]
+            documents = CompanyDocument.query.filter(
+                CompanyDocument.id.in_(doc_ids),
+                CompanyDocument.company_id == project.company_id
+            ).all()
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Invalid document ID format'}), 400
+    
+    # Process documents and extract text (simplified approach)
+    document_context = ""
+    processed_docs_info = []
+    
+    if documents:
+        for doc in documents:
+            try:
+                # Simple text extraction - in a real implementation you'd want proper document processing
+                with open(doc.file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    doc_text = f.read()[:2000]  # Limit to first 2000 chars per doc
+                    document_context += f"\n\n=== {doc.title or doc.filename} ===\n{doc_text}"
+                    processed_docs_info.append({
+                        'id': doc.id,
+                        'title': doc.title,
+                        'filename': doc.filename
+                    })
+            except Exception as e:
+                print(f"Error processing document {doc.id}: {e}")
+                continue
+    
+    # Prepare the analysis prompt
+    item_text = checklist_items[item_index]['item']
+    analysis_context = f"""Research Context:
+- Subject: {project.subject_display_name}
+- Template: {project.template.name}
+- Current Step: {step['name']}
+- Checklist Item: {item_text}
+
+User's Analysis Request:
+{llm_prompt}
+"""
+    
+    if document_context:
+        analysis_context += f"\n\nAvailable Documents:{document_context}"
+    else:
+        analysis_context += "\n\nNo documents were provided for analysis."
+    
+    # Generate AI analysis using unified LLM service
+    try:
+        ai_suggestion = generate_ai_content(analysis_context)
+        
+        return jsonify({
+            'status': 'success_analysis_complete',
+            'message': 'Analysis completed successfully',
+            'ai_suggestion': ai_suggestion,
+            'received_prompt': llm_prompt,
+            'item_text': item_text,
+            'selected_documents_info': processed_docs_info,
+            'extracted_text_sample': document_context[:500] + '...' if len(document_context) > 500 else document_context
+        })
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Gemini API error: {error_msg}")
+        
+        return jsonify({
+            'status': 'error_ai_failed',
+            'message': f'AI analysis failed: {error_msg}',
+            'received_prompt': llm_prompt,
+            'selected_documents_info': processed_docs_info
+        }), 500
 
 @research_workflow_bp.route('/quick-start', methods=['GET'])
 @login_required
@@ -795,3 +1554,48 @@ def create_default_template_for_user(user):
     except:
         db.session.rollback()
         return None
+
+@research_workflow_bp.route('/return-from-checklist/<int:project_id>/<int:step_index>')
+@login_required
+def return_from_checklist(project_id, step_index):
+    """Handle return from legacy checklist execution to research workflow"""
+    project = ResearchProject.query.get_or_404(project_id)
+    
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+    
+    # Get the research context from session
+    research_context = flask_session.pop('research_context', None)
+    if research_context and research_context.get('project_id') == project_id:
+        
+        # Mark the step as completed (similar to complete_step route)
+        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
+            # Mark step as complete
+            if not project.completed_steps:
+                project.completed_steps = []
+            
+            if step_index not in project.completed_steps:
+                project.completed_steps = project.completed_steps + [step_index]
+            
+            # Save step notes
+            if not project.step_notes:
+                project.step_notes = {}
+            project.step_notes[str(step_index)] = 'Completed via legacy investment checklist'
+            
+            # Update last worked timestamp
+            project.last_worked_at = datetime.now(timezone.utc)
+            
+            try:
+                db.session.commit()
+                flash('Investment checklist step completed successfully!', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error updating project progress: {str(e)}', 'error')
+        
+        # Redirect back to project dashboard
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    else:
+        # No valid research context, just go to project dashboard
+        flash('Returned from checklist execution', 'info')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))

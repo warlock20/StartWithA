@@ -24,11 +24,12 @@ def inbox():
         user_id=current_user.id, 
         is_default=True
     ).first()
-    
+    all_kill_checklists = KillChecklist.query.filter_by(user_id=current_user.id).all()
     return render_template('inbox.html', 
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
+                          all_kill_checklists=all_kill_checklists,
                           now=datetime.utcnow()
                           )
 
@@ -39,6 +40,7 @@ def add_idea():
     if request.method == 'POST':
         name = request.form.get('name')
         idea_type = request.form.get('idea_type', 'company')
+        idea_purpose = request.form.get('idea_purpose', 'investment')
         base_ticker = request.form.get('base_ticker', '').upper()
         exchange_suffix = request.form.get('exchange_suffix', '')
         full_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
@@ -51,7 +53,7 @@ def add_idea():
             return redirect(url_for('ideas.add_idea'))
         
         new_idea = IdeaPipeline(
-            author=current_user, name=name, idea_type=idea_type,
+            author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,
             ticker_symbol=full_ticker, source=source, thesis_summary=thesis,
             initial_notes=notes, status='inbox'
         )
@@ -73,30 +75,43 @@ def add_idea():
     
     return render_template('add_idea.html', title="Quick Capture", exchanges=EXCHANGES)
 
+# In app/ideas/routes.py
+
 @ideas_bp.route('/<int:idea_id>/kill', methods=['GET', 'POST'])
 @login_required
 def kill_room(idea_id):
     """The kill room - evaluate an idea against kill criteria"""
     idea = IdeaPipeline.query.get_or_404(idea_id)
+    checklist_id = request.args.get('checklist_id', type=int) # Get checklist_id from URL
 
     if idea.user_id != current_user.id:
         flash('You do not have access to this idea', 'error')
         return redirect(url_for('ideas.inbox'))
 
+    # Logic to find or create a kill session
     kill_session = KillSession.query.filter_by(
         user_id=current_user.id, idea_id=idea.id, outcome=None
     ).first()
 
     if not kill_session:
-        kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
+        kill_checklist = None
+        if checklist_id:
+            # Use the checklist passed from the URL
+            kill_checklist = KillChecklist.query.filter_by(id=checklist_id, user_id=current_user.id).first()
+        else:
+            # Fallback to the default checklist if no ID is passed
+            kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
+
         if not kill_checklist:
-            flash('Please create a kill checklist first', 'warning')
-            return redirect(url_for('ideas.create_kill_checklist'))
+            flash('Please create a kill checklist first or set one as default.', 'warning')
+            return redirect(url_for('ideas.manage_kill_checklists'))
+            
         kill_session = KillSession(user_id=current_user.id, idea=idea, checklist=kill_checklist)
         db.session.add(kill_session)
         idea.status = 'killing'
         db.session.commit()
 
+    # The rest of your kill_room function remains the same...
     criteria = kill_session.checklist.criteria.order_by(KillCriterion.order).all()
     existing_answers = {ans.criterion_id: ans for ans in kill_session.answers.all()}
     
@@ -137,31 +152,27 @@ def kill_room(idea_id):
 
         db.session.commit()
 
-        if current_index == len(criteria) - 1:
-            idea.status = 'survived'
-            idea.promoted_at = datetime.utcnow()
-            kill_session.outcome = 'survived'
-            kill_session.completed_at = datetime.utcnow()
-            kill_session.checklist.total_ideas_evaluated += 1
-            db.session.commit()
-            company = Company(
-                name=idea.name, ticker_symbol=idea.ticker_symbol,
-                creator=current_user, summary=idea.thesis_summary
-            )
-            log_research_activity(
-                current_user.id,
-                'idea_promoted',
-                idea_id=idea.id,
-                company_id=company.id
-            )
-            if idea.ticker_symbol:
-                flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
-                return redirect(url_for('ideas.promote_to_company', idea_id=idea.id))
-            else:
-                flash(f'🎉 Idea "{idea.name}" survived the kill checklist!', 'success')
-                return redirect(url_for('ideas.inbox'))
+        next_criterion_found = False
+        for i, criterion in enumerate(criteria):
+            if criterion.id not in {ans.criterion_id for ans in kill_session.answers.all()}:
+                return redirect(url_for('ideas.kill_room', idea_id=idea.id, checklist_id=kill_session.checklist.id))
         
-        return redirect(url_for('ideas.kill_room', idea_id=idea.id))
+        # If no next criterion is found, the idea survived
+        idea.status = 'survived'
+        idea.promoted_at = datetime.utcnow()
+        kill_session.outcome = 'survived'
+        kill_session.completed_at = datetime.utcnow()
+        kill_session.checklist.total_ideas_evaluated += 1
+        db.session.commit()
+        
+        log_research_activity(
+            current_user.id,
+            'idea_promoted',
+            idea_id=idea.id
+        )
+        flash(f'🎉 "{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
+        return redirect(url_for('ideas.promote_idea', idea_id=idea.id))
+
 
     progress_percent = (len(existing_answers) / len(criteria)) * 100 if criteria else 0
     return render_template('kill_room.html', title=f"Kill Room: {idea.name}", idea=idea,
@@ -287,30 +298,95 @@ def delete_kill_checklist(checklist_id):
 
 @ideas_bp.route('/<int:idea_id>/promote', methods=['GET', 'POST'])
 @login_required
-def promote_to_company(idea_id):
+def promote_idea(idea_id):
     idea = IdeaPipeline.query.get_or_404(idea_id)
-    if not idea.ticker_symbol:
-        flash(f'Cannot promote "{idea.name}". Only ideas with a ticker symbol can be promoted to a company.', 'error')
-        return redirect(url_for('ideas.inbox'))
     if idea.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
     
-    if request.method == 'POST':
-        company = Company(
-            name=idea.name, ticker_symbol=idea.ticker_symbol,
-            creator=current_user, summary=idea.thesis_summary
-        )
-        db.session.add(company)
-        db.session.flush()
-        idea.promoted_to_company = company
-        idea.status = 'promoted'
-        idea.promoted_at = datetime.utcnow()
-        db.session.commit()
-        flash(f'"{idea.name}" promoted to your companies list! You can now begin deep research.', 'success')
-        return redirect(url_for('research.select_checklist_for_company', company_id=company.id))
+    # Validate idea type requirements - only investment company ideas need ticker symbols
+    if idea.idea_purpose == 'investment' and idea.idea_type == 'company' and not idea.ticker_symbol:
+        flash(f'Cannot promote "{idea.name}". Investment company ideas require a ticker symbol.', 'error')
+        return redirect(url_for('ideas.inbox'))
     
-    return render_template('promote_idea.html', title="Promote to Company", idea=idea, datetime=datetime)
+    if request.method == 'POST':
+        promotion_action = request.form.get('action')
+        
+        if promotion_action == 'create_company' and idea.idea_type == 'company':
+            # Create company and redirect to research template selection
+            company = Company(
+                name=idea.name, ticker_symbol=idea.ticker_symbol,
+                creator=current_user, summary=idea.thesis_summary
+            )
+            db.session.add(company)
+            db.session.flush()
+            idea.promoted_to_company = company
+            idea.status = 'promoted'
+            idea.promoted_at = datetime.utcnow()
+            db.session.commit()
+            flash(f'"{idea.name}" promoted to your companies list!', 'success')
+            return redirect(url_for('research.select_checklist_for_company', company_id=company.id))
+            
+        elif promotion_action == 'create_research_project':
+            # Create research project directly based on idea type
+            template_id = request.form.get('template_id', type=int)
+            if not template_id:
+                flash('Please select a research template', 'error')
+                return redirect(request.url)
+            
+            # Verify template ownership
+            from app.models import ResearchTemplate, ResearchProject
+            template = ResearchTemplate.query.get_or_404(template_id)
+            if template.user_id != current_user.id:
+                flash('Access denied', 'error')
+                return redirect(url_for('ideas.inbox'))
+            
+            # Create research project
+            project = ResearchProject(
+                researcher=current_user,
+                template=template,
+                research_subject_type=idea.idea_type,
+                research_subject_name=idea.name,
+                company=idea.promoted_to_company if idea.idea_type == 'company' else None,
+                project_name=f"{idea.name} - {template.name}",
+                status='active',
+                idea=idea,
+                investment_thesis=idea.thesis_summary
+            )
+            
+            # Update template usage count
+            template.times_used += 1
+            
+            try:
+                db.session.add(project)
+                idea.status = 'promoted'
+                idea.promoted_at = datetime.utcnow()
+                db.session.commit()
+                
+                from app.analytics.utils import log_research_activity
+                log_research_activity(
+                    current_user.id,
+                    'research_started',
+                    company_id=project.company_id if project.company else None,
+                    project_id=project.id
+                )
+                
+                flash(f'Research project started for {idea.name}!', 'success')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error starting research project: {str(e)}', 'error')
+                return redirect(url_for('ideas.inbox'))
+    
+    # Get available templates for the GET request
+    from app.models import ResearchTemplate
+    templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
+    
+    return render_template('promote_idea.html', 
+                          title=f"Promote {idea.idea_type.title()}: {idea.name}", 
+                          idea=idea, 
+                          templates=templates,
+                          datetime=datetime)
 
 @ideas_bp.route('/<int:idea_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -323,6 +399,7 @@ def edit_idea(idea_id):
     if request.method == 'POST':
         idea.name = request.form.get('name', idea.name)
         idea.idea_type = request.form.get('idea_type', idea.idea_type)
+        idea.idea_purpose = request.form.get('idea_purpose', idea.idea_purpose)
         base_ticker = request.form.get('base_ticker', '').upper()
         exchange_suffix = request.form.get('exchange_suffix', '')
         idea.ticker_symbol = f"{base_ticker}{exchange_suffix}" if base_ticker else None

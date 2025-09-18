@@ -71,7 +71,7 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Company</th>
+                        <th>Research Subject</th>
                         <th>Template</th>
                         <th>Progress</th>
                         <th>Time Spent</th>
@@ -83,10 +83,11 @@
                     {% for project in active_projects %}
                     <tr {% if project.is_overdue %}class="table-warning"{% endif %}>
                         <td>
-                            <strong>{{ project.company.name }}</strong>
-                            {% if project.company.ticker_symbol %}
+                            <strong>{{ project.subject_display_name }}</strong>
+                            {% if project.research_subject_type == 'company' and project.company and project.company.ticker_symbol %}
                                 <span class="badge bg-secondary">{{ project.company.ticker_symbol }}</span>
                             {% endif %}
+                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
                         </td>
                         <td>{{ project.template.name }}</td>
                         <td>
@@ -115,6 +116,11 @@
                                   style="display: inline;">
                                 <button type="submit" class="btn btn-outline-warning btn-sm">Pause</button>
                             </form>
+                            <form method="POST" action="{{ url_for('research_workflow.delete_project', project_id=project.id) }}" 
+                                  style="display: inline;" 
+                                  onsubmit="return confirm('Are you sure you want to permanently delete this project? This action cannot be undone.');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -138,7 +144,7 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Company</th>
+                        <th>Research Subject</th>
                         <th>Template</th>
                         <th>Progress</th>
                         <th>Actions</th>
@@ -147,7 +153,10 @@
                 <tbody>
                     {% for project in paused_projects %}
                     <tr>
-                        <td>{{ project.company.name }}</td>
+                        <td>
+                            {{ project.subject_display_name }}
+                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
+                        </td>
                         <td>{{ project.template.name }}</td>
                         <td>{{ project.progress_percentage }}%</td>
                         <td>
@@ -167,15 +176,28 @@
 <!-- Completed Projects -->
 {% if completed_projects %}
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">✅ Recently Completed Projects</h5>
+        <div class="btn-group btn-group-sm project-filter-group" role="group">
+            <input type="radio" class="btn-check" name="project-type-filter" id="all-types" value="all" checked>
+            <label class="btn btn-outline-primary" for="all-types">All</label>
+            
+            <input type="radio" class="btn-check" name="project-type-filter" id="company-type" value="company">
+            <label class="btn btn-outline-primary" for="company-type">Companies</label>
+            
+            <input type="radio" class="btn-check" name="project-type-filter" id="sector-type" value="sector">
+            <label class="btn btn-outline-primary" for="sector-type">Sectors</label>
+            
+            <input type="radio" class="btn-check" name="project-type-filter" id="theme-type" value="theme">
+            <label class="btn btn-outline-primary" for="theme-type">Themes</label>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Company</th>
+                        <th>Research Subject</th>
                         <th>Template</th>
                         <th>Time Spent</th>
                         <th>Decision</th>
@@ -185,8 +207,11 @@
                 </thead>
                 <tbody>
                     {% for project in completed_projects %}
-                    <tr>
-                        <td>{{ project.company.name }}</td>
+                    <tr data-project-type="{{ project.research_subject_type }}" class="project-row">
+                        <td>
+                            {{ project.subject_display_name }}
+                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
+                        </td>
                         <td>{{ project.template.name }}</td>
                         <td>{{ project.total_hours_spent|round(1) }}h</td>
                         <td>
@@ -209,7 +234,26 @@
                         </td>
                         <td>
                             <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}" 
-                               class="btn btn-outline-primary btn-sm">View Summary</a>
+                               class="btn btn-outline-primary btn-sm">Summary & Actions</a>
+                            {% if project.research_subject_type == 'company' and project.company and project.decision == 'invest' %}
+                                <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=project.company.id) }}" 
+                                      style="display: inline;" class="ms-1">
+                                    {% if project.company.is_in_portfolio %}
+                                        <button type="submit" class="btn btn-outline-warning btn-sm">
+                                            Remove from Portfolio
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            Add to Portfolio
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('research_workflow.delete_project', project_id=project.id) }}" 
+                                  style="display: inline;" class="ms-1"
+                                  onsubmit="return confirm('Are you sure you want to permanently delete this completed project? This action cannot be undone and you will lose all research data.');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -219,4 +263,28 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Project type filtering
+    const typeFilters = document.querySelectorAll('input[name="project-type-filter"]');
+    const projectRows = document.querySelectorAll('.project-row');
+    
+    typeFilters.forEach(filter => {
+        filter.addEventListener('change', function() {
+            const selectedType = this.value;
+            
+            projectRows.forEach(row => {
+                const projectType = row.getAttribute('data-project-type');
+                
+                if (selectedType === 'all' || projectType === selectedType) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

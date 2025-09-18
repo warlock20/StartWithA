@@ -1,7 +1,7 @@
 # In app/dashboard/routes.py
 from flask import render_template
 from flask_login import current_user, login_required
-from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint
+from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, Checklist, KillChecklist, ResearchTemplate
 from . import dashboard_bp
 from datetime import datetime, timedelta
 
@@ -21,6 +21,15 @@ def index():
     # Get the number of companies in the active portfolio
     portfolio_count = current_user.companies.filter_by(is_in_portfolio=True).count()
 
+    # Get user's research templates and kill checklists
+    user_templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
+    user_kill_checklists = current_user.kill_checklists.order_by(KillChecklist.created_at.desc()).all()
+    legacy_checklists = current_user.checklists.order_by(Checklist.id.desc()).all()
+    
+    template_count = len(user_templates)
+    kill_checklist_count = len(user_kill_checklists)
+    legacy_checklist_count = len(legacy_checklists)
+
     # Get the next 5 upcoming checkpoints in the next 90 days
     today = datetime.utcnow().date()
     ninety_days_from_now = today + timedelta(days=90)
@@ -38,7 +47,13 @@ def index():
         active_projects_count=len(active_projects),
         active_projects_list=active_projects,
         portfolio_count=portfolio_count,
-        upcoming_checkpoints=upcoming_checkpoints
+        upcoming_checkpoints=upcoming_checkpoints,
+        user_templates=user_templates,
+        user_kill_checklists=user_kill_checklists,
+        legacy_checklists=legacy_checklists,
+        template_count=template_count,
+        kill_checklist_count=kill_checklist_count,
+        legacy_checklist_count=legacy_checklist_count
     )
 
 @dashboard_bp.route('/portfolio_timeline')

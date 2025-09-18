@@ -1,11 +1,23 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>✏️ Edit Checklist Item</h1>
+        <p class="text-muted mb-0">Update the item text and optional AI prompt</p>
+    </div>
+    <div>
+        <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Checklist
+        </a>
+    </div>
+</div>
+
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h1 class="card-title text-center">{{ title }}</h1>
+                <h5 class="mb-0">📝 Item Details</h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
@@ -19,13 +31,58 @@
                         <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="4" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
                     </div>
 
-                    <div class="d-flex justify-content-end">
-                        <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="btn btn-secondary me-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <div class="d-flex justify-content-between">
+                        <form method="POST" action="{{ url_for('checklists.delete_checklist_item', item_id=item.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('⚠️ Delete this item and all its sub-items?\n\nThis action cannot be undone.');">
+                                <i class="bi bi-trash"></i> Delete Item
+                            </button>
+                        </form>
+                        <div>
+                            <a href="{{ url_for('checklists.view_checklist', checklist_id=item.checklist_id) }}" class="btn btn-secondary me-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Save Changes
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .d-flex.justify-content-between > div {
+        width: 100%;
+    }
+
+    .d-flex.justify-content-between > div > .btn {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the text field for better UX
+    const textField = document.getElementById('item_text');
+    if (textField) {
+        textField.focus();
+        // Move cursor to end of text
+        textField.setSelectionRange(textField.value.length, textField.value.length);
+    }
+});
+</script>
 {% endblock %}

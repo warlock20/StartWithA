@@ -541,6 +541,49 @@ def learning_paths():
                          paths=paths,
                          suggested_paths=suggested_paths)
 
+@learning_bp.route('/learning-paths/create', methods=['POST'])
+@login_required
+def create_learning_path():
+   """Create a new learning path"""
+   name = request.form.get('name')
+   description = request.form.get('description')
+   skill_area = request.form.get('skill_area')
+   target_completion = request.form.get('target_completion')
+   milestones = request.form.getlist('milestones[]')
+   
+   if not name:
+       flash('Path name is required', 'error')
+       return redirect(url_for('learning.learning_paths'))
+   
+   # Filter out empty milestones
+   milestones = [m.strip() for m in milestones if m.strip()]
+   
+   learning_path = LearningPath(
+       user=current_user,
+       name=name,
+       description=description,
+       skill_area=skill_area,
+       status='active',
+       total_steps=len(milestones),
+       current_step=1,
+       milestones=milestones,
+       started_at=datetime.utcnow()
+   )
+   
+   if target_completion:
+       learning_path.target_completion = datetime.strptime(target_completion, '%Y-%m-%d').date()
+   
+   db.session.add(learning_path)
+   
+   try:
+       db.session.commit()
+       flash('Learning path created successfully!', 'success')
+   except Exception as e:
+       db.session.rollback()
+       flash(f'Error creating learning path: {str(e)}', 'error')
+   
+   return redirect(url_for('learning.learning_paths'))
+
 @learning_bp.route('/review-calendar')
 @login_required
 def review_calendar():

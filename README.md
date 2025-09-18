@@ -1,6 +1,39 @@
-# Investment Checklist Web App
+## Vision: An Intelligent Investment Platform for the Modern Researcher
 
-A web application designed to help investors methodically assess investment opportunities through customizable checklists and structured research sessions. It integrates various mental models into a unified workflow for thorough and consistent analysis.
+### The Problem
+
+Today's investors are overwhelmed by information but lack actionable wisdom. Information overload, emotional biases, and inconsistent research processes often lead to poor decisions and repeated mistakes.
+
+### Our Solution
+
+We are building an intelligent investment platform to help serious investors develop, refine, and execute a unique, systematic research process. Inspired by the wisdom of legendary investors like Charlie Munger, our platform is not a stock screener—it is a framework to help you improve how you think.
+
+At its core, the platform empowers you to build a personalized, AI-assisted workflow that enforces discipline and accelerates your research.
+
+---
+
+### Key Pillars of the Platform
+
+#### 1. Capture, Filter, and Focus with the "Idea Pipeline"
+
+- **Quick Capture:** Instantly log any investment idea—from a stock tip to a market trend—before it slips away.
+- **The "Kill Checklist":** Inspired by the principle of inversion, this feature helps you quickly and ruthlessly eliminate bad ideas based on your own deal-breaker criteria, saving your most valuable asset: time.
+
+#### 2. Conduct Systematic, In-Depth Analysis with "Research Templates"
+
+- **Custom Workflows:** Design reusable research workflows that reflect your unique investment style—whether value, growth, or special situations.
+- **Structured Process:** Move beyond random note-taking and follow a step-by-step process to ensure you never miss a critical piece of due diligence.
+
+#### 3. Leverage Your Personal AI Research Assistant
+
+- **AI-Powered Insights:** Integrate powerful AI and Large Language Models (LLMs) to supercharge your research.
+- **Instant Analysis:** Analyze financial documents, earnings call transcripts, and news to extract key insights, identify risks, and get answers to your most pressing questions in seconds.
+
+#### 4. Create a Continuous Learning Loop
+
+- **Research Journal:** Log your thoughts, connect ideas, and track the evolution of your investment thesis over time.
+- **Mistake Log:** Systematically document errors, understand root causes, and turn mistakes into lessons integrated back into your checklists.
+- **Analytics Dashboard:** Gain insights into your research habits, decision patterns, and most successful idea sources to improve your own behavior.
 
 ## Features
 

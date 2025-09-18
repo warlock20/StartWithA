@@ -5,81 +5,38 @@
     <div class="col-lg-10">
         <div class="card">
             <div class="card-header">
-                <h2>Create Research Template</h2>
-                <p class="text-muted mb-0">Design a systematic workflow for analyzing investments</p>
+                <h2>Edit Research Template</h2>
+                <p class="text-muted mb-0">Modify your systematic workflow for analyzing investments</p>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('research_workflow.create_template') }}" id="templateForm">
+                <form method="POST" action="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" id="templateForm">
                     <!-- Basic information -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="name" class="form-label">Template Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="name" name="name" 
-                                   placeholder="e.g., Deep Value Analysis" required>
+                                   value="{{ template.name }}" placeholder="e.g., Deep Value Analysis" required>
                         </div>
                         <div class="col-md-6">
                             <label for="investment_style" class="form-label">Investment Style</label>
-                            <div class="input-group">
-                                <select class="form-select" id="investment_style" name="investment_style">
-                                    <option value="">-- Select or type custom style --</option>
-                                    <option value="value">Value Investing</option>
-                                    <option value="growth">Growth Investing</option>
-                                    <option value="garp">Growth at Reasonable Price</option>
-                                    <option value="dividend">Dividend Investing</option>
-                                    <option value="special">Special Situations</option>
-                                    <option value="quality">Quality Focus</option>
-                                    <option value="momentum">Momentum</option>
-                                    <option value="contrarian">Contrarian</option>
-                                    <option value="custom">Custom Style...</option>
-                                </select>
-                            </div>
-                            <input type="text" class="form-control mt-2" id="custom_investment_style" name="custom_investment_style" 
-                                   placeholder="Enter your custom investment style..." style="display: none;">
+                            <select class="form-select" id="investment_style" name="investment_style">
+                                <option value="">-- Select style --</option>
+                                <option value="value" {{ 'selected' if template.investment_style == 'value' }}>Value Investing</option>
+                                <option value="growth" {{ 'selected' if template.investment_style == 'growth' }}>Growth Investing</option>
+                                <option value="garp" {{ 'selected' if template.investment_style == 'garp' }}>Growth at Reasonable Price</option>
+                                <option value="dividend" {{ 'selected' if template.investment_style == 'dividend' }}>Dividend Investing</option>
+                                <option value="special" {{ 'selected' if template.investment_style == 'special' }}>Special Situations</option>
+                                <option value="quality" {{ 'selected' if template.investment_style == 'quality' }}>Quality Focus</option>
+                                <option value="momentum" {{ 'selected' if template.investment_style == 'momentum' }}>Momentum</option>
+                                <option value="contrarian" {{ 'selected' if template.investment_style == 'contrarian' }}>Contrarian</option>
+                            </select>
                         </div>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="research_subject_type" class="form-label">Research Subject Type <span class="text-danger">*</span></label>
-                            <div class="form-check-container">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="subject_company" name="research_subject_type" value="company" checked required>
-                                    <label class="form-check-label" for="subject_company">
-                                        🏢 Companies
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="subject_sector" name="research_subject_type" value="sector" required>
-                                    <label class="form-check-label" for="subject_sector">
-                                        🏭 Sectors
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="subject_theme" name="research_subject_type" value="theme" required>
-                                    <label class="form-check-label" for="subject_theme">
-                                        💡 Themes
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="subject_market" name="research_subject_type" value="market" required>
-                                    <label class="form-check-label" for="subject_market">
-                                        🌍 Markets
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="subject_strategy" name="research_subject_type" value="strategy" required>
-                                    <label class="form-check-label" for="subject_strategy">
-                                        📊 Strategies
-                                    </label>
-                                </div>
-                            </div>
-                            <small class="text-muted">Select the primary research subject type this template is designed for</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="4"
-                                      placeholder="When and how to use this template..."></textarea>
-                        </div>
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"
+                                  placeholder="When and how to use this template...">{{ template.description or '' }}</textarea>
                     </div>
                     
                     <hr>
@@ -88,35 +45,8 @@
                     <h5>Workflow Steps</h5>
                     <p class="text-muted">Define the steps in your research process. Steps will be executed in order.</p>
                     
-                    <!-- Column explanations -->
-                    <div class="alert alert-info mb-3">
-                        <h6 class="mb-2">📋 Column Explanations:</h6>
-                        <div class="row small">
-                            <div class="col-md-4">
-                                <strong>Step Name:</strong> Descriptive name for this research step
-                            </div>
-                            <div class="col-md-4">
-                                <strong>Step Type:</strong> The type of analysis or task to perform
-                            </div>
-                            <div class="col-md-4">
-                                <strong>Time Estimate:</strong> Expected minutes to complete this step
-                            </div>
-                        </div>
-                        <hr class="my-2">
-                        <div class="small">
-                            <strong>📋 Investment Checklist:</strong> Interactive checklist with criteria evaluation<br>
-                            <strong>⚡ Kill Checklist:</strong> Quick screening to eliminate bad investments<br>
-                            <strong>🧠 Mental Model:</strong> Apply structured thinking frameworks<br>
-                            <strong>📄 Document Analysis:</strong> Review and analyze uploaded documents<br>
-                            <strong>💰 Valuation Work:</strong> Financial modeling and valuation analysis<br>
-                            <strong>🎯 Competitor Analysis:</strong> Research competitive landscape<br>
-                            <strong>✍️ Investment Thesis:</strong> Write comprehensive investment rationale<br>
-                            <strong>⚙️ Custom Task:</strong> Free-form research task
-                        </div>
-                    </div>
-                    
                     <div id="steps-container">
-                        <!-- Steps will be added here dynamically -->
+                        <!-- Existing steps will be loaded here -->
                     </div>
                     
                     <button type="button" class="btn btn-secondary" id="add-step-btn">
@@ -159,7 +89,7 @@
                     <!-- Submit buttons -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary btn-lg">Create Template</button>
+                        <button type="submit" class="btn btn-primary btn-lg">Update Template</button>
                     </div>
                 </form>
             </div>
@@ -172,12 +102,16 @@
 {{ super() }}
 <script>
 let stepCount = 0;
+
 const stepTypes = {{ step_types|tojson }};
 const userChecklists = {{ user_checklists|tojson }};
 const userKillChecklists = {{ user_kill_checklists|tojson }};
 const mentalModels = {{ mental_models|tojson }};
 
-function addStep(name = '', type = 'custom', estimatedMinutes = 60) {
+// Load existing steps from template
+const existingSteps = {{ template.workflow_steps|tojson if template.workflow_steps else []|tojson }};
+
+function addStep(name = '', type = 'custom', estimatedMinutes = 60, existingConfig = {}) {
     const container = document.getElementById('steps-container');
     const stepIndex = container.children.length; // 0-based index for server compatibility
     
@@ -225,10 +159,10 @@ function addStep(name = '', type = 'custom', estimatedMinutes = 60) {
     `;
     
     container.appendChild(stepDiv);
-    updateStepConfig(stepIndex, type);
+    updateStepConfig(stepIndex, type, existingConfig);
 }
 
-function updateStepConfig(stepIndex, stepType) {
+function updateStepConfig(stepIndex, stepType, existingConfig = {}) {
     const configDiv = document.getElementById(`step-config-${stepIndex}`);
     const configData = document.getElementById(`step-config-data-${stepIndex}`);
     
@@ -239,32 +173,45 @@ function updateStepConfig(stepIndex, stepType) {
             <div class="mb-3">
                 <label class="form-label">Checklist Items:</label>
                 <div id="checklist-items-${stepIndex}">
-                    <div class="input-group mb-2">
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item...">
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)...">
-                        <button type="button" class="btn btn-outline-secondary" onclick="addChecklistItem(${stepIndex})">+</button>
-                    </div>
                 </div>
-                <small class="form-text text-muted">Add checklist items with optional LLM prompts for document analysis</small>
+                <button type="button" class="btn btn-outline-secondary" onclick="addChecklistItem(${stepIndex})">+ Add Item</button>
+                <small class="form-text text-muted d-block mt-2">Add checklist items with optional LLM prompts for document analysis</small>
             </div>
         `;
-    } else if (stepType === 'investment_checklist_reference') {
-        const checklistOptions = userChecklists.map(cl => 
-            `<option value="${cl.id}">${cl.name}</option>`
-        ).join('');
-        configHtml = `
-            <div class="mb-3">
-                <label class="form-label">Select Investment Checklist:</label>
-                <select class="form-select" name="step_${stepIndex}_checklist_id" required>
-                    <option value="">-- Choose checklist --</option>
-                    ${checklistOptions}
-                </select>
-                <small class="form-text text-muted">Use an existing investment checklist with document upload and LLM analysis features</small>
-            </div>
-        `;
+        
+        // After setting the HTML, populate existing items or add one empty item
+        setTimeout(() => {
+            const container = document.getElementById(`checklist-items-${stepIndex}`);
+            const existingItems = existingConfig.checklist_items || [];
+            
+            if (existingItems.length > 0) {
+                existingItems.forEach((itemConfig, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'input-group mb-2';
+                    itemDiv.innerHTML = `
+                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item..." value="${itemConfig.item || ''}">
+                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)..." value="${itemConfig.prompt || ''}">
+                        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                    `;
+                    container.appendChild(itemDiv);
+                });
+            } else {
+                // Add one empty item for new steps
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'input-group mb-2';
+                itemDiv.innerHTML = `
+                    <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item...">
+                    <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)...">
+                    <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                `;
+                container.appendChild(itemDiv);
+            }
+        }, 10);
+        
     } else if (stepType === 'kill_checklist_reference') {
+        const selectedKillChecklistId = existingConfig.kill_checklist_id || '';
         const killChecklistOptions = userKillChecklists.map(kc => 
-            `<option value="${kc.id}">${kc.name}</option>`
+            `<option value="${kc.id}" ${kc.id == selectedKillChecklistId ? 'selected' : ''}>${kc.name}</option>`
         ).join('');
         configHtml = `
             <div class="mb-3">
@@ -336,32 +283,18 @@ function addPresetStep(name, type) {
     addStep(name, type);
 }
 
-// Handle custom investment style
-function handleInvestmentStyleChange() {
-    const styleSelect = document.getElementById('investment_style');
-    const customInput = document.getElementById('custom_investment_style');
-    
-    if (styleSelect.value === 'custom') {
-        customInput.style.display = 'block';
-        customInput.required = true;
-    } else {
-        customInput.style.display = 'none';
-        customInput.required = false;
-        customInput.value = '';
-    }
-}
-
-// Initialize with some default steps
+// Initialize with existing steps
 document.addEventListener('DOMContentLoaded', function() {
-    // Default first step is Investment Checklist (Existing) as requested
-    addStep('Investment Checklist', 'investment_checklist_reference', 45);
-    addStep('Business Analysis', 'custom', 120);
-    addStep('Financial Review', 'document_review', 90);
+    if (existingSteps && existingSteps.length > 0) {
+        existingSteps.forEach(step => {
+            addStep(step.name, step.type, step.estimated_minutes || 60, step.config || {});
+        });
+    } else {
+        // Add at least one default step if none exist
+        addStep('Custom Step', 'custom', 60);
+    }
     
     document.getElementById('add-step-btn').addEventListener('click', () => addStep());
-    
-    // Add event listener for investment style
-    document.getElementById('investment_style').addEventListener('change', handleInvestmentStyleChange);
 });
 </script>
 {% endblock %}

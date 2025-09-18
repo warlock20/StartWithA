@@ -12,8 +12,8 @@ import fitz
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
 
-# If using Google Generative AI, ensure you have the google-generativeai package installed
-import google.generativeai as genai
+# Import unified LLM service
+from app.services.llm_service import generate_ai_content
 
 from celery.result import AsyncResult
 from celery_app import celery
@@ -350,11 +350,7 @@ def ai_analyze_item(session_id, item_id):
     if not gemini_api_key:
         return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
 
-    try:
-        genai.configure(api_key=gemini_api_key)
-    except Exception as e:
-        print(f"ERROR: Failed to configure Gemini API: {e}")
-        return jsonify({'status': 'error_config', 'message': 'Failed to configure Gemini API client.'}), 500
+    # LLM service will handle API configuration automatically
 
     session = ResearchSession.query.get_or_404(session_id)
     # Authorization: Ensure the session belongs to the current user
@@ -450,14 +446,7 @@ def ai_analyze_item(session_id, item_id):
             ai_suggestion = 'Gemini API key missing.'
         else:
             try:
-                # Configure the client with the API key
-                genai.configure(api_key=gemini_api_key)
-
-                # Initialize the generative model (gemini-2.5-flash is fast and capable)
-                model = genai.GenerativeModel('gemini-2.5-flash-latest')
-
-                # Construct the prompt for Gemini. It handles large context well.
-                # We can pass more context than we do for the smaller local model.
+                # Construct the prompt for the unified LLM service
                 prompt_for_llm = (
                     "You are a helpful financial analyst assistant. Your task is to answer the user's question based strictly "
                     "on the context provided from the financial documents. Do not use external knowledge. "
@@ -466,12 +455,9 @@ def ai_analyze_item(session_id, item_id):
                     f"QUESTION:\n{llm_question}"
                 )
 
-                print("INFO: Sending prompt to Gemini API...")
-                # Generate content from the prompt
-                response = model.generate_content(prompt_for_llm)
-
-                # Extract the text from the response
-                ai_suggestion = response.text
+                print("INFO: Sending prompt to unified LLM service...")
+                # Generate content using unified LLM service
+                ai_suggestion = generate_ai_content(prompt_for_llm)
                 response_status = 'success_ai_suggestion'
                 response_message = 'Suggestion generated successfully by Gemini API.'
                 print("INFO: Gemini suggestion received.")
@@ -658,11 +644,27 @@ def delete_research_session(session_id):
 @login_required
 def list_research_sessions():
     user = current_user
-    # Fetch all sessions for this user, ordered by start date descending
-    sessions_query = ResearchSession.query.filter_by(user_id=current_user.id).order_by(ResearchSession.start_date.desc()).all()
+    # Get sorting parameters
+    sort_by = request.args.get('sort', 'date')  # Default sort by date
+    order = request.args.get('order', 'desc')   # Default descending order
+    
+    # Fetch all sessions for this user, ordered by start date descending by default
+    sessions_query = ResearchSession.query.filter_by(user_id=current_user.id)
+    
+    # Apply sorting to the database query when possible
+    if sort_by == 'date':
+        if order == 'desc':
+            sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
+        else:
+            sessions_query = sessions_query.order_by(ResearchSession.start_date.asc())
+    else:
+        # For other sorts, we'll sort in Python after building the data
+        sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
+    
+    sessions_list = sessions_query.all()
     
     sessions_data = []
-    for session in sessions_query:
+    for session in sessions_list:
         # Get the total number of items for the session's checklist
         total_item_count = ChecklistItem.query.filter_by(checklist_id=session.checklist_id).count()
 
@@ -672,13 +674,25 @@ def list_research_sessions():
             satisfaction_status='satisfied'
         ).count()
         
+        # Calculate outcome for sorting
+        if session.status == 'completed':
+            if total_item_count > 0 and total_item_count == satisfied_count:
+                outcome_sort_value = 1  # Passed
+            else:
+                outcome_sort_value = 2  # Needs Review
+        elif session.status == 'in_progress':
+            outcome_sort_value = 3  # In Progress
+        else:
+            outcome_sort_value = 4  # Other
+        
         data = {
             'session_obj': session,
             'company_name': session.company.name, # Assuming session.company relationship works
             'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
             'resume_item_id': None,
             'total_item_count': total_item_count, # Add total count to data
-            'satisfied_count': satisfied_count   # Add satisfied count to data
+            'satisfied_count': satisfied_count,   # Add satisfied count to data
+            'outcome_sort_value': outcome_sort_value  # For sorting purposes
         }
         
         if session.status == 'in_progress':
@@ -699,6 +713,15 @@ def list_research_sessions():
                 data['resume_item_id'] = None # Cannot resume if no items
  
         sessions_data.append(data)
+
+    # Apply Python-based sorting for non-date columns
+    if sort_by == 'company':
+        sessions_data.sort(key=lambda x: x['company_name'].lower(), 
+                          reverse=(order == 'desc'))
+    elif sort_by == 'outcome':
+        sessions_data.sort(key=lambda x: x['outcome_sort_value'], 
+                          reverse=(order == 'desc'))
+    # Date sorting is already handled by the database query
 
     return render_template('list_research_sessions.html', 
                            sessions_data=sessions_data, 

@@ -121,7 +121,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
 class Checklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(300))
+    description = db.Column(db.String(1000))
     user_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False
     )  # Link to User
@@ -503,7 +503,8 @@ class IdeaPipeline(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)
-    idea_type = db.Column(db.String(50), nullable=False, default='company')
+    idea_type = db.Column(db.String(50), nullable=False, default='company')  # Subject type: company/sector/theme
+    idea_purpose = db.Column(db.String(50), nullable=False, default='investment')  # Purpose: investment/learning/research
     ticker_symbol = db.Column(db.String(20))
     source = db.Column(db.String(200))
     thesis_summary = db.Column(db.Text)
@@ -537,6 +538,7 @@ class KillChecklist(db.Model):
     total_ideas_killed = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
 
     @property
     def kill_rate(self):
@@ -614,6 +616,7 @@ class ResearchTemplate(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     investment_style = db.Column(db.String(100))  # 'value', 'growth', 'special_situations', etc.
+    research_subject_types = db.Column(db.JSON)  # ['company', 'sector', 'theme', 'market', 'strategy']
     
     # The workflow is stored as JSON to allow maximum flexibility
     # Each step can reference different types of analysis tools
@@ -662,16 +665,24 @@ class ResearchTemplate(db.Model):
 
 class ResearchProject(db.Model):
     """
-    A research project is an active execution of a research template for a specific
-    company. It tracks progress, time spent, findings, and ultimately the investment
-    decision. This is where templates become actionable.
+    A research project is an active execution of a research template for any research subject
+    (companies, sectors, markets, themes, strategies). It tracks progress, time spent, 
+    findings, and ultimately research conclusions or investment decisions.
     """
     __tablename__ = 'research_project'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
+    
+    # Multi-subject research support
+    research_subject_type = db.Column(db.String(50), nullable=False, default='company')  # 'company', 'sector', 'market', 'strategy', 'theme'
+    research_subject_name = db.Column(db.String(200))  # Human-readable subject name
+    
+    # Subject-specific foreign keys (nullable for flexibility)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))  # For company research
+    # sector_id will be added when Sector model is created
+    # market_id, theme_id, etc. can be added later as needed
     
     # If this project originated from an idea in the pipeline
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
@@ -684,9 +695,11 @@ class ResearchProject(db.Model):
     current_step_index = db.Column(db.Integer, default=0)
     completed_steps = db.Column(db.JSON, default=list)  # Array of completed step indices
     step_notes = db.Column(db.JSON, default=dict)  # Notes for each step
+    step_results = db.Column(db.JSON, default=dict)  # Detailed results for each step
     
     # Status tracking
-    status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned'
+    status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned', 'killed'
+    kill_reason = db.Column(db.Text)  # Reason for killing the investment during screening
     
     # Time tracking - crucial for understanding where effort goes
     total_hours_spent = db.Column(db.Float, default=0.0)
@@ -745,8 +758,51 @@ class ResearchProject(db.Model):
         days_idle = (datetime.utcnow() - self.last_worked_at).days
         return days_idle > 14  # Consider overdue after 2 weeks of inactivity
     
+    @property
+    def research_subject(self):
+        """Get the actual research subject object"""
+        if self.research_subject_type == 'company' and self.company:
+            return self.company
+        # Sectors, markets, themes, strategies use research_subject_name for now
+        # TODO: Add dedicated models and relationships as needed
+        return None
+    
+    @property 
+    def subject_display_name(self):
+        """Get display name for the research subject"""
+        if self.research_subject_name:
+            return self.research_subject_name
+        elif self.research_subject:
+            return getattr(self.research_subject, 'name', str(self.research_subject))
+        return f"Unknown {self.research_subject_type}"
+    
+    @property
+    def subject_type_display(self):
+        """Get human-readable research subject type"""
+        type_map = {
+            'company': 'Company',
+            'sector': 'Sector', 
+            'market': 'Market',
+            'theme': 'Theme',
+            'strategy': 'Strategy'
+        }
+        return type_map.get(self.research_subject_type, self.research_subject_type.title())
+    
+    @property
+    def requires_kill_checklist(self):
+        """Determine if this research subject type typically needs kill checklist screening"""
+        # Companies always need screening due to high volume
+        if self.research_subject_type == 'company':
+            return True
+        # Sectors might need screening (template-configurable) 
+        elif self.research_subject_type == 'sector':
+            return False  # Template will decide
+        # Markets, themes, strategies typically skip screening
+        else:
+            return False
+    
     def __repr__(self):
-        return f'<ResearchProject {self.project_name or f"Company {self.company_id}"}>'
+        return f'<ResearchProject {self.project_name or f"{self.subject_type_display}: {self.subject_display_name}"}>'
 
 
 class WorkSession(db.Model):
@@ -1055,6 +1111,7 @@ class JournalEntry(db.Model):
     # Review tracking
     last_reviewed = db.Column(db.DateTime)
     review_count = db.Column(db.Integer, default=0)
+    review_notes = db.Column(db.Text)  # Notes added during review process
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     
@@ -1454,3 +1511,49 @@ class PatternRecognition(db.Model):
     
     def __repr__(self):
         return f'<PatternRecognition {self.pattern_name}>'
+
+
+class DocumentImport(db.Model):
+    """
+    Track document imports for checklist creation
+    """
+    __tablename__ = 'document_imports'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # File information
+    filename = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=False)  # pdf, docx, txt
+    file_size = db.Column(db.Integer)  # Size in bytes
+    file_path = db.Column(db.String(500))  # Stored file path
+
+    # Processing information
+    status = db.Column(db.String(50), default='uploaded')  # uploaded, processing, completed, failed
+    llm_provider = db.Column(db.String(50))  # openai, gemini
+    processing_approach = db.Column(db.String(50))  # immediate, interactive
+
+    # Extracted content
+    raw_text = db.Column(db.Text)
+    processed_items = db.Column(db.JSON)  # Structured checklist items from LLM
+
+    # Results
+    suggested_name = db.Column(db.String(200))
+    suggested_description = db.Column(db.Text)
+    created_checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'))
+
+    # Metadata
+    processing_time = db.Column(db.Float)  # Processing time in seconds
+    error_message = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref='document_imports')
+    created_checklist = db.relationship('Checklist', backref='document_import', uselist=False)
+
+    def __repr__(self):
+        return f'<DocumentImport {self.filename} - {self.status}>'

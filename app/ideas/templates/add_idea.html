@@ -28,16 +28,31 @@
                         </small>
                     </div>
 
-                    <!-- Optional but helpful fields -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="idea_type" class="form-label">Type</label>
-                            <select class="form-select" id="idea_type" name="idea_type">
-                                <option value="company" selected>Company</option>
-                                <option value="sector">Sector/Industry</option>
-                                <option value="theme">Theme/Trend</option>
-                            </select>
+                    <!-- Purpose and Type fields -->
+                    <div class="mb-4">
+                        <label class="form-label">What's your goal with this idea?</label>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="idea_purpose" class="form-label">Purpose <span class="text-danger">*</span></label>
+                                <select class="form-select" id="idea_purpose" name="idea_purpose" required>
+                                    <option value="investment" selected>🎯 Investment Screening</option>
+                                    <option value="learning">📚 Learning & Understanding</option>
+                                    <option value="research">🔍 Research & Analysis</option>
+                                </select>
+                                <small class="form-text text-muted">Investment ideas go through kill checklist, learning ideas focus on education</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="idea_type" class="form-label">Subject Type</label>
+                                <select class="form-select" id="idea_type" name="idea_type">
+                                    <option value="company" selected>Company</option>
+                                    <option value="sector">Sector/Industry</option>
+                                    <option value="theme">Theme/Trend</option>
+                                </select>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="ticker_symbol" class="form-label">
                                 Ticker (if applicable)

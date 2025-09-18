@@ -1,10 +1,10 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
         {# This link now correctly points to the dashboard for logged-in users and homepage for visitors #}
         {% if current_user.is_authenticated %}
-        <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">Research Platform</a>
+        <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">Intelligent Investment Platform</a>
         {% else %}
-        <a class="navbar-brand" href="{{ url_for('main.index') }}">Research Platform</a>
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">Intelligent Investment Platform</a>
         {% endif %}
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
@@ -16,128 +16,98 @@
             {# --- Links for LOGGED-IN USERS --- #}
             {% if current_user.is_authenticated %}
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+                </li> -->
+
+                {# 🎯 OPPORTUNITIES & RESEARCH - Complete Investment Workflow #}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarResearchDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        🎯 Opportunities & Research
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarResearchDropdown">
+                        <li><h6 class="dropdown-header">Opportunity Discovery</h6></li>
+                        <li><a class="dropdown-item" href="{{ url_for('ideas.inbox') }}">📥 Idea Inbox</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('ideas.graveyard') }}">💀 Idea Graveyard</a></li>
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Research & Analysis</h6></li>
+                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.template_list') }}">📊 Research Templates</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.my_projects') }}">📈 My Research Projects</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('research.list_research_sessions') }}">🔍 Research Sessions</a></li>
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Portfolio & Sectors</h6></li>
+                        <li><a class="dropdown-item" href="{{ url_for('companies.list_companies') }}">🏢 My Companies</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">🏭 Sector Research</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Checklists & Tools</h6></li>
+                        <li><a class="dropdown-item" href="{{ url_for('ideas.manage_kill_checklists') }}">⚡ Kill Checklists</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('checklists.list_checklists') }}">✅ Investment Checklists</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">❓ Question Bank</a></li>
+                    </ul>
                 </li>
 
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarIdeasDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        💡 Ideas
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarIdeasDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('ideas.inbox') }}">📥 Inbox</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">➕ Quick Capture</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('ideas.graveyard') }}">💀 Graveyard</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('ideas.manage_kill_checklists') }}">📋 Kill
-                                Checklists</a></li>
+            {# 📈 TRACKING & ANALYTICS #}
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarTrackingDropdown" role="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    📈 Tracking & Analytics
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="navbarTrackingDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">📈 Analytics
+                            Dashboard</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.decision_journal_list') }}">📓 Decision
+                            Journal</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('dashboard.portfolio_timeline') }}">⏰ Portfolio
+                            Timeline</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.time_analysis') }}">⏱️ Time
+                            Analysis</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.idea_sources') }}">💡 Idea Sources</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.research_patterns') }}">🔍 Research
+                            Patterns</a></li>
+                </ul>
+            </li>
 
-                    </ul>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('companies.list_companies') }}">My Companies</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('research.list_research_sessions') }}">My Research</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarToolsDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        Analysis Tools
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarToolsDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.template_list') }}">
-                                📊 Research Templates</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.my_projects') }}">
-                                📈 Active Projects</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('checklists.list_checklists') }}">Deep Dive
-                                Checklists</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('dashboard.portfolio_timeline') }}">Upcoming
-                                Checkpoints</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">Question Bank</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarAnalyticsDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        📊 Analytics
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarAnalyticsDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">
-                                📈 Dashboard</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.time_analysis') }}">
-                                ⏱️ Time Analysis</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.decision_journal_list') }}">
-                                📓 Decision Journal</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.idea_sources') }}">
-                                💡 Idea Sources</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.research_patterns') }}">
-                                🔍 Research Patterns</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarJournalDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        📔 Journal
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarJournalDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.journal_home') }}">
-                                📝 All Entries</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
-                                ➕ New Entry</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.learning_notes') }}">
-                                📚 Learning Notes</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.review_queue') }}">
-                                🔄 Review Queue
-                                {% set queue = get_review_queue(current_user.id) %}
-                                {% if queue and queue.total_items > 0 %}
-                                <span class="badge bg-danger">{{ queue.total_items }}</span>
-                                {% endif %}
-                            </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.search') }}">
-                                🔍 Search</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarLearningDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        🎓 Learning
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarLearningDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('learning.learning_dashboard') }}">
-                                📊 Dashboard</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">
-                                📝 Weekly Review</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
-                                ❌ Mistake Log</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('learning.pattern_recognition') }}">
-                                🔍 Pattern Recognition</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('learning.learning_paths') }}">
-                                📚 Learning Paths</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('learning.review_calendar') }}">
-                                📅 Review Calendar</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.mental_models') }}">Learn About Models</a>
-                </li>
+            {# 📚 KNOWLEDGE & LEARNING #}
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarKnowledgeDropdown" role="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    📚 Knowledge & Learning
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="navbarKnowledgeDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.journal_home') }}">📝 Journal
+                            Entries</a></li>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.review_queue') }}">🔄 Review
+                            Queue
+                            {% set queue = get_review_queue(current_user.id) %}
+                            {% if queue and queue.total_items > 0 %}
+                            <span class="badge bg-danger">{{ queue.total_items }}</span>
+                            {% endif %}
+                        </a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('learning.learning_dashboard') }}">📊 Learning
+                            Dashboard</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('learning.learning_paths') }}">📚 Learning
+                            Paths</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">❌ Mistake Log</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">📝 Weekly Review</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.search') }}">🔍 Search
+                            Knowledge</a></li>
+                </ul>
+            </li>
             </ul>
             {% endif %}
 
@@ -150,7 +120,7 @@
                         {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                        <li><a class="dropdown-item" href="#">Profile</a></li> {# Placeholder for Profile Page #}
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

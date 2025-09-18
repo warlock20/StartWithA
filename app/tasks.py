@@ -12,7 +12,7 @@ import pandas as pd
 import fitz  # PyMuPDF
 from secedgar import filings, FilingType
 from flask import current_app
-import google.generativeai as genai
+from app.services.llm_service import generate_ai_content
 
 from app import db, create_app
 from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData 
@@ -337,9 +337,6 @@ def analyze_scuttlebutt_task(self, company_id):
             return "Task failed: Gemini API key is not configured."
 
         try:
-            genai.configure(api_key=gemini_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
-
             # A powerful prompt to guide the AI
             prompt = (
                 "You are a financial analyst stress-testing an investment thesis. Based *only* on the context from the following news article titles and descriptions, "
@@ -349,10 +346,8 @@ def analyze_scuttlebutt_task(self, company_id):
                 "ANALYSIS:"
             )
 
-            print(f"BACKGROUND TASK ({self.request.id}): Sending Scuttlebutt prompt to Gemini for {company.name}...")
-            response = model.generate_content(prompt)
-
-            ai_summary = response.text
+            print(f"BACKGROUND TASK ({self.request.id}): Sending Scuttlebutt prompt to unified LLM service for {company.name}...")
+            ai_summary = generate_ai_content(prompt)
 
             # Save the new analysis to the database
             new_analysis = ScuttlebuttAnalysis(
