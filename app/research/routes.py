@@ -12,8 +12,8 @@ import fitz
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
 
-# If using Google Generative AI, ensure you have the google-generativeai package installed
-import google.generativeai as genai
+# Import unified LLM service
+from app.services.llm_service import generate_ai_content
 
 from celery.result import AsyncResult
 from celery_app import celery
@@ -350,11 +350,7 @@ def ai_analyze_item(session_id, item_id):
     if not gemini_api_key:
         return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
 
-    try:
-        genai.configure(api_key=gemini_api_key)
-    except Exception as e:
-        print(f"ERROR: Failed to configure Gemini API: {e}")
-        return jsonify({'status': 'error_config', 'message': 'Failed to configure Gemini API client.'}), 500
+    # LLM service will handle API configuration automatically
 
     session = ResearchSession.query.get_or_404(session_id)
     # Authorization: Ensure the session belongs to the current user
@@ -450,14 +446,7 @@ def ai_analyze_item(session_id, item_id):
             ai_suggestion = 'Gemini API key missing.'
         else:
             try:
-                # Configure the client with the API key
-                genai.configure(api_key=gemini_api_key)
-
-                # Initialize the generative model (gemini-2.5-flash is fast and capable)
-                model = genai.GenerativeModel('gemini-2.5-flash-latest')
-
-                # Construct the prompt for Gemini. It handles large context well.
-                # We can pass more context than we do for the smaller local model.
+                # Construct the prompt for the unified LLM service
                 prompt_for_llm = (
                     "You are a helpful financial analyst assistant. Your task is to answer the user's question based strictly "
                     "on the context provided from the financial documents. Do not use external knowledge. "
@@ -466,12 +455,9 @@ def ai_analyze_item(session_id, item_id):
                     f"QUESTION:\n{llm_question}"
                 )
 
-                print("INFO: Sending prompt to Gemini API...")
-                # Generate content from the prompt
-                response = model.generate_content(prompt_for_llm)
-
-                # Extract the text from the response
-                ai_suggestion = response.text
+                print("INFO: Sending prompt to unified LLM service...")
+                # Generate content using unified LLM service
+                ai_suggestion = generate_ai_content(prompt_for_llm)
                 response_status = 'success_ai_suggestion'
                 response_message = 'Suggestion generated successfully by Gemini API.'
                 print("INFO: Gemini suggestion received.")

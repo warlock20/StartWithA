@@ -4,11 +4,11 @@
 {% macro render_companies_table(companies_data_list, portfolio_ids, favorite_ids) %}
 <div class="table-responsive">
     <table class="table table-hover align-middle">
-        <thead class="table-dark">
+        <thead>
             <tr>
-                <th style="width: 40%;">Company & Analysis Status</th>
-                <th style="width: 20%;">Sector</th>
-                <th class="text-end" style="width: 40%;">Actions</th>
+                <th style="width: 45%;">Company & Analysis Status</th>
+                <th style="width: 15%;">Sector</th>
+                <th style="width: 40%;">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -48,13 +48,13 @@
                 <td>
                     {{ company.sector if company.sector else 'N/A' }}
                 </td>
-                <td class="text-end align-top">
-                    <div class="d-flex flex-column align-items-end gap-2">
+                <td>
+                    <div class="d-flex flex-wrap gap-1 justify-content-end">
+                        {# Main research button with dropdown for templates #}
                         <div class="btn-group">
-                            {# Main research button with dropdown for templates #}
-                            <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown"
+                            <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
                                 aria-expanded="false">
-                                Start Research
+                                <i class="bi bi-search"></i> Research
                             </button>
                         <ul class="dropdown-menu">
                             <li>
@@ -108,12 +108,14 @@
                                 </a>
                             </li>
                             {% endif %}
-                            </ul>
-                            
-                            {# Secondary actions dropdown #}
-                            <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split"
+                        </ul>
+                    </div>
+
+                        {# Secondary actions dropdown #}
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
                                 data-bs-toggle="dropdown" aria-expanded="false">
-                                <span class="visually-hidden">Toggle Dropdown</span>
+                                <i class="bi bi-three-dots"></i>
                             </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             {# FIX: Changed endpoint from 'journal.index' to 'journal_enhanced.search' #}
@@ -135,39 +137,39 @@
                             </li>
                             {% endif %}
                         </ul>
-                        </div>
+                    </div>
 
                         {# Quick action buttons #}
-                        <div class="btn-group btn-group-sm" role="group">
-                        {# Portfolio toggle #}
-                        <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}"
-                            style="display: inline;">
-                            {% if company.id in portfolio_ids %}
-                            <button type="submit" class="btn btn-outline-success"
-                                title="In Portfolio (Click to Remove)">📈 Portfolio</button>
-                            {% else %}
-                            <button type="submit" class="btn btn-success" title="Add to Portfolio">📈 Add</button>
-                            {% endif %}
-                        </form>
+                        <div class="btn-group" role="group">
+                            {# Portfolio toggle #}
+                            <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}"
+                                style="display: inline;">
+                                {% if company.id in portfolio_ids %}
+                                <button type="submit" class="btn btn-outline-success btn-sm"
+                                    title="In Portfolio (Click to Remove)">📈</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-success btn-sm" title="Add to Portfolio">📈</button>
+                                {% endif %}
+                            </form>
 
-                        {# Favorite toggle #}
-                        <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}"
-                            style="display: inline;">
-                            {% if company.id in favorite_ids %}
-                            <button type="submit" class="btn btn-warning"
-                                title="Favorite (Click to Unfavorite)">⭐</button>
-                            {% else %}
-                            <button type="submit" class="btn btn-outline-warning" title="Add to Favorites">⭐</button>
-                            {% endif %}
-                        </form>
+                            {# Favorite toggle #}
+                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}"
+                                style="display: inline;">
+                                {% if company.id in favorite_ids %}
+                                <button type="submit" class="btn btn-warning btn-sm"
+                                    title="Favorite (Click to Unfavorite)">⭐</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Add to Favorites">⭐</button>
+                                {% endif %}
+                            </form>
 
-                        {# Delete button #}
-                        <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
-                            style="display: inline;">
-                            <button type="submit" class="btn btn-outline-danger"
-                                onclick="return confirm('Are you sure you want to delete this company and all of its associated research and documents? This cannot be undone.');"
-                                title="Delete Company">🗑️</button>
-                        </form>
+                            {# Delete button #}
+                            <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('⚠️ Delete this company?\n\nThis will permanently delete all associated research and documents. This action cannot be undone.');"
+                                    title="Delete Company">🗑️</button>
+                            </form>
                         </div>
                     </div>
                 </td>
@@ -180,8 +182,11 @@
 
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>{{ title }}</h1>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>🏢 {{ title }}</h1>
+        <p class="text-muted mb-0">Track and analyze your investment opportunities</p>
+    </div>
     <div>
         {# Quick access to idea pipeline #}
         <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-primary">
@@ -191,7 +196,7 @@
             <span class="badge bg-danger">{{ inbox_count }}</span>
             {% endif %}
         </a>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-success">
+        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Add Company
         </a>
     </div>
@@ -255,7 +260,12 @@
 </div>
 {% endif %}
 {# --- ACTIVE PORTFOLIO SECTION --- #}
-<h3>📈 Active Portfolio</h3>
+<div class="d-flex justify-content-between align-items-center mb-3 section-header">
+    <h3>📈 Active Portfolio</h3>
+    {% if portfolio_companies_data %}
+    <small class="text-muted">{{ portfolio_companies_data|length }} companies</small>
+    {% endif %}
+</div>
 {% if portfolio_companies_data %}
 {{ render_companies_table(portfolio_companies_data, portfolio_ids, favorite_ids) }}
 {% else %}
@@ -271,7 +281,12 @@
 <hr class="my-4">
 
 {# --- FAVORITE COMPANIES SECTION --- #}
-<h3>⭐ Favorite Companies (Watchlist)</h3>
+<div class="d-flex justify-content-between align-items-center mb-3 section-header">
+    <h3>⭐ Favorite Companies (Watchlist)</h3>
+    {% if favorite_companies_data %}
+    <small class="text-muted">{{ favorite_companies_data|length }} companies</small>
+    {% endif %}
+</div>
 {% if favorite_companies_data %}
 {{ render_companies_table(favorite_companies_data, portfolio_ids, favorite_ids) }}
 {% else %}
@@ -286,7 +301,12 @@
 <hr class="my-4">
 
 {# --- OTHER COMPANIES SECTION --- #}
-<h3>Other Companies</h3>
+<div class="d-flex justify-content-between align-items-center mb-3 section-header">
+    <h3>📋 Other Companies</h3>
+    {% if other_companies_data %}
+    <small class="text-muted">{{ other_companies_data|length }} companies</small>
+    {% endif %}
+</div>
 {% if other_companies_data %}
 {{ render_companies_table(other_companies_data, portfolio_ids, favorite_ids) }}
 {% else %}
@@ -312,7 +332,7 @@
 {% endif %}
 
 {# --- Quick Stats Footer --- #}
-<div class="card mt-4">
+<div class="card mt-4 stats-card">
     <div class="card-body">
         <div class="row text-center">
             <div class="col">
@@ -339,14 +359,227 @@
 
 {% block scripts %}
 {{ super() }}
+<style>
+/* Companies table styling improvements */
+.table {
+    margin-bottom: 2rem;
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--border-medium);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background-color: var(--gray-50);
+    padding: 0.75rem 1rem;
+}
+
+.table tbody td {
+    vertical-align: middle;
+    padding: 1rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.table tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+/* Button group improvements */
+.btn-group .btn {
+    margin: 0;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+}
+
+/* Actions column layout */
+.actions-column {
+    min-width: 280px;
+}
+
+.actions-column .btn-group {
+    margin-bottom: 0.25rem;
+}
+
+/* Badge improvements */
+.badge {
+    font-size: 0.7rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Empty state improvements */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+/* Section headers */
+.section-header {
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Stats card improvements */
+.stats-card .col {
+    padding: 0.5rem;
+}
+
+.stats-card h4 {
+    color: var(--primary-600);
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+/* Research pipeline alert */
+.alert-info {
+    border-left: 4px solid var(--info-500);
+}
+
+/* Dropdown z-index fix */
+.table-responsive {
+    overflow: visible !important;
+}
+
+.table .dropdown,
+.table .btn-group {
+    position: static !important;
+}
+
+.table .dropdown-menu {
+    position: fixed !important;
+    z-index: 9999 !important;
+    transform: translate3d(0, 0, 0) !important;
+    will-change: transform;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+.table .dropdown-menu.show {
+    display: block !important;
+    position: fixed !important;
+    z-index: 9999 !important;
+}
+
+.table .dropdown-menu .dropdown-item {
+    z-index: 9999 !important;
+    position: relative;
+    display: block !important;
+    padding: 0.5rem 1rem;
+    clear: both;
+    font-weight: 400;
+    color: var(--text-primary) !important;
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+}
+
+.table .dropdown-menu .dropdown-item:hover,
+.table .dropdown-menu .dropdown-item:focus {
+    color: var(--text-primary) !important;
+    background-color: var(--gray-100) !important;
+}
+
+/* Fix for dropdown positioning in tables */
+.table tbody tr {
+    position: relative;
+}
+
+.table tbody td {
+    overflow: visible !important;
+}
+
+.table .dropdown-menu-end {
+    right: auto !important;
+    left: auto !important;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .actions-column {
+        min-width: auto;
+    }
+
+    .d-flex.flex-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .table .dropdown-menu {
+        position: fixed;
+        z-index: 1060;
+    }
+}
+</style>
+
 <script>
-    // Add any necessary JavaScript for interactive features
-    document.addEventListener('DOMContentLoaded', function () {
-        // Initialize tooltips if using Bootstrap tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize tooltips if using Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+
+    // Add actions-column class to action cells
+    const actionCells = document.querySelectorAll('table td:last-child');
+    actionCells.forEach(cell => {
+        cell.classList.add('actions-column');
+    });
+
+    // Fix dropdown positioning in tables
+    const dropdownButtons = document.querySelectorAll('.table .dropdown-toggle');
+    dropdownButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Force dropdown to appear above everything
+            setTimeout(() => {
+                const dropdownMenu = this.nextElementSibling;
+                if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                    const rect = this.getBoundingClientRect();
+                    dropdownMenu.style.position = 'fixed';
+                    dropdownMenu.style.zIndex = '9999';
+                    dropdownMenu.style.top = (rect.bottom + window.scrollY) + 'px';
+                    dropdownMenu.style.left = (rect.left + window.scrollX) + 'px';
+                    dropdownMenu.style.transform = 'none';
+                    dropdownMenu.style.willChange = 'transform';
+                }
+            }, 10);
         });
     });
+
+    // Handle dropdown menu positioning with Bootstrap events
+    document.addEventListener('shown.bs.dropdown', function (e) {
+        const dropdownToggle = e.target;
+        const dropdownMenu = e.target.nextElementSibling;
+
+        if (dropdownMenu && dropdownToggle.closest('.table')) {
+            const rect = dropdownToggle.getBoundingClientRect();
+            dropdownMenu.style.position = 'fixed';
+            dropdownMenu.style.zIndex = '9999';
+            dropdownMenu.style.top = (rect.bottom + window.scrollY) + 'px';
+            dropdownMenu.style.left = (rect.left + window.scrollX) + 'px';
+            dropdownMenu.style.transform = 'none';
+            dropdownMenu.style.maxHeight = '300px';
+            dropdownMenu.style.overflowY = 'auto';
+
+            // Adjust if menu goes off screen
+            const menuRect = dropdownMenu.getBoundingClientRect();
+            if (menuRect.right > window.innerWidth) {
+                dropdownMenu.style.left = (rect.right + window.scrollX - menuRect.width) + 'px';
+            }
+            if (menuRect.bottom > window.innerHeight) {
+                dropdownMenu.style.top = (rect.top + window.scrollY - menuRect.height) + 'px';
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

@@ -121,7 +121,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
 class Checklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(300))
+    description = db.Column(db.String(1000))
     user_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False
     )  # Link to User
@@ -1111,6 +1111,7 @@ class JournalEntry(db.Model):
     # Review tracking
     last_reviewed = db.Column(db.DateTime)
     review_count = db.Column(db.Integer, default=0)
+    review_notes = db.Column(db.Text)  # Notes added during review process
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     
@@ -1510,3 +1511,49 @@ class PatternRecognition(db.Model):
     
     def __repr__(self):
         return f'<PatternRecognition {self.pattern_name}>'
+
+
+class DocumentImport(db.Model):
+    """
+    Track document imports for checklist creation
+    """
+    __tablename__ = 'document_imports'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # File information
+    filename = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=False)  # pdf, docx, txt
+    file_size = db.Column(db.Integer)  # Size in bytes
+    file_path = db.Column(db.String(500))  # Stored file path
+
+    # Processing information
+    status = db.Column(db.String(50), default='uploaded')  # uploaded, processing, completed, failed
+    llm_provider = db.Column(db.String(50))  # openai, gemini
+    processing_approach = db.Column(db.String(50))  # immediate, interactive
+
+    # Extracted content
+    raw_text = db.Column(db.Text)
+    processed_items = db.Column(db.JSON)  # Structured checklist items from LLM
+
+    # Results
+    suggested_name = db.Column(db.String(200))
+    suggested_description = db.Column(db.Text)
+    created_checklist_id = db.Column(db.Integer, db.ForeignKey('checklist.id'))
+
+    # Metadata
+    processing_time = db.Column(db.Float)  # Processing time in seconds
+    error_message = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref='document_imports')
+    created_checklist = db.relationship('Checklist', backref='document_import', uselist=False)
+
+    def __repr__(self):
+        return f'<DocumentImport {self.filename} - {self.status}>'

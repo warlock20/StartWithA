@@ -7,7 +7,7 @@ from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
 import json
-import google.generativeai as genai
+from app.services.llm_service import generate_ai_content
 
 @research_workflow_bp.route('/templates')
 @login_required
@@ -369,19 +369,98 @@ def execute_step(project_id, step_index):
             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
     
     elif step['type'] == 'investment_checklist_reference':
-        # Handle investment checklist reference - redirect to legacy checklist execution
+        # Handle investment checklist reference - redirect to research session evaluation
         checklist_id = step['config'].get('checklist_id')
         if checklist_id:
             checklist = Checklist.query.get(checklist_id)
             if checklist and checklist.user_id == current_user.id:
-                # Store the research context in session to return to after checklist completion
-                flask_session['research_context'] = {
-                    'project_id': project_id,
-                    'step_index': step_index,
-                    'workflow_session_id': session.id if session else None
-                }
-                # Redirect to legacy checklist view/execution
-                return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
+                # Check if project has a company (required for research sessions)
+                if not project.company_id:
+                    flash('Research project must have a company assigned to use investment checklists', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                # Import ResearchSession model from research module
+                from app.models import ResearchSession, ResearchAnswer
+
+                # Check if a research session already exists for this checklist and company
+                existing_research_session = ResearchSession.query.filter_by(
+                    user_id=current_user.id,
+                    checklist_id=checklist_id,
+                    company_id=project.company_id
+                ).first()
+
+                if existing_research_session:
+                    # If session exists and is in progress, find the first unanswered item
+                    if existing_research_session.status == 'in_progress':
+                        from app.research.routes import get_all_ordered_items_for_checklist
+                        all_items = get_all_ordered_items_for_checklist(checklist_id)
+
+                        if all_items:
+                            # Find first unanswered item
+                            redirect_to_item_id = all_items[0].id  # Default to first item
+                            for item in all_items:
+                                answer_exists = ResearchAnswer.query.filter_by(
+                                    research_session_id=existing_research_session.id,
+                                    checklist_item_id=item.id
+                                ).first()
+                                if not answer_exists:
+                                    redirect_to_item_id = item.id
+                                    break
+
+                            # Store research context for potential return
+                            flask_session['research_context'] = {
+                                'project_id': project_id,
+                                'step_index': step_index,
+                                'workflow_session_id': session.id if session else None
+                            }
+
+                            return redirect(url_for('research.research_step',
+                                                  session_id=existing_research_session.id,
+                                                  item_id=redirect_to_item_id))
+                        else:
+                            flash('Investment checklist has no items to evaluate', 'warning')
+                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                    elif existing_research_session.status == 'completed':
+                        flash('Investment checklist research already completed. Viewing summary.', 'info')
+                        return redirect(url_for('research.view_research_session_summary',
+                                              session_id=existing_research_session.id))
+                else:
+                    # Create new research session
+                    new_research_session = ResearchSession(
+                        user_id=current_user.id,
+                        checklist_id=checklist_id,
+                        company_id=project.company_id,
+                        status='in_progress'
+                    )
+
+                    try:
+                        db.session.add(new_research_session)
+                        db.session.commit()
+
+                        # Get first item and redirect to it
+                        from app.research.routes import get_all_ordered_items_for_checklist
+                        all_items = get_all_ordered_items_for_checklist(checklist_id)
+
+                        if all_items:
+                            # Store research context for potential return
+                            flask_session['research_context'] = {
+                                'project_id': project_id,
+                                'step_index': step_index,
+                                'workflow_session_id': session.id if session else None
+                            }
+
+                            return redirect(url_for('research.research_step',
+                                                  session_id=new_research_session.id,
+                                                  item_id=all_items[0].id))
+                        else:
+                            flash('Investment checklist has no items to evaluate', 'warning')
+                            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                    except Exception as e:
+                        db.session.rollback()
+                        flash(f'Error starting research session: {str(e)}', 'error')
+                        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
             else:
                 flash('Investment checklist not found or access denied', 'error')
                 return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -1314,13 +1393,7 @@ def analyze_checklist_item(project_id, session_id):
             'message': 'Gemini API key not configured. Please check server configuration.'
         }), 500
     
-    try:
-        genai.configure(api_key=gemini_api_key)
-    except Exception as e:
-        return jsonify({
-            'status': 'error_config', 
-            'message': f'Failed to configure Gemini API: {str(e)}'
-        }), 500
+    # LLM service will handle API configuration automatically
     
     # Parse request data
     if not request.is_json:
@@ -1402,11 +1475,9 @@ User's Analysis Request:
     else:
         analysis_context += "\n\nNo documents were provided for analysis."
     
-    # Call Gemini API
+    # Generate AI analysis using unified LLM service
     try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(analysis_context)
-        ai_suggestion = response.text
+        ai_suggestion = generate_ai_content(analysis_context)
         
         return jsonify({
             'status': 'success_analysis_complete',

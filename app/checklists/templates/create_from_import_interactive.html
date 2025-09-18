@@ -1,0 +1,567 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>✏️ Review & Edit AI Suggestions</h1>
+        <p class="text-muted mb-0">Review the AI-extracted checklist items and customize them before creating your checklist</p>
+    </div>
+    <div>
+        <a href="{{ url_for('checklists.process_document', import_id=import_record.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Results
+        </a>
+    </div>
+</div>
+
+<form method="POST" id="createChecklistForm">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Checklist Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 Checklist Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="checklist_name" class="form-label fw-bold">Checklist Name</label>
+                        <input type="text" class="form-control" id="checklist_name" name="checklist_name"
+                               value="{{ import_record.suggested_name or 'Imported Checklist' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checklist_description" class="form-label fw-bold">Description</label>
+                        <textarea class="form-control" id="checklist_description" name="checklist_description"
+                                  rows="3">{{ import_record.suggested_description or 'Checklist imported from document' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checklist Items -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📝 Checklist Items</h5>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNewItem()">
+                            <i class="bi bi-plus"></i> Add Item
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAll()">
+                            <i class="bi bi-check-all"></i> Toggle All
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="checklistItems">
+                        {% for item in import_record.processed_items %}
+                        <div class="checklist-item mb-4 p-4 border rounded shadow-sm" data-item-index="{{ loop.index0 }}">
+                            <!-- Row 1: Include item checkbox and delete button -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input item-enabled" type="checkbox"
+                                           name="items[{{ loop.index0 }}][enabled]" value="1"
+                                           id="item_{{ loop.index0 }}_enabled" checked
+                                           title="Include this item">
+                                    <label class="form-check-label text-muted" for="item_{{ loop.index0 }}_enabled">
+                                        Include this item
+                                    </label>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+
+                            <!-- Item Text -->
+                            <div class="mb-3">
+                                <label for="item_{{ loop.index0 }}_text" class="form-label fw-medium">Item Text</label>
+                                <input type="text" class="form-control form-control-lg item-text"
+                                       name="items[{{ loop.index0 }}][text]"
+                                       id="item_{{ loop.index0 }}_text"
+                                       value="{{ item.text }}" required>
+                            </div>
+
+                            <!-- LLM Prompt (Optional) -->
+                            <div class="mb-3">
+                                <label for="item_{{ loop.index0 }}_prompt" class="form-label text-muted">
+                                    <i class="bi bi-lightbulb"></i> LLM Prompt (Optional)
+                                </label>
+                                <textarea class="form-control item-prompt"
+                                          name="items[{{ loop.index0 }}][llm_prompt]"
+                                          id="item_{{ loop.index0 }}_prompt"
+                                          rows="3" placeholder="Enter a prompt for AI-assisted analysis...">{{ item.llm_prompt or '' }}</textarea>
+                            </div>
+
+                            <!-- Row 4: Category and AI Confidence -->
+                            <div class="row">
+                                <div class="col-8">
+                                    <label for="item_{{ loop.index0 }}_category" class="form-label text-muted">Category</label>
+                                    <input type="text" class="form-control item-category"
+                                           name="items[{{ loop.index0 }}][category]"
+                                           id="item_{{ loop.index0 }}_category"
+                                           value="{{ item.category or '' }}"
+                                           placeholder="e.g., Financial, Management, Strategy">
+                                </div>
+                                <div class="col-4">
+                                    <label for="item_{{ loop.index0 }}_confidence" class="form-label text-muted">
+                                        AI Confidence
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control"
+                                               value="{{ (item.confidence * 100)|round if item.confidence else 100 }}"
+                                               min="0" max="100" readonly>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hidden fields -->
+                            <input type="hidden" name="items[{{ loop.index0 }}][order]" value="{{ loop.index0 }}">
+                            <input type="hidden" name="items[{{ loop.index0 }}][confidence]" value="{{ item.confidence or 1.0 }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="text-center py-4 d-none">
+                        <i class="bi bi-list-check text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">No items selected. Add some items to create your checklist.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Summary Card -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">📊 Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Source File:</small>
+                        <div>{{ import_record.filename }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Total Items:</small>
+                        <div><span id="totalItems">{{ import_record.processed_items|length }}</span> items</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Selected Items:</small>
+                        <div><span id="selectedItems">{{ import_record.processed_items|length }}</span> items</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">AI Provider:</small>
+                        <div>
+                            {% if import_record.llm_provider == 'openai' %}
+                            🧠 OpenAI GPT-4
+                            {% elif import_record.llm_provider == 'gemini' %}
+                            ⭐ Google Gemini
+                            {% else %}
+                            {{ import_record.llm_provider|title }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Card -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">⚡ Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectHighConfidence()">
+                            <i class="bi bi-check-circle"></i> Select High Confidence Items
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="expandAllPrompts()">
+                            <i class="bi bi-arrows-expand"></i> Expand All Prompts
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="sortByCategory()">
+                            <i class="bi bi-funnel"></i> Sort by Category
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">💡 Editing Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check text-success"></i>
+                            Uncheck items you don't want to include
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check text-success"></i>
+                            Edit item text to match your analysis style
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check text-success"></i>
+                            Add LLM prompts for AI-assisted research
+                        </li>
+                        <li class="mb-0">
+                            <i class="bi bi-check text-success"></i>
+                            Use categories to organize related items
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <div class="text-center text-md-start">
+                            <h6 class="mb-1">Ready to create your checklist?</h6>
+                            <small class="text-muted">Review your selections and click "Create Checklist" when ready.</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="window.history.back()">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                                <i class="bi bi-plus-circle"></i> Create Checklist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+.checklist-item {
+    transition: all 0.2s ease;
+    border: 2px solid #e9ecef;
+    display: block !important;
+    background-color: #ffffff;
+}
+
+.checklist-item:hover {
+    background-color: #f8f9fa;
+    border-color: var(--bs-primary, #0d6efd) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.checklist-item .mb-3 {
+    display: block !important;
+    width: 100% !important;
+}
+
+.checklist-item .form-control {
+    display: block !important;
+    width: 100% !important;
+}
+
+.checklist-item.disabled {
+    opacity: 0.6;
+    background-color: #f8f9fa;
+    border-color: #dee2e6 !important;
+}
+
+.item-text:focus,
+.item-prompt:focus,
+.item-category:focus {
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: var(--bs-primary, #0d6efd);
+    border-color: var(--bs-primary, #0d6efd);
+}
+
+#checklistItems .checklist-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .page-header > div:last-child {
+        align-self: stretch;
+    }
+
+    .checklist-item .row {
+        margin: 0;
+    }
+
+    .checklist-item .row [class*="col-"] {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .d-flex.justify-content-between.align-items-center {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+/* Improved form controls */
+.form-control-lg {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.form-label.fw-medium {
+    color: #495057;
+    font-weight: 600;
+}
+
+.card-header h5,
+.card-header h6 {
+    color: #495057;
+    font-weight: 600;
+}
+
+/* Smooth animations for item state changes */
+.checklist-item {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Better button group spacing */
+.d-grid.gap-2 > .btn {
+    margin-bottom: 0;
+}
+
+/* Enhanced submit section */
+.border-success {
+    border-color: #198754 !important;
+    border-width: 2px;
+}
+
+/* Better checkbox styling */
+.form-check-input {
+    margin-top: 0.25rem;
+    width: 1.25em;
+    height: 1.25em;
+}
+
+/* Improved empty state */
+#emptyState {
+    padding: 3rem 1rem;
+}
+
+#emptyState .bi {
+    opacity: 0.5;
+}
+</style>
+
+<script>
+let itemCounter = parseInt('{{ import_record.processed_items|length }}');
+
+// Update counters when items are enabled/disabled
+function updateCounters() {
+    const totalItems = document.querySelectorAll('.checklist-item').length;
+    const selectedItems = document.querySelectorAll('.item-enabled:checked').length;
+
+    document.getElementById('totalItems').textContent = totalItems;
+    document.getElementById('selectedItems').textContent = selectedItems;
+
+    // Show/hide empty state
+    const emptyState = document.getElementById('emptyState');
+    const itemsContainer = document.getElementById('checklistItems');
+
+    if (totalItems === 0) {
+        emptyState.classList.remove('d-none');
+        itemsContainer.style.display = 'none';
+    } else {
+        emptyState.classList.add('d-none');
+        itemsContainer.style.display = 'block';
+    }
+}
+
+// Toggle item enabled/disabled styling
+function toggleItemState(checkbox) {
+    const item = checkbox.closest('.checklist-item');
+    if (checkbox.checked) {
+        item.classList.remove('disabled');
+    } else {
+        item.classList.add('disabled');
+    }
+}
+
+// Add new item
+function addNewItem() {
+    const container = document.getElementById('checklistItems');
+    const itemIndex = itemCounter++;
+
+    const itemHtml = `
+        <div class="checklist-item mb-4 p-4 border rounded shadow-sm" data-item-index="${itemIndex}">
+            <!-- Row 1: Include item checkbox and delete button -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check">
+                    <input class="form-check-input item-enabled" type="checkbox"
+                           name="items[${itemIndex}][enabled]" value="1"
+                           id="item_${itemIndex}_enabled" checked onchange="toggleItemState(this); updateCounters();"
+                           title="Include this item">
+                    <label class="form-check-label text-muted" for="item_${itemIndex}_enabled">
+                        Include this item
+                    </label>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
+
+            <!-- Item Text -->
+            <div class="mb-3">
+                <label for="item_${itemIndex}_text" class="form-label fw-medium">Item Text</label>
+                <input type="text" class="form-control form-control-lg item-text"
+                       name="items[${itemIndex}][text]"
+                       id="item_${itemIndex}_text"
+                       placeholder="Enter checklist item..." required>
+            </div>
+
+            <!-- LLM Prompt (Optional) -->
+            <div class="mb-3">
+                <label for="item_${itemIndex}_prompt" class="form-label text-muted">
+                    <i class="bi bi-lightbulb"></i> LLM Prompt (Optional)
+                </label>
+                <textarea class="form-control item-prompt"
+                          name="items[${itemIndex}][llm_prompt]"
+                          id="item_${itemIndex}_prompt"
+                          rows="3" placeholder="Enter a prompt for AI-assisted analysis..."></textarea>
+            </div>
+
+            <!-- Row 4: Category and AI Confidence -->
+            <div class="row">
+                <div class="col-8">
+                    <label for="item_${itemIndex}_category" class="form-label text-muted">Category</label>
+                    <input type="text" class="form-control item-category"
+                           name="items[${itemIndex}][category]"
+                           id="item_${itemIndex}_category"
+                           placeholder="e.g., Financial, Management, Strategy">
+                </div>
+                <div class="col-4">
+                    <label class="form-label text-muted">AI Confidence</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" value="100" min="0" max="100" readonly>
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" name="items[${itemIndex}][order]" value="${itemIndex}">
+            <input type="hidden" name="items[${itemIndex}][confidence]" value="1.0">
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', itemHtml);
+    updateCounters();
+
+    // Focus on the new item's text input
+    document.getElementById(`item_${itemIndex}_text`).focus();
+}
+
+// Remove item
+function removeItem(button) {
+    button.closest('.checklist-item').remove();
+    updateCounters();
+}
+
+// Toggle all items
+function toggleAll() {
+    const checkboxes = document.querySelectorAll('.item-enabled');
+    const checkedCount = document.querySelectorAll('.item-enabled:checked').length;
+    const shouldCheck = checkedCount < checkboxes.length / 2;
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = shouldCheck;
+        toggleItemState(checkbox);
+    });
+
+    updateCounters();
+}
+
+// Select high confidence items only
+function selectHighConfidence() {
+    const items = document.querySelectorAll('.checklist-item');
+
+    items.forEach(item => {
+        const confidenceInput = item.querySelector('input[name*="[confidence]"]');
+        const enabledCheckbox = item.querySelector('.item-enabled');
+
+        if (confidenceInput && enabledCheckbox) {
+            const confidence = parseFloat(confidenceInput.value);
+            enabledCheckbox.checked = confidence >= 0.8;
+            toggleItemState(enabledCheckbox);
+        }
+    });
+
+    updateCounters();
+}
+
+// Expand all prompt textareas
+function expandAllPrompts() {
+    const prompts = document.querySelectorAll('.item-prompt');
+    prompts.forEach(prompt => {
+        prompt.rows = prompt.rows === 2 ? 4 : 2;
+    });
+}
+
+// Sort by category
+function sortByCategory() {
+    const container = document.getElementById('checklistItems');
+    const items = Array.from(container.children);
+
+    items.sort((a, b) => {
+        const categoryA = a.querySelector('.item-category').value || 'Uncategorized';
+        const categoryB = b.querySelector('.item-category').value || 'Uncategorized';
+        return categoryA.localeCompare(categoryB);
+    });
+
+    items.forEach(item => container.appendChild(item));
+}
+
+// Form submission
+document.getElementById('createChecklistForm').addEventListener('submit', function(e) {
+    const selectedItems = document.querySelectorAll('.item-enabled:checked').length;
+
+    if (selectedItems === 0) {
+        e.preventDefault();
+        alert('Please select at least one checklist item to create your checklist.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Checklist...';
+    submitBtn.disabled = true;
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up event listeners for existing checkboxes
+    document.querySelectorAll('.item-enabled').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            toggleItemState(this);
+            updateCounters();
+        });
+    });
+
+    // Initial counter update
+    updateCounters();
+});
+</script>
+{% endblock %}

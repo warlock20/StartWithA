@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort
 from flask_login import current_user, login_required
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
@@ -8,6 +8,7 @@ from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        get_review_queue, update_thesis_version,
                                        calculate_next_review_date, search_journal,
+                                      get_all_user_tags,
                                        get_journal_statistics, create_default_templates)
 from datetime import datetime, timedelta
 import os
@@ -126,11 +127,13 @@ def new_entry():
                     file.save(filepath)
                     
                     # Create attachment record
+                    # Store relative path for URL generation
+                    relative_path = f"uploads/journal/{current_user.id}/{filename}"
                     attachment = JournalAttachment(
                         entry=entry,
                         filename=filename,
                         file_type=filename.rsplit('.', 1)[1].lower(),
-                        file_path=filepath,
+                        file_path=relative_path,
                         file_size=os.path.getsize(filepath)
                     )
                     db.session.add(attachment)
@@ -148,7 +151,7 @@ def new_entry():
                 )
             
             flash('Journal entry created successfully!', 'success')
-            return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry.id))
+            return redirect(url_for('journal_enhanced.journal_home'))
             
         except Exception as e:
             db.session.rollback()
@@ -191,10 +194,7 @@ def entry_detail(entry_id):
         flash('Access denied', 'error')
         return redirect(url_for('journal_enhanced.journal_home'))
     
-    # Update review tracking
-    entry.last_reviewed = datetime.utcnow()
-    entry.review_count += 1
-    db.session.commit()
+    # Don't automatically mark as reviewed - let user control this manually
     
     # Get related entries
     related_entries = get_related_entries(entry, limit=5)
@@ -526,50 +526,75 @@ def review_learning_note(note_id):
 def review_queue():
    """Show items due for review"""
    queue = get_review_queue(current_user.id)
-   
+
    return render_template('review_queue.html',
                          title="Review Queue",
                          learning_notes=queue['learning_notes'],
+                         pending_entries=queue['pending_entries'],
                          starred_entries=queue['starred_entries'],
                          total_items=queue['total_items'])
 
 @journal_enhanced_bp.route('/search')
 @login_required
 def search():
-   """Search journal entries"""
-   query = request.args.get('q', '')
-   company_id = request.args.get('company_id', type=int)
-   entry_type = request.args.get('entry_type')
-   sentiment = request.args.get('sentiment')
-   starred_only = request.args.get('starred_only') == 'true'
-   date_from = request.args.get('date_from')
-   date_to = request.args.get('date_to')
-   
-   filters = {}
-   if company_id:
-       filters['company_id'] = company_id
-   if entry_type:
-       filters['entry_type'] = entry_type
-   if sentiment:
-       filters['sentiment'] = sentiment
-   if starred_only:
-       filters['starred_only'] = True
-   if date_from:
-       filters['date_from'] = datetime.strptime(date_from, '%Y-%m-%d')
-   if date_to:
-       filters['date_to'] = datetime.strptime(date_to, '%Y-%m-%d')
-   
-   results = search_journal(current_user.id, query, filters)
-   
-   # Get companies for filter dropdown
-   companies = current_user.companies.order_by(Company.name).all()
-   
-   return render_template('search_results.html',
-                         title="Search Results",
-                         query=query,
-                         results=results,
-                         filters=filters,
-                         companies=companies)
+    """Enhanced search for knowledge hub with advanced filtering"""
+    query = request.args.get('q', '')
+    company_id = request.args.get('company_id', type=int)
+    entry_type = request.args.get('entry_type')
+    sentiment = request.args.get('sentiment')
+    starred_only = request.args.get('starred_only') == 'true'
+    reviewed_only = request.args.get('reviewed_only') == 'true'
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    review_date_from = request.args.get('review_date_from')
+    review_date_to = request.args.get('review_date_to')
+    selected_tags = request.args.getlist('tags')
+
+    filters = {}
+    if company_id:
+        filters['company_id'] = company_id
+    if entry_type:
+        filters['entry_type'] = entry_type
+    if sentiment:
+        filters['sentiment'] = sentiment
+    if starred_only:
+        filters['starred_only'] = True
+    if reviewed_only:
+        filters['reviewed_only'] = True
+    if date_from:
+        filters['date_from'] = datetime.strptime(date_from, '%Y-%m-%d')
+    if date_to:
+        filters['date_to'] = datetime.strptime(date_to, '%Y-%m-%d')
+    if review_date_from:
+        filters['review_date_from'] = datetime.strptime(review_date_from, '%Y-%m-%d')
+    if review_date_to:
+        filters['review_date_to'] = datetime.strptime(review_date_to, '%Y-%m-%d')
+    if selected_tags:
+        filters['tags'] = selected_tags
+
+    results = search_journal(current_user.id, query, filters)
+
+    # Get all available tags for the filter UI
+    all_tags = get_all_user_tags(current_user.id)
+
+    # Get companies for filter dropdown
+    companies = current_user.companies.order_by(Company.name).all()
+
+    # Get entry types
+    entry_types = db.session.query(JournalEntry.entry_type.distinct()).filter_by(
+        user_id=current_user.id
+    ).all()
+    entry_types = [t[0] for t in entry_types]
+
+    return render_template('search_results.html',
+                          title="Knowledge Hub Search",
+                          query=query,
+                          results=results,
+                          filters=request.args.to_dict(flat=False),
+                          selected_tags=selected_tags,
+                          all_tags=all_tags,
+                          companies=companies,
+                          entry_types=entry_types)
 
 @journal_enhanced_bp.route('/templates')
 @login_required
@@ -631,3 +656,202 @@ def export_journal():
    # Could add CSV, Markdown, or other formats
    flash('Export format not supported', 'error')
    return redirect(url_for('journal_enhanced.journal_home'))
+
+@journal_enhanced_bp.route('/attachment/<int:attachment_id>')
+@login_required
+def view_attachment(attachment_id):
+    """Serve attachment files for viewing/downloading"""
+    attachment = JournalAttachment.query.get_or_404(attachment_id)
+    
+    # Security check: ensure user owns the journal entry
+    if attachment.entry.user_id != current_user.id:
+        abort(403)
+    
+    # Get the file path
+    if attachment.file_path:
+        file_path = attachment.file_path
+    else:
+        # Fallback to constructed path
+        file_path = f"uploads/journal/{current_user.id}/{attachment.filename}"
+    
+    # Full file path
+    full_path = os.path.join(os.getcwd(), 'app', 'static', file_path)
+    
+    if not os.path.exists(full_path):
+        flash('Attachment file not found', 'error')
+        abort(404)
+    
+    # Get directory and filename
+    directory = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+    
+    try:
+        return send_from_directory(directory, filename, as_attachment=False)
+    except Exception as e:
+        flash('Error accessing attachment', 'error')
+        abort(500)
+
+@journal_enhanced_bp.route('/attachment/<int:attachment_id>/download')
+@login_required  
+def download_attachment(attachment_id):
+    """Download attachment files"""
+    attachment = JournalAttachment.query.get_or_404(attachment_id)
+    
+    # Security check: ensure user owns the journal entry
+    if attachment.entry.user_id != current_user.id:
+        abort(403)
+    
+    # Get the file path
+    if attachment.file_path:
+        file_path = attachment.file_path
+    else:
+        # Fallback to constructed path
+        file_path = f"uploads/journal/{current_user.id}/{attachment.filename}"
+    
+    # Full file path
+    full_path = os.path.join(os.getcwd(), 'app', 'static', file_path)
+    
+    if not os.path.exists(full_path):
+        flash('Attachment file not found', 'error')
+        abort(404)
+    
+    # Get directory and filename
+    directory = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+    
+    try:
+        return send_from_directory(directory, filename, as_attachment=True)
+    except Exception as e:
+        flash('Error downloading attachment', 'error')
+        abort(500)
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/delete', methods=['POST'])
+@login_required
+def delete_entry(entry_id):
+    """Delete a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        # Delete associated attachments and their files
+        for attachment in entry.attachments:
+            # Delete the file from filesystem
+            if attachment.file_path:
+                full_path = os.path.join(os.getcwd(), 'app', 'static', attachment.file_path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+
+        # Delete the entry (cascades to attachments)
+        db.session.delete(entry)
+        db.session.commit()
+
+        flash('Journal entry deleted successfully', 'success')
+        return redirect(url_for('journal_enhanced.journal_home'))
+
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting entry', 'error')
+        return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_pending', methods=['POST'])
+@login_required
+def mark_entry_pending(entry_id):
+    """Mark entry as pending review"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        entry.last_reviewed = None
+        db.session.commit()
+        flash('Entry marked as pending review', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating entry status', 'error')
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/review', methods=['POST'])
+@login_required
+def review_entry(entry_id):
+    """Enhanced review entry with notes and knowledge tags"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        from datetime import datetime
+
+        # Update review information
+        entry.last_reviewed = datetime.utcnow()
+        entry.review_count += 1
+
+        # Add review notes if provided
+        review_notes = request.form.get('review_notes', '').strip()
+        if review_notes:
+            entry.review_notes = review_notes
+
+        # Handle knowledge tags
+        knowledge_tags = request.form.get('knowledge_tags', '').strip()
+        if knowledge_tags:
+            # Parse knowledge tags and add to existing tags
+            new_tags = [tag.strip() for tag in knowledge_tags.split(',') if tag.strip()]
+            existing_tags = entry.tags or []
+
+            # Merge tags, avoiding duplicates
+            all_tags = list(set(existing_tags + new_tags))
+            entry.tags = all_tags
+
+        db.session.commit()
+        flash('Entry reviewed successfully! Added to your knowledge base.', 'success')
+
+        # Return JSON response for AJAX calls, otherwise redirect
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify({
+                'success': True,
+                'message': 'Entry reviewed successfully',
+                'review_count': entry.review_count,
+                'last_reviewed': entry.last_reviewed.strftime('%Y-%m-%d %H:%M')
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        flash('Error reviewing entry', 'error')
+
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_reviewed', methods=['POST'])
+@login_required
+def mark_entry_reviewed(entry_id):
+    """Quick mark entry as reviewed (for backward compatibility)"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check: ensure user owns the entry
+    if entry.user_id != current_user.id:
+        flash('Access denied', 'error')
+        abort(403)
+
+    try:
+        from datetime import datetime
+        entry.last_reviewed = datetime.utcnow()
+        entry.review_count += 1
+        db.session.commit()
+        flash('Entry marked as reviewed', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating entry status', 'error')
+
+    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))

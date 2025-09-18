@@ -9,7 +9,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Load environment variables from .env file
 # This line will look for a .env file in the current directory (where config.py is)
 # or in parent directories, and load the variables found into the environment.
-load_dotenv(os.path.join(basedir, '.env_local')) # Explicitly point to .env in project root. Currently, I am loading .env_local
+load_dotenv(os.path.join(basedir, '.env')) # Load .env file for PostgreSQL configuration
 
 class Config:
     """Base configuration."""
