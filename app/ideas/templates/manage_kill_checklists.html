@@ -5,6 +5,14 @@
     <div>
         <h1>📋 Kill Checklists</h1>
         <p class="text-muted mb-0">Design your criteria for eliminating bad ideas quickly</p>
+        <!-- Cross-navigation -->
+        <div class="mt-2">
+            <small class="text-muted">
+                Also explore:
+                <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none">✅ Investment Checklists</a> |
+                <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none">❓ Question Bank</a>
+            </small>
+        </div>
     </div>
     <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-success">
         <i class="bi bi-plus-circle"></i> Create New Checklist

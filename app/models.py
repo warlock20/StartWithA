@@ -730,7 +730,9 @@ class ResearchProject(db.Model):
     # Relationships
     company = db.relationship('Company', backref='research_projects')
     idea = db.relationship('IdeaPipeline', backref='research_project')
-    work_sessions = db.relationship('WorkSession', backref='project', 
+    work_sessions = db.relationship('WorkSession', backref='project',
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    research_logs = db.relationship('ResearchLog', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')
     
     @property
