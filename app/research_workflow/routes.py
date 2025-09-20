@@ -590,6 +590,54 @@ def complete_step(project_id):
         flash(f'Error completing step: {str(e)}', 'error')
         return redirect(request.referrer)
 
+@research_workflow_bp.route('/projects/<int:project_id>/complete-research-step/<int:step_index>')
+@login_required
+def complete_research_step(project_id, step_index):
+    """Complete a checklist step when returning from research session"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    try:
+        # Mark step as complete
+        if not project.completed_steps:
+            project.completed_steps = []
+
+        if step_index not in project.completed_steps:
+            project.completed_steps = project.completed_steps + [step_index]
+
+        # Save step notes
+        if not project.step_notes:
+            project.step_notes = {}
+        project.step_notes[str(step_index)] = 'Completed research checklist evaluation'
+
+        # Move to next step if not at the end
+        if step_index + 1 < len(project.template.workflow_steps):
+            project.current_step_index = step_index + 1
+        else:
+            project.status = 'completed'
+            project.completed_at = datetime.utcnow()
+
+        db.session.commit()
+
+        # Clear research context since we're done with this step
+        from flask import session as flask_session
+        flask_session.pop('research_context', None)
+
+        if project.status == 'completed':
+            flash('Research project completed! Review your findings.', 'success')
+            return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+        else:
+            flash('Research step completed! Moving to next step.', 'success')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error completing research step: {str(e)}', 'error')
+        return redirect(request.referrer)
+
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
 def project_summary(project_id):
@@ -701,7 +749,9 @@ def my_projects():
     
     invest_decisions = current_user.research_projects.filter_by(decision='invest').count()
     pass_decisions = current_user.research_projects.filter_by(decision='pass').count()
-    
+
+    # Legacy research sessions removed - now handled through research workflow system
+
     return render_template('my_projects.html',
                           title="My Research Projects",
                           active_projects=active_projects,
@@ -1018,18 +1068,72 @@ def delete_project(project_id):
     project_name = project.project_name
     
     try:
-        # Delete associated work sessions first
+        # Delete all related records first to avoid foreign key constraints
+        from app.models import ResearchLog
+
+        # Delete research logs that reference this project
+        ResearchLog.query.filter_by(project_id=project.id).delete()
+
+        # Delete associated work sessions
         WorkSession.query.filter_by(research_project_id=project.id).delete()
-        
-        # Delete the project
+
+        # Commit the deletions of related records first
+        db.session.commit()
+
+        # Now we can safely delete the project
         db.session.delete(project)
         db.session.commit()
-        
+
         flash(f'Project "{project_name}" has been deleted permanently', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting project: {str(e)}', 'error')
     
+    return redirect(url_for('research_workflow.my_projects'))
+
+@research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
+@login_required
+def delete_research_session(session_id):
+    """Delete a research session that is not in progress or completed"""
+    from app.models import ResearchSession, ResearchAnswer
+
+    session = ResearchSession.query.get_or_404(session_id)
+
+    # Authorization check
+    if session.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Allow deletion of in-progress sessions but with warning (handled in frontend)
+
+    # For completed sessions, only allow deletion if they're incomplete/failed
+    if session.status == 'completed':
+        from app.models import ResearchAnswer
+        total_answers = ResearchAnswer.query.filter_by(research_session_id=session_id).all()
+        total_item_count = len(total_answers)
+        satisfied_count = len([ans for ans in total_answers if ans.satisfaction_status == 'satisfied'])
+
+        # Don't allow deletion of successfully completed sessions
+        if total_item_count > 0 and satisfied_count == total_item_count:
+            flash('Cannot delete successfully completed research sessions', 'error')
+            return redirect(url_for('research_workflow.my_projects'))
+
+    try:
+        # Delete related research answers first to handle foreign key constraints
+        ResearchAnswer.query.filter_by(research_session_id=session_id).delete()
+
+        # Commit the deletion of related records
+        db.session.commit()
+
+        # Delete the research session itself
+        db.session.delete(session)
+        db.session.commit()
+
+        flash(f'Research session for "{session.company.name if session.company else "Unknown"}" has been deleted', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting research session: {str(e)}', 'error')
+
     return redirect(url_for('research_workflow.my_projects'))
 
 @research_workflow_bp.route('/projects/<int:project_id>/skip-step/<int:step_index>', methods=['POST'])

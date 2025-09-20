@@ -41,23 +41,51 @@ def add_idea():
         name = request.form.get('name')
         idea_type = request.form.get('idea_type', 'company')
         idea_purpose = request.form.get('idea_purpose', 'investment')
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-        full_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+        ticker_symbol = request.form.get('ticker_symbol', '').upper() if request.form.get('ticker_symbol') else None
         source = request.form.get('source')
         thesis = request.form.get('thesis_summary')
         notes = request.form.get('initial_notes')
-        
+
+        # Validation
         if not name:
             flash('Idea name is required', 'error')
             return redirect(url_for('ideas.add_idea'))
-        
+
+        if not source:
+            flash('Source is required - please specify where this idea came from', 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Validate ticker requirement for investment companies
+        if idea_purpose == 'investment' and idea_type == 'company' and not ticker_symbol:
+            flash('Ticker symbol is required for company investment ideas', 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Check if company or idea with same ticker already exists
+        if ticker_symbol:
+            # Check existing companies
+            existing_company = Company.query.filter_by(
+                ticker_symbol=ticker_symbol,
+                user_id=current_user.id
+            ).first()
+            if existing_company:
+                flash(f'You already have a company with ticker {ticker_symbol}: {existing_company.name}. Cannot add as idea.', 'error')
+                return redirect(url_for('ideas.add_idea'))
+
+            # Check existing ideas
+            existing_idea = IdeaPipeline.query.filter_by(
+                ticker_symbol=ticker_symbol,
+                user_id=current_user.id
+            ).first()
+            if existing_idea:
+                flash(f'You already have an idea with ticker {ticker_symbol}: {existing_idea.name} (Status: {existing_idea.status}). Cannot add duplicate.', 'error')
+                return redirect(url_for('ideas.add_idea'))
+
         new_idea = IdeaPipeline(
             author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,
-            ticker_symbol=full_ticker, source=source, thesis_summary=thesis,
+            ticker_symbol=ticker_symbol, source=source, thesis_summary=thesis,
             initial_notes=notes, status='inbox'
         )
-        
+
         try:
             db.session.add(new_idea)
             db.session.commit()
@@ -72,8 +100,8 @@ def add_idea():
         except Exception as e:
             db.session.rollback()
             flash(f'Error adding idea: {str(e)}', 'error')
-    
-    return render_template('add_idea.html', title="Quick Capture", exchanges=EXCHANGES)
+
+    return render_template('add_idea.html', title="Quick Capture")
 
 # In app/ideas/routes.py
 
@@ -313,6 +341,13 @@ def promote_idea(idea_id):
         promotion_action = request.form.get('action')
         
         if promotion_action == 'create_company' and idea.idea_type == 'company':
+            # Check if company with ticker already exists
+            if idea.ticker_symbol:
+                existing_company = Company.query.filter_by(ticker_symbol=idea.ticker_symbol).first()
+                if existing_company:
+                    flash(f'Company with ticker {idea.ticker_symbol} already exists: {existing_company.name}', 'error')
+                    return redirect(request.url)
+
             # Create company and redirect to research template selection
             company = Company(
                 name=idea.name, ticker_symbol=idea.ticker_symbol,
@@ -402,11 +437,34 @@ def edit_idea(idea_id):
         idea.idea_purpose = request.form.get('idea_purpose', idea.idea_purpose)
         base_ticker = request.form.get('base_ticker', '').upper()
         exchange_suffix = request.form.get('exchange_suffix', '')
-        idea.ticker_symbol = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+        new_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+
+        # Check if changing ticker to one that already exists
+        if new_ticker and new_ticker != idea.ticker_symbol:
+            # Check existing companies
+            existing_company = Company.query.filter_by(
+                ticker_symbol=new_ticker,
+                user_id=current_user.id
+            ).first()
+            if existing_company:
+                flash(f'You already have a company with ticker {new_ticker}: {existing_company.name}. Cannot change to this ticker.', 'error')
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+            # Check existing ideas (excluding current idea)
+            existing_idea = IdeaPipeline.query.filter(
+                IdeaPipeline.ticker_symbol == new_ticker,
+                IdeaPipeline.user_id == current_user.id,
+                IdeaPipeline.id != idea.id
+            ).first()
+            if existing_idea:
+                flash(f'You already have an idea with ticker {new_ticker}: {existing_idea.name} (Status: {existing_idea.status}). Cannot change to this ticker.', 'error')
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+        idea.ticker_symbol = new_ticker
         idea.source = request.form.get('source')
         idea.thesis_summary = request.form.get('thesis_summary')
         idea.initial_notes = request.form.get('initial_notes')
-        
+
         try:
             db.session.commit()
             flash('Idea updated successfully', 'success')
@@ -434,15 +492,28 @@ def delete_idea(idea_id):
     if idea.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
-    
+
     try:
+        # Delete related records first to avoid foreign key constraint violations
+        from app.models import ResearchLog, ResearchProject, JournalEntry
+
+        # Delete research logs that reference this idea
+        ResearchLog.query.filter_by(idea_id=idea_id).delete()
+
+        # Delete journal entries that reference this idea
+        JournalEntry.query.filter_by(idea_id=idea_id).delete()
+
+        # Update research projects to remove idea reference (don't delete projects)
+        ResearchProject.query.filter_by(idea_id=idea_id).update({'idea_id': None})
+
+        # Now delete the idea (KillSession will cascade delete automatically)
         db.session.delete(idea)
         db.session.commit()
         flash(f'"{idea.name}" deleted permanently', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting idea: {str(e)}', 'error')
-    
+
     return redirect(url_for('ideas.inbox'))
 
 @ideas_bp.route('/<int:idea_id>/resurrect', methods=['POST'])
@@ -512,3 +583,26 @@ def idea_details(idea_id):
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
     return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+@ideas_bp.route('/api/sources/search')
+@login_required
+def search_sources():
+    """AJAX endpoint to search for existing idea sources"""
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    # Search for sources that contain the query (case insensitive)
+    # Get distinct sources from user's ideas, ordered by frequency
+    sources = db.session.query(IdeaPipeline.source, db.func.count(IdeaPipeline.source).label('count')) \
+        .filter(IdeaPipeline.user_id == current_user.id) \
+        .filter(IdeaPipeline.source.ilike(f'%{query}%')) \
+        .filter(IdeaPipeline.source.isnot(None)) \
+        .group_by(IdeaPipeline.source) \
+        .order_by(db.func.count(IdeaPipeline.source).desc()) \
+        .limit(10) \
+        .all()
+
+    # Return list of source names
+    result = [{'source': source[0], 'count': source[1]} for source in sources]
+    return jsonify(result)

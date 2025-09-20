@@ -30,14 +30,44 @@ def index():
     kill_checklist_count = len(user_kill_checklists)
     legacy_checklist_count = len(legacy_checklists)
 
-    # Get the next 5 upcoming checkpoints in the next 90 days
+    # Get the next 5 upcoming checkpoints in the next 12 months for PORTFOLIO companies only
+    # Extended timeframe for thesis validation (90 days was too restrictive)
     today = datetime.utcnow().date()
-    ninety_days_from_now = today + timedelta(days=90)
-    upcoming_checkpoints = DestinationCheckpoint.query.filter(
-        DestinationCheckpoint.user_id == current_user.id,
-        DestinationCheckpoint.target_date >= today,
-        DestinationCheckpoint.target_date <= ninety_days_from_now
-    ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
+    twelve_months_from_now = today + timedelta(days=365)
+
+    # Get portfolio company IDs for the current user
+    portfolio_company_ids = [
+        c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()
+    ]
+
+    upcoming_checkpoints = []
+    if portfolio_company_ids:
+        # Debug: Print some information
+        print(f"DEBUG: Found {len(portfolio_company_ids)} portfolio companies: {portfolio_company_ids}")
+
+        # First, let's see all checkpoints for portfolio companies
+        all_portfolio_checkpoints = DestinationCheckpoint.query.filter(
+            DestinationCheckpoint.company_id.in_(portfolio_company_ids)
+        ).all()
+        print(f"DEBUG: Found {len(all_portfolio_checkpoints)} total checkpoints for portfolio companies")
+        print(f"DEBUG: Date range: {today} to {twelve_months_from_now}")
+
+        for cp in all_portfolio_checkpoints:
+            print(f"DEBUG: Checkpoint details - Company: {cp.company.name}, Metric: {cp.metric}, Date: {cp.target_date}, Status: '{cp.status}', In date range: {today <= cp.target_date <= twelve_months_from_now}")
+
+        # Now filter by date and status
+        upcoming_checkpoints = DestinationCheckpoint.query.filter(
+            DestinationCheckpoint.company_id.in_(portfolio_company_ids),
+            DestinationCheckpoint.target_date >= today,
+            DestinationCheckpoint.target_date <= twelve_months_from_now,
+            DestinationCheckpoint.status == 'Active'  # Only show active checkpoints
+        ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
+
+        print(f"DEBUG: Found {len(upcoming_checkpoints)} upcoming active checkpoints")
+        for cp in upcoming_checkpoints:
+            print(f"DEBUG: Checkpoint - {cp.company.name}: {cp.metric} on {cp.target_date} (status: {cp.status})")
+    else:
+        print("DEBUG: No portfolio companies found")
 
 
     return render_template(

@@ -189,10 +189,40 @@ def delete_company(company_id):
         return redirect(url_for('companies.list_companies'))
 
     try:
-        # Deleting the company will now also delete its research sessions,
-        # documents, and favorite entries due to cascade settings.
+        # Two-phase deletion to handle foreign key constraints
+        # Phase 1: Delete related records that reference this company
+        from app.models import (ResearchLog, ThesisEvolution, DecisionJournal,
+                              JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem)
+
+        # Delete research logs that reference this company
+        ResearchLog.query.filter_by(company_id=company_id).delete()
+
+        # Delete thesis evolution entries that reference this company
+        ThesisEvolution.query.filter_by(company_id=company_id).delete()
+
+        # Delete decision journal entries that reference this company
+        DecisionJournal.query.filter_by(company_id=company_id).delete()
+
+        # Delete journal entries that reference this company
+        JournalEntry.query.filter_by(company_id=company_id).delete()
+
+        # Delete learning notes that reference this company
+        LearningNote.query.filter_by(company_id=company_id).delete()
+
+        # Delete mistake logs that reference this company
+        MistakeLog.query.filter_by(company_id=company_id).delete()
+
+        # Delete investment post-mortems that reference this company
+        InvestmentPostMortem.query.filter_by(company_id=company_id).delete()
+
+        # Commit the deletions of related records first
+        db.session.commit()
+
+        # Phase 2: Delete the company itself
+        # This will now also delete its research sessions, documents, and favorite entries due to cascade settings
         db.session.delete(company_to_delete)
         db.session.commit()
+
         flash(f'Company "{company_to_delete.name}" and all its data have been deleted.', 'success')
     except Exception as e:
         db.session.rollback()

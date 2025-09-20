@@ -17,48 +17,56 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4 border-primary">
-            <div class="card-header bg-primary text-white">
-                {% if project.research_subject_type == 'company' %}
-                    <h4 class="mb-0">Investment Decision</h4>
-                {% elif project.research_subject_type == 'sector' %}
-                    <h4 class="mb-0">Sector Assessment</h4>
-                {% else %}
-                    <h4 class="mb-0">Research Decision</h4>
-                {% endif %}
+        <div class="framework-card">
+            <div class="framework-header">
+                <div class="framework-icon primary">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div class="framework-title">
+                    {% if project.research_subject_type == 'company' %}
+                        <h4>Investment Decision</h4>
+                        <p>Make your final investment decision based on your research</p>
+                    {% elif project.research_subject_type == 'sector' %}
+                        <h4>Sector Assessment</h4>
+                        <p>Make your final sector assessment based on your research</p>
+                    {% else %}
+                        <h4>Research Decision</h4>
+                        <p>Make your final decision based on your research</p>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
+            <div class="framework-body">
                 <form method="POST" action="{{ url_for('research_workflow.save_decision', project_id=project.id) }}">
                     <div class="mb-3">
                         <label class="form-label"><strong>Decision:</strong></label>
-                        <div class="btn-group d-block" role="group">
+                        <div class="btn-group d-flex" role="group">
                             {% if project.research_subject_type == 'company' %}
                                 <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
-                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest</label>
+                                <label class="btn btn-outline-success flex-fill" for="decision_invest">💰 Invest</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
-                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass</label>
+                                <label class="btn btn-outline-danger flex-fill" for="decision_pass">❌ Pass</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
-                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watchlist</label>
+                                <label class="btn btn-outline-warning flex-fill" for="decision_watchlist">👀 Watchlist</label>
                             {% elif project.research_subject_type == 'sector' %}
                                 <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
-                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Invest in Sector</label>
+                                <label class="btn btn-outline-success flex-fill" for="decision_invest">📈 Invest in Sector</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
-                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Pass on Sector</label>
+                                <label class="btn btn-outline-danger flex-fill" for="decision_pass">❌ Pass on Sector</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
-                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Watch Sector</label>
+                                <label class="btn btn-outline-warning flex-fill" for="decision_watchlist">👀 Watch Sector</label>
                             {% else %}
                                 <input type="radio" class="btn-check" name="decision" id="decision_invest" value="invest" required>
-                                <label class="btn btn-outline-success" for="decision_invest" style="width: 33.3%;">Positive</label>
+                                <label class="btn btn-outline-success flex-fill" for="decision_invest">✅ Positive</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_pass" value="pass">
-                                <label class="btn btn-outline-danger" for="decision_pass" style="width: 33.3%;">Negative</label>
+                                <label class="btn btn-outline-danger flex-fill" for="decision_pass">❌ Negative</label>
 
                                 <input type="radio" class="btn-check" name="decision" id="decision_watchlist" value="watchlist">
-                                <label class="btn btn-outline-warning" for="decision_watchlist" style="width: 33.3%;">Neutral</label>
+                                <label class="btn btn-outline-warning flex-fill" for="decision_watchlist">⚖️ Neutral</label>
                             {% endif %}
                         </div>
                     </div>
@@ -105,17 +113,25 @@
                     </div>
 
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">Save Final Decision</button>
+                        <button type="submit" class="btn-pro primary btn-lg">
+                            <i class="bi bi-check-circle"></i> Save Final Decision
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Compiled Research Notes</h5>
+        <div class="framework-card">
+            <div class="framework-header">
+                <div class="framework-icon secondary">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <div class="framework-title">
+                    <h4>Compiled Research Notes</h4>
+                    <p>Review your detailed research findings</p>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="framework-body">
                 {% if all_notes %}
                     <div class="accordion" id="notesAccordion">
                         {% for note in all_notes %}
@@ -139,11 +155,17 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Project Details</h5>
+        <div class="framework-card">
+            <div class="framework-header">
+                <div class="framework-icon info">
+                    <i class="bi bi-info-circle"></i>
+                </div>
+                <div class="framework-title">
+                    <h4>Project Details</h4>
+                    <p>Summary of your research project</p>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="framework-body">
                 <dl class="row mb-0">
                     {% if project.research_subject_type == 'company' %}
                         <dt class="col-sm-5">Company:</dt>

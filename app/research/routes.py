@@ -113,129 +113,8 @@ def select_checklist_for_company(company_id):
                            checklists_data=checklists_data,
                            title=f"Select or Resume Research for {company.name}")
     
-@research_bp.route('/research/start', methods=['POST'])
-@login_required  # Ensures only logged-in users can access this route
-def start_research_session():
-    """
-    Handles the initiation of a research session.
-    It checks if a session for the given user, company, and checklist already exists.
-    If yes:
-        - Resumes an 'in_progress' session.
-        - Redirects to summary for a 'completed' session.
-    If no:
-        - Performs authorization checks to ensure user owns the checklist and company.
-        - Creates a new 'in_progress' session.
-        - Redirects to the first item of the checklist for the new session.
-    """
-
-    # 1. Retrieve checklist_id and company_id from the submitted form data.
-    # The 'type=int' attempts to convert the form values to integers.
-    checklist_id = request.form.get('checklist_id', type=int)
-    company_id = request.form.get('company_id', type=int)
-
-    # 2. Basic validation: Ensure both IDs were actually provided by the form.
-    if not checklist_id or not company_id:
-        flash('Checklist and Company must be selected.', 'error')
-        # Redirect to the page the user came from (request.referrer) or a default page.
-        return redirect(request.referrer or url_for('checklists.list_checklists'))
-
-    # 3. Uniqueness Check: Look for any existing research session matching the current user,
-    #    the selected company, and the selected checklist, regardless of its status.
-    existing_session = ResearchSession.query.filter_by(
-        user_id=current_user.id,    # Filter by the currently logged-in user
-        checklist_id=checklist_id,  # Filter by the submitted checklist_id
-        company_id=company_id       # Filter by the submitted company_id
-    ).first()                       # Get the first matching session, if any
-
-    # 4. Handle the case where a session ALREADY EXISTS.
-    if existing_session:
-        if existing_session.status == 'in_progress':
-            # 4a. If the existing session is 'in_progress', resume it.
-            flash('Resuming existing in-progress research session.', 'info')
-            
-            # Get all items of the checklist in their defined order.
-            all_items_in_order = get_all_ordered_items_for_checklist(existing_session.checklist_id)
-            
-            if not all_items_in_order:
-                # Edge case: The checklist associated with the session has no items.
-                flash('The checklist for this session has no items!', 'warning')
-                return redirect(url_for('checklists.view_checklist', checklist_id=existing_session.checklist_id))
-
-            # Determine the specific item to redirect to (first unanswered item).
-            redirect_to_item_id = all_items_in_order[0].id  # Default to the first item.
-            for item in all_items_in_order:
-                answer_exists = ResearchAnswer.query.filter_by(
-                    research_session_id=existing_session.id,
-                    checklist_item_id=item.id
-                ).first()
-                if not answer_exists:
-                    redirect_to_item_id = item.id  # Found the first item without an answer.
-                    break
-            # Redirect to the research step for the determined item.
-            return redirect(url_for('research.research_step', session_id=existing_session.id, item_id=redirect_to_item_id))
-        
-        elif existing_session.status == 'completed':
-            # 4b. If the existing session is 'completed', show its summary.
-            flash('This research was already completed. Viewing summary. You can edit answers from there.', 'info')
-            return redirect(url_for('research.view_research_session_summary', session_id=existing_session.id))
-        
-        else:
-            # 4c. Handle any other unforeseen statuses for an existing session.
-            flash(f'A session for this company and checklist already exists with status: {existing_session.status}. Viewing details.', 'info')
-            # Defaulting to the summary page for any other existing status.
-            return redirect(url_for('research.view_research_session_summary', session_id=existing_session.id))
-    
-    # 5. If no existing session was found (the 'if existing_session:' block was not entered),
-    #    then proceed to create a NEW research session.
-
-    # 5a. Fetch the full Checklist and Company objects from the database using their IDs.
-    #     '.get_or_404()' will automatically return a 404 "Not Found" page if an ID doesn't exist.
-    checklist = Checklist.query.get_or_404(checklist_id)
-    company = Company.query.get_or_404(company_id)
-
-    # 5b. Authorization Checks: Verify that the current user owns the selected checklist and company.
-    #     This is critical for data privacy and integrity in a multi-user application.
-    if checklist.user_id != current_user.id:
-        # (Alternatively, if using backrefs: checklist.author != current_user)
-        flash('You are not authorized to use this checklist.', 'error')
-        return redirect(url_for('checklists.list_checklists'))  # Redirect to a safe page
-    
-    if company.user_id != current_user.id:
-        # (Alternatively, if using backrefs: company.creator != current_user)
-        flash('You are not authorized to research this company.', 'error')
-        return redirect(url_for('companies.list_companies'))  # Redirect to a safe page
-    
-    # 5c. If all checks pass (no existing session, user is authorized), create the new ResearchSession.
-    new_session = ResearchSession(
-        user_id=current_user.id,      # Link to the currently logged-in user
-        checklist_id=checklist.id,    # Link to the validated checklist
-        company_id=company.id,        # Link to the validated company
-        status='in_progress'          # New sessions always start as 'in_progress'
-    )
-    try:
-        db.session.add(new_session)
-        db.session.commit()
-        flash('New research session started!', 'success')
-    except Exception as e:
-        db.session.rollback() # Rollback in case of database error during commit
-        flash(f'Error starting new research session: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('checklists.list_checklists'))
-
-
-    # 5d. Redirect the user to the first item of the newly created research session.
-    all_items_for_new_session = get_all_ordered_items_for_checklist(checklist.id)
-    
-    if all_items_for_new_session:
-        # If the checklist has items, get the ID of the first one.
-        first_item_in_new_session = all_items_for_new_session[0]
-        return redirect(url_for('research.research_step', session_id=new_session.id, item_id=first_item_in_new_session.id))
-    else:
-        # If the checklist is empty, inform the user.
-        # The session record has been created but will be un-actionable through the research_step.
-        # Future improvement: Prevent session creation or delete the empty session.
-        flash('This checklist has no items to research!', 'warning')
-        return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
-   
+# DEPRECATED: Legacy research session creation removed
+# Research sessions are now handled through the research workflow system
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def research_step(session_id, item_id):
@@ -351,7 +230,6 @@ def ai_analyze_item(session_id, item_id):
         return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
 
     # LLM service will handle API configuration automatically
-
     session = ResearchSession.query.get_or_404(session_id)
     # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
@@ -607,42 +485,32 @@ def view_research_session_summary(session_id):
         else:
             intrinsic_display_value = str(val)
     
-    # 5. Render the template, passing all the prepared data
+    # 5. Check for research workflow context
+    from flask import session as flask_session
+    research_context = flask_session.get('research_context')
+
+    # 6. Render the template, passing all the prepared data
     return render_template(
-        'session_summary.html', 
+        'session_summary.html',
         title=f"Research Summary: {session.company.name}", # Use the company name in the title
-        session=session, 
+        session=session,
         all_ordered_items=all_ordered_items,
         answers_map=answers_map,
         intrinsic_display_value=intrinsic_display_value,
-        intrinsic_unit=intrinsic_unit
+        intrinsic_unit=intrinsic_unit,
+        research_context=research_context  # Pass research workflow context
     )
 
-@research_bp.route('/session/<int:session_id>/delete', methods=['POST'])
-@login_required  
-def delete_research_session(session_id):
-    session_to_delete = ResearchSession.query.get_or_404(session_id)
-    
-    # Verify that the session belongs to the current user
-    if session_to_delete.user_id != current_user.id: # Use current_user.id
-        flash('You do not have permission to delete this session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
-
-    try:
-        # SQLAlchemy will handle deleting associated ResearchAnswer records
-        # due to cascade="all, delete-orphan" on ResearchSession.answers relationship
-        db.session.delete(session_to_delete)
-        db.session.commit()
-        flash('Research session deleted successfully.', 'success')
-    except Exception as e:
-        db.session.rollback() # Rollback in case of error
-        flash(f'Error deleting research session: {str(e)}', 'error')
-
-    return redirect(url_for('research.list_research_sessions'))
+# DEPRECATED: Research session deletion moved to research_workflow blueprint
     
 @research_bp.route('/sessions', methods=['GET'])
 @login_required
 def list_research_sessions():
+    # Redirect to the modern research workflow page which now includes research sessions
+    flash('Research sessions have been integrated into the Research Workflow dashboard.', 'info')
+    return redirect(url_for('research_workflow.my_projects'))
+
+    # Legacy code below - kept for reference but no longer executed
     user = current_user
     # Get sorting parameters
     sort_by = request.args.get('sort', 'date')  # Default sort by date
