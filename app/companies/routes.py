@@ -3,10 +3,11 @@ import uuid
 import yfinance as yf
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort
+from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
 from app import db, cache
 from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
+from app.services.duplicate_detection import DuplicateDetectionService
 from app.companies import companies_bp
 from app.tasks import fetch_financial_data_task
 
@@ -156,17 +157,30 @@ def new_company():
 def add_company_confirmed():
     for key, value in request.form.items():
         print(f"  - {key}: '{value}'")
-        
+
     name = request.form.get('name')
     ticker_symbol = request.form.get('ticker_symbol')
     summary = request.form.get('summary')
     sector = request.form.get('sector')
     industry = request.form.get('industry')
-    # Redundant check, but good for safety if this route is accessed directly
-    existing_company = Company.query.filter_by(ticker_symbol=ticker_symbol, user_id=current_user.id).first()
-    if existing_company:
-        flash(f'"{name}" ({ticker_symbol}) is already in your list.', 'info')
-        return redirect(url_for('companies.list_companies'))
+
+    # Enhanced duplicate detection
+    detector = DuplicateDetectionService(current_user.id)
+    duplicate_check = detector.check_company_duplicates(name, ticker_symbol)
+
+    if duplicate_check['is_duplicate']:
+        # Handle duplicates with detailed messages
+        for match in duplicate_check['exact_matches']:
+            flash(match['message'], 'error')
+        for match in duplicate_check['similar_matches']:
+            if match.get('similarity', 0) > 0.9:  # Very similar names should block
+                flash(match['message'], 'error')
+        return redirect(url_for('companies.new_company'))
+
+    # Show warnings for similar matches but allow creation
+    for match in duplicate_check['similar_matches']:
+        if match.get('similarity', 0) <= 0.9:  # Show warning but don't block
+            flash(f"Warning: {match['message']}", 'warning')
 
     if name and ticker_symbol:
         company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
@@ -244,12 +258,12 @@ def add_document(company_id):
     # --- Basic File Checks ---
     if 'document_file' not in request.files:
         flash('No file part in request.', 'error')
-        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
     
     file = request.files['document_file']
     if file.filename == '':
         flash('No file selected for upload.', 'error')
-        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
     # --- Get all form data ---
     doc_group = request.form.get('document_group')
@@ -282,7 +296,7 @@ def add_document(company_id):
                     except ValueError:
                         flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
                         # It might be better to return and not save if date is invalid
-                        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+                        return redirect(url_for('companies.company_dashboard', company_id=company_id))
                 
                 new_doc = CompanyDocument(
                     company_id=company.id, 
@@ -303,7 +317,7 @@ def add_document(company_id):
                 flash(f"An error occurred during upload: {e}", "error")
                 print(f"ERROR: Document upload failed: {e}")
     
-    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
 @login_required
@@ -437,7 +451,7 @@ def set_intrinsic_value(company_id):
         db.session.rollback()
         flash(f"An error occurred: {e}", "error")
 
-    return redirect(request.referrer or url_for('companies.manage_company_documents', company_id=company.id))
+    return redirect(request.referrer or url_for('companies.company_dashboard', company_id=company.id))
 
 # In app/companies/routes.py
 @companies_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
@@ -472,7 +486,7 @@ def delete_document(doc_id):
         flash(f"Error deleting document: {e}", "error")
         print(f"ERROR: Could not delete document {doc_id}: {e}")
 
-    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
 @companies_bp.route('/<int:company_id>/fetch_news', methods=['POST'])
 @login_required
@@ -510,8 +524,8 @@ def fetch_sec_filings(company_id):
     flash(f"Request received! {years_from_form} year(s) of filings are being fetched in the background. The page will reload when complete.", "info")
             
     # Redirect back to the same page, but add the task_id to the URL as a query parameter.
-    return redirect(url_for('companies.manage_company_documents', 
-                            company_id=company.id, 
+    return redirect(url_for('companies.company_dashboard',
+                            company_id=company.id,
                             task_id=task.id))
     
     
@@ -530,7 +544,7 @@ def add_checkpoint(company_id):
 
     if not metric or not expectation or not target_date_str:
         flash("All fields are required to add a checkpoint.", "error")
-        return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
     try:
         target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
@@ -835,19 +849,26 @@ def porters_five_forces_analysis(company_id):
 @companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
 @login_required
 def fetch_financials(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+    try:
+        company = Company.query.get_or_404(company_id)
+        if company.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'You are not authorized to perform this action.'}), 403
 
-    # Call the background task, passing only the company ID
-    task = fetch_financial_data_task.delay(company.id)
+        # Call the background task, passing only the company ID
+        task = fetch_financial_data_task.delay(company.id)
 
-    # Redirect back to the new financials page with the task_id for polling
-    # We will create this page in the next step.
-    return redirect(url_for('companies.financials', 
-                            company_id=company.id, 
-                            task_id=task.id))
+        # Return JSON response with task ID for polling
+        return jsonify({
+            'success': True,
+            'task_id': task.id,
+            'message': 'Financial data fetch started in background'
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error starting financial fetch task: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to start task: {str(e)}'
+        }), 500
  
 @companies_bp.route('/<int:company_id>/financials')
 @login_required
@@ -901,7 +922,7 @@ def add_competitor(company_id):
             db.session.commit()
             flash(f'"{competitor.name}" added as a competitor.', 'success')
 
-    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
 @companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
 @login_required
@@ -916,7 +937,7 @@ def remove_competitor(company_id, competitor_id):
         db.session.commit()
         flash(f'"{competitor.name}" removed from competitors.', 'info')
 
-    return redirect(url_for('companies.manage_company_documents', company_id=company_id))
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
 # API endpoints for company search modal
 @companies_bp.route('/api/companies/search')
@@ -927,7 +948,7 @@ def api_search_companies():
 
     query = request.args.get('q', '').strip()
     if len(query) < 1:
-        return jsonify({'user_companies': [], 'yahoo_suggestion': None})
+        return jsonify({'user_companies': [], 'yahoo_suggestions': []})
 
     # Search in user's existing companies by name and ticker
     user_companies = Company.query.filter(
@@ -979,7 +1000,7 @@ def api_search_companies():
 
     return jsonify({
         'user_companies': user_company_data,
-        'yahoo_suggestion': yahoo_suggestion
+        'yahoo_suggestions': [yahoo_suggestion] if yahoo_suggestion else []
     })
 
 @companies_bp.route('/api/companies/create', methods=['POST'])

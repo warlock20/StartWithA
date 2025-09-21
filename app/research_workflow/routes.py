@@ -1,36 +1,123 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, session as flask_session
 from flask_login import current_user, login_required
 from app import db
-from app.models import (ResearchTemplate, ResearchProject, WorkSession, 
-                       TemplateStep, Company, Checklist, KillChecklist, IdeaPipeline, CompanyDocument)
+from app.models import (ResearchTemplate, ResearchProject, WorkSession,
+                       ResearchLog, Company, Checklist, KillChecklist, IdeaPipeline, CompanyDocument, 
+                       ResearchLog, DecisionJournal, JournalEntry)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
 import json
 from app.services.llm_service import generate_ai_content
 
+@research_workflow_bp.route('/intelligent-routing')
+@login_required
+def intelligent_routing():
+    """Intelligent routing based on existing data and project status"""
+    company_id = request.args.get('company_id', type=int)
+    source = request.args.get('source', 'unknown')
+
+    if not company_id:
+        flash('Company ID is required for intelligent routing', 'error')
+        return redirect(url_for('dashboard.main'))
+
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard.main'))
+
+    # Check for existing active projects for this company
+    active_projects = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id,
+        status='active'
+    ).all()
+
+    # Check for paused projects for this company
+    paused_projects = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id,
+        status='paused'
+    ).all()
+
+    # Check for completed projects for this company
+    completed_projects = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id,
+        status='completed'
+    ).all()
+
+    # Check for existing financial data
+    has_financial_data = company.company_documents.filter_by(doc_type='financial_data').first() is not None
+
+    # Intelligent routing logic
+    if active_projects:
+        # User has active projects - redirect to most recent one
+        latest_project = max(active_projects, key=lambda p: p.created_at)
+        flash(f'You have an active research project for {company.name}. Redirecting to project dashboard.', 'info')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=latest_project.id))
+
+    elif paused_projects:
+        # User has paused projects - offer to resume
+        latest_paused = max(paused_projects, key=lambda p: p.created_at)
+        flash(f'You have a paused research project for {company.name}. Consider resuming it or start a new one.', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=latest_paused.id))
+
+    elif completed_projects:
+        # User has completed projects - suggest new research angles
+        flash(f'You\'ve completed research on {company.name}. Consider new research angles or templates.', 'info')
+        return redirect(url_for('research_workflow.template_list', company_id=company_id, suggested=True))
+
+    else:
+        # No existing research - start fresh with template selection
+        if source == 'idea_promotion':
+            flash(f'Company created! Now choose a research template to begin systematic analysis of {company.name}.', 'success')
+        return redirect(url_for('research_workflow.template_list', company_id=company_id, new_company=True))
+
 @research_workflow_bp.route('/templates')
 @login_required
 def template_list():
-    """Display all research templates for the current user"""
+    """Display all research templates for the current user with intelligent context"""
     templates = current_user.research_templates.order_by(
         ResearchTemplate.is_active.desc(),
         ResearchTemplate.times_used.desc()
     ).all()
-    
+
     # Get statistics for the dashboard
     total_projects = current_user.research_projects.count()
     active_projects = current_user.research_projects.filter_by(status='active').count()
     total_research_hours = db.session.query(
         db.func.sum(ResearchProject.total_hours_spent)
     ).filter_by(user_id=current_user.id).scalar() or 0
-    
+
+    # Check for intelligent routing context
+    company_id = request.args.get('company_id', type=int)
+    suggested = request.args.get('suggested', default=False, type=bool)
+    new_company = request.args.get('new_company', default=False, type=bool)
+
+    context = {}
+    if company_id:
+        company = Company.query.get(company_id)
+        if company and company.user_id == current_user.id:
+            context['company'] = company
+            context['suggested'] = suggested
+            context['new_company'] = new_company
+
+            # Add previous template usage for this company
+            if not new_company:
+                used_templates = ResearchProject.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_id
+                ).join(ResearchTemplate).with_entities(ResearchTemplate.id, ResearchTemplate.name).distinct().all()
+                context['used_templates'] = used_templates
+
     return render_template('template_list.html',
                           title="Research Templates",
                           templates=templates,
                           total_projects=total_projects,
                           active_projects=active_projects,
-                          total_research_hours=round(total_research_hours, 1))
+                          total_research_hours=round(total_research_hours, 1),
+                          context=context)
 
 @research_workflow_bp.route('/templates/create', methods=['GET', 'POST'])
 @login_required
@@ -232,21 +319,37 @@ def start_project():
         if company.user_id != current_user.id:
             flash('Access denied', 'error')
             return redirect(url_for('research_workflow.template_list'))
-        
+
         subject_name = company.name
     
-    # Check for existing active project
-    existing = ResearchProject.query.filter_by(
-        user_id=current_user.id,
-        template_id=template_id,
-        research_subject_type=subject_type,
-        research_subject_name=subject_name,
-        status='active'
-    ).first()
-    
-    if existing:
-        flash(f'You already have an active project for {subject_name} with this template', 'info')
-        return redirect(url_for('research_workflow.project_dashboard', project_id=existing.id))
+    # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of template)
+    if subject_type == 'company' and company_id:
+        existing_project = ResearchProject.query.filter_by(
+            user_id=current_user.id,
+            company_id=company_id
+        ).filter(
+            ResearchProject.status.in_(['active', 'paused'])
+        ).first()
+
+        if existing_project:
+            if existing_project.status == 'active':
+                flash(f'You already have an active research project for {subject_name}. Only one project per company is allowed.', 'error')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+            elif existing_project.status == 'paused':
+                flash(f'You have a paused research project for {subject_name}. Resume it or abandon it to start a new one.', 'warning')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+
+    # Check for existing project with same template (for non-company subjects)
+    if subject_type != 'company':
+        existing = ResearchProject.query.filter_by(
+            user_id=current_user.id,
+            template_id=template_id,
+            research_subject_type=subject_type,
+            research_subject_name=subject_name
+        ).first()
+        if existing and existing.status in ['active', 'paused']:
+            flash(f'You already have a project for {subject_name} with this template', 'info')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=existing.id))
     
     # Create new project
     project = ResearchProject(
@@ -376,7 +479,13 @@ def execute_step(project_id, step_index):
             if checklist and checklist.user_id == current_user.id:
                 # Check if project has a company (required for research sessions)
                 if not project.company_id:
-                    flash('Research project must have a company assigned to use investment checklists', 'error')
+                    flash('Research project must have a company assigned to use investment checklists. Please assign a company to this project first.', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+                # Verify the company still exists in the database
+                company = Company.query.get(project.company_id)
+                if not company:
+                    flash(f'The company associated with this project (ID: {project.company_id}) no longer exists. Please update the project.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
                 # Import ResearchSession model from research module
@@ -735,7 +844,10 @@ def my_projects():
     
     completed_projects = current_user.research_projects.filter_by(status='completed')\
                                                       .order_by(ResearchProject.completed_at.desc()).limit(10).all()
-    
+
+    abandoned_projects = current_user.research_projects.filter_by(status='abandoned')\
+                                                       .order_by(ResearchProject.last_worked_at.desc()).all()
+
     # Flag overdue projects
     overdue_projects = [p for p in active_projects if p.is_overdue]
     
@@ -757,6 +869,7 @@ def my_projects():
                           active_projects=active_projects,
                           paused_projects=paused_projects,
                           completed_projects=completed_projects,
+                          abandoned_projects=abandoned_projects,
                           overdue_projects=overdue_projects,
                           total_time_invested=round(total_time_invested, 1),
                           total_decisions=total_decisions,
@@ -1035,21 +1148,56 @@ def abandon_project(project_id):
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
     
-    project.status = 'abandoned'
-    project.completed_at = datetime.utcnow()
-    
-    # Optional: Record reason for abandonment
-    reason = request.form.get('reason', '')
-    if reason:
-        if not project.decision_notes:
-            project.decision_notes = ''
-        project.decision_notes += f"\n\nAbandoned: {reason}"
-    
+    # Get project name and company name before deletion
+    project_name = project.project_name
+    company_name = project.company.name if project.company else "Unknown"
+
+    # When abandoning a project, we completely remove it - do NOT reset idea status
+    # The idea should remain in its current state (promoted) but the project is gone
+
+    current_app.logger.info(f"Abandoning project for {company_name} - completely removing project but preserving company")
+
     try:
+        # Delete research logs that reference this project
+        ResearchLog.query.filter_by(project_id=project.id).delete()
+
+        # Delete associated work sessions
+        WorkSession.query.filter_by(research_project_id=project.id).delete()
+
+        # Delete research activity logs that reference this project
+        ResearchLog.query.filter_by(project_id=project.id).delete()
+
+        # Delete decision journal entries that reference this project
+        DecisionJournal.query.filter_by(project_id=project.id).delete()
+
+        # Delete journal entries that reference this project
+        JournalEntry.query.filter_by(project_id=project.id).delete()
+
+        # Clear research-related data but preserve company, journal entries, and mistake logs
+        if project.company:
+            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
+
+            # Remove only research-specific documents, NOT journal entries or mistake logs
+            research_docs = project.company.documents.filter(
+                CompanyDocument.document_group.in_(['Financial Data', 'Research Notes', 'Analysis'])
+            ).all()
+
+            for doc in research_docs:
+                current_app.logger.info(f"Removing research document: {doc.original_filename}")
+                db.session.delete(doc)
+
+        # Commit the deletions of related records first
         db.session.commit()
-        flash(f'Project "{project.project_name}" has been abandoned', 'info')
+
+        # Now we can safely delete the project
+        db.session.delete(project)
+        db.session.commit()
+
+        flash(f'Project "{project_name}" has been completely removed. Company preserved for future use.', 'success')
+
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Error abandoning project: {str(e)}")
         flash(f'Error abandoning project: {str(e)}', 'error')
     
     return redirect(url_for('research_workflow.my_projects'))
@@ -1066,7 +1214,18 @@ def delete_project(project_id):
     
     # Get project name before deletion
     project_name = project.project_name
-    
+
+    # Delete the associated idea if this project was created from a promoted idea
+    idea_to_delete = None
+    if project.idea and project.idea.status == 'promoted':
+        current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
+        idea_to_delete = project.idea
+
+    # NEW LOGIC: Never remove companies - they can be reused
+    # Only remove research-related data while preserving Journal Entry and Mistake logs
+    company_name = project.company.name if project.company else "Unknown"
+    current_app.logger.info(f"Deleting project for {company_name} - preserving company but clearing research data")
+
     try:
         # Delete all related records first to avoid foreign key constraints
         from app.models import ResearchLog
@@ -1080,11 +1239,34 @@ def delete_project(project_id):
         # Commit the deletions of related records first
         db.session.commit()
 
+        # Delete the associated idea if there is one
+        if idea_to_delete:
+            current_app.logger.info(f"Deleting idea: {idea_to_delete.name}")
+            db.session.delete(idea_to_delete)
+
         # Now we can safely delete the project
         db.session.delete(project)
         db.session.commit()
 
-        flash(f'Project "{project_name}" has been deleted permanently', 'success')
+        # Clear research-related data but preserve company, journal entries, and mistake logs
+        if project.company:
+            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
+
+            # Remove only research-specific documents, NOT journal entries or mistake logs
+            research_docs = project.company.company_documents.filter(
+                CompanyDocument.doc_type.in_(['financial_data', 'research_note', 'analysis'])
+            ).all()
+
+            for doc in research_docs:
+                current_app.logger.info(f"Removing research document: {doc.filename}")
+                db.session.delete(doc)
+
+            # Legacy research sessions are no longer used in the new workflow system
+
+            db.session.commit()
+
+        flash(f'Project "{project_name}" has been deleted. Company preserved for future use.', 'success')
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting project: {str(e)}', 'error')
@@ -1133,6 +1315,44 @@ def delete_research_session(session_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting research session: {str(e)}', 'error')
+
+    return redirect(url_for('research_workflow.my_projects'))
+
+@research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
+@login_required
+def delete_research_project(project_id):
+    """Delete a research project"""
+    from app.models import ResearchProject
+
+    project = ResearchProject.query.get_or_404(project_id)
+
+    # Authorization check
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Prevent deletion of completed projects with successful outcomes
+    if project.status == 'completed' and project.decision in ['invest', 'pass']:
+        flash('Cannot delete completed projects with investment decisions', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    try:
+        # Get project name before deletion to avoid session issues
+        project_name = project.research_subject_name or f"{project.research_subject_type} project"
+
+        # Delete the associated idea if this project was created from a promoted idea
+        if project.idea and project.idea.status == 'promoted':
+            current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
+            db.session.delete(project.idea)
+
+        # Delete the research project
+        db.session.delete(project)
+        db.session.commit()
+
+        flash(f'Research project "{project_name}" has been deleted', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting research project: {str(e)}', 'error')
 
     return redirect(url_for('research_workflow.my_projects'))
 

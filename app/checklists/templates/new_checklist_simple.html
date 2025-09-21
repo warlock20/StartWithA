@@ -1,0 +1,134 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>✅ Create New Checklist</h1>
+        <p class="text-muted mb-0">Set up your checklist basics, then build the content in edit mode</p>
+    </div>
+    <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Checklists
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📋 Checklist Settings</h5>
+                <small class="text-muted">Configure your checklist details</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('checklists.new_checklist') }}">
+                    <div class="mb-4">
+                        <label for="name" class="form-label fw-bold">Checklist Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg" id="name" name="name"
+                               placeholder="e.g., Tech Stock Analysis, REIT Investment Checklist" required>
+                        <small class="text-muted">Choose a descriptive name for your investment analysis framework</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="form-label fw-bold">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Brief description of this checklist's purpose and scope..."></textarea>
+                        <small class="text-muted">Optional: Explain what this checklist covers and when to use it</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="starter_template" class="form-label fw-bold">Starter Template</label>
+                        <select class="form-select" id="starter_template" name="starter_template">
+                            <option value="">Start with empty checklist</option>
+                            <option value="basic_analysis">Basic Company Analysis (5 main areas)</option>
+                            <option value="financial_deep_dive">Financial Deep Dive (Income, Balance, Cash Flow)</option>
+                            <option value="competitive_analysis">Competitive Analysis (Market position & moats)</option>
+                            <option value="risk_assessment">Risk Assessment (Business & investment risks)</option>
+                            <option value="value_investing">Value Investing (Warren Buffett style)</option>
+                            <option value="growth_investing">Growth Investing (High-growth companies)</option>
+                        </select>
+                        <small class="text-muted">Choose a template to pre-populate with common questions, or start empty</small>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-arrow-right-circle"></i> Create & Start Building
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="card mt-4 border-info">
+            <div class="card-body">
+                <h6 class="card-title text-info">
+                    <i class="bi bi-info-circle"></i> What happens next?
+                </h6>
+                <ol class="mb-0">
+                    <li><strong>Create checklist:</strong> We'll create your checklist with the basic settings</li>
+                    <li><strong>Edit mode:</strong> You'll be taken to the powerful edit interface</li>
+                    <li><strong>Build content:</strong> Add questions and items using the tree view on the left</li>
+                    <li><strong>Use checklist:</strong> Start analyzing companies with your custom framework</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Template Previews -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">💡 Template Previews</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><strong>Basic Company Analysis:</strong></h6>
+                        <ul class="small text-muted">
+                            <li>Business Model & Strategy</li>
+                            <li>Financial Performance</li>
+                            <li>Management Quality</li>
+                            <li>Competitive Position</li>
+                            <li>Valuation Assessment</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><strong>Value Investing:</strong></h6>
+                        <ul class="small text-muted">
+                            <li>Economic Moat Analysis</li>
+                            <li>Financial Strength Check</li>
+                            <li>Management Track Record</li>
+                            <li>Intrinsic Value Calculation</li>
+                            <li>Margin of Safety Assessment</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-lightbulb"></i> Templates provide a starting structure that you can customize in edit mode
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the name field
+    document.getElementById('name').focus();
+
+    // Template preview functionality
+    const templateSelect = document.getElementById('starter_template');
+    templateSelect.addEventListener('change', function() {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (this.value) {
+            submitBtn.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Create with ' + this.options[this.selectedIndex].text.split('(')[0];
+        } else {
+            submitBtn.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Create & Start Building';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -124,7 +124,8 @@
     left: 100%;
 }
 
-/* Improved Dropdowns */
+/* Improved Dropdowns - COMMENTED OUT - BREAKS BOOTSTRAP TABLE DROPDOWNS */
+/*
 .dropdown-menu {
     border: none;
     border-radius: 12px;
@@ -135,6 +136,7 @@
     background: var(--background-white);
     backdrop-filter: blur(10px);
 }
+*/
 
 .dropdown-header {
     padding: 0.75rem 1rem 0.5rem;
@@ -369,7 +371,7 @@
 /* Enhanced Tables */
 .table {
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible to allow dropdowns */
     box-shadow: var(--shadow-light);
 }
 
@@ -1270,7 +1272,8 @@ p {
     text-overflow: ellipsis;
 }
 
-/* Enhanced Dropdown Menu for Thesis Tools */
+/* Enhanced Dropdown Menu for Thesis Tools - COMMENTED OUT - BREAKS BOOTSTRAP TABLE DROPDOWNS */
+/*
 .dropdown-menu {
     border: none;
     box-shadow: var(--shadow-medium);
@@ -1300,6 +1303,7 @@ p {
     margin: 0.5rem 0;
     border-color: var(--border-color);
 }
+*/
 
 /* Compact Action Buttons */
 .btn-sm {

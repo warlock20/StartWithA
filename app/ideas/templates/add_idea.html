@@ -153,18 +153,21 @@
                 </div>
             </div>
             <div class="framework-body">
-                <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm">
+                <!-- Duplicate Detection Alerts -->
+                <div id="duplicate-alerts" class="mb-3"></div>
+
+                <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm" data-entity="idea">
                     <!-- The only required field - keep it simple -->
                     <div class="mb-3">
                         <label for="name" class="form-label">
                             What's the idea? <span class="text-danger">*</span>
                         </label>
-                        <input type="text" 
-                               class="form-control form-control-lg" 
-                               id="name" 
-                               name="name" 
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               id="idea-name"
+                               name="name"
                                placeholder="e.g., Tesla, Indian IT sector, Battery technology..."
-                               required 
+                               required
                                autofocus>
                         <small class="form-text text-muted">
                             Company name, sector, theme, or investment concept
@@ -195,19 +198,29 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3" id="ticker-field" style="display: none;">
-                            <label for="ticker_symbol" class="form-label">
-                                Ticker Symbol <span class="text-danger" id="ticker-required">*</span>
+                    <!-- Company Selection for Investment Ideas -->
+                    <div id="company-selection-field" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Company Selection <span class="text-danger" id="company-required">*</span>
                             </label>
-                            <input type="text"
-                                   class="form-control"
-                                   id="ticker_symbol"
-                                   name="ticker_symbol"
-                                   placeholder="TSLA"
-                                   style="text-transform: uppercase;">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
+                                    🏢 Search & Select Company
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
+                                    ❌ Clear
+                                </button>
+                            </div>
+                            <input type="hidden" id="company_id" name="company_id" value="">
+                            <input type="hidden" id="idea-ticker" name="ticker_symbol" value="">
+                            <div id="selectedCompanyInfo" class="mt-2" style="display: none;">
+                                <div class="alert alert-info mb-0">
+                                    <small><strong>Selected:</strong> <span id="companyDisplayInfo"></span></small>
+                                </div>
+                            </div>
                             <small class="form-text text-muted">
-                                Required for company investment ideas
+                                Required for company investment ideas. Search by ticker or company name.
                             </small>
                         </div>
                     </div>
@@ -303,13 +316,58 @@
     </div>
 </div>
 
+<!-- Include Company Search Modal -->
+{% include 'components/company_search_modal.html' %}
+
+<script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
+// Company selection handler for the modal - must be global for onclick
+function handleCompanySelection(company) {
+    console.log('Company selected:', company);
+
+    // Set the hidden form fields
+    const companyIdField = document.getElementById('company_id');
+    const tickerField = document.getElementById('idea-ticker');
+
+    if (companyIdField) {
+        companyIdField.value = company.id;
+    }
+    if (tickerField && company.ticker_symbol) {
+        tickerField.value = company.ticker_symbol;
+    }
+
+    // Update the display
+    const displayInfo = document.getElementById('companyDisplayInfo');
+    if (displayInfo) {
+        displayInfo.textContent = `${company.name}${company.ticker_symbol ? ' (' + company.ticker_symbol + ')' : ''}`;
+    }
+
+    // Show selected company info and clear button
+    const selectedInfo = document.getElementById('selectedCompanyInfo');
+    const clearBtn = document.getElementById('clearCompanyBtn');
+    if (selectedInfo) selectedInfo.style.display = 'block';
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+}
+
+// Global function for clearing company selection
+function clearSelectedCompany() {
+    // Clear hidden fields
+    const companyIdField = document.getElementById('company_id');
+    const tickerField = document.getElementById('idea-ticker');
+    if (companyIdField) companyIdField.value = '';
+    if (tickerField) tickerField.value = '';
+
+    // Hide display elements
+    const selectedInfo = document.getElementById('selectedCompanyInfo');
+    const clearBtn = document.getElementById('clearCompanyBtn');
+    if (selectedInfo) selectedInfo.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const ideaTypeSelect = document.getElementById('idea_type');
     const ideaPurposeSelect = document.getElementById('idea_purpose');
-    const tickerField = document.getElementById('ticker-field');
-    const tickerInput = document.getElementById('ticker_symbol');
-    const tickerRequired = document.getElementById('ticker-required');
 
     // Source autocomplete functionality
     const sourceInput = document.getElementById('source');
@@ -317,20 +375,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let debounceTimer;
     let currentHighlight = -1;
 
-    function updateTickerRequirement() {
+    function updateCompanyRequirement() {
         const isCompany = ideaTypeSelect.value === 'company';
         const isInvestment = ideaPurposeSelect.value === 'investment';
-        const showTicker = isCompany && isInvestment;
+        const showCompanySelection = isCompany && isInvestment;
 
-        if (showTicker) {
-            tickerField.style.display = 'block';
-            tickerInput.required = true;
-            tickerRequired.style.display = 'inline';
+        const companyField = document.getElementById('company-selection-field');
+        const companyIdInput = document.getElementById('company_id');
+        const companyRequired = document.getElementById('company-required');
+
+        if (showCompanySelection) {
+            companyField.style.display = 'block';
+            companyIdInput.required = true;
+            companyRequired.style.display = 'inline';
         } else {
-            tickerField.style.display = 'none';
-            tickerInput.required = false;
-            tickerRequired.style.display = 'none';
-            tickerInput.value = '';
+            companyField.style.display = 'none';
+            companyIdInput.required = false;
+            companyRequired.style.display = 'none';
+            // Clear selections when hiding
+            clearSelectedCompany();
         }
     }
 
@@ -437,16 +500,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Initialize on page load
-    updateTickerRequirement();
+    updateCompanyRequirement();
 
     // Listen for changes
-    ideaTypeSelect.addEventListener('change', updateTickerRequirement);
-    ideaPurposeSelect.addEventListener('change', updateTickerRequirement);
-
-    // Auto-uppercase the ticker field
-    tickerInput.addEventListener('input', function() {
-        this.value = this.value.toUpperCase();
-    });
+    ideaTypeSelect.addEventListener('change', updateCompanyRequirement);
+    ideaPurposeSelect.addEventListener('change', updateCompanyRequirement);
 
     // Quick keyboard shortcut - Ctrl+Enter to submit
     document.getElementById('quickCaptureForm').addEventListener('keydown', function(e) {

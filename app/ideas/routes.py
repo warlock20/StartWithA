@@ -5,6 +5,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
                        KillSession, KillAnswer, Company)
+from app.services.duplicate_detection import DuplicateDetectionService
 from app.ideas import ideas_bp
 from datetime import datetime, timedelta
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
@@ -42,6 +43,7 @@ def add_idea():
         idea_type = request.form.get('idea_type', 'company')
         idea_purpose = request.form.get('idea_purpose', 'investment')
         ticker_symbol = request.form.get('ticker_symbol', '').upper() if request.form.get('ticker_symbol') else None
+        company_id = request.form.get('company_id') if request.form.get('company_id') else None
         source = request.form.get('source')
         thesis = request.form.get('thesis_summary')
         notes = request.form.get('initial_notes')
@@ -55,34 +57,38 @@ def add_idea():
             flash('Source is required - please specify where this idea came from', 'error')
             return redirect(url_for('ideas.add_idea'))
 
-        # Validate ticker requirement for investment companies
-        if idea_purpose == 'investment' and idea_type == 'company' and not ticker_symbol:
-            flash('Ticker symbol is required for company investment ideas', 'error')
+        # Validate company requirement for investment companies
+        if idea_purpose == 'investment' and idea_type == 'company' and not company_id:
+            flash('Company selection is required for company investment ideas', 'error')
             return redirect(url_for('ideas.add_idea'))
 
-        # Check if company or idea with same ticker already exists
-        if ticker_symbol:
-            # Check existing companies
-            existing_company = Company.query.filter_by(
-                ticker_symbol=ticker_symbol,
-                user_id=current_user.id
-            ).first()
-            if existing_company:
-                flash(f'You already have a company with ticker {ticker_symbol}: {existing_company.name}. Cannot add as idea.', 'error')
-                return redirect(url_for('ideas.add_idea'))
+        # Enhanced duplicate detection
+        detector = DuplicateDetectionService(current_user.id)
+        duplicate_check = detector.check_idea_duplicates(name, ticker_symbol)
 
-            # Check existing ideas
-            existing_idea = IdeaPipeline.query.filter_by(
-                ticker_symbol=ticker_symbol,
-                user_id=current_user.id
-            ).first()
-            if existing_idea:
-                flash(f'You already have an idea with ticker {ticker_symbol}: {existing_idea.name} (Status: {existing_idea.status}). Cannot add duplicate.', 'error')
-                return redirect(url_for('ideas.add_idea'))
+        if duplicate_check['is_duplicate']:
+            # Handle blocking duplicates
+            for match in duplicate_check['exact_matches']:
+                flash(match['message'], 'error')
+            for match in duplicate_check['similar_matches']:
+                if match.get('similarity', 0) > 0.9:  # Very similar names should block
+                    flash(match['message'], 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Show warnings and suggestions but allow creation
+        for match in duplicate_check['similar_matches']:
+            if match.get('similarity', 0) <= 0.9:  # Show warning but don't block
+                flash(f"Warning: {match['message']}", 'warning')
+
+        for suggestion in duplicate_check['suggestions']:
+            if suggestion['type'] == 'killed_idea_exists':
+                flash(f"Note: {suggestion['message']}", 'info')
+            elif suggestion['type'] == 'promote_existing_company':
+                flash(f"Suggestion: {suggestion['message']}", 'info')
 
         new_idea = IdeaPipeline(
             author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,
-            ticker_symbol=ticker_symbol, source=source, thesis_summary=thesis,
+            ticker_symbol=ticker_symbol, company_id=company_id, source=source, thesis_summary=thesis,
             initial_notes=notes, status='inbox'
         )
 
@@ -360,7 +366,7 @@ def promote_idea(idea_id):
             idea.promoted_at = datetime.utcnow()
             db.session.commit()
             flash(f'"{idea.name}" promoted to your companies list!', 'success')
-            return redirect(url_for('research.select_checklist_for_company', company_id=company.id))
+            return redirect(url_for('research_workflow.intelligent_routing', company_id=company.id, source='idea_promotion'))
             
         elif promotion_action == 'create_research_project':
             # Create research project directly based on idea type
@@ -375,14 +381,32 @@ def promote_idea(idea_id):
             if template.user_id != current_user.id:
                 flash('Access denied', 'error')
                 return redirect(url_for('ideas.inbox'))
-            
+
+            # For company ideas, ensure promoted_to_company is set correctly
+            if idea.idea_type == 'company' and idea.company and not idea.promoted_to_company:
+                idea.promoted_to_company = idea.company
+
+            # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY
+            company_for_constraint_check = idea.promoted_to_company or idea.company
+            if idea.idea_type == 'company' and company_for_constraint_check:
+                existing_project = ResearchProject.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_for_constraint_check.id
+                ).filter(
+                    ResearchProject.status.in_(['active', 'paused'])
+                ).first()
+
+                if existing_project:
+                    flash(f'You already have a research project for {company_for_constraint_check.name}. Only one project per company is allowed.', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+
             # Create research project
             project = ResearchProject(
                 researcher=current_user,
                 template=template,
                 research_subject_type=idea.idea_type,
                 research_subject_name=idea.name,
-                company=idea.promoted_to_company if idea.idea_type == 'company' else None,
+                company_id=company_for_constraint_check.id if (idea.idea_type == 'company' and company_for_constraint_check) else None,
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,

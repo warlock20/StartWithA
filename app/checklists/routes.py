@@ -28,6 +28,101 @@ def list_checklists():
 @checklists_bp.route('/checklists/new', methods=['GET', 'POST'])
 @login_required
 def new_checklist():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+        starter_template = request.form.get('starter_template')
+
+        if not name:
+            flash('Checklist name is required!', 'error')
+            return redirect(url_for('checklists.new_checklist'))
+
+        # Create the basic checklist
+        new_checklist_obj = Checklist(name=name, description=description, author=current_user)
+        db.session.add(new_checklist_obj)
+
+        # Flush to get the checklist ID
+        db.session.flush()
+
+        # Add template items if selected
+        if starter_template:
+            _add_template_items(new_checklist_obj, starter_template)
+
+        try:
+            db.session.commit()
+            flash('Checklist created successfully! Now add your questions and items.', 'success')
+            # Redirect to edit mode for better item building experience
+            return redirect(url_for('checklists.view_checklist', checklist_id=new_checklist_obj.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating checklist: {str(e)}', 'error')
+            return redirect(url_for('checklists.new_checklist'))
+
+    # For GET request - render the simplified template
+    return render_template('new_checklist_simple.html', title="Create New Checklist")
+
+
+def _add_template_items(checklist, template_type):
+    """Add predefined template items to a checklist"""
+    templates = {
+        'basic_analysis': [
+            'Business Model & Strategy',
+            'Financial Performance Review',
+            'Management Quality Assessment',
+            'Competitive Position Analysis',
+            'Valuation & Investment Decision'
+        ],
+        'financial_deep_dive': [
+            'Income Statement Analysis',
+            'Balance Sheet Review',
+            'Cash Flow Statement Analysis',
+            'Financial Ratio Analysis',
+            'Historical Performance Trends'
+        ],
+        'competitive_analysis': [
+            'Market Position Assessment',
+            'Competitive Advantages (Moats)',
+            'Industry Structure Analysis',
+            'Competitive Threats Evaluation',
+            'Market Share & Growth Dynamics'
+        ],
+        'risk_assessment': [
+            'Business Risk Evaluation',
+            'Financial Risk Analysis',
+            'Market & Economic Risks',
+            'Regulatory & Legal Risks',
+            'Management & Operational Risks'
+        ],
+        'value_investing': [
+            'Economic Moat Analysis',
+            'Financial Strength Check',
+            'Management Track Record',
+            'Intrinsic Value Calculation',
+            'Margin of Safety Assessment'
+        ],
+        'growth_investing': [
+            'Total Addressable Market (TAM)',
+            'Revenue Growth Analysis',
+            'Unit Economics & Scalability',
+            'Competitive Positioning',
+            'Growth Sustainability Factors'
+        ]
+    }
+
+    items = templates.get(template_type, [])
+    for i, item_text in enumerate(items):
+        item = ChecklistItem(
+            text=item_text,
+            checklist=checklist,
+            parent_id=None,
+            order=i
+        )
+        db.session.add(item)
+
+
+@checklists_bp.route('/checklists/new/old', methods=['GET', 'POST'])
+@login_required
+def new_checklist_simple():
     # Initialize question bank data for both GET and POST
     questions_by_sector = {}
     total_questions = 0
