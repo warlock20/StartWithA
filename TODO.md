@@ -1,79 +1,88 @@
-## 1. Research Journal: Your Central Thesis Notebook
-
-A structured checklist is essential for systematic validation, but research also requires discovery and synthesis. You need a space to connect ideas, note findings about competitors, and build your narrative—a "small thesis."
-
-**Vision:**  
-For each company, maintain a dedicated Research Journal: a free-form, date-stamped notebook to log thoughts, findings, and connections as they occur.
-
-**Approaches & Trade-offs:**
-
-- **Simple Approach:**  
-    Add a single, massive "notes" field to the Company model.  
-    - *Pros:* Very easy to implement.  
-    - *Cons:* Unstructured; loses context of when or what the note relates to.
-
-- **Robust Approach (Recommended):**  
-    Create a new `JournalEntry` model with fields like `company_id`, `entry_date`, `title`, `content`, and optional tags (e.g., "Competitor Analysis," "Management," "Red Flag").  
-    - *Pros:* True, time-stamped journal; track thinking over time; filter/search by tag.  
-    - *Cons:* Requires a new database model and dedicated page.
-
-**Recommendation:**  
-Adopt the Robust Approach for a professional research tool.
-
----
-
-## 2. Competitor Tracking: Understanding the Landscape
-
-To analyze competitors, the application must first know which companies are competitors.
-
-**Vision:**  
-Formally link companies in your database as competitors, enabling powerful comparative analysis features.
-
-**Approaches & Trade-offs:**
-
-- **Simple Approach:**  
-    Add a text field to the Company model for competitor tickers (e.g., "MSFT, ORCL").  
-    - *Pros:* Simple to add.  
-    - *Cons:* Plain text; no links to actual company objects; limited comparison features.
-
-- **Robust Approach (Recommended):**  
-    Implement a proper many-to-many relationship on the Company model, allowing direct links between Company objects.  
-    - *Pros:* Architecturally correct; enables advanced features like side-by-side metric comparisons.  
-    - *Cons:* More complex database setup.
-
-**Recommendation:**  
-The Robust Approach is necessary for advanced features.
-
----
-
-## 3. Interactive Document Q&A: Your AI Research Assistant
-
-Enhance document analysis with interactive Q&A.
-
-**Vision:**  
-While viewing any uploaded document (e.g., a 10-K), highlight text, ask a question (e.g., "What does this term mean?" or "Summarize this section"), and get an immediate answer from Gemini.
-
-**Approaches & Trade-offs:**
-
-- **Frontend:**  
-    Integrate a browser-based PDF rendering library (like PDF.js) to display documents and capture text selections.
-- **Backend:**  
-    Add a route to accept the selected text and user's question, then send it to the Gemini API for an answer.
-
-**Recommendation:**  
-This is a "killer feature" for the future. Build "Competitor Tracking" and "Research Journal" first, as they provide the structure for storing Q&A insights.
-
----
-
-## Next Steps: Proposed Plan
-
-All three features are powerful and interconnected. The logical build order:
-
-1. **Competitor Tracking:** Define relationships between companies.
-2. **Research Journal:** Capture findings from competitor analysis and document Q&A.
-3. **Interactive Document Q&A:** Feed insights directly into the Research Journal.
-
-**Does this strategic plan work for you? If so, we can begin with Step 1: Competitor Tracking, starting with the database model changes.**
 
 
---- Fix Reduantancy.... Combine My Research projects and My companies page
+Mistake log 
+"Our core idea with mistake log is to learn from our mistakes and mistakes from others, so that we can improve our research and decision making skills in the future. 
+  In that context, we need some mechanism to extract infos from our mistake log and help the user in the research process. For instance, if the user research a company 
+  from similar sector as a mistake learned or mistake happened in the same sector, the platform must advise the user when analyzing a company in the same sector. OR 
+  mistakes learned from reading Balance sheet. Think about how to implement such a feature, propose some ideas and create a todo list"
+
+ 6. Implementation Phases
+
+  Phase 1: Core Infrastructure
+  - Add new fields to MistakeLog model
+  - Create MistakeMatchingService
+  - Basic sector-based matching
+
+  Phase 2: Research Integration
+  - Integrate with research workflow routes
+  - Add contextual alerts to templates
+  - Company/sector matching
+
+  Phase 3: Advanced Features
+  - Analysis-area specific matching
+  - Cross-sector pattern recognition
+  - Learning reinforcement tracking
+
+  Phase 4: Intelligence & Optimization
+  - ML-based relevance scoring
+  - User feedback on mistake relevance
+  - Adaptive learning suggestions
+
+  Benefits of This Approach:
+
+  1. Proactive Learning: Mistakes surface automatically during relevant research
+  2. Context-Aware: Shows mistakes when they're most applicable
+  3. Scalable: Works for individual companies, sectors, and universal patterns
+  4. Non-Intrusive: Integrated naturally into existing workflow
+  5. Actionable: Provides specific prevention steps and lessons
+
+
+📋 Monitoring Functionality Todo List:
+
+  1. Design monitoring functionality options - Map out different approaches
+  2. Clarify user requirements for monitoring features - Understand your specific needs
+  3. Implement price and news alerts system - Market-based monitoring
+  4. Create periodic review and re-evaluation system - Research-based monitoring
+  5. Build portfolio integration and performance tracking - Investment tracking
+  6. Develop watchlist management and categorization - Organization system
+
+  This way we can systematically work through the monitoring features once you decide which direction makes most sense for your workflow.
+
+
+Current plan:
+
+ 1. Current Priority Focus: You have monitoring functionality as the active todo item, which is more foundational for an investment platform
+  2. Data Dependency: The mistake learning feature works best when you have:
+    - Substantial mistake log entries (need real usage data)
+    - Diverse company research history across sectors
+    - Established research workflow patterns
+  3. User Adoption: Core features should be solid first:
+    - Research workflow completion
+    - Monitoring/alerts system
+    - Basic mistake logging (which we just fixed)
+
+  Better Timing Would Be:
+
+  Phase 1 (Now-Next 2 months):
+  - Complete monitoring functionality
+  - Let users naturally build up mistake logs
+  - Gather feedback on research workflow
+
+  Phase 2 (Later, when ready):
+  - Implement mistake learning integration
+  - You'll have real data patterns to work with
+  - Users will understand the value proposition better
+
+  What to Do Now:
+
+  1. Document the plan (already done in TODO.md)
+  2. Improve mistake logging UX to encourage usage
+  3. Add basic categorization to new mistakes (analysis_area field) to prepare for future integration
+  4. Focus on monitoring features - this provides immediate user value
+
+
+  "Okay now lets make "Quick Capture" and research flow more robust. 1) We should remove everything when abandon a project, i.e., the company entry and related 
+  documents. 2) When we add a new idea, if it a company, we need to provide a functionality to search for TICKER and add the company, can we reuse the logic we 
+  implemented for "New Journal Entry". In the "New Journal Entry", there is an option to add company in a robust manner. So when we add new idea, check the if 
+  the company already exists, then redirect to the resepective project, if it is still a project, else if the project is complete, then redirect to the summary 
+  page. Add these steps to TODO. THis is our next steps."

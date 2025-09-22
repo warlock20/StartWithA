@@ -1,130 +1,214 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<h1>{{ session.company.name }} Research</h1>
-<p class="text-muted">Using checklist: {{ session.checklist.name }}</p>
-
-{# Progress Bar #}
-<h5 class="mt-4">Progress (Item {{ current_item_number }} of {{ total_items }})</h5>
-<div class="progress" style="height: 20px;">
-    <div class="progress-bar" role="progressbar" style="width: {{ progress_percent }}%;"
-        aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">{{ "%.0f"|format(progress_percent)
-        }}%</div>
-</div>
-
-<hr>
-
-<div class="card my-4">
-    <div class="card-header">
-        <h5>Checklist Item {{ current_item_number }}:</h5>
-    </div>
-    <div class="card-body">
-        <p class="card-text fs-5">{{ current_item.text }}</p>
-        {% if current_item.parent %}
-        <p class="card-text text-muted"><small>(Sub-item of: {{ current_item.parent.text }})</small></p>
-        {% endif %}
-    </div>
-</div>
-
-{# AI Analysis Section, using Accordion for expand/collapse #}
-{% if current_item.llm_prompt %}
-<div class="accordion mb-4" id="aiAnalysisAccordion">
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingOne">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                ✨ Analyze with AI using Company Documents
-            </button>
-        </h2>
-        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne"
-            data-bs-parent="#aiAnalysisAccordion">
-            <div class="accordion-body">
-                <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
-                <form id="aiAnalysisForm"
-                    data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
-                    <input type="hidden" name="llm_actual_prompt" value="{{ current_item.llm_prompt }}">
-                    <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
-                    <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Select AI Model:</strong></label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="selected_ai_model" id="localModel"
-                                value="local" checked>
-                            <label class="form-check-label" for="localModel">
-                                Local Model (Private & Offline)
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="selected_ai_model" id="geminiModel"
-                                value="gemini">
-                            <label class="form-check-label" for="geminiModel">
-                                Gemini API (Powerful & Online)
-                            </label>
-                        </div>
+<!-- Clean, focused research evaluation page -->
+<div class="research-session-container">
+    <!-- Minimal header with progress -->
+    <div class="research-header">
+        <div class="container-fluid px-4">
+            <div class="d-flex justify-content-between align-items-center py-3">
+                <div class="research-subject">
+                    <h2 class="mb-1">{{ session.company.name }}</h2>
+                    <p class="text-muted mb-0">{{ session.company.ticker_symbol }} • {{ session.checklist.name }}</p>
+                </div>
+                <div class="progress-indicator">
+                    <div class="progress-stats mb-2">
+                        <span class="current">{{ current_item_number }}</span>
+                        <span class="divider">/</span>
+                        <span class="total">{{ total_items }}</span>
                     </div>
-                    <p><strong>Select Documents for AI Context:</strong></p>
-                    {% if company_documents %}
-                    <div class="document-selection-box border p-3" style="max-height: 200px; overflow-y: auto;">
-                        {% for doc in company_documents %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="selected_document_ids"
-                                value="{{ doc.id }}" id="doc_{{ doc.id }}">
-                            <label class="form-check-label" for="doc_{{ doc.id }}">
-                                {{ doc.document_title if doc.document_title else doc.original_filename }} ({{
-                                doc.document_group }})
-                            </label>
-                        </div>
-                        {% endfor %}
+                    <div class="progress-bar-minimal">
+                        <div class="progress-fill" data-progress="{{ progress_percent }}"></div>
                     </div>
-                    <button type="button" id="submitAIAnalysisPlaceholderButton" class="btn btn-primary mt-3">Submit for
-                        AI Analysis</button>
-                    {% else %}
-                    <div class="alert alert-warning">No company documents found to select for AI analysis. <a
-                            href="{{ url_for('companies.manage_company_documents', company_id=session.company_id) }}"
-                            class="alert-link">Upload documents here.</a></div>
-                    {% endif %}
-                </form>
-                <div id="aiAnalysisResult" class="mt-3"></div>
+                </div>
             </div>
         </div>
     </div>
-</div>
-{% endif %}
 
-{# Manual Answer Form #}
-<div class="card">
-    <div class="card-header">Your Answer</div>
-    <div class="card-body">
-        <form method="POST"
-            action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
-            <div class="mb-3">
-                <label for="answer_text" class="form-label">Your Answer/Notes:</label>
-                <textarea class="form-control" id="answer_text" name="answer_text"
-                    rows="8">{{ answer.answer_text if answer else '' }}</textarea>
+    <!-- Main content area - focused and centered -->
+    <div class="research-content">
+        <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 col-xl-7">
+
+                    <!-- Current checklist item card -->
+                    <div class="question-card">
+                        <div class="question-header">
+                            <span class="question-number">Question {{ current_item_number }}</span>
+                            {% if current_item.parent %}
+                            <span class="question-context">Sub-item of: {{ current_item.parent.text }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="question-text">
+                            {{ current_item.text }}
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Section (if available) -->
+                    {% if current_item.llm_prompt %}
+                    <div class="ai-section">
+                        <div class="framework-card mb-4">
+                            <div class="framework-header">
+                                <div class="framework-icon warning">
+                                    <i class="bi bi-robot"></i>
+                                </div>
+                                <div class="framework-title">
+                                    <h4>AI Analysis Assistant</h4>
+                                    <p>Use AI to help analyze this question</p>
+                                </div>
+                                <div class="framework-status">
+                                    <button type="button" class="btn-pro outline-primary btn-sm"
+                                        data-bs-toggle="collapse" data-bs-target="#aiAnalysisSection"
+                                        aria-expanded="false">
+                                        <i class="bi bi-magic"></i> Use AI
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="collapse" id="aiAnalysisSection">
+                                <div class="framework-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">AI Prompt:</label>
+                                        <div class="ai-prompt-display">{{ current_item.llm_prompt }}</div>
+                                    </div>
+
+                                    <form id="aiAnalysisForm"
+                                        data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
+                                        <input type="hidden" name="llm_actual_prompt"
+                                            value="{{ current_item.llm_prompt }}">
+                                        <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
+                                        <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">AI Model:</label>
+                                            <div class="d-flex gap-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio"
+                                                        name="selected_ai_model" id="localModel" value="local" checked>
+                                                    <label class="form-check-label" for="localModel">
+                                                        <i class="bi bi-shield-check"></i> Local (Private)
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio"
+                                                        name="selected_ai_model" id="geminiModel" value="gemini">
+                                                    <label class="form-check-label" for="geminiModel">
+                                                        <i class="bi bi-cloud"></i> Gemini (Powerful)
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {% if company_documents %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Select Documents:</label>
+                                            <div class="documents-grid">
+                                                {% for doc in company_documents %}
+                                                <div class="document-item">
+                                                    <input class="form-check-input" type="checkbox"
+                                                        name="selected_document_ids" value="{{ doc.id }}"
+                                                        id="doc_{{ doc.id }}">
+                                                    <label class="form-check-label" for="doc_{{ doc.id }}">
+                                                        <div class="doc-name">{{ doc.document_title if
+                                                            doc.document_title else doc.original_filename }}</div>
+                                                        <div class="doc-type">{{ doc.document_group }}</div>
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <button type="button" id="submitAIAnalysisPlaceholderButton"
+                                            class="btn-pro primary w-100">
+                                            <i class="bi bi-magic"></i> Analyze with AI
+                                        </button>
+                                        {% else %}
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle"></i>
+                                            No company documents available.
+                                            <a href="{{ url_for('companies.company_dashboard', company_id=session.company_id) }}"
+                                                class="alert-link">
+                                                Upload documents
+                                            </a> for AI analysis.
+                                        </div>
+                                        {% endif %}
+                                    </form>
+
+                                    <div id="aiAnalysisResult" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Answer form -->
+                    <div class="answer-section">
+                        <div class="framework-card">
+                            <div class="framework-header">
+                                <div class="framework-icon primary">
+                                    <i class="bi bi-pencil-square"></i>
+                                </div>
+                                <div class="framework-title">
+                                    <h4>Your Analysis</h4>
+                                    <p>Record your findings and evaluation</p>
+                                </div>
+                            </div>
+                            <div class="framework-body">
+                                <form method="POST"
+                                    action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}"
+                                    class="form-pro">
+                                    <div class="mb-4">
+                                        <label for="answer_text" class="form-label fw-bold">Your Answer/Notes:</label>
+                                        <textarea class="form-control answer-textarea" id="answer_text"
+                                            name="answer_text" rows="6"
+                                            placeholder="Enter your analysis, findings, and notes for this question...">{{ answer.answer_text if answer else '' }}</textarea>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="satisfaction_status" class="form-label fw-bold">Evaluation
+                                            Status:</label>
+                                        <select id="satisfaction_status" name="satisfaction_status" class="form-select">
+                                            <option value="neutral" {% if not answer or not answer.satisfaction_status
+                                                or answer.satisfaction_status=='neutral' %}selected{% endif %}>
+                                                <i class="bi bi-dash-circle"></i> Neutral / Informational
+                                            </option>
+                                            <option value="satisfied" {% if answer and
+                                                answer.satisfaction_status=='satisfied' %}selected{% endif %}>
+                                                ✅ Satisfied / Met
+                                            </option>
+                                            <option value="not_satisfied" {% if answer and
+                                                answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>
+                                                ❌ Not Satisfied / Not Met
+                                            </option>
+                                            <option value="needs_attention" {% if answer and
+                                                answer.satisfaction_status=='needs_attention' %}selected{% endif %}>
+                                                ⚠️ Needs Attention
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="navigation-actions">
+                                        {% if previous_item_id %}
+                                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
+                                            class="btn btn-outline-secondary">
+                                            <i class="bi bi-arrow-left"></i> Previous
+                                        </a>
+                                        {% else %}
+                                        <div></div>
+                                        {% endif %}
+
+                                        <button type="submit" class="btn-pro success">
+                                            <i class="bi bi-check-circle"></i> Save & Continue
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="satisfaction_status" class="form-label">Status for this item:</label>
-                <select id="satisfaction_status" name="satisfaction_status" class="form-select">
-                    <option value="neutral" {% if not answer or not answer.satisfaction_status or
-                        answer.satisfaction_status=='neutral' %}selected{% endif %}>Neutral / Informational</option>
-                    <option value="satisfied" {% if answer and answer.satisfaction_status=='satisfied' %}selected{%
-                        endif %}>Satisfied / Met</option>
-                    <option value="not_satisfied" {% if answer and answer.satisfaction_status=='not_satisfied'
-                        %}selected{% endif %}>Not Satisfied / Not Met</option>
-                    <option value="needs_attention" {% if answer and answer.satisfaction_status=='needs_attention'
-                        %}selected{% endif %}>Needs Attention</option>
-                </select>
-            </div>
-            <div class="d-flex justify-content-between">
-                {% if previous_item_id %}
-                <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
-                    class="btn btn-secondary">Previous Item</a>
-                {% else %}
-                <span></span>
-                {% endif %}
-                <button type="submit" class="btn btn-success">Save and Next</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -132,4 +216,261 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
+<script>
+// Set progress bar width from data attribute
+document.addEventListener('DOMContentLoaded', function() {
+    const progressFill = document.querySelector('.progress-fill');
+    if (progressFill) {
+        const progress = progressFill.getAttribute('data-progress');
+        progressFill.style.width = progress + '%';
+    }
+});
+</script>
+
+<style>
+    /* Research session focused design */
+    .research-session-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+    }
+
+    .research-header {
+        background: var(--background-white);
+        border-bottom: 1px solid var(--border-light);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: var(--shadow-light);
+    }
+
+    .research-subject h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .progress-indicator {
+        text-align: center;
+        min-width: 120px;
+    }
+
+    .progress-stats {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .progress-stats .current {
+        color: var(--color-primary);
+        font-size: 1.2rem;
+    }
+
+    .progress-stats .divider {
+        margin: 0 0.5rem;
+        color: var(--text-muted);
+    }
+
+    .progress-bar-minimal {
+        width: 100px;
+        height: 6px;
+        background: var(--gray-200);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--color-primary), var(--color-success));
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    .research-content {
+        padding: 2rem 0;
+    }
+
+    /* Question card styling */
+    .question-card {
+        background: var(--background-white);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-medium);
+        border-left: 4px solid var(--color-investment);
+    }
+
+    .question-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .question-number {
+        background: var(--investment-50);
+        color: var(--color-investment);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .question-context {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        font-style: italic;
+    }
+
+    .question-text {
+        font-size: 1.25rem;
+        font-weight: 500;
+        line-height: 1.6;
+        color: var(--text-dark);
+    }
+
+    /* AI section improvements */
+    .ai-prompt-display {
+        background: var(--warning-50);
+        border: 1px solid var(--warning-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        font-style: italic;
+        color: var(--text-dark);
+        font-size: 0.9rem;
+    }
+
+    .documents-grid {
+        display: grid;
+        gap: 0.75rem;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        background: var(--background-light);
+    }
+
+    .document-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.5rem;
+        border-radius: var(--radius-sm);
+        transition: background var(--transition-normal);
+    }
+
+    .document-item:hover {
+        background: var(--background-white);
+    }
+
+    .document-item label {
+        flex: 1;
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .doc-name {
+        font-weight: 500;
+        color: var(--text-dark);
+        font-size: 0.9rem;
+    }
+
+    .doc-type {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    /* Answer section */
+    .answer-section {
+        margin-top: 1.5rem;
+    }
+
+    .answer-textarea {
+        resize: vertical;
+        min-height: 150px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .navigation-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+
+    /* Focus states */
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .research-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .progress-indicator {
+            align-self: stretch;
+            text-align: left;
+        }
+
+        .question-card {
+            padding: 1.5rem;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+        }
+
+        .navigation-actions {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .navigation-actions .btn-pro {
+            width: 100%;
+        }
+    }
+
+    /* Loading states and animations */
+    .framework-card {
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Enhanced visual hierarchy */
+    .research-content h4 {
+        color: var(--text-dark);
+        font-weight: 600;
+    }
+
+    .form-label {
+        color: var(--text-dark);
+        font-weight: 500;
+    }
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: none;
+    }
+</style>
 {% endblock %}

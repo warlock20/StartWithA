@@ -52,6 +52,8 @@ def create_app(config_class=Config):
     app.register_blueprint(analytics_bp)
     from app.journal_enhanced import journal_enhanced_bp
     app.register_blueprint(journal_enhanced_bp)
+    from app.api import api_bp
+    app.register_blueprint(api_bp)
 
     # This makes the get_review_queue function available in all templates.
     from app.journal_enhanced.utils import get_review_queue

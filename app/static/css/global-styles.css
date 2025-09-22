@@ -6,6 +6,7 @@
     --accent-green: #27ae60;
     --accent-red: #e74c3c;
     --accent-orange: #f39c12;
+    --accent-purple: #8e44ad;
     --text-primary: #2c3e50;
     --text-secondary: #7f8c8d;
     --text-muted: #95a5a6;
@@ -123,7 +124,8 @@
     left: 100%;
 }
 
-/* Improved Dropdowns */
+/* Improved Dropdowns - COMMENTED OUT - BREAKS BOOTSTRAP TABLE DROPDOWNS */
+/*
 .dropdown-menu {
     border: none;
     border-radius: 12px;
@@ -134,6 +136,7 @@
     background: var(--background-white);
     backdrop-filter: blur(10px);
 }
+*/
 
 .dropdown-header {
     padding: 0.75rem 1rem 0.5rem;
@@ -368,7 +371,7 @@
 /* Enhanced Tables */
 .table {
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible to allow dropdowns */
     box-shadow: var(--shadow-light);
 }
 
@@ -639,6 +642,12 @@ p {
     overflow: hidden;
     box-shadow: var(--shadow-light);
     transition: all 0.3s ease;
+}
+
+/* Only apply height: 100% for specific equal-height layouts */
+.dashboard-grid .framework-card,
+.framework-grid .framework-card,
+.action-grid .framework-card {
     height: 100%;
 }
 
@@ -1141,6 +1150,63 @@ p {
     line-height: 1.5;
 }
 
+/* Fix Bootstrap btn-check radio button styling */
+.btn-check:checked + .btn,
+.btn-check:active + .btn {
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+.btn-check:checked + .btn-outline-success,
+.btn-check:active + .btn-outline-success {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+}
+
+.btn-check:checked + .btn-outline-danger,
+.btn-check:active + .btn-outline-danger {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.btn-check:checked + .btn-outline-warning,
+.btn-check:active + .btn-outline-warning {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.btn-check:focus + .btn,
+.btn:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Ensure radio buttons are hidden */
+.btn-check {
+    position: absolute;
+    clip: rect(0, 0, 0, 0);
+    pointer-events: none;
+}
+
+/* Add hover effects */
+.btn-outline-success:hover {
+    background-color: #198754;
+    border-color: #198754;
+    color: #fff;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.btn-outline-warning:hover {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .hero-title {
@@ -1178,4 +1244,77 @@ p {
     .action-card {
         max-width: 100%;
     }
+}
+
+/* Purple Button Styles for Thesis Tracking */
+.btn-outline-purple {
+    border: 2px solid var(--accent-purple);
+    color: var(--accent-purple);
+    background: transparent;
+}
+
+.btn-outline-purple:hover {
+    background: var(--accent-purple);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-light);
+}
+
+/* Thesis Maintenance Tools Styling */
+.thesis-maintenance-tools .btn-group-sm .btn {
+    font-size: 0.775rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.thesis-maintenance-tools .btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Enhanced Dropdown Menu for Thesis Tools - COMMENTED OUT - BREAKS BOOTSTRAP TABLE DROPDOWNS */
+/*
+.dropdown-menu {
+    border: none;
+    box-shadow: var(--shadow-medium);
+    border-radius: 8px;
+    padding: 0.5rem 0;
+    min-width: 220px;
+}
+
+.dropdown-item {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin: 0 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, var(--background-light) 0%, #e8f4f8 100%);
+    transform: translateX(4px);
+}
+
+.dropdown-item small {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.dropdown-divider {
+    margin: 0.5rem 0;
+    border-color: var(--border-color);
+}
+*/
+
+/* Compact Action Buttons */
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Icon-only buttons for portfolio and delete */
+.btn-sm:has-text("📤"),
+.btn-sm:has-text("📁"),
+.btn-sm:has-text("🗑️") {
+    padding: 0.375rem 0.5rem;
+    min-width: 2rem;
 }

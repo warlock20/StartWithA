@@ -5,7 +5,10 @@
 <div class="card-body">
     <h4>Is this the correct company?</h4>
 
-    <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}">
+    <!-- Duplicate Detection Alerts -->
+    <div id="duplicate-alerts" class="mb-3"></div>
+
+    <form method="POST" action="{{ url_for('companies.add_company_confirmed') }}" data-entity="company">
         {# This form tag should wrap all the inputs #}
 
         <dl class="row">
@@ -31,8 +34,8 @@
         </dl>
 
         {# These hidden inputs are still needed to pass along their values #}
-        <input type="hidden" name="name" value="{{ name }}">
-        <input type="hidden" name="ticker_symbol" value="{{ ticker }}">
+        <input type="hidden" id="company-name" name="name" value="{{ name }}">
+        <input type="hidden" id="company-ticker" name="ticker_symbol" value="{{ ticker }}">
         <input type="hidden" name="summary" value="{{ summary }}">
 
         <div class="d-flex justify-content-between">
@@ -41,4 +44,9 @@
         </div>
     </form> {# The form tag should end here #}
 </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
 {% endblock %}

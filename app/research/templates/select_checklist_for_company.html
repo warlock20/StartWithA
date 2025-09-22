@@ -1,72 +1,46 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
-    <p class="lead">For company: <strong>{{ company.name }} ({{ company.ticker_symbol }})</strong></p>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>🔬 Research Workflow Migration</h1>
+        <p class="text-muted mb-0">Research has been moved to the new workflow system</p>
+    </div>
+    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Companies
+    </a>
+</div>
 
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h4>Start a New Research Session</h4>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-arrow-up-right-circle text-primary mb-4" style="font-size: 4rem;"></i>
+                <h3 class="mb-3">Research System Updated</h3>
+                <p class="text-muted mb-4">
+                    For company: <strong>{{ company.name }} ({{ company.ticker_symbol }})</strong>
+                </p>
+                <p class="lead mb-4">
+                    Research functionality has been migrated to our new workflow system for a better experience.
+                </p>
+
+                <div class="d-grid gap-2 col-6 mx-auto">
+                    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-play-circle"></i> Start New Research
+                    </a>
+                    <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-list-task"></i> View My Research Projects
+                    </a>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('research.start_research_session') }}">
-                        <input type="hidden" name="company_id" value="{{ company.id }}">
-                        {% set available_for_new_session = checklists_data|selectattr('existing_session_id', 'none')|list %}
-                        {% if available_for_new_session %}
-                            <div class="mb-3">
-                                <label for="checklist_id" class="form-label">Choose a new checklist:</label>
-                                <select name="checklist_id" id="checklist_id" class="form-select" required>
-                                    <option value="" disabled selected>-- Select a Checklist --</option>
-                                    {% for data in available_for_new_session %}
-                                        <option value="{{ data.checklist_obj.id }}">{{ data.checklist_obj.name }} ({{ data.item_count }} items)</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-success">Start New Session</button>
-                        {% else %}
-                            <div class="alert alert-light">No checklists available to start a <em>new</em> research session for this company.</div>
-                        {% endif %}
-                    </form>
-                    <hr>
-                    <p>Or, <a href="{{ url_for('checklists.new_checklist', next=url_for('research.select_checklist_for_company', company_id=company.id)) }}">create a new checklist</a>.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h4>Continue Existing Research</h4>
-                </div>
-                <div class="card-body">
-                    {% set existing_sessions_found = checklists_data|rejectattr('existing_session_id', 'none')|list %}
-                    {% if existing_sessions_found %}
-                        <ul class="list-group">
-                            {% for data in existing_sessions_found %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{{ data.checklist_obj.name }}</strong><br>
-                                        <span class="badge {% if data.existing_session_status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ data.existing_session_status|replace('_', ' ')|capitalize }}</span>
-                                    </div>
-                                    <div>
-                                        {% if data.existing_session_status == 'in_progress' and data.resume_item_id %}
-                                            <a href="{{ url_for('research.research_step', session_id=data.existing_session_id, item_id=data.resume_item_id) }}" class="btn btn-primary btn-sm">Resume</a>
-                                        {% elif data.existing_session_status == 'completed' %}
-                                            <a href="{{ url_for('research.view_research_session_summary', session_id=data.existing_session_id) }}" class="btn btn-info btn-sm">View Summary</a>
-                                        {% endif %}
-                                    </div>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="alert alert-light">No existing research sessions found for this company.</div>
-                    {% endif %}
+
+                <div class="mt-4 pt-4 border-top">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Legacy research sessions can still be viewed from the "My Research Projects" page
+                    </small>
                 </div>
             </div>
         </div>
     </div>
-    <div class="mt-4">
-        <a href="{{ url_for('companies.list_companies') }}">Back to Companies List</a>
-    </div>
+</div>
 {% endblock %}

@@ -44,36 +44,21 @@
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-header">
-                <h5 class="mb-0">🚀 Start Research</h5>
+                <h5 class="mb-0">🔬 Research Workflow</h5>
             </div>
             <div class="card-body">
-                {% if companies|length > 0 %}
-                    <form method="POST" action="{{ url_for('research.start_research_session') }}">
-                        <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
-                        <div class="mb-3">
-                            <label for="company_id" class="form-label">Select Company to Research:</label>
-                            <select name="company_id" id="company_id" class="form-select" required>
-                                <option value="" disabled selected>-- Choose a Company --</option>
-                                {% for company in companies %}
-                                    <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-play-circle"></i> Start Research Session
-                            </button>
-                        </div>
-                    </form>
-                {% else %}
-                    <div class="text-center py-3">
-                        <i class="bi bi-building text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2 mb-3">No companies added yet.</p>
-                        <a href="{{ url_for('companies.new_company') }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-plus"></i> Add Company
+                <div class="text-center py-3">
+                    <i class="bi bi-arrow-up-right-circle text-primary" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2 mb-3">Research has been migrated to the new workflow system.</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-primary">
+                            <i class="bi bi-play-circle"></i> Start New Research
+                        </a>
+                        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-list-task"></i> View My Projects
                         </a>
                     </div>
-                {% endif %}
+                </div>
             </div>
         </div>
     </div>

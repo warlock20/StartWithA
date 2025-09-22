@@ -113,10 +113,24 @@
             <div class="card-body">
                 <p class="card-text text-muted">Fetch and store historical financial data (Revenue, Net Income, etc.) to
                     analyze trends.</p>
-                <form method="POST" action="{{ url_for('companies.fetch_financials', company_id=company.id) }}"
-                    class="d-inline">
-                    <button type="submit" class="btn btn-primary">Fetch Financial History</button>
-                </form>
+
+                <!-- Financial Fetch Status -->
+                <div id="financial-fetch-status" class="alert alert-info d-none" role="alert">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <strong>Fetching financial data...</strong>
+                            <div class="small">This may take a few minutes. You can continue using the dashboard while this runs in the background.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="fetch-financials-btn" class="btn btn-primary"
+                        data-company-id="{{ company.id }}">
+                    Fetch Financial History
+                </button>
                 <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-secondary">View
                     Financials</a>
             </div>
@@ -268,7 +282,7 @@
                 <ul class="list-group">
                     {% for comp in current_competitors %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('companies.manage_company_documents', company_id=comp.id) }}">{{
+                        <a href="{{ url_for('companies.company_dashboard', company_id=comp.id) }}">{{
                             comp.name
                             }}</a>
                         <form method="POST"
@@ -290,4 +304,144 @@
 {% block scripts %}
     {{ super() }}
     <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fetchBtn = document.getElementById('fetch-financials-btn');
+            const statusDiv = document.getElementById('financial-fetch-status');
+
+            if (fetchBtn) {
+                fetchBtn.addEventListener('click', function() {
+                    const companyId = this.getAttribute('data-company-id');
+
+                    // Disable button and show loading state
+                    fetchBtn.disabled = true;
+                    fetchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+
+                    // Show status indicator
+                    statusDiv.classList.remove('d-none');
+
+                    // Make AJAX request
+                    fetch(`/companies/${companyId}/fetch_financials`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Response data:', data);
+                        if (data.success) {
+                            // Update status to show it's running in background
+                            statusDiv.innerHTML = `
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <div>
+                                        <strong>Financial data fetch in progress...</strong>
+                                        <div class="small">Task ID: ${data.task_id}. Monitoring progress...</div>
+                                    </div>
+                                </div>
+                            `;
+
+                            // Start polling task status
+                            fetchBtn.innerHTML = 'Fetch Started';
+                            fetchBtn.disabled = true;
+                            pollTaskStatus(data.task_id, statusDiv, fetchBtn);
+
+                        } else {
+                            // Handle error
+                            statusDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <strong>Error:</strong> ${data.error || 'Failed to start financial data fetch'}
+                                </div>
+                            `;
+                            fetchBtn.disabled = false;
+                            fetchBtn.innerHTML = 'Fetch Financial History';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        statusDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> Failed to start financial data fetch. Please try again.
+                                <div class="small">Check browser console for details.</div>
+                            </div>
+                        `;
+                        fetchBtn.disabled = false;
+                        fetchBtn.innerHTML = 'Fetch Financial History';
+                    });
+                });
+            }
+
+            // Function to poll task status
+            function pollTaskStatus(taskId, statusDiv, fetchBtn) {
+                const pollInterval = setInterval(() => {
+                    fetch(`/research/task_status/${taskId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.state === 'SUCCESS') {
+                                // Task completed successfully
+                                statusDiv.innerHTML = `
+                                    <div class="alert alert-success">
+                                        <strong>✅ Financial data fetch completed!</strong>
+                                        <div class="small">Financial data has been updated. You can now view the financials page.</div>
+                                    </div>
+                                `;
+                                fetchBtn.disabled = false;
+                                fetchBtn.innerHTML = 'Fetch Financial History';
+                                clearInterval(pollInterval);
+
+                                // Hide after 5 seconds
+                                setTimeout(() => {
+                                    statusDiv.classList.add('d-none');
+                                }, 5000);
+
+                            } else if (data.state === 'FAILURE') {
+                                // Task failed
+                                statusDiv.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <strong>❌ Financial data fetch failed!</strong>
+                                        <div class="small">${data.status_message || 'Unknown error occurred'}</div>
+                                    </div>
+                                `;
+                                fetchBtn.disabled = false;
+                                fetchBtn.innerHTML = 'Fetch Financial History';
+                                clearInterval(pollInterval);
+
+                            } else if (data.state === 'PENDING') {
+                                // Task is still pending/running
+                                statusDiv.innerHTML = `
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <div>
+                                            <strong>Financial data fetch in progress...</strong>
+                                            <div class="small">${data.status_message || 'Task is running in background...'}</div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Polling error:', error);
+                            statusDiv.innerHTML = `
+                                <div class="alert alert-warning">
+                                    <strong>Cannot check task status</strong>
+                                    <div class="small">Will continue running in background</div>
+                                </div>
+                            `;
+                            clearInterval(pollInterval);
+                        });
+                }, 2000); // Poll every 2 seconds
+            }
+        });
+    </script>
 {% endblock %}

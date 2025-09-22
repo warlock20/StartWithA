@@ -5,9 +5,53 @@
     <div>
         <h1>❓ My Question Bank</h1>
         <p class="text-muted mb-0">Your personal library of reusable investment questions organized by sector</p>
+        <!-- Cross-navigation -->
+        <div class="mt-2">
+            <small class="text-muted">
+                Also explore:
+                <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none">✅ Investment Checklists</a> |
+                <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none">📋 Kill Checklists</a>
+            </small>
+        </div>
     </div>
     <div>
         <span class="badge bg-primary fs-6">{{ total_questions }} Questions</span>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_questions }}</h3>
+                <small class="text-muted">Total Questions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ grouped_questions|length }}</h3>
+                <small class="text-muted">Sectors Covered</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ (grouped_questions.get('General', [])|length) }}</h3>
+                <small class="text-muted">General Questions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3>{{ total_questions - (grouped_questions.get('General', [])|length) }}</h3>
+                <small class="text-muted">Sector-Specific</small>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -39,7 +83,7 @@
                         </datalist>
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
+                        <button type="submit" class="btn btn-success btn-lg">
                             <i class="bi bi-plus-circle"></i> Add to Question Bank
                         </button>
                     </div>
@@ -47,8 +91,6 @@
             </div>
         </div>
     </div>
-
-    {# In app/question_bank/templates/question_bank.html #}
 
     <div class="col-lg-8">
         <div class="card">
@@ -113,19 +155,54 @@
             {% endfor %}
         </div>
         {% else %}
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="bi bi-question-circle text-muted" style="font-size: 3rem;"></i>
-                    </div>
+                <div class="alert alert-info">
                     <h5>No Questions Yet</h5>
-                    <p class="text-muted mb-4">
-                        Start building your question bank by adding your first investment question.
-                    </p>
-                    <button type="button" class="btn btn-primary empty-state-btn" onclick="addFirstQuestionFocus();">
+                    <p>Start building your question bank by adding your first investment question.</p>
+                    <button type="button" class="btn btn-primary" onclick="addFirstQuestionFocus();">
                         <i class="bi bi-plus-circle"></i> Add Your First Question
                     </button>
                 </div>
         {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Suggested starter questions -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0">💡 Suggested Questions by Category to Get Started</h6>
+    </div>
+    <div class="card-body">
+        <p>Build your question bank with these proven investment questions:</p>
+        <div class="row">
+            <div class="col-md-6">
+                <h6><strong>Financial Health:</strong></h6>
+                <ul class="small">
+                    <li>"What is the current ratio and debt-to-equity ratio?"</li>
+                    <li>"How consistent is the free cash flow generation?"</li>
+                    <li>"What are the return on equity and return on assets trends?"</li>
+                </ul>
+                <h6><strong>Competitive Position:</strong></h6>
+                <ul class="small">
+                    <li>"What sustainable competitive advantages does this company have?"</li>
+                    <li>"How defensible is the market position?"</li>
+                    <li>"What are the barriers to entry in this industry?"</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6><strong>Management Quality:</strong></h6>
+                <ul class="small">
+                    <li>"Does management have significant ownership in the company?"</li>
+                    <li>"What is the track record of capital allocation decisions?"</li>
+                    <li>"How transparent is management communication?"</li>
+                </ul>
+                <h6><strong>Valuation:</strong></h6>
+                <ul class="small">
+                    <li>"What is the P/E ratio compared to historical averages?"</li>
+                    <li>"How does the valuation compare to industry peers?"</li>
+                    <li>"What is the margin of safety at current prices?"</li>
+                </ul>
             </div>
         </div>
     </div>

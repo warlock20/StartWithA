@@ -121,14 +121,33 @@
                         Start New Project
                     </button>
                     <div>
-                        <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" 
+                        <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}"
                            class="btn btn-outline-secondary btn-sm">Edit</a>
                         {% if template.times_used == 0 %}
-                        <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}" 
+                        <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}"
                               style="display: inline;">
                             <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('Delete this template?');">Delete</button>
+                                    onclick="return confirm('Delete this template? This cannot be undone.');">Delete</button>
                         </form>
+                        {% else %}
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-danger btn-sm dropdown-toggle"
+                                    data-bs-toggle="dropdown" style="z-index: 1050;">Delete</button>
+                            <ul class="dropdown-menu" style="z-index: 1055;">
+                                <li><h6 class="dropdown-header text-warning">⚠️ Template has been used</h6></li>
+                                <li><form method="POST" action="{{ url_for('research_workflow.force_delete_template', template_id=template.id) }}"
+                                          style="margin: 0;">
+                                    <button type="submit" class="dropdown-item text-danger"
+                                            onclick="return confirm('⚠️ FORCE DELETE?\n\nThis template has been used {{ template.times_used }} times. Deleting it will not affect existing projects, but this action cannot be undone.\n\nAre you sure?');">
+                                        🗑️ Force Delete Template
+                                    </button>
+                                </form></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-muted" href="#" onclick="return false;">
+                                    <small>Existing projects remain unaffected</small>
+                                </a></li>
+                            </ul>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -230,6 +249,22 @@
 
 {% block scripts %}
 {{ super() }}
+<style>
+/* Fix dropdown z-index issues */
+.btn-group .dropdown-menu {
+    z-index: 1055 !important;
+}
+
+.card {
+    overflow: visible;
+}
+
+/* Ensure dropdowns appear above all other content */
+.dropdown-menu.show {
+    z-index: 1055 !important;
+}
+</style>
+
 <script>
 function showStartProjectModal(templateId, templateName) {
     document.getElementById('template_id').value = templateId;

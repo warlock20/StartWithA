@@ -3,7 +3,7 @@
 {% block content %}
     <div class="page-header d-flex justify-content-between align-items-center">
         <h1>{{ title }}</h1>
-        <a href="{{ url_for('companies.manage_company_documents', company_id=company.id) }}" class="btn btn-secondary">Back to Company Dashboard</a>
+        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-secondary">Back to Company Dashboard</a>
     </div>
 
     <div class="row g-4 mt-2">
