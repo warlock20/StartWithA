@@ -3,8 +3,8 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
-                       KillSession, KillAnswer, Company)
+from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
+                       KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry)
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.ideas import ideas_bp
 from datetime import datetime, timedelta
@@ -61,6 +61,30 @@ def add_idea():
         if idea_purpose == 'investment' and idea_type == 'company' and not company_id:
             flash('Company selection is required for company investment ideas', 'error')
             return redirect(url_for('ideas.add_idea'))
+
+        # Check for existing research projects for this company (Intelligent Duplication Prevention)
+        if company_id:
+            # Check for active research project
+            active_project = ResearchProject.query.filter_by(
+                user_id=current_user.id,
+                company_id=company_id,
+                status='active'
+            ).first()
+
+            if active_project:
+                flash(f'You already have an active research project for this company. Redirecting to project dashboard.', 'info')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=active_project.id))
+
+            # Check for completed research project
+            completed_project = ResearchProject.query.filter_by(
+                user_id=current_user.id,
+                company_id=company_id,
+                status='completed'
+            ).first()
+
+            if completed_project:
+                flash(f'You already have completed research for this company. Redirecting to project summary.', 'info')
+                return redirect(url_for('research_workflow.project_summary', project_id=completed_project.id))
 
         # Enhanced duplicate detection
         detector = DuplicateDetectionService(current_user.id)
@@ -376,7 +400,6 @@ def promote_idea(idea_id):
                 return redirect(request.url)
             
             # Verify template ownership
-            from app.models import ResearchTemplate, ResearchProject
             template = ResearchTemplate.query.get_or_404(template_id)
             if template.user_id != current_user.id:
                 flash('Access denied', 'error')
@@ -438,7 +461,6 @@ def promote_idea(idea_id):
                 return redirect(url_for('ideas.inbox'))
     
     # Get available templates for the GET request
-    from app.models import ResearchTemplate
     templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
     
     return render_template('promote_idea.html', 
@@ -518,9 +540,6 @@ def delete_idea(idea_id):
         return redirect(url_for('ideas.inbox'))
 
     try:
-        # Delete related records first to avoid foreign key constraint violations
-        from app.models import ResearchLog, ResearchProject, JournalEntry
-
         # Delete research logs that reference this idea
         ResearchLog.query.filter_by(idea_id=idea_id).delete()
 

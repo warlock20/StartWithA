@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        ResearchLog, Company, Checklist, KillChecklist, IdeaPipeline, CompanyDocument, 
-                       ResearchLog, DecisionJournal, JournalEntry)
+                       DecisionJournal, JournalEntry, ResearchSession, ResearchAnswer)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
@@ -487,9 +487,6 @@ def execute_step(project_id, step_index):
                 if not company:
                     flash(f'The company associated with this project (ID: {project.company_id}) no longer exists. Please update the project.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-
-                # Import ResearchSession model from research module
-                from app.models import ResearchSession, ResearchAnswer
 
                 # Check if a research session already exists for this checklist and company
                 existing_research_session = ResearchSession.query.filter_by(
@@ -1227,9 +1224,6 @@ def delete_project(project_id):
     current_app.logger.info(f"Deleting project for {company_name} - preserving company but clearing research data")
 
     try:
-        # Delete all related records first to avoid foreign key constraints
-        from app.models import ResearchLog
-
         # Delete research logs that reference this project
         ResearchLog.query.filter_by(project_id=project.id).delete()
 
@@ -1277,8 +1271,6 @@ def delete_project(project_id):
 @login_required
 def delete_research_session(session_id):
     """Delete a research session that is not in progress or completed"""
-    from app.models import ResearchSession, ResearchAnswer
-
     session = ResearchSession.query.get_or_404(session_id)
 
     # Authorization check
@@ -1290,7 +1282,6 @@ def delete_research_session(session_id):
 
     # For completed sessions, only allow deletion if they're incomplete/failed
     if session.status == 'completed':
-        from app.models import ResearchAnswer
         total_answers = ResearchAnswer.query.filter_by(research_session_id=session_id).all()
         total_item_count = len(total_answers)
         satisfied_count = len([ans for ans in total_answers if ans.satisfaction_status == 'satisfied'])
@@ -1322,8 +1313,6 @@ def delete_research_session(session_id):
 @login_required
 def delete_research_project(project_id):
     """Delete a research project"""
-    from app.models import ResearchProject
-
     project = ResearchProject.query.get_or_404(project_id)
 
     # Authorization check
