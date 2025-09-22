@@ -10,7 +10,7 @@
         <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-secondary">
             View Templates
         </a>
-        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-success">
+        <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-success">
             Start New Research
         </a>
     </div>
@@ -163,7 +163,7 @@
 {% else %}
 <div class="alert alert-info">
     <h5>No Active Projects</h5>
-    <p>You don't have any active research projects. <a href="{{ url_for('companies.list_companies') }}">Start a new research project</a> to begin your systematic analysis.</p>
+    <p>You don't have any active research projects. <a href="{{ url_for('companies.companies_dashboard') }}">Start a new research project</a> to begin your systematic analysis.</p>
 </div>
 {% endif %}
 

@@ -26,7 +26,7 @@
         {% endif %}
     </div>
     {# This button takes the user to select a company, which is the start of the new research flow #}
-    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-success">
+    <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-success">
         <i class="bi bi-plus-circle me-1"></i>Start New Research
     </a>
 </div>
@@ -166,7 +166,7 @@
     <i class="bi bi-clipboard-data display-1 text-muted"></i>
     <h3 class="mt-3">No Research Sessions Yet</h3>
     <p class="text-muted">Start systematically analyzing companies with your investment checklists.</p>
-    <a href="{{ url_for('companies.list_companies') }}" class="btn btn-success btn-lg mt-3">
+    <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-success btn-lg mt-3">
         <i class="bi bi-plus-circle me-2"></i>Start Your First Research Session
     </a>
 </div>

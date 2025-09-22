@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
+from app.models import ResearchProject, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.companies import companies_bp
 from app.tasks import fetch_financial_data_task
@@ -49,7 +49,7 @@ def get_company_market_data(ticker):
 
 @companies_bp.route('/', methods=['GET'])
 @login_required
-def list_companies():
+def companies_dashboard():
     # --- 1. Fetch all necessary data in efficient queries ---
 
     # Get all companies for the current user
@@ -85,16 +85,177 @@ def list_companies():
     favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
     other_companies_data.sort(key=lambda x: x['company_obj'].name)
 
+    # Dashboard overview data
+    dashboard_data = {
+        'portfolio_count': len(portfolio_companies_data),
+        'watchlist_count': len(favorite_companies_data),
+        'research_count': len([p for p in current_user.research_projects.all() if p.status == 'active']),
+        'total_companies': len(all_user_companies),
+        'recent_activity': []  # We'll populate this later
+    }
+
+    # Get recent activity (last 5 items)
+    recent_projects = ResearchProject.query.filter_by(user_id=current_user.id)\
+                                          .order_by(ResearchProject.last_worked_at.desc())\
+                                          .limit(5).all()
+
+    for project in recent_projects:
+        if project.last_worked_at:
+            dashboard_data['recent_activity'].append({
+                'type': 'research',
+                'company_name': project.research_subject_name or 'Unknown',
+                'action': f"Research {project.status}",
+                'date': project.last_worked_at,
+                'link': url_for('research_workflow.project_dashboard', project_id=project.id) if project.status == 'active'
+                       else url_for('research_workflow.project_summary', project_id=project.id)
+            })
+
     return render_template(
-        'list_companies.html', 
-        portfolio_companies_data=portfolio_companies_data,
-        favorite_companies_data=favorite_companies_data,
-        other_companies_data=other_companies_data,
+        'companies_dashboard.html',
+        dashboard_data=dashboard_data,
+        portfolio_companies_data=portfolio_companies_data[:3],  # Show top 3 for preview
+        favorite_companies_data=favorite_companies_data[:3],    # Show top 3 for preview
         portfolio_ids=portfolio_ids,
         favorite_ids=favorite_ids,
-        # We no longer need to pass eligible_for_da_ids as it's part of the new structure
-        title=f"{current_user.username}'s Companies"
+        title="Companies Overview"
     )
+
+@companies_bp.route('/portfolio')
+@login_required
+def portfolio():
+    """Portfolio companies dedicated page"""
+    # Get all user companies
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
+
+    # Get additional data for enrichment
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build enriched portfolio data
+    portfolio_companies_data = []
+    for company in portfolio_companies:
+        portfolio_companies_data.append({
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+        })
+
+    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
+
+    # Calculate portfolio metrics
+    active_research_count = current_user.research_projects.filter_by(status='active').count()
+    completed_analysis_count = len([d for d in portfolio_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
+
+    # Sector allocation
+    sectors = {}
+    for company in portfolio_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        sectors[sector] = sectors.get(sector, 0) + 1
+
+    return render_template('portfolio.html',
+                         portfolio_companies_data=portfolio_companies_data,
+                         active_research_count=active_research_count,
+                         completed_analysis_count=completed_analysis_count,
+                         sectors=sectors)
+
+@companies_bp.route('/watchlist')
+@login_required
+def watchlist():
+    """Watchlist/favorite companies dedicated page"""
+    # Get all user companies
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+
+    # Filter for watchlist companies (favorites that are not in portfolio)
+    watchlist_companies = [c for c in all_user_companies if c.id in favorite_ids and c.id not in portfolio_ids]
+
+    # Get additional data for enrichment
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build enriched watchlist data
+    watchlist_companies_data = []
+    for company in watchlist_companies:
+        watchlist_companies_data.append({
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+        })
+
+    watchlist_companies_data.sort(key=lambda x: x['company_obj'].name)
+
+    # Calculate watchlist metrics
+    research_ready_count = len([d for d in watchlist_companies_data if not d['has_completed_checklist'] and not d['has_swot'] and not d['has_destination_analysis']])
+    analyzed_count = len([d for d in watchlist_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
+
+    # Sector allocation
+    sectors = {}
+    for company in watchlist_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        sectors[sector] = sectors.get(sector, 0) + 1
+
+    return render_template('watchlist.html',
+                         watchlist_companies_data=watchlist_companies_data,
+                         research_ready_count=research_ready_count,
+                         analyzed_count=analyzed_count,
+                         sectors=sectors)
+
+@companies_bp.route('/list')
+@login_required
+def list_companies():
+    """Show all companies in unified list view"""
+    # Get all user companies
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+
+    # Get sets of IDs for categorization
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+
+    # Get sets of company IDs that have a specific analysis completed
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build the enriched data structure for the template
+    companies_data_list = []
+    for company in all_user_companies:
+        data = {
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+        }
+        companies_data_list.append(data)
+
+    # Partition the enriched data into the three lists
+    portfolio_companies_data = [d for d in companies_data_list if d['company_obj'].id in portfolio_ids]
+    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids and d['company_obj'].id not in portfolio_ids]
+    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in portfolio_ids and d['company_obj'].id not in favorite_ids]
+
+    # Sort each list by company name
+    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
+    favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
+    other_companies_data.sort(key=lambda x: x['company_obj'].name)
+
+    return render_template('list_companies.html',
+                         portfolio_companies_data=portfolio_companies_data,
+                         favorite_companies_data=favorite_companies_data,
+                         other_companies_data=other_companies_data,
+                         portfolio_ids=portfolio_ids,
+                         favorite_ids=favorite_ids,
+                         title="All Companies")
+
+@companies_bp.route('/research')
+@login_required
+def research():
+    """Research projects subpage - redirect to research workflow"""
+    return redirect(url_for('research_workflow.my_projects'))
 
 @companies_bp.route('/new', methods=['GET', 'POST'])
 @login_required
@@ -124,7 +285,7 @@ def new_company():
                 existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
                 if existing_company:
                     flash(f'You have already added "{company_name}" ({full_ticker_symbol}) to your list.', 'info')
-                    return redirect(url_for('companies.list_companies'))
+                    return redirect(url_for('companies.companies_dashboard'))
                 
                 return render_template('confirm_company.html',
                                        title="Confirm Company",
@@ -187,7 +348,7 @@ def add_company_confirmed():
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
     else:
         flash('There was an error adding the company. Please try again.', 'error')
         return redirect(url_for('companies.new_company'))
@@ -200,7 +361,7 @@ def delete_company(company_id):
     # Authorization check
     if company_to_delete.user_id != current_user.id:
         flash("You are not authorized to delete this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     try:
         # Two-phase deletion to handle foreign key constraints
@@ -242,7 +403,7 @@ def delete_company(company_id):
         db.session.rollback()
         flash(f'Error deleting company: {str(e)}', 'error')
 
-    return redirect(url_for('companies.list_companies'))
+    return redirect(url_for('companies.companies_dashboard'))
 
 
 # In app/companies/routes.py
@@ -377,7 +538,7 @@ def toggle_favorite(company_id):
     # Authorization: Ensure user can only favorite their own companies
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company's favorite status.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     if company in current_user.favorites:
         # If it's already a favorite, remove it
@@ -390,7 +551,7 @@ def toggle_favorite(company_id):
 
     db.session.commit()
     # Redirect back to the page the user was on
-    return redirect(request.referrer or url_for('companies.list_companies'))
+    return redirect(request.referrer or url_for('companies.companies_dashboard'))
 
 # Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint
 # For now, placing it under the /companies prefix.
@@ -407,17 +568,17 @@ def serve_company_document(filepath):
         company_id_str = filepath.split(os.sep, 1)[0]
         if not company_id_str.isdigit():
             flash("Invalid file path.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(400)
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(400)
 
         company_id = int(company_id_str)
         doc_company = Company.query.get_or_404(company_id)
         if doc_company.user_id != current_user.id:
             flash("You are not authorized to access this file.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(403)
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(403)
     except Exception as e: # Broad exception for path splitting or int conversion
         print(f"Error in serve_company_document path processing: {e}") # Log this
         flash("Invalid file path.", "error")
-        return redirect(url_for('companies.list_companies')) # Or abort(404)
+        return redirect(url_for('companies.companies_dashboard')) # Or abort(404)
 
     # send_from_directory needs the base directory and then the relative path from that directory
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
@@ -428,7 +589,7 @@ def set_intrinsic_value(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     value_str = request.form.get('value', '').replace(',', '')
     multiplier_str = request.form.get('unit_multiplier', '1')
@@ -463,7 +624,7 @@ def delete_document(doc_id):
     # Authorization: Ensure the user owns the company this document belongs to
     if doc_to_delete.company.user_id != current_user.id:
         flash("You are not authorized to delete this document.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Store company_id for redirection before we delete the object
     company_id = doc_to_delete.company_id
@@ -494,7 +655,7 @@ def fetch_news(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Call the background task
     task = fetch_company_news_task.delay(company.id)
@@ -512,7 +673,7 @@ def fetch_sec_filings(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Get the 'years' value from the form, defaulting to 5 if not found
     years_from_form = request.form.get('years', 5, type=int)
@@ -536,7 +697,7 @@ def add_checkpoint(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     metric = request.form.get('metric')
     expectation = request.form.get('expectation')
@@ -575,7 +736,7 @@ def destination_analysis(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
 
@@ -592,7 +753,7 @@ def update_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to update this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Get data from the form
     new_status = request.form.get('status')
@@ -620,7 +781,7 @@ def delete_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to delete this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     company_id = checkpoint.company_id # Store for redirect before deleting
     try:
@@ -641,7 +802,7 @@ def edit_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to edit this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     if request.method == 'POST':
         # Handle the form submission for updating
@@ -679,7 +840,7 @@ def toggle_portfolio(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Flip the boolean status
     company.is_in_portfolio = not company.is_in_portfolio
@@ -692,7 +853,7 @@ def toggle_portfolio(company_id):
         db.session.rollback()
         flash(f"An error occurred: {e}", "error")
 
-    return redirect(request.referrer or url_for('companies.list_companies'))  
+    return redirect(request.referrer or url_for('companies.companies_dashboard'))  
 
 @companies_bp.route('/<int:company_id>/scuttlebutt')
 @login_required
@@ -700,7 +861,7 @@ def scuttlebutt(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Fetch saved articles for this company, newest first
     articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
@@ -720,7 +881,7 @@ def analyze_scuttlebutt(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Call the background task
     task = analyze_scuttlebutt_task.delay(company.id)
@@ -737,7 +898,7 @@ def swot_analysis(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Try to find an existing SWOT analysis for this company and user
     analysis = QualitativeAnalysis.query.filter_by(
@@ -799,7 +960,7 @@ def porters_five_forces_analysis(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     analysis_type = 'PortersFiveForces'
     analysis = QualitativeAnalysis.query.filter_by(
@@ -876,7 +1037,7 @@ def financials(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Fetch all financial data for this company, ordered by date
     all_financial_data = company.financial_data.order_by(FinancialData.period_date.asc()).all()

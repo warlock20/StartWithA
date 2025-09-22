@@ -299,7 +299,7 @@ def thesis_evolution(company_id):
    
    if company.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('companies.list_companies'))
+       return redirect(url_for('companies.companies_dashboard'))
    
    # Get all thesis versions
    thesis_versions = ThesisEvolution.query.filter_by(
@@ -339,7 +339,7 @@ def new_thesis_version(company_id):
    
    if company.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('companies.list_companies'))
+       return redirect(url_for('companies.companies_dashboard'))
    
    if request.method == 'POST':
        thesis = request.form.get('thesis')

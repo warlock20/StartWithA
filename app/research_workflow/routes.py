@@ -387,7 +387,7 @@ def start_project():
     except Exception as e:
         db.session.rollback()
         flash(f'Error starting project: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('companies.list_companies'))
+        return redirect(request.referrer or url_for('companies.companies_dashboard'))
 
 @research_workflow_bp.route('/projects/<int:project_id>')
 @login_required
@@ -819,7 +819,7 @@ def save_decision(project_id):
 
         if project.decision == 'invest':
             # Redirect to portfolio or next steps
-            return redirect(url_for('companies.list_companies'))
+            return redirect(url_for('companies.companies_dashboard'))
         else:
             # Back to project list
             return redirect(url_for('research_workflow.my_projects'))
@@ -835,10 +835,10 @@ def my_projects():
     # Get projects grouped by status
     active_projects = current_user.research_projects.filter_by(status='active')\
                                                     .order_by(ResearchProject.last_worked_at.desc()).all()
-    
+
     paused_projects = current_user.research_projects.filter_by(status='paused')\
                                                     .order_by(ResearchProject.created_at.desc()).all()
-    
+
     completed_projects = current_user.research_projects.filter_by(status='completed')\
                                                       .order_by(ResearchProject.completed_at.desc()).limit(10).all()
 
@@ -847,15 +847,15 @@ def my_projects():
 
     # Flag overdue projects
     overdue_projects = [p for p in active_projects if p.is_overdue]
-    
+
     # Calculate total time invested
     total_time_invested = sum(p.total_hours_spent for p in current_user.research_projects.all())
-    
+
     # Success metrics
     total_decisions = current_user.research_projects.filter(
         ResearchProject.decision.isnot(None)
     ).count()
-    
+
     invest_decisions = current_user.research_projects.filter_by(decision='invest').count()
     pass_decisions = current_user.research_projects.filter_by(decision='pass').count()
 
