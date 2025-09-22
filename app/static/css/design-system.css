@@ -174,7 +174,6 @@ small {
     overflow: hidden;
     box-shadow: var(--shadow-light);
     transition: all var(--transition-normal);
-    height: 100%;
 }
 
 .framework-card:hover {

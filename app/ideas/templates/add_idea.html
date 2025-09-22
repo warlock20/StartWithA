@@ -1,27 +1,173 @@
-<!-- app/ideas/templates/add_idea.html -->
 {% extends "main/_base.html" %}
 
+{% block extra_css %}
+<style>
+.autocomplete-suggestions {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e1e5e9;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 2px;
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.autocomplete-suggestion {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.autocomplete-suggestion:last-child {
+    border-bottom: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.autocomplete-suggestion:first-child {
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.autocomplete-suggestion:hover,
+.autocomplete-suggestion.highlighted {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+    border-left: 3px solid #4f46e5;
+    padding-left: calc(1rem - 3px);
+}
+
+.suggestion-text {
+    font-weight: 500;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.suggestion-icon {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.suggestion-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6366f1;
+    background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 100%);
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    border: 1px solid #c7d2fe;
+    min-width: 24px;
+    text-align: center;
+}
+
+.autocomplete-suggestion:hover .suggestion-count,
+.autocomplete-suggestion.highlighted .suggestion-count {
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    color: white;
+    border-color: #4f46e5;
+}
+
+.suggestion-label {
+    font-size: 0.6875rem;
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+/* Custom scrollbar for suggestions */
+.autocomplete-suggestions::-webkit-scrollbar {
+    width: 6px;
+}
+
+.autocomplete-suggestions::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.autocomplete-suggestions::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.autocomplete-suggestions::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Add subtle focus ring when suggestions are showing */
+.source-input-focused {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h3 class="mb-0">💡 Quick Capture</h3>
-                <small>Don't overthink it. Capture now, evaluate later.</small>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>💡 Quick Capture</h1>
+        <p class="text-muted mb-0">Don't overthink it. Capture now, evaluate later.</p>
+    </div>
+    <a href="{{ url_for('ideas.inbox') }}" class="btn btn-secondary">Back to Inbox</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-10">
+        <div class="framework-card">
+            <div class="framework-header">
+                <div class="framework-icon primary">
+                    <i class="bi bi-lightbulb"></i>
+                </div>
+                <div class="framework-title">
+                    <h4>New Investment Idea</h4>
+                    <p>Capture your investment ideas quickly and efficiently</p>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm">
+            <div class="framework-body">
+                <!-- Duplicate Detection Alerts -->
+                <div id="duplicate-alerts" class="mb-3"></div>
+
+                <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm" data-entity="idea">
                     <!-- The only required field - keep it simple -->
                     <div class="mb-3">
                         <label for="name" class="form-label">
                             What's the idea? <span class="text-danger">*</span>
                         </label>
-                        <input type="text" 
-                               class="form-control form-control-lg" 
-                               id="name" 
-                               name="name" 
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               id="idea-name"
+                               name="name"
                                placeholder="e.g., Tesla, Indian IT sector, Battery technology..."
-                               required 
+                               required
                                autofocus>
                         <small class="form-text text-muted">
                             Company name, sector, theme, or investment concept
@@ -52,31 +198,49 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="ticker_symbol" class="form-label">
-                                Ticker (if applicable)
+                    <!-- Company Selection for Investment Ideas -->
+                    <div id="company-selection-field" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Company Selection <span class="text-danger" id="company-required">*</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="ticker_symbol" 
-                                   name="ticker_symbol" 
-                                   placeholder="TSLA"
-                                   style="text-transform: uppercase;">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
+                                    🏢 Search & Select Company
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
+                                    ❌ Clear
+                                </button>
+                            </div>
+                            <input type="hidden" id="company_id" name="company_id" value="">
+                            <input type="hidden" id="idea-ticker" name="ticker_symbol" value="">
+                            <div id="selectedCompanyInfo" class="mt-2" style="display: none;">
+                                <div class="alert alert-info mb-0">
+                                    <small><strong>Selected:</strong> <span id="companyDisplayInfo"></span></small>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                Required for company investment ideas. Search by ticker or company name.
+                            </small>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="source" class="form-label">
-                            Where did this idea come from?
+                            Where did this idea come from? <span class="text-danger">*</span>
                         </label>
-                        <input type="text" 
-                               class="form-control" 
-                               id="source" 
-                               name="source" 
-                               placeholder="Buffett letter, friend's recommendation, noticed while shopping...">
+                        <div class="position-relative">
+                            <input type="text"
+                                   class="form-control"
+                                   id="source"
+                                   name="source"
+                                   placeholder="Buffett letter, friend's recommendation, noticed while shopping..."
+                                   autocomplete="off"
+                                   required>
+                            <div id="source-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                        </div>
                         <small class="form-text text-muted">
-                            Tracking sources helps you identify your best idea generators
+                            Required - tracking sources helps you identify your best idea generators
                         </small>
                     </div>
 
@@ -116,7 +280,7 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg">
+                        <button type="submit" class="btn-pro primary btn-lg">
                             <i class="bi bi-inbox"></i> Add to Inbox
                         </button>
                         <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
@@ -126,11 +290,21 @@
                 </form>
             </div>
         </div>
+    </div>
 
-        <!-- Tips card -->
-        <div class="card mt-3">
-            <div class="card-body">
-                <h6 class="card-title">💭 Capture Tips</h6>
+    <!-- Tips card in the right column -->
+    <div class="col-lg-2">
+        <div class="framework-card">
+            <div class="framework-header">
+                <div class="framework-icon info">
+                    <i class="bi bi-lightbulb-fill"></i>
+                </div>
+                <div class="framework-title">
+                    <h4>💭 Capture Tips</h4>
+                    <p>Best practices for effective idea capture</p>
+                </div>
+            </div>
+            <div class="framework-body">
                 <ul class="mb-0">
                     <li>Don't self-censor - let the kill checklist do that</li>
                     <li>Capture immediately when you encounter an idea</li>
@@ -142,11 +316,195 @@
     </div>
 </div>
 
+<!-- Include Company Search Modal -->
+{% include 'components/company_search_modal.html' %}
+
+<script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
-    // Auto-uppercase the ticker field
-    document.getElementById('ticker_symbol').addEventListener('input', function() {
-        this.value = this.value.toUpperCase();
+// Company selection handler for the modal - must be global for onclick
+function handleCompanySelection(company) {
+    console.log('Company selected:', company);
+
+    // Set the hidden form fields
+    const companyIdField = document.getElementById('company_id');
+    const tickerField = document.getElementById('idea-ticker');
+
+    if (companyIdField) {
+        companyIdField.value = company.id;
+    }
+    if (tickerField && company.ticker_symbol) {
+        tickerField.value = company.ticker_symbol;
+    }
+
+    // Update the display
+    const displayInfo = document.getElementById('companyDisplayInfo');
+    if (displayInfo) {
+        displayInfo.textContent = `${company.name}${company.ticker_symbol ? ' (' + company.ticker_symbol + ')' : ''}`;
+    }
+
+    // Show selected company info and clear button
+    const selectedInfo = document.getElementById('selectedCompanyInfo');
+    const clearBtn = document.getElementById('clearCompanyBtn');
+    if (selectedInfo) selectedInfo.style.display = 'block';
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+}
+
+// Global function for clearing company selection
+function clearSelectedCompany() {
+    // Clear hidden fields
+    const companyIdField = document.getElementById('company_id');
+    const tickerField = document.getElementById('idea-ticker');
+    if (companyIdField) companyIdField.value = '';
+    if (tickerField) tickerField.value = '';
+
+    // Hide display elements
+    const selectedInfo = document.getElementById('selectedCompanyInfo');
+    const clearBtn = document.getElementById('clearCompanyBtn');
+    if (selectedInfo) selectedInfo.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ideaTypeSelect = document.getElementById('idea_type');
+    const ideaPurposeSelect = document.getElementById('idea_purpose');
+
+    // Source autocomplete functionality
+    const sourceInput = document.getElementById('source');
+    const sourceSuggestions = document.getElementById('source-suggestions');
+    let debounceTimer;
+    let currentHighlight = -1;
+
+    function updateCompanyRequirement() {
+        const isCompany = ideaTypeSelect.value === 'company';
+        const isInvestment = ideaPurposeSelect.value === 'investment';
+        const showCompanySelection = isCompany && isInvestment;
+
+        const companyField = document.getElementById('company-selection-field');
+        const companyIdInput = document.getElementById('company_id');
+        const companyRequired = document.getElementById('company-required');
+
+        if (showCompanySelection) {
+            companyField.style.display = 'block';
+            companyIdInput.required = true;
+            companyRequired.style.display = 'inline';
+        } else {
+            companyField.style.display = 'none';
+            companyIdInput.required = false;
+            companyRequired.style.display = 'none';
+            // Clear selections when hiding
+            clearSelectedCompany();
+        }
+    }
+
+    function hideSuggestions() {
+        sourceSuggestions.style.display = 'none';
+        currentHighlight = -1;
+        sourceInput.classList.remove('source-input-focused');
+    }
+
+    function showSuggestions() {
+        if (sourceSuggestions.children.length > 0) {
+            sourceSuggestions.style.display = 'block';
+            sourceInput.classList.add('source-input-focused');
+        }
+    }
+
+    function searchSources(query) {
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+
+        fetch(`{{ url_for('ideas.search_sources') }}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                sourceSuggestions.innerHTML = '';
+                currentHighlight = -1;
+
+                if (data.length === 0) {
+                    hideSuggestions();
+                    return;
+                }
+
+                data.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-suggestion';
+
+                    // Get first letter for icon
+                    const firstLetter = item.source.charAt(0).toUpperCase();
+
+                    div.innerHTML = `
+                        <div class="suggestion-text">
+                            <div class="suggestion-icon">${firstLetter}</div>
+                            <span>${item.source}</span>
+                        </div>
+                        <span class="suggestion-count">${item.count}</span>
+                    `;
+
+                    div.addEventListener('click', function() {
+                        sourceInput.value = item.source;
+                        hideSuggestions();
+                        sourceInput.focus();
+                    });
+
+                    sourceSuggestions.appendChild(div);
+                });
+
+                showSuggestions();
+            })
+            .catch(error => {
+                console.error('Error searching sources:', error);
+                hideSuggestions();
+            });
+    }
+
+    // Source input event listeners
+    sourceInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            searchSources(this.value.trim());
+        }, 300);
     });
+
+    sourceInput.addEventListener('keydown', function(e) {
+        const suggestions = sourceSuggestions.querySelectorAll('.autocomplete-suggestion');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentHighlight = Math.min(currentHighlight + 1, suggestions.length - 1);
+            updateHighlight(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentHighlight = Math.max(currentHighlight - 1, -1);
+            updateHighlight(suggestions);
+        } else if (e.key === 'Enter' && currentHighlight >= 0) {
+            e.preventDefault();
+            suggestions[currentHighlight].click();
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
+    function updateHighlight(suggestions) {
+        suggestions.forEach((suggestion, index) => {
+            suggestion.classList.toggle('highlighted', index === currentHighlight);
+        });
+    }
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!sourceInput.contains(e.target) && !sourceSuggestions.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+
+    // Initialize on page load
+    updateCompanyRequirement();
+
+    // Listen for changes
+    ideaTypeSelect.addEventListener('change', updateCompanyRequirement);
+    ideaPurposeSelect.addEventListener('change', updateCompanyRequirement);
 
     // Quick keyboard shortcut - Ctrl+Enter to submit
     document.getElementById('quickCaptureForm').addEventListener('keydown', function(e) {
@@ -154,5 +512,6 @@
             this.submit();
         }
     });
+});
 </script>
 {% endblock %}

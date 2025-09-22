@@ -95,7 +95,7 @@
             <p class="section-subtitle">The foundation of disciplined, emotion-free investing</p>
         </div>
 
-        <div class="row g-4">
+        <div class="row g-4 framework-grid">
             <!-- Investment Analysis Framework -->
             <div class="col-lg-6">
                 <div class="framework-card investment-framework">
@@ -358,8 +358,13 @@
                             <div class="activity-empty">
                                 <i class="bi bi-calendar-plus"></i>
                                 <h6>No Upcoming Checkpoints</h6>
-                                <p>Set thesis validation points to monitor your investments systematically</p>
+                                {% if portfolio_count > 0 %}
+                                <p>Set thesis validation checkpoints for your portfolio companies to track investment milestones</p>
                                 <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-outline-secondary">Set Checkpoints</a>
+                                {% else %}
+                                <p>Add companies to your portfolio first, then set destination analysis checkpoints</p>
+                                <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-primary">Build Portfolio</a>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </div>

@@ -506,6 +506,7 @@ class IdeaPipeline(db.Model):
     idea_type = db.Column(db.String(50), nullable=False, default='company')  # Subject type: company/sector/theme
     idea_purpose = db.Column(db.String(50), nullable=False, default='investment')  # Purpose: investment/learning/research
     ticker_symbol = db.Column(db.String(20))
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))  # Associated company for company-type ideas
     source = db.Column(db.String(200))
     thesis_summary = db.Column(db.Text)
     initial_notes = db.Column(db.Text)
@@ -519,6 +520,7 @@ class IdeaPipeline(db.Model):
     priority = db.Column(db.Integer, default=0)
     promoted_to_company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
     kill_sessions = db.relationship('KillSession', backref='idea', lazy='dynamic', cascade='all, delete-orphan')
+    company = db.relationship('Company', foreign_keys=[company_id])
     promoted_to_company = db.relationship('Company', foreign_keys=[promoted_to_company_id])
 
     def __repr__(self):
@@ -730,7 +732,9 @@ class ResearchProject(db.Model):
     # Relationships
     company = db.relationship('Company', backref='research_projects')
     idea = db.relationship('IdeaPipeline', backref='research_project')
-    work_sessions = db.relationship('WorkSession', backref='project', 
+    work_sessions = db.relationship('WorkSession', backref='project',
+                                   lazy='dynamic', cascade='all, delete-orphan')
+    research_logs = db.relationship('ResearchLog', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')
     
     @property

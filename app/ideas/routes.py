@@ -5,6 +5,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
                        KillSession, KillAnswer, Company)
+from app.services.duplicate_detection import DuplicateDetectionService
 from app.ideas import ideas_bp
 from datetime import datetime, timedelta
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
@@ -41,23 +42,56 @@ def add_idea():
         name = request.form.get('name')
         idea_type = request.form.get('idea_type', 'company')
         idea_purpose = request.form.get('idea_purpose', 'investment')
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-        full_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+        ticker_symbol = request.form.get('ticker_symbol', '').upper() if request.form.get('ticker_symbol') else None
+        company_id = request.form.get('company_id') if request.form.get('company_id') else None
         source = request.form.get('source')
         thesis = request.form.get('thesis_summary')
         notes = request.form.get('initial_notes')
-        
+
+        # Validation
         if not name:
             flash('Idea name is required', 'error')
             return redirect(url_for('ideas.add_idea'))
-        
+
+        if not source:
+            flash('Source is required - please specify where this idea came from', 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Validate company requirement for investment companies
+        if idea_purpose == 'investment' and idea_type == 'company' and not company_id:
+            flash('Company selection is required for company investment ideas', 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Enhanced duplicate detection
+        detector = DuplicateDetectionService(current_user.id)
+        duplicate_check = detector.check_idea_duplicates(name, ticker_symbol)
+
+        if duplicate_check['is_duplicate']:
+            # Handle blocking duplicates
+            for match in duplicate_check['exact_matches']:
+                flash(match['message'], 'error')
+            for match in duplicate_check['similar_matches']:
+                if match.get('similarity', 0) > 0.9:  # Very similar names should block
+                    flash(match['message'], 'error')
+            return redirect(url_for('ideas.add_idea'))
+
+        # Show warnings and suggestions but allow creation
+        for match in duplicate_check['similar_matches']:
+            if match.get('similarity', 0) <= 0.9:  # Show warning but don't block
+                flash(f"Warning: {match['message']}", 'warning')
+
+        for suggestion in duplicate_check['suggestions']:
+            if suggestion['type'] == 'killed_idea_exists':
+                flash(f"Note: {suggestion['message']}", 'info')
+            elif suggestion['type'] == 'promote_existing_company':
+                flash(f"Suggestion: {suggestion['message']}", 'info')
+
         new_idea = IdeaPipeline(
             author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,
-            ticker_symbol=full_ticker, source=source, thesis_summary=thesis,
+            ticker_symbol=ticker_symbol, company_id=company_id, source=source, thesis_summary=thesis,
             initial_notes=notes, status='inbox'
         )
-        
+
         try:
             db.session.add(new_idea)
             db.session.commit()
@@ -72,8 +106,8 @@ def add_idea():
         except Exception as e:
             db.session.rollback()
             flash(f'Error adding idea: {str(e)}', 'error')
-    
-    return render_template('add_idea.html', title="Quick Capture", exchanges=EXCHANGES)
+
+    return render_template('add_idea.html', title="Quick Capture")
 
 # In app/ideas/routes.py
 
@@ -313,6 +347,13 @@ def promote_idea(idea_id):
         promotion_action = request.form.get('action')
         
         if promotion_action == 'create_company' and idea.idea_type == 'company':
+            # Check if company with ticker already exists
+            if idea.ticker_symbol:
+                existing_company = Company.query.filter_by(ticker_symbol=idea.ticker_symbol).first()
+                if existing_company:
+                    flash(f'Company with ticker {idea.ticker_symbol} already exists: {existing_company.name}', 'error')
+                    return redirect(request.url)
+
             # Create company and redirect to research template selection
             company = Company(
                 name=idea.name, ticker_symbol=idea.ticker_symbol,
@@ -325,7 +366,7 @@ def promote_idea(idea_id):
             idea.promoted_at = datetime.utcnow()
             db.session.commit()
             flash(f'"{idea.name}" promoted to your companies list!', 'success')
-            return redirect(url_for('research.select_checklist_for_company', company_id=company.id))
+            return redirect(url_for('research_workflow.intelligent_routing', company_id=company.id, source='idea_promotion'))
             
         elif promotion_action == 'create_research_project':
             # Create research project directly based on idea type
@@ -340,14 +381,32 @@ def promote_idea(idea_id):
             if template.user_id != current_user.id:
                 flash('Access denied', 'error')
                 return redirect(url_for('ideas.inbox'))
-            
+
+            # For company ideas, ensure promoted_to_company is set correctly
+            if idea.idea_type == 'company' and idea.company and not idea.promoted_to_company:
+                idea.promoted_to_company = idea.company
+
+            # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY
+            company_for_constraint_check = idea.promoted_to_company or idea.company
+            if idea.idea_type == 'company' and company_for_constraint_check:
+                existing_project = ResearchProject.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_for_constraint_check.id
+                ).filter(
+                    ResearchProject.status.in_(['active', 'paused'])
+                ).first()
+
+                if existing_project:
+                    flash(f'You already have a research project for {company_for_constraint_check.name}. Only one project per company is allowed.', 'error')
+                    return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+
             # Create research project
             project = ResearchProject(
                 researcher=current_user,
                 template=template,
                 research_subject_type=idea.idea_type,
                 research_subject_name=idea.name,
-                company=idea.promoted_to_company if idea.idea_type == 'company' else None,
+                company_id=company_for_constraint_check.id if (idea.idea_type == 'company' and company_for_constraint_check) else None,
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,
@@ -402,11 +461,34 @@ def edit_idea(idea_id):
         idea.idea_purpose = request.form.get('idea_purpose', idea.idea_purpose)
         base_ticker = request.form.get('base_ticker', '').upper()
         exchange_suffix = request.form.get('exchange_suffix', '')
-        idea.ticker_symbol = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+        new_ticker = f"{base_ticker}{exchange_suffix}" if base_ticker else None
+
+        # Check if changing ticker to one that already exists
+        if new_ticker and new_ticker != idea.ticker_symbol:
+            # Check existing companies
+            existing_company = Company.query.filter_by(
+                ticker_symbol=new_ticker,
+                user_id=current_user.id
+            ).first()
+            if existing_company:
+                flash(f'You already have a company with ticker {new_ticker}: {existing_company.name}. Cannot change to this ticker.', 'error')
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+            # Check existing ideas (excluding current idea)
+            existing_idea = IdeaPipeline.query.filter(
+                IdeaPipeline.ticker_symbol == new_ticker,
+                IdeaPipeline.user_id == current_user.id,
+                IdeaPipeline.id != idea.id
+            ).first()
+            if existing_idea:
+                flash(f'You already have an idea with ticker {new_ticker}: {existing_idea.name} (Status: {existing_idea.status}). Cannot change to this ticker.', 'error')
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+        idea.ticker_symbol = new_ticker
         idea.source = request.form.get('source')
         idea.thesis_summary = request.form.get('thesis_summary')
         idea.initial_notes = request.form.get('initial_notes')
-        
+
         try:
             db.session.commit()
             flash('Idea updated successfully', 'success')
@@ -434,15 +516,28 @@ def delete_idea(idea_id):
     if idea.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
-    
+
     try:
+        # Delete related records first to avoid foreign key constraint violations
+        from app.models import ResearchLog, ResearchProject, JournalEntry
+
+        # Delete research logs that reference this idea
+        ResearchLog.query.filter_by(idea_id=idea_id).delete()
+
+        # Delete journal entries that reference this idea
+        JournalEntry.query.filter_by(idea_id=idea_id).delete()
+
+        # Update research projects to remove idea reference (don't delete projects)
+        ResearchProject.query.filter_by(idea_id=idea_id).update({'idea_id': None})
+
+        # Now delete the idea (KillSession will cascade delete automatically)
         db.session.delete(idea)
         db.session.commit()
         flash(f'"{idea.name}" deleted permanently', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting idea: {str(e)}', 'error')
-    
+
     return redirect(url_for('ideas.inbox'))
 
 @ideas_bp.route('/<int:idea_id>/resurrect', methods=['POST'])
@@ -512,3 +607,26 @@ def idea_details(idea_id):
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
     return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+
+@ideas_bp.route('/api/sources/search')
+@login_required
+def search_sources():
+    """AJAX endpoint to search for existing idea sources"""
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    # Search for sources that contain the query (case insensitive)
+    # Get distinct sources from user's ideas, ordered by frequency
+    sources = db.session.query(IdeaPipeline.source, db.func.count(IdeaPipeline.source).label('count')) \
+        .filter(IdeaPipeline.user_id == current_user.id) \
+        .filter(IdeaPipeline.source.ilike(f'%{query}%')) \
+        .filter(IdeaPipeline.source.isnot(None)) \
+        .group_by(IdeaPipeline.source) \
+        .order_by(db.func.count(IdeaPipeline.source).desc()) \
+        .limit(10) \
+        .all()
+
+    # Return list of source names
+    result = [{'source': source[0], 'count': source[1]} for source in sources]
+    return jsonify(result)

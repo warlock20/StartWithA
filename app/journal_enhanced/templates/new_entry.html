@@ -253,10 +253,10 @@
         fetch(`/companies/api/companies/search?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
-                displaySearchResults(data.user_companies, data.yahoo_suggestion);
+                displaySearchResults(data.user_companies, data.yahoo_suggestions);
 
                 // Show quick add form if no results at all
-                if (data.user_companies.length === 0 && !data.yahoo_suggestion) {
+                if (data.user_companies.length === 0 && (!data.yahoo_suggestions || data.yahoo_suggestions.length === 0)) {
                     showQuickAddForm(query);
                 } else {
                     document.getElementById('quickAddForm').style.display = 'none';
@@ -268,19 +268,20 @@
             });
     }
 
-    function displaySearchResults(userCompanies, yahooSuggestion) {
+    function displaySearchResults(userCompanies, yahooSuggestions) {
         const resultsList = document.getElementById('resultsList');
         const searchResults = document.getElementById('searchResults');
 
         resultsList.innerHTML = '';
 
-        if (userCompanies.length === 0 && !yahooSuggestion) {
+        if (userCompanies.length === 0 && (!yahooSuggestions || yahooSuggestions.length === 0)) {
             searchResults.style.display = 'none';
             return;
         }
 
-        // Add Yahoo Finance suggestion first (if available)
-        if (yahooSuggestion) {
+        // Add Yahoo Finance suggestions first (if available)
+        if (yahooSuggestions && yahooSuggestions.length > 0) {
+            yahooSuggestions.forEach(yahooSuggestion => {
             const item = document.createElement('a');
             item.href = '#';
             item.className = 'list-group-item list-group-item-action border-primary';
@@ -309,6 +310,7 @@
             });
 
             resultsList.appendChild(item);
+            });
         }
 
         // Add user's existing companies

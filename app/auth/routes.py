@@ -54,7 +54,7 @@ def register():
 def login():
     if current_user.is_authenticated: # If user is already logged in, redirect them
         flash('You are already logged in.', 'info')
-        return redirect(url_for('research.list_research_sessions')) # Or a dashboard page
+        return redirect(url_for('research_workflow.my_projects')) # Or a dashboard page
 
     if request.method == 'POST':
         identifier = request.form.get('identifier') # Can be username or email
@@ -81,7 +81,7 @@ def login():
                 return redirect(next_page)
             else:
                 # Redirect to a sensible default page after login
-                return redirect(url_for('research.list_research_sessions')) 
+                return redirect(url_for('research_workflow.my_projects')) 
         else:
             flash('Invalid username/email or password. Please try again.', 'error')
             return render_template('login.html', title="Login", identifier=identifier)

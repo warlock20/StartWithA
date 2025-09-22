@@ -1,136 +1,244 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>{{ title }}</h1>
-    <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary">Back to My Research Sessions</a>
-    <a href="{{ url_for('research.export_session_to_txt', session_id=session.id) }}" class="btn btn-info">Export to Text File</a>    
-</div>
-
-<div class="card mb-4">
-    <div class="card-header">Session Details</div>
-    <div class="card-body">
-        <p><strong>Company:</strong> {{ session.company.name }} ({{ session.company.ticker_symbol }})</p>
-        <p><strong>Checklist:</strong> {{ session.checklist.name }}</p>
-        <p><strong>Status:</strong> <span
-                class="badge {% if session.status == 'completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{
-                session.status|capitalize }}</span></p>
-        <p><strong>Started:</strong> {{ session.start_date.strftime('%Y-%m-%d %H:%M') }}</p>
-        <p><strong>Analysis Model:</strong> Checklist Analysis</p>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header">Individual Answers</div>
-    <div class="card-body">
-        {% if all_ordered_items %}
-        <div class="accordion" id="answersAccordion">
-            {% for item in all_ordered_items %}
-            {% set current_ans_obj = answers_map.get(item.id) %}
-            {% set status_class = 'secondary' %}
-            {% set status_text = 'Not Answered' %}
-            {% if current_ans_obj %}
-            {% set status_text = current_ans_obj.satisfaction_status|replace('_', ' ')|capitalize if
-            current_ans_obj.satisfaction_status else 'Answered' %}
-            {% if current_ans_obj.satisfaction_status == 'satisfied' %}{% set status_class = 'success' %}{% endif %}
-            {% if current_ans_obj.satisfaction_status == 'not_satisfied' %}{% set status_class = 'danger' %}{% endif %}
-            {% if current_ans_obj.satisfaction_status == 'needs_attention' %}{% set status_class = 'warning' %}{% endif
-            %}
-            {% if current_ans_obj.satisfaction_status == 'neutral' %}{% set status_class = 'info' %}{% endif %}
+<!-- Research Session Summary - Modern Design -->
+    <!-- Header Section -->
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>📊 Research Summary</h1>
+            <p class="text-muted mb-0">{{ session.company.name }} • {{ session.checklist.name }}</p>
+            {% if research_context %}
+            <div class="workflow-context mt-2">
+                <span class="badge-pro info">
+                    <i class="bi bi-diagram-3"></i> Research Workflow Step
+                </span>
+            </div>
             {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('research.export_session_to_txt', session_id=session.id) }}" class="btn-pro outline-primary">
+                <i class="bi bi-download"></i> Export
+            </a>
 
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading-item-{{ item.id }}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapse-item-{{ item.id }}" aria-expanded="false"
-                        aria-controls="collapse-item-{{ item.id }}">
-                        <span class="badge bg-{{ status_class }} me-2">{{ status_text }}</span>
-                        {{ loop.index }}. {{ item.text }}
-                    </button>
-                </h2>
-                <div id="collapse-item-{{ item.id }}" class="accordion-collapse collapse"
-                    aria-labelledby="heading-item-{{ item.id }}" data-bs-parent="#answersAccordion">
-                    <div class="accordion-body">
-                        <p><strong>Your Answer:</strong></p>
-                        <div class="p-3 bg-light rounded mb-3">
-                            {{ (answers_map.get(item.id).answer_text if current_ans_obj else 'No answer
-                            provided.')|replace('\n', '<br>')|safe }}
+            {% if research_context and research_context.get('project_id') %}
+                <!-- Research workflow context - show completion action -->
+                <a href="{{ url_for('research_workflow.complete_research_step',
+                                  project_id=research_context.project_id,
+                                  step_index=research_context.step_index) }}"
+                   class="btn-pro success">
+                    <i class="bi bi-check-circle"></i> Complete & Continue
+                </a>
+            {% else %}
+                <!-- Legacy standalone research - ideally this should be phased out -->
+                <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Sessions
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card primary">
+                <div class="metric-value">{{ all_ordered_items|length }}</div>
+                <div class="metric-label">Total Questions</div>
+                <div class="metric-sublabel">In this checklist</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card success">
+                {% set answered_count = answers_map.keys()|list|length %}
+                <div class="metric-value">{{ answered_count }}</div>
+                <div class="metric-label">Answered</div>
+                <div class="metric-sublabel">Questions completed</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card warning">
+                {% set satisfied_count = answers_map.values()|selectattr('satisfaction_status', 'equalto', 'satisfied')|list|length %}
+                <div class="metric-value">{{ satisfied_count }}</div>
+                <div class="metric-label">Satisfied</div>
+                <div class="metric-sublabel">Requirements met</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card {% if session.status == 'completed' %}success{% else %}investment{% endif %}">
+                <div class="metric-value">
+                    <i class="bi bi-{% if session.status == 'completed' %}check-circle{% else %}clock{% endif %}"></i>
+                </div>
+                <div class="metric-label">{{ session.status|capitalize }}</div>
+                <div class="metric-sublabel">{{ session.start_date.strftime('%Y-%m-%d') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Answers -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Question Analysis</h3>
+                    <p>Your answers and evaluations for each question</p>
+                </div>
+                <div class="card-body">
+                    {% if all_ordered_items %}
+                    <div class="questions-list">
+                        {% for item in all_ordered_items %}
+                        {% set current_ans_obj = answers_map.get(item.id) %}
+                        {% set status_class = 'neutral' %}
+                        {% set status_text = 'Not Answered' %}
+                        {% set status_icon = 'dash-circle' %}
+
+                        {% if current_ans_obj %}
+                            {% if current_ans_obj.satisfaction_status == 'satisfied' %}
+                                {% set status_class = 'success' %}
+                                {% set status_text = 'Satisfied' %}
+                                {% set status_icon = 'check-circle' %}
+                            {% elif current_ans_obj.satisfaction_status == 'not_satisfied' %}
+                                {% set status_class = 'danger' %}
+                                {% set status_text = 'Not Satisfied' %}
+                                {% set status_icon = 'x-circle' %}
+                            {% elif current_ans_obj.satisfaction_status == 'needs_attention' %}
+                                {% set status_class = 'warning' %}
+                                {% set status_text = 'Needs Attention' %}
+                                {% set status_icon = 'exclamation-circle' %}
+                            {% elif current_ans_obj.satisfaction_status == 'neutral' %}
+                                {% set status_class = 'info' %}
+                                {% set status_text = 'Neutral' %}
+                                {% set status_icon = 'info-circle' %}
+                            {% endif %}
+                        {% endif %}
+
+                        <div class="question-item">
+                            <div class="question-item-header" data-bs-toggle="collapse"
+                                 data-bs-target="#question-{{ item.id }}" aria-expanded="false">
+                                <div class="question-number">{{ loop.index }}</div>
+                                <div class="question-content">
+                                    <div class="question-text">{{ item.text }}</div>
+                                    {% if item.parent %}
+                                    <div class="question-parent">Sub-item of: {{ item.parent.text }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="question-status">
+                                    <span class="status-badge status-{{ status_class }}">
+                                        <i class="bi bi-{{ status_icon }}"></i>
+                                        {{ status_text }}
+                                    </span>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                </div>
+                            </div>
+
+                            <div class="collapse" id="question-{{ item.id }}">
+                                <div class="question-item-body">
+                                    <div class="answer-content">
+                                        {% if current_ans_obj and current_ans_obj.answer_text %}
+                                        <div class="answer-text">
+                                            {{ current_ans_obj.answer_text|replace('\n', '<br>')|safe }}
+                                        </div>
+                                        {% else %}
+                                        <div class="no-answer">
+                                            <i class="bi bi-info-circle"></i>
+                                            No answer provided for this question.
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="answer-actions text-end mt-3">
+                                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=item.id) }}"
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-pencil"></i> Edit Answer
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=item.id) }}"
-                            class="btn btn-outline-secondary btn-sm">Edit Answer & Status</a>
+                        {% endfor %}
                     </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-illustration">
+                            <i class="bi bi-list-check"></i>
+                        </div>
+                        <div class="empty-title">No Questions</div>
+                        <div class="empty-description">This checklist has no items to display.</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-            {% endfor %}
         </div>
-        {% else %}
-        <p>This checklist has no items.</p>
-        {% endif %}
-    </div>
-</div>
 
-<div class="row g-4 mb-4">
-    <div class="col-lg-6">
-        {# --- FIRST CARD: Overall Session Conclusion --- #}
-        <div class="card h-100">
-            <div class="card-header">Overall Session Conclusion</div>
-            <div class="card-body d-flex flex-column">
-                {% if session.conclusion %}
-                <div class="p-3 bg-light rounded flex-grow-1">{{ session.conclusion|replace('\n', '<br>')|safe }}</div>
-                <hr>
-                {% else %}
-                <p class="text-muted flex-grow-1"><em>No overall conclusion added for this session yet.</em></p>
-                {% endif %}
-
-                <form method="POST"
-                    action="{{ url_for('research.view_research_session_summary', session_id=session.id) }}"
-                    class="mt-auto">
-                    <div class="mb-3">
-                        <label for="conclusion" class="form-label"><strong>Add/Edit Conclusion:</strong></label>
-                        <textarea id="conclusion" name="conclusion" class="form-control"
-                            rows="4">{{ session.conclusion if session.conclusion else '' }}</textarea>
+        <!-- Right Column - Summary & Actions -->
+        <div class="col-lg-4">
+            <!-- Overall Conclusion Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Overall Conclusion</h4>
+                    <p>Your final assessment</p>
+                </div>
+                <div class="card-body">
+                    {% if session.conclusion %}
+                    <div class="conclusion-display">
+                        {{ session.conclusion|replace('\n', '<br>')|safe }}
                     </div>
-                    <button type="submit" class="btn btn-primary">Save Conclusion</button>
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">Valuation</div>
-            <div class="card-body d-flex flex-column">
-                <p class="card-text text-muted">Set your calculated intrinsic value for <strong>{{ session.company.name
-                        }}</strong>.</p>
+                    <hr>
+                    {% else %}
+                    <div class="no-conclusion">
+                        <i class="bi bi-info-circle"></i>
+                        No conclusion added yet.
+                    </div>
+                    <hr>
+                    {% endif %}
 
-                <form method="POST"
-                    action="{{ url_for('companies.set_intrinsic_value', company_id=session.company.id) }}"
-                    class="d-flex flex-column flex-grow-1">
-
-                    <div class="flex-grow-1">
-                        <label for="value" class="form-label">Intrinsic Value (as Market Cap)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="text" class="form-control" id="value" name="value"
-                                value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
-                                placeholder="e.g., 1.5">
-                            <select class="form-select" name="unit_multiplier" style="max-width: 120px;">
-                                <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
-                                <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million
-                                </option>
-                                <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>
-                                    Billion</option>
-                                <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>
-                                    Trillion</option>
-                            </select>
+                    <form method="POST" action="{{ url_for('research.view_research_session_summary', session_id=session.id) }}" class="form-pro">
+                        <div class="mb-3">
+                            <label for="conclusion" class="form-label fw-bold">Update Conclusion:</label>
+                            <textarea id="conclusion" name="conclusion" class="form-control" rows="4"
+                                      placeholder="Enter your overall conclusion and investment thesis...">{{ session.conclusion if session.conclusion else '' }}</textarea>
                         </div>
-                    </div>
+                        <button type="submit" class="btn-pro success w-100">
+                            <i class="bi bi-save"></i> Save Conclusion
+                        </button>
+                    </form>
+                </div>
+            </div>
 
-                    <div class="d-grid mt-auto pt-3">
-                        <button type="submit" class="btn btn-primary">Save Intrinsic Value</button>
+            <!-- Valuation Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h4>Valuation</h4>
+                    <p>Set intrinsic value</p>
+                </div>
+                <div class="card-body">
+                    {% if intrinsic_display_value %}
+                    <div class="current-valuation">
+                        <div class="valuation-amount">${{ intrinsic_display_value }}{% if intrinsic_unit == 1000000 %}M{% elif intrinsic_unit == 1000000000 %}B{% elif intrinsic_unit == 1000000000000 %}T{% endif %}</div>
+                        <div class="valuation-label">Current Intrinsic Value</div>
                     </div>
-                </form>
+                    <hr>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=session.company.id) }}" class="form-pro">
+                        <div class="mb-3">
+                            <label for="value" class="form-label fw-bold">Intrinsic Value:</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control" id="value" name="value"
+                                       value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
+                                       placeholder="e.g., 1.5">
+                                <select class="form-select" name="unit_multiplier" style="max-width: 100px;">
+                                    <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>1</option>
+                                    <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>M</option>
+                                    <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>B</option>
+                                    <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>T</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-pro primary w-100">
+                            <i class="bi bi-calculator"></i> Save Valuation
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}
