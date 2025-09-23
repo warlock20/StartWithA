@@ -1,229 +1,269 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<!-- Clean, focused research evaluation page -->
-<div class="research-session-container">
-    <!-- Minimal header with progress -->
-    <div class="research-header">
-        <div class="container-fluid px-4">
-            <div class="d-flex justify-content-between align-items-center py-3">
-                <div class="research-subject">
-                    <h2 class="mb-1">{{ session.company.name }}</h2>
-                    <p class="text-muted mb-0">{{ session.company.ticker_symbol }} • {{ session.checklist.name }}</p>
-                </div>
-                <div class="progress-indicator">
-                    <div class="progress-stats mb-2">
-                        <span class="current">{{ current_item_number }}</span>
-                        <span class="divider">/</span>
-                        <span class="total">{{ total_items }}</span>
-                    </div>
-                    <div class="progress-bar-minimal">
-                        <div class="progress-fill" data-progress="{{ progress_percent }}"></div>
-                    </div>
-                </div>
+<div class="container-fluid mt-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>Research: {{ session.company.name }} ({{ session.company.ticker_symbol }})</h1>
+                <p class="text-muted mb-0">Using Checklist: "{{ session.checklist.name }}" • Progress: Item {{ current_item_number }} of {{ total_items }}</p>
+            </div>
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('research.list_research_sessions') }}" class="btn btn-secondary me-2">← Back to Sessions</a>
             </div>
         </div>
     </div>
 
-    <!-- Main content area - focused and centered -->
-    <div class="research-content">
-        <div class="container-fluid">
-            <div class="row justify-content-center">
-                <div class="col-lg-8 col-xl-7">
-
-                    <!-- Current checklist item card -->
-                    <div class="question-card">
-                        <div class="question-header">
-                            <div class="question-meta">
-                                <span class="question-number">Question {{ current_item_number }}</span>
-                                {% if current_item.parent %}
-                                <span class="question-context">Sub-item of: {{ current_item.parent.text }}</span>
-                                {% endif %}
-                            </div>
-                            <button class="focus-mode-btn" onclick="toggleFocusMode()" title="Toggle Focus Mode">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                        <div class="question-content">
-                            <div class="question-icon">
-                                <i class="bi bi-question-circle"></i>
-                            </div>
-                            <div class="question-text">
-                                {{ current_item.text }}
-                            </div>
-                        </div>
-                        <div class="question-actions">
-                            <button class="read-aloud-btn" onclick="readQuestionAloud()" title="Read Question Aloud">
-                                <i class="bi bi-volume-up"></i> Read Aloud
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- AI Analysis Section (if available) -->
-                    {% if current_item.llm_prompt %}
-                    <div class="ai-section">
-                        <div class="framework-card mb-4">
-                            <div class="framework-header">
-                                <div class="framework-icon warning">
-                                    <i class="bi bi-robot"></i>
-                                </div>
-                                <div class="framework-title">
-                                    <h4>AI Analysis Assistant</h4>
-                                    <p>Use AI to help analyze this question</p>
-                                </div>
-                                <div class="framework-status">
-                                    <button type="button" class="btn-pro outline-primary btn-sm"
-                                        data-bs-toggle="collapse" data-bs-target="#aiAnalysisSection"
-                                        aria-expanded="false">
-                                        <i class="bi bi-magic"></i> Use AI
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="collapse" id="aiAnalysisSection">
-                                <div class="framework-body">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">AI Prompt:</label>
-                                        <div class="ai-prompt-display">{{ current_item.llm_prompt }}</div>
-                                    </div>
-
-                                    <form id="aiAnalysisForm"
-                                        data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
-                                        <input type="hidden" name="llm_actual_prompt"
-                                            value="{{ current_item.llm_prompt }}">
-                                        <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
-                                        <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
-
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">AI Model:</label>
-                                            <div class="d-flex gap-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="selected_ai_model" id="localModel" value="local" checked>
-                                                    <label class="form-check-label" for="localModel">
-                                                        <i class="bi bi-shield-check"></i> Local (Private)
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="selected_ai_model" id="geminiModel" value="gemini">
-                                                    <label class="form-check-label" for="geminiModel">
-                                                        <i class="bi bi-cloud"></i> Gemini (Powerful)
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {% if company_documents %}
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Select Documents:</label>
-                                            <div class="documents-grid">
-                                                {% for doc in company_documents %}
-                                                <div class="document-item">
-                                                    <input class="form-check-input" type="checkbox"
-                                                        name="selected_document_ids" value="{{ doc.id }}"
-                                                        id="doc_{{ doc.id }}">
-                                                    <label class="form-check-label" for="doc_{{ doc.id }}">
-                                                        <div class="doc-name">{{ doc.document_title if
-                                                            doc.document_title else doc.original_filename }}</div>
-                                                        <div class="doc-type">{{ doc.document_group }}</div>
-                                                    </label>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        <button type="button" id="submitAIAnalysisPlaceholderButton"
-                                            class="btn-pro primary w-100">
-                                            <i class="bi bi-magic"></i> Analyze with AI
-                                        </button>
-                                        {% else %}
-                                        <div class="alert alert-info">
-                                            <i class="bi bi-info-circle"></i>
-                                            No company documents available.
-                                            <a href="{{ url_for('companies.company_dashboard', company_id=session.company_id) }}"
-                                                class="alert-link">
-                                                Upload documents
-                                            </a> for AI analysis.
-                                        </div>
-                                        {% endif %}
-                                    </form>
-
-                                    <div id="aiAnalysisResult" class="mt-3"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="row">
+        <main class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Question {{ current_item_number }}: {{ current_item.text }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if current_item.parent %}
+                    <p class="text-muted">Sub-item of: {{ current_item.parent.text }}</p>
                     {% endif %}
 
-                    <!-- Answer form -->
-                    <div class="answer-section">
-                        <div class="framework-card">
-                            <div class="framework-header">
-                                <div class="framework-icon primary">
-                                    <i class="bi bi-pencil-square"></i>
-                                </div>
-                                <div class="framework-title">
-                                    <h4>Your Analysis</h4>
-                                    <p>Record your findings and evaluation</p>
-                                </div>
-                            </div>
-                            <div class="framework-body">
-                                <form method="POST"
-                                    action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}"
-                                    class="form-pro">
-                                    <div class="mb-4">
-                                        <label for="answer_text" class="form-label fw-bold">Your Answer/Notes:</label>
-                                        <textarea class="form-control answer-textarea" id="answer_text"
-                                            name="answer_text" rows="6"
-                                            placeholder="Enter your analysis, findings, and notes for this question...">{{ answer.answer_text if answer else '' }}</textarea>
-                                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="readQuestionAloud()" title="Read Question Aloud">
+                            <i class="bi bi-volume-up"></i> Read Aloud
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFocusMode()" title="Toggle Focus Mode">
+                            <i class="bi bi-eye"></i> Focus
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                                    <div class="mb-4">
-                                        <label for="satisfaction_status" class="form-label fw-bold">Evaluation
-                                            Status:</label>
-                                        <select id="satisfaction_status" name="satisfaction_status" class="form-select">
-                                            <option value="neutral" {% if not answer or not answer.satisfaction_status
-                                                or answer.satisfaction_status=='neutral' %}selected{% endif %}>
-                                                <i class="bi bi-dash-circle"></i> Neutral / Informational
-                                            </option>
-                                            <option value="satisfied" {% if answer and
-                                                answer.satisfaction_status=='satisfied' %}selected{% endif %}>
-                                                ✅ Satisfied / Met
-                                            </option>
-                                            <option value="not_satisfied" {% if answer and
-                                                answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>
-                                                ❌ Not Satisfied / Not Met
-                                            </option>
-                                            <option value="needs_attention" {% if answer and
-                                                answer.satisfaction_status=='needs_attention' %}selected{% endif %}>
-                                                ⚠️ Needs Attention
-                                            </option>
-                                        </select>
-                                    </div>
+            <!-- Research Tools Accordion -->
+            <div class="accordion mb-4" id="researchAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResearch" aria-expanded="false" aria-controls="collapseResearch">
+                            🔍 <strong>Quick Research Tools</strong>
+                            <small class="text-muted ms-2">• Search • Docs • Financials • News • Notes</small>
+                        </button>
+                    </h2>
+                    <div id="collapseResearch" class="accordion-collapse collapse" data-bs-parent="#researchAccordion">
+                        <div class="accordion-body">
+                            <p class="text-muted mb-3">
+                                <i class="bi bi-lightbulb-fill text-warning"></i>
+                                <strong>Smart Research Assistant:</strong> Use these tools to quickly gather information about <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong> related to the current question.
+                            </p>
 
-                                    <div class="navigation-actions">
-                                        {% if previous_item_id %}
-                                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
-                                            class="btn btn-outline-secondary">
-                                            <i class="bi bi-arrow-left"></i> Previous
-                                        </a>
-                                        {% else %}
-                                        <div></div>
-                                        {% endif %}
-
-                                        <button type="submit" class="btn-pro success">
-                                            <i class="bi bi-check-circle"></i> Save & Continue
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-primary" onclick="performSearch()" title="Auto-generate smart search terms">
+                                            <i class="bi bi-search"></i> Smart Search
+                                            <small class="d-block text-muted">Auto-generates relevant terms</small>
                                         </button>
                                     </div>
-                                </form>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-info" onclick="searchDocs()" title="Access company documents">
+                                            <i class="bi bi-file-text"></i> Documents
+                                            <small class="d-block text-muted">Company filings & reports</small>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-success" onclick="searchFinancials()" title="Financial data sources">
+                                            <i class="bi bi-graph-up"></i> Financials
+                                            <small class="d-block text-muted">Yahoo • SEC • Finviz</small>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-warning" onclick="searchNews()" title="Latest company news">
+                                            <i class="bi bi-newspaper"></i> News
+                                            <small class="d-block text-muted">Recent developments</small>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="openNotesModal()" title="Research notes for this question">
+                                            <i class="bi bi-journal-text"></i> Research Notes
+                                            <small class="d-block text-muted">Question-specific notes</small>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-dark" onclick="saveLater()" title="Bookmark for later review">
+                                            <i class="bi bi-bookmark"></i> Save Later
+                                            <small class="d-block text-muted">Bookmark question</small>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 pt-3 border-top">
+                                <small class="text-muted">
+                                    <i class="bi bi-keyboard"></i> <strong>Keyboard shortcuts:</strong>
+                                    <kbd>Ctrl+S</kbd> Search • <kbd>Ctrl+D</kbd> Docs • <kbd>Ctrl+N</kbd> Notes
+                                </small>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
-        </div>
+
+            <!-- AI Analysis Section (if available) -->
+            {% if current_item.llm_prompt %}
+            <div class="accordion mb-4" id="aiAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAI">
+                            ✨ <strong>Analyze with AI Assistant</strong>
+                        </button>
+                    </h2>
+                    <div id="collapseAI" class="accordion-collapse collapse" data-bs-parent="#aiAccordion">
+                        <div class="accordion-body">
+                            <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
+
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Select Documents for AI Context:</strong></label>
+                                <div class="document-list border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    {% if session.company.company_documents %}
+                                        {% for doc in session.company.company_documents %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="{{ doc.id }}" id="doc{{ doc.id }}" checked>
+                                            <label class="form-check-label" for="doc{{ doc.id }}">{{ doc.title or doc.filename }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="text-muted">No documents uploaded yet</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-primary"><i class="bi bi-robot"></i> Run AI Analysis</button>
+
+                            <div id="aiAnalysisResult" class="mt-3">
+                                <!-- AI results will appear here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Answer & Synthesis</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
+                        <div class="mb-3">
+                            <label for="answer_text" class="form-label">Synthesize your findings, incorporating your research and insights.</label>
+                            <textarea class="form-control" id="answer_text" name="answer_text" rows="12" placeholder="Start writing your analysis...">{{ answer.answer_text if answer else '' }}</textarea>
+                        </div>
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <label for="satisfaction_status" class="form-label">Status for this item:</label>
+                                <select id="satisfaction_status" name="satisfaction_status" class="form-select">
+                                    <option value="neutral" {% if not answer or not answer.satisfaction_status or answer.satisfaction_status=='neutral' %}selected{% endif %}>Neutral / Informational</option>
+                                    <option value="satisfied" {% if answer and answer.satisfaction_status=='satisfied' %}selected{% endif %}>✅ Satisfied / Met</option>
+                                    <option value="not_satisfied" {% if answer and answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>❌ Not Satisfied / Not Met</option>
+                                    <option value="needs_attention" {% if answer and answer.satisfaction_status=='needs_attention' %}selected{% endif %}>⚠️ Needs Attention</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                {% if previous_item_id %}
+                                <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}" class="btn btn-secondary">← Previous Item</a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-success">Save and Next →</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <aside class="col-lg-4 context-sidebar">
+            <div class="sticky-top">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ session.company.name }} ({{ session.company.ticker_symbol }})</h5>
+                        <p class="card-text text-muted">{{ session.company.sector|default('Technology', true) }} • {{ session.company.market_cap_category|default('Large Cap', true) }}</p>
+                        <p><strong>Market Cap:</strong> {{ session.company.market_cap|default('$250.0B', true) }}</p>
+                        <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                Progress: {{ progress_percent }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-files"></i> Relevant Documents</h6>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% if session.company.company_documents %}
+                            {% for doc in session.company.company_documents %}
+                            <a href="#" class="list-group-item list-group-item-action" onclick="openDocument({{ doc.id }})">
+                                {{ doc.title or doc.filename }}
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="list-group-item text-muted">
+                                <i class="bi bi-info-circle"></i> No documents uploaded yet
+                            </div>
+                        {% endif %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=session.company.id) }}" class="list-group-item list-group-item-action text-primary">
+                            <i class="bi bi-plus-circle"></i> Upload New Document
+                        </a>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-journal-text"></i> Research Notes</h6>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action" onclick="openNotesModal()">
+                            <i class="bi bi-sticky"></i> Question-Specific Notes
+                            <small class="text-muted d-block">Notes for current question</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="showSavedItems()">
+                            <i class="bi bi-bookmarks"></i> Saved Questions
+                            <small class="text-muted d-block">Questions marked for review</small>
+                        </a>
+                        <a href="{{ url_for('research.view_research_session_summary', session_id=session.id) }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-clipboard-data"></i> Session Summary
+                            <small class="text-muted d-block">Overall research progress</small>
+                        </a>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-lightning-charge"></i> Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="performSearch()">
+                                <i class="bi bi-search"></i> Smart Search
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="searchFinancials()">
+                                <i class="bi bi-graph-up"></i> Financial Data
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="searchNews()">
+                                <i class="bi bi-newspaper"></i> Latest News
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
 </div>
 {% endblock %}
@@ -243,495 +283,324 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Focus mode toggle
 function toggleFocusMode() {
-    const questionCard = document.querySelector('.question-card');
-    const focusBtn = document.querySelector('.focus-mode-btn');
-
+    const questionCard = document.querySelector('.card');
+    const focusBtn = document.querySelector('.btn[onclick="toggleFocusMode()"]');
     questionCard.classList.toggle('focus-mode');
     focusBtn.classList.toggle('active');
-
-    // Scroll question into view when focus mode is activated
-    if (questionCard.classList.contains('focus-mode')) {
-        questionCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
 }
 
 // Read question aloud functionality
 function readQuestionAloud() {
-    const questionText = document.querySelector('.question-text').textContent;
-    const readBtn = document.querySelector('.read-aloud-btn');
+    const questionText = document.querySelector('.card-header h4').textContent;
+    const readBtn = document.querySelector('.btn[onclick="readQuestionAloud()"]');
 
-    // Check if speech synthesis is supported
     if ('speechSynthesis' in window) {
-        // Stop any ongoing speech
         window.speechSynthesis.cancel();
 
-        // If button is already speaking, just stop
         if (readBtn.classList.contains('speaking')) {
             readBtn.classList.remove('speaking');
             readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
             return;
         }
 
-        // Create speech synthesis utterance
         const utterance = new SpeechSynthesisUtterance(questionText);
+        utterance.rate = 0.8;
 
-        // Configure speech
-        utterance.rate = 0.8; // Slightly slower for better comprehension
-        utterance.pitch = 1.0;
-        utterance.volume = 0.8;
+        utterance.onstart = function() {
+            readBtn.classList.add('speaking');
+            readBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Stop Reading';
+        };
 
-        // Update button state
-        readBtn.classList.add('speaking');
-        readBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Stop Reading';
-
-        // Handle speech events
         utterance.onend = function() {
             readBtn.classList.remove('speaking');
             readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
         };
 
-        utterance.onerror = function() {
-            readBtn.classList.remove('speaking');
-            readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
-            console.error('Speech synthesis error');
-        };
-
-        // Start speaking
         window.speechSynthesis.speak(utterance);
     } else {
-        alert('Text-to-speech is not supported in your browser.');
+        alert('Speech synthesis not supported in this browser');
     }
+}
+
+// Research Tools Functionality
+const researchTools = {
+    savedItems: JSON.parse(localStorage.getItem('research_saved_items_{{ session.id }}') || '[]'),
+    notes: JSON.parse(localStorage.getItem('research_notes_{{ session.id }}') || '{}'),
+    session: {
+        id: {{ session.id }},
+        companyName: '{{ session.company.name }}',
+        ticker: '{{ session.company.ticker_symbol }}',
+        currentItemId: {{ current_item.id }}
+    }
+};
+
+function performSearch() {
+    const questionText = document.querySelector('.card-header h4').textContent.trim();
+    const searchTerms = `${researchTools.session.companyName} ${researchTools.session.ticker} ${questionText}`;
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`;
+    window.open(searchUrl, '_blank');
+    console.log(`Research: Searched for "${searchTerms}"`);
+}
+
+function searchDocs() {
+    const aiSection = document.querySelector('#collapseAI');
+    if (aiSection) {
+        const collapseElement = new bootstrap.Collapse(aiSection, { show: true });
+    } else {
+        alert('No document analysis available for this item.');
+    }
+}
+
+function searchFinancials() {
+    const ticker = researchTools.session.ticker;
+    if (!ticker) {
+        alert('No ticker symbol available for financial search.');
+        return;
+    }
+
+    const sites = [
+        `https://finance.yahoo.com/quote/${ticker}`,
+        `https://www.sec.gov/edgar/search/#/q=${ticker}`,
+        `https://finviz.com/quote.ashx?t=${ticker}`
+    ];
+
+    sites.forEach(url => window.open(url, '_blank'));
+    console.log(`Research: Opened financial data for ${ticker}`);
+}
+
+function searchNews() {
+    const companyName = researchTools.session.companyName;
+    const searchTerms = `${companyName} news`;
+
+    const newsUrls = [
+        `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}&tbm=nws`,
+        `https://finance.yahoo.com/quote/${researchTools.session.ticker}/news`
+    ];
+
+    newsUrls.forEach(url => window.open(url, '_blank'));
+    console.log(`Research: Searched news for ${companyName}`);
+}
+
+function openNotesModal() {
+    const questionText = document.querySelector('.card-header h4').textContent.trim();
+    const itemId = researchTools.session.currentItemId;
+    const existingNotes = researchTools.notes[itemId] || '';
+
+    const modalHTML = `
+        <div class="modal fade" id="researchNotesModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Research Notes</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6 class="text-muted mb-3">${questionText}</h6>
+                        <textarea class="form-control" rows="10" placeholder="Your research notes..." id="researchNotesTextarea">${existingNotes}</textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveResearchNotes()">Save Notes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('researchNotesModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById('researchNotesModal'));
+    modal.show();
+}
+
+function saveResearchNotes() {
+    const notesTextarea = document.getElementById('researchNotesTextarea');
+    const itemId = researchTools.session.currentItemId;
+
+    if (notesTextarea) {
+        researchTools.notes[itemId] = notesTextarea.value;
+        localStorage.setItem('research_notes_{{ session.id }}', JSON.stringify(researchTools.notes));
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('researchNotesModal'));
+        modal.hide();
+
+        showToast('Research notes saved successfully!', 'success');
+    }
+}
+
+function saveLater() {
+    const questionText = document.querySelector('.card-header h4').textContent.trim();
+    const itemId = researchTools.session.currentItemId;
+
+    const savedItem = {
+        itemId: itemId,
+        text: questionText,
+        timestamp: new Date().toISOString(),
+        sessionId: researchTools.session.id,
+        company: researchTools.session.companyName
+    };
+
+    const existingIndex = researchTools.savedItems.findIndex(item => item.itemId === itemId);
+    if (existingIndex >= 0) {
+        researchTools.savedItems.splice(existingIndex, 1);
+        showToast('Removed from saved items', 'info');
+    } else {
+        researchTools.savedItems.push(savedItem);
+        showToast('Saved for later review', 'success');
+    }
+
+    localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
+    updateSaveLaterButton();
+}
+
+function updateSaveLaterButton() {
+    const button = document.querySelector('[onclick="saveLater()"]');
+    if (button) {
+        const itemId = researchTools.session.currentItemId;
+        const isSaved = researchTools.savedItems.some(item => item.itemId === itemId);
+        if (isSaved) {
+            button.classList.remove('btn-outline-dark');
+            button.classList.add('btn-warning');
+            button.innerHTML = '<i class="bi bi-bookmark-fill"></i> Saved <small class="d-block text-muted">Bookmark question</small>';
+        } else {
+            button.classList.remove('btn-warning');
+            button.classList.add('btn-outline-dark');
+            button.innerHTML = '<i class="bi bi-bookmark"></i> Save Later <small class="d-block text-muted">Bookmark question</small>';
+        }
+    }
+}
+
+function showSavedItems() {
+    const savedItems = researchTools.savedItems;
+    if (savedItems.length === 0) {
+        showToast('No saved items yet. Use the "Save Later" button on questions to bookmark them.', 'info');
+        return;
+    }
+
+    let modalHTML = `
+        <div class="modal fade" id="savedItemsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-bookmarks"></i> Saved Questions</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="list-group">`;
+
+    savedItems.forEach((item, index) => {
+        const timestamp = new Date(item.timestamp).toLocaleDateString();
+        modalHTML += `
+            <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${item.text}</h6>
+                    <small class="text-muted">Saved on ${timestamp}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeSavedItem(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>`;
+    });
+
+    modalHTML += `
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    const existingModal = document.getElementById('savedItemsModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById('savedItemsModal'));
+    modal.show();
+}
+
+function removeSavedItem(index) {
+    researchTools.savedItems.splice(index, 1);
+    localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
+    showToast('Item removed from saved list', 'info');
+    updateSaveLaterButton();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('savedItemsModal'));
+    modal.hide();
+    setTimeout(() => showSavedItems(), 300);
+}
+
+function openDocument(docId) {
+    window.open(`/documents/${docId}`, '_blank');
+}
+
+function showToast(message, type = 'info') {
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1055';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toastId = 'toast-' + Date.now();
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'secondary'} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toast = new bootstrap.Toast(document.getElementById(toastId));
+    toast.show();
+
+    document.getElementById(toastId).addEventListener('hidden.bs.toast', function() {
+        this.remove();
+    });
 }
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-    // F for Focus mode (when not in input fields)
-    if (e.key === 'f' && !e.target.matches('input, textarea, select')) {
-        e.preventDefault();
-        toggleFocusMode();
+    if (e.ctrlKey && !e.target.matches('input, textarea, select')) {
+        switch(e.key.toLowerCase()) {
+            case 's':
+                e.preventDefault();
+                performSearch();
+                break;
+            case 'd':
+                e.preventDefault();
+                searchDocs();
+                break;
+            case 'n':
+                e.preventDefault();
+                openNotesModal();
+                break;
+        }
     }
+});
 
-    // R for Read aloud (when not in input fields)
-    if (e.key === 'r' && !e.target.matches('input, textarea, select')) {
-        e.preventDefault();
-        readQuestionAloud();
-    }
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSaveLaterButton();
 });
 </script>
 
 <style>
-    /* Research session focused design */
-    .research-session-container {
-        min-height: 100vh;
-        background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+    .context-sidebar .card {
+        margin-bottom: 1.5rem;
     }
-
-    .research-header {
-        background: var(--background-white);
-        border-bottom: 1px solid var(--border-light);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        box-shadow: var(--shadow-light);
+    .sticky-top {
+        top: 1rem;
     }
-
-    .research-subject h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--text-dark);
-        margin: 0;
-    }
-
-    .progress-indicator {
-        text-align: center;
-        min-width: 120px;
-    }
-
-    .progress-stats {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-dark);
-    }
-
-    .progress-stats .current {
-        color: var(--color-primary);
-        font-size: 1.2rem;
-    }
-
-    .progress-stats .divider {
-        margin: 0 0.5rem;
-        color: var(--text-muted);
-    }
-
-    .progress-bar-minimal {
-        width: 100px;
-        height: 6px;
-        background: var(--gray-200);
-        border-radius: 3px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-success));
-        border-radius: 3px;
-        transition: width 0.3s ease;
-    }
-
-    .research-content {
-        padding: 2rem 0;
-    }
-
-    /* Enhanced question card styling */
-    .question-card {
-        background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-        border-radius: var(--radius-lg);
-        padding: 0;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
-        border-left: 6px solid var(--color-investment);
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-
-    .question-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08);
-    }
-
-    .question-card.focus-mode {
-        transform: scale(1.02);
-        box-shadow: 0 20px 50px rgba(var(--primary-rgb), 0.15);
-        border-left-color: var(--color-primary);
-    }
-
-    .question-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1.5rem 2rem 0 2rem;
-        margin-bottom: 0;
-    }
-
-    .question-meta {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .question-number {
-        background: linear-gradient(135deg, var(--color-investment), #4f46e5);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: var(--radius-md);
-        font-size: 0.875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(var(--investment-rgb), 0.3);
-    }
-
-    .question-context {
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        font-style: italic;
-        background: var(--gray-100);
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--radius-sm);
-    }
-
-    .focus-mode-btn {
-        background: var(--gray-100);
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-muted);
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .focus-mode-btn:hover {
-        background: var(--color-primary);
-        color: white;
-        transform: scale(1.1);
-    }
-
-    .focus-mode-btn.active {
-        background: var(--color-primary);
-        color: white;
-    }
-
-    .question-content {
-        display: flex;
-        align-items: flex-start;
-        gap: 1.5rem;
-        padding: 2rem;
-        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.02) 0%, rgba(var(--investment-rgb), 0.02) 100%);
-        margin: 1rem 0;
-    }
-
-    .question-icon {
-        flex-shrink: 0;
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, var(--color-primary), var(--color-investment));
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.5rem;
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
-    }
-
-    .question-text {
-        flex: 1;
-        font-size: 1.5rem;
-        font-weight: 600;
-        line-height: 1.7;
-        color: var(--text-dark);
-        letter-spacing: -0.01em;
-        text-rendering: optimizeLegibility;
-    }
-
-    .focus-mode .question-text {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--color-primary);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    }
-
-    .question-actions {
-        padding: 0 2rem 1.5rem 2rem;
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    .read-aloud-btn {
-        background: var(--gray-100);
-        border: 1px solid var(--gray-200);
-        border-radius: var(--radius-md);
-        padding: 0.5rem 1rem;
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .read-aloud-btn:hover {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-        transform: translateY(-1px);
-    }
-
-    .read-aloud-btn.speaking {
-        background: var(--color-success);
-        color: white;
-        border-color: var(--color-success);
-        animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-    }
-
-    /* AI section improvements */
-    .ai-prompt-display {
-        background: var(--warning-50);
-        border: 1px solid var(--warning-200);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        font-style: italic;
-        color: var(--text-dark);
-        font-size: 0.9rem;
-    }
-
-    .documents-grid {
-        display: grid;
-        gap: 0.75rem;
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid var(--border-light);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        background: var(--background-light);
-    }
-
-    .document-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        padding: 0.5rem;
-        border-radius: var(--radius-sm);
-        transition: background var(--transition-normal);
-    }
-
-    .document-item:hover {
-        background: var(--background-white);
-    }
-
-    .document-item label {
-        flex: 1;
-        cursor: pointer;
-        margin: 0;
-    }
-
-    .doc-name {
-        font-weight: 500;
-        color: var(--text-dark);
-        font-size: 0.9rem;
-    }
-
-    .doc-type {
-        color: var(--text-muted);
-        font-size: 0.8rem;
-    }
-
-    /* Answer section */
-    .answer-section {
-        margin-top: 1.5rem;
-    }
-
-    .answer-textarea {
-        resize: vertical;
-        min-height: 150px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    .navigation-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 1.5rem;
-    }
-
-    /* Focus states */
-    .form-control:focus,
-    .form-select:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .research-header .d-flex {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .progress-indicator {
-            align-self: stretch;
-            text-align: left;
-        }
-
-        .question-header {
-            padding: 1rem 1.5rem 0 1.5rem;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .question-meta {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-        }
-
-        .focus-mode-btn {
-            align-self: flex-end;
-        }
-
-        .question-content {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 1.5rem;
-            gap: 1rem;
-        }
-
-        .question-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 1.25rem;
-        }
-
-        .question-text {
-            font-size: 1.25rem;
-            text-align: left;
-        }
-
-        .focus-mode .question-text {
-            font-size: 1.5rem;
-        }
-
-        .question-actions {
-            padding: 0 1.5rem 1.5rem 1.5rem;
-            justify-content: center;
-        }
-
-        .navigation-actions {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .navigation-actions .btn-pro {
-            width: 100%;
-        }
-    }
-
-    /* Enhanced focus state for mobile */
-    @media (max-width: 768px) {
-        .question-card.focus-mode {
-            transform: scale(1);
-            margin: 1rem -1rem;
-            border-radius: 0;
-        }
-    }
-
-    /* Loading states and animations */
-    .framework-card {
-        animation: slideInUp 0.3s ease-out;
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(15px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Enhanced visual hierarchy */
-    .research-content h4 {
-        color: var(--text-dark);
-        font-weight: 600;
-    }
-
-    .form-label {
-        color: var(--text-dark);
-        font-weight: 500;
-    }
-
     .alert {
-        border-radius: var(--radius-md);
-        border: none;
+        white-space: pre-wrap;
     }
 </style>
 {% endblock %}
