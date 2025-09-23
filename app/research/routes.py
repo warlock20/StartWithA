@@ -113,8 +113,7 @@ def select_checklist_for_company(company_id):
                            checklists_data=checklists_data,
                            title=f"Select or Resume Research for {company.name}")
     
-# DEPRECATED: Legacy research session creation removed
-# Research sessions are now handled through the research workflow system
+# This is the checklist execution route
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def research_step(session_id, item_id):
@@ -145,12 +144,10 @@ def research_step(session_id, item_id):
         flash('Error finding current item in checklist order.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=session.checklist_id))
 
-    company_documents_for_llm = []
-    if current_item.llm_prompt:
-        company_docs_query = CompanyDocument.query.filter_by(company_id=session.company_id)\
-                                                .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
-                                                .all()
-        company_documents_for_llm = company_docs_query
+    # Always fetch company documents for the sidebar and AI analysis
+    company_documents_for_llm = CompanyDocument.query.filter_by(company_id=session.company_id)\
+                                            .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
+                                            .all()
         
     # Fetch existing answer for this item in this session
     research_answer = ResearchAnswer.query.filter_by(
@@ -195,16 +192,8 @@ def research_step(session_id, item_id):
     previous_item_id = None
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
-           
-    ##or
-    #TODO: Handle the case where the session is not calculated correctly for the last question
-    # total_items_count = len(all_items_in_order)
-    # answered_count = 0
-    # if total_items_count > 0:
-    #     # Efficiently count answers for this session
-    #     answered_count = ResearchAnswer.query.filter_by(research_session_id=session.id).count()
-    # progress_percent = (answered_count / total_items_count) * 100 if total_items_count > 0 else 0
 
+    print(f"company_documents: {company_documents_for_llm}")
     return render_template(
         'research_step.html',
         title=f"Research: {session.company.ticker_symbol} - Item {current_item_index + 1}/{len(all_items_in_order)}",

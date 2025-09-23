@@ -36,83 +36,6 @@
                 </div>
             </div>
 
-            <!-- Research Tools Accordion -->
-            <div class="accordion mb-4" id="researchAccordion">
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResearch" aria-expanded="false" aria-controls="collapseResearch">
-                            🔍 <strong>Quick Research Tools</strong>
-                            <small class="text-muted ms-2">• Search • Docs • Financials • News • Notes</small>
-                        </button>
-                    </h2>
-                    <div id="collapseResearch" class="accordion-collapse collapse" data-bs-parent="#researchAccordion">
-                        <div class="accordion-body">
-                            <p class="text-muted mb-3">
-                                <i class="bi bi-lightbulb-fill text-warning"></i>
-                                <strong>Smart Research Assistant:</strong> Use these tools to quickly gather information about <strong>{{ session.company.name }} ({{ session.company.ticker_symbol }})</strong> related to the current question.
-                            </p>
-
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-primary" onclick="performSearch()" title="Auto-generate smart search terms">
-                                            <i class="bi bi-search"></i> Smart Search
-                                            <small class="d-block text-muted">Auto-generates relevant terms</small>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-info" onclick="searchDocs()" title="Access company documents">
-                                            <i class="bi bi-file-text"></i> Documents
-                                            <small class="d-block text-muted">Company filings & reports</small>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-success" onclick="searchFinancials()" title="Financial data sources">
-                                            <i class="bi bi-graph-up"></i> Financials
-                                            <small class="d-block text-muted">Yahoo • SEC • Finviz</small>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-warning" onclick="searchNews()" title="Latest company news">
-                                            <i class="bi bi-newspaper"></i> News
-                                            <small class="d-block text-muted">Recent developments</small>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-secondary" onclick="openNotesModal()" title="Research notes for this question">
-                                            <i class="bi bi-journal-text"></i> Research Notes
-                                            <small class="d-block text-muted">Question-specific notes</small>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-outline-dark" onclick="saveLater()" title="Bookmark for later review">
-                                            <i class="bi bi-bookmark"></i> Save Later
-                                            <small class="d-block text-muted">Bookmark question</small>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 pt-3 border-top">
-                                <small class="text-muted">
-                                    <i class="bi bi-keyboard"></i> <strong>Keyboard shortcuts:</strong>
-                                    <kbd>Ctrl+S</kbd> Search • <kbd>Ctrl+D</kbd> Docs • <kbd>Ctrl+N</kbd> Notes
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- AI Analysis Section (if available) -->
             {% if current_item.llm_prompt %}
@@ -130,11 +53,11 @@
                             <div class="mb-3">
                                 <label class="form-label"><strong>Select Documents for AI Context:</strong></label>
                                 <div class="document-list border rounded p-3" style="max-height: 200px; overflow-y: auto;">
-                                    {% if session.company.company_documents %}
-                                        {% for doc in session.company.company_documents %}
+                                    {% if company_documents %}
+                                        {% for doc in company_documents %}
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" value="{{ doc.id }}" id="doc{{ doc.id }}" checked>
-                                            <label class="form-check-label" for="doc{{ doc.id }}">{{ doc.title or doc.filename }}</label>
+                                            <label class="form-check-label" for="doc{{ doc.id }}">{{ doc.document_title or doc.original_filename }}</label>
                                         </div>
                                         {% endfor %}
                                     {% else %}
@@ -194,7 +117,7 @@
                         <p class="card-text text-muted">{{ session.company.sector|default('Technology', true) }} • {{ session.company.market_cap_category|default('Large Cap', true) }}</p>
                         <p><strong>Market Cap:</strong> {{ session.company.market_cap|default('$250.0B', true) }}</p>
                         <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
-                        <div class="progress">
+                        <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" role="progressbar" style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
                                 Progress: {{ progress_percent }}%
                             </div>
@@ -207,10 +130,10 @@
                         <h6><i class="bi bi-files"></i> Relevant Documents</h6>
                     </div>
                     <ul class="list-group list-group-flush">
-                        {% if session.company.company_documents %}
-                            {% for doc in session.company.company_documents %}
-                            <a href="#" class="list-group-item list-group-item-action" onclick="openDocument({{ doc.id }})">
-                                {{ doc.title or doc.filename }}
+                        {% if company_documents %}
+                            {% for doc in company_documents %}
+                            <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}" class="list-group-item list-group-item-action" target="_blank">
+                                {{ doc.document_title or doc.original_filename }}
                             </a>
                             {% endfor %}
                         {% else %}
@@ -533,9 +456,6 @@ function removeSavedItem(index) {
     setTimeout(() => showSavedItems(), 300);
 }
 
-function openDocument(docId) {
-    window.open(`/documents/${docId}`, '_blank');
-}
 
 function showToast(message, type = 'info') {
     let toastContainer = document.getElementById('toast-container');

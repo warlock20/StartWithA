@@ -454,19 +454,29 @@ def execute_step(project_id, step_index):
     )
     db.session.add(session)
     db.session.commit()
-    
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
         # Handle new dynamic checklist items
         checklist_items = step['config'].get('checklist_items', [])
         if checklist_items:
+            # Fetch company documents if project has a company
+            company_documents = []
+            if project.company_id:
+                company_documents = CompanyDocument.query.filter_by(
+                    company_id=project.company_id
+                ).order_by(
+                    CompanyDocument.document_group,
+                    CompanyDocument.document_date.desc()
+                ).all()
+            
             return render_template('execute_checklist_step.html',
                                 title=f"Execute: {step['name']}",
                                 project=project,
                                 step=step,
                                 step_index=step_index,
                                 session=session,
-                                checklist_items=checklist_items)
+                                checklist_items=checklist_items,
+                                company_documents=company_documents)
         else:
             flash('No checklist items configured for this step', 'warning')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))

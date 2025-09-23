@@ -76,8 +76,8 @@
                                                 <div class="mb-3">
                                                     <label class="form-label"><strong>Select Documents:</strong></label>
                                                     <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                                                        {% if project.company.company_documents %}
-                                                            {% for doc in project.company.company_documents %}
+                                                        {% if company_documents %}
+                                                            {% for doc in company_documents %}
                                                             <div class="form-check">
                                                                 <input class="form-check-input" type="checkbox" 
                                                                        value="{{ doc.id }}" 
