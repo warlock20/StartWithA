@@ -7,8 +7,10 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
-import json
 from app.services.llm_service import generate_ai_content
+from app.research.routes import get_all_ordered_items_for_checklist
+
+import json
 
 @research_workflow_bp.route('/intelligent-routing')
 @login_required
@@ -508,7 +510,6 @@ def execute_step(project_id, step_index):
                 if existing_research_session:
                     # If session exists and is in progress, find the first unanswered item
                     if existing_research_session.status == 'in_progress':
-                        from app.research.routes import get_all_ordered_items_for_checklist
                         all_items = get_all_ordered_items_for_checklist(checklist_id)
 
                         if all_items:
@@ -555,7 +556,6 @@ def execute_step(project_id, step_index):
                         db.session.commit()
 
                         # Get first item and redirect to it
-                        from app.research.routes import get_all_ordered_items_for_checklist
                         all_items = get_all_ordered_items_for_checklist(checklist_id)
 
                         if all_items:
@@ -739,7 +739,6 @@ def complete_research_step(project_id, step_index):
         db.session.commit()
 
         # Clear research context since we're done with this step
-        from flask import session as flask_session
         flask_session.pop('research_context', None)
 
         if project.status == 'completed':

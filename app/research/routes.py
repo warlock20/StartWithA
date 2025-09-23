@@ -193,7 +193,6 @@ def research_step(session_id, item_id):
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
 
-    print(f"company_documents: {company_documents_for_llm}")
     return render_template(
         'research_step.html',
         title=f"Research: {session.company.ticker_symbol} - Item {current_item_index + 1}/{len(all_items_in_order)}",

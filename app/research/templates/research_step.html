@@ -173,7 +173,7 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" onclick="performSearch()">
+                            <button class="btn btn-outline-primary btn-sm" onclick="performSearch()" title="Smart Search (Ctrl+S)">
                                 <i class="bi bi-search"></i> Smart Search
                             </button>
                             <button class="btn btn-outline-success btn-sm" onclick="searchFinancials()">
@@ -181,6 +181,9 @@
                             </button>
                             <button class="btn btn-outline-warning btn-sm" onclick="searchNews()">
                                 <i class="bi bi-newspaper"></i> Latest News
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="openNotesModal()" title="Research Notes (Ctrl+R)">
+                                <i class="bi bi-journal-text"></i> Research Notes
                             </button>
                         </div>
                     </div>
@@ -194,6 +197,14 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
+
+<!-- Tiptap Editor Dependencies -->
+<script src="https://unpkg.com/@tiptap/core@2.1.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/starter-kit@2.1.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-link@2.1.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-highlight@2.1.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-text-style@2.1.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-color@2.1.0/dist/index.umd.js"></script>
 <script>
 // Set progress bar width from data attribute
 document.addEventListener('DOMContentLoaded', function() {
@@ -304,26 +315,94 @@ function searchNews() {
     console.log(`Research: Searched news for ${companyName}`);
 }
 
+// Global variables for Tiptap editor
+let researchEditor = null;
+let currentSources = [];
+
 function openNotesModal() {
-    const questionText = document.querySelector('.card-header h4').textContent.trim();
-    const itemId = researchTools.session.currentItemId;
-    const existingNotes = researchTools.notes[itemId] || '';
+    try {
+        console.log('Opening notes modal...');
+
+        const questionText = document.querySelector('.card-header h4').textContent.trim();
+        const itemId = researchTools.session.currentItemId;
+        const existingNotes = researchTools.notes[itemId] || '';
+        const existingSources = researchTools.notes[itemId + '_sources'] || [];
+        currentSources = [...existingSources];
+
+        console.log('Modal data:', { questionText, itemId, existingNotes: existingNotes.length, sources: currentSources.length });
 
     const modalHTML = `
         <div class="modal fade" id="researchNotesModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Research Notes</h5>
+                        <h5 class="modal-title">
+                            <i class="bi bi-journal-text"></i> Research Notes
+                            <small class="text-muted ms-2">${questionText}</small>
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
-                        <h6 class="text-muted mb-3">${questionText}</h6>
-                        <textarea class="form-control" rows="10" placeholder="Your research notes..." id="researchNotesTextarea">${existingNotes}</textarea>
+                    <div class="modal-body p-0">
+                        <div class="research-editor">
+                            <!-- Toolbar -->
+                            <div class="research-toolbar">
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="toggleBold()" title="Bold (Ctrl+B)">
+                                        <i class="bi bi-type-bold"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleItalic()" title="Italic (Ctrl+I)">
+                                        <i class="bi bi-type-italic"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleHighlight()" title="Highlight">
+                                        <i class="bi bi-highlighter"></i>
+                                    </button>
+                                </div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="toggleBulletList()" title="Bullet List">
+                                        <i class="bi bi-list-ul"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleOrderedList()" title="Numbered List">
+                                        <i class="bi bi-list-ol"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleBlockquote()" title="Quote">
+                                        <i class="bi bi-quote"></i>
+                                    </button>
+                                </div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="addLink()" title="Add Link">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="addFinding()" title="Key Finding">
+                                        <i class="bi bi-lightbulb"></i> Finding
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="addRisk()" title="Risk Factor">
+                                        <i class="bi bi-exclamation-triangle"></i> Risk
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Editor Content -->
+                            <div id="researchEditorContent" class="research-content"></div>
+
+                            <!-- Source Manager -->
+                            <div class="source-manager">
+                                <h6 class="mb-2"><i class="bi bi-link"></i> Sources & References</h6>
+                                <div class="source-input-group">
+                                    <input type="url" class="source-input" id="sourceUrlInput" placeholder="Add source URL (e.g., https://example.com/article)">
+                                    <input type="text" class="source-input" id="sourceTitleInput" placeholder="Source title (optional)">
+                                    <button type="button" class="source-btn" onclick="addSource()">
+                                        <i class="bi bi-plus"></i> Add Source
+                                    </button>
+                                </div>
+                                <div class="sources-list" id="sourcesList"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary" onclick="saveResearchNotes()">Save Notes</button>
+                        <button type="button" class="btn btn-primary" onclick="saveResearchNotes()">
+                            <i class="bi bi-save"></i> Save Notes
+                        </button>
                     </div>
                 </div>
             </div>
@@ -334,22 +413,238 @@ function openNotesModal() {
     if (existingModal) existingModal.remove();
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Initialize Tiptap editor
+    initializeResearchEditor(existingNotes);
+
+    // Render existing sources
+    renderSources();
+
     const modal = new bootstrap.Modal(document.getElementById('researchNotesModal'));
     modal.show();
+
+    } catch (error) {
+        console.error('Error opening notes modal:', error);
+        showToast('Error opening notes modal. Check console for details.', 'error');
+    }
+}
+
+// Initialize Tiptap editor
+function initializeResearchEditor(existingContent) {
+    try {
+        console.log('Initializing Tiptap editor...');
+
+        // Check if Tiptap libraries are loaded
+        if (!window.Tiptap || !window.TiptapStarterKit) {
+            throw new Error('Tiptap libraries not loaded');
+        }
+
+        const { Editor } = window.Tiptap;
+        const { StarterKit } = window.TiptapStarterKit;
+        const { Link } = window.TiptapLink;
+        const { Highlight } = window.TiptapHighlight;
+
+    researchEditor = new Editor({
+        element: document.getElementById('researchEditorContent'),
+        extensions: [
+            StarterKit,
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    class: 'research-link',
+                },
+            }),
+            Highlight.configure({
+                multicolor: false,
+            }),
+        ],
+        content: existingContent || '<p>Start your research notes here...</p>',
+        editorProps: {
+            attributes: {
+                class: 'research-content',
+            },
+        },
+        onUpdate: ({ editor }) => {
+            updateToolbarState();
+        },
+    });
+
+    // Update toolbar state initially
+    setTimeout(() => updateToolbarState(), 100);
+
+    console.log('Tiptap editor initialized successfully');
+
+    } catch (error) {
+        console.error('Error initializing Tiptap editor:', error);
+
+        // Fallback to simple textarea if Tiptap fails
+        const editorElement = document.getElementById('researchEditorContent');
+        if (editorElement) {
+            editorElement.innerHTML = `
+                <textarea class="form-control" rows="15" placeholder="Tiptap failed to load. Using fallback textarea..."
+                          id="fallbackTextarea">${existingContent || ''}</textarea>
+            `;
+        }
+
+        showToast('Rich editor failed to load, using simple text editor', 'warning');
+    }
+}
+
+// Toolbar functions
+function updateToolbarState() {
+    if (!researchEditor) return;
+
+    document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+
+    if (researchEditor.isActive('bold')) {
+        document.querySelector('[onclick="toggleBold()"]').classList.add('active');
+    }
+    if (researchEditor.isActive('italic')) {
+        document.querySelector('[onclick="toggleItalic()"]').classList.add('active');
+    }
+    if (researchEditor.isActive('highlight')) {
+        document.querySelector('[onclick="toggleHighlight()"]').classList.add('active');
+    }
+    if (researchEditor.isActive('bulletList')) {
+        document.querySelector('[onclick="toggleBulletList()"]').classList.add('active');
+    }
+    if (researchEditor.isActive('orderedList')) {
+        document.querySelector('[onclick="toggleOrderedList()"]').classList.add('active');
+    }
+    if (researchEditor.isActive('blockquote')) {
+        document.querySelector('[onclick="toggleBlockquote()"]').classList.add('active');
+    }
+}
+
+function toggleBold() {
+    researchEditor.chain().focus().toggleBold().run();
+}
+
+function toggleItalic() {
+    researchEditor.chain().focus().toggleItalic().run();
+}
+
+function toggleHighlight() {
+    researchEditor.chain().focus().toggleHighlight().run();
+}
+
+function toggleBulletList() {
+    researchEditor.chain().focus().toggleBulletList().run();
+}
+
+function toggleOrderedList() {
+    researchEditor.chain().focus().toggleOrderedList().run();
+}
+
+function toggleBlockquote() {
+    researchEditor.chain().focus().toggleBlockquote().run();
+}
+
+function addLink() {
+    const url = prompt('Enter URL:');
+    if (url) {
+        researchEditor.chain().focus().setLink({ href: url }).run();
+    }
+}
+
+function addFinding() {
+    researchEditor.chain().focus().insertContent('<p><strong>💡 Key Finding:</strong> </p>').run();
+}
+
+function addRisk() {
+    researchEditor.chain().focus().insertContent('<p><strong>⚠️ Risk Factor:</strong> </p>').run();
+}
+
+// Source management functions
+function addSource() {
+    const urlInput = document.getElementById('sourceUrlInput');
+    const titleInput = document.getElementById('sourceTitleInput');
+    const url = urlInput.value.trim();
+    const title = titleInput.value.trim();
+
+    if (!url) {
+        showToast('Please enter a URL', 'warning');
+        return;
+    }
+
+    // Auto-fetch title if not provided
+    const finalTitle = title || url;
+
+    const source = {
+        url: url,
+        title: finalTitle,
+        timestamp: new Date().toISOString(),
+        id: Date.now() // Simple ID generation
+    };
+
+    currentSources.push(source);
+    urlInput.value = '';
+    titleInput.value = '';
+
+    renderSources();
+    showToast('Source added successfully', 'success');
+}
+
+function removeSource(sourceId) {
+    currentSources = currentSources.filter(source => source.id !== sourceId);
+    renderSources();
+    showToast('Source removed', 'info');
+}
+
+function renderSources() {
+    const sourcesList = document.getElementById('sourcesList');
+    if (!sourcesList) return;
+
+    if (currentSources.length === 0) {
+        sourcesList.innerHTML = '<p class="text-muted small mb-0">No sources added yet</p>';
+        return;
+    }
+
+    sourcesList.innerHTML = currentSources.map(source => `
+        <div class="source-item">
+            <a href="${source.url}" target="_blank" class="source-link" title="${source.url}">
+                ${source.title}
+            </a>
+            <button type="button" class="source-remove" onclick="removeSource(${source.id})" title="Remove source">
+                ×
+            </button>
+        </div>
+    `).join('');
 }
 
 function saveResearchNotes() {
-    const notesTextarea = document.getElementById('researchNotesTextarea');
     const itemId = researchTools.session.currentItemId;
+    let editorContent = '';
 
-    if (notesTextarea) {
-        researchTools.notes[itemId] = notesTextarea.value;
-        localStorage.setItem('research_notes_{{ session.id }}', JSON.stringify(researchTools.notes));
+    // Try to get content from Tiptap editor first
+    if (researchEditor) {
+        editorContent = researchEditor.getHTML();
+    } else {
+        // Fallback to textarea if Tiptap failed
+        const fallbackTextarea = document.getElementById('fallbackTextarea');
+        if (fallbackTextarea) {
+            editorContent = fallbackTextarea.value;
+        } else {
+            showToast('No editor content found', 'error');
+            return;
+        }
+    }
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById('researchNotesModal'));
-        modal.hide();
+    // Save both notes and sources
+    researchTools.notes[itemId] = editorContent;
+    researchTools.notes[itemId + '_sources'] = currentSources;
 
-        showToast('Research notes saved successfully!', 'success');
+    localStorage.setItem('research_notes_{{ session.id }}', JSON.stringify(researchTools.notes));
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('researchNotesModal'));
+    modal.hide();
+
+    showToast('Research notes and sources saved successfully!', 'success');
+
+    // Cleanup
+    if (researchEditor) {
+        researchEditor.destroy();
+        researchEditor = null;
     }
 }
 
@@ -486,9 +781,47 @@ function showToast(message, type = 'info') {
     });
 }
 
+// Enhanced research tools integration
+function captureCurrentPageAsSource() {
+    const currentUrl = window.location.href;
+    const currentTitle = document.title;
+
+    // Auto-populate source fields if modal is open
+    const urlInput = document.getElementById('sourceUrlInput');
+    const titleInput = document.getElementById('sourceTitleInput');
+
+    if (urlInput && titleInput) {
+        urlInput.value = currentUrl;
+        titleInput.value = currentTitle;
+        showToast('Current page captured as source', 'info');
+    }
+}
+
+function enhanceResearchTools() {
+    // Add source capture to existing research tools
+    const originalPerformSearch = window.performSearch;
+    window.performSearch = function() {
+        originalPerformSearch();
+        setTimeout(() => captureCurrentPageAsSource(), 1000);
+    };
+
+    const originalSearchNews = window.searchNews;
+    window.searchNews = function() {
+        originalSearchNews();
+        setTimeout(() => captureCurrentPageAsSource(), 1000);
+    };
+
+    const originalSearchFinancials = window.searchFinancials;
+    window.searchFinancials = function() {
+        originalSearchFinancials();
+        setTimeout(() => captureCurrentPageAsSource(), 1000);
+    };
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey && !e.target.matches('input, textarea, select')) {
+    // Global shortcuts (when not in editor)
+    if (e.ctrlKey && !e.target.matches('input, textarea, select, .research-content *')) {
         switch(e.key.toLowerCase()) {
             case 's':
                 e.preventDefault();
@@ -498,10 +831,34 @@ document.addEventListener('keydown', function(e) {
                 e.preventDefault();
                 searchDocs();
                 break;
-            case 'n':
+            case 'r':
                 e.preventDefault();
                 openNotesModal();
                 break;
+        }
+    }
+
+    // Editor-specific shortcuts
+    if (researchEditor && document.getElementById('researchNotesModal')) {
+        if (e.ctrlKey) {
+            switch(e.key.toLowerCase()) {
+                case 'b':
+                    e.preventDefault();
+                    toggleBold();
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    toggleItalic();
+                    break;
+                case 'l':
+                    e.preventDefault();
+                    addLink();
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    addSource();
+                    break;
+            }
         }
     }
 });
@@ -509,6 +866,7 @@ document.addEventListener('keydown', function(e) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateSaveLaterButton();
+    enhanceResearchTools();
 });
 </script>
 
@@ -521,6 +879,155 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     .alert {
         white-space: pre-wrap;
+    }
+
+    /* Tiptap Research Editor Styles */
+    .research-editor {
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background: white;
+    }
+
+    .research-toolbar {
+        border-bottom: 1px solid #e5e5e5;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+        display: flex;
+        gap: 2px;
+        padding-right: 8px;
+        border-right: 1px solid #ddd;
+        margin-right: 8px;
+    }
+
+    .toolbar-group:last-child {
+        border-right: none;
+        margin-right: 0;
+    }
+
+    .toolbar-btn {
+        background: none;
+        border: 1px solid transparent;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #495057;
+    }
+
+    .toolbar-btn:hover {
+        background: #e9ecef;
+        border-color: #adb5bd;
+    }
+
+    .toolbar-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .research-content {
+        padding: 12px;
+        min-height: 300px;
+        outline: none;
+    }
+
+    .research-content p {
+        margin-bottom: 8px;
+    }
+
+    .research-content ul, .research-content ol {
+        padding-left: 20px;
+        margin-bottom: 8px;
+    }
+
+    .research-content blockquote {
+        border-left: 4px solid #007bff;
+        margin: 12px 0;
+        padding: 8px 16px;
+        background: #f8f9fa;
+        font-style: italic;
+    }
+
+    .research-content mark {
+        background: #fff3cd;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    .source-manager {
+        border-top: 1px solid #e5e5e5;
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .source-input-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .source-input {
+        flex: 1;
+        padding: 6px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .source-btn {
+        padding: 6px 12px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .source-btn:hover {
+        background: #0056b3;
+    }
+
+    .sources-list {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .source-item {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        padding: 6px 8px;
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        font-size: 12px;
+    }
+
+    .source-link {
+        color: #007bff;
+        text-decoration: none;
+        flex: 1;
+        margin-right: 8px;
+    }
+
+    .source-remove {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
     }
 </style>
 {% endblock %}
