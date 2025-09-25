@@ -1,5 +1,7 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required 
+from flask import session as flask_session
+
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
@@ -183,7 +185,7 @@ def research_step(session_id, item_id):
             db.session.commit()
             flash('Checklist completed! Research session finished.', 'success')
             # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research.view_research_session_summary', session_id=session.id)) # We'll create this route next
+            return redirect(url_for('research.view_checklist_session_summary', session_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -426,7 +428,7 @@ def ai_analyze_item(session_id, item_id):
 # We also need a route for the session summary. Let's add a placeholder for now.
 @research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
 @login_required
-def view_research_session_summary(session_id):
+def view_checklist_session_summary(session_id):
     # Fetch the core session object and authorize the user
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
@@ -442,7 +444,7 @@ def view_research_session_summary(session_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        return redirect(url_for('research.view_research_session_summary', session_id=session.id))
+        return redirect(url_for('research.view_checklist_session_summary', session_id=session.id))
 
     # --- GET Request Logic ---
     # Prepare all data needed for rendering the template
@@ -474,13 +476,12 @@ def view_research_session_summary(session_id):
             intrinsic_display_value = str(val)
     
     # 5. Check for research workflow context
-    from flask import session as flask_session
     research_context = flask_session.get('research_context')
 
     # 6. Render the template, passing all the prepared data
     return render_template(
         'session_summary.html',
-        title=f"Research Summary: {session.company.name}", # Use the company name in the title
+        title=f"Checklist Summary: {session.company.name}", # Use the company name in the title
         session=session,
         all_ordered_items=all_ordered_items,
         answers_map=answers_map,
@@ -489,100 +490,6 @@ def view_research_session_summary(session_id):
         research_context=research_context  # Pass research workflow context
     )
 
-# DEPRECATED: Research session deletion moved to research_workflow blueprint
-    
-@research_bp.route('/sessions', methods=['GET'])
-@login_required
-def list_research_sessions():
-    # Redirect to the modern research workflow page which now includes research sessions
-    flash('Research sessions have been integrated into the Research Workflow dashboard.', 'info')
-    return redirect(url_for('research_workflow.my_projects'))
-
-    # Legacy code below - kept for reference but no longer executed
-    user = current_user
-    # Get sorting parameters
-    sort_by = request.args.get('sort', 'date')  # Default sort by date
-    order = request.args.get('order', 'desc')   # Default descending order
-    
-    # Fetch all sessions for this user, ordered by start date descending by default
-    sessions_query = ResearchSession.query.filter_by(user_id=current_user.id)
-    
-    # Apply sorting to the database query when possible
-    if sort_by == 'date':
-        if order == 'desc':
-            sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
-        else:
-            sessions_query = sessions_query.order_by(ResearchSession.start_date.asc())
-    else:
-        # For other sorts, we'll sort in Python after building the data
-        sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
-    
-    sessions_list = sessions_query.all()
-    
-    sessions_data = []
-    for session in sessions_list:
-        # Get the total number of items for the session's checklist
-        total_item_count = ChecklistItem.query.filter_by(checklist_id=session.checklist_id).count()
-
-        # Get the number of items marked as 'satisfied' for this specific session
-        satisfied_count = ResearchAnswer.query.filter_by(
-            research_session_id=session.id,
-            satisfaction_status='satisfied'
-        ).count()
-        
-        # Calculate outcome for sorting
-        if session.status == 'completed':
-            if total_item_count > 0 and total_item_count == satisfied_count:
-                outcome_sort_value = 1  # Passed
-            else:
-                outcome_sort_value = 2  # Needs Review
-        elif session.status == 'in_progress':
-            outcome_sort_value = 3  # In Progress
-        else:
-            outcome_sort_value = 4  # Other
-        
-        data = {
-            'session_obj': session,
-            'company_name': session.company.name, # Assuming session.company relationship works
-            'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
-            'resume_item_id': None,
-            'total_item_count': total_item_count, # Add total count to data
-            'satisfied_count': satisfied_count,   # Add satisfied count to data
-            'outcome_sort_value': outcome_sort_value  # For sorting purposes
-        }
-        
-        if session.status == 'in_progress':
-            all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
-            if all_items_in_order:
-                # Default to the first item if no other logic finds a better place
-                resume_item_id_candidate = all_items_in_order[0].id 
-                for item in all_items_in_order:
-                    answer_exists = ResearchAnswer.query.filter_by(
-                        research_session_id=session.id,
-                        checklist_item_id=item.id
-                    ).first()
-                    if not answer_exists:
-                        resume_item_id_candidate = item.id 
-                        break
-                data['resume_item_id'] = resume_item_id_candidate
-            else: # Checklist has no items, but session is in_progress
-                data['resume_item_id'] = None # Cannot resume if no items
- 
-        sessions_data.append(data)
-
-    # Apply Python-based sorting for non-date columns
-    if sort_by == 'company':
-        sessions_data.sort(key=lambda x: x['company_name'].lower(), 
-                          reverse=(order == 'desc'))
-    elif sort_by == 'outcome':
-        sessions_data.sort(key=lambda x: x['outcome_sort_value'], 
-                          reverse=(order == 'desc'))
-    # Date sorting is already handled by the database query
-
-    return render_template('list_research_sessions.html', 
-                           sessions_data=sessions_data, 
-                           title="My Research Sessions")
-    
 @research_bp.route('/session/<int:session_id>/export/txt')
 @login_required
 def export_session_to_txt(session_id):

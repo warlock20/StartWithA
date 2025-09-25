@@ -1003,9 +1003,9 @@ class ResearchLog(db.Model):
     # 'step_completed', 'decision_made', 'thesis_updated', 'document_uploaded', etc.
     
     # Associated entities
-    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id', ondelete='CASCADE'))
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
-    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='CASCADE'))
     
     # Activity details
     details = db.Column(db.JSON)  # Flexible field for activity-specific data

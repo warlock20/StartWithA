@@ -12,6 +12,117 @@ from app.research.routes import get_all_ordered_items_for_checklist
 
 import json
 
+@research_workflow_bp.route('/api/server-time')
+@login_required
+def get_server_time():
+    """API endpoint to get current server time for timer synchronization"""
+    return jsonify({
+        'server_time': datetime.now(timezone.utc).isoformat(),
+        'timezone': 'UTC'
+    })
+
+def collect_research_session_summary(project, step_index):
+    """
+    Collect and summarize the actual research data from the completed research session
+    """
+    try:
+        # Find the most recent research session for this project's company
+
+        if not project.company_id:
+            return "Completed research checklist evaluation (no company data)"
+
+        # Get the most recent research session for this company (check all statuses first)
+        all_sessions = ResearchSession.query.filter_by(
+            user_id=current_user.id,
+            company_id=project.company_id
+        ).order_by(ResearchSession.start_date.desc()).all()
+
+
+        # Get the most recent research session for this company (try 'completed' first)
+        recent_session = ResearchSession.query.filter_by(
+            user_id=current_user.id,
+            company_id=project.company_id,
+            status='completed'
+        ).order_by(ResearchSession.start_date.desc()).first()
+
+        # If no completed session, try any recent session
+        if not recent_session and all_sessions:
+            recent_session = all_sessions[0]
+
+        if not recent_session:
+            return "Completed research checklist evaluation (no research session found)"
+
+        # Collect all research answers from the session
+        research_answers = ResearchAnswer.query.filter_by(
+            research_session_id=recent_session.id
+        ).all()
+
+        if not research_answers:
+            return f"Completed research evaluation using {recent_session.checklist.name} (no answers recorded)"
+
+        # Build summary from the research answers
+        summary_parts = [
+            f"**Research Summary: {recent_session.checklist.name}**",
+            f"Company: {project.company.name} ({project.company.ticker_symbol})",
+            f"Completed: {recent_session.start_date.strftime('%Y-%m-%d')}",
+            "",
+            "**Key Research Findings:**"
+        ]
+
+        # Categorize answers by satisfaction status
+        satisfied_items = []
+        not_satisfied_items = []
+        needs_attention_items = []
+        informational_items = []
+
+        for answer in research_answers:
+            item_text = answer.item.text[:100] + "..." if len(answer.item.text) > 100 else answer.item.text
+
+            if answer.satisfaction_status == 'satisfied':
+                satisfied_items.append(f"✅ {item_text}")
+            elif answer.satisfaction_status == 'not_satisfied':
+                not_satisfied_items.append(f"❌ {item_text}")
+            elif answer.satisfaction_status == 'needs_attention':
+                needs_attention_items.append(f"⚠️ {item_text}")
+            else:
+                informational_items.append(f"ℹ️ {item_text}")
+
+        # Add categorized findings
+        if satisfied_items:
+            summary_parts.append("\n**Positive Findings:**")
+            summary_parts.extend(satisfied_items[:5])  # Limit to top 5
+
+        if not_satisfied_items:
+            summary_parts.append("\n**Concerns:**")
+            summary_parts.extend(not_satisfied_items[:5])
+
+        if needs_attention_items:
+            summary_parts.append("\n**Needs Attention:**")
+            summary_parts.extend(needs_attention_items[:5])
+
+        # Add summary statistics
+        total_items = len(research_answers)
+        satisfied_count = len(satisfied_items)
+        pass_rate = round((satisfied_count / total_items) * 100) if total_items > 0 else 0
+
+        summary_parts.extend([
+            "",
+            f"**Summary Stats:**",
+            f"- Total Items Evaluated: {total_items}",
+            f"- Satisfied: {satisfied_count} ({pass_rate}%)",
+            f"- Concerns: {len(not_satisfied_items)}",
+            f"- Needs Attention: {len(needs_attention_items)}"
+        ])
+
+        final_summary = "\n".join(summary_parts)
+        return final_summary
+
+    except Exception as e:
+        import traceback
+        print(f"ERROR in collect_research_session_summary: {e}")
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        return f"Completed research checklist evaluation (error collecting details: {str(e)})"
+
 @research_workflow_bp.route('/intelligent-routing')
 @login_required
 def intelligent_routing():
@@ -338,7 +449,7 @@ def start_project():
                 flash(f'You already have an active research project for {subject_name}. Only one project per company is allowed.', 'error')
                 return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
             elif existing_project.status == 'paused':
-                flash(f'You have a paused research project for {subject_name}. Resume it or abandon it to start a new one.', 'warning')
+                flash(f'You have a paused research project for {subject_name}. Resume it or delete it to start a new one.', 'warning')
                 return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
     # Check for existing project with same template (for non-company subjects)
@@ -421,13 +532,23 @@ def project_dashboard(project_id):
                 next_steps.append(step)
                 if len(next_steps) >= 3:  # Show next 3 upcoming steps
                     break
-    
+
+    # Get latest research session for the company (for checklist analysis button)
+    latest_research_session = None
+    if project.company_id:
+        latest_research_session = ResearchSession.query.filter_by(
+            company_id=project.company_id,
+            user_id=current_user.id,
+            status='completed'
+        ).order_by(ResearchSession.start_date.desc()).first()
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
                           recent_sessions=recent_sessions,
                           time_breakdown=time_breakdown,
                           next_steps=next_steps,
+                          latest_research_session=latest_research_session,
                           datetime=datetime)
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
@@ -452,7 +573,7 @@ def execute_step(project_id, step_index):
         user=current_user,
         step_index=step_index,
         step_name=step['name'],
-        start_time=datetime.utcnow()
+        start_time=datetime.now(timezone.utc)
     )
     db.session.add(session)
     db.session.commit()
@@ -724,10 +845,16 @@ def complete_research_step(project_id, step_index):
         if step_index not in project.completed_steps:
             project.completed_steps = project.completed_steps + [step_index]
 
-        # Save step notes
+        # Save step notes - collect actual research data
         if not project.step_notes:
             project.step_notes = {}
-        project.step_notes[str(step_index)] = 'Completed research checklist evaluation'
+
+        # Try to collect actual research session data
+        research_session_data = collect_research_session_summary(project, step_index)
+        project.step_notes[str(step_index)] = research_session_data
+        # Explicitly mark the JSON field as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(project, 'step_notes')
 
         # Move to next step if not at the end
         if step_index + 1 < len(project.template.workflow_steps):
@@ -752,6 +879,45 @@ def complete_research_step(project_id, step_index):
         db.session.rollback()
         flash(f'Error completing research step: {str(e)}', 'error')
         return redirect(request.referrer)
+
+@research_workflow_bp.route('/projects/<int:project_id>/notes')
+@login_required
+def view_project_notes(project_id):
+    """View all research notes for a project"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    # Authorization check
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Get all step notes
+    step_notes = project.step_notes or {}
+
+    # Get template steps for context
+    template_steps = project.template.workflow_steps if project.template else []
+
+    # Combine notes with step information
+    notes_with_context = []
+    for step_index, notes in step_notes.items():
+        step_idx = int(step_index)
+        step_name = "Unknown Step"
+        if step_idx < len(template_steps):
+            step_name = template_steps[step_idx].get('name', f'Step {step_idx + 1}')
+
+        notes_with_context.append({
+            'step_index': step_idx,
+            'step_name': step_name,
+            'notes': notes
+        })
+
+    # Sort by step index
+    notes_with_context.sort(key=lambda x: x['step_index'])
+
+    return render_template('project_notes.html',
+                          title=f"Research Notes - {project.research_subject_name}",
+                          project=project,
+                          notes_with_context=notes_with_context)
 
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
@@ -851,8 +1017,6 @@ def my_projects():
     completed_projects = current_user.research_projects.filter_by(status='completed')\
                                                       .order_by(ResearchProject.completed_at.desc()).limit(10).all()
 
-    abandoned_projects = current_user.research_projects.filter_by(status='abandoned')\
-                                                       .order_by(ResearchProject.last_worked_at.desc()).all()
 
     # Flag overdue projects
     overdue_projects = [p for p in active_projects if p.is_overdue]
@@ -875,7 +1039,6 @@ def my_projects():
                           active_projects=active_projects,
                           paused_projects=paused_projects,
                           completed_projects=completed_projects,
-                          abandoned_projects=abandoned_projects,
                           overdue_projects=overdue_projects,
                           total_time_invested=round(total_time_invested, 1),
                           total_decisions=total_decisions,
@@ -1144,137 +1307,7 @@ def add_finding(project_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@research_workflow_bp.route('/projects/<int:project_id>/abandon', methods=['POST'])
-@login_required
-def abandon_project(project_id):
-    """Abandon a research project"""
-    project = ResearchProject.query.get_or_404(project_id)
-    
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-    
-    # Get project name and company name before deletion
-    project_name = project.project_name
-    company_name = project.company.name if project.company else "Unknown"
 
-    # When abandoning a project, we completely remove it - do NOT reset idea status
-    # The idea should remain in its current state (promoted) but the project is gone
-
-    current_app.logger.info(f"Abandoning project for {company_name} - completely removing project but preserving company")
-
-    try:
-        # Delete research logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete associated work sessions
-        WorkSession.query.filter_by(research_project_id=project.id).delete()
-
-        # Delete research activity logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete decision journal entries that reference this project
-        DecisionJournal.query.filter_by(project_id=project.id).delete()
-
-        # Delete journal entries that reference this project
-        JournalEntry.query.filter_by(project_id=project.id).delete()
-
-        # Clear research-related data but preserve company, journal entries, and mistake logs
-        if project.company:
-            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
-
-            # Remove only research-specific documents, NOT journal entries or mistake logs
-            research_docs = project.company.documents.filter(
-                CompanyDocument.document_group.in_(['Financial Data', 'Research Notes', 'Analysis'])
-            ).all()
-
-            for doc in research_docs:
-                current_app.logger.info(f"Removing research document: {doc.original_filename}")
-                db.session.delete(doc)
-
-        # Commit the deletions of related records first
-        db.session.commit()
-
-        # Now we can safely delete the project
-        db.session.delete(project)
-        db.session.commit()
-
-        flash(f'Project "{project_name}" has been completely removed. Company preserved for future use.', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error abandoning project: {str(e)}")
-        flash(f'Error abandoning project: {str(e)}', 'error')
-    
-    return redirect(url_for('research_workflow.my_projects'))
-
-@research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
-@login_required
-def delete_project(project_id):
-    """Delete a research project permanently"""
-    project = ResearchProject.query.get_or_404(project_id)
-    
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-    
-    # Get project name before deletion
-    project_name = project.project_name
-
-    # Delete the associated idea if this project was created from a promoted idea
-    idea_to_delete = None
-    if project.idea and project.idea.status == 'promoted':
-        current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
-        idea_to_delete = project.idea
-
-    # NEW LOGIC: Never remove companies - they can be reused
-    # Only remove research-related data while preserving Journal Entry and Mistake logs
-    company_name = project.company.name if project.company else "Unknown"
-    current_app.logger.info(f"Deleting project for {company_name} - preserving company but clearing research data")
-
-    try:
-        # Delete research logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete associated work sessions
-        WorkSession.query.filter_by(research_project_id=project.id).delete()
-
-        # Commit the deletions of related records first
-        db.session.commit()
-
-        # Delete the associated idea if there is one
-        if idea_to_delete:
-            current_app.logger.info(f"Deleting idea: {idea_to_delete.name}")
-            db.session.delete(idea_to_delete)
-
-        # Now we can safely delete the project
-        db.session.delete(project)
-        db.session.commit()
-
-        # Clear research-related data but preserve company, journal entries, and mistake logs
-        if project.company:
-            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
-
-            # Remove only research-specific documents, NOT journal entries or mistake logs
-            research_docs = project.company.company_documents.filter(
-                CompanyDocument.doc_type.in_(['financial_data', 'research_note', 'analysis'])
-            ).all()
-
-            for doc in research_docs:
-                current_app.logger.info(f"Removing research document: {doc.filename}")
-                db.session.delete(doc)
-
-            # Legacy research sessions are no longer used in the new workflow system
-
-            db.session.commit()
-
-        flash(f'Project "{project_name}" has been deleted. Company preserved for future use.', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting project: {str(e)}', 'error')
-    
-    return redirect(url_for('research_workflow.my_projects'))
 
 @research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
 @login_required
@@ -1335,22 +1368,29 @@ def delete_research_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
 
     try:
-        # Get project name before deletion to avoid session issues
-        project_name = project.research_subject_name or f"{project.research_subject_type} project"
+        project_name = project.research_subject_name or f"project"
 
-        # Delete the associated idea if this project was created from a promoted idea
-        if project.idea and project.idea.status == 'promoted':
-            current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
-            db.session.delete(project.idea)
+        # If project is linked to an idea, we must handle its dependencies before deleting the idea itself.
+        if project.idea:
+            idea_to_delete = project.idea
+            ResearchLog.query.filter_by(idea_id=idea_to_delete.id).delete(synchronize_session=False)
+            JournalEntry.query.filter_by(idea_id=idea_to_delete.id).update({'idea_id': None}, synchronize_session=False)
+            db.session.delete(idea_to_delete)
 
-        # Delete the research project
+        # Clean up journal_entry references to this project
+        JournalEntry.query.filter_by(project_id=project.id).update({'project_id': None}, synchronize_session=False)
         db.session.delete(project)
         db.session.commit()
 
-        flash(f'Research project "{project_name}" has been deleted', 'success')
+        flash(f'Research project "{project_name}" has been deleted successfully.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error deleting research project: {str(e)}', 'error')
+        current_app.logger.error(f"Error deleting research project {project_id}: {str(e)}")
+        # Provide a more specific error message if it's a foreign key violation
+        if 'ForeignKeyViolation' in str(e):
+             flash('Error deleting project: Could not remove related records. Please check for dependencies in other parts of the application.', 'error')
+        else:
+             flash(f'An unexpected error occurred while deleting the project.', 'error')
 
     return redirect(url_for('research_workflow.my_projects'))
 

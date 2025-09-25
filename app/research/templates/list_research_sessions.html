@@ -8,18 +8,18 @@
         <div class="mt-2">
             {% set ns = namespace(passed=0, completed=0, total=0) %}
             {% for session in sessions_data %}
-                {% set ns.total = ns.total + 1 %}
-                {% if session.session_obj.status == 'completed' %}
-                    {% set ns.completed = ns.completed + 1 %}
-                    {% if session.total_item_count > 0 and session.total_item_count == session.satisfied_count %}
-                        {% set ns.passed = ns.passed + 1 %}
-                    {% endif %}
-                {% endif %}
+            {% set ns.total = ns.total + 1 %}
+            {% if session.session_obj.status == 'completed' %}
+            {% set ns.completed = ns.completed + 1 %}
+            {% if session.total_item_count > 0 and session.total_item_count == session.satisfied_count %}
+            {% set ns.passed = ns.passed + 1 %}
+            {% endif %}
+            {% endif %}
             {% endfor %}
             <small class="text-muted">
-                {{ ns.total }} sessions total • 
-                {{ ns.passed }} passed • 
-                {{ ns.completed - ns.passed }} need review • 
+                {{ ns.total }} sessions total •
+                {{ ns.passed }} passed •
+                {{ ns.completed - ns.passed }} need review •
                 {{ ns.total - ns.completed }} in progress
             </small>
         </div>
@@ -37,28 +37,31 @@
         <thead class="table-dark">
             <tr>
                 <th scope="col">
-                    <a href="?sort=company{% if request.args.get('sort') == 'company' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}" class="text-decoration-none text-white">
+                    <a href="?sort=company{% if request.args.get('sort') == 'company' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}"
+                        class="text-decoration-none text-white">
                         Company
                         {% if request.args.get('sort') == 'company' %}
-                            {% if request.args.get('order') == 'desc' %}▼{% else %}▲{% endif %}
+                        {% if request.args.get('order') == 'desc' %}▼{% else %}▲{% endif %}
                         {% endif %}
                     </a>
                 </th>
                 <th scope="col">Model Used</th>
                 <th scope="col">Satisfied Score</th>
                 <th scope="col">
-                    <a href="?sort=date{% if request.args.get('sort') == 'date' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}" class="text-decoration-none text-white">
+                    <a href="?sort=date{% if request.args.get('sort') == 'date' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}"
+                        class="text-decoration-none text-white">
                         Last Modified
                         {% if request.args.get('sort') == 'date' or not request.args.get('sort') %}
-                            {% if request.args.get('order') == 'asc' %}▲{% else %}▼{% endif %}
+                        {% if request.args.get('order') == 'asc' %}▲{% else %}▼{% endif %}
                         {% endif %}
                     </a>
                 </th>
                 <th scope="col">
-                    <a href="?sort=outcome{% if request.args.get('sort') == 'outcome' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}" class="text-decoration-none text-white">
+                    <a href="?sort=outcome{% if request.args.get('sort') == 'outcome' and request.args.get('order') != 'desc' %}&order=desc{% else %}&order=asc{% endif %}"
+                        class="text-decoration-none text-white">
                         Final Outcome
                         {% if request.args.get('sort') == 'outcome' %}
-                            {% if request.args.get('order') == 'desc' %}▼{% else %}▲{% endif %}
+                        {% if request.args.get('order') == 'desc' %}▼{% else %}▲{% endif %}
                         {% endif %}
                     </a>
                 </th>
@@ -114,7 +117,7 @@
                             class="btn btn-primary btn-sm">Resume</a>
                         {% endif %}
                         {% elif data_item.session_obj.status == 'completed' %}
-                        <a href="{{ url_for('research.view_research_session_summary', session_id=data_item.session_obj.id) }}"
+                        <a href="{{ url_for('research.view_checklist_session_summary', session_id=data_item.session_obj.id) }}"
                             class="btn btn-info btn-sm">View Summary</a>
                         {% endif %}
                         <form method="POST"
@@ -125,35 +128,39 @@
                                 class="btn btn-outline-danger btn-sm">Delete</button>
                         </form>
                     </div>
-                    
+
                     {# --- NEW: Promote section for COMPLETED and PASSED sessions --- #}
                     {% if data_item.session_obj.status == 'completed' %}
-                        {% if data_item.total_item_count > 0 and data_item.total_item_count == data_item.satisfied_count %}
-                        <div class="promote-section">
-                            <small class="text-muted fw-bold">Promote Company:</small>
-                            <div class="btn-group btn-group-sm mt-1" role="group">
-                                <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=data_item.session_obj.company_id) }}" style="display: inline;">
-                                    <button type="submit" class="btn btn-outline-warning" title="Add to Favorites">
-                                        ⭐ Favorite
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=data_item.session_obj.company_id) }}" style="display: inline;">
-                                    <button type="submit" class="btn btn-outline-success" title="Add to Portfolio">
-                                        📁 Portfolio
-                                    </button>
-                                </form>
-                            </div>
+                    {% if data_item.total_item_count > 0 and data_item.total_item_count == data_item.satisfied_count %}
+                    <div class="promote-section">
+                        <small class="text-muted fw-bold">Promote Company:</small>
+                        <div class="btn-group btn-group-sm mt-1" role="group">
+                            <form method="POST"
+                                action="{{ url_for('companies.toggle_favorite', company_id=data_item.session_obj.company_id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-warning" title="Add to Favorites">
+                                    ⭐ Favorite
+                                </button>
+                            </form>
+                            <form method="POST"
+                                action="{{ url_for('companies.toggle_portfolio', company_id=data_item.session_obj.company_id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-success" title="Add to Portfolio">
+                                    📁 Portfolio
+                                </button>
+                            </form>
                         </div>
-                        {% endif %}
-                        
-                        <div class="mt-2">
-                            <small class="text-muted">Further Analysis:</small>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=data_item.session_obj.company_id) }}"
-                                    class="btn btn-outline-secondary">Porter's 5 Forces</a>
-                                {# We can add more model links here in the future #}
-                            </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-2">
+                        <small class="text-muted">Further Analysis:</small>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=data_item.session_obj.company_id) }}"
+                                class="btn btn-outline-secondary">Porter's 5 Forces</a>
+                            {# We can add more model links here in the future #}
                         </div>
+                    </div>
                     {% endif %}
                 </td>
             </tr>
@@ -173,44 +180,44 @@
 {% endif %}
 
 <style>
-.promote-section {
-    border-top: 1px solid #e9ecef;
-    padding-top: 0.5rem;
-    margin-top: 0.5rem;
-}
+    .promote-section {
+        border-top: 1px solid #e9ecef;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
 
-.promote-section .btn-group-sm .btn {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.75rem;
-    border-radius: 4px;
-}
+    .promote-section .btn-group-sm .btn {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 4px;
+    }
 
-.promote-section .btn-outline-warning:hover {
-    background-color: #fff3cd;
-    border-color: #ffeaa7;
-    color: #856404;
-}
+    .promote-section .btn-outline-warning:hover {
+        background-color: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+    }
 
-.promote-section .btn-outline-success:hover {
-    background-color: #d1e7dd;
-    border-color: #badbcc;
-    color: #0f5132;
-}
+    .promote-section .btn-outline-success:hover {
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+        color: #0f5132;
+    }
 
-.table-sortable th a:hover {
-    text-decoration: underline !important;
-}
+    .table-sortable th a:hover {
+        text-decoration: underline !important;
+    }
 
-.outcome-passed {
-    background: linear-gradient(45deg, #d1e7dd, #c3e6cb);
-    border-left: 3px solid #198754;
-}
+    .outcome-passed {
+        background: linear-gradient(45deg, #d1e7dd, #c3e6cb);
+        border-left: 3px solid #198754;
+    }
 
-.research-stats {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
+    .research-stats {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
 </style>
 {% endblock %}
