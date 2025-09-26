@@ -9,8 +9,16 @@ from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
 from app.services.llm_service import generate_ai_content
 from app.research.routes import get_all_ordered_items_for_checklist
+from app.services.adaptive_template_service import (
+    suggest_template_adaptations,
+    apply_template_adaptations,
+    adaptive_template_service
+)
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 @research_workflow_bp.route('/api/server-time')
 @login_required
@@ -661,7 +669,7 @@ def execute_step(project_id, step_index):
 
                     elif existing_research_session.status == 'completed':
                         flash('Investment checklist research already completed. Viewing summary.', 'info')
-                        return redirect(url_for('research.view_research_session_summary',
+                        return redirect(url_for('research.view_checklist_session_summary',
                                               session_id=existing_research_session.id))
                 else:
                     # Create new research session
@@ -1961,3 +1969,227 @@ def return_from_checklist(project_id, step_index):
         # No valid research context, just go to project dashboard
         flash('Returned from checklist execution', 'info')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+# Adaptive Research Template API Routes
+
+@research_workflow_bp.route('/api/template/<int:template_id>/adaptations')
+@login_required
+def get_template_adaptations(template_id):
+    """Get adaptive suggestions for a research template based on company context"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    # Get company from request parameters
+    company_id = request.args.get('company_id', type=int)
+    if not company_id:
+        return jsonify({'error': 'Company ID required'}), 400
+
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        return jsonify({'error': 'Access denied to company'}), 403
+
+    try:
+        logger.info(f"Getting adaptations for template {template_id}, company {company_id}")
+
+        # Get comprehensive adaptations
+        adaptations = suggest_template_adaptations(template, company, current_user.id)
+
+        logger.info(f"Successfully generated adaptations: {adaptations}")
+
+        return jsonify({
+            'success': True,
+            'adaptations': adaptations,
+            'template_id': template_id,
+            'company_id': company_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting template adaptations: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+
+@research_workflow_bp.route('/api/template/<int:template_id>/apply-adaptations', methods=['POST'])
+@login_required
+def apply_adaptations(template_id):
+    """Apply selected adaptations to a research template"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No adaptation data provided'}), 400
+
+        # Apply the adaptations
+        success = apply_template_adaptations(template, data)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Template adaptations applied successfully',
+                'template_id': template_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to apply adaptations'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error applying template adaptations: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/template/<int:template_id>/time-estimates')
+@login_required
+def get_personalized_time_estimates(template_id):
+    """Get personalized time estimates for template steps based on user history"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        estimates = adaptive_template_service.get_personalized_time_estimates(
+            template, current_user.id
+        )
+
+        return jsonify({
+            'success': True,
+            'estimates': estimates,
+            'template_id': template_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting time estimates: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/company/<int:company_id>/sector-questions')
+@login_required
+def get_sector_questions(company_id):
+    """Get sector-specific questions available for a company"""
+    company = Company.query.get_or_404(company_id)
+
+    # Security check
+    if company.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        if not company.sector:
+            return jsonify({
+                'success': True,
+                'questions': [],
+                'message': 'No sector specified for this company'
+            })
+
+        questions = adaptive_template_service.get_sector_questions(
+            company.sector, current_user.id
+        )
+
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'sector': company.sector,
+            'company_id': company_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sector questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/project/<int:project_id>/adaptive-suggestions')
+@login_required
+def get_project_adaptive_suggestions(project_id):
+    """Get adaptive suggestions when starting a new research project"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    # Security check
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        template = project.template
+        company = project.company
+
+        logger.info(f"Getting project suggestions for project {project_id}, template: {template.id if template else 'None'}, company: {company.id if company else 'None'}")
+
+        if not company:
+            logger.warning(f"Project {project_id} has no company associated")
+            return jsonify({
+                'success': True,
+                'suggestions': [],
+                'message': 'No company associated with this project'
+            })
+
+        if not company.sector:
+            logger.warning(f"Company {company.id} has no sector specified")
+            return jsonify({
+                'success': True,
+                'suggestions': [],
+                'message': f'No sector specified for {company.name}'
+            })
+
+        # Get comprehensive suggestions
+        adaptations = suggest_template_adaptations(template, company, current_user.id)
+
+        # Calculate potential time savings/additions
+        step_suggestions = adaptations.get('step_injections', {}).get('suggestions', [])
+        time_estimates = adaptations.get('time_estimates', {}).get('estimates', [])
+
+        # Create actionable suggestions summary
+        suggestions_summary = {
+            'sector_questions_available': len(step_suggestions),
+            'time_estimates_available': len([e for e in time_estimates if e.get('confidence', 0) > 0.5]),
+            'recommended_injections': [
+                {
+                    'step_name': s['step_name'],
+                    'questions_count': len(s['questions']),
+                    'confidence': s['confidence']
+                }
+                for s in step_suggestions
+                if s['confidence'] > 0.7
+            ],
+            'time_insights': adaptations.get('time_estimates', {}).get('insights', [])
+        }
+
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions_summary,
+            'full_adaptations': adaptations,
+            'project_id': project_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting project adaptive suggestions: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500

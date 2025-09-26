@@ -4,10 +4,12 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
-                       KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry)
+                       KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
+                       KillChecklistSuggestion, MistakeLog)
 from app.services.duplicate_detection import DuplicateDetectionService
+from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
 
@@ -649,3 +651,246 @@ def search_sources():
     # Return list of source names
     result = [{'source': source[0], 'count': source[1]} for source in sources]
     return jsonify(result)
+
+
+# ===============================================
+# DYNAMIC KILL CHECKLIST - INTELLIGENT FEATURES
+# ===============================================
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/suggestions')
+@login_required
+def get_checklist_suggestions(checklist_id):
+    """Get intelligent suggestions for optimizing a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Get pending suggestions for this checklist
+        suggestions = KillChecklistSuggestion.query.filter_by(
+            kill_checklist_id=checklist_id,
+            user_id=current_user.id,
+            status='pending'
+        ).order_by(KillChecklistSuggestion.effectiveness_gain.desc()).all()
+
+        # Convert to JSON format
+        suggestions_data = []
+        for suggestion in suggestions:
+            suggestions_data.append({
+                'id': suggestion.id,
+                'type': suggestion.suggestion_type,
+                'title': suggestion.title,
+                'description': suggestion.description,
+                'reasoning': suggestion.reasoning,
+                'effectiveness_gain': suggestion.effectiveness_gain,
+                'confidence_score': suggestion.confidence_score,
+                'created_at': suggestion.created_at.isoformat(),
+                'age_hours': suggestion.age_hours,
+                'suggestion_data': suggestion.suggestion_data
+            })
+
+        return jsonify({
+            'suggestions': suggestions_data,
+            'checklist_stats': {
+                'total_evaluations': checklist.total_ideas_evaluated,
+                'kill_rate': checklist.kill_rate,
+                'criteria_count': checklist.criteria_count
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/analyze', methods=['POST'])
+@login_required
+def analyze_checklist(checklist_id):
+    """Trigger analysis and generate new suggestions for a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Generate reordering suggestions
+        reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist_id)
+        suggestions_created = 0
+
+        if reorder_suggestion:
+            db.session.add(reorder_suggestion)
+            suggestions_created += 1
+
+        # Generate cleanup suggestions
+        cleanup_suggestions = KillChecklistAnalytics._suggest_cleanup(checklist_id)
+        for suggestion in cleanup_suggestions:
+            db.session.add(suggestion)
+            suggestions_created += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f'Analysis complete. {suggestions_created} new suggestions generated.',
+            'suggestions_created': suggestions_created
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/suggestions/<int:suggestion_id>/apply', methods=['POST'])
+@login_required
+def apply_suggestion(suggestion_id):
+    """Apply a suggestion to optimize the kill checklist"""
+    try:
+        success = SuggestionEngine.apply_suggestion(suggestion_id, current_user.id)
+
+        if success:
+            return jsonify({'message': 'Suggestion applied successfully'})
+        else:
+            return jsonify({'error': 'Failed to apply suggestion'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/suggestions/<int:suggestion_id>/reject', methods=['POST'])
+@login_required
+def reject_suggestion(suggestion_id):
+    """Reject a suggestion"""
+    try:
+        suggestion = KillChecklistSuggestion.query.filter_by(
+            id=suggestion_id,
+            user_id=current_user.id,
+            status='pending'
+        ).first()
+
+        if not suggestion:
+            return jsonify({'error': 'Suggestion not found'}), 404
+
+        suggestion.status = 'rejected'
+        suggestion.responded_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+        return jsonify({'message': 'Suggestion rejected'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/effectiveness')
+@login_required
+def get_effectiveness_analysis(checklist_id):
+    """Get detailed effectiveness analysis for a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Analyze each criterion
+        criteria_analysis = []
+        for criterion in checklist.criteria.order_by(KillCriterion.order):
+            # Calculate/update effectiveness score
+            effectiveness = KillChecklistAnalytics.calculate_criterion_effectiveness(criterion.id)
+
+            criteria_analysis.append({
+                'id': criterion.id,
+                'question': criterion.question,
+                'order': criterion.order,
+                'times_evaluated': criterion.times_evaluated,
+                'times_failed': criterion.times_failed,
+                'failure_rate': criterion.failure_rate,
+                'effectiveness_score': effectiveness,
+                'last_used': criterion.last_used.isoformat() if criterion.last_used else None,
+                'auto_suggested': criterion.auto_suggested,
+                'has_source_mistake': criterion.source_mistake_id is not None
+            })
+
+        return jsonify({
+            'checklist': {
+                'id': checklist.id,
+                'name': checklist.name,
+                'total_evaluations': checklist.total_ideas_evaluated,
+                'total_kills': checklist.total_ideas_killed,
+                'kill_rate': checklist.kill_rate
+            },
+            'criteria_analysis': criteria_analysis,
+            'recommendations': {
+                'most_effective': max(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+                'least_effective': min(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+                'underutilized': [c['question'] for c in criteria_analysis if c['times_evaluated'] < 5]
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/mistake-log/<int:mistake_id>/suggest-criteria', methods=['POST'])
+@login_required
+def suggest_criteria_from_mistake(mistake_id):
+    """Analyze a mistake and suggest kill criteria to prevent similar issues"""
+    try:
+        mistake = MistakeLog.query.filter_by(
+            id=mistake_id,
+            user_id=current_user.id
+        ).first()
+
+        if not mistake:
+            return jsonify({'error': 'Mistake not found'}), 404
+
+        # Generate suggestion from mistake
+        suggestion = KillChecklistAnalytics.analyze_mistake_for_criteria(mistake_id)
+
+        if suggestion:
+            db.session.add(suggestion)
+            db.session.commit()
+
+            return jsonify({
+                'message': 'Suggestion generated from mistake analysis',
+                'suggestion': {
+                    'id': suggestion.id,
+                    'title': suggestion.title,
+                    'description': suggestion.description,
+                    'suggested_criterion': suggestion.suggestion_data.get('new_criterion', {}).get('question')
+                }
+            })
+        else:
+            return jsonify({
+                'message': 'No actionable criteria could be extracted from this mistake',
+                'reason': 'The mistake description may not contain specific patterns that can be converted to kill criteria'
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# Webhook for milestone-based suggestions (called from kill session completion)
+def trigger_milestone_analysis(user_id, checklist_id, evaluation_count):
+    """Trigger milestone-based analysis (called internally)"""
+    try:
+        SuggestionEngine.process_evaluation_milestone(user_id, checklist_id, evaluation_count)
+    except Exception as e:
+        print(f"Error in milestone analysis: {e}")
+
+
+# Webhook for mistake-based suggestions (called when mistake is logged)
+def trigger_mistake_analysis(mistake_id):
+    """Trigger mistake-based analysis (called internally)"""
+    try:
+        SuggestionEngine.process_mistake_logged(mistake_id)
+    except Exception as e:
+        print(f"Error in mistake analysis: {e}")

@@ -280,27 +280,116 @@
             </div>
         </div>
 
-        <!-- Related Entries -->
-        {% if related_entries %}
-        <div class="card">
+        <!-- AI Intelligence Panel -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">🤖 AI Intelligence</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="analyzeEntry({{ entry.id }})" id="analyze-btn">
+                    <i class="bi bi-lightning" id="analyze-icon"></i>
+                    <span id="analyze-text">Analyze</span>
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="ai-intelligence-content">
+                    {% if entry.ai_processing_status == 'completed' and entry.ai_analysis_result %}
+                        <!-- AI Analysis Results -->
+                        <div class="ai-analysis-complete">
+                            {% if entry.ai_themes_extracted %}
+                            <div class="mb-3">
+                                <strong>Key Themes:</strong>
+                                <div class="mt-1">
+                                    {% for theme in entry.ai_themes_extracted %}
+                                    <span class="badge bg-info me-1">#{{ theme }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if entry.ai_suggested_tags %}
+                            <div class="mb-3">
+                                <strong>AI Suggested Tags:</strong>
+                                <div class="mt-1">
+                                    {% for tag in entry.ai_suggested_tags %}
+                                    <span class="badge bg-success me-1">#{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if entry.contradiction_flags %}
+                            <div class="alert alert-warning alert-sm">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Thesis Alert:</strong> Potential contradictions detected.
+                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="showContradictions({{ entry.id }})">
+                                    View Details
+                                </button>
+                            </div>
+                            {% endif %}
+
+                            {% if entry.related_entry_ids %}
+                            <div class="mb-2">
+                                <strong>AI Found Connections:</strong>
+                                <span class="text-muted">({{ entry.related_entry_ids|length }} related entries)</span>
+                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="showRelatedEntries({{ entry.id }})">
+                                    Show Related
+                                </button>
+                            </div>
+                            {% endif %}
+
+                            <small class="text-muted">
+                                Analyzed {{ entry.ai_analyzed_at.strftime('%b %d at %H:%M') if entry.ai_analyzed_at }}
+                                • Confidence: {{ ((entry.ai_confidence_score or 0.8) * 100)|int }}%
+                            </small>
+                        </div>
+                    {% elif entry.ai_processing_status == 'processing' %}
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            AI analysis in progress...
+                        </div>
+                    {% elif entry.ai_processing_status == 'failed' %}
+                        <div class="text-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Analysis failed. Click Analyze to retry.
+                        </div>
+                    {% else %}
+                        <div class="text-muted text-center">
+                            <i class="bi bi-robot"></i>
+                            <p class="mb-2">Get AI insights on this entry</p>
+                            <small>Find themes, connections, and potential thesis contradictions</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- AI-Enhanced Related Entries -->
+        <div class="card mb-3">
             <div class="card-header">
                 <h6 class="mb-0">🔗 Related Entries</h6>
             </div>
             <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    {% for related in related_entries %}
-                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=related.id) }}"
-                        class="list-group-item list-group-item-action">
-                        <strong>{{ related.title or "Untitled" }}</strong><br>
-                        <small class="text-muted">
-                            {{ related.created_at.strftime('%b %d, %Y') }}
-                        </small>
-                    </a>
-                    {% endfor %}
+                <div id="related-entries-container">
+                    {% if related_entries %}
+                    <div class="list-group list-group-flush">
+                        {% for related in related_entries %}
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=related.id) }}"
+                            class="list-group-item list-group-item-action">
+                            <strong>{{ related.title or "Untitled" }}</strong><br>
+                            <small class="text-muted">
+                                {{ related.created_at.strftime('%b %d, %Y') }}
+                            </small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted text-center">
+                        No related entries found yet.
+                        <br><small>Try running AI analysis to discover connections.</small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
 
@@ -336,6 +425,196 @@
     }
 </style>
 <script>
+    // AI Intelligence Functions
+    async function analyzeEntry(entryId) {
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const analyzeIcon = document.getElementById('analyze-icon');
+        const analyzeText = document.getElementById('analyze-text');
+        const contentContainer = document.getElementById('ai-intelligence-content');
+
+        // Update button to loading state
+        analyzeBtn.disabled = true;
+        analyzeIcon.className = 'bi bi-hourglass-split';
+        analyzeText.textContent = 'Analyzing...';
+
+        // Show loading state in content
+        contentContainer.innerHTML = `
+            <div class="text-center text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                AI analysis in progress...
+                <br><small class="mt-2 d-block">This may take a few moments</small>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/journal/api/entry/${entryId}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Success - reload page to show results
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+
+                // Show temporary success message
+                contentContainer.innerHTML = `
+                    <div class="text-center text-success">
+                        <i class="bi bi-check-circle"></i>
+                        <p class="mb-0">Analysis complete!</p>
+                        <small>Refreshing to show results...</small>
+                    </div>
+                `;
+            } else {
+                throw new Error(result.error || 'Analysis failed');
+            }
+
+        } catch (error) {
+            console.error('AI analysis error:', error);
+
+            // Show error state
+            contentContainer.innerHTML = `
+                <div class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Analysis failed: ${error.message}
+                    <br><button class="btn btn-sm btn-link p-0 mt-1" onclick="analyzeEntry(${entryId})">Try Again</button>
+                </div>
+            `;
+
+            // Reset button
+            analyzeBtn.disabled = false;
+            analyzeIcon.className = 'bi bi-lightning';
+            analyzeText.textContent = 'Analyze';
+        }
+    }
+
+    async function showRelatedEntries(entryId) {
+        try {
+            const response = await fetch(`/journal/api/entry/${entryId}/related`);
+            const result = await response.json();
+
+            if (result.success && result.related_entries.length > 0) {
+                const relatedContainer = document.getElementById('related-entries-container');
+
+                let html = '<div class="list-group list-group-flush">';
+                result.related_entries.forEach(entry => {
+                    const relationshipBadge = getRelationshipBadge(entry.relationship_type);
+                    html += `
+                        <a href="/journal/entry/${entry.entry_id}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${entry.entry_title}</strong>
+                                    ${relationshipBadge}
+                                    <br>
+                                    <small class="text-muted">
+                                        ${entry.created_at} ${entry.company_name ? '• ' + entry.company_name : ''}
+                                    </small>
+                                </div>
+                                <span class="badge bg-secondary">${Math.round(entry.relevance_score * 100)}%</span>
+                            </div>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+
+                relatedContainer.innerHTML = html;
+            } else {
+                console.log('No related entries found');
+            }
+        } catch (error) {
+            console.error('Error fetching related entries:', error);
+        }
+    }
+
+    function getRelationshipBadge(type) {
+        const badges = {
+            'similar_theme': '<span class="badge bg-info ms-2">Similar Theme</span>',
+            'contradiction': '<span class="badge bg-warning ms-2">Contradiction</span>',
+            'evolution': '<span class="badge bg-success ms-2">Evolution</span>',
+            'context': '<span class="badge bg-secondary ms-2">Context</span>',
+            'complement': '<span class="badge bg-primary ms-2">Complement</span>',
+            'same_company': '<span class="badge bg-light text-dark ms-2">Same Company</span>',
+            'cached': '<span class="badge bg-secondary ms-2">Related</span>'
+        };
+        return badges[type] || '';
+    }
+
+    async function showContradictions(entryId) {
+        try {
+            const response = await fetch(`/journal/api/entry/${entryId}/contradictions`);
+            const result = await response.json();
+
+            if (result.success && result.contradictions.contradiction_detected) {
+                const contradictions = result.contradictions;
+
+                // Create modal to show contradiction details
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Thesis Contradiction Alert
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-warning">
+                                    <strong>Severity:</strong> ${contradictions.contradiction_severity || 'Unknown'}
+                                </div>
+
+                                ${contradictions.specific_conflicts ? `
+                                    <h6>Specific Conflicts:</h6>
+                                    <ul class="list-unstyled">
+                                        ${contradictions.specific_conflicts.map(conflict => `
+                                            <li class="mb-3">
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <strong>Thesis Point:</strong> ${conflict.thesis_point}<br>
+                                                        <strong>Contradicting Evidence:</strong> ${conflict.contradicting_evidence}<br>
+                                                        <strong>Impact:</strong> ${conflict.impact_assessment}
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                ` : ''}
+
+                                ${contradictions.recommended_actions ? `
+                                    <h6>Recommended Actions:</h6>
+                                    <ul>
+                                        ${contradictions.recommended_actions.map(action => `<li>${action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+                const bootstrapModal = new bootstrap.Modal(modal);
+                bootstrapModal.show();
+
+                // Clean up after modal is hidden
+                modal.addEventListener('hidden.bs.modal', () => {
+                    document.body.removeChild(modal);
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching contradictions:', error);
+        }
+    }
+
     function toggleStar(entryId) {
         fetch(`/journal/entry/${entryId}/star`, {
             method: 'POST',

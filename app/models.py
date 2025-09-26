@@ -1,7 +1,7 @@
 # company_research_platform/app/models.py
 
 from app import db  # Import the db instance from app/__init__.py
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.security import (
     generate_password_hash,
     check_password_hash,
@@ -564,7 +564,17 @@ class KillCriterion(db.Model):
     order = db.Column(db.Integer, default=0)
     times_evaluated = db.Column(db.Integer, default=0)
     times_failed = db.Column(db.Integer, default=0)
+
+    # New fields for Dynamic Kill Checklist
+    effectiveness_score = db.Column(db.Float, default=0.0)
+    last_calculated = db.Column(db.DateTime)
+    auto_suggested = db.Column(db.Boolean, default=False)
+    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id'))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used = db.Column(db.DateTime)
+
     killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
+    source_mistake = db.relationship('MistakeLog', backref='generated_criteria')
 
     @property
     def failure_rate(self):
@@ -601,6 +611,62 @@ class KillAnswer(db.Model):
 
     def __repr__(self):
         return f'<KillAnswer {self.passed}>'
+
+class KillChecklistSuggestion(db.Model):
+    """
+    Intelligent suggestions for optimizing Kill Checklists based on usage patterns and mistakes.
+    This model tracks all suggestions made by the system and user responses to them.
+    """
+    __tablename__ = 'kill_checklist_suggestion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+
+    # Suggestion details
+    suggestion_type = db.Column(db.String(50), nullable=False)
+    # Types: 'reorder_criteria', 'add_criterion', 'remove_criterion', 'modify_criterion', 'merge_criteria'
+
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    reasoning = db.Column(db.Text)  # Why this suggestion was made
+
+    # Suggestion data (JSON format for flexibility)
+    suggestion_data = db.Column(db.JSON, nullable=False)
+    # Example for reorder: {"from_positions": [1,2,3], "to_positions": [3,1,2], "criteria_ids": [10,11,12]}
+    # Example for add: {"question": "Is debt-to-equity < 0.3?", "position": 2, "source": "mistake_log"}
+
+    # Performance prediction
+    effectiveness_gain = db.Column(db.Float)  # Predicted improvement percentage
+    confidence_score = db.Column(db.Float, default=0.5)  # 0-1 confidence in suggestion
+
+    # Tracking
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'accepted', 'rejected', 'auto_applied'
+    responded_at = db.Column(db.DateTime)
+
+    # Source information
+    trigger_event = db.Column(db.String(100))  # 'evaluation_milestone', 'mistake_logged', 'periodic_analysis'
+    source_data = db.Column(db.JSON)  # Related mistake_id, evaluation_count, etc.
+
+    # Relationships
+    checklist = db.relationship('KillChecklist', backref='suggestions')
+    user = db.relationship('User')
+
+    @property
+    def age_hours(self):
+        """How many hours old is this suggestion"""
+        if not self.created_at:
+            return 0
+        return (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
+
+    @property
+    def is_expired(self):
+        """Suggestions expire after 30 days if not acted upon"""
+        return self.age_hours > (30 * 24)
+
+    def __repr__(self):
+        return f'<KillChecklistSuggestion {self.suggestion_type}: {self.title[:30]}>'
 # Add these new models to app/models.py after your existing IdeaPipeline models
 
 class ResearchTemplate(db.Model):
@@ -1119,11 +1185,27 @@ class JournalEntry(db.Model):
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     
+    # AI Intelligence fields
+    ai_analysis_result = db.Column(db.JSON)  # Full AI analysis results
+    ai_analyzed_at = db.Column(db.DateTime)  # When AI analysis was performed
+    ai_confidence_score = db.Column(db.Float)  # AI confidence in analysis (0-1)
+
+    # Intelligent tagging and theme extraction
+    ai_suggested_tags = db.Column(db.JSON)  # AI-suggested tags for this entry
+    ai_themes_extracted = db.Column(db.JSON)  # AI-extracted themes and insights
+
+    # Connection tracking
+    related_entry_ids = db.Column(db.JSON)  # IDs of related entries found by AI
+    contradiction_flags = db.Column(db.JSON)  # Detected thesis contradictions
+
+    # Processing status for AI features
+    ai_processing_status = db.Column(db.String(50))  # 'pending', 'processing', 'completed', 'failed', 'skipped'
+
     # Relationships
     company = db.relationship('Company', backref='journal_entries')
-    attachments = db.relationship('JournalAttachment', backref='entry', 
+    attachments = db.relationship('JournalAttachment', backref='entry',
                                  lazy='dynamic', cascade='all, delete-orphan')
-    
+
     def __repr__(self):
         return f'<JournalEntry {self.title or self.id}>'
 

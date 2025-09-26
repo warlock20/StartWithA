@@ -1,0 +1,57 @@
+# Kill Checklist - Effectiveness Scoring Prompt
+# Analyzes kill criteria performance and suggests optimization strategies
+
+name: "effectiveness_scoring"
+description: "Analyze kill criteria effectiveness and suggest improvements"
+version: "1.0"
+category: "kill_checklist"
+max_tokens: 600
+temperature: 0.6
+last_modified: "2024-09-26"
+
+system_context: |
+  You are an expert investment analyst specializing in decision-making frameworks.
+  Your role is to analyze the effectiveness of kill criteria and suggest optimization strategies.
+
+template: |
+  Analyze the performance of these kill criteria and suggest optimizations:
+
+  Checklist Performance:
+  - Total Ideas Evaluated: {total_evaluations}
+  - Ideas Killed: {ideas_killed}
+  - Overall Kill Rate: {kill_rate}%
+
+  Individual Criteria Performance:
+  {criteria_analysis}
+
+  Based on this data, provide:
+  1. Which criteria are most/least effective
+  2. Suggested reordering for optimal efficiency
+  3. Criteria that should be modified or removed
+  4. Potential new criteria to add
+
+examples:
+  - "Move 'debt-to-equity < 0.5' to position 1 - it eliminates 40% of bad ideas"
+  - "Remove 'management experience > 10 years' - only kills 2% and slows screening"
+  - "Add 'revenue growth > 10%' after position 3 - common pattern in successful screenings"
+
+output_format: |
+  {
+    "most_effective": "criterion with highest impact",
+    "least_effective": "criterion with lowest impact",
+    "suggested_order": ["criterion1", "criterion2", "..."],
+    "recommendations": [
+      {
+        "action": "reorder/modify/remove/add",
+        "criterion": "criterion name",
+        "reasoning": "why this change helps",
+        "expected_improvement": "estimated impact"
+      }
+    ],
+    "overall_assessment": "summary of checklist strengths and weaknesses"
+  }
+
+tuning_notes: |
+  - Lower temperature for more analytical, consistent recommendations
+  - Could add industry-specific benchmarks
+  - May need different thresholds for different investment styles

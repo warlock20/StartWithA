@@ -23,7 +23,7 @@
     <div class="row">
         {% for checklist in checklists %}
         <div class="col-lg-6 mb-4">
-            <div class="card h-100 {% if checklist.is_default %}border-primary{% endif %}">
+            <div class="card h-100 {% if checklist.is_default %}border-primary{% endif %}" id="checklist-card-{{ checklist.id }}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
@@ -31,8 +31,18 @@
                             {% if checklist.is_default %}
                                 <span class="badge bg-primary ms-2">Default</span>
                             {% endif %}
+                            <!-- Intelligence Indicator -->
+                            <span class="badge bg-success ms-2 d-none" id="ai-badge-{{ checklist.id }}">
+                                <i class="bi bi-lightbulb"></i> Smart
+                            </span>
                         </h5>
-                        <span class="badge bg-secondary">{{ checklist.criteria_count }} criteria</span>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-secondary me-2">{{ checklist.criteria_count }} criteria</span>
+                            <!-- Suggestions indicator -->
+                            <span class="badge bg-warning d-none" id="suggestions-count-{{ checklist.id }}">
+                                <i class="bi bi-exclamation-circle"></i> <span class="suggestion-count">0</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -40,20 +50,50 @@
                         <p class="card-text">{{ checklist.description }}</p>
                     {% endif %}
                     
-                    <!-- Statistics -->
+                    <!-- Smart Suggestions Alert -->
+                    <div class="alert alert-info border-0 bg-info-subtle d-none" id="suggestions-alert-{{ checklist.id }}">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-lightbulb text-info me-2"></i>
+                            <div class="flex-grow-1">
+                                <small class="fw-semibold">Smart Optimization Available</small>
+                                <div class="small text-muted suggestion-preview"></div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-info" onclick="showSuggestions({{ checklist.id }})">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics with Effectiveness Indicators -->
                     <div class="row text-center mb-3">
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4>{{ checklist.total_ideas_evaluated }}</h4>
                             <small class="text-muted">Evaluated</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4 class="text-danger">{{ checklist.total_ideas_killed }}</h4>
                             <small class="text-muted">Killed</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4>{{ checklist.kill_rate }}%</h4>
                             <small class="text-muted">Kill Rate</small>
                         </div>
+                        <div class="col-3">
+                            <h4 class="text-success" id="effectiveness-score-{{ checklist.id }}">-</h4>
+                            <small class="text-muted">Effectiveness</small>
+                        </div>
+                    </div>
+
+                    <!-- Effectiveness Progress Bar -->
+                    <div class="mb-3 d-none" id="effectiveness-progress-{{ checklist.id }}">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Optimization Level</span>
+                            <span class="effectiveness-percentage">0%</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success effectiveness-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Based on criterion performance and ordering</small>
                     </div>
                     
                     <!-- Sample criteria -->
@@ -67,8 +107,16 @@
                         {% endif %}
                     </ol>
                     
-                    <!-- Actions -->
-                    <div class="d-flex justify-content-between">
+                    <!-- Smart Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="analyzeChecklist({{ checklist.id }})">
+                                <i class="bi bi-graph-up"></i> Analyze
+                            </button>
+                            <button class="btn btn-outline-success d-none" id="optimize-btn-{{ checklist.id }}" onclick="showOptimizations({{ checklist.id }})">
+                                <i class="bi bi-lightbulb"></i> Optimize
+                            </button>
+                        </div>
                         <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}" 
                            class="btn btn-outline-primary btn-sm">Edit</a>
                         {% if not checklist.is_default %}
@@ -116,4 +164,374 @@
         </ul>
     </div>
 </div>
+
+<!-- Smart Suggestions Modal -->
+<div class="modal fade" id="suggestionsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-lightbulb"></i> Smart Optimization Suggestions
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="suggestionsContent">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Effectiveness Analysis Modal -->
+<div class="modal fade" id="effectivenessModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-graph-up"></i> Effectiveness Analysis
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="effectivenessContent">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Dynamic Kill Checklist Intelligence
+const DynamicKillChecklist = {
+
+    // Load suggestions for all checklists on page load
+    init() {
+        const checklistCards = document.querySelectorAll('[id^="checklist-card-"]');
+        checklistCards.forEach(card => {
+            const checklistId = card.id.replace('checklist-card-', '');
+            this.loadSuggestions(checklistId);
+            this.loadEffectiveness(checklistId);
+        });
+    },
+
+    // Load and display suggestions for a checklist
+    async loadSuggestions(checklistId) {
+        try {
+            const response = await fetch(`/ideas/api/kill-checklist/${checklistId}/suggestions`);
+            const data = await response.json();
+
+            if (data.suggestions && data.suggestions.length > 0) {
+                this.displaySuggestionIndicators(checklistId, data.suggestions);
+            }
+        } catch (error) {
+            console.warn(`Failed to load suggestions for checklist ${checklistId}:`, error);
+        }
+    },
+
+    // Load and display effectiveness analysis
+    async loadEffectiveness(checklistId) {
+        try {
+            const response = await fetch(`/ideas/api/kill-checklist/${checklistId}/effectiveness`);
+            const data = await response.json();
+
+            if (data.criteria_analysis && data.criteria_analysis.length > 0) {
+                this.displayEffectivenessMetrics(checklistId, data);
+            }
+        } catch (error) {
+            console.warn(`Failed to load effectiveness for checklist ${checklistId}:`, error);
+        }
+    },
+
+    // Display suggestion indicators in the UI
+    displaySuggestionIndicators(checklistId, suggestions) {
+        const suggestionsCount = document.getElementById(`suggestions-count-${checklistId}`);
+        const suggestionsAlert = document.getElementById(`suggestions-alert-${checklistId}`);
+        const optimizeBtn = document.getElementById(`optimize-btn-${checklistId}`);
+        const aiBadge = document.getElementById(`ai-badge-${checklistId}`);
+
+        if (suggestions.length > 0) {
+            // Show suggestion count
+            if (suggestionsCount) {
+                suggestionsCount.querySelector('.suggestion-count').textContent = suggestions.length;
+                suggestionsCount.classList.remove('d-none');
+            }
+
+            // Show suggestion alert with preview
+            if (suggestionsAlert) {
+                const preview = suggestionsAlert.querySelector('.suggestion-preview');
+                const topSuggestion = suggestions[0];
+                preview.textContent = `${topSuggestion.title} (+${(topSuggestion.effectiveness_gain * 100).toFixed(1)}% effectiveness)`;
+                suggestionsAlert.classList.remove('d-none');
+            }
+
+            // Show optimize button
+            if (optimizeBtn) {
+                optimizeBtn.classList.remove('d-none');
+            }
+
+            // Show AI badge
+            if (aiBadge) {
+                aiBadge.classList.remove('d-none');
+            }
+        }
+    },
+
+    // Display effectiveness metrics
+    displayEffectivenessMetrics(checklistId, data) {
+        const effectivenessScore = document.getElementById(`effectiveness-score-${checklistId}`);
+        const effectivenessProgress = document.getElementById(`effectiveness-progress-${checklistId}`);
+
+        if (data.criteria_analysis.length > 0) {
+            // Calculate overall effectiveness score
+            const avgEffectiveness = data.criteria_analysis.reduce((sum, c) => sum + c.effectiveness_score, 0) / data.criteria_analysis.length;
+            const score = (avgEffectiveness * 100).toFixed(1);
+
+            // Update score display
+            if (effectivenessScore) {
+                effectivenessScore.textContent = `${score}%`;
+
+                // Color coding based on effectiveness
+                effectivenessScore.className = 'text-' + (
+                    avgEffectiveness >= 0.7 ? 'success' :
+                    avgEffectiveness >= 0.4 ? 'warning' : 'danger'
+                );
+            }
+
+            // Update progress bar
+            if (effectivenessProgress) {
+                const progressBar = effectivenessProgress.querySelector('.effectiveness-bar');
+                const percentageText = effectivenessProgress.querySelector('.effectiveness-percentage');
+
+                if (progressBar && percentageText) {
+                    progressBar.style.width = `${score}%`;
+                    percentageText.textContent = `${score}%`;
+                    effectivenessProgress.classList.remove('d-none');
+                }
+            }
+        }
+    }
+};
+
+// Analyze checklist function
+async function analyzeChecklist(checklistId) {
+    const analyzeBtn = document.querySelector(`button[onclick="analyzeChecklist(${checklistId})"]`);
+    const originalText = analyzeBtn.innerHTML;
+
+    // Show loading state
+    analyzeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Analyzing...';
+    analyzeBtn.disabled = true;
+
+    try {
+        const response = await fetch(`/ideas/api/kill-checklist/${checklistId}/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast(data.message, 'success');
+
+            // Reload suggestions and effectiveness
+            await DynamicKillChecklist.loadSuggestions(checklistId);
+            await DynamicKillChecklist.loadEffectiveness(checklistId);
+        } else {
+            showToast(data.error || 'Analysis failed', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to analyze checklist', 'error');
+        console.error('Analysis error:', error);
+    } finally {
+        // Restore button
+        analyzeBtn.innerHTML = originalText;
+        analyzeBtn.disabled = false;
+    }
+}
+
+// Show suggestions modal
+async function showSuggestions(checklistId) {
+    try {
+        const response = await fetch(`/ideas/api/kill-checklist/${checklistId}/suggestions`);
+        const data = await response.json();
+
+        if (response.ok && data.suggestions) {
+            renderSuggestionsModal(data);
+            new bootstrap.Modal(document.getElementById('suggestionsModal')).show();
+        } else {
+            showToast('No suggestions available', 'info');
+        }
+    } catch (error) {
+        showToast('Failed to load suggestions', 'error');
+        console.error('Suggestions error:', error);
+    }
+}
+
+// Show optimizations (alias for showSuggestions)
+function showOptimizations(checklistId) {
+    showSuggestions(checklistId);
+}
+
+// Render suggestions modal content
+function renderSuggestionsModal(data) {
+    const content = document.getElementById('suggestionsContent');
+
+    if (!data.suggestions || data.suggestions.length === 0) {
+        content.innerHTML = '<div class="text-center text-muted">No optimization suggestions available yet.</div>';
+        return;
+    }
+
+    let html = `
+        <div class="mb-3">
+            <h6>Checklist Performance</h6>
+            <div class="row text-center">
+                <div class="col">
+                    <strong>${data.checklist_stats.total_evaluations}</strong>
+                    <div class="small text-muted">Ideas Evaluated</div>
+                </div>
+                <div class="col">
+                    <strong>${data.checklist_stats.kill_rate}%</strong>
+                    <div class="small text-muted">Kill Rate</div>
+                </div>
+                <div class="col">
+                    <strong>${data.checklist_stats.criteria_count}</strong>
+                    <div class="small text-muted">Criteria</div>
+                </div>
+            </div>
+        </div>
+        <hr>
+    `;
+
+    data.suggestions.forEach(suggestion => {
+        const confidenceColor = suggestion.confidence_score >= 0.8 ? 'success' :
+                               suggestion.confidence_score >= 0.5 ? 'warning' : 'danger';
+
+        html += `
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        ${getSuggestionIcon(suggestion.type)} ${suggestion.title}
+                    </h6>
+                    <div>
+                        <span class="badge bg-${confidenceColor}">
+                            ${(suggestion.confidence_score * 100).toFixed(0)}% confidence
+                        </span>
+                        <span class="badge bg-info">
+                            +${(suggestion.effectiveness_gain * 100).toFixed(1)}% effectiveness
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">${suggestion.description}</p>
+                    <div class="small text-muted mb-3">${suggestion.reasoning}</div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success btn-sm" onclick="applySuggestion(${suggestion.id})">
+                            <i class="bi bi-check-circle"></i> Apply
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="rejectSuggestion(${suggestion.id})">
+                            <i class="bi bi-x-circle"></i> Dismiss
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    content.innerHTML = html;
+}
+
+// Get icon for suggestion type
+function getSuggestionIcon(type) {
+    const icons = {
+        'reorder_criteria': '<i class="bi bi-arrow-up-down"></i>',
+        'add_criterion': '<i class="bi bi-plus-circle"></i>',
+        'remove_criterion': '<i class="bi bi-dash-circle"></i>',
+        'modify_criterion': '<i class="bi bi-pencil"></i>'
+    };
+    return icons[type] || '<i class="bi bi-lightbulb"></i>';
+}
+
+// Apply suggestion
+async function applySuggestion(suggestionId) {
+    try {
+        const response = await fetch(`/ideas/api/suggestions/${suggestionId}/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast('Optimization applied successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('suggestionsModal')).hide();
+            // Refresh page to show changes
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Failed to apply suggestion', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to apply suggestion', 'error');
+        console.error('Apply suggestion error:', error);
+    }
+}
+
+// Reject suggestion
+async function rejectSuggestion(suggestionId) {
+    try {
+        const response = await fetch(`/ideas/api/suggestions/${suggestionId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast('Suggestion dismissed', 'info');
+            // Remove suggestion from modal
+            event.target.closest('.card').remove();
+        } else {
+            showToast(data.error || 'Failed to dismiss suggestion', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to dismiss suggestion', 'error');
+        console.error('Reject suggestion error:', error);
+    }
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1055';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toastId = 'toast-' + Date.now();
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toast = new bootstrap.Toast(document.getElementById(toastId));
+    toast.show();
+
+    document.getElementById(toastId).addEventListener('hidden.bs.toast', function () {
+        this.remove();
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    DynamicKillChecklist.init();
+});
+</script>
 {% endblock %}

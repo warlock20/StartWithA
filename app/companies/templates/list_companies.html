@@ -258,7 +258,7 @@
                             {# --- Analysis Status Badges --- #}
                             <div class="mt-2">
                                 {% if data.has_completed_checklist %}
-                                <a href="{{ url_for('research.list_research_sessions') }}"
+                                <a href="{{ url_for('research_workflow.my_projects') }}"
                                     class="badge text-decoration-none bg-primary">Checklist</a>
                                 {% endif %}
                                 {% if data.has_swot %}

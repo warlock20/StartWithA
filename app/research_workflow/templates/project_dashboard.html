@@ -61,12 +61,37 @@
     </div>
 </div>
 
+<!-- Adaptive Template Suggestions -->
+{% if project.research_subject_type == 'company' and project.company and project.company.sector %}
+<div class="card mb-4" id="adaptive-suggestions-card" style="display: none;">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">🧬 Adaptive Template Suggestions</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="closeAdaptiveSuggestions()">×</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="adaptive-suggestions-content">
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Loading adaptive suggestions...
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <!-- Current/Next steps -->
     <div class="col-lg-8">
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Workflow Steps</h5>
+                {% if project.research_subject_type == 'company' and project.company and project.company.sector %}
+                <button class="btn btn-sm btn-outline-primary" onclick="loadAdaptiveSuggestions()" id="adaptive-btn">
+                    <i class="bi bi-lightning"></i> Optimize Workflow
+                </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="list-group">
@@ -288,6 +313,293 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Adaptive Template Suggestions Functions
+    async function loadAdaptiveSuggestions() {
+        const suggestionsCard = document.getElementById('adaptive-suggestions-card');
+        const suggestionsContent = document.getElementById('adaptive-suggestions-content');
+        const adaptiveBtn = document.getElementById('adaptive-btn');
+
+        // Show the card and loading state
+        suggestionsCard.style.display = 'block';
+        adaptiveBtn.disabled = true;
+        adaptiveBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Loading...';
+
+        try {
+            const response = await fetch(`/research/workflow/api/project/{{ project.id }}/adaptive-suggestions`);
+            const result = await response.json();
+
+            if (result.success) {
+                renderAdaptiveSuggestions(result.suggestions, result.full_adaptations);
+            } else {
+                throw new Error(result.error || 'Failed to load suggestions');
+            }
+
+        } catch (error) {
+            console.error('Error loading adaptive suggestions:', error);
+            suggestionsContent.innerHTML = `
+                <div class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Failed to load suggestions: ${error.message}
+                    <br><button class="btn btn-sm btn-link p-0 mt-1" onclick="loadAdaptiveSuggestions()">Try Again</button>
+                </div>
+            `;
+        } finally {
+            adaptiveBtn.disabled = false;
+            adaptiveBtn.innerHTML = '<i class="bi bi-lightning"></i> Optimize Workflow';
+        }
+    }
+
+    function renderAdaptiveSuggestions(suggestions, fullAdaptations) {
+        const suggestionsContent = document.getElementById('adaptive-suggestions-content');
+
+        if (suggestions.sector_questions_available === 0 && suggestions.time_estimates_available === 0) {
+            suggestionsContent.innerHTML = `
+                <div class="text-muted text-center">
+                    <i class="bi bi-info-circle"></i>
+                    <p class="mb-2">No specific optimizations available yet.</p>
+                    <small>Complete a few research sessions to build your personal optimization data.</small>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        // Sector Questions Section
+        if (suggestions.sector_questions_available > 0) {
+            html += `
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="text-primary">
+                                <i class="bi bi-plus-circle"></i> Sector-Specific Questions
+                            </h6>
+                            <p class="mb-2">${suggestions.sector_questions_available} questions available for {{ project.company.sector }}</p>
+
+                            ${suggestions.recommended_injections.map(inj => `
+                                <div class="small mb-1">
+                                    <strong>${inj.step_name}:</strong> ${inj.questions_count} questions
+                                    <span class="badge bg-success">${Math.round(inj.confidence * 100)}%</span>
+                                </div>
+                            `).join('')}
+
+                            <button class="btn btn-sm btn-primary mt-2" onclick="showQuestionInjections()">
+                                Review Questions
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <h6 class="text-success">
+                                <i class="bi bi-clock"></i> Personalized Time Estimates
+                            </h6>
+                            <p class="mb-2">${suggestions.time_estimates_available} steps have personalized estimates</p>
+
+                            ${suggestions.time_insights.slice(0, 2).map(insight => `
+                                <div class="small mb-1 text-muted">• ${insight}</div>
+                            `).join('')}
+
+                            <button class="btn btn-sm btn-success mt-2" onclick="showTimeEstimates()">
+                                View Estimates
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Store full adaptations data for modals
+        window.currentAdaptations = fullAdaptations;
+
+        suggestionsContent.innerHTML = html;
+    }
+
+    function closeAdaptiveSuggestions() {
+        document.getElementById('adaptive-suggestions-card').style.display = 'none';
+    }
+
+    function showQuestionInjections() {
+        const adaptations = window.currentAdaptations;
+        if (!adaptations) return;
+
+        const suggestions = adaptations.step_injections.suggestions || [];
+
+        let modalHTML = `
+            <div class="modal fade" id="questionInjectionsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-plus-circle"></i>
+                                Sector Questions for {{ project.company.sector }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+        `;
+
+        suggestions.forEach((suggestion, index) => {
+            modalHTML += `
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="${index}" id="suggestion-${index}" checked>
+                            <label class="form-check-label" for="suggestion-${index}">
+                                <strong>${suggestion.step_name}</strong>
+                                <span class="badge bg-primary ms-2">${suggestion.questions.length} questions</span>
+                                <span class="badge bg-secondary ms-1">${Math.round(suggestion.confidence * 100)}% match</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            ${suggestion.questions.slice(0, 3).map(q => `
+                                <div class="col-12 mb-2">
+                                    <small class="text-muted">• ${q.text}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${suggestion.questions.length > 3 ? `<small class="text-muted">...and ${suggestion.questions.length - 3} more</small>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        modalHTML += `
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applySelectedInjections()">
+                                Apply Selected Questions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if present
+        const existingModal = document.getElementById('questionInjectionsModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = new bootstrap.Modal(document.getElementById('questionInjectionsModal'));
+        modal.show();
+    }
+
+    function showTimeEstimates() {
+        const adaptations = window.currentAdaptations;
+        if (!adaptations) return;
+
+        const estimates = adaptations.time_estimates.estimates || [];
+
+        let modalHTML = `
+            <div class="modal fade" id="timeEstimatesModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-clock"></i>
+                                Personalized Time Estimates
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Step</th>
+                                            <th>Estimated Time</th>
+                                            <th>Based on Sessions</th>
+                                            <th>Confidence</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+        `;
+
+        estimates.forEach(est => {
+            const confidenceColor = est.confidence > 0.7 ? 'success' : est.confidence > 0.3 ? 'warning' : 'secondary';
+            modalHTML += `
+                <tr>
+                    <td>${est.step_name}</td>
+                    <td>${est.estimated_minutes} min</td>
+                    <td>${est.sessions_count} sessions</td>
+                    <td><span class="badge bg-${confidenceColor}">${Math.round(est.confidence * 100)}%</span></td>
+                </tr>
+            `;
+        });
+
+        modalHTML += `
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h6 class="mt-3">Insights:</h6>
+                            <ul class="list-unstyled">
+                                ${adaptations.time_estimates.insights.map(insight => `
+                                    <li class="small text-muted mb-1">• ${insight}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if present
+        const existingModal = document.getElementById('timeEstimatesModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = new bootstrap.Modal(document.getElementById('timeEstimatesModal'));
+        modal.show();
+    }
+
+    async function applySelectedInjections() {
+        const checkboxes = document.querySelectorAll('#questionInjectionsModal input[type="checkbox"]:checked');
+        const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (selectedIndices.length === 0) {
+            alert('Please select at least one question set to apply.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/research-workflow/api/template/{{ project.template.id }}/apply-adaptations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    step_injections: {
+                        apply: true,
+                        suggestions: window.currentAdaptations.step_injections.suggestions,
+                        selected_indices: selectedIndices
+                    }
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Questions applied successfully! Refresh the page to see the updated workflow.');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('questionInjectionsModal'));
+                modal.hide();
+                closeAdaptiveSuggestions();
+            } else {
+                throw new Error(result.error || 'Failed to apply questions');
+            }
+
+        } catch (error) {
+            console.error('Error applying injections:', error);
+            alert('Failed to apply questions: ' + error.message);
+        }
+    }
+
     function showNotes(stepIndex) {
         const notesDiv = document.getElementById(`notes-${stepIndex}`);
         if (notesDiv.style.display === 'none') {

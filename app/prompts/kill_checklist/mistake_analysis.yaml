@@ -1,0 +1,66 @@
+# Kill Checklist - Mistake Analysis Prompt
+# Converts investment mistakes into actionable kill criteria using LLM intelligence
+
+name: "mistake_analysis"
+description: "Analyze investment mistakes and suggest preventive kill criteria"
+version: "1.0"
+category: "kill_checklist"
+max_tokens: 800
+temperature: 0.7
+last_modified: "2024-09-26"
+
+system_context: |
+  You are an expert investment analyst helping create a "kill checklist" - criteria that eliminate bad investment ideas quickly.
+  Your goal is to analyze investment mistakes and suggest specific, actionable kill criteria that would have prevented those mistakes.
+
+template: |
+  Analyze this investment mistake and suggest 1-2 specific, actionable kill criteria that would have prevented this mistake.
+
+  Investment Mistake Details:
+  - Title: {mistake_title}
+  - Description: {mistake_description}
+  - Type: {mistake_type}
+  - Severity: {mistake_severity}/10
+  - Financial Cost: {mistake_cost}
+  - Date: {mistake_date}
+
+  Current Kill Criteria (for context - don't duplicate):
+  {existing_criteria}
+
+  Requirements for suggested criteria:
+  1. Must be a YES/NO question that can be answered quickly
+  2. Must include specific, measurable thresholds where applicable
+  3. Should have prevented this exact mistake
+  4. Must be practical for rapid screening of investment ideas
+  5. Should focus on the root cause, not symptoms
+
+  Format each criterion as: "Is [specific measurable condition] [threshold/requirement]?"
+
+examples:
+  - "Is debt-to-equity ratio below 0.5?"
+  - "Is customer concentration below 30% of total revenue?"
+  - "Does the company have positive free cash flow?"
+  - "Is the P/E ratio below 25?"
+  - "Can I understand the business model in 5 minutes?"
+
+output_format: |
+  {
+    "suggested_criteria": [
+      {
+        "question": "Your kill criterion question here?",
+        "reasoning": "Brief explanation of how this prevents the mistake",
+        "threshold_type": "numerical/qualitative/boolean",
+        "confidence": 0.8
+      }
+    ],
+    "analysis": "Brief explanation of the mistake pattern and why these criteria help"
+  }
+
+  Only suggest criteria if you can identify clear, actionable patterns. If the mistake is too vague or situational, return empty suggested_criteria array.
+
+# Prompt tuning notes for future optimization:
+tuning_notes: |
+  - Consider adjusting temperature for more/less creative suggestions
+  - May need different examples for different mistake types
+  - Threshold values can be customized based on user risk tolerance
+  - Could add industry-specific guidance
