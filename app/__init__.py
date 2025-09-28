@@ -57,6 +57,14 @@ def create_app(config_class=Config):
     from app.onboarding import onboarding_bp
     app.register_blueprint(onboarding_bp)
 
+    # Add custom template filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to HTML line breaks"""
+        if text is None:
+            return ''
+        return text.replace('\n', '<br>\n')
+
     # This makes the get_review_queue function available in all templates.
     from app.journal_enhanced.utils import get_review_queue
 
