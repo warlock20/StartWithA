@@ -12,13 +12,13 @@ visual hierarchy and interactive elements.
    ============================================================================= */
 
 :root {
-    /* Modern Professional Color Palette */
-    --primary-600: #2563eb;      /* Modern blue - main brand */
-    --primary-700: #1d4ed8;      /* Darker blue for hover states */
+    /* Professional Investment Platform Color Palette */
+    --primary-600: #1e40af;      /* Deep navy - main brand */
+    --primary-700: #1d4ed8;      /* Navy hover state */
     --primary-50: #eff6ff;       /* Very light blue for backgrounds */
     --primary-100: #dbeafe;      /* Light blue for subtle highlights */
-    
-    /* Secondary Colors */
+
+    /* Refined Secondary Colors */
     --gray-50: #f9fafb;          /* Lightest gray backgrounds */
     --gray-100: #f3f4f6;         /* Light gray for cards */
     --gray-200: #e5e7eb;         /* Borders and dividers */
@@ -29,28 +29,37 @@ visual hierarchy and interactive elements.
     --gray-700: #374151;         /* Dark text */
     --gray-800: #1f2937;         /* Headings */
     --gray-900: #111827;         /* Darkest text */
-    
-    /* Semantic Colors */
-    --success-500: #10b981;      /* Success green */
-    --success-600: #059669;      /* Success green hover */
-    --success-50: #ecfdf5;       /* Success background */
-    
-    --warning-500: #f59e0b;      /* Warning amber */
-    --warning-600: #d97706;      /* Warning amber hover */
-    --warning-50: #fffbeb;       /* Warning background */
-    
+
+    /* Sophisticated Semantic Colors */
+    --success-500: #14b8a6;      /* Sage teal - systematic wisdom */
+    --success-600: #0f766e;      /* Sage teal hover */
+    --success-50: #f0fdf4;       /* Success background */
+
+    --warning-500: #f59e0b;      /* Warm amber - thoughtful caution */
+    --warning-600: #d97706;      /* Warm amber hover */
+    --warning-50: #fef3c7;       /* Warning background */
+
     --danger-500: #ef4444;       /* Error red */
     --danger-600: #dc2626;       /* Error red hover */
     --danger-50: #fef2f2;        /* Error background */
-    
-    --info-500: #3b82f6;         /* Info blue */
-    --info-600: #2563eb;         /* Info blue hover */
+
+    --info-500: #6366f1;         /* Soft periwinkle - calm analysis */
+    --info-600: #4f46e5;         /* Periwinkle hover */
     --info-50: #eff6ff;          /* Info background */
+
+    /* Additional Platform Colors */
+    --sage-teal: #0f766e;        /* Primary sage teal for wisdom themes */
+    --sage-teal-light: #14b8a6;  /* Lighter sage teal */
+    --warm-amber: #d97706;       /* Primary warm amber for attention themes */
+    --warm-amber-light: #f59e0b; /* Lighter warm amber */
+    --accent-color: #6366f1;     /* Periwinkle accent */
+    --charcoal: #374151;         /* Primary charcoal text */
+    --warm-stone: #6b7280;       /* Warm stone for secondary text */
     
     /* Text Colors */
-    --text-primary: var(--gray-900);
+    --text-primary: var(--gray-700);    /* Charcoal - approachable professionalism */
     --text-secondary: var(--gray-600);
-    --text-muted: var(--gray-400);
+    --text-muted: var(--gray-500);      /* Warm stone for better readability */
     --text-white: #ffffff;
     
     /* Background Colors */
