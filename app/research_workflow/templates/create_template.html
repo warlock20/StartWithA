@@ -265,7 +265,8 @@ function updateStepConfig(stepIndex, stepType) {
     } else if (stepType === 'model') {
         configHtml = `
             <label class="form-label">Mental Model:</label>
-            <select class="form-select" name="step_${stepIndex}_model_type">
+            <select class="form-select" name="step_${stepIndex}_model_type" required>
+                <option value="">-- Choose mental model --</option>
                 ${mentalModels.map(m => `<option value="${m}">${m}</option>`).join('')}
             </select>
         `;

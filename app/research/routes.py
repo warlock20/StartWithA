@@ -124,7 +124,7 @@ def research_step(session_id, item_id):
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # Basic security check: ensure the item belongs to the session's checklist
     if current_item.checklist_id != session.checklist_id:
@@ -434,7 +434,7 @@ def view_checklist_session_summary(session_id):
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
     
     # Handle POST request for updating the session's conclusion
     if request.method == 'POST':
@@ -498,7 +498,7 @@ def export_session_to_txt(session_id):
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)

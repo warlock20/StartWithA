@@ -65,6 +65,21 @@ def create_app(config_class=Config):
             return ''
         return text.replace('\n', '<br>\n')
 
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        """Convert markdown-like formatting to HTML"""
+        if text is None:
+            return ''
+
+        # Convert markdown bold (**text**) to HTML bold
+        import re
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+
+        # Convert newlines to HTML line breaks
+        text = text.replace('\n', '<br>\n')
+
+        return text
+
     # This makes the get_review_queue function available in all templates.
     from app.journal_enhanced.utils import get_review_queue
 

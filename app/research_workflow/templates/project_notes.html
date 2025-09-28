@@ -10,7 +10,9 @@
     </div>
     <div>
         <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-            class="btn btn-secondary">← Back to Project</a>
+            class="btn btn-platform-outline">
+            <i class="bi bi-arrow-left"></i> Back to Project
+        </a>
     </div>
 </div>
 <div class="container-fluid">
@@ -38,7 +40,7 @@
                             </div>
                             {% else %}
                             <div class="research-notes">
-                                {{ note.notes|safe|nl2br }}
+                                {{ note.notes|markdown|safe }}
                             </div>
                             {% endif %}
                         </div>
@@ -82,13 +84,19 @@
                             <div class="d-grid gap-2">
                                 {% if project.company_id %}
                                 <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
-                                    class="btn btn-outline-primary btn-sm">View Company</a>
+                                    class="btn btn-platform-outline-primary btn-platform-sm">
+                                    <i class="bi bi-building"></i> View Company
+                                </a>
                                 <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
-                                    class="btn btn-outline-secondary btn-sm">Research Journal</a>
+                                    class="btn btn-platform-outline-secondary btn-platform-sm">
+                                    <i class="bi bi-journal-text"></i> Research Journal
+                                </a>
                                 {% endif %}
                                 {% if project.progress_percentage == 100 %}
                                 <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
-                                    class="btn btn-success btn-sm">View Summary</a>
+                                    class="btn btn-platform-complete btn-platform-sm">
+                                    <i class="bi bi-check-circle"></i> View Summary
+                                </a>
                                 {% endif %}
                             </div>
                         </div>
@@ -102,7 +110,9 @@
                     <h4>No Research Notes</h4>
                     <p>This project doesn't have any research notes yet.</p>
                     <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                        class="btn btn-primary">Continue Research</a>
+                        class="btn btn-platform-primary btn-platform-lg">
+                        <i class="bi bi-arrow-right"></i> Continue Research
+                    </a>
                 </div>
             </div>
             {% endif %}

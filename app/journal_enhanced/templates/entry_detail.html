@@ -47,7 +47,7 @@
         <div class="card mb-4">
             <div class="card-body">
                 <div class="entry-content">
-                    {{ entry.content|replace('\n', '<br>')|safe }}
+                    {{ entry.content|markdown|safe }}
                 </div>
 
                 {% if entry.key_insight %}

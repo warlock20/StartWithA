@@ -153,7 +153,9 @@
                             <div>
                                 {% if is_current %}
                                 <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
-                                    class="btn btn-primary" id="start-step-btn">Start Step</a>
+                                    class="btn btn-platform-primary btn-platform-lg" id="start-step-btn">
+                                    <i class="bi bi-play"></i> Start Step
+                                </a>
                                 {% elif is_completed %}
                                 <button class="btn btn-sm btn-outline-secondary"
                                     onclick="showNotes('{{ step_index }}')">View Notes</button>
@@ -166,7 +168,7 @@
                         <div id="notes-{{ step_index }}" class="mt-3 p-3 bg-light rounded" style="display: none;">
                             <strong>Notes:</strong><br>
                             {% if project.step_notes and project.step_notes[step_index|string] %}
-                            {{ project.step_notes[step_index|string]|replace('\n', '<br>')|safe }}
+                            {{ project.step_notes[step_index|string]|markdown|safe }}
                             {% else %}
                             <em class="text-muted">No notes available for this step. This may be because:</em>
                             <ul class="text-muted mt-2">
@@ -244,7 +246,7 @@
                 <div class="d-grid gap-2">
                     {% if project.company_id %}
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
-                        class="btn btn-outline-primary">View Company Docs</a>
+                        class="btn btn-outline-secondary">View Company Docs</a>
 
                     <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
                         class="btn btn-outline-secondary">Research Journal</a>
@@ -260,13 +262,13 @@
                     <!-- View Research Notes -->
                     {% if project.step_notes %}
                     <a href="{{ url_for('research_workflow.view_project_notes', project_id=project.id) }}"
-                        class="btn btn-outline-info">📝 View Notes</a>
+                        class="btn btn-outline-secondary">📝 View Notes</a>
                     {% endif %}
 
                     <!-- View Completed Checklist Analysis -->
                     {% if latest_research_session %}
                     <a href="{{ url_for('research.view_checklist_session_summary', session_id=latest_research_session.id) }}"
-                        class="btn btn-outline-warning">📋 Checklist Analysis</a>
+                        class="btn btn-outline-secondary">📋 Checklist Analysis</a>
                     {% endif %}
 
                     {% if project.progress_percentage == 100 %}

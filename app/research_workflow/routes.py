@@ -336,12 +336,7 @@ def create_template():
     
     mental_models = [
         'SWOT Analysis',
-        'Porter\'s Five Forces',
-        'Moat Analysis',
-        'Management Quality Assessment',
-        'Unit Economics',
-        'TAM Analysis',
-        'Risk Assessment'
+        'Porter\'s Five Forces'
     ]
     
     return render_template('create_template.html',
@@ -1155,12 +1150,7 @@ def edit_template(template_id):
     
     mental_models = [
         'SWOT Analysis',
-        'Porter\'s Five Forces',
-        'Moat Analysis',
-        'Management Quality Assessment',
-        'Unit Economics',
-        'TAM Analysis',
-        'Risk Assessment'
+        'Porter\'s Five Forces'
     ]
     
     return render_template('edit_template.html',

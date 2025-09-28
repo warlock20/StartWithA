@@ -199,10 +199,12 @@ function updateStepConfig(stepIndex, stepType, existingConfig = {}) {
             </div>
         `;
     } else if (stepType === 'model') {
+        const selectedModelType = existingConfig.model_type || '';
         configHtml = `
             <label class="form-label">Mental Model:</label>
-            <select class="form-select" name="step_${stepIndex}_model_type">
-                ${mentalModels.map(m => `<option value="${m}">${m}</option>`).join('')}
+            <select class="form-select" name="step_${stepIndex}_model_type" required>
+                <option value="">-- Choose mental model --</option>
+                ${mentalModels.map(m => `<option value="${m}" ${m === selectedModelType ? 'selected' : ''}>${m}</option>`).join('')}
             </select>
         `;
     }

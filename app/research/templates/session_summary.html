@@ -130,7 +130,7 @@
                                 <div class="answer-content">
                                     {% if current_ans_obj and current_ans_obj.answer_text %}
                                     <div class="answer-text">
-                                        {{ current_ans_obj.answer_text|replace('\n', '<br>')|safe }}
+                                        {{ current_ans_obj.answer_text|markdown|safe }}
                                     </div>
                                     {% else %}
                                     <div class="no-answer">
@@ -174,7 +174,7 @@
             <div class="card-body">
                 {% if session.conclusion %}
                 <div class="conclusion-display">
-                    {{ session.conclusion|replace('\n', '<br>')|safe }}
+                    {{ session.conclusion|markdown|safe }}
                 </div>
                 <hr>
                 {% else %}
