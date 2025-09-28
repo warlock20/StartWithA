@@ -2,79 +2,139 @@
 
 {% block content %}
     <!-- Hero Section -->
-    <section class="bg-white py-5">
+    <section class="hero-section">
         <div class="container">
-            <div class="row min-vh-50 align-items-center">
-                <div class="col-lg-10 mx-auto text-center">
-                    <div class="mb-3">
-                        <span class="text-muted fs-6">Intelligent Investment Platform</span>
-                    </div>
-                    <h1 class="display-4 fw-bold text-dark mb-4">
-                        Build Your Personal Investment Framework
+            <div class="row min-vh-75 align-items-center">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="hero-title">
+                        Stop drowning in data.<br>
+                        <span class="text-primary">Start building wisdom.</span>
                     </h1>
-                    <p class="lead mb-3 text-dark">
-                        <strong>Every great investor needs their own systematic approach.</strong>
+                    <p class="hero-subtitle">
+                        An intelligent investment platform for serious researchers who want to develop their own systematic approach to analyzing opportunities.
                     </p>
-                    <p class="fs-5 text-muted mb-4" style="max-width: 650px; margin: 0 auto;">
-                        Transform proven mental models into personalized, actionable checklists. 
-                        <strong>AI-powered research assistance</strong> helps you analyze companies faster and more thoroughly.
-                    </p>
-                    
-                    <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg px-4 py-2">
-                            Start Building Your Checklist
+                    <div class="hero-cta">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                            Start Your Research Journey
                         </a>
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-dark btn-lg px-4 py-2">
-                            Login
-                        </a>
+                        <div class="mt-3">
+                            <small class="text-muted">Free to start • No credit card required</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Munger Quote Section -->
-    <section class="bg-light py-5 border-top border-bottom">
+    <!-- Problem & Solution Section -->
+    <section class="problem-solution-section">
         <div class="container">
             <div class="row">
-                <div class="col-lg-10 mx-auto text-center">
-                    <blockquote class="blockquote mb-0">
-                        <p class="h3 fw-normal mb-4 text-dark" style="font-style: italic; line-height: 1.6;">
+                <div class="col-lg-10 mx-auto">
+                    <!-- Problem -->
+                    <div class="content-block problem-block">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h2>The Problem</h2>
+                                <p class="lead">
+                                    Today's investors face information overload, emotional biases, and lack of consistent research processes.
+                                </p>
+                                <p>
+                                    This leads to haphazard decisions, repeated mistakes, and missed opportunities. You need a framework that helps you <strong>improve how you think</strong>, not just what to buy.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="visual-element problem-visual rounded-3 p-5 text-center">
+                                    <div class="problem-icon mb-3">📊</div>
+                                    <p class="text-muted mb-0">Information overload without systematic processing</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Solution -->
+                    <div class="content-block solution-block">
+                        <div class="row align-items-center">
+                            <div class="col-md-6 order-md-2">
+                                <h2>Our Solution</h2>
+                                <p class="lead">
+                                    Build your personalized, AI-assisted research workflow that enforces discipline and accelerates decision-making.
+                                </p>
+                                <p>
+                                    Inspired by Charlie Munger's wisdom, our platform helps you develop, refine, and execute your own unique systematic research process.
+                                </p>
+                            </div>
+                            <div class="col-md-6 order-md-1">
+                                <div class="visual-element solution-visual rounded-3 p-5 text-center">
+                                    <div class="solution-icon mb-3">📊</div>
+                                    <p class="mb-0 text-white">Systematic wisdom through structured thinking</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Munger Quote -->
+    <section class="quote-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <blockquote class="quote-large">
+                        <p>
                             "It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."
                         </p>
-                        <footer class="blockquote-footer fs-5">
-                            <strong>Charlie Munger</strong>, Berkshire Hathaway Vice Chairman
+                        <footer>
+                            <strong>Charlie Munger</strong><br>
+                            <small>Berkshire Hathaway Vice Chairman</small>
                         </footer>
                     </blockquote>
                 </div>
             </div>
         </div>
     </section>
-
-    <!-- Philosophy Section -->
-    <section class="py-5 bg-white">
+    <!-- How It Works -->
+    <section class="how-it-works-section">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
                     <div class="text-center mb-5">
-                        <h2 class="h1 text-dark mb-4">The Core Philosophy</h2>
-                        <p class="lead text-muted mb-4" style="max-width: 700px; margin: 0 auto;">
-                            This platform helps you create and refine your <strong>personal investment checklist</strong> - a living document that captures your investment principles, lessons learned, and systematic approach to evaluating opportunities.
-                        </p>
+                        <h2 class="section-title">How It Works</h2>
+                        <p class="section-subtitle">A systematic approach to investment research</p>
                     </div>
-                    
-                    <div class="row justify-content-center">
-                        <div class="col-md-8">
-                            <div class="card border shadow-sm">
-                                <div class="card-body p-4 text-center">
-                                    <h3 class="h4 text-dark mb-3">Why Personal Checklists Matter</h3>
-                                    <p class="text-muted mb-4">
-                                        Just as pilots use checklists to avoid catastrophic mistakes, successful investors use systematic approaches to stay disciplined and avoid costly errors.
-                                    </p>
-                                    <a href="{{ url_for('main.mental_models') }}" class="btn btn-outline-dark">
-                                        Explore Our Mental Models →
-                                    </a>
-                                </div>
+
+                    <div class="workflow-steps">
+                        <div class="workflow-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>Capture Ideas</h4>
+                                <p>Log any investment opportunity that catches your attention—from stock tips to market trends.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>Apply Kill Checklist</h4>
+                                <p>Quickly eliminate bad ideas using your personalized deal-breaker criteria before investing time in research.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>Systematic Research</h4>
+                                <p>Follow your custom research template with AI assistance to analyze the opportunity thoroughly.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>Learn & Improve</h4>
+                                <p>Document your process, track outcomes, and refine your approach based on what works.</p>
                             </div>
                         </div>
                     </div>
@@ -83,49 +143,43 @@
         </div>
     </section>
 
-    <!-- AI Research Feature -->
-    <section class="py-5 bg-light border-top">
+    <!-- Core Capabilities -->
+    <section class="capabilities-section">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10 text-center">
-                    <h2 class="h1 text-dark mb-4">AI-Powered Research Assistant</h2>
-                    <p class="lead text-muted mb-5">
-                        Speed up your investment research with advanced AI models that analyze companies, 
-                        extract insights, and help you make better decisions faster.
-                    </p>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Annual Report Parsing</h5>
-                                    <p class="text-muted mb-0">Advanced LLM models extract key insights from 10-K and 10-Q filings, highlighting critical financial metrics and management discussions</p>
-                                </div>
-                            </div>
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <div class="text-center mb-5">
+                        <h2 class="section-title">Your Research Toolkit</h2>
+                        <p class="section-subtitle">Four integrated systems for disciplined investment research</p>
+                    </div>
+
+                    <div class="capabilities-grid">
+                        <!-- Idea Pipeline -->
+                        <div class="capability-card">
+                            <div class="capability-icon">💡</div>
+                            <h3>Idea Pipeline</h3>
+                            <p>Capture investment ideas instantly, then ruthlessly filter using your personalized "Kill Checklist" to save your most valuable asset: time.</p>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Checklist Evaluation</h5>
-                                    <p class="text-muted mb-0">AI evaluates companies against your custom checklists, providing systematic scoring and highlighting areas requiring attention</p>
-                                </div>
-                            </div>
+
+                        <!-- Research Templates -->
+                        <div class="capability-card">
+                            <div class="capability-icon">📋</div>
+                            <h3>Research Templates</h3>
+                            <p>Design reusable workflows that reflect your investment style. Follow structured processes that ensure you never miss critical due diligence.</p>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Market Research</h5>
-                                    <p class="text-muted mb-0">Automated industry trend analysis, news synthesis, and competitive landscape mapping from multiple data sources</p>
-                                </div>
-                            </div>
+
+                        <!-- AI Assistant -->
+                        <div class="capability-card">
+                            <div class="capability-icon">🤖</div>
+                            <h3>AI Research Assistant</h3>
+                            <p>Analyze financial documents, earnings transcripts, and news in seconds. Get insights and answers to pressing questions without losing your systematic approach.</p>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Risk Assessment</h5>
-                                    <p class="text-muted mb-0">Systematic identification of potential risks and red flags across financial statements and market data</p>
-                                </div>
-                            </div>
+
+                        <!-- Learning Loop -->
+                        <div class="capability-card">
+                            <div class="capability-icon">📈</div>
+                            <h3>Continuous Learning</h3>
+                            <p>Track thesis evolution, document mistakes systematically, and analyze your decision patterns to continuously improve your research process.</p>
                         </div>
                     </div>
                 </div>
@@ -133,112 +187,23 @@
         </div>
     </section>
 
-    <!-- Tools Section -->
-    <section class="py-5 bg-white">
+
+    <!-- Final CTA -->
+    <section class="final-cta-section">
         <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="h1 text-dark mb-3">Your Investment Toolkit</h2>
-                <p class="lead text-muted">Four systematic tools for disciplined investing</p>
-            </div>
-
-            <div class="row g-4">
-                <!-- Tool 1: Personal Checklist -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Personal Investment Checklist</h4>
-                            <small class="text-muted">Your core systematic approach</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Create personalized checklists that evolve with your experience, capturing hard-won lessons and preventing repeated mistakes.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Build Your Checklist →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 2: Strategic Analysis -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Strategic Frameworks</h4>
-                            <small class="text-muted">SWOT & Porter's Five Forces</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Analyze companies using proven business strategy frameworks to understand competitive positioning and strategic advantages.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Analyze Companies →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 3: Long-term Monitoring -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Destination Analysis</h4>
-                            <small class="text-muted">Long-term thesis tracking</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Set multi-year checkpoints for your investment thesis, focusing on enduring competitive advantages rather than quarterly results.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Set Checkpoints →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 4: Learning System -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Learning System</h4>
-                            <small class="text-muted">Scuttlebutt & Mistake Log</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Continuously improve through structured learning from market research and systematic capture of investment mistakes.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Start Learning →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Call to Action Section -->
-    <section class="py-5 bg-dark text-white">
-        <div class="container text-center">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <h2 class="h1 fw-bold mb-4">Ready to Build Your Investment System?</h2>
+            <div class="row">
+                <div class="col-lg-6 mx-auto text-center">
+                    <h2>Ready to Transform Your Research?</h2>
                     <p class="lead mb-4">
-                        Every successful investor has a systematic approach. Yours should be unique to your experience, lessons, and investment philosophy.
+                        Join serious investors who are building systematic approaches to research and decision-making.
                     </p>
-                    
-                    <div class="row mt-5">
-                        <div class="col-md-6 mx-auto">
-                            <div class="card border-0">
-                                <div class="card-body p-4">
-                                    <h4 class="text-dark mb-3">Start Your Journey</h4>
-                                    <p class="text-muted mb-4">
-                                        Begin with proven mental models, then customize based on your experience. Your system improves with every decision.
-                                    </p>
-                                    
-                                    <div class="d-grid gap-2">
-                                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg">
-                                            Create My First Checklist
-                                        </a>
-                                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark btn-lg">
-                                            Start with an Idea
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mb-3">
+                        Start Building Your System
+                    </a>
+                    <div>
+                        <small class="text-muted">
+                            Already have an account? <a href="{{ url_for('auth.login') }}" class="text-decoration-none">Sign in</a>
+                        </small>
                     </div>
                 </div>
             </div>
@@ -247,16 +212,273 @@
 
     <!-- Custom Styles -->
     <style>
-        .min-vh-50 {
-            min-height: 50vh;
+        :root {
+            --primary-color: #1e3a35;
+            --primary-hover: #152e2a;
+            --accent-color: #2d5a52;
+            --text-dark: #1a1a1a;
+            --text-muted: #64748b;
+            --bg-light: #f8fafb;
+            --bg-darker: #f1f5f4;
         }
-        
-        .card {
-            transition: transform 0.2s ease-in-out;
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
         }
-        
-        .card:hover {
-            transform: translateY(-2px);
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .text-primary {
+            color: var(--primary-color) !important;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-darker) 100%);
+            padding: 4rem 0;
+        }
+
+        .min-vh-75 {
+            min-height: 75vh;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .hero-cta {
+            margin-top: 2rem;
+        }
+
+        /* Problem & Solution Section */
+        .problem-solution-section {
+            padding: 5rem 0;
+        }
+
+        .content-block {
+            margin-bottom: 4rem;
+        }
+
+        .content-block h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        .content-block .lead {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .visual-element {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .problem-visual {
+            background-color: var(--bg-darker);
+            border: 2px dashed #cbd5e1;
+        }
+
+        .problem-icon {
+            font-size: 3rem;
+            opacity: 0.6;
+            filter: grayscale(0.3);
+        }
+
+        .solution-visual {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            border: 1px solid rgba(46, 90, 82, 0.2);
+        }
+
+        .solution-icon {
+            font-size: 3rem;
+            opacity: 0.9;
+        }
+
+        /* Quote Section */
+        .quote-section {
+            background-color: var(--bg-light);
+            padding: 4rem 0;
+        }
+
+        .quote-large p {
+            font-size: 1.5rem;
+            font-style: italic;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .quote-large footer {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Capabilities Section */
+        .capabilities-section {
+            padding: 5rem 0;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.125rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+        }
+
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .capability-card {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .capability-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .capability-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .capability-card p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* How It Works Section */
+        .how-it-works-section {
+            background-color: var(--bg-light);
+            padding: 5rem 0;
+        }
+
+        .workflow-steps {
+            margin-top: 3rem;
+        }
+
+        .workflow-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 2.5rem;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.125rem;
+            margin-right: 1.5rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(30, 58, 53, 0.15);
+        }
+
+        .step-content h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        /* Final CTA Section */
+        .final-cta-section {
+            padding: 5rem 0;
+        }
+
+        .final-cta-section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.125rem;
+            }
+
+            .content-block h2 {
+                font-size: 2rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .quote-large p {
+                font-size: 1.25rem;
+            }
+
+            .capabilities-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .workflow-step {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .step-number {
+                margin-right: 0;
+                margin-bottom: 1rem;
+            }
         }
     </style>
 
