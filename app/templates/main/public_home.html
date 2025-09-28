@@ -1,10 +1,28 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <div class="container">
-            <div class="row min-vh-75 align-items-center">
+    <!-- Page Navigation -->
+    <nav class="page-nav">
+        <div class="nav-dots">
+            <a href="#hero" class="nav-dot active" data-section="hero"></a>
+            <a href="#problem-solution" class="nav-dot" data-section="problem-solution"></a>
+            <a href="#how-it-works" class="nav-dot" data-section="how-it-works"></a>
+            <a href="#capabilities" class="nav-dot" data-section="capabilities"></a>
+            <a href="#cta" class="nav-dot" data-section="cta"></a>
+        </div>
+    </nav>
+
+    <!-- Scroll Down Arrow -->
+    <div class="scroll-indicator">
+        <div class="scroll-arrow">
+            <i class="bi bi-chevron-down"></i>
+        </div>
+    </div>
+
+    <!-- Hero Section with Munger Quote -->
+    <section id="hero" class="hero-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
                 <div class="col-lg-8 mx-auto text-center">
                     <h1 class="hero-title">
                         Stop drowning in data.<br>
@@ -13,8 +31,21 @@
                     <p class="hero-subtitle">
                         An intelligent investment platform for serious researchers who want to develop their own systematic approach to analyzing opportunities.
                     </p>
+
+                    <!-- Munger Quote Integration -->
+                    <div class="munger-quote-hero">
+                        <blockquote class="quote-hero">
+                            <p>
+                                "It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."
+                            </p>
+                            <footer>
+                                <strong>Charlie Munger</strong>
+                            </footer>
+                        </blockquote>
+                    </div>
+
                     <div class="hero-cta">
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg">
                             Start Your Research Journey
                         </a>
                         <div class="mt-3">
@@ -27,47 +58,132 @@
     </section>
 
     <!-- Problem & Solution Section -->
-    <section class="problem-solution-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-10 mx-auto">
-                    <!-- Problem -->
-                    <div class="content-block problem-block">
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <h2>The Problem</h2>
-                                <p class="lead">
-                                    Today's investors face information overload, emotional biases, and lack of consistent research processes.
-                                </p>
-                                <p>
-                                    This leads to haphazard decisions, repeated mistakes, and missed opportunities. You need a framework that helps you <strong>improve how you think</strong>, not just what to buy.
-                                </p>
+    <section id="problem-solution" class="problem-solution-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-12 mx-auto">
+                    <div class="section-header text-center mb-5">
+                        <h2 class="section-title">Why Most Investment Research Fails</h2>
+                        <p class="section-subtitle">And how systematic thinking changes everything</p>
+                    </div>
+
+                    <div class="problem-solution-container">
+                        <!-- The Problem Side -->
+                        <div class="problem-side">
+                            <div class="problem-content">
+                                <div class="problem-badge">
+                                    <span class="badge-text">The Reality</span>
+                                </div>
+                                <h3>You're Smart, But Your Process Isn't</h3>
+                                <div class="problem-list">
+                                    <div class="problem-item">
+                                        <div class="problem-icon">⚡</div>
+                                        <div class="problem-text">
+                                            <strong>FOMO-driven decisions</strong><br>
+                                            <span class="text-muted">You hear a hot tip and scramble to research it in hours, not days</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">🌊</div>
+                                        <div class="problem-text">
+                                            <strong>Information tsunami</strong><br>
+                                            <span class="text-muted">Drowning in earnings calls, news, and analysis with no filter</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">🎯</div>
+                                        <div class="problem-text">
+                                            <strong>Inconsistent criteria</strong><br>
+                                            <span class="text-muted">What excited you about Tesla doesn't apply to your bank stock analysis</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">😔</div>
+                                        <div class="problem-text">
+                                            <strong>Repeating mistakes</strong><br>
+                                            <span class="text-muted">No system to learn from past decisions or failed investments</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="visual-element problem-visual rounded-3 p-5 text-center">
-                                    <div class="problem-icon mb-3">📊</div>
-                                    <p class="text-muted mb-0">Information overload without systematic processing</p>
+                            <div class="problem-visual">
+                                <div class="chaos-visualization">
+                                    <div class="chaos-elements">
+                                        <div class="chaos-item">📰</div>
+                                        <div class="chaos-item">📊</div>
+                                        <div class="chaos-item">💹</div>
+                                        <div class="chaos-item">🤔</div>
+                                        <div class="chaos-item">😰</div>
+                                        <div class="chaos-item">📱</div>
+                                    </div>
+                                    <div class="chaos-overlay">
+                                        <p class="chaos-text">Mental chaos leads to bad decisions</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Solution -->
-                    <div class="content-block solution-block">
-                        <div class="row align-items-center">
-                            <div class="col-md-6 order-md-2">
-                                <h2>Our Solution</h2>
-                                <p class="lead">
-                                    Build your personalized, AI-assisted research workflow that enforces discipline and accelerates decision-making.
-                                </p>
-                                <p>
-                                    Inspired by Charlie Munger's wisdom, our platform helps you develop, refine, and execute your own unique systematic research process.
-                                </p>
+                        <!-- Transformation Arrow -->
+                        <div class="transformation-arrow">
+                            <div class="arrow-container">
+                                <div class="arrow-line"></div>
+                                <div class="arrow-head">→</div>
+                                <div class="arrow-text">Transform</div>
                             </div>
-                            <div class="col-md-6 order-md-1">
-                                <div class="visual-element solution-visual rounded-3 p-5 text-center">
-                                    <div class="solution-icon mb-3">📊</div>
-                                    <p class="mb-0 text-white">Systematic wisdom through structured thinking</p>
+                        </div>
+
+                        <!-- The Solution Side -->
+                        <div class="solution-side">
+                            <div class="solution-content">
+                                <div class="solution-badge">
+                                    <span class="badge-text">The Solution</span>
+                                </div>
+                                <h3>Systematic Thinking + AI Acceleration</h3>
+                                <div class="solution-list">
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🛡️</div>
+                                        <div class="solution-text">
+                                            <strong>Kill Checklist first</strong><br>
+                                            <span class="text-muted">Eliminate bad ideas in minutes, not hours of research</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🎯</div>
+                                        <div class="solution-text">
+                                            <strong>Consistent methodology</strong><br>
+                                            <span class="text-muted">Same rigorous approach whether analyzing tech or utilities</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🤖</div>
+                                        <div class="solution-text">
+                                            <strong>AI research assistant</strong><br>
+                                            <span class="text-muted">Parse 10-Ks and earnings calls in seconds, not weekends</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">📈</div>
+                                        <div class="solution-text">
+                                            <strong>Continuous improvement</strong><br>
+                                            <span class="text-muted">Track what works, eliminate what doesn't, compound wisdom</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="solution-visual">
+                                <div class="order-visualization">
+                                    <div class="systematic-flow">
+                                        <div class="flow-step">1</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">2</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">3</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">✓</div>
+                                    </div>
+                                    <div class="order-overlay">
+                                        <p class="order-text">Systematic process leads to better outcomes</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -77,28 +193,10 @@
         </div>
     </section>
 
-    <!-- Munger Quote -->
-    <section class="quote-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center">
-                    <blockquote class="quote-large">
-                        <p>
-                            "It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."
-                        </p>
-                        <footer>
-                            <strong>Charlie Munger</strong><br>
-                            <small>Berkshire Hathaway Vice Chairman</small>
-                        </footer>
-                    </blockquote>
-                </div>
-            </div>
-        </div>
-    </section>
     <!-- How It Works -->
-    <section class="how-it-works-section">
-        <div class="container">
-            <div class="row">
+    <section id="how-it-works" class="how-it-works-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
                 <div class="col-lg-8 mx-auto">
                     <div class="text-center mb-5">
                         <h2 class="section-title">How It Works</h2>
@@ -144,9 +242,9 @@
     </section>
 
     <!-- Core Capabilities -->
-    <section class="capabilities-section">
-        <div class="container">
-            <div class="row">
+    <section id="capabilities" class="capabilities-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
                 <div class="col-lg-10 mx-auto">
                     <div class="text-center mb-5">
                         <h2 class="section-title">Your Research Toolkit</h2>
@@ -187,23 +285,26 @@
         </div>
     </section>
 
-
     <!-- Final CTA -->
-    <section class="final-cta-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-6 mx-auto text-center">
-                    <h2>Ready to Transform Your Research?</h2>
-                    <p class="lead mb-4">
-                        Join serious investors who are building systematic approaches to research and decision-making.
-                    </p>
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg mb-3">
-                        Start Building Your System
-                    </a>
-                    <div>
-                        <small class="text-muted">
-                            Already have an account? <a href="{{ url_for('auth.login') }}" class="text-decoration-none">Sign in</a>
-                        </small>
+    <section id="cta" class="final-cta-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-8 mx-auto text-center">
+                    <div class="cta-content">
+                        <h2>Ready to Transform Your Research?</h2>
+                        <p class="lead mb-4">
+                            Join serious investors who are building systematic approaches to research and decision-making.
+                        </p>
+                        <div class="cta-actions">
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg mb-3">
+                                Start Building Your System
+                            </a>
+                            <div class="cta-meta">
+                                <small class="text-muted">
+                                    Already have an account? <a href="{{ url_for('auth.login') }}" class="text-decoration-none">Sign in</a>
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -213,16 +314,113 @@
     <!-- Custom Styles -->
     <style>
         :root {
-            --primary-color: #1e3a35;
-            --primary-hover: #152e2a;
-            --accent-color: #2d5a52;
-            --text-dark: #1a1a1a;
-            --text-muted: #64748b;
-            --bg-light: #f8fafb;
-            --bg-darker: #f1f5f4;
+            --primary-color: #1e40af;
+            --primary-hover: #1d4ed8;
+            --text-dark: #374151;
+            --text-muted: #6b7280;
+            --bg-light: #f9fafb;
+            --bg-white: #ffffff;
+            --border-color: #e5e7eb;
+            --accent-color: #6366f1;
+            --sage-teal: #0f766e;
+            --sage-teal-light: #14b8a6;
+            --warm-amber: #d97706;
+            --warm-amber-light: #f59e0b;
+            --charcoal: #374151;
+            --warm-stone: #6b7280;
         }
 
-        .btn-primary {
+        /* Page Navigation */
+        .page-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+        }
+
+        .nav-dots {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(55, 65, 81, 0.3);
+            border: 2px solid rgba(55, 65, 81, 0.2);
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .nav-dot:hover,
+        .nav-dot.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transform: scale(1.2);
+        }
+
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .scroll-indicator.hidden {
+            opacity: 0;
+        }
+
+        .scroll-arrow {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-arrow:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-5px); }
+            60% { transform: translateY(-3px); }
+        }
+
+        /* Full-screen sections with smooth transitions */
+        .hero-section,
+        .problem-solution-section,
+        .how-it-works-section,
+        .capabilities-section,
+        .final-cta-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            scroll-margin-top: 0;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .btn-dark {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
             padding: 0.75rem 2rem;
@@ -230,24 +428,15 @@
             transition: all 0.2s ease;
         }
 
-        .btn-primary:hover {
+        .btn-dark:hover {
             background-color: var(--primary-hover);
             border-color: var(--primary-hover);
             transform: translateY(-1px);
         }
 
-        .text-primary {
-            color: var(--primary-color) !important;
-        }
-
         /* Hero Section */
         .hero-section {
-            background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-darker) 100%);
-            padding: 4rem 0;
-        }
-
-        .min-vh-75 {
-            min-height: 75vh;
+            background: linear-gradient(135deg, var(--bg-light) 0%, #e9ecef 100%);
         }
 
         .hero-title {
@@ -265,84 +454,308 @@
             line-height: 1.6;
         }
 
+        .munger-quote-hero {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 1rem;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .quote-hero p {
+            font-size: 1.1rem;
+            font-style: italic;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .quote-hero footer {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         .hero-cta {
             margin-top: 2rem;
         }
 
         /* Problem & Solution Section */
         .problem-solution-section {
-            padding: 5rem 0;
+            background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-light) 100%);
         }
 
-        .content-block {
+        .section-header {
             margin-bottom: 4rem;
         }
 
-        .content-block h2 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-dark);
+        .problem-solution-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 3rem;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Problem Side */
+        .problem-side {
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            border: 1px solid #fbbf24;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .problem-badge, .solution-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            font-weight: 600;
             margin-bottom: 1.5rem;
         }
 
-        .content-block .lead {
-            font-size: 1.25rem;
-            font-weight: 500;
+        .problem-badge {
+            background: linear-gradient(135deg, var(--warm-amber) 0%, var(--warm-amber-light) 100%);
+            color: white;
+        }
+
+        .problem-side h3, .solution-side h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
             color: var(--text-dark);
-            margin-bottom: 1rem;
         }
 
-        .visual-element {
-            min-height: 200px;
+        .problem-list, .solution-list {
+            /* Spacing handled by margin-bottom on individual items */
+        }
+
+        .problem-item, .solution-item {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            transition: transform 0.2s ease;
         }
 
-        .problem-visual {
-            background-color: var(--bg-darker);
-            border: 2px dashed #cbd5e1;
+        .problem-item {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+        }
+
+        .problem-item:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15);
+        }
+
+        .problem-icon, .solution-icon {
+            font-size: 1.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
 
         .problem-icon {
-            font-size: 3rem;
-            opacity: 0.6;
-            filter: grayscale(0.3);
+            background: rgba(217, 119, 6, 0.1);
         }
 
-        .solution-visual {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-            border: 1px solid rgba(46, 90, 82, 0.2);
+        .problem-text strong, .solution-text strong {
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        /* Chaos Visualization */
+        .chaos-visualization {
+            margin-top: 2rem;
+            position: relative;
+            height: 120px;
+            background: rgba(217, 119, 6, 0.08);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .chaos-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            animation: chaosFloat 3s ease-in-out infinite;
+        }
+
+        .chaos-item {
+            font-size: 1.5rem;
+            opacity: 0.6;
+            animation: chaosShake 0.5s ease-in-out infinite alternate;
+        }
+
+        .chaos-item:nth-child(2) { animation-delay: 0.1s; }
+        .chaos-item:nth-child(3) { animation-delay: 0.2s; }
+        .chaos-item:nth-child(4) { animation-delay: 0.3s; }
+        .chaos-item:nth-child(5) { animation-delay: 0.4s; }
+        .chaos-item:nth-child(6) { animation-delay: 0.5s; }
+
+        @keyframes chaosShake {
+            0% { transform: translateY(0px) rotate(0deg); }
+            100% { transform: translateY(-10px) rotate(5deg); }
+        }
+
+        @keyframes chaosFloat {
+            0%, 100% { transform: translateX(0px); }
+            50% { transform: translateX(10px); }
+        }
+
+        .chaos-overlay, .order-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .chaos-text {
+            color: var(--warm-amber);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* Transformation Arrow */
+        .transformation-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arrow-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .arrow-line {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--warm-amber) 0%, var(--sage-teal) 100%);
+            position: relative;
+        }
+
+        .arrow-head {
+            font-size: 2rem;
+            color: var(--sage-teal);
+            font-weight: bold;
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        .arrow-text {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Solution Side */
+        .solution-side {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            border: 1px solid var(--sage-teal-light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .solution-badge {
+            background: linear-gradient(135deg, var(--sage-teal) 0%, var(--sage-teal-light) 100%);
+            color: white;
+        }
+
+        .solution-item {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(15, 118, 110, 0.2);
+        }
+
+        .solution-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.15);
         }
 
         .solution-icon {
-            font-size: 3rem;
-            opacity: 0.9;
+            background: rgba(15, 118, 110, 0.1);
         }
 
-        /* Quote Section */
-        .quote-section {
-            background-color: var(--bg-light);
-            padding: 4rem 0;
+        /* Order Visualization */
+        .order-visualization {
+            margin-top: 2rem;
+            position: relative;
+            height: 120px;
+            background: rgba(15, 118, 110, 0.08);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .quote-large p {
-            font-size: 1.5rem;
-            font-style: italic;
-            color: var(--text-dark);
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
+        .systematic-flow {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
-        .quote-large footer {
-            color: var(--text-muted);
+        .flow-step {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--sage-teal) 0%, var(--sage-teal-light) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
             font-size: 1rem;
+            animation: flowPulse 2s ease-in-out infinite;
         }
 
-        /* Capabilities Section */
-        .capabilities-section {
-            padding: 5rem 0;
+        .flow-step:nth-child(odd) { animation-delay: 0.5s; }
+
+        .flow-arrow {
+            color: var(--sage-teal);
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        @keyframes flowPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(15, 118, 110, 0); }
+        }
+
+        .order-text {
+            color: var(--sage-teal);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* How It Works Section */
+        .how-it-works-section {
+            background-color: var(--bg-light);
         }
 
         .section-title {
@@ -356,41 +769,6 @@
             font-size: 1.125rem;
             color: var(--text-muted);
             margin-bottom: 3rem;
-        }
-
-        .capabilities-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .capability-card {
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .capability-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .capability-card h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 1rem;
-        }
-
-        .capability-card p {
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        /* How It Works Section */
-        .how-it-works-section {
-            background-color: var(--bg-light);
-            padding: 5rem 0;
         }
 
         .workflow-steps {
@@ -416,7 +794,7 @@
             font-size: 1.125rem;
             margin-right: 1.5rem;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(30, 58, 53, 0.15);
+            box-shadow: 0 2px 8px rgba(26, 26, 26, 0.15);
         }
 
         .step-content h4 {
@@ -432,9 +810,70 @@
             margin-bottom: 0;
         }
 
-        /* Final CTA Section */
+        /* Capabilities Section */
+        .capabilities-section {
+            background-color: var(--bg-white);
+        }
+
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .capability-card {
+            text-align: center;
+            padding: 2rem;
+            border-radius: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .capability-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .capability-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .capability-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .capability-card p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Final CTA Section - Smooth transition design */
         .final-cta-section {
-            padding: 5rem 0;
+            background: linear-gradient(135deg, var(--bg-light) 0%, #e9ecef 100%);
+            position: relative;
+        }
+
+        .final-cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
+        }
+
+        .cta-content {
+            padding: 3rem 2rem;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 1.5rem;
+            border: 1px solid rgba(26, 26, 26, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+            backdrop-filter: blur(10px);
         }
 
         .final-cta-section h2 {
@@ -442,10 +881,89 @@
             font-weight: 700;
             color: var(--text-dark);
             margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        .final-cta-section .lead {
+            color: var(--text-muted);
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+        }
+
+        .cta-actions {
+            margin-top: 2rem;
+        }
+
+        .final-cta-section .btn-dark {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white !important;
+            padding: 0.875rem 2.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(26, 26, 26, 0.15);
+        }
+
+        .final-cta-section .btn-dark:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26, 26, 26, 0.2);
+        }
+
+        .cta-meta {
+            margin-top: 1.5rem;
+        }
+
+        .cta-meta .text-muted {
+            color: var(--text-muted);
+        }
+
+        .final-cta-section a {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .final-cta-section a:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+
+        /* Footer override for homepage - seamless transition */
+        footer.footer {
+            background: var(--bg-light) !important;
+            border-top: none !important;
+            margin-top: 0 !important;
+        }
+
+        /* Add subtle separator line inside footer instead of border */
+        footer.footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(229, 229, 229, 0.3) 50%, transparent 100%);
+        }
+
+        footer.footer {
+            position: relative;
         }
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .page-nav {
+                right: 1rem;
+            }
+
+            .nav-dot {
+                width: 10px;
+                height: 10px;
+            }
+
             .hero-title {
                 font-size: 2.5rem;
             }
@@ -462,8 +980,8 @@
                 font-size: 2rem;
             }
 
-            .quote-large p {
-                font-size: 1.25rem;
+            .quote-hero p {
+                font-size: 1rem;
             }
 
             .capabilities-grid {
@@ -479,7 +997,129 @@
                 margin-right: 0;
                 margin-bottom: 1rem;
             }
+
+            .munger-quote-hero {
+                margin: 2rem 0;
+                padding: 1.5rem;
+            }
+
+            .scroll-indicator {
+                bottom: 1rem;
+            }
+
+            .cta-content {
+                padding: 2rem 1.5rem;
+                border-radius: 1rem;
+            }
+
+            .final-cta-section h2 {
+                font-size: 2rem;
+            }
+
+            .final-cta-section .btn-dark {
+                padding: 0.75rem 2rem;
+                font-size: 1rem;
+            }
+
+            /* Problem & Solution Section - Mobile */
+            .problem-solution-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .transformation-arrow {
+                order: 2;
+                transform: rotate(90deg);
+                margin: 1rem 0;
+            }
+
+            .problem-side, .solution-side {
+                padding: 2rem 1.5rem;
+            }
+
+            .section-header {
+                margin-bottom: 2rem;
+            }
+
+            .chaos-visualization, .order-visualization {
+                height: 80px;
+            }
+
+            .chaos-item {
+                font-size: 1.25rem;
+            }
+
+            .flow-step {
+                width: 2rem;
+                height: 2rem;
+                font-size: 0.875rem;
+            }
         }
     </style>
+
+    <!-- JavaScript for Navigation -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section');
+            const navDots = document.querySelectorAll('.nav-dot');
+            const scrollIndicator = document.querySelector('.scroll-indicator');
+
+            // Update active navigation dot on scroll
+            function updateActiveNav() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.clientHeight;
+                    if (scrollY >= (sectionTop - sectionHeight / 3)) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navDots.forEach(dot => {
+                    dot.classList.remove('active');
+                    if (dot.getAttribute('data-section') === current) {
+                        dot.classList.add('active');
+                    }
+                });
+
+                // Hide scroll indicator on last section
+                if (current === 'cta') {
+                    scrollIndicator.classList.add('hidden');
+                } else {
+                    scrollIndicator.classList.remove('hidden');
+                }
+            }
+
+            // Smooth scroll to next section
+            function scrollToNext() {
+                const currentSection = document.querySelector('.nav-dot.active');
+                const nextSection = currentSection ? currentSection.nextElementSibling : navDots[0];
+                if (nextSection) {
+                    const targetId = nextSection.getAttribute('data-section');
+                    document.getElementById(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            }
+
+            // Event listeners
+            window.addEventListener('scroll', updateActiveNav);
+            scrollIndicator.addEventListener('click', scrollToNext);
+
+            // Navigation dot click handlers
+            navDots.forEach(dot => {
+                dot.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = dot.getAttribute('data-section');
+                    document.getElementById(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Initialize
+            updateActiveNav();
+        });
+    </script>
 
 {% endblock %}
