@@ -235,20 +235,6 @@ function updateStepConfig(stepIndex, stepType) {
     let configHtml = '';
     
     if (stepType === 'checklist') {
-        configHtml = `
-            <div class="mb-3">
-                <label class="form-label">Checklist Items:</label>
-                <div id="checklist-items-${stepIndex}">
-                    <div class="input-group mb-2">
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item...">
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)...">
-                        <button type="button" class="btn btn-outline-secondary" onclick="addChecklistItem(${stepIndex})">+</button>
-                    </div>
-                </div>
-                <small class="form-text text-muted">Add checklist items with optional LLM prompts for document analysis</small>
-            </div>
-        `;
-    } else if (stepType === 'investment_checklist_reference') {
         const checklistOptions = userChecklists.map(cl => 
             `<option value="${cl.id}">${cl.name}</option>`
         ).join('');
@@ -354,7 +340,7 @@ function handleInvestmentStyleChange() {
 // Initialize with some default steps
 document.addEventListener('DOMContentLoaded', function() {
     // Default first step is Investment Checklist (Existing) as requested
-    addStep('Investment Checklist', 'investment_checklist_reference', 45);
+    addStep('Investment Checklist', 'checklist', 45);
     addStep('Business Analysis', 'custom', 120);
     addStep('Financial Review', 'document_review', 90);
     

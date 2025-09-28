@@ -1,5 +1,5 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
-from flask_login import current_user, login_required 
+from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
@@ -8,8 +8,9 @@ from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
 import os
-from datetime import datetime 
+from datetime import datetime
 import fitz
+from app.utils.time_utils import now_utc
 
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
@@ -162,7 +163,7 @@ def research_step(session_id, item_id):
         satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
         if research_answer:
             research_answer.answer_text = answer_text
-            research_answer.answered_at = datetime.utcnow()
+            research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status_from_form
         else:
             research_answer = ResearchAnswer(

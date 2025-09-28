@@ -167,15 +167,18 @@
 
 <script>
 // Timer functionality with timezone-aware synchronization
-const startTimeUTC = new Date('{{ session.start_time.isoformat() }}Z'); // Ensure UTC parsing
-let timerOffset = 0; // Track any drift correction
-let lastSyncTime = Date.now();
+// Use server-provided timezone-aware start time
+const startTimeUTC = new Date('{{ session_start_js }}');
 
 function updateTimer() {
     const now = new Date();
 
-    // Calculate elapsed time in seconds
-    const elapsed = Math.floor((now - startTimeUTC) / 1000) + timerOffset;
+    // Convert both times to UTC timestamps for accurate comparison
+    const nowUTC = now.getTime(); // milliseconds since epoch
+    const startUTC = startTimeUTC.getTime(); // milliseconds since epoch
+
+    // Calculate elapsed time in seconds using UTC timestamps
+    const elapsed = Math.floor((nowUTC - startUTC) / 1000);
 
     // Ensure elapsed time is never negative
     const positiveElapsed = Math.max(0, elapsed);
@@ -189,54 +192,14 @@ function updateTimer() {
         timerElement.textContent =
             `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
-
-    // Update last sync time for drift detection
-    lastSyncTime = Date.now();
 }
 
-// Sync with server time periodically to prevent drift
-function syncWithServerTime() {
-    fetch('/api/server-time', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.server_time) {
-            const serverTime = new Date(data.server_time + 'Z'); // Ensure UTC
-            const clientTime = new Date();
-            const drift = (clientTime - serverTime) / 1000; // Drift in seconds
+// No server sync needed - use local browser time
 
-            // Only adjust if drift is significant (>2 seconds)
-            if (Math.abs(drift) > 2) {
-                timerOffset -= Math.floor(drift);
-                console.log(`Timer sync: adjusted by ${-Math.floor(drift)} seconds`);
-            }
-        }
-    })
-    .catch(error => {
-        console.warn('Timer sync failed:', error);
-        // Continue using local time if sync fails
-    });
-}
-
-// Initialize timer sync
+// Initialize timer (simplified - no server sync)
 function initializeTimer() {
     updateTimer(); // Initial update
     setInterval(updateTimer, 1000); // Update every second
-
-    // Sync with server every 5 minutes to prevent drift
-    syncWithServerTime(); // Initial sync
-    setInterval(syncWithServerTime, 5 * 60 * 1000);
-
-    // Also sync when page becomes visible again (user returns from another tab)
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            syncWithServerTime();
-        }
-    });
 }
 
 // Initialize timer when page loads

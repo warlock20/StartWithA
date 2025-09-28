@@ -77,8 +77,7 @@
                             </div>
                             <div class="step-meta text-end">
                                 <span class="badge bg-secondary me-1">
-                                    {% if step.type == 'checklist' %}📋 Investment Checklist (Custom)
-                                    {% elif step.type == 'investment_checklist_reference' %}📊 Investment Checklist (Existing)
+                                    {% if step.type == 'checklist' %}📋 Investment Checklist
                                     {% elif step.type == 'kill_checklist_reference' %}⚡ Kill Checklist
                                     {% elif step.type == 'model' %}🧠 Mental Model
                                     {% elif step.type == 'document_review' %}📄 Document Analysis
@@ -92,21 +91,7 @@
                         </div>
                         
                         <!-- Step-specific configuration -->
-                        {% if step.type == 'checklist' and step.config and step.config.checklist_items %}
-                        <div class="step-config mt-3">
-                            <h6 class="text-muted mb-2">Checklist Items:</h6>
-                            <ul class="list-group list-group-flush">
-                                {% for item in step.config.checklist_items %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                                    <span>{{ item.item }}</span>
-                                    {% if item.prompt %}
-                                    <span class="badge bg-light text-dark" title="Has LLM Analysis Prompt: {{ item.prompt }}">🤖</span>
-                                    {% endif %}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% elif step.type == 'investment_checklist_reference' and step.config and step.config.checklist_id %}
+                        {% if step.type == 'checklist' and step.config and step.config.checklist_id %}
                         <div class="step-config mt-3">
                             <p class="text-muted mb-0">
                                 <strong>Investment Checklist:</strong> 
@@ -209,8 +194,7 @@
                 {% for step_type, count in step_types_count.items() %}
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span>
-                        {% if step_type == 'checklist' %}📋 Investment Checklist (Custom)
-                        {% elif step_type == 'investment_checklist_reference' %}📊 Investment Checklist (Existing)
+                        {% if step_type == 'checklist' %}📋 Investment Checklist
                         {% elif step_type == 'kill_checklist_reference' %}⚡ Kill Checklist
                         {% elif step_type == 'model' %}🧠 Mental Model
                         {% elif step_type == 'document_review' %}📄 Document Analysis

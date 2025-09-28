@@ -1,6 +1,36 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+
+<!-- Onboarding Guidance Modal -->
+{% if request.args.get('from_onboarding') %}
+<div class="modal fade" id="onboardingGuidanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">🎉 Welcome to Your Research Dashboard!</h5>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Congratulations! You've successfully set up your first research template.</p>
+                <p class="mb-3">You're now ready to start your investment research. Here's how to begin:</p>
+                <div class="alert alert-primary border-0" role="alert">
+                    <h6 class="text-primary mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Next Step:
+                    </h6>
+                    <p class="mb-0 small">Click the <strong>"Start Step"</strong> button below to begin your first research step: "Analyze and Understand the Business Model"</p>
+                </div>
+                <p class="mb-0">The system will guide you through each step of your research workflow.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="highlightStartButton()">
+                    Got it! Let's start researching
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1>{{ project.project_name }}</h1>
@@ -49,8 +79,8 @@
             </div>
             <div class="col">
                 <h4>
-                    {% if project.last_worked_at %}
-                    {{ (datetime.utcnow() - project.last_worked_at).days }}d
+                    {% if days_since_last_work is not none %}
+                    {{ days_since_last_work }}d
                     {% else %}
                     -
                     {% endif %}
@@ -123,7 +153,7 @@
                             <div>
                                 {% if is_current %}
                                 <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
-                                    class="btn btn-primary">Start Step</a>
+                                    class="btn btn-primary" id="start-step-btn">Start Step</a>
                                 {% elif is_completed %}
                                 <button class="btn btn-sm btn-outline-secondary"
                                     onclick="showNotes('{{ step_index }}')">View Notes</button>
@@ -647,5 +677,55 @@
         document.getElementById('findingModalTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('addFindingModal')).show();
     }
+
+    // Onboarding Guidance Functions
+    {% if request.args.get('from_onboarding') %}
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show the onboarding guidance modal
+        const modal = new bootstrap.Modal(document.getElementById('onboardingGuidanceModal'));
+        modal.show();
+    });
+    {% endif %}
+
+    function highlightStartButton() {
+        const startBtn = document.getElementById('start-step-btn');
+        if (startBtn) {
+            // Add pulsing highlight effect
+            startBtn.classList.add('btn-animated');
+            startBtn.style.animation = 'pulse 2s infinite';
+            startBtn.style.boxShadow = '0 0 20px rgba(13, 110, 253, 0.5)';
+
+            // Scroll to the button
+            startBtn.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+            // Remove the highlight after 10 seconds
+            setTimeout(() => {
+                startBtn.style.animation = '';
+                startBtn.style.boxShadow = '';
+                startBtn.classList.remove('btn-animated');
+            }, 10000);
+        }
+    }
 </script>
+
+<style>
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.btn-animated {
+    transition: all 0.3s ease;
+}
+</style>
 {% endblock %}

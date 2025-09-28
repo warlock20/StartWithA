@@ -5,6 +5,7 @@ import os
 import asyncio
 from datetime import datetime
 from app import db
+from app.utils.time_utils import now_utc
 from app.models import User, Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport
 from app.checklists import checklists_bp # Import the new blueprint
 from app.services.llm_service import (
@@ -620,7 +621,7 @@ def import_document():
     os.makedirs(upload_dir, exist_ok=True)
 
     # Save file with unique name
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = now_utc().strftime('%Y%m%d_%H%M%S')
     unique_filename = f"{current_user.id}_{timestamp}_{filename}"
     file_path = os.path.join(upload_dir, unique_filename)
     file.save(file_path)
@@ -665,7 +666,7 @@ def process_document(import_id):
     # Start processing
     try:
         document_import.status = 'processing'
-        document_import.processed_at = datetime.now()
+        document_import.processed_at = now_utc()
         db.session.commit()
 
         # Extract text from document
@@ -715,13 +716,13 @@ def process_document(import_id):
             document_import.status = 'failed'
             document_import.error_message = result.error_message
 
-        document_import.completed_at = datetime.now()
+        document_import.completed_at = now_utc()
         db.session.commit()
 
     except Exception as e:
         document_import.status = 'failed'
         document_import.error_message = str(e)
-        document_import.completed_at = datetime.now()
+        document_import.completed_at = now_utc()
         db.session.commit()
 
         flash(f'Processing failed: {str(e)}', 'error')

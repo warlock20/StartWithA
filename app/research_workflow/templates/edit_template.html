@@ -169,45 +169,20 @@ function updateStepConfig(stepIndex, stepType, existingConfig = {}) {
     let configHtml = '';
     
     if (stepType === 'checklist') {
+        const selectedChecklistId = existingConfig.checklist_id || '';
+        const checklistOptions = userChecklists.map(cl =>
+            `<option value="${cl.id}" ${cl.id == selectedChecklistId ? 'selected' : ''}>${cl.name}</option>`
+        ).join('');
         configHtml = `
             <div class="mb-3">
-                <label class="form-label">Checklist Items:</label>
-                <div id="checklist-items-${stepIndex}">
-                </div>
-                <button type="button" class="btn btn-outline-secondary" onclick="addChecklistItem(${stepIndex})">+ Add Item</button>
-                <small class="form-text text-muted d-block mt-2">Add checklist items with optional LLM prompts for document analysis</small>
+                <label class="form-label">Select Investment Checklist:</label>
+                <select class="form-select" name="step_${stepIndex}_checklist_id" required>
+                    <option value="">-- Choose checklist --</option>
+                    ${checklistOptions}
+                </select>
+                <small class="form-text text-muted">Use an existing investment checklist with document upload and LLM analysis features</small>
             </div>
         `;
-        
-        // After setting the HTML, populate existing items or add one empty item
-        setTimeout(() => {
-            const container = document.getElementById(`checklist-items-${stepIndex}`);
-            const existingItems = existingConfig.checklist_items || [];
-            
-            if (existingItems.length > 0) {
-                existingItems.forEach((itemConfig, index) => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'input-group mb-2';
-                    itemDiv.innerHTML = `
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item..." value="${itemConfig.item || ''}">
-                        <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)..." value="${itemConfig.prompt || ''}">
-                        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
-                    `;
-                    container.appendChild(itemDiv);
-                });
-            } else {
-                // Add one empty item for new steps
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'input-group mb-2';
-                itemDiv.innerHTML = `
-                    <input type="text" class="form-control" name="step_${stepIndex}_checklist_items[]" placeholder="Checklist item...">
-                    <input type="text" class="form-control" name="step_${stepIndex}_checklist_prompts[]" placeholder="LLM analysis prompt (optional)...">
-                    <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
-                `;
-                container.appendChild(itemDiv);
-            }
-        }, 10);
-        
     } else if (stepType === 'kill_checklist_reference') {
         const selectedKillChecklistId = existingConfig.kill_checklist_id || '';
         const killChecklistOptions = userKillChecklists.map(kc => 

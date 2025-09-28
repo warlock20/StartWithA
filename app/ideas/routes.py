@@ -12,6 +12,7 @@ from app.ideas import ideas_bp
 from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
+from app.utils.time_utils import now_utc
 
 @ideas_bp.route('/inbox')
 @login_required
@@ -33,7 +34,7 @@ def inbox():
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
                           all_kill_checklists=all_kill_checklists,
-                          now=datetime.utcnow()
+                          now=now_utc()
                           )
 
 @ideas_bp.route('/add', methods=['GET', 'POST'])
@@ -195,9 +196,9 @@ def kill_room(idea_id):
             idea.status = 'killed'
             idea.kill_reason = current_criterion.question
             idea.failed_criterion = current_criterion
-            idea.killed_at = datetime.utcnow()
+            idea.killed_at = now_utc()
             kill_session.outcome = 'killed'
-            kill_session.completed_at = datetime.utcnow()
+            kill_session.completed_at = now_utc()
             kill_session.checklist.total_ideas_evaluated += 1
             kill_session.checklist.total_ideas_killed += 1
             db.session.commit()
@@ -219,9 +220,9 @@ def kill_room(idea_id):
         
         # If no next criterion is found, the idea survived
         idea.status = 'survived'
-        idea.promoted_at = datetime.utcnow()
+        idea.promoted_at = now_utc()
         kill_session.outcome = 'survived'
-        kill_session.completed_at = datetime.utcnow()
+        kill_session.completed_at = now_utc()
         kill_session.checklist.total_ideas_evaluated += 1
         db.session.commit()
         
@@ -244,7 +245,7 @@ def kill_room(idea_id):
 @login_required
 def graveyard():
     killed_ideas = current_user.idea_pipeline.filter_by(status='killed').order_by(IdeaPipeline.killed_at.desc()).all()
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = now_utc() - timedelta(days=30)
     recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and idea.killed_at > thirty_days_ago)
     kill_reasons = {}
     for idea in killed_ideas:
@@ -389,7 +390,7 @@ def promote_idea(idea_id):
             db.session.flush()
             idea.promoted_to_company = company
             idea.status = 'promoted'
-            idea.promoted_at = datetime.utcnow()
+            idea.promoted_at = now_utc()
             db.session.commit()
             flash(f'"{idea.name}" promoted to your companies list!', 'success')
             return redirect(url_for('research_workflow.intelligent_routing', company_id=company.id, source='idea_promotion'))
@@ -444,7 +445,7 @@ def promote_idea(idea_id):
             try:
                 db.session.add(project)
                 idea.status = 'promoted'
-                idea.promoted_at = datetime.utcnow()
+                idea.promoted_at = now_utc()
                 db.session.commit()
                 
                 from app.analytics.utils import log_research_activity
@@ -589,7 +590,7 @@ def mark_someday(idea_id):
         return redirect(url_for('ideas.inbox'))
     
     idea.status = 'someday'
-    idea.last_reviewed_at = datetime.utcnow()
+    idea.last_reviewed_at = now_utc()
     
     try:
         db.session.commit()
@@ -776,7 +777,7 @@ def reject_suggestion(suggestion_id):
             return jsonify({'error': 'Suggestion not found'}), 404
 
         suggestion.status = 'rejected'
-        suggestion.responded_at = datetime.now(timezone.utc)
+        suggestion.responded_at = now_utc()
         db.session.commit()
 
         return jsonify({'message': 'Suggestion rejected'})

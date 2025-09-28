@@ -2,6 +2,7 @@
 
 from app import db  # Import the db instance from app/__init__.py
 from datetime import datetime, timezone
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from werkzeug.security import (
     generate_password_hash,
     check_password_hash,
@@ -104,7 +105,27 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                     lazy='dynamic', cascade='all, delete-orphan')
     patterns = db.relationship('PatternRecognition', backref='user',
                               lazy='dynamic', cascade='all, delete-orphan')
-    
+
+    # Onboarding tracking
+    onboarding_completed = db.Column(db.Boolean, default=False)
+    onboarding_step = db.Column(db.Integer, default=0)  # Track current step (0-5)
+    onboarding_started_at = db.Column(db.DateTime)
+    onboarding_completed_at = db.Column(db.DateTime)
+
+    # User preferences
+    preferred_sprint_duration = db.Column(db.Integer, default=30)  # minutes
+    research_experience_level = db.Column(db.String(20), default='intermediate')  # beginner, intermediate, expert
+    notification_preferences = db.Column(db.JSON, default={'pattern_alerts': True, 'weekly_review': True, 'fomo_alerts': True})
+
+    # Community features
+    buddy_system_enabled = db.Column(db.Boolean, default=False)
+    peer_feedback_count = db.Column(db.Integer, default=0)
+    community_reputation = db.Column(db.Integer, default=0)
+
+    # FOMO protection
+    last_fomo_alert = db.Column(db.DateTime)
+    fomo_protection_level = db.Column(db.String(20), default='medium')  # low, medium, high
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -234,7 +255,7 @@ class Company(db.Model):
 
 class ResearchSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    start_date = db.Column(db.DateTime, nullable=False, default=now_utc)
     status = db.Column(db.String(50), nullable=False, default="in_progress")
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -269,7 +290,7 @@ class ResearchAnswer(db.Model):
     answer_text = db.Column(db.Text, nullable=True)  # Textual answer from the user
     # file_path: For later, when we implement PDF uploads for specific questions
     # file_path = db.Column(db.String(300), nullable=True)
-    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime, default=now_utc)
     satisfaction_status = db.Column(db.String(30), nullable=True, default="neutral")
 
     research_session_id = db.Column(
@@ -313,7 +334,7 @@ class CompanyDocument(db.Model):
     )  # Publication date of the document, or period end date
 
     description = db.Column(db.Text, nullable=True)  # Optional user description
-    uploaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     # Relationships (these will create the backrefs on Company and User)
     # company = db.relationship('Company', backref=db.backref('documents', lazy='dynamic')) # This is one way
@@ -348,7 +369,7 @@ class DestinationCheckpoint(db.Model):
     )  # E.g., 'Active', 'Met', 'Not Met'
     outcome_notes = db.Column(db.Text, nullable=True)  # User's analysis of the outcome
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<DestinationCheckpoint {self.metric} for Company {self.company_id}>"
@@ -376,7 +397,7 @@ class CompanyArticle(db.Model):
     published_at = db.Column(db.DateTime, nullable=False, index=True)
 
     # The date we fetched the article
-    fetched_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fetched_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<CompanyArticle {self.title[:50]}...>"
@@ -393,7 +414,7 @@ class ScuttlebuttAnalysis(db.Model):
 
     # The date the analysis was generated
     generated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+        db.DateTime, nullable=False, default=now_utc, index=True
     )
 
     def __repr__(self):
@@ -416,9 +437,9 @@ class QualitativeAnalysis(db.Model):
     # For SWOT, it will look like: {"strengths": "...", "weaknesses": "...", ...}
     content = db.Column(db.JSON, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
     updated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
 
     # Ensure a user can only have one of each analysis type per company
@@ -470,7 +491,7 @@ class QuestionBankItem(db.Model):
     # The sector tag to categorize the question. Can be null for general questions.
     sector = db.Column(db.String(100), nullable=True, index=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"
@@ -485,9 +506,9 @@ class SectorAnalysis(db.Model):
     # A large text field for free-form research notes
     notes = db.Column(db.Text, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
     updated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
 
     # Ensure a user can only have one analysis notebook per sector name
@@ -513,7 +534,7 @@ class IdeaPipeline(db.Model):
     status = db.Column(db.String(50), default='inbox', index=True)
     kill_reason = db.Column(db.Text)
     failed_criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     killed_at = db.Column(db.DateTime)
     promoted_at = db.Column(db.DateTime)
     last_reviewed_at = db.Column(db.DateTime)
@@ -538,8 +559,8 @@ class KillChecklist(db.Model):
     kill_sessions = db.relationship('KillSession', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
     total_ideas_evaluated = db.Column(db.Integer, default=0)
     total_ideas_killed = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
 
     @property
@@ -570,7 +591,7 @@ class KillCriterion(db.Model):
     last_calculated = db.Column(db.DateTime)
     auto_suggested = db.Column(db.Boolean, default=False)
     source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id'))
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=now_utc)
     last_used = db.Column(db.DateTime)
 
     killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
@@ -590,7 +611,7 @@ class KillSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False)
     kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime)
     outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
     answers = db.relationship('KillAnswer', backref='session', lazy='dynamic', cascade='all, delete-orphan')
@@ -606,7 +627,7 @@ class KillAnswer(db.Model):
     criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False)
     passed = db.Column(db.Boolean)
     notes = db.Column(db.Text)
-    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime, default=now_utc)
     criterion = db.relationship('KillCriterion')
 
     def __repr__(self):
@@ -641,7 +662,7 @@ class KillChecklistSuggestion(db.Model):
     confidence_score = db.Column(db.Float, default=0.5)  # 0-1 confidence in suggestion
 
     # Tracking
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=now_utc)
     status = db.Column(db.String(20), default='pending')  # 'pending', 'accepted', 'rejected', 'auto_applied'
     responded_at = db.Column(db.DateTime)
 
@@ -658,7 +679,7 @@ class KillChecklistSuggestion(db.Model):
         """How many hours old is this suggestion"""
         if not self.created_at:
             return 0
-        return (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
+        return (now_utc() - self.created_at).total_seconds() / 3600
 
     @property
     def is_expired(self):
@@ -701,8 +722,8 @@ class ResearchTemplate(db.Model):
     average_research_hours = db.Column(db.Float)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Relationships
     research_projects = db.relationship('ResearchProject', backref='template', 
@@ -792,7 +813,7 @@ class ResearchProject(db.Model):
     green_flags = db.Column(db.JSON, default=list)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime)
     
     # Relationships
@@ -825,7 +846,9 @@ class ResearchProject(db.Model):
         """Check if this project has been idle too long"""
         if self.status != 'active' or not self.last_worked_at:
             return False
-        days_idle = (datetime.utcnow() - self.last_worked_at).days
+        last_worked_at_aware = ensure_timezone_aware(self.last_worked_at)
+        current_time = now_utc()
+        days_idle = (current_time - last_worked_at_aware).days
         return days_idle > 14  # Consider overdue after 2 weeks of inactivity
     
     @property
@@ -947,7 +970,7 @@ class TemplateStep(db.Model):
     category = db.Column(db.String(100))  # 'fundamental', 'technical', 'qualitative', etc.
     tags = db.Column(db.JSON, default=list)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<TemplateStep {self.name}>'    
@@ -1008,7 +1031,7 @@ class ResearchMetrics(db.Model):
     last_research_date = db.Column(db.Date)
     
     # Timestamps
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<ResearchMetrics for User {self.user_id}>'
@@ -1043,7 +1066,7 @@ class IdeaSourceAnalysis(db.Model):
     average_return = db.Column(db.Float)
     
     last_idea_date = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     __table_args__ = (
         db.UniqueConstraint('user_id', 'source_name', name='_user_source_uc'),
@@ -1078,7 +1101,7 @@ class ResearchLog(db.Model):
     duration_minutes = db.Column(db.Integer)
     
     # When it happened
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=now_utc, index=True)
     day_of_week = db.Column(db.Integer)  # 0=Monday, 6=Sunday
     hour_of_day = db.Column(db.Integer)  # 0-23
     
@@ -1127,8 +1150,8 @@ class DecisionJournal(db.Model):
     mistake_category = db.Column(db.String(100))  # 'valuation', 'thesis_wrong', 'timing', etc.
     success_category = db.Column(db.String(100))  # 'thesis_correct', 'patience', 'contrarian', etc.
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     def __repr__(self):
         return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'    
@@ -1175,8 +1198,8 @@ class JournalEntry(db.Model):
     source_url = db.Column(db.String(500))
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, index=True)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Review tracking
     last_reviewed = db.Column(db.DateTime)
@@ -1226,7 +1249,7 @@ class JournalAttachment(db.Model):
     
     caption = db.Column(db.Text)
     
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<JournalAttachment {self.filename}>'
@@ -1263,7 +1286,7 @@ class ThesisEvolution(db.Model):
     # Status
     is_current = db.Column(db.Boolean, default=True)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='thesis_versions')
@@ -1318,8 +1341,8 @@ class LearningNote(db.Model):
     next_review_date = db.Column(db.Date)
     review_interval_days = db.Column(db.Integer, default=7)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Tags for cross-referencing
     tags = db.Column(db.JSON, default=list)
@@ -1351,7 +1374,7 @@ class JournalTemplate(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_public = db.Column(db.Boolean, default=False)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<JournalTemplate {self.name}>'
@@ -1398,8 +1421,8 @@ class MistakeLog(db.Model):
     last_reviewed = db.Column(db.DateTime)
     prevented_similar = db.Column(db.Integer, default=0)  # Times prevented similar mistake
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='mistake_logs')
@@ -1450,7 +1473,7 @@ class WeeklyReview(db.Model):
     market_sentiment = db.Column(db.String(50))  # 'bullish', 'bearish', 'neutral'
     
     completed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<WeeklyReview {self.week_start}>'
@@ -1511,7 +1534,7 @@ class InvestmentPostMortem(db.Model):
     # Supporting documents
     attachments = db.Column(db.JSON)  # Links or filenames
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='postmortems')
@@ -1554,7 +1577,7 @@ class LearningPath(db.Model):
     
     status = db.Column(db.String(50), default='planned')  # 'planned', 'active', 'completed', 'paused'
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<LearningPath {self.name}>'
@@ -1590,10 +1613,10 @@ class PatternRecognition(db.Model):
     confidence_level = db.Column(db.Integer)  # 1-10
     needs_more_data = db.Column(db.Boolean, default=False)
     
-    identified_date = db.Column(db.Date, default=datetime.utcnow().date)
+    identified_date = db.Column(db.Date, default=now_utc().date)
     last_observed = db.Column(db.Date)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<PatternRecognition {self.pattern_name}>'
@@ -1633,7 +1656,7 @@ class DocumentImport(db.Model):
     error_message = db.Column(db.Text)
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     processed_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
 
@@ -1643,3 +1666,53 @@ class DocumentImport(db.Model):
 
     def __repr__(self):
         return f'<DocumentImport {self.filename} - {self.status}>'
+
+
+class OnboardingProgress(db.Model):
+    """
+    Track detailed onboarding progress and user's first experience
+    """
+    __tablename__ = 'onboarding_progress'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # Step tracking
+    current_step = db.Column(db.Integer, default=0)
+    completed_steps = db.Column(db.JSON, default=[])  # List of completed step numbers
+
+    # First experience data
+    first_company_name = db.Column(db.String(200))  # Their first company idea
+    first_company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='SET NULL'))
+    first_kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id', ondelete='SET NULL'))
+    first_research_template_id = db.Column(db.Integer, db.ForeignKey('research_template.id', ondelete='SET NULL'))
+    first_research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'))
+
+    # Timing
+    step_start_times = db.Column(db.JSON, default={})  # Track time spent on each step
+    step_completion_times = db.Column(db.JSON, default={})
+
+    # Feedback
+    onboarding_feedback = db.Column(db.Text)
+    satisfaction_score = db.Column(db.Integer)  # 1-10
+
+    # Research data from onboarding session
+    onboarding_research_answers = db.Column(db.JSON)  # Raw answers from Step 5
+    onboarding_structured_answers = db.Column(db.JSON)  # Structured Q&A pairs
+
+    # Step 5 confirmation
+    checklist_confirmed = db.Column(db.Boolean, default=False)
+    checklist_confirmation_time = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, default=now_utc)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref='onboarding_progress')
+    first_company = db.relationship('Company', foreign_keys=[first_company_id])
+    first_kill_checklist = db.relationship('KillChecklist', foreign_keys=[first_kill_checklist_id])
+    first_research_template = db.relationship('ResearchTemplate', foreign_keys=[first_research_template_id])
+    first_research_project = db.relationship('ResearchProject', foreign_keys=[first_research_project_id])
+
+    def __repr__(self):
+        return f'<OnboardingProgress User:{self.user_id} Step:{self.current_step}>'

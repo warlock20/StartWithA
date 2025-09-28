@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, Checklist, KillChecklist, ResearchTemplate
 from . import dashboard_bp
 from datetime import datetime, timedelta
+from app.utils.time_utils import now_utc
 
 @dashboard_bp.route('/')
 @login_required
@@ -32,7 +33,7 @@ def index():
 
     # Get the next 5 upcoming checkpoints in the next 12 months for PORTFOLIO companies only
     # Extended timeframe for thesis validation (90 days was too restrictive)
-    today = datetime.utcnow().date()
+    today = now_utc().date()
     twelve_months_from_now = today + timedelta(days=365)
 
     # Get portfolio company IDs for the current user

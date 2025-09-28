@@ -7,6 +7,7 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
+from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
 from app.services.llm_service import generate_ai_content
 from app.research.routes import get_all_ordered_items_for_checklist
 from app.services.adaptive_template_service import (
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 def get_server_time():
     """API endpoint to get current server time for timer synchronization"""
     return jsonify({
-        'server_time': datetime.now(timezone.utc).isoformat(),
+        'server_time': now_utc().isoformat(),
         'timezone': 'UTC'
     })
 
@@ -285,20 +286,6 @@ def create_template():
                 
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
-                    # Handle dynamic checklist items
-                    items = request.form.getlist(f'step_{i}_checklist_items[]')
-                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
-                    
-                    checklist_items = []
-                    for j, item in enumerate(items):
-                        if item.strip():  # Only add non-empty items
-                            checklist_items.append({
-                                'item': item.strip(),
-                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
-                            })
-                    
-                    step['config']['checklist_items'] = checklist_items
-                elif step['type'] == 'investment_checklist_reference':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
                 elif step['type'] == 'kill_checklist_reference':
                     step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
@@ -332,8 +319,7 @@ def create_template():
     
     # Define available step types and mental models
     step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
-        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
+        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
         {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
         {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
@@ -550,6 +536,13 @@ def project_dashboard(project_id):
             status='completed'
         ).order_by(ResearchSession.start_date.desc()).first()
 
+    # Calculate days since last work using proper timezone handling
+    days_since_last_work = None
+    if project.last_worked_at:
+        last_worked_aware = ensure_timezone_aware(project.last_worked_at)
+        current_time = now_utc()
+        days_since_last_work = (current_time - last_worked_aware).days
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
@@ -557,7 +550,7 @@ def project_dashboard(project_id):
                           time_breakdown=time_breakdown,
                           next_steps=next_steps,
                           latest_research_session=latest_research_session,
-                          datetime=datetime)
+                          days_since_last_work=days_since_last_work)
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
 @login_required
@@ -575,44 +568,30 @@ def execute_step(project_id, step_index):
         flash('Invalid step', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
     
-    # Start a work session
-    session = WorkSession(
-        project=project,
-        user=current_user,
+    # Check for existing active session for this step
+    existing_session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
         step_index=step_index,
-        step_name=step['name'],
-        start_time=datetime.now(timezone.utc)
-    )
-    db.session.add(session)
-    db.session.commit()
+        end_time=None
+    ).first()
+
+    if existing_session:
+        # Reuse existing active session
+        session = existing_session
+    else:
+        # Create new session
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
-        # Handle new dynamic checklist items
-        checklist_items = step['config'].get('checklist_items', [])
-        if checklist_items:
-            # Fetch company documents if project has a company
-            company_documents = []
-            if project.company_id:
-                company_documents = CompanyDocument.query.filter_by(
-                    company_id=project.company_id
-                ).order_by(
-                    CompanyDocument.document_group,
-                    CompanyDocument.document_date.desc()
-                ).all()
-            
-            return render_template('execute_checklist_step.html',
-                                title=f"Execute: {step['name']}",
-                                project=project,
-                                step=step,
-                                step_index=step_index,
-                                session=session,
-                                checklist_items=checklist_items,
-                                company_documents=company_documents)
-        else:
-            flash('No checklist items configured for this step', 'warning')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-    
-    elif step['type'] == 'investment_checklist_reference':
         # Handle investment checklist reference - redirect to research session evaluation
         checklist_id = step['config'].get('checklist_id')
         if checklist_id:
@@ -743,12 +722,16 @@ def execute_step(project_id, step_index):
                                   company_id=project.company_id))
     
     # For other step types, show the generic execution interface
+    # Format session start time for JavaScript timer
+    session_start_js = format_for_javascript(session.start_time)
+
     return render_template('execute_step.html',
                           title=f"Execute: {step['name']}",
                           project=project,
                           step=step,
                           step_index=step_index,
-                          session=session)
+                          session=session,
+                          session_start_js=session_start_js)
 
 @research_workflow_bp.route('/projects/<int:project_id>/complete-step', methods=['POST'])
 @login_required
@@ -768,9 +751,9 @@ def complete_step(project_id):
     if session_id:
         session = WorkSession.query.get(session_id)
         if session and session.user_id == current_user.id:
-            session.end_time = datetime.utcnow()
-            session.duration_minutes = int(
-                (session.end_time - session.start_time).total_seconds() / 60
+            session.end_time = now_utc()
+            session.duration_minutes = calculate_duration_minutes(
+                session.start_time, session.end_time
             )
             session.notes = notes
             
@@ -795,14 +778,14 @@ def complete_step(project_id):
     project.step_notes[str(step_index)] = notes
     
     # Update project progress
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     # Move to next step or complete project
     if step_index + 1 < len(project.template.workflow_steps):
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
         flash('Research project completed! Time to make your investment decision.', 'success')
     
     try:
@@ -869,7 +852,7 @@ def complete_research_step(project_id, step_index):
             project.current_step_index = step_index + 1
         else:
             project.status = 'completed'
-            project.completed_at = datetime.utcnow()
+            project.completed_at = now_utc()
 
         db.session.commit()
 
@@ -966,7 +949,7 @@ def save_decision(project_id):
     project.decision = decision # Save the decision to the project
     project.decision_confidence = request.form.get('confidence', type=int)
     project.decision_notes = request.form.get('decision_notes')
-    project.decision_date = datetime.utcnow()
+    project.decision_date = now_utc()
 
     # Parse key findings
     green_flags = request.form.get('green_flags', '').split('\n')
@@ -1064,7 +1047,7 @@ def pause_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
     
     project.status = 'paused'
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1086,7 +1069,7 @@ def resume_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
     
     project.status = 'active'
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1130,20 +1113,6 @@ def edit_template(template_id):
                 
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
-                    # Handle dynamic checklist items
-                    items = request.form.getlist(f'step_{i}_checklist_items[]')
-                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
-                    
-                    checklist_items = []
-                    for j, item in enumerate(items):
-                        if item.strip():  # Only add non-empty items
-                            checklist_items.append({
-                                'item': item.strip(),
-                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
-                            })
-                    
-                    step['config']['checklist_items'] = checklist_items
-                elif step['type'] == 'investment_checklist_reference':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
                 elif step['type'] == 'kill_checklist_reference':
                     step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
@@ -1153,7 +1122,7 @@ def edit_template(template_id):
                 workflow_steps.append(step)
         
         template.workflow_steps = workflow_steps
-        template.updated_at = datetime.utcnow()
+        template.updated_at = now_utc()
         
         try:
             db.session.commit()
@@ -1169,8 +1138,7 @@ def edit_template(template_id):
     
     # Define available step types and mental models (same as create)
     step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
-        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
+        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
         {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
         {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
@@ -1268,7 +1236,7 @@ def update_thesis(project_id):
     
     thesis = request.form.get('investment_thesis', '').strip()
     project.investment_thesis = thesis
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1306,7 +1274,7 @@ def add_finding(project_id):
     else:
         return jsonify({'error': 'Invalid finding type'}), 400
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1432,9 +1400,9 @@ def skip_step(project_id, step_index):
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1524,8 +1492,9 @@ def complete_checklist_step(project_id, session_id):
     }
     
     # Complete the session
-    session.end_time = datetime.utcnow()
-    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.end_time = now_utc()
+    start_time_aware = ensure_timezone_aware(session.start_time)
+    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
     session.notes = step_notes
     session.results = checklist_results
     session.status = 'completed'
@@ -1551,9 +1520,9 @@ def complete_checklist_step(project_id, session_id):
         project.current_step_index = session.step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1629,8 +1598,9 @@ def complete_kill_checklist_step(project_id, session_id):
     }
     
     # Complete the session
-    session.end_time = datetime.utcnow()
-    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.end_time = now_utc()
+    start_time_aware = ensure_timezone_aware(session.start_time)
+    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
     session.notes = step_notes
     session.results = kill_checklist_results
     session.status = 'completed'
@@ -1654,7 +1624,7 @@ def complete_kill_checklist_step(project_id, session_id):
     # Handle kill decision
     if overall_result == 'kill':
         project.status = 'killed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
         project.kill_reason = f"Failed screening: {step_notes}"
     else:
         # Move to next step
@@ -1662,9 +1632,9 @@ def complete_kill_checklist_step(project_id, session_id):
             project.current_step_index = session.step_index + 1
         else:
             project.status = 'completed'
-            project.completed_at = datetime.utcnow()
+            project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1954,7 +1924,7 @@ def return_from_checklist(project_id, step_index):
             project.step_notes[str(step_index)] = 'Completed via legacy investment checklist'
             
             # Update last worked timestamp
-            project.last_worked_at = datetime.now(timezone.utc)
+            project.last_worked_at = now_utc()
             
             try:
                 db.session.commit()

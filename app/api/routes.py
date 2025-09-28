@@ -7,8 +7,18 @@ from flask_login import login_required, current_user
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.models import IdeaPipeline
 from app import db
+from datetime import datetime, timezone
+from app.utils.time_utils import now_utc
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+
+@api_bp.route('/server-time')
+def server_time():
+    """Return current server time for timer synchronization"""
+    return jsonify({
+        'server_time': now_utc().isoformat()
+    })
 
 
 @api_bp.route('/check-duplicates', methods=['POST'])
