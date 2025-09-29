@@ -713,9 +713,13 @@ def execute_step(project_id, step_index):
             return redirect(url_for('companies.swot_analysis', 
                                   company_id=project.company_id))
         elif model_type == 'Porter\'s Five Forces':
-            return redirect(url_for('companies.porters_five_forces_analysis', 
+            return redirect(url_for('companies.porters_five_forces_analysis',
                                   company_id=project.company_id))
-    
+
+    elif step['type'] == 'competitor_analysis':
+        return redirect(url_for('research_workflow.competitor_analysis_step',
+                              project_id=project_id, step_index=step_index))
+
     # For other step types, show the generic execution interface
     # Format session start time for JavaScript timer
     session_start_js = format_for_javascript(session.start_time)
@@ -2152,4 +2156,245 @@ def get_project_adaptive_suggestions(project_id):
             'success': False,
             'error': str(e),
             'error_type': type(e).__name__
+        }), 500
+
+@research_workflow_bp.route('/projects/<int:project_id>/competitor-analysis/<int:step_index>', methods=['GET', 'POST'])
+@login_required
+def competitor_analysis_step(project_id, step_index):
+    """Execute competitor analysis step with LLM-powered competitor discovery and analysis"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Get the step details
+    step = project.template.get_step(step_index)
+    if not step or step['type'] != 'competitor_analysis':
+        flash('Invalid competitor analysis step', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    # Check if project has a company (required for competitor analysis)
+    if not project.company_id:
+        flash('Research project must have a company assigned for competitor analysis. Please assign a company to this project first.', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    company = project.company
+
+    # Get or create work session
+    session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
+        step_index=step_index,
+        end_time=None
+    ).first()
+
+    if not session:
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
+
+    # Handle form submission
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'analyze_competitors':
+            # LLM-powered competitor discovery
+            try:
+                from app.services.llm_service import generate_ai_content
+                from app.services.prompt_service import get_competitor_analysis_prompt
+
+                analysis_prompt = get_competitor_analysis_prompt(
+                    'landscape_analysis',
+                    company_name=company.name,
+                    ticker_symbol=company.ticker_symbol,
+                    company_description=company.summary or 'No description available',
+                    sector=company.sector or 'Unknown',
+                    industry=company.industry or 'Unknown'
+                )
+
+                competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=1500)
+
+                # Store the analysis in session notes
+                session.notes = competitor_analysis
+                session.updated_at = now_utc()
+                db.session.commit()
+
+                flash('Competitor analysis completed successfully!', 'success')
+
+            except Exception as e:
+                flash(f'Error generating competitor analysis: {str(e)}', 'error')
+
+        elif action == 'complete_step':
+            # Mark step as completed
+            notes = request.form.get('notes', '')
+            if notes:
+                session.notes = notes
+
+            session.end_time = now_utc()
+            session.updated_at = now_utc()
+
+            # Mark the step as completed in the project
+            completed_steps = project.completed_steps or []
+            if step_index not in completed_steps:
+                completed_steps.append(step_index)
+                project.completed_steps = completed_steps
+                project.last_worked_at = now_utc()
+
+            db.session.commit()
+            flash('Competitor analysis step completed!', 'success')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    # Format session start time for JavaScript timer
+    session_start_js = format_for_javascript(session.start_time)
+
+    return render_template('competitor_analysis_step.html',
+                          title=f"Competitor Analysis: {step['name']}",
+                          project=project,
+                          company=company,
+                          step=step,
+                          step_index=step_index,
+                          session=session,
+                          session_start_js=session_start_js)
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/competitor-analysis/<int:step_index>/api/analyze', methods=['POST'])
+@login_required
+def competitor_analysis_api(project_id, step_index):
+    """AJAX endpoint for competitor analysis with progress feedback"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    # Get the step details
+    step = project.template.get_step(step_index)
+    if not step or step['type'] != 'competitor_analysis':
+        return jsonify({'success': False, 'error': 'Invalid step'}), 400
+
+    company = project.company
+    if not company:
+        return jsonify({'success': False, 'error': 'No company associated with this project'}), 400
+
+    # Get or create work session
+    session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
+        step_index=step_index,
+        end_time=None
+    ).first()
+
+    if not session:
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
+
+    # Start background task for competitor analysis
+    try:
+        from app.services.background_tasks import BackgroundTaskService
+
+        # Start background task
+        task_id = BackgroundTaskService.start_competitor_analysis(
+            user_id=current_user.id,
+            project_id=project_id,
+            step_index=step_index,
+            company=company
+        )
+
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Competitor analysis started. This may take 30-60 seconds...'
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to start competitor analysis: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to start analysis: {str(e)}'
+        }), 500
+
+
+@research_workflow_bp.route('/api/background-task/<string:task_id>', methods=['GET'])
+@login_required
+def get_background_task_status(task_id):
+    """Get status of a background task"""
+    try:
+        from app.services.background_tasks import BackgroundTaskService
+
+        status = BackgroundTaskService.get_task_status(task_id)
+        if not status:
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+
+        # Check if task belongs to current user
+        from app.models import BackgroundTask
+        task = BackgroundTask.query.get(task_id)
+        if task and task.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting task status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error getting task status: {str(e)}'
+        }), 500
+
+
+@research_workflow_bp.route('/api/running-tasks', methods=['GET'])
+@login_required
+def get_running_tasks():
+    """Check for running background tasks for a specific project/step"""
+    try:
+        project_id = request.args.get('project_id', type=int)
+        step_index = request.args.get('step_index', type=int)
+
+        if not project_id or step_index is None:
+            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+        from app.models import BackgroundTask
+
+        # Find running task for this project/step
+        running_task = BackgroundTask.query.filter_by(
+            user_id=current_user.id,
+            project_id=project_id,
+            step_index=step_index,
+            task_type='competitor_analysis'
+        ).filter(
+            BackgroundTask.status.in_(['pending', 'running'])
+        ).first()
+
+        if running_task:
+            return jsonify({
+                'success': True,
+                'task_id': running_task.id,
+                'status': running_task.status
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'task_id': None
+            })
+
+    except Exception as e:
+        logger.error(f"Error checking running tasks: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error checking running tasks: {str(e)}'
         }), 500

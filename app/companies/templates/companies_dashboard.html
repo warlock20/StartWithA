@@ -14,9 +14,9 @@
             <span class="badge bg-danger">{{ inbox_count }}</span>
             {% endif %}
         </a>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" onclick="openCompanyModal(handleCompanyAdded)">
             <i class="bi bi-plus-circle"></i> Add Company
-        </a>
+        </button>
     </div>
 </div>
 
@@ -162,9 +162,41 @@
     </ol>
     <div class="mt-3">
         <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">Start with an Idea</a>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-outline-primary">Add Company Directly</a>
+        <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanyAdded)">Add Company Directly</button>
     </div>
 </div>
 {% endif %}
 
+<!-- Company Search Modal -->
+{% include "components/company_search_modal.html" %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+<script>
+function handleCompanyAdded(company) {
+    console.log('Company added:', company);
+
+    // Refresh the page to show the new company
+    // In a more sophisticated implementation, we could update the UI dynamically
+    window.location.reload();
+}
+
+// Auto-open modal if URL parameter is present
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('open_modal') === 'add_company') {
+        // Remove the parameter from URL without page reload
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+
+        // Open the modal
+        setTimeout(() => {
+            openCompanyModal(handleCompanyAdded);
+        }, 100);
+    }
+});
+</script>
 {% endblock %}

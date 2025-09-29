@@ -174,7 +174,11 @@ class UnifiedLLMService:
             if not api_key:
                 raise ValueError("GEMINI_API_KEY environment variable not set")
 
-            genai.configure(api_key=api_key)
+            # Configure to use v1 API instead of v1beta
+            genai.configure(
+                api_key=api_key,
+                client_options={"api_endpoint": "https://generativelanguage.googleapis.com/v1/"}
+            )
             self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
     async def generate_content_async(self, prompt: str, **kwargs) -> str:
@@ -192,12 +196,38 @@ class UnifiedLLMService:
             raise NotImplementedError("Synchronous OpenAI calls not supported. Use generate_content_async instead.")
 
     def _gemini_generate(self, prompt: str, **kwargs) -> str:
-        """Generate content using Gemini"""
+        """Generate content using Gemini with timeout"""
+        import signal
+        import time
+
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Gemini API call timed out after 60 seconds")
+
         try:
+            # Set 60-second timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(60)
+
+            logger.info(f"Starting Gemini API call...")
+            start_time = time.time()
+
             response = self.model.generate_content(prompt)
+
+            elapsed = time.time() - start_time
+            logger.info(f"Gemini API call completed in {elapsed:.2f} seconds")
+
+            # Clear the alarm
+            signal.alarm(0)
+
             return response.text
+
+        except TimeoutError as e:
+            logger.error(f"Gemini API timeout: {e}")
+            raise
         except Exception as e:
             logger.error(f"Gemini generation error: {e}")
+            # Clear the alarm in case of other errors
+            signal.alarm(0)
             raise
 
     async def _openai_generate(self, prompt: str, **kwargs) -> str:

@@ -432,31 +432,6 @@
         {% endif %}
     </div>
 </div>
-
-{# --- Quick Stats Footer --- #}
-<div class="card mt-4 stats-card">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <h4>{{ portfolio_companies_data|length + favorite_companies_data|length + other_companies_data|length }}
-                </h4>
-                <small class="text-muted">Total Companies</small>
-            </div>
-            <div class="col">
-                <h4>{{ portfolio_companies_data|length }}</h4>
-                <small class="text-muted">Portfolio</small>
-            </div>
-            <div class="col">
-                <h4>{{ favorite_companies_data|length }}</h4>
-                <small class="text-muted">Watchlist</small>
-            </div>
-            <div class="col">
-                <h4>{{ other_companies_data|length }}</h4>
-                <small class="text-muted">Other</small>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}

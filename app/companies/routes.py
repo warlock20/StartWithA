@@ -257,61 +257,11 @@ def research():
     """Research projects subpage - redirect to research workflow"""
     return redirect(url_for('research_workflow.my_projects'))
 
-@companies_bp.route('/new', methods=['GET', 'POST'])
+@companies_bp.route('/new')
 @login_required
 def new_company():
-    if request.method == 'POST':
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-
-        if not base_ticker:
-            flash('Base Ticker Symbol is required.', 'error')
-            return redirect(url_for('companies.new_company'))
-        
-        # Combine the base ticker and suffix to create the full yfinance ticker
-        full_ticker_symbol = f"{base_ticker}{exchange_suffix}"
-
-        try:
-            company_ticker = yf.Ticker(full_ticker_symbol)
-            info = company_ticker.info
-            
-            if info and info.get('longName'):
-                # --- SUCCESSFUL LOOKUP PATH ---
-                company_name = info.get('longName')
-                company_summary = info.get('longBusinessSummary', 'No summary available.')
-                company_sector = info.get('sector', 'N/A')
-                company_industry = info.get('industry', 'N/A')
-                # Check if user already has this company
-                existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
-                if existing_company:
-                    flash(f'You have already added "{company_name}" ({full_ticker_symbol}) to your list.', 'info')
-                    return redirect(url_for('companies.companies_dashboard'))
-                
-                return render_template('confirm_company.html',
-                                       title="Confirm Company",
-                                       ticker=full_ticker_symbol,
-                                       name=company_name,
-                                       summary=company_summary,
-                                       sector=company_sector,    
-                                       industry=company_industry 
-                                       )
-            else:
-                # --- FAILED LOOKUP / MANUAL OVERRIDE PATH ---
-                flash(f'Could not automatically find details for ticker "{full_ticker_symbol}". Please enter the company name manually.', 'warning')
-                return render_template('new_company_manual.html',
-                                       title="Add Company Manually",
-                                       ticker=full_ticker_symbol) # Pass the full ticker
-        except Exception as e:
-            print(f"yfinance lookup error for ticker {full_ticker_symbol}: {e}")
-            flash(f'An error occurred while looking up ticker "{full_ticker_symbol}". Please enter details manually.', 'warning')
-            return render_template('new_company_manual.html',
-                                   title="Add Company Manually",
-                                   ticker=full_ticker_symbol)
-
-    # For GET request, pass the exchanges dictionary to the template
-    return render_template('new_company.html', 
-                           title="Add New Company", 
-                           exchanges=EXCHANGES)
+    """Redirect to companies dashboard with modal trigger for adding new company"""
+    return redirect(url_for('companies.companies_dashboard', open_modal='add_company'))
 
 @companies_bp.route('/add_confirmed', methods=['POST'])
 @login_required
@@ -1177,6 +1127,7 @@ def api_create_company():
         ticker_symbol = data.get('ticker_symbol', '').strip().upper()
         industry = data.get('industry', '').strip() or None
         sector = data.get('sector', '').strip() or None
+        summary = data.get('summary', '').strip() or None
 
         if not name:
             return jsonify({'success': False, 'error': 'Company name is required'})
@@ -1202,7 +1153,8 @@ def api_create_company():
             name=name,
             ticker_symbol=ticker_symbol if ticker_symbol else None,
             industry=industry,
-            sector=sector
+            sector=sector,
+            summary=summary
         )
 
         db.session.add(company)
@@ -1215,10 +1167,53 @@ def api_create_company():
                 'name': company.name,
                 'ticker_symbol': company.ticker_symbol,
                 'industry': company.industry,
-                'sector': company.sector
+                'sector': company.sector,
+                'summary': company.summary
             }
         })
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})            
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@companies_bp.route('/api/lookup/<ticker>')
+@login_required
+def api_lookup_ticker(ticker):
+    """AJAX endpoint for looking up company info via yfinance"""
+    import yfinance as yf
+
+    try:
+        ticker = ticker.upper().strip()
+        if not ticker:
+            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
+
+        # Try yfinance lookup
+        company_ticker = yf.Ticker(ticker)
+        info = company_ticker.info
+
+        if info and info.get('longName'):
+            company_info = {
+                'name': info.get('longName'),
+                'ticker_symbol': ticker,
+                'summary': info.get('longBusinessSummary', ''),
+                'sector': info.get('sector', ''),
+                'industry': info.get('industry', ''),
+                'source': 'yfinance'
+            }
+
+            return jsonify({
+                'success': True,
+                'company_info': company_info
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Could not find company data for ticker "{ticker}"'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error looking up ticker: {str(e)}'
+        })            

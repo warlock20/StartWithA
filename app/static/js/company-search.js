@@ -27,6 +27,7 @@ class CompanySearchComponent {
         this.selectedCompany = null;
         this.callback = null;
         this.searchDebounceTimer = null;
+        this.lookupDebounceTimer = null;
         this.modal = null;
     }
 
@@ -112,11 +113,20 @@ class CompanySearchComponent {
             });
         }
 
-        // Auto-uppercase ticker field
+        // Auto-uppercase ticker field with lookup
         const tickerField = document.getElementById('newCompanyTicker');
         if (tickerField) {
             tickerField.addEventListener('input', (e) => {
                 e.target.value = e.target.value.toUpperCase();
+
+                // Auto-lookup when ticker looks valid (3-5 chars, all letters)
+                const ticker = e.target.value.trim();
+                if (ticker.length >= 3 && ticker.length <= 5 && ticker.match(/^[A-Z]+$/)) {
+                    clearTimeout(this.lookupDebounceTimer);
+                    this.lookupDebounceTimer = setTimeout(() => {
+                        this.lookupTickerInfo(ticker);
+                    }, 800); // Wait 800ms before lookup
+                }
             });
         }
     }
@@ -278,7 +288,8 @@ class CompanySearchComponent {
             ticker_symbol: yahooCompany.ticker_symbol,
             name: yahooCompany.name,
             industry: yahooCompany.industry || null,
-            sector: yahooCompany.sector || null
+            sector: yahooCompany.sector || null,
+            summary: yahooCompany.summary || null
         };
 
         try {
@@ -308,6 +319,7 @@ class CompanySearchComponent {
         const name = document.getElementById('newCompanyName').value.trim();
         const industry = document.getElementById('newCompanyIndustry').value.trim();
         const sector = document.getElementById('newCompanySector').value.trim();
+        const summary = document.getElementById('newCompanySummary').value.trim();
 
         if (!name) {
             alert('Company name is required');
@@ -318,7 +330,8 @@ class CompanySearchComponent {
             ticker_symbol: ticker || null,
             name: name,
             industry: industry || null,
-            sector: sector || null
+            sector: sector || null,
+            summary: summary || null
         };
 
         try {
@@ -418,11 +431,76 @@ class CompanySearchComponent {
      * Clear quick add form
      */
     clearQuickAddForm() {
-        const fields = ['newCompanyTicker', 'newCompanyName', 'newCompanyIndustry', 'newCompanySector'];
+        const fields = ['newCompanyTicker', 'newCompanyName', 'newCompanyIndustry', 'newCompanySector', 'newCompanySummary'];
         fields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) field.value = '';
         });
+    }
+
+    /**
+     * Lookup company info via yfinance API
+     */
+    async lookupTickerInfo(ticker) {
+        try {
+            const response = await fetch(`/companies/api/lookup/${ticker}`);
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('Auto-filled company data:', data.company_info);
+                this.fillCompanyForm(data.company_info);
+
+                // Show success indicator
+                this.showLookupSuccess(ticker);
+            } else {
+                // Silently fail - user can still enter manually
+                console.log('Ticker lookup failed:', data.error);
+            }
+        } catch (error) {
+            console.error('Ticker lookup error:', error);
+            // Silently fail - don't interrupt user experience
+        }
+    }
+
+    /**
+     * Fill company form with fetched data
+     */
+    fillCompanyForm(companyInfo) {
+        const fields = {
+            'newCompanyName': companyInfo.name,
+            'newCompanyIndustry': companyInfo.industry,
+            'newCompanySector': companyInfo.sector,
+            'newCompanySummary': companyInfo.summary
+        };
+
+        Object.entries(fields).forEach(([fieldId, value]) => {
+            const field = document.getElementById(fieldId);
+            if (field && value) {
+                field.value = value;
+                // Add visual feedback
+                field.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    field.style.backgroundColor = '';
+                }, 2000);
+            }
+        });
+    }
+
+    /**
+     * Show lookup success indicator
+     */
+    showLookupSuccess(ticker) {
+        const tickerField = document.getElementById('newCompanyTicker');
+        if (tickerField) {
+            const originalBorder = tickerField.style.border;
+            tickerField.style.border = '2px solid #28a745';
+            tickerField.title = `Auto-filled from ${ticker} data`;
+
+            setTimeout(() => {
+                tickerField.style.border = originalBorder;
+                tickerField.title = '';
+            }, 3000);
+        }
     }
 
     /**

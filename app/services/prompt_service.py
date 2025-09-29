@@ -201,6 +201,11 @@ def get_research_template_prompt(name: str, **kwargs) -> str:
     return prompt_service.get_prompt('research_template', name, **kwargs)
 
 
+def get_competitor_analysis_prompt(name: str, **kwargs) -> str:
+    """Convenience function for competitor analysis prompts"""
+    return prompt_service.get_prompt('competitor_analysis', name, **kwargs)
+
+
 # Development helper functions
 def list_all_prompts():
     """Debug function to list all available prompts"""
