@@ -4,6 +4,7 @@ import shutil
 import uuid
 import re
 import requests
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 import yfinance as yf
@@ -17,7 +18,9 @@ from app.services.llm_service import generate_ai_content
 from app import db, create_app
 from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData, BackgroundTask, WorkSession
 from celery_app import celery
-from dateutil.parser import isoparse 
+from dateutil.parser import isoparse
+from app.services.prompt_service import get_competitor_analysis_prompt
+from app.utils.time_utils import now_utc
 
 @celery.task(bind=True)
 def fetch_financial_data_task(self, company_id):
@@ -117,7 +120,7 @@ def competitor_analysis_task(self, task_id, company_data):
 
             # Update task status to running
             task.status = 'running'
-            task.started_at = datetime.utcnow()
+            task.started_at = now_utc()
             db.session.commit()
 
             print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
@@ -149,11 +152,11 @@ def competitor_analysis_task(self, task_id, company_data):
 
             if session:
                 session.notes = competitor_analysis
-                session.updated_at = datetime.utcnow()
+                session.updated_at = now_utc()
 
             # Update task as completed
             task.status = 'completed'
-            task.completed_at = datetime.utcnow()
+            task.completed_at = now_utc()
             import json
             task.result = json.dumps({
                 "analysis": competitor_analysis,
@@ -173,7 +176,7 @@ def competitor_analysis_task(self, task_id, company_data):
             task = BackgroundTask.query.get(task_id)
             if task:
                 task.status = 'failed'
-                task.completed_at = datetime.utcnow()
+                task.completed_at = now_utc()
                 task.error_message = str(e)
                 db.session.commit()
 
@@ -273,13 +276,10 @@ def competitor_analysis_task(self, task_id, company_data):
 
             # Update task status to running
             task.status = 'running'
-            task.started_at = datetime.utcnow()
+            task.started_at = now_utc()
             db.session.commit()
 
             print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
-
-            # Import prompt service within task context
-            from app.services.prompt_service import get_competitor_analysis_prompt
 
             # Generate the analysis prompt
             analysis_prompt = get_competitor_analysis_prompt(
@@ -305,12 +305,11 @@ def competitor_analysis_task(self, task_id, company_data):
 
             if session:
                 session.notes = competitor_analysis
-                session.updated_at = datetime.utcnow()
+                session.updated_at = now_utc()
 
             # Update task as completed
             task.status = 'completed'
-            task.completed_at = datetime.utcnow()
-            import json
+            task.completed_at = now_utc()
             task.result = json.dumps({
                 "analysis": competitor_analysis,
                 "message": "Competitor analysis completed successfully!"
@@ -329,7 +328,7 @@ def competitor_analysis_task(self, task_id, company_data):
             task = BackgroundTask.query.get(task_id)
             if task:
                 task.status = 'failed'
-                task.completed_at = datetime.utcnow()
+                task.completed_at = now_utc()
                 task.error_message = str(e)
                 db.session.commit()
 
@@ -360,7 +359,7 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
 
         try:
             #print(f"BACKGROUND TASK ({self.request.id}): Fetching filings for {company.ticker_symbol}...")
-            start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+            start_date = (now_utc() - timedelta(days=years_to_fetch * 365.25)).date()
             
             filing_docs = filings(
                 cik_lookup=company.ticker_symbol,
@@ -541,7 +540,7 @@ def competitor_analysis_task(self, task_id, company_data):
 
             # Update task status to running
             task.status = 'running'
-            task.started_at = datetime.utcnow()
+            task.started_at = now_utc()
             db.session.commit()
 
             print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
@@ -573,11 +572,11 @@ def competitor_analysis_task(self, task_id, company_data):
 
             if session:
                 session.notes = competitor_analysis
-                session.updated_at = datetime.utcnow()
+                session.updated_at = now_utc()
 
             # Update task as completed
             task.status = 'completed'
-            task.completed_at = datetime.utcnow()
+            task.completed_at = now_utc()
             import json
             task.result = json.dumps({
                 "analysis": competitor_analysis,
@@ -597,7 +596,7 @@ def competitor_analysis_task(self, task_id, company_data):
             task = BackgroundTask.query.get(task_id)
             if task:
                 task.status = 'failed'
-                task.completed_at = datetime.utcnow()
+                task.completed_at = now_utc()
                 task.error_message = str(e)
                 db.session.commit()
 

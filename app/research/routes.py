@@ -564,7 +564,6 @@ def task_status(task_id):
     """
     Checks the status of a Celery background task.
     """
-    # Get the task object from the Celery result backend (Redis)
     task = celery.AsyncResult(task_id)
 
     response_data = {
@@ -572,19 +571,23 @@ def task_status(task_id):
     }
 
     if task.state == 'PENDING':
-        # The task is waiting to be picked up by a worker.
         response_data['status_message'] = 'Task is pending...'
     elif task.state == 'SUCCESS':
-        # The task completed successfully.
-        # task.info will contain the return value of your task function.
         response_data['result'] = task.info
         response_data['status_message'] = 'Task completed successfully!'
-    elif task.state != 'FAILURE':
-        # For other states like 'PROGRESS', if you were to implement them.
-        response_data['status_message'] = 'Task is in progress...'
+    elif task.state == 'FAILURE':
+        # This is the key fix. On failure, task.info is the raw exception.
+        # The custom error message we set in the task is stored in the task's metadata.
+        # We access it through the task's result backend.
+        if hasattr(task, 'backend') and hasattr(task.backend, 'get_task_meta'):
+            meta = task.backend.get_task_meta(task.id)
+            # Use our custom message if it exists, otherwise fall back to the raw exception string.
+            response_data['status_message'] = meta.get('exc_message', str(task.info))
+        else:
+            response_data['status_message'] = str(task.info) # Fallback for different backends
     else:
-        # The task failed. task.info will contain the exception.
-        response_data['status_message'] = str(task.info) # The error message
+        # For other states like 'PROGRESS' or 'STARTED'
+        response_data['status_message'] = 'Task is in progress...'
 
     return jsonify(response_data)
 

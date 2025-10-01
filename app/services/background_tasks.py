@@ -53,7 +53,6 @@ class BackgroundTaskService:
 
         return task_id
 
-
     @staticmethod
     def get_task_status(task_id):
         """Get current status of a background task"""

@@ -206,6 +206,11 @@ def get_competitor_analysis_prompt(name: str, **kwargs) -> str:
     return prompt_service.get_prompt('competitor_analysis', name, **kwargs)
 
 
+def get_document_processing_prompt(name: str, **kwargs) -> str:
+    """Convenience function for document processing prompts"""
+    return prompt_service.get_prompt('document_processing', name, **kwargs)
+
+
 # Development helper functions
 def list_all_prompts():
     """Debug function to list all available prompts"""

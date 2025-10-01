@@ -2239,6 +2239,7 @@ def competitor_analysis_step(project_id, step_index):
 
             session.end_time = now_utc()
             session.updated_at = now_utc()
+            session.status = 'completed'
 
             # Mark the step as completed in the project
             completed_steps = project.completed_steps or []
@@ -2247,9 +2248,21 @@ def competitor_analysis_step(project_id, step_index):
                 project.completed_steps = completed_steps
                 project.last_worked_at = now_utc()
 
+            # Check if this is the last step
+            if step_index + 1 < len(project.template.workflow_steps):
+                project.current_step_index = step_index + 1
+            else:
+                project.status = 'completed'
+                project.completed_at = now_utc()
+
             db.session.commit()
             flash('Competitor analysis step completed!', 'success')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+            # Redirect to summary if project is complete, otherwise to dashboard
+            if project.status == 'completed':
+                return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+            else:
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
     # Format session start time for JavaScript timer
     session_start_js = format_for_javascript(session.start_time)
