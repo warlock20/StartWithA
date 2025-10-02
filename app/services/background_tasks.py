@@ -78,7 +78,7 @@ class BackgroundTaskService:
     @staticmethod
     def cleanup_old_tasks(days_old=7):
         """Clean up completed/failed tasks older than X days"""
-        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+        cutoff_date = now_utc() - timedelta(days=days_old)
 
         old_tasks = BackgroundTask.query.filter(
             BackgroundTask.status.in_(['completed', 'failed']),

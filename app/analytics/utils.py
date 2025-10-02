@@ -4,6 +4,7 @@ from app import db
 from app.models import (User, ResearchMetrics, IdeaPipeline, ResearchProject,
                        WorkSession, ResearchLog, IdeaSourceAnalysis,
                        KillSession, DecisionJournal)
+from app.utils.time_utils import now_utc
 
 def update_user_metrics(user_id):
     """
@@ -88,7 +89,7 @@ def update_user_metrics(user_id):
     
     # Behavioral patterns from research logs
     recent_logs = user.research_logs.filter(
-        ResearchLog.timestamp >= datetime.utcnow() - timedelta(days=90)
+        ResearchLog.timestamp >= now_utc() - timedelta(days=90)
     ).all()
     
     if recent_logs:
@@ -240,8 +241,8 @@ def get_time_allocation_data(user_id, days=30):
     """
     Get time allocation data for the past N days.
     """
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
-    
+    cutoff_date = now_utc() - timedelta(days=days)
+
     # Get work sessions
     sessions = WorkSession.query.filter(
         WorkSession.user_id == user_id,

@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from app import db
 from app.models import JournalEntry, ThesisEvolution, Company, User
 from app.services.prompt_service import get_research_journal_prompt
+from app.utils.time_utils import now_utc
 import logging
 import google.generativeai as genai
 from flask import current_app
@@ -126,7 +127,7 @@ class ResearchJournalIntelligence:
                 user_id=entry.user_id,
                 company_id=company_id
             ).filter(
-                ThesisEvolution.created_at >= datetime.utcnow() - timedelta(days=90)
+                ThesisEvolution.created_at >= now_utc() - timedelta(days=90)
             ).order_by(ThesisEvolution.created_at.desc()).limit(3).all()
 
             recent_thesis_text = "\n".join([

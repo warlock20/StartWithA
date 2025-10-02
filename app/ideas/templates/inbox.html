@@ -38,9 +38,8 @@
         <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    {% if ideas and ideas|sort(attribute='created_at') %}
-                    {% set oldest = ideas|sort(attribute='created_at')|first %}
-                    <h3 class="mb-0">{{ (now - oldest.created_at).days }}</h3>
+                    {% if days_since_oldest is not none %}
+                    <h3 class="mb-0">{{ days_since_oldest }}</h3>
                     <small class="text-muted">Days Since Oldest</small>
                     {% else %}
                     <h3 class="mb-0">✨</h3>

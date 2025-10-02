@@ -23,18 +23,30 @@ def inbox():
         IdeaPipeline.user_id == current_user.id,
         IdeaPipeline.status.in_(['inbox', 'survived'])
     ).order_by(IdeaPipeline.created_at.desc()).all()
-    
+
     default_kill_checklist = KillChecklist.query.filter_by(
-        user_id=current_user.id, 
+        user_id=current_user.id,
         is_default=True
     ).first()
     all_kill_checklists = KillChecklist.query.filter_by(user_id=current_user.id).all()
-    return render_template('inbox.html', 
+
+    # Calculate days since oldest idea (handle timezone awareness)
+    days_since_oldest = None
+    if ideas:
+        oldest_idea = min(ideas, key=lambda x: x.created_at)
+        if oldest_idea.created_at:
+            from app.utils.time_utils import ensure_timezone_aware
+            oldest_date_aware = ensure_timezone_aware(oldest_idea.created_at)
+            current_time = now_utc()
+            days_since_oldest = (current_time - oldest_date_aware).days
+
+    return render_template('inbox.html',
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
                           all_kill_checklists=all_kill_checklists,
-                          now=now_utc()
+                          now=now_utc(),
+                          days_since_oldest=days_since_oldest
                           )
 
 @ideas_bp.route('/add', methods=['GET', 'POST'])
@@ -244,9 +256,10 @@ def kill_room(idea_id):
 @ideas_bp.route('/graveyard')
 @login_required
 def graveyard():
+    from app.utils.time_utils import ensure_timezone_aware
     killed_ideas = current_user.idea_pipeline.filter_by(status='killed').order_by(IdeaPipeline.killed_at.desc()).all()
     thirty_days_ago = now_utc() - timedelta(days=30)
-    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and idea.killed_at > thirty_days_ago)
+    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and ensure_timezone_aware(idea.killed_at) > thirty_days_ago)
     kill_reasons = {}
     for idea in killed_ideas:
         reason = idea.kill_reason or "Unknown"

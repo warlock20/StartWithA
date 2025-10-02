@@ -22,6 +22,24 @@ def index():
     # Get the number of companies in the active portfolio
     portfolio_count = current_user.companies.filter_by(is_in_portfolio=True).count()
 
+    # Calculate Too Hard Basket Rate (Selectivity Metric)
+    company_invest_count = current_user.research_projects.filter_by(
+        research_subject_type='company',
+        decision='invest'
+    ).count()
+
+    company_pass_count = current_user.research_projects.filter_by(
+        research_subject_type='company',
+        decision='pass'
+    ).count()
+
+    total_decided_companies = company_invest_count + company_pass_count
+
+    if total_decided_companies > 0:
+        too_hard_rate = (company_pass_count / total_decided_companies) * 100
+    else:
+        too_hard_rate = 0
+
     # Get user's research templates and kill checklists
     user_templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
     user_kill_checklists = current_user.kill_checklists.order_by(KillChecklist.created_at.desc()).all()
@@ -84,7 +102,11 @@ def index():
         legacy_checklists=legacy_checklists,
         template_count=template_count,
         kill_checklist_count=kill_checklist_count,
-        legacy_checklist_count=legacy_checklist_count
+        legacy_checklist_count=legacy_checklist_count,
+        too_hard_rate=round(too_hard_rate, 1),
+        total_decided_companies=total_decided_companies,
+        company_invest_count=company_invest_count,
+        company_pass_count=company_pass_count
     )
 
 @dashboard_bp.route('/portfolio_timeline')

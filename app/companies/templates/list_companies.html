@@ -222,14 +222,75 @@
 </nav>
 {% endif %}
 
+{# --- SEARCH AND FILTER BAR --- #}
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('companies.list_companies') }}" class="row g-3">
+            <!-- Search Box -->
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="search"
+                           placeholder="Search by company name or ticker..."
+                           value="{{ current_search }}">
+                </div>
+            </div>
+
+            <!-- Sector Filter -->
+            <div class="col-md-3">
+                <select class="form-select" name="sector">
+                    <option value="">All Sectors</option>
+                    {% for sector in sectors %}
+                    <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>
+                        {{ sector }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Per Page Selector -->
+            <div class="col-md-2">
+                <select class="form-select" name="per_page">
+                    <option value="10" {% if current_per_page == 10 %}selected{% endif %}>10 per page</option>
+                    <option value="20" {% if current_per_page == 20 %}selected{% endif %}>20 per page</option>
+                    <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50 per page</option>
+                    <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100 per page</option>
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+
+        <!-- Active Filters Display -->
+        {% if current_search or current_sector %}
+        <div class="mt-3">
+            <small class="text-muted">Active filters:</small>
+            {% if current_search %}
+            <span class="badge bg-info">Search: "{{ current_search }}"</span>
+            {% endif %}
+            {% if current_sector %}
+            <span class="badge bg-info">Sector: {{ current_sector }}</span>
+            {% endif %}
+            <a href="{{ url_for('companies.list_companies') }}" class="badge bg-secondary text-decoration-none">Clear All</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {# --- ALL COMPANIES TABLE --- #}
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">All Companies</h5>
+        <span class="text-muted">
+            Showing {{ pagination.total }} companies
+            {% if current_search or current_sector %}(filtered){% endif %}
+        </span>
     </div>
     <div class="card-body">
-        {% set all_companies = portfolio_companies_data + favorite_companies_data + other_companies_data %}
-        {% if all_companies %}
+        {% if companies_data_list %}
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead>
@@ -241,13 +302,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for data in all_companies %}
+                    {% for data in companies_data_list %}
                     {% set company = data.company_obj %}
                     <tr>
                         <td>
-                            {% if company.id in portfolio_ids %}
+                            {% if data.is_portfolio %}
                             <span class="badge bg-success" title="Portfolio Company">📈</span>
-                            {% elif company.id in favorite_ids %}
+                            {% elif data.is_favorite %}
                             <span class="badge bg-warning text-dark" title="Watchlist">⭐</span>
                             {% else %}
                             <span class="badge bg-secondary" title="Other">📋</span>
@@ -416,11 +477,59 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Controls -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <!-- Previous Button -->
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.prev_num, per_page=current_per_page, search=current_search, sector=current_sector) }}">
+                        Previous
+                    </a>
+                </li>
+
+                <!-- Page Numbers -->
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('companies.list_companies', page=page_num, per_page=current_per_page, search=current_search, sector=current_sector) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next Button -->
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.next_num, per_page=current_per_page, search=current_search, sector=current_sector) }}">
+                        Next
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Page Info -->
+            <div class="text-center text-muted small">
+                {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
+                {% set end = pagination.page * pagination.per_page %}
+                {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
+                Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
+            </div>
+        </nav>
+        {% endif %}
+
         {% else %}
         <div class="text-center py-5">
             <div class="mb-3">
                 <i class="bi bi-building" style="font-size: 3rem; color: #6c757d;"></i>
             </div>
+            {% if current_search or current_sector %}
+            <h5 class="text-muted">No companies found</h5>
+            <p class="text-muted">Try adjusting your search or filter criteria</p>
+            <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-secondary">Clear Filters</a>
+            {% else %}
             <h5 class="text-muted">No companies yet</h5>
             <p class="text-muted">Add companies to start building your investment research database</p>
             <div class="mt-3">
@@ -428,6 +537,7 @@
                     Add Your First Company
                 </a>
             </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>

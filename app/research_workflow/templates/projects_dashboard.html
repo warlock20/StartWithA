@@ -1,0 +1,303 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>📊 {{ title }}</h1>
+        <p class="text-muted mb-0">Your systematic research command center</p>
+    </div>
+    <div>
+        <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-layout-text-sidebar"></i> View Templates
+        </a>
+        <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Start New Research
+        </a>
+    </div>
+</div>
+
+<!-- Overview Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-primary">🔥</div>
+                <h3 class="mt-2">{{ dashboard_data.active_count }}</h3>
+                <p class="text-muted mb-3">Active Projects</p>
+                <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-outline-primary btn-sm">
+                    View All →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-success">✅</div>
+                <h3 class="mt-2">{{ dashboard_data.completed_count }}</h3>
+                <p class="text-muted mb-3">Completed</p>
+                <a href="{{ url_for('research_workflow.completed_projects') }}" class="btn btn-outline-success btn-sm">
+                    View All →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-warning">🧺</div>
+                <h3 class="mt-2">{{ dashboard_data.too_hard_count }}</h3>
+                <p class="text-muted mb-3">Too Hard Basket</p>
+                <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-outline-warning btn-sm">
+                    View All →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-info">⏸️</div>
+                <h3 class="mt-2">{{ dashboard_data.paused_count }}</h3>
+                <p class="text-muted mb-3">Paused Projects</p>
+                <a href="{{ url_for('research_workflow.paused_projects') }}" class="btn btn-outline-info btn-sm">
+                    View All →
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Decision Metrics -->
+<div class="row mb-4">
+    <!-- Decision Breakdown -->
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">🎯 Decision Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h2 class="text-success">{{ dashboard_data.invest_decisions }}</h2>
+                        <small class="text-muted">Invest</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 class="text-danger">{{ dashboard_data.pass_decisions }}</h2>
+                        <small class="text-muted">Pass</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 class="text-warning">{{ dashboard_data.watchlist_decisions }}</h2>
+                        <small class="text-muted">Watchlist</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Too Hard Basket Rate (Selectivity Meter) -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">🧺 Selectivity Rate</h5>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                {% if dashboard_data.total_decided_companies > 0 %}
+                <!-- Circular Progress Indicator -->
+                <div class="text-center mb-2">
+                    <div class="position-relative d-inline-block">
+                        <svg width="120" height="120" class="selectivity-gauge">
+                            <!-- Background circle -->
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="#e9ecef" stroke-width="10"/>
+                            <!-- Progress circle -->
+                            <circle cx="60" cy="60" r="50" fill="none"
+                                    stroke="{% if dashboard_data.too_hard_rate >= 70 %}#28a745{% elif dashboard_data.too_hard_rate >= 40 %}#ffc107{% else %}#dc3545{% endif %}"
+                                    stroke-width="10"
+                                    stroke-dasharray="{{ (dashboard_data.too_hard_rate / 100 * 314) }} 314"
+                                    stroke-dashoffset="78.5"
+                                    transform="rotate(-90 60 60)"
+                                    stroke-linecap="round"/>
+                        </svg>
+                        <div class="position-absolute top-50 start-50 translate-middle text-center">
+                            <h3 class="mb-0">{{ dashboard_data.too_hard_rate|int }}%</h3>
+                            <small class="text-muted">Passed</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <small class="text-muted">
+                        {{ dashboard_data.company_pass_count }} passed / {{ dashboard_data.total_decided_companies }} researched
+                    </small>
+                    <div class="mt-2">
+                        {% if dashboard_data.too_hard_rate >= 70 %}
+                        <span class="badge bg-success">Highly Selective</span>
+                        {% elif dashboard_data.too_hard_rate >= 40 %}
+                        <span class="badge bg-warning">Moderately Selective</span>
+                        {% else %}
+                        <span class="badge bg-info">Building Experience</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <div class="display-6">🧺</div>
+                    <p class="mb-0 mt-2">No decisions yet</p>
+                    <small>Complete research to see your selectivity rate</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.selectivity-gauge {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+</style>
+
+<!-- Recent Activity -->
+{% if dashboard_data.recent_activity %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">🔥 Recent Activity</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group list-group-flush">
+            {% for project in dashboard_data.recent_activity %}
+            <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                <div>
+                    <h6 class="mb-1">{{ project.subject_display_name }}</h6>
+                    <small class="text-muted">{{ project.template.name }} • {{ project.research_subject_type.title() }}</small>
+                </div>
+                <div class="text-end">
+                    <small class="text-muted">
+                        {% if project.last_worked_at %}
+                            {{ project.last_worked_at.strftime('%b %d') }}
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </small>
+                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
+                       class="btn btn-sm btn-outline-primary ms-2">View</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Preview Sections -->
+<div class="row">
+    <!-- Active Projects Preview -->
+    {% if dashboard_data.active_preview %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🔥 Active Projects</h5>
+                <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-sm btn-outline-primary">View All ({{ dashboard_data.active_count }})</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for project in dashboard_data.active_preview %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ project.subject_display_name }}</h6>
+                                <small class="text-muted">{{ project.template.name }}</small>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar" style="width: {{ project.progress_percentage }}%;"></div>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
+                               class="btn btn-sm btn-primary ms-2">Continue</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Completed Projects Preview -->
+    {% if dashboard_data.completed_preview %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">✅ Recently Completed</h5>
+                <a href="{{ url_for('research_workflow.completed_projects') }}" class="btn btn-sm btn-outline-success">View All ({{ dashboard_data.completed_count }})</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for project in dashboard_data.completed_preview %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ project.subject_display_name }}</h6>
+                                <small class="text-muted">{{ project.template.name }}</small>
+                                {% if project.decision %}
+                                <div class="mt-1">
+                                    {% if project.decision == 'invest' %}
+                                    <span class="badge bg-success">Invest</span>
+                                    {% elif project.decision == 'pass' %}
+                                    <span class="badge bg-danger">Pass</span>
+                                    {% elif project.decision == 'watchlist' %}
+                                    <span class="badge bg-warning">Watchlist</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                               class="btn btn-sm btn-outline-primary">Summary</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Too Hard Basket Preview -->
+{% if dashboard_data.too_hard_preview %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">🧺 Too Hard Basket</h5>
+            <small class="text-muted">Companies you've passed on - Warren Buffett's wisdom</small>
+        </div>
+        <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-sm btn-outline-warning">View All ({{ dashboard_data.too_hard_count }})</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for project in dashboard_data.too_hard_preview %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">{{ project.subject_display_name }}</h6>
+                        <small class="text-muted">
+                            Passed on {{ project.completed_at.strftime('%b %d, %Y') if project.completed_at else 'Unknown' }}
+                            {% if project.decision_notes %}
+                            • {{ project.decision_notes[:50] }}{% if project.decision_notes|length > 50 %}...{% endif %}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                       class="btn btn-sm btn-outline-primary">Review</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <h5>💡 Your Too Hard Basket is Empty</h5>
+    <p class="mb-0">As you complete research and decide to pass on companies, they'll appear here as a learning resource.</p>
+</div>
+{% endif %}
+
+{% endblock %}

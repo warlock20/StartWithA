@@ -370,9 +370,147 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Selectivity Rate (Too Hard Basket) -->
+            <div class="col-lg-6">
+                <div class="activity-card selectivity-activity">
+                    <div class="activity-header">
+                        <div class="activity-icon">
+                            <i class="bi bi-basket3"></i>
+                        </div>
+                        <div class="activity-title">
+                            <h4>Selectivity Rate</h4>
+                            <p>Your "Too Hard Basket" - Companies passed on</p>
+                        </div>
+                        <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="activity-link">View Basket</a>
+                    </div>
+                    <div class="activity-body">
+                        {% if total_decided_companies > 0 %}
+                            <div class="selectivity-meter">
+                                <div class="meter-visual">
+                                    <!-- Circular Progress Indicator -->
+                                    <svg width="140" height="140" class="selectivity-gauge">
+                                        <!-- Background circle -->
+                                        <circle cx="70" cy="70" r="60" fill="none" stroke="#e9ecef" stroke-width="12"/>
+                                        <!-- Progress circle -->
+                                        <circle cx="70" cy="70" r="60" fill="none"
+                                                stroke="{% if too_hard_rate >= 70 %}#28a745{% elif too_hard_rate >= 40 %}#ffc107{% else %}#6c757d{% endif %}"
+                                                stroke-width="12"
+                                                stroke-dasharray="{{ (too_hard_rate / 100 * 377) }} 377"
+                                                stroke-dashoffset="94.25"
+                                                transform="rotate(-90 70 70)"
+                                                stroke-linecap="round"/>
+                                    </svg>
+                                    <div class="meter-center">
+                                        <div class="meter-percentage">{{ too_hard_rate|int }}%</div>
+                                        <div class="meter-label">Passed</div>
+                                    </div>
+                                </div>
+                                <div class="selectivity-details">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Total Researched:</span>
+                                        <span class="detail-value">{{ total_decided_companies }} companies</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Passed On:</span>
+                                        <span class="detail-value text-danger">{{ company_pass_count }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Invested:</span>
+                                        <span class="detail-value text-success">{{ company_invest_count }}</span>
+                                    </div>
+                                    <div class="selectivity-badge mt-3">
+                                        {% if too_hard_rate >= 70 %}
+                                        <span class="badge bg-success">Highly Selective - Like Buffett</span>
+                                        {% elif too_hard_rate >= 40 %}
+                                        <span class="badge bg-warning">Moderately Selective</span>
+                                        {% else %}
+                                        <span class="badge bg-info">Building Experience</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="activity-empty">
+                                <i class="bi bi-basket3"></i>
+                                <h6>No Decisions Yet</h6>
+                                <p>Complete research on companies to build your selectivity metrics. Higher rates show disciplined decision-making.</p>
+                                <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-outline-primary">Start Researching</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
+
+<style>
+/* Selectivity Meter Styles */
+.selectivity-meter {
+    padding: 1.5rem;
+}
+
+.meter-visual {
+    position: relative;
+    display: inline-block;
+    margin: 0 auto 1.5rem;
+}
+
+.selectivity-gauge {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.meter-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.meter-percentage {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.meter-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.selectivity-details {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+}
+
+.detail-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.detail-value {
+    font-weight: 600;
+}
+
+.selectivity-badge {
+    text-align: center;
+}
+
+.selectivity-activity .activity-empty {
+    min-height: 250px;
+}
+</style>
+
 {% endblock %}
 
 {% block scripts %}

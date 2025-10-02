@@ -165,6 +165,13 @@ def portfolio():
 @login_required
 def watchlist():
     """Watchlist/favorite companies dedicated page"""
+    # Get pagination and filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    sector_filter = request.args.get('sector', '', type=str).strip()
+    analysis_status = request.args.get('status', '', type=str).strip()
+
     # Get all user companies
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
     portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
@@ -181,41 +188,138 @@ def watchlist():
     # Build enriched watchlist data
     watchlist_companies_data = []
     for company in watchlist_companies:
-        watchlist_companies_data.append({
-            'company_obj': company,
-            'has_completed_checklist': company.id in completed_checklist_ids,
-            'has_swot': company.id in swot_analysis_ids,
-            'has_destination_analysis': company.id in dest_analysis_ids,
-        })
+        has_completed_checklist = company.id in completed_checklist_ids
+        has_swot = company.id in swot_analysis_ids
+        has_destination_analysis = company.id in dest_analysis_ids
 
+        company_data = {
+            'company_obj': company,
+            'has_completed_checklist': has_completed_checklist,
+            'has_swot': has_swot,
+            'has_destination_analysis': has_destination_analysis,
+        }
+
+        # Apply search filter
+        if search_query:
+            if not (search_query.lower() in company.name.lower() or
+                   (company.ticker_symbol and search_query.lower() in company.ticker_symbol.lower())):
+                continue
+
+        # Apply sector filter
+        if sector_filter:
+            company_sector = company.sector if company.sector else 'Unclassified'
+            if company_sector != sector_filter:
+                continue
+
+        # Apply analysis status filter
+        if analysis_status:
+            if analysis_status == 'analyzed' and not (has_completed_checklist or has_swot or has_destination_analysis):
+                continue
+            elif analysis_status == 'not_analyzed' and (has_completed_checklist or has_swot or has_destination_analysis):
+                continue
+
+        watchlist_companies_data.append(company_data)
+
+    # Sort by company name
     watchlist_companies_data.sort(key=lambda x: x['company_obj'].name)
 
-    # Calculate watchlist metrics
+    # Paginate
+    total_items = len(watchlist_companies_data)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_data = watchlist_companies_data[start_idx:end_idx]
+
+    # Create pagination object
+    class Pagination:
+        def __init__(self, page, per_page, total_items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total_items
+            self.pages = (total_items + per_page - 1) // per_page if per_page > 0 else 0
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+
+        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+
+    pagination = Pagination(page, per_page, total_items)
+
+    # Calculate watchlist metrics (from all data, not just current page)
     research_ready_count = len([d for d in watchlist_companies_data if not d['has_completed_checklist'] and not d['has_swot'] and not d['has_destination_analysis']])
     analyzed_count = len([d for d in watchlist_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
 
-    # Sector allocation
+    # Get all sectors for filter dropdown (from unfiltered watchlist)
+    all_sectors = set()
+    for company in watchlist_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        all_sectors.add(sector)
+
+    sectors_list = sorted(list(all_sectors))
+
+    # Sector allocation (for metrics display)
     sectors = {}
     for company in watchlist_companies:
         sector = company.sector if company.sector else 'Unclassified'
         sectors[sector] = sectors.get(sector, 0) + 1
 
     return render_template('watchlist.html',
-                         watchlist_companies_data=watchlist_companies_data,
+                         watchlist_companies_data=paginated_data,
                          research_ready_count=research_ready_count,
                          analyzed_count=analyzed_count,
-                         sectors=sectors)
+                         sectors=sectors,
+                         pagination=pagination,
+                         current_search=search_query,
+                         current_sector=sector_filter,
+                         current_status=analysis_status,
+                         current_per_page=per_page,
+                         sectors_list=sectors_list)
 
 @companies_bp.route('/list')
 @login_required
 def list_companies():
-    """Show all companies in unified list view"""
-    # Get all user companies
-    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    """Show all companies with pagination, search, and sector filtering"""
+    # Get query parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    sector_filter = request.args.get('sector', '', type=str).strip()
+
+    # Base query for user's companies
+    query = Company.query.filter_by(user_id=current_user.id)
+
+    # Apply search filter
+    if search_query:
+        query = query.filter(
+            db.or_(
+                Company.name.ilike(f'%{search_query}%'),
+                Company.ticker_symbol.ilike(f'%{search_query}%')
+            )
+        )
+
+    # Apply sector filter
+    if sector_filter and sector_filter != 'all':
+        query = query.filter(Company.sector == sector_filter)
+
+    # Order by name
+    query = query.order_by(Company.name)
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    companies = pagination.items
 
     # Get sets of IDs for categorization
     favorite_ids = {c.id for c in current_user.favorites.all()}
-    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+    portfolio_ids = {c.id for c in companies if c.is_in_portfolio}
 
     # Get sets of company IDs that have a specific analysis completed
     completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
@@ -224,31 +328,34 @@ def list_companies():
 
     # Build the enriched data structure for the template
     companies_data_list = []
-    for company in all_user_companies:
+    for company in companies:
         data = {
             'company_obj': company,
             'has_completed_checklist': company.id in completed_checklist_ids,
             'has_swot': company.id in swot_analysis_ids,
             'has_destination_analysis': company.id in dest_analysis_ids,
+            'is_portfolio': company.id in portfolio_ids,
+            'is_favorite': company.id in favorite_ids,
         }
         companies_data_list.append(data)
 
-    # Partition the enriched data into the three lists
-    portfolio_companies_data = [d for d in companies_data_list if d['company_obj'].id in portfolio_ids]
-    favorite_companies_data = [d for d in companies_data_list if d['company_obj'].id in favorite_ids and d['company_obj'].id not in portfolio_ids]
-    other_companies_data = [d for d in companies_data_list if d['company_obj'].id not in portfolio_ids and d['company_obj'].id not in favorite_ids]
-
-    # Sort each list by company name
-    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
-    favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
-    other_companies_data.sort(key=lambda x: x['company_obj'].name)
+    # Get all unique sectors for filter dropdown
+    all_sectors = db.session.query(Company.sector).filter(
+        Company.user_id == current_user.id,
+        Company.sector.isnot(None),
+        Company.sector != ''
+    ).distinct().order_by(Company.sector).all()
+    sectors = [s[0] for s in all_sectors]
 
     return render_template('list_companies.html',
-                         portfolio_companies_data=portfolio_companies_data,
-                         favorite_companies_data=favorite_companies_data,
-                         other_companies_data=other_companies_data,
+                         companies_data_list=companies_data_list,
+                         pagination=pagination,
                          portfolio_ids=portfolio_ids,
                          favorite_ids=favorite_ids,
+                         sectors=sectors,
+                         current_search=search_query,
+                         current_sector=sector_filter,
+                         current_per_page=per_page,
                          title="All Companies")
 
 @companies_bp.route('/research')
