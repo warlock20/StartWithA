@@ -9,3 +9,4 @@ my_research_app.db # From the .env example
 .env_local
 .env
 instance/
+app/static/uploads/
