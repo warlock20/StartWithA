@@ -503,7 +503,7 @@ class SectorAnalysis(db.Model):
     # The name of the sector being analyzed
     sector_name = db.Column(db.String(100), nullable=False, index=True)
 
-    # A large text field for free-form research notes
+    # A large text field for free-form research notes (backward compatible)
     notes = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
@@ -511,13 +511,129 @@ class SectorAnalysis(db.Model):
         db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
 
+    # Relationship to flexible research sections
+    sections = db.relationship('SectorResearchSection', backref='sector_analysis',
+                              lazy='dynamic', cascade='all, delete-orphan',
+                              order_by='SectorResearchSection.display_order')
+
     # Ensure a user can only have one analysis notebook per sector name
     __table_args__ = (
         db.UniqueConstraint("user_id", "sector_name", name="uq_user_sector"),
     )
 
+    @property
+    def completion_percentage(self):
+        """Calculate research completion based on sections with content"""
+        total_sections = self.sections.count()
+        if total_sections == 0:
+            return 0
+        completed_sections = self.sections.filter(
+            db.and_(
+                SectorResearchSection.content.isnot(None),
+                SectorResearchSection.content != ''
+            )
+        ).count()
+        return int((completed_sections / total_sections) * 100)
+
+    @property
+    def last_edited_section(self):
+        """Get the most recently edited section"""
+        return self.sections.order_by(SectorResearchSection.updated_at.desc()).first()
+
     def __repr__(self):
         return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
+
+
+class SectorResearchSection(db.Model):
+    """
+    Flexible research sections for sector analysis.
+    Users can customize, reorder, add, or remove sections in the future.
+    """
+    __tablename__ = 'sector_research_section'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Section metadata
+    title = db.Column(db.String(200), nullable=False)
+    icon = db.Column(db.String(50), nullable=True)  # Emoji or icon class
+    description = db.Column(db.String(500), nullable=True)  # Helpful description/prompt
+
+    # Rich text content (HTML from Quill.js)
+    content = db.Column(db.Text, nullable=True)
+
+    # Display order (for future drag-and-drop reordering)
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Section type for future categorization
+    section_type = db.Column(db.String(50), nullable=True, default='custom')
+    # Types: 'overview', 'analysis', 'trends', 'risks', 'opportunities', 'custom'
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_utc, onupdate=now_utc)
+
+    # Metadata for future features
+    is_visible = db.Column(db.Boolean, default=True)  # Users can hide sections
+    is_locked = db.Column(db.Boolean, default=False)  # Prevent deletion of important sections
+
+    @property
+    def is_completed(self):
+        """Check if section has content"""
+        return self.content is not None and len(self.content.strip()) > 0
+
+    @property
+    def word_count(self):
+        """Estimate word count (strip HTML tags for rough count)"""
+        if not self.content:
+            return 0
+        import re
+        text = re.sub(r'<[^>]+>', '', self.content)
+        return len(text.split())
+
+    def __repr__(self):
+        return f'<SectorResearchSection "{self.title}" for Analysis {self.sector_analysis_id}>'
+
+
+class SectorResearchSource(db.Model):
+    """
+    Track research sources and references for sector analysis.
+    Helps organize articles, reports, videos, and other materials.
+    """
+    __tablename__ = 'sector_research_source'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Source metadata
+    title = db.Column(db.String(300), nullable=False)
+    url = db.Column(db.String(1000), nullable=True)
+    source_type = db.Column(db.String(50), nullable=False, default='article')
+    # Types: 'article', 'report', 'video', 'podcast', 'book', 'other'
+
+    # Description and notes
+    description = db.Column(db.Text, nullable=True)
+    key_takeaways = db.Column(db.Text, nullable=True)
+
+    # Publication info
+    author = db.Column(db.String(200), nullable=True)
+    publisher = db.Column(db.String(200), nullable=True)
+    published_date = db.Column(db.Date, nullable=True)
+
+    # Categorization
+    tags = db.Column(db.String(500), nullable=True)  # Comma-separated tags
+    relevance_score = db.Column(db.Integer, nullable=True)  # 1-5 rating
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    accessed_at = db.Column(db.DateTime, nullable=True)  # Last time user accessed
+
+    # Relationship back to sector analysis
+    sector_analysis = db.relationship('SectorAnalysis', backref=db.backref('sources', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<SectorResearchSource "{self.title}" for Analysis {self.sector_analysis_id}>'
+
 
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'

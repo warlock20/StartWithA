@@ -1,88 +1,723 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+<!-- Quill.js for rich text editing -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1>{{ title }}</h1>
-    <p class="lead">Your research notebook and question bank for this sector. Distill your findings into reusable
-        checklist items.</p>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ title }}</h1>
+        <p class="text-muted mb-0">Systematic sector research with organized sections and question bank</p>
+    </div>
+    <div>
+        <a href="{{ url_for('sectors.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> All Sectors
+        </a>
+        <a href="{{ url_for('sectors.edit_sector', analysis_id=analysis.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Rename Sector
+        </a>
+    </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-7">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5>Research Notes</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}">
-                    <div class="mb-3">
-                        <label for="notes" class="visually-hidden">Research Notes</label>
-                        <textarea name="notes" id="notes" class="form-control" rows="20"
-                            placeholder="Log your findings, insights, and sources here...">{{ analysis.notes if analysis.notes }}</textarea>
+<!-- Research Progress Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-2">Research Progress</h5>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-success" role="progressbar"
+                         style="width: {{ analysis.completion_percentage }}%;"
+                         aria-valuenow="{{ analysis.completion_percentage }}"
+                         aria-valuemin="0" aria-valuemax="100">
+                        {{ analysis.completion_percentage }}%
                     </div>
-                    <button type="submit" class="btn btn-primary">Save Notes</button>
-                </form>
+                </div>
+                <small class="text-muted mt-1">
+                    {{ sections|selectattr('is_completed')|list|length }} of {{ sections|length }} sections completed
+                </small>
             </div>
-        </div>
-    </div>
-
-    <div class="col-lg-5">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5>Question Bank for "{{ analysis.sector_name }}"</h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted small">Add specific, reusable questions based on your research notes.</p>
-                <form method="POST"
-                    action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}"
-                    class="mb-4">
-                    <div class="mb-2">
-                        <label for="text" class="form-label">New Question Text:</label>
-                        <textarea name="text" id="text" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-2">
-                        <label for="llm_prompt" class="form-label">Optional LLM Prompt:</label>
-                        <textarea name="llm_prompt" id="llm_prompt" class="form-control" rows="2"></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-success btn-sm">Add to Bank</button>
-                </form>
-                <hr>
-                <h6>Existing Questions for this Sector:</h6>
-                {% if question_bank_items %}
-                <ul class="list-group list-group-flush">
-                    {% for q in question_bank_items %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">{{ q.text }}</div>
-                        </div>
-                        <div class="btn-group btn-group-sm align-self-center" style="margin-left: auto;">
-                            <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}"
-                                class="btn btn-outline-secondary btn-sm" title="Edit Question">
-                                <i class="bi bi-pencil-square"></i>
-                            </a>    
-                            <form method="POST"
-                                action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}"
-                                style="display: inline;">
-                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete Question"
-                                    onclick="return confirm('Are you sure?');">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
+            <div class="col-md-4 text-end">
+                {% if analysis.last_edited_section %}
+                <small class="text-muted">
+                    Last edited: <strong>{{ analysis.last_edited_section.title }}</strong><br>
+                    {{ analysis.last_edited_section.updated_at.strftime('%b %d, %Y') }}
+                </small>
                 {% else %}
-                <p class="text-muted">No questions added yet for this sector.</p>
+                <small class="text-muted">Start your research!</small>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
-<div class="mt-4">
-    <a href="{{ url_for('sectors.edit_sector', analysis_id=analysis.id) }}" class="btn btn-outline-secondary">Edit
-        Sector
-        Name</a>
-    <a href="{{ url_for('sectors.index') }}" class="btn btn-secondary">Back to All Sector Notebooks</a>
+
+<!-- Enhanced Sector Metrics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary mb-0">{{ sector_metrics.total }}</h4>
+                <small class="text-muted">Companies Tracked</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success mb-0">{{ sector_metrics.researched }}</h4>
+                <small class="text-muted">Researched</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning mb-0">{{ sector_metrics.watchlist }}</h4>
+                <small class="text-muted">In Watchlist</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info mb-0">{{ sector_metrics.portfolio }}</h4>
+                <small class="text-muted">In Portfolio</small>
+            </div>
+        </div>
+    </div>
 </div>
+
+<div class="row g-4">
+    <!-- Main Research Sections Column -->
+    <div class="col-lg-8">
+        <!-- Getting Started Guide (shown when no content) -->
+        {% if analysis.completion_percentage == 0 %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-lightbulb"></i> Getting Started with Sector Research</h5>
+            <p class="mb-2">Welcome to your {{ analysis.sector_name }} research notebook! Here's how to conduct systematic sector analysis:</p>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <h6 class="fw-bold"><i class="bi bi-1-circle"></i> Understand the Framework</h6>
+                    <ul class="small mb-0">
+                        <li><strong>Sector Overview:</strong> Market size, growth rate, key segments</li>
+                        <li><strong>Industry Analysis:</strong> Porter's 5 Forces framework</li>
+                        <li><strong>Trends & Catalysts:</strong> What's changing and why</li>
+                        <li><strong>Risks & Challenges:</strong> What could go wrong</li>
+                        <li><strong>Investment Opportunities:</strong> Where to find alpha</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold"><i class="bi bi-2-circle"></i> Research Process</h6>
+                    <ul class="small mb-0">
+                        <li>Click each section below to expand and start researching</li>
+                        <li>Use the rich text editor to format notes, add links, create lists</li>
+                        <li>Work is auto-saved as you type (no need to click save!)</li>
+                        <li>Add sources in the sidebar to track your research materials</li>
+                        <li>Build a question bank for evaluating companies in this sector</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card card-body bg-light mb-2">
+                <h6 class="fw-bold small mb-2"><i class="bi bi-info-circle"></i> Example Research Questions</h6>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <p class="small mb-1"><strong>Overview:</strong></p>
+                        <ul class="small mb-0" style="font-size: 0.8rem;">
+                            <li>What is the total addressable market?</li>
+                            <li>What is the historical growth rate?</li>
+                            <li>What are the key segments?</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="small mb-1"><strong>Competitive Dynamics:</strong></p>
+                        <ul class="small mb-0" style="font-size: 0.8rem;">
+                            <li>How fragmented is the industry?</li>
+                            <li>What are barriers to entry?</li>
+                            <li>Who has pricing power?</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="small mb-1"><strong>Investment Thesis:</strong></p>
+                        <ul class="small mb-0" style="font-size: 0.8rem;">
+                            <li>What secular tailwinds exist?</li>
+                            <li>What makes a winner in this sector?</li>
+                            <li>What metrics matter most?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <p class="mb-0"><strong>Pro Tip:</strong> Thorough sector research upfront makes individual company analysis 10x faster and more insightful!</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <!-- External Research Resources (Collapsible) -->
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <button class="btn btn-link text-decoration-none p-0 w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#externalResources">
+                    <i class="bi bi-box-arrow-up-right"></i> <strong>External Research Resources</strong>
+                    <i class="bi bi-chevron-down float-end"></i>
+                </button>
+            </div>
+            <div class="collapse" id="externalResources">
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Industry reports, market data, and research platforms to accelerate your sector analysis:</p>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <h6 class="small fw-bold mb-1"><i class="bi bi-bar-chart"></i> Market Data & Reports</h6>
+                            <ul class="small mb-2">
+                                <li><a href="https://www.ibisworld.com" target="_blank">IBISWorld</a> - Industry reports & market research</li>
+                                <li><a href="https://www.statista.com" target="_blank">Statista</a> - Statistics & market data</li>
+                                <li><a href="https://www.mckinsey.com/industries" target="_blank">McKinsey Insights</a> - Industry analysis & trends</li>
+                                <li><a href="https://www2.deloitte.com/global/en/industries.html" target="_blank">Deloitte Industry Insights</a> - Sector reports</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="small fw-bold mb-1"><i class="bi bi-newspaper"></i> Financial Research</h6>
+                            <ul class="small mb-2">
+                                <li><a href="https://www.morningstar.com" target="_blank">Morningstar</a> - Equity research & sector analysis</li>
+                                <li><a href="https://seekingalpha.com" target="_blank">Seeking Alpha</a> - Investment research & analysis</li>
+                                <li><a href="https://www.visualcapitalist.com" target="_blank">Visual Capitalist</a> - Data visualizations</li>
+                                <li><a href="https://www.investopedia.com" target="_blank">Investopedia</a> - Financial education & guides</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="small fw-bold mb-1"><i class="bi bi-building"></i> Government & Trade Data</h6>
+                            <ul class="small mb-2">
+                                <li><a href="https://www.census.gov/data.html" target="_blank">U.S. Census Bureau</a> - Economic data</li>
+                                <li><a href="https://fred.stlouisfed.org" target="_blank">FRED</a> - Economic data & trends</li>
+                                <li><a href="https://data.worldbank.org" target="_blank">World Bank</a> - Global economic data</li>
+                                <li><a href="https://www.trade.gov" target="_blank">International Trade</a> - Trade statistics</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="small fw-bold mb-1"><i class="bi bi-gear"></i> Technology & Innovation</h6>
+                            <ul class="small mb-2">
+                                <li><a href="https://www.gartner.com" target="_blank">Gartner</a> - Technology research</li>
+                                <li><a href="https://www.cbinsights.com" target="_blank">CB Insights</a> - Tech market intelligence</li>
+                                <li><a href="https://techcrunch.com" target="_blank">TechCrunch</a> - Tech news & trends</li>
+                                <li><a href="https://www.bcg.com/publications" target="_blank">BCG Publications</a> - Industry trends</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning small mb-0 mt-2">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Remember:</strong> Save useful sources to your "Research Sources" section in the sidebar for easy reference!
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Research Sections Accordion -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-journal-text"></i> Research Sections</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="accordion accordion-flush" id="researchSectionsAccordion">
+                    {% for section in sections %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ section.id }}">
+                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#collapse{{ section.id }}"
+                                    aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
+                                    aria-controls="collapse{{ section.id }}">
+                                <span class="me-2">{{ section.icon }}</span>
+                                <span class="fw-bold">{{ section.title }}</span>
+                                {% if section.is_completed %}
+                                <span class="badge bg-success ms-2">✓ Completed</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark ms-2">Not started</span>
+                                {% endif %}
+                                {% if section.word_count > 0 %}
+                                <span class="badge bg-secondary ms-2">{{ section.word_count }} words</span>
+                                {% endif %}
+                            </button>
+                        </h2>
+                        <div id="collapse{{ section.id }}"
+                             class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                             aria-labelledby="heading{{ section.id }}"
+                             data-bs-parent="#researchSectionsAccordion">
+                            <div class="accordion-body">
+                                <!-- Section Description/Prompt -->
+                                <div class="alert alert-light mb-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i> <strong>What to research:</strong>
+                                        {{ section.description }}
+                                    </small>
+                                </div>
+
+                                <!-- Quill Editor -->
+                                <div id="editor-{{ section.id }}" class="quill-editor" style="min-height: 300px;">
+                                    {{ section.content|safe if section.content else '' }}
+                                </div>
+
+                                <!-- Auto-save Status -->
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <small class="text-muted" id="status-{{ section.id }}">
+                                        <i class="bi bi-check-circle text-success"></i> Auto-save enabled
+                                    </small>
+                                    <small class="text-muted">
+                                        Last saved: <span id="timestamp-{{ section.id }}">
+                                            {% if section.updated_at %}
+                                                {{ section.updated_at.strftime('%b %d, %Y %I:%M %p') }}
+                                            {% else %}
+                                                Never
+                                            {% endif %}
+                                        </span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Question Bank -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-question-circle"></i> Question Bank</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Build a reusable question bank for analyzing companies in this sector.</p>
+
+                <!-- Add Question Form -->
+                <form method="POST"
+                    action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}"
+                    class="mb-3">
+                    <div class="mb-2">
+                        <label for="text" class="form-label small">Question Text:</label>
+                        <textarea name="text" id="text" class="form-control form-control-sm" rows="2" required
+                                  placeholder="e.g., What is the company's competitive moat?"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label for="llm_prompt" class="form-label small">LLM Prompt (Optional):</label>
+                        <textarea name="llm_prompt" id="llm_prompt" class="form-control form-control-sm" rows="2"
+                                  placeholder="Prompt for AI analysis..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="bi bi-plus-circle"></i> Add Question
+                    </button>
+                </form>
+
+                <hr>
+
+                <!-- Questions List -->
+                <h6 class="text-muted small mb-2">Questions for {{ analysis.sector_name }} ({{ question_bank_items|length }})</h6>
+                {% if question_bank_items %}
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <div class="list-group list-group-flush">
+                        {% for q in question_bank_items %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="fw-bold small">{{ q.text }}</div>
+                            </div>
+                            <div class="btn-group btn-group-sm mt-1" role="group">
+                                <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}"
+                                    class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST"
+                                    action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}"
+                                    style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                        onclick="return confirm('Delete this question?');">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted small">No questions yet. Add questions as you research!</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Company Tracking Widget -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Companies in {{ analysis.sector_name }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Track companies in this sector for comparative analysis.</p>
+
+                <!-- Add Company Dropdown -->
+                {% if other_companies %}
+                <form method="POST" id="addCompanyForm" class="mb-3">
+                    <div class="input-group input-group-sm">
+                        <select class="form-select form-select-sm" id="companySelect" name="company_id" required>
+                            <option value="">Select company...</option>
+                            {% for company in other_companies %}
+                            <option value="{{ company.id }}">
+                                {{ company.name }} ({{ company.ticker_symbol }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-success btn-sm" onclick="addCompanyToSector()">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <!-- Companies List -->
+                <h6 class="text-muted small mb-2">Tracked Companies ({{ companies_data|length }})</h6>
+                {% if companies_data %}
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <div class="list-group list-group-flush">
+                        {% for data in companies_data %}
+                        {% set company = data.company %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">{{ company.name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        {{ company.ticker_symbol }}
+                                        {% if data.is_in_portfolio %}
+                                        <span class="badge bg-info">Portfolio</span>
+                                        {% elif data.is_in_watchlist %}
+                                        <span class="badge bg-warning">Watchlist</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if data.active_project %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-primary" style="font-size: 0.7rem;">
+                                            Research {{ data.active_project.progress_percentage }}%
+                                        </span>
+                                    </div>
+                                    {% elif data.completed_project %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-success" style="font-size: 0.7rem;">
+                                            ✓ Researched
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="btn-group-vertical btn-group-sm" role="group">
+                                    <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                                       class="btn btn-outline-secondary btn-sm" title="View Company">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <form method="POST"
+                                          action="{{ url_for('sectors.remove_company_from_sector', sector_name=analysis.sector_name, company_id=company.id) }}"
+                                          style="display: inline;">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                title="Remove from sector"
+                                                onclick="return confirm('Remove {{ company.name }} from this sector?');">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted small">No companies tracked yet. Add companies to compare them systematically.</p>
+                {% endif %}
+
+                <div class="mt-2">
+                    <a href="{{ url_for('companies.new_company') }}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-plus-circle"></i> Create New Company
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Research Sources & References -->
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-bookmark-star"></i> Research Sources</h5>
+        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addSourceForm">
+            <i class="bi bi-plus"></i> Add Source
+        </button>
+    </div>
+    <div class="card-body">
+        <!-- Add Source Form (Collapsible) -->
+        <div class="collapse mb-3" id="addSourceForm">
+            <div class="card card-body bg-light">
+                <form method="POST" action="{{ url_for('sectors.add_source', sector_name=analysis.sector_name) }}">
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Title *</label>
+                        <input type="text" class="form-control form-control-sm" name="title" required placeholder="e.g., McKinsey Global Energy Report 2024">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">URL (optional)</label>
+                        <input type="url" class="form-control form-control-sm" name="url" placeholder="https://...">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Type</label>
+                        <select class="form-select form-select-sm" name="source_type">
+                            <option value="article">Article</option>
+                            <option value="report">Report</option>
+                            <option value="video">Video</option>
+                            <option value="podcast">Podcast</option>
+                            <option value="book">Book</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Description (optional)</label>
+                        <textarea class="form-control form-control-sm" name="description" rows="2" placeholder="Key takeaways or notes about this source..."></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse" data-bs-target="#addSourceForm">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Add Source</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sources List -->
+        {% if sources %}
+        <div style="max-height: 500px; overflow-y: auto;">
+            <!-- Group sources by type -->
+            {% for source_type, type_sources in sources_by_type.items() %}
+            <div class="mb-3">
+                <h6 class="text-muted small mb-2">
+                    {% if source_type == 'article' %}
+                        <i class="bi bi-file-text"></i> Articles
+                    {% elif source_type == 'report' %}
+                        <i class="bi bi-file-earmark-pdf"></i> Reports
+                    {% elif source_type == 'video' %}
+                        <i class="bi bi-play-circle"></i> Videos
+                    {% elif source_type == 'podcast' %}
+                        <i class="bi bi-mic"></i> Podcasts
+                    {% elif source_type == 'book' %}
+                        <i class="bi bi-book"></i> Books
+                    {% else %}
+                        <i class="bi bi-bookmark"></i> Other
+                    {% endif %}
+                    ({{ type_sources|length }})
+                </h6>
+                <div class="list-group list-group-flush">
+                    {% for source in type_sources %}
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                {% if source.url %}
+                                <a href="{{ source.url }}" target="_blank" class="text-decoration-none fw-bold small"
+                                   onclick="markSourceAccessed({{ source.id }})">
+                                    {{ source.title }}
+                                    <i class="bi bi-box-arrow-up-right small"></i>
+                                </a>
+                                {% else %}
+                                <div class="fw-bold small">{{ source.title }}</div>
+                                {% endif %}
+
+                                {% if source.description %}
+                                <div class="text-muted" style="font-size: 0.75rem;">
+                                    {{ source.description[:120] }}{% if source.description|length > 120 %}...{% endif %}
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-1">
+                                    <small class="text-muted" style="font-size: 0.7rem;">
+                                        Added {{ source.created_at.strftime('%b %d, %Y') }}
+                                        {% if source.accessed_at %}
+                                        | Last accessed {{ source.accessed_at.strftime('%b %d, %Y') }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div>
+                                <form method="POST" action="{{ url_for('sectors.delete_source', source_id=source.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            title="Delete source"
+                                            onclick="return confirm('Delete this source?');">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+            <i class="bi bi-bookmark" style="font-size: 2rem;"></i>
+            <p class="mb-0 small">No sources added yet</p>
+            <p class="small">Track articles, reports, and other research materials</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function addCompanyToSector() {
+    const select = document.getElementById('companySelect');
+    const companyId = select.value;
+
+    if (!companyId) {
+        alert('Please select a company');
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("sectors.add_company_to_sector", sector_name=analysis.sector_name, company_id=0) }}'.replace('/0', '/' + companyId);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function markSourceAccessed(sourceId) {
+    // Mark source as accessed when user clicks the link
+    fetch('{{ url_for("sectors.mark_source_accessed", source_id=0) }}'.replace('/0', '/' + sourceId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    }).catch(error => {
+        console.error('Error marking source as accessed:', error);
+    });
+}
+</script>
+
+<!-- Quill.js Initialization Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editors = {};
+    const saveTimers = {};
+
+    {% for section in sections %}
+    (function(sectionId) {
+        // Initialize Quill editor
+        const quill = new Quill('#editor-' + sectionId, {
+            theme: 'snow',
+            placeholder: 'Start your research here...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'indent': '-1'}, { 'indent': '+1' }],
+                    ['link', 'image'],
+                    ['clean']
+                ]
+            }
+        });
+
+        editors[sectionId] = quill;
+
+        // Auto-save on text change (debounced)
+        quill.on('text-change', function() {
+            const statusEl = document.getElementById('status-' + sectionId);
+            statusEl.innerHTML = '<i class="bi bi-hourglass-split text-warning"></i> Saving...';
+
+            // Clear previous timer
+            if (saveTimers[sectionId]) {
+                clearTimeout(saveTimers[sectionId]);
+            }
+
+            // Set new timer (save after 2 seconds of no typing)
+            saveTimers[sectionId] = setTimeout(function() {
+                saveSection(sectionId, quill);
+            }, 2000);
+        });
+    })({{ section.id }});
+    {% endfor %}
+
+    function saveSection(sectionId, quill) {
+        const content = quill.root.innerHTML;
+        const statusEl = document.getElementById('status-' + sectionId);
+        const timestampEl = document.getElementById('timestamp-' + sectionId);
+
+        fetch('{{ url_for("sectors.save_section", section_id=0) }}'.replace('/0/', '/' + sectionId + '/'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content: content })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusEl.innerHTML = '<i class="bi bi-check-circle text-success"></i> Saved';
+                timestampEl.textContent = data.updated_at;
+
+                // Update word count badge in accordion header
+                updateSectionStatus(sectionId, data.word_count);
+            } else {
+                statusEl.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i> Error saving';
+                console.error('Save error:', data.error);
+            }
+        })
+        .catch(error => {
+            statusEl.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i> Network error';
+            console.error('Network error:', error);
+        });
+    }
+
+    function updateSectionStatus(sectionId, wordCount) {
+        // Update the accordion header to show completion status
+        const header = document.querySelector('#heading' + sectionId + ' button');
+        const badges = header.querySelectorAll('.badge');
+
+        // Update completion badge
+        if (wordCount > 0) {
+            badges[0].className = 'badge bg-success ms-2';
+            badges[0].textContent = '✓ Completed';
+        }
+
+        // Update word count badge
+        if (badges.length > 1 && wordCount > 0) {
+            badges[1].textContent = wordCount + ' words';
+        } else if (wordCount > 0 && badges.length === 1) {
+            const wordBadge = document.createElement('span');
+            wordBadge.className = 'badge bg-secondary ms-2';
+            wordBadge.textContent = wordCount + ' words';
+            header.appendChild(wordBadge);
+        }
+
+        // Reload page to update progress bar (optional - could update via JS)
+        // setTimeout(() => location.reload(), 1000);
+    }
+});
+</script>
+
+<style>
+.quill-editor {
+    background: white;
+}
+
+.ql-container {
+    font-size: 14px;
+}
+
+.ql-editor {
+    min-height: 200px;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.sticky-top {
+    z-index: 100;
+}
+</style>
+
 {% endblock %}
