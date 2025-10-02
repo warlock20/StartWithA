@@ -12,14 +12,14 @@ visual hierarchy and interactive elements.
    ============================================================================= */
 
 :root {
-    /* Professional Investment Platform Color Palette */
-    --primary-600: #1e40af;      /* Deep navy - main brand */
-    --primary-700: #1d4ed8;      /* Navy hover state */
+    /* Modern Investment Platform Color Palette - Inspired by Sample Dashboard */
+    --primary-600: #4338ca;      /* Indigo - main brand (from sample) */
+    --primary-700: #3730a3;      /* Indigo hover state */
     --primary-50: #eff6ff;       /* Very light blue for backgrounds */
     --primary-100: #dbeafe;      /* Light blue for subtle highlights */
 
     /* Refined Secondary Colors */
-    --gray-50: #f9fafb;          /* Lightest gray backgrounds */
+    --gray-50: #f7f8fc;          /* Cooler, modern light gray (from sample) */
     --gray-100: #f3f4f6;         /* Light gray for cards */
     --gray-200: #e5e7eb;         /* Borders and dividers */
     --gray-300: #d1d5db;         /* Subtle borders */
@@ -31,8 +31,8 @@ visual hierarchy and interactive elements.
     --gray-900: #111827;         /* Darkest text */
 
     /* Sophisticated Semantic Colors */
-    --success-500: #14b8a6;      /* Sage teal - systematic wisdom */
-    --success-600: #0f766e;      /* Sage teal hover */
+    --success-500: #10b981;      /* Green - success (from sample) */
+    --success-600: #059669;      /* Green hover */
     --success-50: #f0fdf4;       /* Success background */
 
     --warning-500: #f59e0b;      /* Warm amber - thoughtful caution */
@@ -43,8 +43,8 @@ visual hierarchy and interactive elements.
     --danger-600: #dc2626;       /* Error red hover */
     --danger-50: #fef2f2;        /* Error background */
 
-    --info-500: #6366f1;         /* Soft periwinkle - calm analysis */
-    --info-600: #4f46e5;         /* Periwinkle hover */
+    --info-500: #3b82f6;         /* Blue - info (from sample) */
+    --info-600: #2563eb;         /* Blue hover */
     --info-50: #eff6ff;          /* Info background */
 
     /* Additional Platform Colors */
@@ -52,7 +52,7 @@ visual hierarchy and interactive elements.
     --sage-teal-light: #14b8a6;  /* Lighter sage teal */
     --warm-amber: #d97706;       /* Primary warm amber for attention themes */
     --warm-amber-light: #f59e0b; /* Lighter warm amber */
-    --accent-color: #6366f1;     /* Periwinkle accent */
+    --accent-color: #4f46e5;     /* Indigo accent (from sample) */
     --charcoal: #374151;         /* Primary charcoal text */
     --warm-stone: #6b7280;       /* Warm stone for secondary text */
     
@@ -124,7 +124,7 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 1.6;
     color: var(--text-primary);
-    background-color: var(--background-light);
+    background-color: #f7f8fc;
 }
 
 /* Typography Hierarchy */
@@ -886,18 +886,18 @@ small {
    GLOBAL VISUAL ENHANCEMENTS (Non-structural)
    ============================================================================= */
 
-/* Enhance existing Bootstrap cards with professional styling */
+/* Enhance existing Bootstrap cards with professional styling - Inspired by Sample Dashboard */
 .card {
     border: 1px solid var(--border-light) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.2s ease !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1) !important;
     background-color: white !important;
 }
 
 .card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05) !important;
+    transform: translateY(-4px) !important;
 }
 
 .card-header {
@@ -919,17 +919,18 @@ small {
 }
 
 .btn-primary {
-    background-color: var(--primary-600) !important;
-    border-color: var(--primary-600) !important;
+    background-color: #4338ca !important;
+    border-color: #4338ca !important;
     color: white !important;
+    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2) !important;
 }
 
 .btn-primary:hover, .btn-primary:focus {
-    background-color: var(--primary-700) !important;
-    border-color: var(--primary-700) !important;
+    background-color: #3730a3 !important;
+    border-color: #3730a3 !important;
     color: white !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3) !important;
 }
 
 .btn-success {

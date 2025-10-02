@@ -1,513 +1,736 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<!-- Professional Hero Section -->
-<section class="dashboard-hero py-5 mb-4">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-lg-8">
-                <div class="hero-content">
-                    <h1 class="hero-title">Welcome back, {{ current_user.username }}</h1>
-                    <p class="hero-subtitle">Your systematic approach to intelligent investing</p>
-                    <div class="hero-stats mt-4">
-                        <div class="stat-item">
-                            <span class="stat-number">{{ template_count or 0 }}</span>
-                            <span class="stat-label">Research Templates</span>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Dashboard</h1>
+            <p class="dashboard-subtitle">Welcome back, {{ current_user.username }}. Here's your mission control.</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <div class="dropdown">
+                <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
+                        id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-plus-circle-fill me-2"></i> Quick Add
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="quickActionsDropdown">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
+                            <i class="bi bi-lightbulb text-warning me-2"></i>
+                            New Investment Idea
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
+                            <i class="bi bi-journal-text text-primary me-2"></i>
+                            New Journal Entry
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                            New Mistake Log
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- Priority Lane -->
+    <div class="priority-lane-section">
+        <h2 class="section-title font-poppins">Priority Lane</h2>
+        <div class="priority-lane-grid">
+            <!-- Idea Inbox Card -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Idea Inbox</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ inbox_count }}</span>
+                    </div>
+                    <p class="priority-card-description">New investment ideas awaiting your initial screening.</p>
+                    <a href="{{ url_for('ideas.inbox') }}" class="priority-card-link">
+                        Clear Inbox <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Active Research Card -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Active Research</h3>
+                        <span class="priority-card-number priority-number-blue">{{ active_projects_list|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Projects that are currently in your analysis workflow.</p>
+                    <a href="{{ url_for('research_workflow.my_projects') }}" class="priority-card-link">
+                        Continue Research <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Portfolio Monitoring Card -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Portfolio Monitoring</h3>
+                        <span class="priority-card-number priority-number-green">{{ upcoming_checkpoints|length }}</span>
+                    </div>
+                    <p class="priority-card-description">
+                        {% if upcoming_checkpoints|length > 0 %}
+                        Upcoming thesis checkpoints for portfolio companies need review.
+                        {% else %}
+                        No upcoming checkpoints. Your portfolio is on track.
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="priority-card-link">
+                        Review Checkpoints <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid Layout -->
+    <div class="dashboard-main-grid">
+        <!-- Main Content Column -->
+        <div class="dashboard-main-content">
+
+            <!-- Systematic Frameworks Card -->
+            <div class="card framework-card">
+                <div class="card-body p-4">
+                    <h2 class="card-title font-poppins mb-4">Systematic Frameworks</h2>
+                    <div class="frameworks-grid">
+                        <!-- Research Templates Box -->
+                        <div class="framework-box">
+                            <h4 class="framework-box-title">
+                                <i class="bi bi-shield-check text-success me-2"></i> Research Templates
+                            </h4>
+                            <p class="framework-box-description">Your reusable workflows for deep analysis.</p>
+                            <div class="framework-box-footer">
+                                <span class="framework-box-count">{{ template_count or 0 }}</span>
+                                <a href="{{ url_for('research_workflow.template_list') }}" class="framework-box-link">
+                                    Manage <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                            </div>
                         </div>
-                        <div class="stat-divider">•</div>
-                        <div class="stat-item">
-                            <span class="stat-number">{{ kill_checklist_count or 0 }}</span>
-                            <span class="stat-label">Kill Checklists</span>
-                        </div>
-                        <div class="stat-divider">•</div>
-                        <div class="stat-item">
-                            <span class="stat-number">{{ inbox_count }}</span>
-                            <span class="stat-label">Ideas Awaiting Analysis</span>
+
+                        <!-- Kill Checklists Box -->
+                        <div class="framework-box">
+                            <h4 class="framework-box-title">
+                                <i class="bi bi-shield-slash text-danger me-2"></i> Kill Checklists
+                            </h4>
+                            <p class="framework-box-description">Your filters to quickly eliminate bad ideas.</p>
+                            <div class="framework-box-footer">
+                                <span class="framework-box-count">{{ kill_checklist_count or 0 }}</span>
+                                <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="framework-box-link">
+                                    Manage <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="hero-actions">
-                    <!-- Quick Actions Button -->
-                    <div class="quick-actions-container">
-                        <div class="dropdown">
-                            <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
-                                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-plus-circle me-2"></i> Quick Add
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="quickActionsDropdown">
-                                <li class="dropdown-header">Create New</li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
-                                        <i class="bi bi-lightbulb text-warning me-2"></i>
-                                        <div>
-                                            <strong>Investment Idea</strong>
-                                            <small class="d-block text-muted">Capture ideas for screening</small>
-                                        </div>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
-                                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                                        <div>
-                                            <strong>Mistake Log</strong>
-                                            <small class="d-block text-muted">Document learning opportunities</small>
-                                        </div>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
-                                        <i class="bi bi-journal-text text-info me-2"></i>
-                                        <div>
-                                            <strong>Journal Entry</strong>
-                                            <small class="d-block text-muted">Record thoughts and insights</small>
-                                        </div>
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
 
-                    {% if template_count == 0 %}
-                    <div class="action-card urgent">
-                        <div class="action-icon">
-                            <i class="bi bi-exclamation-triangle"></i>
-                        </div>
-                        <div class="action-content">
-                            <h6>Critical: No Research Framework</h6>
-                            <p>Without systematic templates, you're missing opportunities and making emotional decisions.</p>
-                            <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-warning">Build Your System</a>
-                        </div>
+            <!-- Recent Activity Card -->
+            <div class="card activity-card">
+                <div class="card-body p-4">
+                    <h2 class="card-title font-poppins mb-4">Recent Activity</h2>
+                    <div class="activity-feed">
+                        {% if active_projects_list or inbox_count > 0 or upcoming_checkpoints %}
+                            <ul class="activity-list">
+                                {% set activity_count = 0 %}
+
+                                {% if active_projects_list %}
+                                    {% for project in active_projects_list[:2] %}
+                                    {% set activity_count = activity_count + 1 %}
+                                    {% if activity_count <= 3 %}
+                                    <li class="activity-item">
+                                        <div class="activity-icon-wrapper">
+                                            <div class="activity-icon bg-primary">
+                                                <i class="bi bi-binoculars"></i>
+                                            </div>
+                                        </div>
+                                        <div class="activity-content">
+                                            <p class="activity-text">
+                                                Working on research project:
+                                                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="activity-link">
+                                                    {{ project.company.name }}
+                                                </a>
+                                            </p>
+                                            <p class="activity-time">{{ project.progress_percentage }}% complete</p>
+                                        </div>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+
+                                {% if inbox_count > 0 and activity_count < 3 %}
+                                {% set activity_count = activity_count + 1 %}
+                                <li class="activity-item">
+                                    <div class="activity-icon-wrapper">
+                                        <div class="activity-icon bg-warning">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </div>
+                                    </div>
+                                    <div class="activity-content">
+                                        <p class="activity-text">
+                                            You have
+                                            <a href="{{ url_for('ideas.inbox') }}" class="activity-link">
+                                                {{ inbox_count }} {{ 'idea' if inbox_count == 1 else 'ideas' }}
+                                            </a>
+                                            waiting in your inbox.
+                                        </p>
+                                        <p class="activity-time">Ready for screening</p>
+                                    </div>
+                                </li>
+                                {% endif %}
+
+                                {% if upcoming_checkpoints and activity_count < 3 %}
+                                <li class="activity-item">
+                                    <div class="activity-icon-wrapper">
+                                        <div class="activity-icon bg-success">
+                                            <i class="bi bi-calendar-check"></i>
+                                        </div>
+                                    </div>
+                                    <div class="activity-content">
+                                        <p class="activity-text">
+                                            Checkpoint upcoming for
+                                            <a href="{{ url_for('companies.destination_analysis', company_id=upcoming_checkpoints[0].company_id) }}" class="activity-link">
+                                                {{ upcoming_checkpoints[0].company.name }}
+                                            </a>
+                                        </p>
+                                        <p class="activity-time">Due {{ upcoming_checkpoints[0].target_date.strftime('%b %d, %Y') }}</p>
+                                    </div>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        {% else %}
+                            <div class="activity-empty">
+                                <i class="bi bi-inbox"></i>
+                                <p>No recent activity. Start by adding ideas to your inbox.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="dashboard-sidebar-content">
+
+            <!-- Sector Allocation Card -->
+            {% if portfolio_count > 0 %}
+            <div class="card sidebar-card">
+                <div class="card-body p-4">
+                    <h3 class="sidebar-card-title font-poppins mb-3">Sector Allocation</h3>
+                    <div class="chart-container">
+                        <canvas id="sectorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Idea Funnel Card -->
+            <div class="card sidebar-card">
+                <div class="card-body p-4">
+                    <h3 class="sidebar-card-title font-poppins mb-3">
+                        Idea Funnel <span class="text-muted small">(Last 90 Days)</span>
+                    </h3>
+                    <ul class="funnel-list">
+                        <li class="funnel-item">
+                            <span class="funnel-label">
+                                <i class="bi bi-lightbulb me-2"></i>Captured
+                            </span>
+                            <span class="funnel-value">{{ inbox_count + active_projects_list|length + company_pass_count + portfolio_count }}</span>
+                        </li>
+                        <li class="funnel-item">
+                            <span class="funnel-label">
+                                <i class="bi bi-trash me-2"></i>Killed
+                            </span>
+                            <span class="funnel-value">{{ company_pass_count }}</span>
+                        </li>
+                        <li class="funnel-item">
+                            <span class="funnel-label">
+                                <i class="bi bi-arrow-up-right-circle me-2"></i>Promoted
+                            </span>
+                            <span class="funnel-value">{{ active_projects_list|length }}</span>
+                        </li>
+                        <li class="funnel-item">
+                            <span class="funnel-label">
+                                <i class="bi bi-currency-dollar me-2"></i>Invested
+                            </span>
+                            <span class="funnel-value text-success">{{ company_invest_count }}</span>
+                        </li>
+                    </ul>
+                    {% if total_decided_companies > 0 %}
+                    <div class="kill-rate-badge">
+                        <p>Your Kill Rate is <strong>{{ too_hard_rate|int }}%</strong>.</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
+
         </div>
     </div>
-</section>
-
-<!-- Systematic Framework Section -->
-<section class="framework-section mb-5">
-    <div class="container-fluid">
-        <div class="section-header text-center mb-4">
-            <h2 class="section-title">Your Systematic Investment Framework</h2>
-            <p class="section-subtitle">The foundation of disciplined, emotion-free investing</p>
-        </div>
-
-        <div class="row g-4 framework-grid">
-            <!-- Investment Analysis Framework -->
-            <div class="col-lg-6">
-                <div class="framework-card investment-framework">
-                    <div class="framework-header">
-                        <div class="framework-icon investment">
-                            <i class="bi bi-search"></i>
-                        </div>
-                        <div class="framework-title">
-                            <h3>Research Templates</h3>
-                            <p>Systematic workflows for comprehensive investment research</p>
-                        </div>
-                        <div class="framework-status">
-                            {% if template_count > 0 %}
-                                <span class="status-indicator active"></span>
-                                <span class="status-text">ACTIVE</span>
-                            {% else %}
-                                <span class="status-indicator inactive"></span>
-                                <span class="status-text">SETUP REQUIRED</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="framework-body">
-                        {% if user_templates %}
-                            <div class="framework-metrics">
-                                <div class="metric">
-                                    <span class="metric-value">{{ template_count }}</span>
-                                    <span class="metric-label">Active Templates</span>
-                                </div>
-                                <div class="metric">
-                                    {% set total_steps = 0 %}
-                                    {% for template in user_templates %}
-                                        {% set total_steps = total_steps + template.step_count %}
-                                    {% endfor %}
-                                    <span class="metric-value">{{ total_steps }}</span>
-                                    <span class="metric-label">Total Steps</span>
-                                </div>
-                            </div>
-
-                            <div class="checklist-preview">
-                                <h6 class="preview-title">Your Research Templates</h6>
-                                {% for template in user_templates[:3] %}
-                                <div class="checklist-item">
-                                    <div class="checklist-info">
-                                        <span class="checklist-name">{{ template.name }}</span>
-                                        <span class="checklist-meta">
-                                            {{ template.step_count }} steps
-                                            {% if template.investment_style %} • {{ template.investment_style|capitalize }}{% endif %}
-                                            {% if template.times_used > 0 %} • Used {{ template.times_used }}x{% endif %}
-                                        </span>
-                                    </div>
-                                    <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}" class="checklist-action">
-                                        <i class="bi bi-arrow-right"></i>
-                                    </a>
-                                </div>
-                                {% endfor %}
-                                {% if user_templates|length > 3 %}
-                                <div class="checklist-more">
-                                    <a href="{{ url_for('research_workflow.template_list') }}">+{{ user_templates|length - 3 }} more templates</a>
-                                </div>
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <div class="framework-empty">
-                                <div class="empty-illustration">
-                                    <i class="bi bi-clipboard-x"></i>
-                                </div>
-                                <h6 class="empty-title">No Research Templates</h6>
-                                <p class="empty-description">
-                                    Professional investors rely on systematic research workflows to maintain consistency
-                                    and thoroughness. Create templates to standardize your investment analysis process.
-                                </p>
-                                <div class="empty-actions">
-                                    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
-                                        Create Research Template
-                                    </a>
-                                    <a href="{{ url_for('main.mental_models') }}" class="btn btn-outline-secondary">
-                                        Learn Our Philosophy
-                                    </a>
-                                </div>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Initial Filtering Framework -->
-            <div class="col-lg-6">
-                <div class="framework-card protection-framework">
-                    <div class="framework-header">
-                        <div class="framework-icon protection">
-                            <i class="bi bi-funnel"></i>
-                        </div>
-                        <div class="framework-title">
-                            <h3>Initial Filtering</h3>
-                            <p>Kill checklists to rapidly eliminate poor investment opportunities</p>
-                        </div>
-                        <div class="framework-status">
-                            {% if kill_checklist_count > 0 %}
-                                <span class="status-indicator active"></span>
-                                <span class="status-text">ACTIVE</span>
-                            {% else %}
-                                <span class="status-indicator inactive"></span>
-                                <span class="status-text">SETUP REQUIRED</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="framework-body">
-                        {% if user_kill_checklists %}
-                            <div class="framework-metrics">
-                                <div class="metric">
-                                    <span class="metric-value">{{ kill_checklist_count }}</span>
-                                    <span class="metric-label">Kill Lists</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-value">
-                                        {% set total_criteria = user_kill_checklists|sum(attribute='criteria_count') %}
-                                        {{ total_criteria or 0 }}
-                                    </span>
-                                    <span class="metric-label">Filter Criteria</span>
-                                </div>
-                            </div>
-
-                            <div class="checklist-preview">
-                                <h6 class="preview-title">Your Filtering Tools</h6>
-                                {% for kill_checklist in user_kill_checklists[:3] %}
-                                <div class="checklist-item">
-                                    <div class="checklist-info">
-                                        <span class="checklist-name">{{ kill_checklist.name }}</span>
-                                        <span class="checklist-meta">
-                                            {{ kill_checklist.criteria_count }} criteria
-                                            {% if kill_checklist.kill_rate %}
-                                                • {{ kill_checklist.kill_rate }}% rejection rate
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                    <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=kill_checklist.id) }}" class="checklist-action">
-                                        <i class="bi bi-arrow-right"></i>
-                                    </a>
-                                </div>
-                                {% endfor %}
-                                {% if user_kill_checklists|length > 3 %}
-                                <div class="checklist-more">
-                                    <a href="{{ url_for('ideas.manage_kill_checklists') }}">+{{ user_kill_checklists|length - 3 }} more kill lists</a>
-                                </div>
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <div class="framework-empty">
-                                <div class="empty-illustration">
-                                    <i class="bi bi-shield-slash"></i>
-                                </div>
-                                <h6 class="empty-title">No Initial Filtering</h6>
-                                <p class="empty-description">
-                                    Time is your most valuable asset. Kill checklists help you rapidly eliminate
-                                    poor investment opportunities, focusing your energy on genuine prospects.
-                                </p>
-                                <div class="empty-actions">
-                                    <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="btn btn-danger">
-                                        Create Kill Checklist
-                                    </a>
-                                    <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
-                                        View Ideas to Screen
-                                    </a>
-                                </div>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Activity Section -->
-<section class="activity-section">
-    <div class="container-fluid">
-        <div class="row g-4">
-            <!-- Active Research -->
-            <div class="col-lg-6">
-                <div class="activity-card research-activity">
-                    <div class="activity-header">
-                        <div class="activity-icon">
-                            <i class="bi bi-graph-up"></i>
-                        </div>
-                        <div class="activity-title">
-                            <h4>Active Research</h4>
-                            <p>Continue your systematic company analysis</p>
-                        </div>
-                        <a href="{{ url_for('research_workflow.my_projects') }}" class="activity-link">View All</a>
-                    </div>
-                    <div class="activity-body">
-                        {% if active_projects_list %}
-                            <div class="research-list">
-                                {% for project in active_projects_list %}
-                                <div class="research-item">
-                                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="research-link">
-                                        <div class="research-info">
-                                            <h6 class="research-name">{{ project.company.name }}</h6>
-                                            <div class="research-meta">
-                                                <span class="template">{{ project.template.name }}</span>
-                                                <span class="progress-text">{{ project.progress_percentage }}% complete</span>
-                                            </div>
-                                            <div class="research-progress">
-                                                <div class="progress-bar-custom" style="width: {{ project.progress_percentage }}%;"></div>
-                                            </div>
-                                        </div>
-                                        {% if project.is_overdue %}
-                                        <span class="research-status overdue">OVERDUE</span>
-                                        {% endif %}
-                                    </a>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="activity-empty">
-                                <i class="bi bi-search"></i>
-                                <h6>No Active Research</h6>
-                                <p>Start researching companies systematically with proven templates</p>
-                                <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-primary">Browse Templates</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Portfolio Monitoring -->
-            <div class="col-lg-6">
-                <div class="activity-card monitoring-activity">
-                    <div class="activity-header">
-                        <div class="activity-icon">
-                            <i class="bi bi-calendar-check"></i>
-                        </div>
-                        <div class="activity-title">
-                            <h4>Portfolio Monitoring</h4>
-                            <p>Track thesis validation checkpoints</p>
-                        </div>
-                        <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="activity-link">View Timeline</a>
-                    </div>
-                    <div class="activity-body">
-                        {% if upcoming_checkpoints %}
-                            <div class="checkpoint-list">
-                                {% for cp in upcoming_checkpoints %}
-                                <div class="checkpoint-item">
-                                    <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}" class="checkpoint-link">
-                                        <div class="checkpoint-info">
-                                            <h6 class="checkpoint-company">{{ cp.company.name }}</h6>
-                                            <div class="checkpoint-metric">{{ cp.metric }}</div>
-                                        </div>
-                                        <div class="checkpoint-date">
-                                            <span class="date-text">{{ cp.target_date.strftime('%b %d') }}</span>
-                                            <span class="date-year">{{ cp.target_date.strftime('%Y') }}</span>
-                                        </div>
-                                    </a>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="activity-empty">
-                                <i class="bi bi-calendar-plus"></i>
-                                <h6>No Upcoming Checkpoints</h6>
-                                {% if portfolio_count > 0 %}
-                                <p>Set thesis validation checkpoints for your portfolio companies to track investment milestones</p>
-                                <a href="{{ url_for('dashboard.portfolio_timeline') }}" class="btn btn-outline-secondary">Set Checkpoints</a>
-                                {% else %}
-                                <p>Add companies to your portfolio first, then set destination analysis checkpoints</p>
-                                <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-primary">Build Portfolio</a>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Selectivity Rate (Too Hard Basket) -->
-            <div class="col-lg-6">
-                <div class="activity-card selectivity-activity">
-                    <div class="activity-header">
-                        <div class="activity-icon">
-                            <i class="bi bi-basket3"></i>
-                        </div>
-                        <div class="activity-title">
-                            <h4>Selectivity Rate</h4>
-                            <p>Your "Too Hard Basket" - Companies passed on</p>
-                        </div>
-                        <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="activity-link">View Basket</a>
-                    </div>
-                    <div class="activity-body">
-                        {% if total_decided_companies > 0 %}
-                            <div class="selectivity-meter">
-                                <div class="meter-visual">
-                                    <!-- Circular Progress Indicator -->
-                                    <svg width="140" height="140" class="selectivity-gauge">
-                                        <!-- Background circle -->
-                                        <circle cx="70" cy="70" r="60" fill="none" stroke="#e9ecef" stroke-width="12"/>
-                                        <!-- Progress circle -->
-                                        <circle cx="70" cy="70" r="60" fill="none"
-                                                stroke="{% if too_hard_rate >= 70 %}#28a745{% elif too_hard_rate >= 40 %}#ffc107{% else %}#6c757d{% endif %}"
-                                                stroke-width="12"
-                                                stroke-dasharray="{{ (too_hard_rate / 100 * 377) }} 377"
-                                                stroke-dashoffset="94.25"
-                                                transform="rotate(-90 70 70)"
-                                                stroke-linecap="round"/>
-                                    </svg>
-                                    <div class="meter-center">
-                                        <div class="meter-percentage">{{ too_hard_rate|int }}%</div>
-                                        <div class="meter-label">Passed</div>
-                                    </div>
-                                </div>
-                                <div class="selectivity-details">
-                                    <div class="detail-row">
-                                        <span class="detail-label">Total Researched:</span>
-                                        <span class="detail-value">{{ total_decided_companies }} companies</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Passed On:</span>
-                                        <span class="detail-value text-danger">{{ company_pass_count }}</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Invested:</span>
-                                        <span class="detail-value text-success">{{ company_invest_count }}</span>
-                                    </div>
-                                    <div class="selectivity-badge mt-3">
-                                        {% if too_hard_rate >= 70 %}
-                                        <span class="badge bg-success">Highly Selective - Like Buffett</span>
-                                        {% elif too_hard_rate >= 40 %}
-                                        <span class="badge bg-warning">Moderately Selective</span>
-                                        {% else %}
-                                        <span class="badge bg-info">Building Experience</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% else %}
-                            <div class="activity-empty">
-                                <i class="bi bi-basket3"></i>
-                                <h6>No Decisions Yet</h6>
-                                <p>Complete research on companies to build your selectivity metrics. Higher rates show disciplined decision-making.</p>
-                                <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-outline-primary">Start Researching</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+</div>
 
 <style>
-/* Selectivity Meter Styles */
-.selectivity-meter {
-    padding: 1.5rem;
+/* =============================================================================
+   REDESIGNED DASHBOARD - Based on Sample
+   ============================================================================= */
+
+/* Container */
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    background-color: #f7f8fc;
 }
 
-.meter-visual {
-    position: relative;
-    display: inline-block;
-    margin: 0 auto 1.5rem;
+/* Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
-.selectivity-gauge {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+.dashboard-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.25rem;
 }
 
-.meter-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
+.dashboard-subtitle {
+    font-size: 1.125rem;
+    color: #6b7280;
+    margin: 0;
 }
 
-.meter-percentage {
+/* Quick Add Button */
+.quick-add-btn {
+    background-color: #4338ca;
+    border: none;
+    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3);
+    transition: all 0.3s ease;
+}
+
+.quick-add-btn:hover {
+    background-color: #3730a3;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(67, 56, 202, 0.4);
+}
+
+/* Dropdown styling */
+.dropdown-menu {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem;
+}
+
+.dropdown-item {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: #f3f4f6;
+}
+
+/* Priority Lane Section */
+.priority-lane-section {
+    margin-bottom: 2.5rem;
+}
+
+.section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1rem;
+}
+
+.priority-lane-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Priority Cards */
+.priority-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+}
+
+.priority-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05);
+    transform: translateY(-4px);
+}
+
+.priority-card-ideas {
+    border-left: 4px solid #f59e0b;
+}
+
+.priority-card-research {
+    border-left: 4px solid #3b82f6;
+}
+
+.priority-card-monitoring {
+    border-left: 4px solid #10b981;
+}
+
+.priority-card-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.priority-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.priority-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.priority-card-number {
     font-size: 2rem;
     font-weight: 700;
     line-height: 1;
 }
 
-.meter-label {
-    font-size: 0.75rem;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.priority-number-yellow { color: #f59e0b; }
+.priority-number-blue { color: #3b82f6; }
+.priority-number-green { color: #10b981; }
+
+.priority-card-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0.5rem 0;
+    flex-grow: 1;
+    line-height: 1.5;
 }
 
-.selectivity-details {
-    border-top: 1px solid #dee2e6;
+.priority-card-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    margin-top: 1rem;
+    display: inline-block;
+    transition: color 0.2s ease;
+}
+
+.priority-card-link:hover {
+    color: #4338ca;
+}
+
+/* Main Grid */
+.dashboard-main-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.dashboard-main-content {
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    margin-bottom: 2rem;
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    height: fit-content;
+}
+
+.card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05);
+    transform: translateY(-4px);
+}
+
+.card:last-child {
+    margin-bottom: 0;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+/* Framework Card */
+.framework-card {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+}
+
+.frameworks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.framework-box {
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.framework-box-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+}
+
+.framework-box-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0.25rem 0 0.75rem 0;
+    line-height: 1.4;
+}
+
+.framework-box-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.framework-box-count {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.framework-box-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+.framework-box-link:hover {
+    color: #4338ca;
+}
+
+/* Activity Feed */
+.activity-feed {
+    overflow: hidden;
+}
+
+.activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.activity-item:not(:first-child) {
     padding-top: 1rem;
 }
 
-.detail-row {
+.activity-icon-wrapper {
+    flex-shrink: 0;
+}
+
+.activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
+    align-items: center;
+    justify-content: center;
+    color: white;
 }
 
-.detail-label {
-    color: #6c757d;
+.activity-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-text {
     font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0 0 0.25rem 0;
 }
 
-.detail-value {
+.activity-link {
     font-weight: 600;
+    color: #111827;
+    text-decoration: none;
 }
 
-.selectivity-badge {
+.activity-link:hover {
+    color: #4f46e5;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+.activity-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #9ca3af;
+}
+
+.activity-empty i {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.activity-empty p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Sidebar */
+.sidebar-card {
+    margin-bottom: 2rem;
+}
+
+.sidebar-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+/* Chart Container */
+.chart-container {
+    max-width: 300px;
+    margin: 1rem auto 0;
+}
+
+/* Funnel List */
+.funnel-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.funnel-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.funnel-label {
+    display: flex;
+    align-items: center;
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.funnel-value {
+    font-weight: 700;
+    color: #111827;
+    font-size: 1.125rem;
+}
+
+.kill-rate-badge {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #eff6ff;
+    border-radius: 8px;
     text-align: center;
 }
 
-.selectivity-activity .activity-empty {
-    min-height: 250px;
+.kill-rate-badge p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.kill-rate-badge strong {
+    font-weight: 700;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 1rem;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dashboard-title {
+        font-size: 2rem;
+    }
+
+    .priority-lane-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 
@@ -515,4 +738,41 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sector Chart (if element exists)
+    const sectorChartEl = document.getElementById('sectorChart');
+    if (sectorChartEl) {
+        const sectorCtx = sectorChartEl.getContext('2d');
+        new Chart(sectorCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Technology', 'Healthcare', 'Industrials', 'Financials'],
+                datasets: [{
+                    data: [45, 25, 15, 15],
+                    backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
