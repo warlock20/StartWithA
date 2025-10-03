@@ -1,482 +1,438 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>{{title}}</h1>
-        <p class="text-muted mb-0">Track and manage all your systematic research efforts</p>
-    </div>
-    <div>
-        <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-secondary">
-            View Templates
-        </a>
-        <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-success">
-            Start New Research
-        </a>
-    </div>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">{{title}}</h1>
+            <p class="dashboard-subtitle">Track and manage all your systematic research efforts</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-layout-text-sidebar"></i> View Templates
+            </a>
+            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> Start New Research
+            </a>
+        </div>
+    </header>
 
-<!-- Summary statistics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ active_projects|length }}</h3>
-                <small class="text-muted">Active Projects</small>
+    <!-- Statistics Priority Cards -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid">
+            <!-- Active Projects -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Active Projects</h3>
+                        <span class="priority-card-number priority-number-blue">{{ active_projects|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Research projects currently in progress.</p>
+                    {% if active_projects %}
+                    <a href="#active-section" class="priority-card-link">
+                        View Active <i class="bi bi-arrow-down-short"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Total Time Invested -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Time Invested</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ total_time_invested }}h</span>
+                    </div>
+                    <p class="priority-card-description">Total hours spent on systematic research.</p>
+                </div>
+            </div>
+
+            <!-- Invest Decisions -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Invest Decisions</h3>
+                        <span class="priority-card-number priority-number-green">{{ invest_decisions }}</span>
+                    </div>
+                    <p class="priority-card-description">Companies you've decided to invest in.</p>
+                </div>
+            </div>
+
+            <!-- Pass Decisions -->
+            <div class="priority-card priority-card-warning">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Pass Decisions</h3>
+                        <span class="priority-card-number priority-number-red">{{ pass_decisions }}</span>
+                    </div>
+                    <p class="priority-card-description">Ideas filtered out through systematic analysis.</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ total_time_invested }}h</h3>
-                <small class="text-muted">Total Time Invested</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 class="text-success">{{ invest_decisions }}</h3>
-                <small class="text-muted">Invest Decisions</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 class="text-danger">{{ pass_decisions }}</h3>
-                <small class="text-muted">Pass Decisions</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Overdue alert -->
-{% if overdue_projects %}
-<div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <strong>Attention:</strong> You have {{ overdue_projects|length }} overdue project(s) that haven't been worked on in
-    over 2 weeks.
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
+    <!-- Overdue Alert -->
+    {% if overdue_projects %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Attention:</strong> You have {{ overdue_projects|length }} overdue project(s) that haven't been worked on in over 2 weeks.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
 
-<!-- Active Projects -->
-{% if active_projects %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">🔥 Active Projects</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Research Subject</th>
-                        <th>Template</th>
-                        <th>Progress</th>
-                        <th>Last Worked</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in active_projects %}
-                    <tr{% if project.is_overdue %} class="table-warning"{% endif %}>
-                        <td>
-                            {{ project.subject_display_name }}
-                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
-                            {% if project.is_overdue %}
-                                <span class="badge bg-warning">Overdue</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ project.template.name }}</td>
-                        <td>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar" role="progressbar"
-                                     style="width: {{ project.progress_percentage }}%;"
-                                     aria-valuenow="{{ project.progress_percentage }}"
-                                     aria-valuemin="0" aria-valuemax="100">
-                                    {{ project.progress_percentage }}%
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            {% if project.last_worked_at %}
-                                {{ project.last_worked_at.strftime('%b %d') }}
-                            {% else %}
-                                Never
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                                   class="btn btn-primary btn-sm">
-                                    Continue Research
-                                </a>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                                            data-bs-toggle="dropdown">
-                                        Options
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}">
-                                                <button type="submit" class="dropdown-item">
-                                                    ⏸️ Pause Project
-                                                </button>
-                                            </form>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item"
-                                               href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}">
-                                                📋 View Summary
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <form method="POST" action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
-                                                  onsubmit="return confirm('Are you sure you want to delete this research project? This action cannot be undone.')">
-                                                <button type="submit" class="dropdown-item text-danger">
-                                                    🗑️ Delete Project
-                                                </button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% else %}
-<div class="alert alert-info">
-    <h5>No Active Projects</h5>
-    <p>You don't have any active research projects. <a href="{{ url_for('companies.companies_dashboard') }}">Start a new research project</a> to begin your systematic analysis.</p>
-</div>
-{% endif %}
+    <!-- Active Projects -->
+    {% if active_projects %}
+    <div class="projects-section" id="active-section">
+        <h2 class="section-title font-poppins">
+            <i class="bi bi-fire text-danger me-2"></i> Active Projects
+        </h2>
+        <div class="projects-grid">
+            {% for project in active_projects %}
+            <div class="project-card {% if project.is_overdue %}project-card-overdue{% endif %}">
+                <div class="project-card-header">
+                    <div class="project-card-title-row">
+                        <h3 class="project-card-title">{{ project.subject_display_name }}</h3>
+                        {% if project.is_overdue %}
+                        <span class="project-badge project-badge-warning">Overdue</span>
+                        {% endif %}
+                    </div>
+                    <p class="project-card-subtitle">{{ project.research_subject_type.title() }}</p>
+                </div>
 
-<!-- Paused Projects -->
-{% if paused_projects %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">⏸️ Paused Projects</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Research Subject</th>
-                        <th>Template</th>
-                        <th>Progress</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in paused_projects %}
-                    <tr>
-                        <td>
-                            {{ project.subject_display_name }}
-                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
-                        </td>
-                        <td>{{ project.template.name }}</td>
-                        <td>{{ project.progress_percentage }}%</td>
-                        <td>
-                            <form method="POST"
-                                action="{{ url_for('research_workflow.resume_project', project_id=project.id) }}">
-                                <button type="submit" class="btn btn-success btn-sm">Resume</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
+                <div class="project-card-body">
+                    <div class="project-info-grid">
+                        <div class="project-info-item">
+                            <span class="project-info-label">Template</span>
+                            <span class="project-info-value">{{ project.template.name }}</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Last Worked</span>
+                            <span class="project-info-value">
+                                {% if project.last_worked_at %}
+                                    {{ project.last_worked_at.strftime('%b %d') }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
 
-<!-- Abandoned Projects -->
-{% if abandoned_projects %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">🗑️ Abandoned Projects</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Research Subject</th>
-                        <th>Template</th>
-                        <th>Progress</th>
-                        <th>Abandoned Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in abandoned_projects %}
-                    <tr>
-                        <td>
-                            {{ project.subject_display_name }}
-                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
-                        </td>
-                        <td>{{ project.template.name }}</td>
-                        <td>{{ project.progress_percentage }}%</td>
-                        <td>
-                            {% if project.last_worked_at %}
-                                {{ project.last_worked_at.strftime('%b %d, %Y') }}
-                            {% else %}
-                                Unknown
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <form method="POST" action="{{ url_for('research_workflow.resume_project', project_id=project.id) }}">
-                                    <button type="submit" class="btn btn-outline-success btn-sm">
-                                        ↩️ Resume
+                    <!-- Progress Bar -->
+                    <div class="project-progress-section">
+                        <div class="project-progress-header">
+                            <span class="project-progress-label">Progress</span>
+                            <span class="project-progress-percentage">{{ project.progress_percentage }}%</span>
+                        </div>
+                        <div class="project-progress-bar">
+                            <div class="project-progress-fill" style="width: {{ project.progress_percentage }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="project-card-actions">
+                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
+                       class="btn btn-primary btn-sm project-action-primary">
+                        <i class="bi bi-arrow-right-circle"></i> Continue Research
+                    </a>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-pause-circle"></i> Pause Project
                                     </button>
                                 </form>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}">
+                                    <i class="bi bi-file-text"></i> View Summary
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
                                 <form method="POST" action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
                                       onsubmit="return confirm('Are you sure you want to delete this research project? This action cannot be undone.')">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                                        🗑️ Delete
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-trash"></i> Delete Project
                                     </button>
                                 </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% else %}
+    <div class="template-empty-state">
+        <i class="bi bi-folder-x"></i>
+        <h3>No Active Projects</h3>
+        <p>You don't have any active research projects. Start a new research project to begin your systematic analysis.</p>
+        <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle-fill"></i> Start New Research
+        </a>
+    </div>
+    {% endif %}
 
-<!-- Legacy Research Sessions Section Removed -->
-<!-- Research sessions are now handled through the research workflow system -->
+    <!-- Paused Projects -->
+    {% if paused_projects %}
+    <div class="projects-section mt-5">
+        <h2 class="section-title font-poppins">
+            <i class="bi bi-pause-circle text-warning me-2"></i> Paused Projects
+        </h2>
+        <div class="projects-grid">
+            {% for project in paused_projects %}
+            <div class="project-card project-card-paused">
+                <div class="project-card-header">
+                    <div class="project-card-title-row">
+                        <h3 class="project-card-title">{{ project.subject_display_name }}</h3>
+                        <span class="project-badge project-badge-secondary">Paused</span>
+                    </div>
+                    <p class="project-card-subtitle">{{ project.research_subject_type.title() }}</p>
+                </div>
 
-<!-- Completed Projects -->
-{% if completed_projects %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">✅ Recently Completed Projects</h5>
-        <div class="btn-group btn-group-sm project-filter-group" role="group">
-            <input type="radio" class="btn-check" name="project-type-filter" id="all-types" value="all" checked>
-            <label class="btn btn-outline-primary" for="all-types">All</label>
+                <div class="project-card-body">
+                    <div class="project-info-grid">
+                        <div class="project-info-item">
+                            <span class="project-info-label">Template</span>
+                            <span class="project-info-value">{{ project.template.name }}</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Progress</span>
+                            <span class="project-info-value">{{ project.progress_percentage }}%</span>
+                        </div>
+                    </div>
+                </div>
 
-            <input type="radio" class="btn-check" name="project-type-filter" id="company-type" value="company">
-            <label class="btn btn-outline-primary" for="company-type">Companies</label>
-
-            <input type="radio" class="btn-check" name="project-type-filter" id="sector-type" value="sector">
-            <label class="btn btn-outline-primary" for="sector-type">Sectors</label>
-
-            <input type="radio" class="btn-check" name="project-type-filter" id="theme-type" value="theme">
-            <label class="btn btn-outline-primary" for="theme-type">Themes</label>
+                <div class="project-card-actions">
+                    <form method="POST" action="{{ url_for('research_workflow.resume_project', project_id=project.id) }}" style="flex: 1;">
+                        <button type="submit" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-play-circle"></i> Resume
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Research Subject</th>
-                        <th>Template</th>
-                        <th>Time Spent</th>
-                        <th>Decision</th>
-                        <th>Confidence</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in completed_projects %}
-                    <tr data-project-type="{{ project.research_subject_type }}" class="project-row">
-                        <td>
-                            {{ project.subject_display_name }}
-                            <small class="text-muted d-block">{{ project.research_subject_type.title() }}</small>
-                        </td>
-                        <td>{{ project.template.name }}</td>
-                        <td>{{ project.total_hours_spent|round(1) }}h</td>
-                        <td>
-                            {% if project.decision == 'invest' %}
-                            <span class="badge bg-success">Invest</span>
-                            {% elif project.decision == 'pass' %}
-                            <span class="badge bg-danger">Pass</span>
-                            {% elif project.decision == 'watchlist' %}
-                            <span class="badge bg-warning">Watchlist</span>
-                            {% else %}
-                            <span class="badge bg-secondary">Pending</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if project.decision_confidence %}
-                            {{ project.decision_confidence }}/10
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1 align-items-center">
-                                <!-- Primary Actions -->
-                                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
-                                    class="btn btn-outline-primary btn-sm" title="View project summary">
-                                    📋 Summary
-                                </a>
+    {% endif %}
 
-                                {% if project.research_subject_type == 'company' and project.company %}
-                                <!-- Destination Analysis - Most Important -->
-                                <a href="{{ url_for('companies.destination_analysis', company_id=project.company.id) }}"
-                                    class="btn btn-outline-success btn-sm" title="Update investment targets and thesis">
-                                    🎯 Destination
-                                </a>
+    <!-- Completed Projects -->
+    {% if completed_projects %}
+    <div class="projects-section mt-5">
+        <div class="section-header-with-filter">
+            <h2 class="section-title font-poppins">
+                <i class="bi bi-check-circle text-success me-2"></i> Recently Completed Projects
+            </h2>
+            <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="project-type-filter" id="all-types" value="all" checked>
+                <label class="btn btn-outline-primary" for="all-types">All</label>
 
-                                <!-- Thesis Tools Dropdown -->
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                                            data-bs-toggle="dropdown" aria-expanded="false" title="Thesis maintenance tools">
-                                        🔬 Thesis Tools
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('companies.scuttlebutt', company_id=project.company.id) }}">
-                                                🔍 Digital Scuttlebutt
-                                                <small class="text-muted d-block">Gather market intelligence</small>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('companies.porters_five_forces_analysis', company_id=project.company.id) }}">
-                                                📊 Porter's 5 Forces
-                                                <small class="text-muted d-block">Update competitive analysis</small>
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="alert('Thesis evolution tracking coming soon!')">
-                                                📈 Thesis Evolution
-                                                <small class="text-muted d-block">Track thesis changes</small>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="alert('Price monitoring setup coming soon!')">
-                                                📱 Set Monitoring
-                                                <small class="text-muted d-block">Price alerts & tracking</small>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                <input type="radio" class="btn-check" name="project-type-filter" id="company-type" value="company">
+                <label class="btn btn-outline-primary" for="company-type">Companies</label>
+
+                <input type="radio" class="btn-check" name="project-type-filter" id="sector-type" value="sector">
+                <label class="btn btn-outline-primary" for="sector-type">Sectors</label>
+
+                <input type="radio" class="btn-check" name="project-type-filter" id="theme-type" value="theme">
+                <label class="btn btn-outline-primary" for="theme-type">Themes</label>
+            </div>
+        </div>
+
+        <div class="projects-grid">
+            {% for project in completed_projects %}
+            <div class="project-card project-card-completed project-row" data-project-type="{{ project.research_subject_type }}">
+                <div class="project-card-header">
+                    <div class="project-card-title-row">
+                        <h3 class="project-card-title">{{ project.subject_display_name }}</h3>
+                        {% if project.decision == 'invest' %}
+                        <span class="project-badge project-badge-success">Invest</span>
+                        {% elif project.decision == 'pass' %}
+                        <span class="project-badge project-badge-danger">Pass</span>
+                        {% elif project.decision == 'watchlist' %}
+                        <span class="project-badge project-badge-warning">Watchlist</span>
+                        {% else %}
+                        <span class="project-badge project-badge-secondary">Pending</span>
+                        {% endif %}
+                    </div>
+                    <p class="project-card-subtitle">{{ project.research_subject_type.title() }}</p>
+                </div>
+
+                <div class="project-card-body">
+                    <div class="project-info-grid">
+                        <div class="project-info-item">
+                            <span class="project-info-label">Template</span>
+                            <span class="project-info-value">{{ project.template.name }}</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Time Spent</span>
+                            <span class="project-info-value">{{ project.total_hours_spent|round(1) }}h</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Confidence</span>
+                            <span class="project-info-value">
+                                {% if project.decision_confidence %}
+                                {{ project.decision_confidence }}/10
+                                {% else %}
+                                -
                                 {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
-                                <!-- Quick Portfolio Action -->
-                                {% if project.research_subject_type == 'company' and project.company and project.decision == 'invest' %}
-                                <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=project.company.id) }}" style="display: inline;">
-                                    {% if project.company.is_in_portfolio %}
-                                    <button type="submit" class="btn btn-outline-warning btn-sm" title="Remove from portfolio">
-                                        📤
-                                    </button>
-                                    {% else %}
-                                    <button type="submit" class="btn btn-success btn-sm" title="Add to portfolio">
-                                        📁
-                                    </button>
-                                    {% endif %}
-                                </form>
-                                {% endif %}
+                <div class="project-card-actions">
+                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-text"></i> Summary
+                    </a>
 
-                                <!-- Delete Action -->
+                    {% if project.research_subject_type == 'company' and project.company %}
+                    <a href="{{ url_for('companies.destination_analysis', company_id=project.company.id) }}"
+                       class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-bullseye"></i> Destination
+                    </a>
+                    {% endif %}
+
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% if project.research_subject_type == 'company' and project.company %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('companies.scuttlebutt', company_id=project.company.id) }}">
+                                    <i class="bi bi-search"></i> Digital Scuttlebutt
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('companies.porters_five_forces_analysis', company_id=project.company.id) }}">
+                                    <i class="bi bi-diagram-3"></i> Porter's 5 Forces
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li>
                                 <form method="POST" action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
-                                      style="display: inline;"
-                                      onsubmit="return confirm('Are you sure you want to permanently delete this completed project? This action cannot be undone and you will lose all research data.');">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete project">
-                                        🗑️
+                                      onsubmit="return confirm('Are you sure you want to permanently delete this completed project? This action cannot be undone.');">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-trash"></i> Delete Project
                                     </button>
                                 </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
+    {% endif %}
+
+    <!-- Abandoned Projects -->
+    {% if abandoned_projects %}
+    <div class="projects-section mt-5">
+        <h2 class="section-title font-poppins">
+            <i class="bi bi-x-circle text-muted me-2"></i> Abandoned Projects
+        </h2>
+        <div class="projects-grid">
+            {% for project in abandoned_projects %}
+            <div class="project-card project-card-abandoned">
+                <div class="project-card-header">
+                    <div class="project-card-title-row">
+                        <h3 class="project-card-title">{{ project.subject_display_name }}</h3>
+                        <span class="project-badge project-badge-secondary">Abandoned</span>
+                    </div>
+                    <p class="project-card-subtitle">{{ project.research_subject_type.title() }}</p>
+                </div>
+
+                <div class="project-card-body">
+                    <div class="project-info-grid">
+                        <div class="project-info-item">
+                            <span class="project-info-label">Template</span>
+                            <span class="project-info-value">{{ project.template.name }}</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Progress</span>
+                            <span class="project-info-value">{{ project.progress_percentage }}%</span>
+                        </div>
+                        <div class="project-info-item">
+                            <span class="project-info-label">Abandoned</span>
+                            <span class="project-info-value">
+                                {% if project.last_worked_at %}
+                                    {{ project.last_worked_at.strftime('%b %d, %Y') }}
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="project-card-actions">
+                    <form method="POST" action="{{ url_for('research_workflow.resume_project', project_id=project.id) }}" style="flex: 1;">
+                        <button type="submit" class="btn btn-outline-success btn-sm w-100">
+                            <i class="bi bi-arrow-counterclockwise"></i> Resume
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
+                          onsubmit="return confirm('Are you sure you want to delete this research project? This action cannot be undone.');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Project type filtering
-        const typeFilters = document.querySelectorAll('input[name="project-type-filter"]');
-        const projectRows = document.querySelectorAll('.project-row');
+document.addEventListener('DOMContentLoaded', function () {
+    // Project type filtering
+    const typeFilters = document.querySelectorAll('input[name="project-type-filter"]');
+    const projectRows = document.querySelectorAll('.project-row');
 
-        typeFilters.forEach(filter => {
-            filter.addEventListener('change', function () {
-                const selectedType = this.value;
+    typeFilters.forEach(filter => {
+        filter.addEventListener('change', function () {
+            const selectedType = this.value;
 
-                projectRows.forEach(row => {
-                    const projectType = row.getAttribute('data-project-type');
+            projectRows.forEach(row => {
+                const projectType = row.getAttribute('data-project-type');
 
-                    if (selectedType === 'all' || projectType === selectedType) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        });
-
-        // Fix dropdown positioning and expand row to prevent overlap
-        document.querySelectorAll('.dropdown-toggle').forEach(function(toggle) {
-            const parentRow = toggle.closest('tr');
-
-            // When dropdown is shown, expand the row
-            toggle.addEventListener('shown.bs.dropdown', function() {
-                const dropdown = toggle.nextElementSibling;
-                if (dropdown && dropdown.classList.contains('dropdown-menu')) {
-                    dropdown.style.position = 'absolute';
-                    dropdown.style.zIndex = '10000';
-                    dropdown.style.top = '100%';
-                    dropdown.style.left = '0';
-
-                    // Add class to expand row and prevent overlap
-                    if (parentRow) {
-                        parentRow.classList.add('dropdown-expanded');
-                    }
-                }
-            });
-
-            // When dropdown is hidden, contract the row back
-            toggle.addEventListener('hidden.bs.dropdown', function() {
-                if (parentRow) {
-                    parentRow.classList.remove('dropdown-expanded');
+                if (selectedType === 'all' || projectType === selectedType) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
                 }
             });
         });
     });
+});
 </script>
-
-<style>
-/* Expand table row when dropdown is open to prevent overlap */
-.dropdown-expanded {
-    position: relative;
-}
-
-.dropdown-expanded td:last-child {
-    padding-bottom: 140px !important; /* Extra space for dropdown */
-    transition: padding-bottom 0.2s ease;
-}
-
-/* Ensure dropdown appears above expanded space */
-.dropdown-expanded .dropdown-menu {
-    z-index: 10001 !important;
-}
-
-/* Smooth transition back to normal */
-tr td:last-child {
-    transition: padding-bottom 0.2s ease;
-}
-</style>
-
 {% endblock %}
+
+<!-- Tips Modal -->
+{% set tips_title = "Research Project Best Practices" %}
+{% set tips_intro = "Make the most of your systematic research workflow:" %}
+{% set tips = [
+    "Focus on one project at a time to maintain quality and momentum",
+    "Pause projects when stuck - sometimes fresh perspective after a break helps",
+    "Track time spent on each step to improve future time estimates",
+    "Don't skip steps in your template - systematic process prevents blind spots",
+    "Review completed projects to refine your templates over time",
+    "If a project is taking too long, it might belong in the 'too hard' basket"
+] %}
+{% include 'main/_tips_modal.html' %}

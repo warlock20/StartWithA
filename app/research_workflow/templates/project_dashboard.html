@@ -31,65 +31,108 @@
     </div>
 </div>
 {% endif %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>{{ project.project_name }}</h1>
-        <p class="text-muted mb-0">
-            Template: {{ project.template.name }} |
-            {% if project.research_subject_type == 'company' and project.company %}
-            Company: {{ project.company.name }}
-            {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
-            {% else %}
-            {{ project.research_subject_type.title() }}: {{ project.research_subject_name }}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
+            <p class="dashboard-subtitle">
+                Template: {{ project.template.name }} |
+                {% if project.research_subject_type == 'company' and project.company %}
+                Company: {{ project.company.name }}
+                {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+                {% else %}
+                {{ project.research_subject_type.title() }}: {{ project.research_subject_name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            {% if project.status == 'active' %}
+            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}"
+                style="display: inline;">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-pause-circle"></i> Pause Project
+                </button>
+            </form>
             {% endif %}
-        </p>
-    </div>
-    <div>
-        {% if project.status == 'active' %}
-        <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}"
-            style="display: inline;">
-            <button type="submit" class="btn btn-warning">⏸ Pause Project</button>
-        </form>
-        {% endif %}
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary">Back to Projects</a>
-    </div>
-</div>
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </header>
 
-<!-- Progress overview -->
-<div class="card mb-4">
-    <div class="card-body">
-        <h5>Overall Progress</h5>
-        <div class="progress" style="height: 30px;">
-            <div class="progress-bar bg-success" role="progressbar" style="width: {{ project.progress_percentage }}%">
-                {{ project.progress_percentage }}% Complete
+    <!-- Priority Cards for Stats -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid">
+            <!-- Steps Completed -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Steps Completed</h3>
+                        <span class="priority-card-number priority-number-green">{{ project.completed_steps|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Research milestones achieved.</p>
+                </div>
             </div>
-        </div>
-        <div class="row mt-3 text-center">
-            <div class="col">
-                <h4>{{ project.completed_steps|length }}</h4>
-                <small class="text-muted">Steps Completed</small>
+
+            <!-- Steps Remaining -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Steps Remaining</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ project.template.step_count - project.completed_steps|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Tasks ahead in your workflow.</p>
+                </div>
             </div>
-            <div class="col">
-                <h4>{{ project.template.step_count - project.completed_steps|length }}</h4>
-                <small class="text-muted">Steps Remaining</small>
+
+            <!-- Time Invested -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Time Invested</h3>
+                        <span class="priority-card-number priority-number-blue">{{ project.total_hours_spent|round(1) }}h</span>
+                    </div>
+                    <p class="priority-card-description">Hours spent on deep research.</p>
+                </div>
             </div>
-            <div class="col">
-                <h4>{{ project.total_hours_spent|round(1) }}h</h4>
-                <small class="text-muted">Time Invested</small>
-            </div>
-            <div class="col">
-                <h4>
-                    {% if days_since_last_work is not none %}
-                    {{ days_since_last_work }}d
-                    {% else %}
-                    -
-                    {% endif %}
-                </h4>
-                <small class="text-muted">Days Since Last Work</small>
+
+            <!-- Days Since Work -->
+            <div class="priority-card priority-card-warning">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Days Since Work</h3>
+                        <span class="priority-card-number priority-number-red">
+                            {% if days_since_last_work is not none %}
+                            {{ days_since_last_work }}d
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="priority-card-description">Keep momentum going!</p>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Progress Bar Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="font-poppins mb-3">Overall Progress</h5>
+            <div class="project-progress-section">
+                <div class="project-progress-info">
+                    <span class="project-progress-label">{{ project.progress_percentage }}% Complete</span>
+                </div>
+                <div class="project-progress-bar">
+                    <div class="project-progress-fill" style="width: {{ project.progress_percentage }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <!-- Adaptive Template Suggestions -->
 {% if project.research_subject_type == 'company' and project.company and project.company.sector %}
@@ -339,6 +382,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -731,3 +775,16 @@
 }
 </style>
 {% endblock %}
+
+<!-- Tips Modal -->
+{% set tips_title = "Research Workflow Tips" %}
+{% set tips_intro = "Execute your research workflow effectively:" %}
+{% set tips = [
+    "Start each step fresh - don't rush through to 'get it done'",
+    "Document findings as you go - memory fades quickly",
+    "Green and red flags help crystallize your investment thesis",
+    "Use the research journal to capture thoughts beyond the template",
+    "Track actual time vs estimated - improves future planning",
+    "It's okay to abandon if thesis breaks - that's the system working"
+] %}
+{% include 'main/_tips_modal.html' %}

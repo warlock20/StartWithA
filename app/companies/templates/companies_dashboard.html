@@ -1,175 +1,226 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>🏢 {{ title }}</h1>
-        <p class="text-muted mb-0">Your investment research command center</p>
-    </div>
-    <div>
-        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-primary">
-            💡 Idea Inbox
-            {% set inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count() %}
-            {% if inbox_count > 0 %}
-            <span class="badge bg-danger">{{ inbox_count }}</span>
-            {% endif %}
-        </a>
-        <button type="button" class="btn btn-primary" onclick="openCompanyModal(handleCompanyAdded)">
-            <i class="bi bi-plus-circle"></i> Add Company
-        </button>
-    </div>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">🏢 {{ title }}</h1>
+            <p class="dashboard-subtitle">Your investment research command center</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-lightbulb-fill"></i> Idea Inbox
+                {% set inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count() %}
+                {% if inbox_count > 0 %}
+                <span class="badge bg-danger">{{ inbox_count }}</span>
+                {% endif %}
+            </a>
+            <button type="button" class="btn btn-primary" onclick="openCompanyModal(handleCompanyAdded)">
+                <i class="bi bi-plus-circle-fill"></i> Add Company
+            </button>
+        </div>
+    </header>
 
-<!-- Overview Cards -->
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <div class="display-6 text-success">💼</div>
-                <h3 class="mt-2">{{ dashboard_data.portfolio_count }}</h3>
-                <p class="text-muted mb-3">Portfolio Companies</p>
-                <a href="{{ url_for('companies.portfolio') }}" class="btn btn-outline-success btn-sm">
-                    View All →
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <div class="display-6 text-warning">👀</div>
-                <h3 class="mt-2">{{ dashboard_data.watchlist_count }}</h3>
-                <p class="text-muted mb-3">Watchlist</p>
-                <a href="{{ url_for('companies.watchlist') }}" class="btn btn-outline-warning btn-sm">
-                    View All →
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <div class="display-6 text-primary">📊</div>
-                <h3 class="mt-2">{{ dashboard_data.total_companies }}</h3>
-                <p class="text-muted mb-3">Total Companies</p>
-                <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-primary btn-sm">
-                    View All →
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Activity -->
-{% if dashboard_data.recent_activity %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">🔥 Recent Activity</h5>
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-sm btn-outline-primary">
-            View All Projects →
-        </a>
-    </div>
-    <div class="card-body">
-        <div class="list-group list-group-flush">
-            {% for activity in dashboard_data.recent_activity %}
-            <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
-                <div>
-                    <h6 class="mb-1">{{ activity.company_name }}</h6>
-                    <small class="text-muted">{{ activity.action }}</small>
-                </div>
-                <div class="text-end">
-                    <small class="text-muted">{{ activity.date.strftime('%b %d') }}</small>
-                    {% if activity.link %}
-                    <a href="{{ activity.link }}" class="btn btn-sm btn-outline-primary ms-2">View</a>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Quick Preview Sections -->
-<div class="row">
-    <!-- Portfolio Preview -->
-    {% if portfolio_companies_data %}
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">💼 Portfolio Preview</h5>
-                <a href="{{ url_for('companies.portfolio') }}" class="btn btn-sm btn-outline-success">View All</a>
-            </div>
-            <div class="card-body">
-                {% for data in portfolio_companies_data %}
-                {% set company = data.company_obj %}
-                <div
-                    class="d-flex justify-content-between align-items-center {% if not loop.last %}border-bottom{% endif %} py-2">
-                    <div>
-                        <strong>{{ company.name }}</strong>
-                        <small class="text-muted d-block">{{ company.ticker_symbol }}</small>
+    <!-- Priority Cards for Stats -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid three-column">
+            <!-- Portfolio Companies -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Portfolio</h3>
+                        <span class="priority-card-number priority-number-green">{{ dashboard_data.portfolio_count }}</span>
                     </div>
-                    <div class="text-end">
-                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
-                            class="btn btn-sm btn-outline-primary">View</a>
-                    </div>
+                    <p class="priority-card-description">Companies you've invested in.</p>
+                    <a href="{{ url_for('companies.portfolio') }}" class="priority-card-link">
+                        View Portfolio <i class="bi bi-arrow-right-short"></i>
+                    </a>
                 </div>
-                {% endfor %}
+            </div>
+
+            <!-- Watchlist -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Watchlist</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ dashboard_data.watchlist_count }}</span>
+                    </div>
+                    <p class="priority-card-description">Companies you're monitoring.</p>
+                    <a href="{{ url_for('companies.watchlist') }}" class="priority-card-link">
+                        View Watchlist <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Total Companies -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Companies</h3>
+                        <span class="priority-card-number priority-number-blue">{{ dashboard_data.total_companies }}</span>
+                    </div>
+                    <p class="priority-card-description">All companies tracked.</p>
+                    <a href="{{ url_for('companies.list_companies') }}" class="priority-card-link">
+                        View All <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    {% if dashboard_data.recent_activity %}
+    <div class="card activity-card">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="card-title font-poppins mb-0">Recent Activity</h2>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-sm btn-outline-primary">
+                    View All Projects <i class="bi bi-arrow-right-short"></i>
+                </a>
+            </div>
+            <div class="activity-feed">
+                <ul class="activity-list">
+                    {% for activity in dashboard_data.recent_activity[:3] %}
+                    <li class="activity-item">
+                        <div class="activity-icon-wrapper">
+                            <div class="activity-icon bg-primary">
+                                <i class="bi bi-building"></i>
+                            </div>
+                        </div>
+                        <div class="activity-content">
+                            <p class="activity-text">
+                                <strong>{{ activity.company_name }}</strong> - {{ activity.action }}
+                            </p>
+                            <p class="activity-time">{{ activity.date.strftime('%b %d, %Y') }}</p>
+                        </div>
+                        {% if activity.link %}
+                        <a href="{{ activity.link }}" class="btn btn-sm btn-outline-primary">View</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Watchlist Preview -->
-    {% if favorite_companies_data %}
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">👀 Watchlist Preview</h5>
-                <a href="{{ url_for('companies.watchlist') }}" class="btn btn-sm btn-outline-warning">View All</a>
+    <!-- Company Preview Cards -->
+    <div class="companies-preview-grid">
+        <!-- Portfolio Preview -->
+        {% if portfolio_companies_data %}
+        <div class="company-preview-card">
+            <div class="preview-card-header">
+                <h3 class="preview-card-title font-poppins">
+                    <i class="bi bi-briefcase-fill text-success me-2"></i>Portfolio Preview
+                </h3>
+                <a href="{{ url_for('companies.portfolio') }}" class="preview-card-link">
+                    View All <i class="bi bi-arrow-right-short"></i>
+                </a>
             </div>
-            <div class="card-body">
-                {% for data in favorite_companies_data %}
+            <div class="preview-card-body">
+                {% for data in portfolio_companies_data[:4] %}
                 {% set company = data.company_obj %}
-                <div
-                    class="d-flex justify-content-between align-items-center {% if not loop.last %}border-bottom{% endif %} py-2">
-                    <div>
-                        <strong>{{ company.name }}</strong>
-                        <small class="text-muted d-block">{{ company.ticker_symbol }}</small>
+                <div class="company-preview-item">
+                    <div class="company-preview-info">
+                        <span class="company-preview-name">{{ company.name }}</span>
+                        <span class="company-preview-ticker">{{ company.ticker_symbol }}</span>
                     </div>
-                    <div class="text-end">
-                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
-                            class="btn btn-sm btn-outline-primary">View</a>
-                    </div>
+                    <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                       class="btn btn-sm btn-outline-primary">View</a>
                 </div>
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
+
+        <!-- Watchlist Preview -->
+        {% if favorite_companies_data %}
+        <div class="company-preview-card">
+            <div class="preview-card-header">
+                <h3 class="preview-card-title font-poppins">
+                    <i class="bi bi-eye-fill text-warning me-2"></i>Watchlist Preview
+                </h3>
+                <a href="{{ url_for('companies.watchlist') }}" class="preview-card-link">
+                    View All <i class="bi bi-arrow-right-short"></i>
+                </a>
+            </div>
+            <div class="preview-card-body">
+                {% for data in favorite_companies_data[:4] %}
+                {% set company = data.company_obj %}
+                <div class="company-preview-item">
+                    <div class="company-preview-info">
+                        <span class="company-preview-name">{{ company.name }}</span>
+                        <span class="company-preview-ticker">{{ company.ticker_symbol }}</span>
+                    </div>
+                    <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                       class="btn btn-sm btn-outline-primary">View</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Getting Started (if no companies) -->
+    {% if dashboard_data.total_companies == 0 %}
+    <div class="empty-state-onboarding">
+        <i class="bi bi-building"></i>
+        <h3>Welcome to Your Investment Research Platform!</h3>
+        <p>You haven't added any companies yet. Here's how to get started:</p>
+        <div class="onboarding-steps">
+            <div class="onboarding-step">
+                <div class="onboarding-step-number">1</div>
+                <div class="onboarding-step-content">
+                    <h4>Capture Ideas</h4>
+                    <p>Use the Idea Inbox to quickly capture investment ideas</p>
+                </div>
+            </div>
+            <div class="onboarding-step">
+                <div class="onboarding-step-number">2</div>
+                <div class="onboarding-step-content">
+                    <h4>Kill Bad Ideas</h4>
+                    <p>Run ideas through your Kill Checklist to eliminate losers quickly</p>
+                </div>
+            </div>
+            <div class="onboarding-step">
+                <div class="onboarding-step-number">3</div>
+                <div class="onboarding-step-content">
+                    <h4>Deep Research</h4>
+                    <p>Promote survivors to companies for systematic analysis</p>
+                </div>
+            </div>
+        </div>
+        <div class="onboarding-actions">
+            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
+                <i class="bi bi-lightbulb-fill"></i> Start with an Idea
+            </a>
+            <button type="button" class="btn btn-outline-primary btn-lg" onclick="openCompanyModal(handleCompanyAdded)">
+                <i class="bi bi-plus-circle-fill"></i> Add Company Directly
+            </button>
+        </div>
     </div>
     {% endif %}
 </div>
-
-<!-- Getting Started (if no companies) -->
-{% if dashboard_data.total_companies == 0 %}
-<div class="alert alert-info">
-    <h5>Welcome to Your Investment Research Platform!</h5>
-    <p>You haven't added any companies yet. Here's how to get started:</p>
-    <ol>
-        <li><strong>Capture Ideas:</strong> Use the <a href="{{ url_for('ideas.add_idea') }}">Idea Inbox</a> to quickly
-            capture investment ideas</li>
-        <li><strong>Kill Bad Ideas:</strong> Run ideas through your Kill Checklist to eliminate losers quickly</li>
-        <li><strong>Deep Research:</strong> Promote survivors to companies for systematic analysis</li>
-    </ol>
-    <div class="mt-3">
-        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">Start with an Idea</a>
-        <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanyAdded)">Add Company Directly</button>
-    </div>
-</div>
-{% endif %}
 
 <!-- Company Search Modal -->
 {% include "components/company_search_modal.html" %}
 
+<!-- Tips Modal -->
+{% set tips_title = "Companies Dashboard Tips" %}
+{% set tips_intro = "Master your company tracking workflow:" %}
+{% set tips = [
+    "<strong>Portfolio:</strong> Track your invested companies with thesis checkpoints to catch when you're wrong",
+    "<strong>Watchlist:</strong> Monitor interesting companies you're not ready to invest in yet",
+    "<strong>Add Companies:</strong> Import from your Idea Inbox after killing bad ideas, or add directly",
+    "<strong>Company Dashboard:</strong> Each company gets comprehensive tools: SWOT, Porter's 5 Forces, Financials, Documents",
+    "<strong>Recent Activity:</strong> Keep track of what you've been researching lately",
+    "<strong>Stay Organized:</strong> Use consistent naming and tagging to find companies quickly"
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}
 
 {% block scripts %}

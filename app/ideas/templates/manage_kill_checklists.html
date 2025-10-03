@@ -1,168 +1,185 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📋 Kill Checklists</h1>
-        <p class="text-muted mb-0">Design your criteria for eliminating bad ideas quickly</p>
-        <!-- Cross-navigation -->
-        <div class="mt-2">
-            <small class="text-muted">
-                Also explore:
-                <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none">✅ Investment Checklists</a> |
-                <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none">❓ Question Bank</a>
-            </small>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">📋 Kill Checklists</h1>
+            <p class="dashboard-subtitle">Design your criteria for eliminating bad ideas quickly</p>
+            <div class="mt-2">
+                <small class="text-muted">
+                    Also explore:
+                    <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅ Investment Checklists</a> |
+                    <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none fw-semibold">❓ Question Bank</a>
+                </small>
+            </div>
         </div>
-    </div>
-    <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-success">
-        <i class="bi bi-plus-circle"></i> Create New Checklist
-    </a>
-</div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle-fill"></i> Create New Checklist
+            </a>
+        </div>
+    </header>
 
-{% if checklists %}
-    <div class="row">
+    {% if checklists %}
+    <div class="kill-checklists-grid">
         {% for checklist in checklists %}
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100 {% if checklist.is_default %}border-primary{% endif %}" id="checklist-card-{{ checklist.id }}">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
+        <div class="kill-checklist-card {% if checklist.is_default %}kill-checklist-default{% endif %}" id="checklist-card-{{ checklist.id }}">
+            <!-- Card Header -->
+            <div class="kill-checklist-header">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div class="flex-grow-1">
+                        <h3 class="kill-checklist-title font-poppins">
                             {{ checklist.name }}
-                            {% if checklist.is_default %}
-                                <span class="badge bg-primary ms-2">Default</span>
-                            {% endif %}
-                            <!-- Intelligence Indicator -->
-                            <span class="badge bg-success ms-2 d-none" id="ai-badge-{{ checklist.id }}">
-                                <i class="bi bi-lightbulb"></i> Smart
-                            </span>
-                        </h5>
-                        <div class="d-flex align-items-center">
-                            <span class="badge bg-secondary me-2">{{ checklist.criteria_count }} criteria</span>
-                            <!-- Suggestions indicator -->
-                            <span class="badge bg-warning d-none" id="suggestions-count-{{ checklist.id }}">
-                                <i class="bi bi-exclamation-circle"></i> <span class="suggestion-count">0</span>
-                            </span>
+                        </h3>
+                        {% if checklist.description %}
+                        <p class="kill-checklist-description">{{ checklist.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="kill-checklist-badges-group">
+                        {% if checklist.is_default %}
+                        <span class="kill-badge kill-badge-default">
+                            <i class="bi bi-star-fill"></i> Default
+                        </span>
+                        {% endif %}
+                        <span class="kill-badge kill-badge-criteria">
+                            {{ checklist.criteria_count }} criteria
+                        </span>
+                        <!-- Smart badge -->
+                        <span class="kill-badge kill-badge-smart d-none" id="ai-badge-{{ checklist.id }}">
+                            <i class="bi bi-lightbulb-fill"></i> Smart
+                        </span>
+                        <!-- Suggestions badge -->
+                        <span class="kill-badge kill-badge-suggestions d-none" id="suggestions-count-{{ checklist.id }}">
+                            <i class="bi bi-exclamation-circle-fill"></i> <span class="suggestion-count">0</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Smart Suggestions Alert -->
+                <div class="kill-smart-alert d-none" id="suggestions-alert-{{ checklist.id }}">
+                    <div class="d-flex align-items-center">
+                        <div class="kill-smart-icon">
+                            <i class="bi bi-lightbulb-fill"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="kill-smart-title">Smart Optimization Available</div>
+                            <div class="kill-smart-preview suggestion-preview"></div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showSuggestions({{ checklist.id }})">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="kill-metrics-section">
+                <div class="kill-metrics-grid">
+                    <div class="kill-metric">
+                        <div class="kill-metric-value">{{ checklist.total_ideas_evaluated }}</div>
+                        <div class="kill-metric-label">
+                            <i class="bi bi-clipboard-check"></i> Evaluated
+                        </div>
+                    </div>
+                    <div class="kill-metric">
+                        <div class="kill-metric-value kill-metric-danger">{{ checklist.total_ideas_killed }}</div>
+                        <div class="kill-metric-label">
+                            <i class="bi bi-x-circle"></i> Killed
+                        </div>
+                    </div>
+                    <div class="kill-metric">
+                        <div class="kill-metric-value kill-metric-info">{{ checklist.kill_rate }}%</div>
+                        <div class="kill-metric-label">
+                            <i class="bi bi-percent"></i> Kill Rate
+                        </div>
+                        <div class="kill-metric-bar">
+                            <div class="kill-metric-bar-fill" style="width: {{ checklist.kill_rate }}%"></div>
+                        </div>
+                    </div>
+                    <div class="kill-metric">
+                        <div class="kill-metric-value kill-metric-success" id="effectiveness-score-{{ checklist.id }}">-</div>
+                        <div class="kill-metric-label">
+                            <i class="bi bi-graph-up-arrow"></i> Effectiveness
+                        </div>
+                        <div class="kill-metric-bar d-none" id="effectiveness-bar-{{ checklist.id }}">
+                            <div class="kill-metric-bar-fill effectiveness-bar" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    {% if checklist.description %}
-                        <p class="card-text">{{ checklist.description }}</p>
+            </div>
+
+            <!-- Criteria Preview -->
+            <div class="kill-criteria-preview">
+                <div class="kill-criteria-header">
+                    <span class="kill-criteria-title">
+                        <i class="bi bi-list-check"></i> Top Criteria
+                    </span>
+                    <span class="kill-criteria-count">{{ checklist.criteria_count }} total</span>
+                </div>
+                <ol class="kill-criteria-list">
+                    {% for criterion in checklist.criteria.limit(4).all() %}
+                    <li class="kill-criteria-item">
+                        <span class="kill-criteria-number">{{ loop.index }}</span>
+                        <span class="kill-criteria-text">{{ criterion.question }}</span>
+                    </li>
+                    {% endfor %}
+                    {% if checklist.criteria_count > 4 %}
+                    <li class="kill-criteria-more">
+                        +{{ checklist.criteria_count - 4 }} more criteria
+                    </li>
                     {% endif %}
-                    
-                    <!-- Smart Suggestions Alert -->
-                    <div class="alert alert-info border-0 bg-info-subtle d-none" id="suggestions-alert-{{ checklist.id }}">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-lightbulb text-info me-2"></i>
-                            <div class="flex-grow-1">
-                                <small class="fw-semibold">Smart Optimization Available</small>
-                                <div class="small text-muted suggestion-preview"></div>
-                            </div>
-                            <button class="btn btn-sm btn-outline-info" onclick="showSuggestions({{ checklist.id }})">
-                                <i class="bi bi-eye"></i> View
-                            </button>
-                        </div>
-                    </div>
+                </ol>
+            </div>
 
-                    <!-- Statistics with Effectiveness Indicators -->
-                    <div class="row text-center mb-3">
-                        <div class="col-3">
-                            <h4>{{ checklist.total_ideas_evaluated }}</h4>
-                            <small class="text-muted">Evaluated</small>
-                        </div>
-                        <div class="col-3">
-                            <h4 class="text-danger">{{ checklist.total_ideas_killed }}</h4>
-                            <small class="text-muted">Killed</small>
-                        </div>
-                        <div class="col-3">
-                            <h4>{{ checklist.kill_rate }}%</h4>
-                            <small class="text-muted">Kill Rate</small>
-                        </div>
-                        <div class="col-3">
-                            <h4 class="text-success" id="effectiveness-score-{{ checklist.id }}">-</h4>
-                            <small class="text-muted">Effectiveness</small>
-                        </div>
-                    </div>
-
-                    <!-- Effectiveness Progress Bar -->
-                    <div class="mb-3 d-none" id="effectiveness-progress-{{ checklist.id }}">
-                        <div class="d-flex justify-content-between small text-muted mb-1">
-                            <span>Optimization Level</span>
-                            <span class="effectiveness-percentage">0%</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success effectiveness-bar" role="progressbar" style="width: 0%"></div>
-                        </div>
-                        <small class="text-muted">Based on criterion performance and ordering</small>
-                    </div>
-                    
-                    <!-- Sample criteria -->
-                    <h6>Criteria Preview:</h6>
-                    <ol class="small">
-                        {% for criterion in checklist.criteria.limit(3).all() %}
-                            <li>{{ criterion.question }}</li>
-                        {% endfor %}
-                        {% if checklist.criteria_count > 3 %}
-                            <li class="text-muted">...and {{ checklist.criteria_count - 3 }} more</li>
-                        {% endif %}
-                    </ol>
-                    
-                    <!-- Smart Actions -->
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="analyzeChecklist({{ checklist.id }})">
-                                <i class="bi bi-graph-up"></i> Analyze
-                            </button>
-                            <button class="btn btn-outline-success d-none" id="optimize-btn-{{ checklist.id }}" onclick="showOptimizations({{ checklist.id }})">
-                                <i class="bi bi-lightbulb"></i> Optimize
-                            </button>
-                        </div>
-                        <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}" 
-                           class="btn btn-outline-primary btn-sm">Edit</a>
-                        {% if not checklist.is_default %}
-                            <form method="POST" action="{{ url_for('ideas.set_default_checklist', checklist_id=checklist.id) }}" 
-                                  style="display: inline;">
-                                <button type="submit" class="btn btn-outline-success btn-sm">Set as Default</button>
-                            </form>
-                        {% endif %}
-                        <form method="POST" action="{{ url_for('ideas.delete_kill_checklist', checklist_id=checklist.id) }}" 
-                              style="display: inline;">
-                            <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('Delete this kill checklist? This cannot be undone.');">
-                                Delete
-                            </button>
-                        </form>
-                    </div>
+            <!-- Card Footer with Actions -->
+            <div class="kill-checklist-footer">
+                <div class="kill-footer-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="analyzeChecklist({{ checklist.id }})">
+                        <i class="bi bi-graph-up"></i> Analyze
+                    </button>
+                    <button class="btn btn-sm btn-outline-success d-none" id="optimize-btn-{{ checklist.id }}" onclick="showOptimizations({{ checklist.id }})">
+                        <i class="bi bi-lightbulb"></i> Optimize
+                    </button>
+                    <a href="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    {% if not checklist.is_default %}
+                    <form method="POST" action="{{ url_for('ideas.set_default_checklist', checklist_id=checklist.id) }}"
+                          style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-star"></i> Set Default
+                        </button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('ideas.delete_kill_checklist', checklist_id=checklist.id) }}"
+                          style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Delete this kill checklist? This cannot be undone.');">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
-{% else %}
-    <div class="alert alert-info">
-        <h5>No Kill Checklists Yet</h5>
-        <p>Create your first kill checklist to start filtering ideas systematically.</p>
-        <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-primary">Create Your First Kill Checklist</a>
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <i class="bi bi-shield-x"></i>
+        <h3>No Kill Checklists Yet</h3>
+        <p>Create your first kill checklist to start filtering ideas systematically and save time on bad investments.</p>
+        <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle-fill"></i> Create Your First Kill Checklist
+        </a>
     </div>
-{% endif %}
-
-<!-- Suggested starter checklist -->
-<div class="card mt-4">
-    <div class="card-header bg-light">
-        <h6 class="mb-0">💡 Suggested Kill Criteria to Get Started</h6>
-    </div>
-    <div class="card-body">
-        <p>Here are some proven kill criteria from successful investors:</p>
-        <ul class="small">
-            <li><strong>"Can I understand this business in 5 minutes?"</strong> - Complexity is the enemy of execution</li>
-            <li><strong>"Is the valuation reasonable (P/E < 30)?"</strong> - Price discipline prevents most mistakes</li>
-            <li><strong>"Does management have significant skin in the game (>5% ownership)?"</strong> - Alignment matters</li>
-            <li><strong>"Is this within my circle of competence?"</strong> - Stay in your lane</li>
-            <li><strong>"Can I identify a sustainable competitive advantage?"</strong> - No moat = commodity business</li>
-            <li><strong>"Is the balance sheet healthy (Debt/Equity < 0.5)?"</strong> - Leverage kills in downturns</li>
-            <li><strong>"Would I be comfortable owning this for 10 years?"</strong> - Think long-term</li>
-        </ul>
-    </div>
+    {% endif %}
 </div>
 
 <!-- Smart Suggestions Modal -->
@@ -198,6 +215,18 @@
         </div>
     </div>
 </div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Kill Checklist Best Practices" %}
+{% set tips_intro = "Build effective filters to eliminate bad ideas fast:" %}
+{% set tips = [
+    "<strong>Start Simple:</strong> Begin with 5-7 criteria that kill 80% of bad ideas. You can always add more later",
+    "<strong>Binary Questions:</strong> Use yes/no questions for faster screening. Nuance comes later in deep research",
+    "<strong>Order Matters:</strong> Put your fastest/cheapest criteria first to kill ideas early",
+    "<strong>Track Performance:</strong> Use the Analyze feature to see which criteria actually work",
+    "<strong>Suggested Criteria Examples:</strong><br>• \"Can I understand this business in 5 minutes?\" - Complexity is the enemy<br>• \"Is the valuation reasonable (P/E < 30)?\" - Price discipline prevents mistakes<br>• \"Does management have skin in the game (>5% ownership)?\" - Alignment matters<br>• \"Is this within my circle of competence?\" - Stay in your lane<br>• \"Can I identify a sustainable competitive advantage?\" - No moat = commodity<br>• \"Is the balance sheet healthy (Debt/Equity < 0.5)?\" - Leverage kills<br>• \"Would I be comfortable owning this for 10 years?\" - Think long-term"
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -281,7 +310,7 @@ const DynamicKillChecklist = {
     // Display effectiveness metrics
     displayEffectivenessMetrics(checklistId, data) {
         const effectivenessScore = document.getElementById(`effectiveness-score-${checklistId}`);
-        const effectivenessProgress = document.getElementById(`effectiveness-progress-${checklistId}`);
+        const effectivenessBar = document.getElementById(`effectiveness-bar-${checklistId}`);
 
         if (data.criteria_analysis.length > 0) {
             // Calculate overall effectiveness score
@@ -293,21 +322,19 @@ const DynamicKillChecklist = {
                 effectivenessScore.textContent = `${score}%`;
 
                 // Color coding based on effectiveness
-                effectivenessScore.className = 'text-' + (
+                effectivenessScore.className = 'kill-metric-value kill-metric-' + (
                     avgEffectiveness >= 0.7 ? 'success' :
                     avgEffectiveness >= 0.4 ? 'warning' : 'danger'
                 );
             }
 
             // Update progress bar
-            if (effectivenessProgress) {
-                const progressBar = effectivenessProgress.querySelector('.effectiveness-bar');
-                const percentageText = effectivenessProgress.querySelector('.effectiveness-percentage');
+            if (effectivenessBar) {
+                const progressBar = effectivenessBar.querySelector('.effectiveness-bar');
 
-                if (progressBar && percentageText) {
+                if (progressBar) {
                     progressBar.style.width = `${score}%`;
-                    percentageText.textContent = `${score}%`;
-                    effectivenessProgress.classList.remove('d-none');
+                    effectivenessBar.classList.remove('d-none');
                 }
             }
         }

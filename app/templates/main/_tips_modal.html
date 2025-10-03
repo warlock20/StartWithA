@@ -1,0 +1,29 @@
+<!-- Tips Modal - Reusable Component -->
+<div class="modal fade" id="tipsModal" tabindex="-1" aria-labelledby="tipsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-poppins" id="tipsModalLabel">
+                    <i class="bi bi-lightbulb text-warning"></i> {{ tips_title|default('Tips & Best Practices') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if tips_intro %}
+                <p class="mb-3">{{ tips_intro }}</p>
+                {% endif %}
+                <div class="tips-list">
+                    {% for tip in tips %}
+                    <div class="tip-item">
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        <span>{{ tip|safe }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Got it!</button>
+            </div>
+        </div>
+    </div>
+</div>
