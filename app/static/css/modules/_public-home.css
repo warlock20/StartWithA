@@ -1,0 +1,92 @@
+/* =============================================================================
+   PUBLIC HOME PAGE STYLES
+   ============================================================================= */
+
+/* Page Navigation Dots */
+.page-nav {
+    position: fixed;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+}
+
+.nav-dots {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.nav-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: rgba(55, 65, 81, 0.3);
+    border: 2px solid rgba(55, 65, 81, 0.2);
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.nav-dot:hover,
+.nav-dot.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: scale(1.2);
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.scroll-indicator.hidden {
+    opacity: 0;
+}
+
+.scroll-arrow {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    animation: bounce 2s infinite;
+}
+
+.scroll-arrow:hover {
+    background-color: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-5px); }
+    60% { transform: translateY(-3px); }
+}
+
+/* Full-screen sections */
+.hero-section,
+.problem-solution-section,
+.how-it-works-section,
+.capabilities-section,
+.final-cta-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    scroll-margin-top: 0;
+}
+
+/* NOTE: Remaining public home styles are too large to include here.
+   They are kept in the main design-system.css file for now.
+   Consider further modularization if needed. */

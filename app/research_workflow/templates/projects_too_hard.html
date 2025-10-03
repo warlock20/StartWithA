@@ -1,372 +1,309 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>🧺 {{ title }}</h1>
-        <p class="text-muted mb-0">Companies you've passed on - Learn from your decisions</p>
-    </div>
-    <div>
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Dashboard
-        </a>
-        <a href="{{ url_for('research_workflow.completed_projects') }}" class="btn btn-outline-success">
-            ✅ All Completed
-        </a>
-    </div>
-</div>
-
-<!-- Warren Buffett Quote -->
-<div class="alert alert-light border mb-4">
-    <div class="d-flex align-items-start">
-        <div class="display-6 me-3">💡</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
         <div>
-            <h5>Warren Buffett's "Too Hard" Pile</h5>
-            <p class="mb-0">
-                <em>"There are all kinds of businesses that Charlie and I don't understand, but that doesn't cause us to stay up at night.
-                It just means we go on to the next one, and that's what the 'too hard' pile is all about."</em>
-            </p>
-            <small class="text-muted">- Warren Buffett</small>
+            <h1 class="dashboard-title font-poppins">🧺 "Too Hard" Basket</h1>
+            <p class="dashboard-subtitle">{{ pagination.total }} compan{{ 'ies' if pagination.total != 1 else 'y' }} you've wisely passed on</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <a href="{{ url_for('research_workflow.completed_projects') }}" class="btn btn-outline-success">
+                <i class="bi bi-check-circle"></i> All Completed
+            </a>
+        </div>
+    </header>
+
+    <!-- Warren Buffett Wisdom Card -->
+    <div class="buffett-wisdom-card mb-4">
+        <div class="wisdom-icon">💡</div>
+        <div class="wisdom-content">
+            <h3 class="wisdom-title font-poppins">Warren Buffett's "Too Hard" Pile</h3>
+            <blockquote class="wisdom-quote">
+                "There are all kinds of businesses that Charlie and I don't understand, but that doesn't cause us to stay up at night.
+                It just means we go on to the next one, and that's what the 'too hard' pile is all about."
+            </blockquote>
+            <p class="wisdom-attribution">— Warren Buffett</p>
         </div>
     </div>
-</div>
 
-<!-- Search and Filter Bar -->
-<div class="card mb-3">
-    <div class="card-body">
-        <form method="GET" action="{{ url_for('research_workflow.too_hard_basket') }}" class="row g-3">
-            <!-- Search Box -->
-            <div class="col-md-5">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" name="search"
-                           placeholder="Search by company name or ticker..."
-                           value="{{ current_search }}">
+    <!-- Search and Filter Bar -->
+    <div class="card mb-4">
+        <div class="card-body p-4">
+            <form method="GET" action="{{ url_for('research_workflow.too_hard_basket') }}">
+                <div class="row g-3">
+                    <!-- Search Box -->
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" name="search"
+                                   placeholder="Search by company name or ticker..."
+                                   value="{{ current_search }}">
+                        </div>
+                    </div>
+
+                    <!-- Confidence Filter -->
+                    <div class="col-md-3">
+                        <select class="form-select" name="confidence">
+                            <option value="">All Confidence Levels</option>
+                            <option value="high" {% if current_confidence == 'high' %}selected{% endif %}>🎯 High (7-10)</option>
+                            <option value="medium" {% if current_confidence == 'medium' %}selected{% endif %}>⚖️ Medium (4-6)</option>
+                            <option value="low" {% if current_confidence == 'low' %}selected{% endif %}>❓ Low (1-3)</option>
+                        </select>
+                    </div>
+
+                    <!-- Sort Order -->
+                    <div class="col-md-2">
+                        <select class="form-select" name="sort">
+                            <option value="recent" {% if current_sort == 'recent' %}selected{% endif %}>Recent First</option>
+                            <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest First</option>
+                        </select>
+                    </div>
+
+                    <!-- Per Page -->
+                    <div class="col-md-2">
+                        <select class="form-select" name="per_page">
+                            <option value="12" {% if current_per_page == 12 %}selected{% endif %}>12 per page</option>
+                            <option value="24" {% if current_per_page == 24 %}selected{% endif %}>24 per page</option>
+                            <option value="48" {% if current_per_page == 48 %}selected{% endif %}>48 per page</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter Button -->
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                {% if current_search or current_confidence or current_sort != 'recent' %}
+                <div class="mt-3">
+                    <small class="text-muted me-2">Active filters:</small>
+                    {% if current_search %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-search"></i> "{{ current_search }}"
+                    </span>
+                    {% endif %}
+                    {% if current_confidence %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-filter"></i> {{ current_confidence.title() }} Confidence
+                    </span>
+                    {% endif %}
+                    {% if current_sort != 'recent' %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-sort-down"></i> Oldest First
+                    </span>
+                    {% endif %}
+                    <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="badge bg-secondary text-decoration-none">
+                        <i class="bi bi-x-circle"></i> Clear All
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Too Hard Projects Cards -->
+    {% if too_hard_projects %}
+    <div class="too-hard-projects-grid">
+        {% for project in too_hard_projects %}
+        <div class="too-hard-card">
+            <!-- Card Header -->
+            <div class="too-hard-header">
+                <h3 class="too-hard-title font-poppins">{{ project.subject_display_name }}</h3>
+                {% if project.company %}
+                <p class="too-hard-industry">
+                    {{ project.company.sector or 'Unknown Sector' }} • {{ project.company.industry or 'Unknown Industry' }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Confidence & Time -->
+            <div class="too-hard-metrics">
+                <div class="metric-item">
+                    <div class="metric-label">Decision Confidence</div>
+                    {% if project.decision_confidence %}
+                    <div class="confidence-display">
+                        <div class="confidence-value">{{ project.decision_confidence }}/10</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: {{ project.decision_confidence * 10 }}%"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="metric-value text-muted">Not rated</div>
+                    {% endif %}
+                </div>
+
+                <div class="metric-row">
+                    <div class="metric-item-small">
+                        <i class="bi bi-clock text-muted"></i>
+                        <span>{{ project.total_hours_spent|round(1) }}h research</span>
+                    </div>
+                    <div class="metric-item-small">
+                        <i class="bi bi-calendar-check text-muted"></i>
+                        <span>
+                            {% if project.completed_at %}
+                            {{ project.completed_at.strftime('%b %d, %Y') }}
+                            {% else %}Unknown{% endif %}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Confidence Filter -->
-            <div class="col-md-3">
-                <select class="form-select" name="confidence">
-                    <option value="">All Confidence Levels</option>
-                    <option value="high" {% if current_confidence == 'high' %}selected{% endif %}>High (7-10)</option>
-                    <option value="medium" {% if current_confidence == 'medium' %}selected{% endif %}>Medium (4-6)</option>
-                    <option value="low" {% if current_confidence == 'low' %}selected{% endif %}>Low (1-3)</option>
-                </select>
+            <!-- Learning: Why Passed -->
+            <div class="too-hard-learning">
+                <div class="learning-label">
+                    <i class="bi bi-lightbulb-fill text-warning"></i>
+                    Why I Passed
+                </div>
+                {% if project.decision_notes %}
+                <p class="learning-reason">{{ project.decision_notes }}</p>
+                {% else %}
+                <p class="learning-reason text-muted">No reason recorded - consider adding notes for future reference</p>
+                {% endif %}
             </div>
 
-            <!-- Sort Order -->
-            <div class="col-md-1">
-                <select class="form-select" name="sort">
-                    <option value="recent" {% if current_sort == 'recent' %}selected{% endif %}>Recent</option>
-                    <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest</option>
-                </select>
+            <!-- Template Used -->
+            <div class="too-hard-template">
+                <i class="bi bi-layout-text-sidebar text-muted"></i>
+                <span>{{ project.template.name }}</span>
             </div>
 
-            <!-- Per Page Selector -->
-            <div class="col-md-2">
-                <select class="form-select" name="per_page">
-                    <option value="10" {% if current_per_page == 10 %}selected{% endif %}>10 per page</option>
-                    <option value="20" {% if current_per_page == 20 %}selected{% endif %}>20 per page</option>
-                    <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50 per page</option>
-                </select>
-            </div>
+            <!-- Actions Footer -->
+            <div class="too-hard-actions">
+                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                   class="btn btn-outline-primary btn-sm flex-grow-1">
+                    <i class="bi bi-file-text"></i> Review Research
+                </a>
 
-            <!-- Filter Button -->
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary w-100">Filter</button>
-            </div>
-        </form>
-
-        <!-- Active Filters Display -->
-        {% if current_search or current_confidence or current_sort != 'recent' %}
-        <div class="mt-3">
-            <small class="text-muted">Active filters:</small>
-            {% if current_search %}
-            <span class="badge bg-info">Search: "{{ current_search }}"</span>
-            {% endif %}
-            {% if current_confidence %}
-            <span class="badge bg-info">Confidence: {{ current_confidence.title() }}</span>
-            {% endif %}
-            {% if current_sort != 'recent' %}
-            <span class="badge bg-info">Sort: Oldest First</span>
-            {% endif %}
-            <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="badge bg-secondary text-decoration-none">Clear All</a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Too Hard Projects -->
-{% if too_hard_projects %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Companies in Too Hard Basket</h5>
-        <span class="text-muted">
-            Showing {{ pagination.total }} companies
-            {% if current_search or current_confidence %}(filtered){% endif %}
-        </span>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Company</th>
-                        <th>Template Used</th>
-                        <th>Time Spent</th>
-                        <th>Confidence</th>
-                        <th>Passed On</th>
-                        <th>Reason</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in too_hard_projects %}
-                    <tr>
-                        <td>
-                            <strong>{{ project.subject_display_name }}</strong>
-                            {% if project.company %}
-                            <small class="text-muted d-block">
-                                {{ project.company.sector or 'Unknown Sector' }} • {{ project.company.industry or 'Unknown Industry' }}
-                            </small>
-                            {% endif %}
-                        </td>
-                        <td>{{ project.template.name }}</td>
-                        <td>{{ project.total_hours_spent|round(1) }}h</td>
-                        <td>
-                            {% if project.decision_confidence %}
-                            <div class="d-flex align-items-center">
-                                <div class="progress flex-grow-1" style="height: 20px; max-width: 80px;">
-                                    <div class="progress-bar bg-danger" role="progressbar"
-                                         style="width: {{ project.decision_confidence * 10 }}%;">
-                                        {{ project.decision_confidence }}/10
-                                    </div>
-                                </div>
-                            </div>
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if project.completed_at %}
-                            {{ project.completed_at.strftime('%b %d, %Y') }}
-                            {% else %}
-                            Unknown
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if project.decision_notes %}
-                            <span class="text-truncate d-inline-block" style="max-width: 200px;"
-                                  title="{{ project.decision_notes }}">
-                                {{ project.decision_notes }}
-                            </span>
-                            {% else %}
-                            <em class="text-muted">No reason provided</em>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <!-- View Summary -->
-                                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
-                                   class="btn btn-outline-primary btn-sm" title="Review research">
-                                    📋 Review
-                                </a>
-
-                                {% if project.company %}
-                                <!-- Company Actions Dropdown -->
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <a class="dropdown-item"
-                                               href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}">
-                                                📊 Company Dashboard
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item"
-                                               href="{{ url_for('companies.destination_analysis', company_id=project.company.id) }}">
-                                                🎯 Revisit Analysis
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item text-success" href="#"
-                                               onclick="if(confirm('Start a new research project for {{ project.company.name }}?')) window.location='{{ url_for('research.select_checklist_for_company', company_id=project.company.id) }}'">
-                                                🔄 Research Again
-                                                <small class="text-muted d-block">Start fresh research</small>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <form method="POST"
-                                                  action="{{ url_for('companies.toggle_favorite', company_id=project.company.id) }}"
-                                                  style="display: inline;">
-                                                <button type="submit" class="dropdown-item">
-                                                    {% if project.company in current_user.favorites %}
-                                                    ❌ Remove from Favorites
-                                                    {% else %}
-                                                    ⭐ Add to Favorites
-                                                    {% endif %}
-                                                </button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
-                                {% endif %}
-
-                                <!-- Delete -->
-                                <form method="POST"
-                                      action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
-                                      style="display: inline;"
-                                      onsubmit="return confirm('Remove this from Too Hard Basket? All research data will be deleted.');">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
-                                        🗑️
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination Controls -->
-        {% if pagination.pages > 1 %}
-        <nav aria-label="Page navigation" class="mt-4">
-            <ul class="pagination justify-content-center">
-                <!-- Previous Button -->
-                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.prev_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
-                        Previous
-                    </a>
-                </li>
-
-                <!-- Page Numbers -->
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=page_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
-                                {{ page_num }}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if project.company %}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}">
+                                <i class="bi bi-building"></i> Company Dashboard
                             </a>
                         </li>
-                    {% else %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% endif %}
-                {% endfor %}
-
-                <!-- Next Button -->
-                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.next_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
-                        Next
-                    </a>
-                </li>
-            </ul>
-
-            <!-- Page Info -->
-            <div class="text-center text-muted small">
-                {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
-                {% set end = pagination.page * pagination.per_page %}
-                {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
-                Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
-            </div>
-        </nav>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Learning Insights -->
-<div class="card mt-4">
-    <div class="card-header">
-        <h5 class="mb-0">💡 Learning Insights</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Why Keep a "Too Hard" Basket?</h6>
-                <ul class="small">
-                    <li><strong>Pattern Recognition:</strong> Identify what types of businesses you struggle with</li>
-                    <li><strong>Learning Opportunity:</strong> Review why you passed to improve future analysis</li>
-                    <li><strong>Circle of Competence:</strong> Stay within your understanding</li>
-                    <li><strong>Second Chances:</strong> Revisit companies when you've learned more</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <h6>Common "Too Hard" Reasons</h6>
-                <ul class="small">
-                    <li>Business model too complex to understand</li>
-                    <li>Industry dynamics changing too rapidly</li>
-                    <li>Lack of competitive moat or defensibility</li>
-                    <li>Management concerns or governance issues</li>
-                    <li>Valuation too difficult to assess with confidence</li>
-                </ul>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('companies.destination_analysis', company_id=project.company.id) }}">
+                                <i class="bi bi-bullseye"></i> Revisit Analysis
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-success" href="#"
+                               onclick="if(confirm('Start a new research project for {{ project.company.name }}?')) window.location='{{ url_for('research.select_checklist_for_company', company_id=project.company.id) }}'">
+                                <i class="bi bi-arrow-repeat"></i> Research Again
+                            </a>
+                        </li>
+                        <li>
+                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=project.company.id) }}" class="dropdown-form">
+                                <button type="submit" class="dropdown-item">
+                                    {% if project.company in current_user.favorites %}
+                                    <i class="bi bi-star-fill"></i> Remove from Favorites
+                                    {% else %}
+                                    <i class="bi bi-star"></i> Add to Favorites
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        <li>
+                            <form method="POST" action="{{ url_for('research_workflow.delete_research_project', project_id=project.id) }}"
+                                  onsubmit="return confirm('Remove this from Too Hard Basket? All research data will be deleted.');" class="dropdown-form">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash"></i> Delete Project
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
+
+    <!-- Pagination Controls -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.prev_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </a>
+            </li>
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=page_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.next_num, per_page=current_per_page, search=current_search, confidence=current_confidence, sort=current_sort) }}">
+                    Next <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+        <div class="text-center text-muted small mt-2">
+            {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
+            {% set end = pagination.page * pagination.per_page %}
+            {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
+            Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
+        </div>
+    </nav>
+    {% endif %}
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state-container">
+        <div class="empty-state-icon">
+            <i class="bi bi-basket"></i>
+        </div>
+        <h3 class="empty-state-title">Your "Too Hard" Basket is Empty</h3>
+        <p class="empty-state-description">
+            You haven't passed on any companies yet. As you complete research and make "pass" decisions,
+            those companies will appear here as a valuable learning resource.
+        </p>
+        <div class="alert alert-info d-inline-block mt-3">
+            <strong>💡 Remember:</strong> Passing on a company isn't a failure—it's wisdom. Understanding what you don't understand is a key investing skill.
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
-{% else %}
-<div class="alert alert-info">
-    <h5>🧺 Your Too Hard Basket is Empty</h5>
-    <p>
-        You haven't passed on any companies yet. As you complete research and make "pass" decisions,
-        those companies will appear here as a valuable learning resource.
-    </p>
-    <p class="mb-0">
-        <strong>Remember:</strong> Passing on a company isn't a failure - it's wisdom. Understanding what you don't
-        understand is a key investing skill.
-    </p>
-</div>
-{% endif %}
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Fix dropdown positioning
-        document.querySelectorAll('.dropdown-toggle').forEach(function (toggle) {
-            const parentRow = toggle.closest('tr');
-
-            toggle.addEventListener('shown.bs.dropdown', function () {
-                const dropdown = toggle.nextElementSibling;
-                if (dropdown && dropdown.classList.contains('dropdown-menu')) {
-                    dropdown.style.position = 'absolute';
-                    dropdown.style.zIndex = '10000';
-
-                    if (parentRow) {
-                        parentRow.classList.add('dropdown-expanded');
-                    }
-                }
-            });
-
-            toggle.addEventListener('hidden.bs.dropdown', function () {
-                if (parentRow) {
-                    parentRow.classList.remove('dropdown-expanded');
-                }
-            });
-        });
-    });
-</script>
-
-<style>
-    .dropdown-expanded {
-        position: relative;
-    }
-
-    .dropdown-expanded td:last-child {
-        padding-bottom: 120px !important;
-        transition: padding-bottom 0.2s ease;
-    }
-
-    .dropdown-expanded .dropdown-menu {
-        z-index: 10001 !important;
-    }
-
-    tr td:last-child {
-        transition: padding-bottom 0.2s ease;
-    }
-</style>
+<!-- Tips Modal -->
+{% set tips_title = "\"Too Hard\" Basket Best Practices" %}
+{% set tips_intro = "Make the most of your wisdom library:" %}
+{% set tips = [
+    "Document WHY you passed - future you will thank you for the learning",
+    "High confidence (7-10) pass decisions are your best teachers",
+    "Review this list periodically - you might understand companies better after learning more",
+    "Don't feel bad about a long \"too hard\" list - Buffett says staying in your circle of competence is wisdom",
+    "Look for patterns in what you pass on - are certain industries consistently \"too hard\"?",
+    "A pass decision isn't permanent - revisit when you've gained relevant knowledge",
+    "The ability to say \"I don't understand this\" is a superpower in investing"
+] %}
+{% include 'main/_tips_modal.html' %}
 
 {% endblock %}

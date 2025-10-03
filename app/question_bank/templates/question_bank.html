@@ -1,59 +1,72 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>❓ My Question Bank</h1>
-        <p class="text-muted mb-0">Your personal library of reusable investment questions organized by sector</p>
-        <!-- Cross-navigation -->
-        <div class="mt-2">
-            <small class="text-muted">
-                Also explore:
-                <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none">✅ Investment Checklists</a> |
-                <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none">📋 Kill Checklists</a>
-            </small>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-bank text-primary me-3"></i>My Question Bank
+            </h1>
+            <p class="dashboard-subtitle">Your personal library of reusable investment questions organized by sector</p>
+            <div class="mt-2">
+                <small class="text-muted">
+                    Also explore:
+                    <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅ Investment Checklists</a> |
+                    <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none fw-semibold">📋 Kill Checklists</a>
+                </small>
+            </div>
         </div>
-    </div>
-    <div>
-        <span class="badge bg-primary fs-6">{{ total_questions }} Questions</span>
-    </div>
-</div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+        </div>
+    </header>
 
-<!-- Summary Stats -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ total_questions }}</h3>
-                <small class="text-muted">Total Questions</small>
+    {% if total_questions > 0 %}
+    <!-- Summary Stats -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Questions</h3>
+                        <span class="priority-card-number priority-number-blue">{{ total_questions }}</span>
+                    </div>
+                    <p class="priority-card-description">In your question bank.</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Sectors Covered</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ grouped_questions|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Organized by category.</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">General Questions</h3>
+                        <span class="priority-card-number priority-number-green">{{ (grouped_questions.get('General', [])|length) }}</span>
+                    </div>
+                    <p class="priority-card-description">Universal questions.</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Sector-Specific</h3>
+                        <span class="priority-card-number priority-number-red">{{ total_questions - (grouped_questions.get('General', [])|length) }}</span>
+                    </div>
+                    <p class="priority-card-description">Targeted questions.</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3 class="text-primary">{{ grouped_questions|length }}</h3>
-                <small class="text-muted">Sectors Covered</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ (grouped_questions.get('General', [])|length) }}</h3>
-                <small class="text-muted">General Questions</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ total_questions - (grouped_questions.get('General', [])|length) }}</h3>
-                <small class="text-muted">Sector-Specific</small>
-            </div>
-        </div>
-    </div>
-</div>
+    {% endif %}
 
 <div class="row g-4">
     <div class="col-lg-4">
@@ -168,45 +181,20 @@
     </div>
 </div>
 
-<!-- Suggested starter questions -->
-<div class="card mt-4">
-    <div class="card-header bg-light">
-        <h6 class="mb-0">💡 Suggested Questions by Category to Get Started</h6>
-    </div>
-    <div class="card-body">
-        <p>Build your question bank with these proven investment questions:</p>
-        <div class="row">
-            <div class="col-md-6">
-                <h6><strong>Financial Health:</strong></h6>
-                <ul class="small">
-                    <li>"What is the current ratio and debt-to-equity ratio?"</li>
-                    <li>"How consistent is the free cash flow generation?"</li>
-                    <li>"What are the return on equity and return on assets trends?"</li>
-                </ul>
-                <h6><strong>Competitive Position:</strong></h6>
-                <ul class="small">
-                    <li>"What sustainable competitive advantages does this company have?"</li>
-                    <li>"How defensible is the market position?"</li>
-                    <li>"What are the barriers to entry in this industry?"</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <h6><strong>Management Quality:</strong></h6>
-                <ul class="small">
-                    <li>"Does management have significant ownership in the company?"</li>
-                    <li>"What is the track record of capital allocation decisions?"</li>
-                    <li>"How transparent is management communication?"</li>
-                </ul>
-                <h6><strong>Valuation:</strong></h6>
-                <ul class="small">
-                    <li>"What is the P/E ratio compared to historical averages?"</li>
-                    <li>"How does the valuation compare to industry peers?"</li>
-                    <li>"What is the margin of safety at current prices?"</li>
-                </ul>
-            </div>
-        </div>
-    </div>
 </div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Question Bank Best Practices" %}
+{% set tips_intro = "Build a powerful library of reusable questions:" %}
+{% set tips = [
+    "<strong>Why Use Question Bank:</strong> Create questions once, reuse everywhere - in checklists, research sessions, and company analysis",
+    "<strong>Organize by Sector:</strong> Tag questions by sector (Tech, Healthcare, REIT, etc.) to quickly find relevant questions for specific industries",
+    "<strong>Add LLM Prompts:</strong> Include AI prompts to get automated research assistance when using these questions",
+    "<strong>Suggested Questions by Category:</strong><br><br><strong>Financial Health:</strong><br>• 'What is the current ratio and debt-to-equity ratio?'<br>• 'How consistent is the free cash flow generation?'<br>• 'What are the return on equity and return on assets trends?'<br><br><strong>Competitive Position:</strong><br>• 'What sustainable competitive advantages does this company have?'<br>• 'How defensible is the market position?'<br>• 'What are the barriers to entry in this industry?'<br><br><strong>Management Quality:</strong><br>• 'Does management have significant ownership in the company?'<br>• 'What is the track record of capital allocation decisions?'<br>• 'How transparent is management communication?'<br><br><strong>Valuation:</strong><br>• 'What is the P/E ratio compared to historical averages?'<br>• 'How does the valuation compare to industry peers?'<br>• 'What is the margin of safety at current prices?'",
+    "<strong>Integration:</strong> Questions appear in checklist builder sidebars - click to add them instantly to your checklists",
+    "<strong>General vs Sector-Specific:</strong> Leave sector blank for universal questions, or tag for industry-specific ones"
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}
 
 {% block scripts %}

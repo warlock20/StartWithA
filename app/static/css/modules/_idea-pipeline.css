@@ -1,0 +1,875 @@
+/* =============================================================================
+   IDEA PIPELINE COMPONENTS
+   ============================================================================= */
+
+/* Idea cards, kill reasons, graveyard, and idea management components */
+
+   IDEA CARDS
+   ======================================== */
+
+.ideas-section {
+    margin-top: 3rem;
+}
+
+.ideas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .ideas-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.idea-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+.idea-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-4px);
+}
+
+.idea-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.idea-card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.75rem;
+}
+
+.idea-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    flex: 1;
+}
+
+.idea-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.idea-card-body {
+    padding: 1.5rem;
+    flex: 1;
+}
+
+.idea-thesis {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.idea-source {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+.idea-card-actions {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* ========================================
+   EMPTY STATE
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+}
+
+.empty-state i {
+    font-size: 6rem;
+    color: #d1d5db;
+}
+
+.empty-state h3 {
+    margin-top: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.empty-state p {
+    color: #6b7280;
+    max-width: 500px;
+    margin: 1rem auto;
+    line-height: 1.6;
+}
+
+/* ========================================
+   KILL REASONS CARDS
+   ======================================== */
+
+.kill-reasons-section {
+    margin-top: 3rem;
+}
+
+.kill-reasons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .kill-reasons-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kill-reason-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #dc2626;
+    display: flex;
+    flex-direction: column;
+}
+
+.kill-reason-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-2px);
+}
+
+.kill-reason-header {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.kill-reason-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    flex: 1;
+}
+
+.kill-reason-badge {
+    background: #fee2e2;
+    color: #dc2626;
+    font-weight: 600;
+    font-size: 1.125rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    min-width: 2.5rem;
+    text-align: center;
+}
+
+.kill-reason-body {
+    padding: 1.5rem;
+    flex: 1;
+}
+
+.kill-reason-ideas {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.kill-reason-actions {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* ========================================
+   GRAVEYARD CARDS
+   ======================================== */
+
+.killed-ideas-section {
+    margin-top: 3rem;
+}
+
+.graveyard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .graveyard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.graveyard-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    opacity: 0.85;
+}
+
+.graveyard-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-2px);
+    opacity: 1;
+}
+
+.graveyard-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(145deg, #ffffff, #fef2f2);
+}
+
+.graveyard-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.75rem;
+}
+
+.graveyard-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    flex: 1;
+}
+
+.graveyard-thesis {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+    margin-top: 0.5rem;
+    line-height: 1.5;
+}
+
+.graveyard-card-body {
+    padding: 1.5rem;
+    flex: 1;
+}
+
+.graveyard-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.graveyard-info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.graveyard-info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #9ca3af;
+    letter-spacing: 0.05em;
+}
+
+.graveyard-info-value {
+    font-size: 0.875rem;
+    color: #374151;
+    margin-top: 0.25rem;
+}
+
+.graveyard-kill-reason {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #fef2f2;
+    border-radius: 8px;
+}
+
+.graveyard-reason-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #dc2626;
+    letter-spacing: 0.05em;
+}
+
+.graveyard-reason-text {
+    font-size: 0.875rem;
+    color: #991b1b;
+    margin: 0.5rem 0 0 0;
+    line-height: 1.5;
+}
+
+.graveyard-card-actions {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* ========================================
+   LEARNING POINTS
+   ======================================== */
+
+.learning-points {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.learning-point {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.learning-point i {
+    margin-top: 0.25rem;
+    font-size: 1rem;
+}
+
+/* ========================================
+   TIPS MODAL & BUTTON
+   ======================================== */
+
+.tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tip-item {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.tip-item i {
+    margin-top: 0.25rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Tips button styling */
+.btn-tips {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-tips:hover {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+/* ========================================
+   ENHANCED TEMPLATE CARDS
+   ======================================== */
+
+.template-main-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .template-main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.templates-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.template-card-enhanced {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+    padding: 1.5rem;
+}
+
+.template-card-enhanced:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.template-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.template-header-left {
+    flex: 1;
+}
+
+.template-card-title-enhanced {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.template-description-enhanced {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+}
+
+.template-success-badge {
+    text-align: right;
+}
+
+.success-rate-number {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #10b981;
+    margin: 0;
+    line-height: 1;
+}
+
+.success-rate-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0;
+    margin-top: -0.25rem;
+    letter-spacing: 0.05em;
+}
+
+/* Process Blueprint */
+.template-blueprint {
+    margin-bottom: 1.5rem;
+}
+
+.blueprint-title {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #9ca3af;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.blueprint-flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.blueprint-flow::-webkit-scrollbar {
+    height: 4px;
+}
+
+.blueprint-flow::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.blueprint-flow::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 2px;
+}
+
+.blueprint-step {
+    background: #f3f4f6;
+    border-radius: 9999px;
+    padding: 0.5rem 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.blueprint-step span {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.blueprint-arrow {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    flex-shrink: 0;
+}
+
+/* Template Footer */
+.template-card-footer {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.template-stats-horizontal {
+    display: flex;
+    gap: 2rem;
+}
+
+.stat-item-horizontal {
+    text-align: center;
+}
+
+.stat-value-horizontal {
+    display: block;
+    font-weight: 700;
+    color: #111827;
+}
+
+.stat-label-horizontal {
+    display: block;
+    font-size: 0.625rem;
+    color: #6b7280;
+}
+
+.template-action-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.template-use-btn {
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.btn-icon-only {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    padding: 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-icon-only:hover {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+/* Sidebar */
+.templates-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.sidebar-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    padding: 1.5rem;
+}
+
+.sidebar-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.insights-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.insight-box {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid;
+}
+
+.insight-success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.insight-used {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.insight-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.insight-success .insight-title {
+    color: #166534;
+}
+
+.insight-used .insight-title {
+    color: #1e40af;
+}
+
+.insight-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0.5rem 0 0.25rem 0;
+}
+
+.insight-detail {
+    font-size: 0.875rem;
+    color: #4b5563;
+    margin: 0;
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-row-label {
+    font-weight: 600;
+    color: #4b5563;
+    font-size: 0.9375rem;
+}
+
+.stat-row-value {
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: #4338ca;
+}
+
+.stat-row-value.stat-success {
+    color: #10b981;
+}
+
+/* ========================================
+   COMPANY PREVIEW CARDS
+   ======================================== */
+
+.companies-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+    .companies-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.company-preview-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+}
+
+.preview-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.preview-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.preview-card-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4338ca;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.preview-card-link:hover {
+    color: #3730a3;
+}
+
+.preview-card-body {
+    padding: 1rem 1.5rem;
+}
+
+.company-preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.company-preview-item:last-child {
+    border-bottom: none;
+}
+
+.company-preview-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.company-preview-name {
+    font-weight: 600;
+    color: #111827;
+}
+
+.company-preview-ticker {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* ========================================
+   ONBOARDING EMPTY STATE
+   ======================================== */
+
+.empty-state-onboarding {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    margin-top: 2rem;
+}
+
+.empty-state-onboarding i {
+    font-size: 5rem;
+    color: #d1d5db;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state-onboarding h3 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1rem;
+}
+
+.empty-state-onboarding > p {
+    font-size: 1.125rem;
+    color: #6b7280;
+    margin-bottom: 2rem;
+}
+
+.onboarding-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.onboarding-step {
+    display: flex;
+    align-items: start;
+    gap: 1rem;
+    text-align: left;
+}
+
+.onboarding-step-number {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+.onboarding-step-content h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+}
+
+.onboarding-step-content p {
+    font-size: 0.9375rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.onboarding-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+    .onboarding-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .onboarding-actions {
+        flex-direction: column;
+    }
+
+    .onboarding-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ========================================

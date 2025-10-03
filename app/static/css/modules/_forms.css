@@ -1,0 +1,13 @@
+/* =============================================================================
+   FORM STYLES
+   ============================================================================= */
+
+.form-control {
+    border-color: var(--border-color);
+    border-radius: 6px;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(30, 64, 175, 0.25);
+}
