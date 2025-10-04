@@ -42,3 +42,4 @@ All complex components have been fully modularized.
 @import url('modules/_research-projects.css');    /* Research projects pages */
 @import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
 @import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */
+@import url('modules/_companies-list.css');       /* Companies list page */
