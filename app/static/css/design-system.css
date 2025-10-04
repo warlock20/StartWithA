@@ -35,8 +35,9 @@ All complex components have been fully modularized.
 /* =============================================================================
    PAGE-SPECIFIC MODULES
    ============================================================================= */
-@import url('modules/_public-home.css');       /* Public homepage */
-@import url('modules/_dashboard.css');         /* Dashboard components */
-@import url('modules/_idea-pipeline.css');     /* Idea pipeline & graveyard */
-@import url('modules/_sector-analysis.css');   /* Sector analysis & notebooks */
-@import url('modules/_research-projects.css'); /* Research projects pages */
+@import url('modules/_public-home.css');          /* Public homepage */
+@import url('modules/_dashboard.css');            /* Dashboard components */
+@import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
+@import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
+@import url('modules/_research-projects.css');    /* Research projects pages */
+@import url('modules/_destination-analysis.css'); /* Destination analysis timeline */

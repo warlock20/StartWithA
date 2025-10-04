@@ -12,11 +12,27 @@
    Based on Sample Dashboard Design
    ============================================================================= */
 
-/* Page Container */
+/* Page Container - Distinct styling for dashboard pages */
 .dashboard-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 1.5rem 2rem;
+    padding: 0;
+    background: var(--bg-light);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-container > * {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+.dashboard-container > *:first-child {
+    padding-top: 1.5rem;
+}
+
+.dashboard-container > *:last-child {
+    padding-bottom: 1.5rem;
 }
 
 /* Page Header */
@@ -387,7 +403,20 @@
 
 @media (max-width: 768px) {
     .dashboard-container {
-        padding: 1rem;
+        border-radius: 0;
+    }
+
+    .dashboard-container > * {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .dashboard-container > *:first-child {
+        padding-top: 1rem;
+    }
+
+    .dashboard-container > *:last-child {
+        padding-bottom: 1rem;
     }
 
     .dashboard-header {

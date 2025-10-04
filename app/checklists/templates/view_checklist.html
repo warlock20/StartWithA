@@ -10,11 +10,11 @@
     </div>
     <div class="d-flex gap-2">
         {% if research_context %}
-            <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn-pro success">
+            <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success">
                 <i class="bi bi-arrow-left"></i> Return to Research Project
             </a>
         {% endif %}
-        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn-pro primary">
+        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-primary">
             <i class="bi bi-eye"></i> View Mode
         </a>
         <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
@@ -139,7 +139,7 @@
                                     <p>{{ total_questions }} questions available</p>
                                 </div>
                                 <div class="framework-status">
-                                    <button type="button" class="btn-pro outline-primary" data-bs-toggle="collapse"
+                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse"
                                             data-bs-target="#editQuestionBankCollapse" aria-expanded="false">
                                         <i class="bi bi-search"></i> Browse Questions
                                     </button>
@@ -206,11 +206,11 @@
                                           placeholder="E.g., What are the key revenue drivers?"></textarea>
                             </div>
                             <div class="action-grid">
-                                <button type="submit" class="btn-pro success">
+                                <button type="submit" class="btn btn-success">
                                     <i class="bi bi-plus-circle"></i> Add Item
                                 </button>
                                 {% if total_questions > 0 %}
-                                <button type="button" class="btn-pro outline-primary" data-bs-toggle="collapse"
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse"
                                         data-bs-target="#editQuestionBankCollapse">
                                     <i class="bi bi-bank"></i> Use Question Bank
                                 </button>
@@ -251,11 +251,11 @@
                         <div class="mb-4">
                             <h5>Item Actions</h5>
                             <div class="action-grid">
-                                <a id="inspector-edit-btn" href="#" class="btn-pro warning">
+                                <a id="inspector-edit-btn" href="#" class="btn btn-warning">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
                                 <form id="inspector-delete-form" method="POST" action="#" style="display: inline;">
-                                    <button type="submit" class="btn-pro danger" onclick="return confirm('Are you sure? This will delete the item and ALL its sub-items.');">
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This will delete the item and ALL its sub-items.');">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>
                                 </form>
@@ -292,7 +292,7 @@
                                     <textarea name="llm_prompt" class="form-control" id="inspector-subitem-llm" rows="2"
                                               placeholder="Optional AI prompt for this sub-item"></textarea>
                                 </div>
-                                <button type="submit" class="btn-pro primary">
+                                <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-plus"></i> Add Sub-item
                                 </button>
                             </form>
@@ -361,7 +361,7 @@
             gap: var(--space-sm);
         }
 
-        .action-grid .btn-pro {
+        .action-grid .btn {
             width: 100%;
         }
     }

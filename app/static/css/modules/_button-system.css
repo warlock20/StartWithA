@@ -265,12 +265,31 @@
 }
 
 /* Button variants */
+.btn-pro.primary {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+}
+
+.btn-pro.primary:hover {
+    background: linear-gradient(135deg, #2980b9 0%, var(--accent-blue) 100%);
+    color: white;
+}
+
 .btn-pro.success {
     background: linear-gradient(135deg, var(--accent-green) 0%, #58d68d 100%);
 }
 
 .btn-pro.success:hover {
     background: linear-gradient(135deg, #229954 0%, var(--accent-green) 100%);
+    color: white;
+}
+
+.btn-pro.warning {
+    background: linear-gradient(135deg, var(--accent-orange) 0%, #f7dc6f 100%);
+}
+
+.btn-pro.warning:hover {
+    background: linear-gradient(135deg, #d68910 0%, var(--accent-orange) 100%);
+    color: white;
 }
 
 .btn-pro.danger {
@@ -279,6 +298,16 @@
 
 .btn-pro.danger:hover {
     background: linear-gradient(135deg, #c0392b 0%, var(--accent-red) 100%);
+    color: white;
+}
+
+.btn-pro.investment {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+}
+
+.btn-pro.investment:hover {
+    background: linear-gradient(135deg, var(--primary-700) 0%, #1e3a8a 100%);
+    color: white;
 }
 
 /* =============================================================================
