@@ -1,33 +1,158 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h1 class="card-title text-center">{{ title }}</h1>
+<div class="checkpoint-edit-container">
+    <div class="checkpoint-edit-card">
+        <!-- Header -->
+        <div class="checkpoint-edit-header">
+            <div class="checkpoint-breadcrumb">
+                <a href="{{ url_for('companies.companies_dashboard') }}">
+                    <i class="bi bi-building"></i> Companies
+                </a>
+                <span class="separator">›</span>
+                <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}">
+                    <i class="bi bi-geo-alt-fill"></i> Destination Analysis
+                </a>
+                <span class="separator">›</span>
+                <span>Edit Checkpoint</span>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('companies.edit_checkpoint', checkpoint_id=checkpoint.id) }}">
-                    <div class="mb-3">
-                        <label for="metric" class="form-label">Metric</label>
-                        <input type="text" class="form-control" id="metric" name="metric" value="{{ checkpoint.metric }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="expectation" class="form-label">Expectation / Target</label>
-                        <input type="text" class="form-control" id="expectation" name="expectation" value="{{ checkpoint.expectation }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="target_date" class="form-label">Target Date</label>
-                        {# Format date for the HTML date input value attribute #}
-                        <input type="date" class="form-control" id="target_date" name="target_date" value="{{ checkpoint.target_date.strftime('%Y-%m-%d') }}" required>
-                    </div>
-                    <div class="d-flex justify-content-end">
-                        <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}" class="btn btn-secondary me-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
-                </form>
+            <h1>
+                <i class="bi bi-pencil-square me-2"></i>Edit Investment Checkpoint
+            </h1>
+            <p class="checkpoint-edit-subtitle">
+                Update the metrics and targets that guide your investment thesis
+            </p>
+        </div>
+
+        <!-- Body -->
+        <div class="checkpoint-edit-body">
+            <!-- Info Box -->
+            <div class="checkpoint-info-box">
+                <i class="bi bi-info-circle-fill"></i>
+                <div class="checkpoint-info-content">
+                    <h6>About Investment Checkpoints</h6>
+                    <p>Checkpoints help you track key milestones and metrics that validate or challenge your investment thesis. Define clear, measurable targets with specific dates to monitor your company's progress.</p>
+                </div>
             </div>
+
+            <!-- Form -->
+            <form method="POST" action="{{ url_for('companies.edit_checkpoint', checkpoint_id=checkpoint.id) }}">
+                <!-- Metric Field -->
+                <div class="checkpoint-form-field">
+                    <label for="metric" class="checkpoint-form-label">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        Metric Name
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <input
+                            type="text"
+                            class="checkpoint-form-input"
+                            id="metric"
+                            name="metric"
+                            value="{{ checkpoint.metric }}"
+                            placeholder="e.g., Data Center Revenue Growth, AI Chip Market Share"
+                            required>
+                    </div>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Choose a specific, measurable metric that's critical to your investment thesis</span>
+                    </div>
+                </div>
+
+                <!-- Expectation Field -->
+                <div class="checkpoint-form-field">
+                    <label for="expectation" class="checkpoint-form-label">
+                        <i class="bi bi-bullseye"></i>
+                        Target / Expectation
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <input
+                            type="text"
+                            class="checkpoint-form-input"
+                            id="expectation"
+                            name="expectation"
+                            value="{{ checkpoint.expectation }}"
+                            placeholder="e.g., > 30% YoY Growth, $500M Revenue Run Rate"
+                            required>
+                    </div>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Set a clear target that will indicate success or failure at the checkpoint date</span>
+                    </div>
+                </div>
+
+                <!-- Target Date Field -->
+                <div class="checkpoint-form-field">
+                    <label for="target_date" class="checkpoint-form-label">
+                        <i class="bi bi-calendar-event"></i>
+                        Target Date
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <input
+                            type="date"
+                            class="checkpoint-form-input has-icon"
+                            id="target_date"
+                            name="target_date"
+                            value="{{ checkpoint.target_date.strftime('%Y-%m-%d') }}"
+                            required>
+                        <i class="bi bi-calendar-check checkpoint-input-icon"></i>
+                    </div>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>When do you expect to evaluate whether this milestone was achieved?</span>
+                    </div>
+                </div>
+
+                <!-- Current Status Preview -->
+                <div class="checkpoint-status-preview">
+                    <h6><i class="bi bi-eye me-2"></i>Current Checkpoint Status</h6>
+                    <div class="checkpoint-preview-content">
+                        <div class="checkpoint-preview-item">
+                            <div class="checkpoint-preview-label">Status</div>
+                            <div class="checkpoint-preview-value">
+                                {% if checkpoint.status == 'Met' %}
+                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Met</span>
+                                {% elif checkpoint.status == 'Not Met' %}
+                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Not Met</span>
+                                {% else %}
+                                <span class="text-warning"><i class="bi bi-clock-fill"></i> Active</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if checkpoint.outcome_notes %}
+                        <div class="checkpoint-preview-item">
+                            <div class="checkpoint-preview-label">Outcome Notes</div>
+                            <div class="checkpoint-preview-value">{{ checkpoint.outcome_notes[:50] }}{% if checkpoint.outcome_notes|length > 50 %}...{% endif %}</div>
+                        </div>
+                        {% endif %}
+                        <div class="checkpoint-preview-item">
+                            <div class="checkpoint-preview-label">Last Updated</div>
+                            <div class="checkpoint-preview-value">
+                                {% if checkpoint.updated_at %}
+                                {{ checkpoint.updated_at.strftime('%b %d, %Y') }}
+                                {% else %}
+                                Not updated
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="checkpoint-actions">
+                    <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}"
+                       class="checkpoint-btn checkpoint-btn-secondary">
+                        <i class="bi bi-x-lg"></i>
+                        Cancel
+                    </a>
+                    <div class="checkpoint-btn-group">
+                        <button type="submit" class="checkpoint-btn checkpoint-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
