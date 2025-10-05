@@ -167,7 +167,7 @@ def watchlist():
     """Watchlist/favorite companies dedicated page"""
     # Get pagination and filter parameters
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
     search_query = request.args.get('search', '', type=str).strip()
     sector_filter = request.args.get('sector', '', type=str).strip()
     analysis_status = request.args.get('status', '', type=str).strip()
@@ -290,12 +290,22 @@ def list_companies():
     """Show all companies with pagination, search, and sector filtering"""
     # Get query parameters
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
     search_query = request.args.get('search', '', type=str).strip()
     sector_filter = request.args.get('sector', '', type=str).strip()
+    type_filter = request.args.get('filter', 'all', type=str).strip()
 
     # Base query for user's companies
     query = Company.query.filter_by(user_id=current_user.id)
+
+    # Get all favorite IDs for filtering
+    all_favorite_ids = {c.id for c in current_user.favorites.all()}
+
+    # Apply type filter (portfolio/watchlist/all)
+    if type_filter == 'portfolio':
+        query = query.filter(Company.is_in_portfolio == True)
+    elif type_filter == 'watchlist':
+        query = query.filter(Company.id.in_(all_favorite_ids))
 
     # Apply search filter
     if search_query:
@@ -318,8 +328,8 @@ def list_companies():
     companies = pagination.items
 
     # Get sets of IDs for categorization
-    favorite_ids = {c.id for c in current_user.favorites.all()}
-    portfolio_ids = {c.id for c in companies if c.is_in_portfolio}
+    favorite_ids = all_favorite_ids
+    portfolio_ids = {c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()}
 
     # Get sets of company IDs that have a specific analysis completed
     completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}

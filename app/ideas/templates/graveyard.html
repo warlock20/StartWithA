@@ -139,9 +139,9 @@
                     <button class="btn btn-primary btn-sm" onclick="resurrectIdea({{ idea.id }})">
                         <i class="bi bi-arrow-clockwise"></i> Resurrect
                     </button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="viewDetails({{ idea.id }})">
-                        <i class="bi bi-eye"></i> Details
-                    </button>
+                    <a href="{{ url_for('ideas.edit_idea', idea_id=idea.id, return_to='graveyard') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
                 </div>
             </div>
             {% endfor %}
@@ -184,10 +184,6 @@
                 }
             });
         }
-    }
-    
-    function viewDetails(ideaId) {
-        window.location.href = `/ideas/${ideaId}/details`;
     }
 </script>
 {% endblock %}

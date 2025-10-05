@@ -1,164 +1,39 @@
 {% extends "main/_base.html" %}
 
-{% block extra_css %}
-<style>
-.autocomplete-suggestions {
-    position: absolute;
-    top: calc(100% + 2px);
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #e1e5e9;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 1000;
-    margin-top: 2px;
-    animation: slideDown 0.15s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.autocomplete-suggestion {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    border-bottom: 1px solid #f1f3f4;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.15s ease;
-    position: relative;
-}
-
-.autocomplete-suggestion:last-child {
-    border-bottom: none;
-    border-radius: 0 0 0.5rem 0.5rem;
-}
-
-.autocomplete-suggestion:first-child {
-    border-radius: 0.5rem 0.5rem 0 0;
-}
-
-.autocomplete-suggestion:hover,
-.autocomplete-suggestion.highlighted {
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-    border-left: 3px solid #4f46e5;
-    padding-left: calc(1rem - 3px);
-}
-
-.suggestion-text {
-    font-weight: 500;
-    color: #374151;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.suggestion-icon {
-    width: 20px;
-    height: 20px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    border-radius: 0.375rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 0.75rem;
-    flex-shrink: 0;
-}
-
-.suggestion-count {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #6366f1;
-    background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 100%);
-    padding: 0.25rem 0.5rem;
-    border-radius: 1rem;
-    border: 1px solid #c7d2fe;
-    min-width: 24px;
-    text-align: center;
-}
-
-.autocomplete-suggestion:hover .suggestion-count,
-.autocomplete-suggestion.highlighted .suggestion-count {
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-    color: white;
-    border-color: #4f46e5;
-}
-
-.suggestion-label {
-    font-size: 0.6875rem;
-    color: #9ca3af;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-}
-
-/* Custom scrollbar for suggestions */
-.autocomplete-suggestions::-webkit-scrollbar {
-    width: 6px;
-}
-
-.autocomplete-suggestions::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
-}
-
-.autocomplete-suggestions::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.autocomplete-suggestions::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* Add subtle focus ring when suggestions are showing */
-.source-input-focused {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
-}
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>💡 Quick Capture</h1>
-        <p class="text-muted mb-0">Don't overthink it. Capture now, evaluate later.</p>
-    </div>
-    <a href="{{ url_for('ideas.inbox') }}" class="btn btn-secondary">Back to Inbox</a>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">💡 Quick Capture</h1>
+            <p class="dashboard-subtitle">Don't overthink it. Capture now, evaluate later.</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Capture Tips
+            </button>
+            <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Inbox
+            </a>
+        </div>
+    </header>
 
-<div class="row">
-    <div class="col-lg-10">
-        <div class="framework-card">
-            <div class="framework-header">
-                <div class="framework-icon primary">
+    <!-- Main Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="quick-capture-card">
+                <div class="card-icon">
                     <i class="bi bi-lightbulb"></i>
                 </div>
-                <div class="framework-title">
-                    <h4>New Investment Idea</h4>
-                    <p>Capture your investment ideas quickly and efficiently</p>
-                </div>
-            </div>
-            <div class="framework-body">
+                <h2>New Investment Idea</h2>
+                <p class="card-subtitle">Capture your investment ideas quickly and efficiently</p>
+
                 <!-- Duplicate Detection Alerts -->
                 <div id="duplicate-alerts" class="mb-3"></div>
 
                 <form method="POST" action="{{ url_for('ideas.add_idea') }}" id="quickCaptureForm" data-entity="idea">
-                    <!-- The only required field - keep it simple -->
-                    <div class="mb-3">
+                    <!-- Idea Name -->
+                    <div class="mb-4">
                         <label for="name" class="form-label">
                             What's the idea? <span class="text-danger">*</span>
                         </label>
@@ -169,25 +44,29 @@
                                placeholder="e.g., Tesla, Indian IT sector, Battery technology..."
                                required
                                autofocus>
-                        <small class="form-text text-muted">
+                        <small class="form-text">
                             Company name, sector, theme, or investment concept
                         </small>
                     </div>
 
-                    <!-- Purpose and Type fields -->
+                    <!-- Purpose and Type -->
                     <div class="mb-4">
                         <label class="form-label">What's your goal with this idea?</label>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="idea_purpose" class="form-label">Purpose <span class="text-danger">*</span></label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="idea_purpose" class="form-label">
+                                    Purpose <span class="text-danger">*</span>
+                                </label>
                                 <select class="form-select" id="idea_purpose" name="idea_purpose" required>
                                     <option value="investment" selected>🎯 Investment Screening</option>
                                     <option value="learning">📚 Learning & Understanding</option>
                                     <option value="research">🔍 Research & Analysis</option>
                                 </select>
-                                <small class="form-text text-muted">Investment ideas go through kill checklist, learning ideas focus on education</small>
+                                <small class="form-text">
+                                    Investment ideas go through kill checklist
+                                </small>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6">
                                 <label for="idea_type" class="form-label">Subject Type</label>
                                 <select class="form-select" id="idea_type" name="idea_type">
                                     <option value="company" selected>Company</option>
@@ -198,34 +77,40 @@
                         </div>
                     </div>
 
-                    <!-- Company Selection for Investment Ideas -->
+                    <!-- Company Selection -->
                     <div id="company-selection-field" style="display: none;">
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label class="form-label">
                                 Company Selection <span class="text-danger" id="company-required">*</span>
                             </label>
-                            <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
-                                    🏢 Search & Select Company
+                            <div class="d-flex gap-2 align-items-center mb-2">
+                                <button type="button"
+                                        class="btn btn-primary"
+                                        onclick="openCompanyModal(handleCompanySelection)">
+                                    <i class="bi bi-building"></i> Search & Select Company
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
-                                    ❌ Clear
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        id="clearCompanyBtn"
+                                        onclick="clearSelectedCompany()"
+                                        style="display: none;">
+                                    <i class="bi bi-x-circle"></i> Clear
                                 </button>
                             </div>
                             <input type="hidden" id="company_id" name="company_id" value="">
                             <input type="hidden" id="idea-ticker" name="ticker_symbol" value="">
-                            <div id="selectedCompanyInfo" class="mt-2" style="display: none;">
-                                <div class="alert alert-info mb-0">
-                                    <small><strong>Selected:</strong> <span id="companyDisplayInfo"></span></small>
-                                </div>
+                            <div id="selectedCompanyInfo" class="company-selection-alert" style="display: none;">
+                                <i class="bi bi-check-circle-fill text-primary"></i>
+                                <strong>Selected:</strong> <span id="companyDisplayInfo"></span>
                             </div>
-                            <small class="form-text text-muted">
-                                Required for company investment ideas. Search by ticker or company name.
+                            <small class="form-text">
+                                Required for company investment ideas
                             </small>
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <!-- Source -->
+                    <div class="mb-4">
                         <label for="source" class="form-label">
                             Where did this idea come from? <span class="text-danger">*</span>
                         </label>
@@ -239,49 +124,51 @@
                                    required>
                             <div id="source-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
                         </div>
-                        <small class="form-text text-muted">
-                            Required - tracking sources helps you identify your best idea generators
+                        <small class="form-text">
+                            Tracking sources helps identify your best idea generators
                         </small>
                     </div>
 
-                    <div class="mb-3">
+                    <!-- Thesis Summary -->
+                    <div class="mb-4">
                         <label for="thesis_summary" class="form-label">
                             One-sentence thesis (optional)
                         </label>
-                        <textarea class="form-control" 
-                                  id="thesis_summary" 
-                                  name="thesis_summary" 
-                                  rows="2" 
+                        <textarea class="form-control"
+                                  id="thesis_summary"
+                                  name="thesis_summary"
+                                  rows="2"
                                   placeholder="Why might this be interesting? What's the opportunity?"></textarea>
                     </div>
 
-                    <!-- Advanced section - collapsed by default -->
-                    <div class="accordion mb-3" id="advancedAccordion">
+                    <!-- Additional Notes (Collapsed) -->
+                    <div class="accordion mb-4" id="advancedAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" 
-                                        type="button" 
-                                        data-bs-toggle="collapse" 
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
                                         data-bs-target="#advancedFields">
-                                    Additional Notes (Optional)
+                                    <i class="bi bi-pencil-square me-2"></i> Additional Notes (Optional)
                                 </button>
                             </h2>
-                            <div id="advancedFields" 
-                                 class="accordion-collapse collapse" 
+                            <div id="advancedFields"
+                                 class="accordion-collapse collapse"
                                  data-bs-parent="#advancedAccordion">
                                 <div class="accordion-body">
-                                    <textarea class="form-control" 
-                                              name="initial_notes" 
-                                              rows="4" 
+                                    <textarea class="form-control"
+                                              name="initial_notes"
+                                              rows="4"
                                               placeholder="Any other context, thoughts, or reminders..."></textarea>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Submit Buttons -->
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn-pro primary btn-lg">
-                            <i class="bi bi-inbox"></i> Add to Inbox
+                        <button type="submit" class="btn quick-capture-submit">
+                            <i class="bi bi-inbox-fill me-2"></i> Add to Inbox
                         </button>
                         <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
                             Cancel
@@ -291,74 +178,52 @@
             </div>
         </div>
     </div>
-
-    <!-- Tips card in the right column -->
-    <div class="col-lg-2">
-        <div class="framework-card">
-            <div class="framework-header">
-                <div class="framework-icon info">
-                    <i class="bi bi-lightbulb-fill"></i>
-                </div>
-                <div class="framework-title">
-                    <h4>💭 Capture Tips</h4>
-                    <p>Best practices for effective idea capture</p>
-                </div>
-            </div>
-            <div class="framework-body">
-                <ul class="mb-0">
-                    <li>Don't self-censor - let the kill checklist do that</li>
-                    <li>Capture immediately when you encounter an idea</li>
-                    <li>Include the source to track what generates good ideas</li>
-                    <li>You can always add more detail if it survives</li>
-                </ul>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Include Company Search Modal -->
 {% include 'components/company_search_modal.html' %}
 
+<!-- Tips Modal -->
+{% set tips_title = "💭 Capture Tips" %}
+{% set tips_intro = "Best practices for effective idea capture:" %}
+{% set tips = [
+    "Don't self-censor - let the kill checklist do that",
+    "Capture immediately when you encounter an idea",
+    "Include the source to track what generates good ideas",
+    "You can always add more detail if it survives"
+] %}
+{% include 'main/_tips_modal.html' %}
+
 <script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
-// Company selection handler for the modal - must be global for onclick
+// Company selection handler
 function handleCompanySelection(company) {
     console.log('Company selected:', company);
 
-    // Set the hidden form fields
     const companyIdField = document.getElementById('company_id');
     const tickerField = document.getElementById('idea-ticker');
 
-    if (companyIdField) {
-        companyIdField.value = company.id;
-    }
-    if (tickerField && company.ticker_symbol) {
-        tickerField.value = company.ticker_symbol;
-    }
+    if (companyIdField) companyIdField.value = company.id;
+    if (tickerField && company.ticker_symbol) tickerField.value = company.ticker_symbol;
 
-    // Update the display
     const displayInfo = document.getElementById('companyDisplayInfo');
     if (displayInfo) {
         displayInfo.textContent = `${company.name}${company.ticker_symbol ? ' (' + company.ticker_symbol + ')' : ''}`;
     }
 
-    // Show selected company info and clear button
     const selectedInfo = document.getElementById('selectedCompanyInfo');
     const clearBtn = document.getElementById('clearCompanyBtn');
     if (selectedInfo) selectedInfo.style.display = 'block';
     if (clearBtn) clearBtn.style.display = 'inline-block';
 }
 
-// Global function for clearing company selection
 function clearSelectedCompany() {
-    // Clear hidden fields
     const companyIdField = document.getElementById('company_id');
     const tickerField = document.getElementById('idea-ticker');
     if (companyIdField) companyIdField.value = '';
     if (tickerField) tickerField.value = '';
 
-    // Hide display elements
     const selectedInfo = document.getElementById('selectedCompanyInfo');
     const clearBtn = document.getElementById('clearCompanyBtn');
     if (selectedInfo) selectedInfo.style.display = 'none';
@@ -368,8 +233,6 @@ function clearSelectedCompany() {
 document.addEventListener('DOMContentLoaded', function() {
     const ideaTypeSelect = document.getElementById('idea_type');
     const ideaPurposeSelect = document.getElementById('idea_purpose');
-
-    // Source autocomplete functionality
     const sourceInput = document.getElementById('source');
     const sourceSuggestions = document.getElementById('source-suggestions');
     let debounceTimer;
@@ -392,7 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
             companyField.style.display = 'none';
             companyIdInput.required = false;
             companyRequired.style.display = 'none';
-            // Clear selections when hiding
             clearSelectedCompany();
         }
     }
@@ -430,8 +292,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach((item, index) => {
                     const div = document.createElement('div');
                     div.className = 'autocomplete-suggestion';
-
-                    // Get first letter for icon
                     const firstLetter = item.source.charAt(0).toUpperCase();
 
                     div.innerHTML = `
@@ -459,7 +319,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Source input event listeners
     sourceInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
@@ -492,21 +351,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Hide suggestions when clicking outside
     document.addEventListener('click', function(e) {
         if (!sourceInput.contains(e.target) && !sourceSuggestions.contains(e.target)) {
             hideSuggestions();
         }
     });
 
-    // Initialize on page load
     updateCompanyRequirement();
-
-    // Listen for changes
     ideaTypeSelect.addEventListener('change', updateCompanyRequirement);
     ideaPurposeSelect.addEventListener('change', updateCompanyRequirement);
 
-    // Quick keyboard shortcut - Ctrl+Enter to submit
+    // Ctrl+Enter shortcut
     document.getElementById('quickCaptureForm').addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'Enter') {
             this.submit();

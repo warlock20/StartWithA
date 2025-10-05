@@ -1,64 +1,127 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>✏️ Edit Question</h1>
-        <p class="text-muted mb-0">Update your question details and sector classification</p>
-    </div>
-    <div>
-        <a href="{{ url_for('question_bank.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Question Bank
-        </a>
-    </div>
-</div>
-
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">📝 Question Details</h5>
+<div class="checkpoint-edit-container">
+    <div class="checkpoint-edit-card">
+        <!-- Header -->
+        <div class="checkpoint-edit-header">
+            <div class="checkpoint-breadcrumb">
+                <a href="{{ url_for('question_bank.index') }}">
+                    <i class="bi bi-patch-question"></i> Question Bank
+                </a>
+                <span class="separator">›</span>
+                <span>Edit Question</span>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('question_bank.edit_question', item_id=question.id) }}">
-                    <div class="mb-3">
-                        <label for="text" class="form-label">Question Text</label>
-                        <textarea name="text" id="text" class="form-control" rows="3" required>{{ question.text }}</textarea>
+            <h1>
+                <i class="bi bi-pencil-square me-2"></i>Edit Question
+            </h1>
+            <p class="checkpoint-edit-subtitle">
+                Update your question details and sector classification
+            </p>
+        </div>
+
+        <!-- Body -->
+        <div class="checkpoint-edit-body">
+            <!-- Info Box -->
+            <div class="checkpoint-info-box">
+                <i class="bi bi-info-circle-fill"></i>
+                <div class="checkpoint-info-content">
+                    <h6>About Question Bank</h6>
+                    <p>Build your custom question library to guide research and analysis. Questions can be tagged by sector for better organization and used across different research templates.</p>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="POST" action="{{ url_for('question_bank.edit_question', item_id=question.id) }}">
+                <!-- Question Text Field -->
+                <div class="checkpoint-form-field">
+                    <label for="text" class="checkpoint-form-label">
+                        <i class="bi bi-question-circle"></i>
+                        Question Text
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <textarea
+                            name="text"
+                            id="text"
+                            class="checkpoint-form-input"
+                            rows="4"
+                            placeholder="e.g., What are the company's key competitive advantages?"
+                            required>{{ question.text }}</textarea>
                     </div>
-                    <div class="mb-3">
-                        <label for="llm_prompt" class="form-label">Optional LLM Prompt</label>
-                        <textarea name="llm_prompt" id="llm_prompt" class="form-control" rows="2">{{ question.llm_prompt if question.llm_prompt }}</textarea>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Write a clear, specific question that will guide your research and analysis</span>
                     </div>
-                    <div class="mb-3">
-                        <label for="sector" class="form-label">Sector Tag (Optional)</label>
-                        <input type="text" name="sector" id="sector" class="form-control" 
-                               value="{{ question.sector if question.sector }}"
-                               placeholder="Leave blank for 'General' or select/type a sector" 
-                               list="existing_sectors_datalist">
+                </div>
+
+                <!-- LLM Prompt Field -->
+                <div class="checkpoint-form-field">
+                    <label for="llm_prompt" class="checkpoint-form-label">
+                        <i class="bi bi-robot"></i>
+                        AI Assistant Prompt (Optional)
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <textarea
+                            name="llm_prompt"
+                            id="llm_prompt"
+                            class="checkpoint-form-input"
+                            rows="3"
+                            placeholder="e.g., Analyze the company's competitive moat focusing on network effects and switching costs">{{ question.llm_prompt if question.llm_prompt }}</textarea>
+                    </div>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Optional: Provide specific instructions for AI to help answer this question</span>
+                    </div>
+                </div>
+
+                <!-- Sector Tag Field -->
+                <div class="checkpoint-form-field">
+                    <label for="sector" class="checkpoint-form-label">
+                        <i class="bi bi-tags"></i>
+                        Sector Tag (Optional)
+                    </label>
+                    <div class="checkpoint-input-wrapper">
+                        <input
+                            type="text"
+                            name="sector"
+                            id="sector"
+                            class="checkpoint-form-input"
+                            value="{{ question.sector if question.sector }}"
+                            placeholder="e.g., Technology, Healthcare, Finance"
+                            list="existing_sectors_datalist">
                         <datalist id="existing_sectors_datalist">
                             {% for s in existing_sectors %}
                                 <option value="{{ s }}">
                             {% endfor %}
                         </datalist>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <form method="POST" action="{{ url_for('question_bank.delete_question', item_id=question.id) }}" style="display: inline;">
-                            <button type="submit" class="btn btn-outline-danger"
-                                    onclick="return confirm('⚠️ Delete this question permanently?\n\nThis action cannot be undone.');">
-                                <i class="bi bi-trash"></i> Delete Question
-                            </button>
-                        </form>
-                        <div>
-                            <a href="{{ url_for('question_bank.index') }}" class="btn btn-secondary me-2">
-                                <i class="bi bi-x-circle"></i> Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> Save Changes
-                            </button>
-                        </div>
+                    <div class="checkpoint-helper-text">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Tag questions by sector for better organization. Leave blank for "General"</span>
                     </div>
-                </form>
-            </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="checkpoint-actions">
+                    <form method="POST" action="{{ url_for('question_bank.delete_question', item_id=question.id) }}" style="display: inline;">
+                        <button type="submit" class="checkpoint-btn checkpoint-btn-danger"
+                                onclick="return confirm('⚠️ Delete this question permanently?\n\nThis action cannot be undone.');">
+                            <i class="bi bi-trash"></i>
+                            Delete Question
+                        </button>
+                    </form>
+                    <div class="checkpoint-btn-group">
+                        <a href="{{ url_for('question_bank.index') }}" class="checkpoint-btn checkpoint-btn-secondary">
+                            <i class="bi bi-x-lg"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="checkpoint-btn checkpoint-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -66,24 +129,6 @@
 
 {% block scripts %}
 {{ super() }}
-<style>
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .d-flex.justify-content-between {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .d-flex.justify-content-between > div {
-        width: 100%;
-    }
-
-    .d-flex.justify-content-between > div > .btn {
-        width: 100%;
-    }
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the text field for better UX

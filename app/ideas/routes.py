@@ -492,7 +492,10 @@ def edit_idea(idea_id):
     if idea.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
-    
+
+    # Get return URL from query parameter, default to inbox
+    return_to = request.args.get('return_to', 'inbox')
+
     if request.method == 'POST':
         idea.name = request.form.get('name', idea.name)
         idea.idea_type = request.form.get('idea_type', idea.idea_type)
@@ -510,7 +513,7 @@ def edit_idea(idea_id):
             ).first()
             if existing_company:
                 flash(f'You already have a company with ticker {new_ticker}: {existing_company.name}. Cannot change to this ticker.', 'error')
-                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id, return_to=return_to))
 
             # Check existing ideas (excluding current idea)
             existing_idea = IdeaPipeline.query.filter(
@@ -520,7 +523,7 @@ def edit_idea(idea_id):
             ).first()
             if existing_idea:
                 flash(f'You already have an idea with ticker {new_ticker}: {existing_idea.name} (Status: {existing_idea.status}). Cannot change to this ticker.', 'error')
-                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id, return_to=return_to))
 
         idea.ticker_symbol = new_ticker
         idea.source = request.form.get('source')
@@ -530,11 +533,15 @@ def edit_idea(idea_id):
         try:
             db.session.commit()
             flash('Idea updated successfully', 'success')
-            return redirect(url_for('ideas.inbox'))
+            # Route back to the appropriate page
+            if return_to == 'graveyard':
+                return redirect(url_for('ideas.graveyard'))
+            else:
+                return redirect(url_for('ideas.inbox'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating idea: {str(e)}', 'error')
-            
+
     base_ticker, exchange_suffix = '', ''
     if idea.ticker_symbol:
         if '.' in idea.ticker_symbol:
@@ -543,9 +550,10 @@ def edit_idea(idea_id):
             exchange_suffix = '.' + parts[1]
         else:
             base_ticker = idea.ticker_symbol
-            
+
     return render_template('edit_idea.html', title="Edit Idea", idea=idea,
-                           exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix)
+                           exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix,
+                           return_to=return_to)
 
 @ideas_bp.route('/<int:idea_id>/delete', methods=['POST'])
 @login_required

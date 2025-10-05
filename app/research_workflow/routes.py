@@ -1151,8 +1151,8 @@ def completed_projects():
     search_query = request.args.get('search', '', type=str).strip()
     decision_filter = request.args.get('decision', '', type=str).strip()
 
-    # Start with base query
-    query = current_user.research_projects.filter_by(status='completed')
+    # Start with base query - only show projects with a final decision
+    query = current_user.research_projects.filter(ResearchProject.status == 'completed')
 
     # Apply search filter
     if search_query:

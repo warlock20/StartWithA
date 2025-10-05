@@ -58,6 +58,13 @@
     margin: 0;
 }
 
+.dashboard-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 /* Section Title */
 .section-title {
     font-size: 1.75rem;

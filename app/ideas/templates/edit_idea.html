@@ -1,74 +1,155 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-6">
-        <div class="card shadow">
-            <div class="card-header">
-                <h3 class="mb-0">Edit Idea</h3>
-            </div>
-            <div class="card-body">
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">✏️ Edit Idea</h1>
+            <p class="dashboard-subtitle">Update your idea details and information</p>
+        </div>
+        <div class="dashboard-header-actions">
+            {% if return_to == 'graveyard' %}
+            <a href="{{ url_for('ideas.graveyard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Graveyard
+            </a>
+            {% else %}
+            <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Inbox
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Main Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="quick-capture-card">
+                <div class="card-icon">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
+                <h2>{{ idea.name }}</h2>
+                <p class="card-subtitle">Edit your investment idea</p>
+
                 <form method="POST" action="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Idea Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-lg" id="name" name="name" value="{{ idea.name }}" required>
+                    <!-- Idea Name -->
+                    <div class="mb-4">
+                        <label for="name" class="form-label">
+                            Idea Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               id="name"
+                               name="name"
+                               value="{{ idea.name }}"
+                               required
+                               autofocus>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="idea_purpose" class="form-label">Purpose <span class="text-danger">*</span></label>
-                        <select class="form-select" id="idea_purpose" name="idea_purpose" required>
-                            <option value="investment" {% if idea.idea_purpose == 'investment' %}selected{% endif %}>🎯 Investment Screening</option>
-                            <option value="learning" {% if idea.idea_purpose == 'learning' %}selected{% endif %}>📚 Learning & Understanding</option>
-                            <option value="research" {% if idea.idea_purpose == 'research' %}selected{% endif %}>🔍 Research & Analysis</option>
-                        </select>
-                        <small class="form-text text-muted">Investment ideas go through kill checklist, learning ideas focus on education</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="idea_type" class="form-label">Subject Type</label>
-                        <select class="form-select" id="idea_type" name="idea_type">
-                            <option value="company" {% if idea.idea_type == 'company' %}selected{% endif %}>Company</option>
-                            <option value="sector" {% if idea.idea_type == 'sector' %}selected{% endif %}>Sector/Industry</option>
-                            <option value="theme" {% if idea.idea_type == 'theme' %}selected{% endif %}>Theme/Trend</option>
-                        </select>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-sm-8 mb-3">
-                            <label for="base_ticker" class="form-label">Ticker (if applicable)</label>
-                            <input type="text" class="form-control" id="base_ticker" name="base_ticker" value="{{ base_ticker }}" style="text-transform: uppercase;">
+                    <!-- Purpose and Type -->
+                    <div class="mb-4">
+                        <label class="form-label">Purpose & Type</label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="idea_purpose" class="form-label">
+                                    Purpose <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="idea_purpose" name="idea_purpose" required>
+                                    <option value="investment" {% if idea.idea_purpose == 'investment' %}selected{% endif %}>🎯 Investment Screening</option>
+                                    <option value="learning" {% if idea.idea_purpose == 'learning' %}selected{% endif %}>📚 Learning & Understanding</option>
+                                    <option value="research" {% if idea.idea_purpose == 'research' %}selected{% endif %}>🔍 Research & Analysis</option>
+                                </select>
+                                <small class="form-text">
+                                    Investment ideas go through kill checklist
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="idea_type" class="form-label">Subject Type</label>
+                                <select class="form-select" id="idea_type" name="idea_type">
+                                    <option value="company" {% if idea.idea_type == 'company' %}selected{% endif %}>Company</option>
+                                    <option value="sector" {% if idea.idea_type == 'sector' %}selected{% endif %}>Sector/Industry</option>
+                                    <option value="theme" {% if idea.idea_type == 'theme' %}selected{% endif %}>Theme/Trend</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="col-sm-4 mb-3">
-                            <label for="exchange_suffix" class="form-label">Exchange</label>
-                            <select class="form-select" id="exchange_suffix" name="exchange_suffix">
-                                {% for suffix, name in exchanges.items() %}
-                                    <option value="{{ suffix }}" {% if suffix == exchange_suffix %}selected{% endif %}>{{ name }}</option>
-                                {% endfor %}
-                            </select>
+                    </div>
+
+                    <!-- Ticker Symbol -->
+                    <div class="mb-4">
+                        <label class="form-label">Ticker Symbol (if applicable)</label>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="base_ticker" class="form-label">Ticker</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="base_ticker"
+                                       name="base_ticker"
+                                       value="{{ base_ticker }}"
+                                       style="text-transform: uppercase;"
+                                       placeholder="e.g., AAPL">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="exchange_suffix" class="form-label">Exchange</label>
+                                <select class="form-select" id="exchange_suffix" name="exchange_suffix">
+                                    {% for suffix, name in exchanges.items() %}
+                                        <option value="{{ suffix }}" {% if suffix == exchange_suffix %}selected{% endif %}>{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <!-- Source -->
+                    <div class="mb-4">
                         <label for="source" class="form-label">Source</label>
-                        <input type="text" class="form-control" id="source" name="source" value="{{ idea.source or '' }}">
+                        <input type="text"
+                               class="form-control"
+                               id="source"
+                               name="source"
+                               value="{{ idea.source or '' }}"
+                               placeholder="Where did this idea come from?">
                     </div>
 
-                    <div class="mb-3">
+                    <!-- Thesis Summary -->
+                    <div class="mb-4">
                         <label for="thesis_summary" class="form-label">One-sentence thesis</label>
-                        <textarea class="form-control" id="thesis_summary" name="thesis_summary" rows="2">{{ idea.thesis_summary or '' }}</textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="initial_notes" class="form-label">Additional Notes</label>
-                        <textarea class="form-control" id="initial_notes" name="initial_notes" rows="4">{{ idea.initial_notes or '' }}</textarea>
+                        <textarea class="form-control"
+                                  id="thesis_summary"
+                                  name="thesis_summary"
+                                  rows="2"
+                                  placeholder="Why might this be interesting?">{{ idea.thesis_summary or '' }}</textarea>
                     </div>
 
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">Cancel</a>
-                        <div>
-                            <button type="submit" class="btn btn-primary">Save Changes</button>
-                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                                Delete
+                    <!-- Additional Notes -->
+                    <div class="mb-4">
+                        <label for="initial_notes" class="form-label">Additional Notes</label>
+                        <textarea class="form-control"
+                                  id="initial_notes"
+                                  name="initial_notes"
+                                  rows="4"
+                                  placeholder="Any other context or thoughts...">{{ idea.initial_notes or '' }}</textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        {% if return_to == 'graveyard' %}
+                        <a href="{{ url_for('ideas.graveyard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn quick-capture-submit">
+                                <i class="bi bi-check-circle-fill me-2"></i> Save Changes
+                            </button>
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal">
+                                <i class="bi bi-trash-fill"></i> Delete
                             </button>
                         </div>
                     </div>
@@ -78,23 +159,29 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to permanently delete the idea "{{ idea.name }}"? This action cannot be undone.
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form action="{{ url_for('ideas.delete_idea', idea_id=idea.id) }}" method="POST">
-            <button type="submit" class="btn btn-danger">Delete Idea</button>
-        </form>
-      </div>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-poppins" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete the idea <strong>"{{ idea.name }}"</strong>?</p>
+                <p class="text-danger mb-0"><i class="bi bi-info-circle-fill"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('ideas.delete_idea', idea_id=idea.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash-fill"></i> Delete Idea
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}
