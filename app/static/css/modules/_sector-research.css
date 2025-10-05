@@ -1,0 +1,313 @@
+/* =============================================================================
+   SECTOR RESEARCH PAGE STYLES
+   ============================================================================= */
+
+/* Template Buttons */
+.template-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.template-btn {
+    background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
+    border: 1px solid var(--primary-200);
+    color: var(--primary-700);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.template-btn:hover {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    color: white;
+    border-color: var(--primary-600);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-light);
+}
+
+.template-btn i {
+    margin-right: 0.375rem;
+}
+
+/* Quill Editor Container */
+.sector-editor-container {
+    background: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-light);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.sector-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.sector-editor-header h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.editor-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+.editor-status.saving {
+    color: var(--warning-600);
+}
+
+.editor-status.saved {
+    color: var(--success-600);
+}
+
+.editor-status.error {
+    color: var(--danger-600);
+}
+
+/* Quill Editor Styling */
+#sectorEditor {
+    min-height: 500px;
+    background: white;
+}
+
+.ql-container {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+}
+
+.ql-toolbar {
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    background: var(--gray-50);
+    border-color: var(--gray-300) !important;
+}
+
+.ql-editor {
+    min-height: 500px;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.ql-editor.ql-blank::before {
+    color: var(--gray-400);
+    font-style: normal;
+}
+
+/* Sector Metrics Cards */
+.sector-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.sector-metric-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    padding: 1.5rem;
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+
+.sector-metric-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+}
+
+.sector-metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-600);
+    margin-bottom: 0.5rem;
+}
+
+.sector-metric-label {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+/* Sidebar Cards */
+.sector-sidebar-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-light);
+    margin-bottom: 1.5rem;
+}
+
+.sector-sidebar-card .card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: 1rem 1.5rem;
+}
+
+.sector-sidebar-card .card-header h5 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.sector-sidebar-card .card-body {
+    padding: 1.5rem;
+}
+
+/* Question Bank Styles */
+.question-item {
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.question-item:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-200);
+}
+
+.question-text {
+    font-size: 0.9375rem;
+    color: var(--gray-800);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.question-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Company List Styles */
+.company-item {
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--transition-fast);
+}
+
+.company-item:hover {
+    background: white;
+    border-color: var(--primary-200);
+    box-shadow: var(--shadow-light);
+}
+
+.company-info {
+    flex: 1;
+}
+
+.company-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.company-ticker {
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+}
+
+.company-badges {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+}
+
+/* Template Modal */
+.template-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.template-card {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: white;
+}
+
+.template-card:hover {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.template-card h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.template-card p {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0;
+}
+
+/* Sticky Sidebar */
+.sticky-sidebar {
+    position: sticky;
+    top: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .sticky-sidebar {
+        position: static;
+    }
+
+    .sector-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .template-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .sector-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .template-buttons {
+        flex-direction: column;
+    }
+
+    .template-btn {
+        width: 100%;
+    }
+}

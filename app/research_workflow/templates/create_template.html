@@ -1,13 +1,26 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card">
-            <div class="card-header">
-                <h2>Create Research Template</h2>
-                <p class="text-muted mb-0">Design a systematic workflow for analyzing investments</p>
-            </div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Create Research Template</h1>
+            <p class="dashboard-subtitle">Design a systematic workflow for analyzing investments</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </header>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
             <div class="card-body">
                 <form method="POST" action="{{ url_for('research_workflow.create_template') }}" id="templateForm">
                     <!-- Basic information -->
@@ -92,23 +105,17 @@
                     <div class="alert alert-info mb-3">
                         <h6 class="mb-2">📋 Column Explanations:</h6>
                         <div class="row small">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <strong>Step Name:</strong> Descriptive name for this research step
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <strong>Step Type:</strong> The type of analysis or task to perform
-                            </div>
-                            <div class="col-md-4">
-                                <strong>Time Estimate:</strong> Expected minutes to complete this step
                             </div>
                         </div>
                         <hr class="my-2">
                         <div class="small">
                             <strong>📋 Investment Checklist:</strong> Interactive checklist with criteria evaluation<br>
-                            <strong>⚡ Kill Checklist:</strong> Quick screening to eliminate bad investments<br>
                             <strong>🧠 Mental Model:</strong> Apply structured thinking frameworks<br>
-                            <strong>📄 Document Analysis:</strong> Review and analyze uploaded documents<br>
-                            <strong>💰 Valuation Work:</strong> Financial modeling and valuation analysis<br>
                             <strong>🎯 Competitor Analysis:</strong> Research competitive landscape<br>
                             <strong>✍️ Investment Thesis:</strong> Write comprehensive investment rationale<br>
                             <strong>⚙️ Custom Task:</strong> Free-form research task
@@ -166,6 +173,20 @@
         </div>
     </div>
 </div>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Research Template Tips" %}
+{% set tips_intro = "Best practices for creating effective research templates:" %}
+{% set tips = [
+    "Start with 2-3 core steps - keep templates simple and focused",
+    "Use Investment Checklist as your final validation step",
+    "Mental models like SWOT help structure your thinking systematically",
+    "Custom tasks give flexibility for unique research needs",
+    "Templates can be edited later - start simple and refine over time"
+] %}
+{% include 'main/_tips_modal.html' %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -177,7 +198,7 @@ const userChecklists = {{ user_checklists|tojson }};
 const userKillChecklists = {{ user_kill_checklists|tojson }};
 const mentalModels = {{ mental_models|tojson }};
 
-function addStep(name = '', type = 'custom', estimatedMinutes = 60) {
+function addStep(name = '', type = 'custom') {
     const container = document.getElementById('steps-container');
     const stepIndex = container.children.length; // 0-based index for server compatibility
     
@@ -202,17 +223,13 @@ function addStep(name = '', type = 'custom', estimatedMinutes = 60) {
             
             <div class="row">
                 <div class="col-md-6 mb-2">
-                    <input type="text" class="form-control" name="step_name[]" 
+                    <input type="text" class="form-control" name="step_name[]"
                            placeholder="Step name" value="${name}" required>
                 </div>
-                <div class="col-md-4 mb-2">
+                <div class="col-md-6 mb-2">
                     <select class="form-select" name="step_type[]" onchange="updateStepConfig(${stepIndex}, this.value)">
                         ${typeOptions}
                     </select>
-                </div>
-                <div class="col-md-2 mb-2">
-                    <input type="number" class="form-control" name="step_estimate[]" 
-                           placeholder="Minutes" value="${estimatedMinutes}" min="5">
                 </div>
             </div>
             
@@ -340,13 +357,12 @@ function handleInvestmentStyleChange() {
 
 // Initialize with some default steps
 document.addEventListener('DOMContentLoaded', function() {
-    // Default first step is Investment Checklist (Existing) as requested
-    addStep('Investment Checklist', 'checklist', 45);
-    addStep('Business Analysis', 'custom', 120);
-    addStep('Financial Review', 'document_review', 90);
-    
+    // Default steps with Investment Checklist as the last step
+    addStep('Business Analysis', 'custom');
+    addStep('Investment Checklist', 'checklist');
+
     document.getElementById('add-step-btn').addEventListener('click', () => addStep());
-    
+
     // Add event listener for investment style
     document.getElementById('investment_style').addEventListener('change', handleInvestmentStyleChange);
 });

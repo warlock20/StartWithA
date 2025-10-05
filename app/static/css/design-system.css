@@ -40,9 +40,11 @@ All complex components have been fully modularized.
 @import url('modules/_dashboard.css');            /* Dashboard components */
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
+@import url('modules/_sector-research.css');      /* Simplified sector research page */
 @import url('modules/_research-projects.css');    /* Research projects pages */
 @import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
 @import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */
 @import url('modules/_companies-list.css');       /* Companies list page */
 @import url('modules/_project-dashboard.css');    /* Project dashboard page */
 @import url('modules/_project-summary.css');      /* Project summary page */
+@import url('modules/_create-template.css');      /* Create/Edit template page */

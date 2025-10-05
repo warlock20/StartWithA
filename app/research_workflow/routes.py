@@ -320,10 +320,7 @@ def create_template():
     # Define available step types and mental models
     step_types = [
         {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
-        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
-        {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
         {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
@@ -1450,10 +1447,7 @@ def edit_template(template_id):
     # Define available step types and mental models (same as create)
     step_types = [
         {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
-        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
-        {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
         {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},

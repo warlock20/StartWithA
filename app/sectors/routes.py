@@ -6,6 +6,7 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
 from sqlalchemy import func
 from datetime import datetime
 from . import sectors_bp
+from .research_templates import get_all_templates, get_template_list
 
 
 def initialize_default_sections(sector_analysis):
@@ -209,7 +210,9 @@ def notebook(sector_name):
             'portfolio': portfolio_companies
         },
         sources=sources,
-        sources_by_type=sources_by_type
+        sources_by_type=sources_by_type,
+        research_templates=get_all_templates(),
+        template_list=get_template_list()
     )
 
 @sectors_bp.route('/<string:sector_name>/add_question', methods=['POST'])
@@ -447,4 +450,46 @@ def mark_source_accessed(source_id):
     source.accessed_at = datetime.utcnow()
     db.session.commit()
 
-    return jsonify({'success': True})        
+    return jsonify({'success': True})
+
+@sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
+@login_required
+def get_research_notes(sector_name):
+    """Get research notes content for the simplified editor"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    return jsonify({
+        'success': True,
+        'content': analysis.notes or ''
+    })
+
+@sectors_bp.route('/<path:sector_name>/research-notes', methods=['POST'])
+@login_required
+def save_research_notes(sector_name):
+    """Save research notes content from the simplified editor"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    data = request.get_json()
+    content = data.get('content', '')
+
+    analysis.notes = content
+    analysis.updated_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Notes saved successfully'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500        
