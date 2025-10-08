@@ -39,11 +39,9 @@
             <p class="text-primary text-uppercase fw-semibold small mb-2">Value Investing Framework</p>
             <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
             <p class="dashboard-subtitle">
-                {% if project.research_subject_type == 'company' and project.company %}
+                {% if project.company %}
                 {{ project.company.name }}
                 {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
-                {% else %}
-                {{ project.research_subject_name }}
                 {% endif %}
             </p>
         </div>
@@ -272,7 +270,7 @@
             <div class="quick-actions-card">
                 <h3 class="font-poppins fw-bold mb-3">Quick Actions</h3>
                 <div>
-                    {% if project.research_subject_type == 'company' and project.company %}
+                    {% if project.company %}
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-building"></i> Company Dashboard
                     </a>

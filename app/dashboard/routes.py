@@ -24,12 +24,10 @@ def index():
 
     # Calculate Too Hard Basket Rate (Selectivity Metric)
     company_invest_count = current_user.research_projects.filter_by(
-        research_subject_type='company',
         decision='invest'
     ).count()
 
     company_pass_count = current_user.research_projects.filter_by(
-        research_subject_type='company',
         decision='pass'
     ).count()
 

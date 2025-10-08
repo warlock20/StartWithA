@@ -45,8 +45,7 @@
                 <div class="priority-card-content">
                     <div class="priority-card-header">
                         <h3 class="priority-card-title">Top Reason</h3>
-                        {% set most_common = kill_reasons|dictsort(false, 'value')|first %}
-                        <span class="priority-card-number priority-number-yellow">{{ most_common[1]|length if most_common else 0 }}</span>
+                        <span class="priority-card-number priority-number-yellow">{{ most_common_count }}</span>
                     </div>
                     <p class="priority-card-description">Most common kill reason.</p>
                 </div>

@@ -106,11 +106,30 @@ def index():
 
 
     # GET Request: Fetch and display all existing sector analyses
-    sector_analyses = SectorAnalysis.query.filter_by(user_id=current_user.id).order_by(SectorAnalysis.sector_name).all()
+    # Get filter from query param (default to 'active')
+    status_filter = request.args.get('status', 'active')
 
-    return render_template('list_sectors.html', 
+    if status_filter == 'archived':
+        sector_analyses = SectorAnalysis.query.filter_by(
+            user_id=current_user.id,
+            status='archived'
+        ).order_by(SectorAnalysis.archived_at.desc()).all()
+    else:
+        sector_analyses = SectorAnalysis.query.filter_by(
+            user_id=current_user.id,
+            status='active'
+        ).order_by(SectorAnalysis.updated_at.desc()).all()
+
+    # Count for tabs
+    active_count = SectorAnalysis.query.filter_by(user_id=current_user.id, status='active').count()
+    archived_count = SectorAnalysis.query.filter_by(user_id=current_user.id, status='archived').count()
+
+    return render_template('list_sectors.html',
                            title="My Sector Research",
-                           sector_analyses=sector_analyses)
+                           sector_analyses=sector_analyses,
+                           status_filter=status_filter,
+                           active_count=active_count,
+                           archived_count=archived_count)
     
 @sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
 @login_required
@@ -492,4 +511,69 @@ def save_research_notes(sector_name):
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500        
+        }), 500
+
+@sectors_bp.route('/company/<int:company_id>/send-to-inbox', methods=['POST'])
+@login_required
+def send_company_to_inbox(company_id):
+    """Send a company from sector research to idea inbox"""
+    company = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('sectors.index'))
+
+    # Check if already in inbox
+    from app.models import IdeaPipeline
+    existing_idea = IdeaPipeline.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id
+    ).first()
+
+    if existing_idea:
+        flash(f'{company.name} is already in your idea pipeline', 'info')
+    else:
+        idea = IdeaPipeline(
+            author=current_user,
+            company_id=company.id,
+            idea_name=company.name,
+            idea_description=f"Added from {company.sector} sector research",
+            status='inbox',
+            source='sector_research'
+        )
+        db.session.add(idea)
+        db.session.commit()
+        flash(f'{company.name} added to Idea Inbox', 'success')
+
+    # Redirect back to sector page
+    if company.sector:
+        return redirect(url_for('sectors.notebook', sector_name=company.sector))
+    else:
+        return redirect(url_for('sectors.index'))
+
+@sectors_bp.route('/<string:sector_name>/archive', methods=['POST'])
+@login_required
+def archive_sector(sector_name):
+    """Archive a sector research"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+
+    analysis.status = 'archived'
+    analysis.archived_at = datetime.utcnow()
+    db.session.commit()
+
+    flash(f'{sector_name} sector research archived', 'success')
+    return redirect(url_for('sectors.index'))
+
+@sectors_bp.route('/<string:sector_name>/unarchive', methods=['POST'])
+@login_required
+def unarchive_sector(sector_name):
+    """Unarchive a sector research"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+
+    analysis.status = 'active'
+    analysis.archived_at = None
+    db.session.commit()
+
+    flash(f'{sector_name} sector research unarchived', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))

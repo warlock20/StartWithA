@@ -31,6 +31,7 @@ All complex components have been fully modularized.
    UTILITY & HELPER MODULES
    ============================================================================= */
 @import url('modules/_utilities.css');      /* Utility classes, loader, timeline */
+@import url('modules/_sort-controls.css');  /* Sort and filter controls */
 
 /* =============================================================================
    PAGE-SPECIFIC MODULES
@@ -48,3 +49,6 @@ All complex components have been fully modularized.
 @import url('modules/_project-dashboard.css');    /* Project dashboard page */
 @import url('modules/_project-summary.css');      /* Project summary page */
 @import url('modules/_create-template.css');      /* Create/Edit template page */
+@import url('modules/_start-research.css');       /* Start new research page */
+@import url('modules/_kill-room.css');            /* Kill room page */
+@import url('modules/_checklist-view.css');       /* Checklist view pages */

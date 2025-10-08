@@ -103,7 +103,7 @@ def companies_dashboard():
         if project.last_worked_at:
             dashboard_data['recent_activity'].append({
                 'type': 'research',
-                'company_name': project.research_subject_name or 'Unknown',
+                'company_name': project.subject_display_name,
                 'action': f"Research {project.status}",
                 'date': project.last_worked_at,
                 'link': url_for('research_workflow.project_dashboard', project_id=project.id) if project.status == 'active'
@@ -386,11 +386,16 @@ def add_company_confirmed():
     for key, value in request.form.items():
         print(f"  - {key}: '{value}'")
 
-    name = request.form.get('name')
-    ticker_symbol = request.form.get('ticker_symbol')
-    summary = request.form.get('summary')
-    sector = request.form.get('sector')
-    industry = request.form.get('industry')
+    name = request.form.get('name', '').strip() if request.form.get('name') else None
+    ticker_symbol = request.form.get('ticker_symbol', '').strip() if request.form.get('ticker_symbol') else None
+    summary = request.form.get('summary', '').strip() if request.form.get('summary') else None
+    sector = request.form.get('sector', '').strip() if request.form.get('sector') else None
+    industry = request.form.get('industry', '').strip() if request.form.get('industry') else None
+
+    # Validate required fields
+    if not name or not ticker_symbol:
+        flash('Company name and ticker symbol are required.', 'error')
+        return redirect(url_for('companies.new_company'))
 
     # Enhanced duplicate detection
     detector = DuplicateDetectionService(current_user.id)
@@ -1240,11 +1245,14 @@ def api_create_company():
     try:
         data = request.get_json()
 
-        name = data.get('name', '').strip()
-        ticker_symbol = data.get('ticker_symbol', '').strip().upper()
-        industry = data.get('industry', '').strip() or None
-        sector = data.get('sector', '').strip() or None
-        summary = data.get('summary', '').strip() or None
+        name = (data.get('name') or '').strip()
+        ticker_symbol = (data.get('ticker_symbol') or '').strip().upper()
+        industry = (data.get('industry') or '').strip() or None
+        sector = (data.get('sector') or '').strip() or None
+        summary = (data.get('summary') or '').strip() or None
+
+        if not ticker_symbol:
+            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
 
         if not name:
             return jsonify({'success': False, 'error': 'Company name is required'})
@@ -1254,7 +1262,7 @@ def api_create_company():
             Company.user_id == current_user.id,
             db.or_(
                 Company.name.ilike(name),
-                db.and_(Company.ticker_symbol == ticker_symbol, ticker_symbol != '')
+                Company.ticker_symbol == ticker_symbol
             )
         ).first()
 
@@ -1268,7 +1276,7 @@ def api_create_company():
         company = Company(
             user_id=current_user.id,
             name=name,
-            ticker_symbol=ticker_symbol if ticker_symbol else None,
+            ticker_symbol=ticker_symbol,
             industry=industry,
             sector=sector,
             summary=summary

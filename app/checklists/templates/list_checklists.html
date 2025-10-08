@@ -46,41 +46,31 @@
     </header>
 
     {% if checklists %}
-    <!-- Stats Overview -->
-    {% set total_questions = namespace(count=0) %}
-    {% for checklist in checklists %}
-        {% set total_questions.count = total_questions.count + checklist.items.count() %}
-    {% endfor %}
-
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid three-column">
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Checklists</h3>
-                        <span class="priority-card-number priority-number-blue">{{ checklists|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Investment frameworks you've created.</p>
-                </div>
-            </div>
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Questions</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ total_questions.count }}</span>
-                    </div>
-                    <p class="priority-card-description">Across all your checklists.</p>
-                </div>
-            </div>
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Avg Questions</h3>
-                        <span class="priority-card-number priority-number-green">{{ (total_questions.count / checklists|length)|round|int if checklists else 0 }}</span>
-                    </div>
-                    <p class="priority-card-description">Per checklist on average.</p>
-                </div>
-            </div>
+    <!-- Sort Controls -->
+    <div class="sort-controls-bar">
+        <div class="sort-controls-content">
+            <label for="sortSelect" class="sort-label">
+                <i class="bi bi-funnel"></i> Sort by:
+            </label>
+            <select id="sortSelect" class="sort-select" onchange="window.location.href = this.value">
+                <option value="{{ url_for('checklists.list_checklists', sort='recent') }}"
+                        {% if request.args.get('sort', 'recent') == 'recent' %}selected{% endif %}>
+                    Recently Updated
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='name') }}"
+                        {% if request.args.get('sort') == 'name' %}selected{% endif %}>
+                    Name (A-Z)
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='items') }}"
+                        {% if request.args.get('sort') == 'items' %}selected{% endif %}>
+                    Number of Items
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='oldest') }}"
+                        {% if request.args.get('sort') == 'oldest' %}selected{% endif %}>
+                    Oldest First
+                </option>
+            </select>
+            <span class="sort-results-count">{{ pagination.total }} checklist{{ 's' if pagination.total != 1 else '' }}</span>
         </div>
     </div>
 
@@ -144,6 +134,46 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Checklists pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Previous -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_prev %}{{ url_for('checklists.list_checklists', page=pagination.prev_num) }}{% else %}#{% endif %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+
+            <!-- Page numbers -->
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('checklists.list_checklists', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_next %}{{ url_for('checklists.list_checklists', page=pagination.next_num) }}{% else %}#{% endif %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Pagination info -->
+        <p class="text-center text-muted small">
+            Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }} - {{ [pagination.page * pagination.per_page, pagination.total]|min }} of {{ pagination.total }} checklists
+        </p>
+    </nav>
+    {% endif %}
+
     {% else %}
     <!-- Empty State -->
     <div class="empty-state">
@@ -168,7 +198,7 @@
             </a>
         </div>
     </div>
-{% endif %}
+    {% endif %}
 </div>
 
 <!-- Tips Modal -->

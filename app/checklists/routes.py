@@ -1,9 +1,10 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_file
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
 import asyncio
 from datetime import datetime
+from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
 from app.models import User, Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport
@@ -16,15 +17,39 @@ from app.services.llm_service import (
     get_available_providers,
     get_supported_file_types
 )
+from app.services.template_loader import get_template_loader, TemplateValidationError
 
 
 @checklists_bp.route('/')
 @checklists_bp.route('/checklists', methods=['GET'])
-@login_required 
+@login_required
 def list_checklists():
-    # Show checklists for the currently logged-in user
-    checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
-    return render_template('list_checklists.html', checklists=checklists, title=f"Investment Checklists")
+    """Show checklists for the currently logged-in user with pagination and sorting"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 12  # Show 12 checklists per page
+    sort = request.args.get('sort', 'recent')
+
+    # Build query with sorting
+    query = Checklist.query.filter_by(user_id=current_user.id)
+
+    if sort == 'name':
+        query = query.order_by(Checklist.name)
+    elif sort == 'items':
+        # Sort by number of items (requires a subquery or join count)
+        from sqlalchemy import func
+        query = query.outerjoin(ChecklistItem).group_by(Checklist.id)\
+                     .order_by(func.count(ChecklistItem.id).desc())
+    elif sort == 'oldest':
+        query = query.order_by(Checklist.created_at)
+    else:  # 'recent' is default
+        query = query.order_by(Checklist.updated_at.desc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template('list_checklists.html',
+                          checklists=pagination.items,
+                          pagination=pagination,
+                          title=f"Investment Checklists")
 
 @checklists_bp.route('/checklists/new', methods=['GET', 'POST'])
 @login_required
@@ -64,61 +89,26 @@ def new_checklist():
 
 
 def _add_template_items(checklist, template_type):
-    """Add predefined template items to a checklist"""
-    templates = {
-        'basic_analysis': [
-            'Business Model & Strategy',
-            'Financial Performance Review',
-            'Management Quality Assessment',
-            'Competitive Position Analysis',
-            'Valuation & Investment Decision'
-        ],
-        'financial_deep_dive': [
-            'Income Statement Analysis',
-            'Balance Sheet Review',
-            'Cash Flow Statement Analysis',
-            'Financial Ratio Analysis',
-            'Historical Performance Trends'
-        ],
-        'competitive_analysis': [
-            'Market Position Assessment',
-            'Competitive Advantages (Moats)',
-            'Industry Structure Analysis',
-            'Competitive Threats Evaluation',
-            'Market Share & Growth Dynamics'
-        ],
-        'risk_assessment': [
-            'Business Risk Evaluation',
-            'Financial Risk Analysis',
-            'Market & Economic Risks',
-            'Regulatory & Legal Risks',
-            'Management & Operational Risks'
-        ],
-        'value_investing': [
-            'Economic Moat Analysis',
-            'Financial Strength Check',
-            'Management Track Record',
-            'Intrinsic Value Calculation',
-            'Margin of Safety Assessment'
-        ],
-        'growth_investing': [
-            'Total Addressable Market (TAM)',
-            'Revenue Growth Analysis',
-            'Unit Economics & Scalability',
-            'Competitive Positioning',
-            'Growth Sustainability Factors'
-        ]
-    }
+    """
+    Add predefined template items to a checklist from YAML templates
 
-    items = templates.get(template_type, [])
-    for i, item_text in enumerate(items):
-        item = ChecklistItem(
-            text=item_text,
-            checklist=checklist,
-            parent_id=None,
-            order=i
+    Args:
+        checklist: Checklist model instance
+        template_type: Name of the template to load
+    """
+    try:
+        loader = get_template_loader()
+        items_created, subitems_created = loader.create_checklist_from_template(
+            template_type, checklist, db
         )
-        db.session.add(item)
+        current_app.logger.info(
+            f"Created {items_created} items and {subitems_created} subitems "
+            f"from template '{template_type}' for checklist {checklist.id}"
+        )
+    except (FileNotFoundError, TemplateValidationError) as e:
+        current_app.logger.error(f"Failed to load template '{template_type}': {e}")
+        # Fall back to creating empty checklist
+        flash(f"Template '{template_type}' not found. Created empty checklist.", 'warning')
 
 @checklists_bp.route('/<int:checklist_id>/view')
 @login_required
@@ -130,14 +120,21 @@ def view_readonly_checklist(checklist_id):
 
     top_level_items = checklist.items.filter_by(parent_id=None).order_by(ChecklistItem.order).all()
     user_companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
-    
+
+    # Calculate statistics
+    all_items = ChecklistItem.query.filter_by(checklist_id=checklist_id).all()
+    total_items_count = len(all_items)
+    items_with_llm = sum(1 for item in all_items if item.llm_prompt)
+
     return render_template(
         'view_readonly_checklist.html',
         checklist=checklist,
         items=top_level_items,
         title=checklist.name,
         ChecklistItem=ChecklistItem,
-        companies=user_companies 
+        companies=user_companies,
+        total_items_count=total_items_count,
+        items_with_llm=items_with_llm
     )
 
 @checklists_bp.route('/checklist_item/<int:item_id>/delete', methods=['POST'])
@@ -672,3 +669,146 @@ def import_history():
     return render_template('import_history.html',
                          title="Document Import History",
                          imports=imports)
+
+
+# ============================================================================
+# YAML TEMPLATE MANAGEMENT ROUTES
+# ============================================================================
+
+@checklists_bp.route('/<int:checklist_id>/export-yaml')
+@login_required
+def export_checklist_yaml(checklist_id):
+    """Export a checklist as a YAML template file"""
+    checklist = Checklist.query.get_or_404(checklist_id)
+
+    # Authorization check
+    if checklist.user_id != current_user.id:
+        flash('You are not authorized to export this checklist.', 'error')
+        return redirect(url_for('checklists.list_checklists'))
+
+    try:
+        loader = get_template_loader()
+        yaml_content = loader.export_checklist_to_yaml(checklist)
+
+        # Create a file-like object for sending
+        yaml_bytes = BytesIO(yaml_content.encode('utf-8'))
+        yaml_bytes.seek(0)
+
+        # Generate filename
+        safe_name = secure_filename(checklist.name.lower().replace(' ', '_'))
+        filename = f"{safe_name}.yaml"
+
+        return send_file(
+            yaml_bytes,
+            mimetype='text/yaml',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"Failed to export checklist {checklist_id}: {e}")
+        flash(f'Error exporting checklist: {str(e)}', 'error')
+        return redirect(url_for('checklists.view_checklist', checklist_id=checklist_id))
+
+
+@checklists_bp.route('/upload-template', methods=['GET', 'POST'])
+@login_required
+def upload_template():
+    """Upload a custom YAML template"""
+    if request.method == 'POST':
+        # Check if file was uploaded
+        if 'template_file' not in request.files:
+            flash('No file uploaded', 'error')
+            return redirect(url_for('checklists.upload_template'))
+
+        file = request.files['template_file']
+
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(url_for('checklists.upload_template'))
+
+        if not file.filename.endswith(('.yaml', '.yml')):
+            flash('Only YAML files (.yaml or .yml) are supported', 'error')
+            return redirect(url_for('checklists.upload_template'))
+
+        try:
+            # Save temporarily to validate
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.yaml', delete=False) as tmp:
+                file.save(tmp.name)
+                tmp_path = tmp.name
+
+            # Validate the template
+            loader = get_template_loader()
+            template_data = loader.load_template(tmp_path)
+
+            # If user wants to create checklist from template
+            create_checklist = request.form.get('create_checklist') == 'yes'
+
+            if create_checklist:
+                # Create a new checklist from the uploaded template
+                checklist_name = template_data.get('name', 'Imported Checklist')
+                checklist_desc = template_data.get('description', '')
+
+                new_checklist = Checklist(
+                    name=checklist_name,
+                    description=checklist_desc,
+                    author=current_user
+                )
+                db.session.add(new_checklist)
+                db.session.flush()
+
+                # Add items from template
+                items_created, subitems_created = loader.create_checklist_from_template(
+                    tmp_path, new_checklist, db
+                )
+
+                db.session.commit()
+
+                flash(
+                    f'Checklist "{checklist_name}" created with {items_created} items '
+                    f'and {subitems_created} subitems!',
+                    'success'
+                )
+                return redirect(url_for('checklists.view_checklist', checklist_id=new_checklist.id))
+            else:
+                # Save template to templates directory for future use
+                safe_filename = secure_filename(file.filename)
+                template_path = loader.templates_dir / safe_filename
+
+                # Check if template already exists
+                if template_path.exists():
+                    flash(f'Template "{safe_filename}" already exists', 'warning')
+                else:
+                    import shutil
+                    shutil.copy(tmp_path, template_path)
+                    flash(f'Template "{safe_filename}" uploaded successfully!', 'success')
+
+                return redirect(url_for('checklists.new_checklist'))
+
+        except TemplateValidationError as e:
+            flash(f'Invalid template: {str(e)}', 'error')
+            return redirect(url_for('checklists.upload_template'))
+        except Exception as e:
+            current_app.logger.error(f"Failed to upload template: {e}")
+            flash(f'Error uploading template: {str(e)}', 'error')
+            return redirect(url_for('checklists.upload_template'))
+        finally:
+            # Clean up temp file
+            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    # GET request - show upload form
+    return render_template('upload_template.html', title="Upload Checklist Template")
+
+
+@checklists_bp.route('/api/templates')
+@login_required
+def list_templates_api():
+    """API endpoint to list all available templates"""
+    try:
+        loader = get_template_loader()
+        templates = loader.list_available_templates()
+        return jsonify({'success': True, 'templates': templates})
+    except Exception as e:
+        current_app.logger.error(f"Failed to list templates: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

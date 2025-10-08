@@ -321,13 +321,18 @@ class CompanySearchComponent {
         const sector = document.getElementById('newCompanySector').value.trim();
         const summary = document.getElementById('newCompanySummary').value.trim();
 
+        if (!ticker) {
+            alert('Ticker symbol is required');
+            return;
+        }
+
         if (!name) {
             alert('Company name is required');
             return;
         }
 
         const data = {
-            ticker_symbol: ticker || null,
+            ticker_symbol: ticker,
             name: name,
             industry: industry || null,
             sector: sector || null,

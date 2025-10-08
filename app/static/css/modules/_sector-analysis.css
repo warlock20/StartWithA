@@ -4,6 +4,163 @@
 
 /* Sector notebooks, analysis tools, and sector-specific research components */
 
+/* ========================================
+   SECTOR SNAPSHOT BAR (Compact Metrics)
+   ======================================== */
+
+.sector-snapshot-bar {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.sector-snapshot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.sector-snapshot-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sector-snapshot-title h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.sector-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.sector-status-badge.active {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+}
+
+.sector-status-badge.archived {
+    background: #9ca3af;
+    color: white;
+}
+
+.sector-snapshot-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sector-progress-section {
+    margin-bottom: 1rem;
+}
+
+.sector-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.sector-progress-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #374151;
+    min-width: 140px;
+}
+
+.sector-progress-bar-container {
+    flex: 1;
+    height: 24px;
+    background: #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.sector-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 12px;
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.5rem;
+}
+
+.sector-progress-bar-fill.comprehensive {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.sector-progress-bar-fill.advanced {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.sector-progress-bar-fill.in-progress {
+    background: linear-gradient(90deg, #eab308, #fde047);
+}
+
+.sector-progress-bar-fill.early {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.sector-progress-percent {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+}
+
+.sector-progress-stage {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    min-width: 140px;
+}
+
+.sector-metrics-compact {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.sector-metric-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.sector-metric-compact strong {
+    color: #111827;
+    font-weight: 600;
+}
+
+.sector-metric-compact i {
+    font-size: 1rem;
+    opacity: 0.6;
+}
+
+/* ========================================
    SECTOR NOTEBOOK CARDS
    ======================================== */
 
@@ -682,6 +839,181 @@
 
 .investment-checklist-footer form {
     margin-left: auto;
+}
+
+/* ========================================
+   ARCHIVE RESEARCH MODAL
+   ======================================== */
+
+.archive-modal .modal-header {
+    background: linear-gradient(145deg, #ffffff, #fff7ed);
+    border-bottom: 2px solid #fed7aa;
+}
+
+.archive-modal .modal-title {
+    font-weight: 700;
+    color: #111827;
+}
+
+.research-summary {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.research-summary-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.research-summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.research-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    color: #6b7280;
+}
+
+.research-summary-item i {
+    width: 24px;
+    text-align: center;
+    color: #9ca3af;
+}
+
+.research-summary-item strong {
+    color: #111827;
+    font-weight: 600;
+}
+
+.archive-info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.archive-info-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 0.5rem;
+}
+
+.archive-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.archive-info-list li {
+    font-size: 0.875rem;
+    color: #3b82f6;
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.archive-info-list li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+/* ========================================
+   COMPANY SIDEBAR WITH SEND TO INBOX
+   ======================================== */
+
+.company-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.company-item:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.company-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.company-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.company-ticker {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    font-family: 'Courier New', monospace;
+}
+
+.company-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+}
+
+.company-actions {
+    display: flex;
+    gap: 0.375rem;
+    flex-shrink: 0;
+}
+
+.btn-send-to-inbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #10b981, #34d399);
+    border: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-send-to-inbox:hover {
+    background: linear-gradient(135deg, #059669, #10b981);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-send-to-inbox i {
+    font-size: 0.875rem;
 }
 
 /* =============================================================================

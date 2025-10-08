@@ -5,10 +5,11 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
                        KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
-                       KillChecklistSuggestion, MistakeLog)
+                       KillChecklistSuggestion, MistakeLog, SectorAnalysis)
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
+from app.sectors.routes import initialize_default_sections
 from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
@@ -18,10 +19,10 @@ from app.utils.time_utils import now_utc
 @login_required
 def inbox():
     """Display the user's idea inbox - ideas waiting to be evaluated"""
-    # Query for ideas that are in the inbox or survived but have not been promoted
+    # Query for ideas that are in the inbox, being evaluated (killing), or survived but not promoted
     ideas = IdeaPipeline.query.filter(
         IdeaPipeline.user_id == current_user.id,
-        IdeaPipeline.status.in_(['inbox', 'survived'])
+        IdeaPipeline.status.in_(['inbox', 'killing', 'survived'])
     ).order_by(IdeaPipeline.created_at.desc()).all()
 
     default_kill_checklist = KillChecklist.query.filter_by(
@@ -40,14 +41,20 @@ def inbox():
             current_time = now_utc()
             days_since_oldest = (current_time - oldest_date_aware).days
 
-    return render_template('inbox.html',
+    from flask import make_response
+    response = make_response(render_template('inbox.html',
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
                           all_kill_checklists=all_kill_checklists,
                           now=now_utc(),
                           days_since_oldest=days_since_oldest
-                          )
+                          ))
+    # Prevent caching to ensure fresh data is always loaded
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @ideas_bp.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -71,6 +78,37 @@ def add_idea():
         if not source:
             flash('Source is required - please specify where this idea came from', 'error')
             return redirect(url_for('ideas.add_idea'))
+
+        # Handle sector ideas - check if adding directly to notebook
+        if idea_type == 'sector':
+            add_to_notebook = request.form.get('add_to_notebook') == 'true'
+
+            if add_to_notebook:
+                # User chose to add directly to notebook
+                # Check if sector notebook already exists
+                existing_sector = SectorAnalysis.query.filter_by(
+                    user_id=current_user.id,
+                    sector_name=name
+                ).first()
+
+                if existing_sector:
+                    flash(f'Opening existing sector notebook for "{name}"', 'info')
+                    return redirect(url_for('sectors.notebook', sector_name=existing_sector.sector_name))
+                else:
+                    flash(f'Creating sector notebook for "{name}". Add your research notes there!', 'success')
+                    # Create new sector notebook
+                    new_sector = SectorAnalysis(
+                        author=current_user,
+                        sector_name=name
+                    )
+                    db.session.add(new_sector)
+                    db.session.commit()
+
+                    # Initialize default sections
+                    initialize_default_sections(new_sector)
+
+                    return redirect(url_for('sectors.notebook', sector_name=new_sector.sector_name))
+            # If not adding to notebook directly, continue to add to inbox below
 
         # Validate company requirement for investment companies
         if idea_purpose == 'investment' and idea_type == 'company' and not company_id:
@@ -146,7 +184,21 @@ def add_idea():
             db.session.rollback()
             flash(f'Error adding idea: {str(e)}', 'error')
 
-    return render_template('add_idea.html', title="Quick Capture")
+    # Get URL parameters for pre-filling and highlighting
+    prefill_type = request.args.get('type', '')
+    from_start = request.args.get('from_start', '')
+
+    # If coming from start-new flow, show flash message
+    if from_start == 'true':
+        if prefill_type == 'company':
+            flash('Add your company idea here to start the research process', 'info')
+        elif prefill_type == 'sector':
+            flash('Add your sector idea here to start the research process', 'info')
+
+    return render_template('add_idea.html',
+                          title="Quick Capture",
+                          prefill_type=prefill_type,
+                          from_start=from_start)
 
 # In app/ideas/routes.py
 
@@ -266,14 +318,43 @@ def graveyard():
         if reason not in kill_reasons:
             kill_reasons[reason] = []
         kill_reasons[reason].append(idea)
+
+    # Calculate most common kill reason count
+    most_common_count = max((len(ideas) for ideas in kill_reasons.values()), default=0)
+
     return render_template('graveyard.html', title="Idea Graveyard", killed_ideas=killed_ideas,
-                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count)
+                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count,
+                           most_common_count=most_common_count)
 
 @ideas_bp.route('/kill-checklists')
 @login_required
 def manage_kill_checklists():
-    checklists = current_user.kill_checklists.all()
-    return render_template('manage_kill_checklists.html', title="Kill Checklists", checklists=checklists)
+    """Show kill checklists for the currently logged-in user with pagination and sorting"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 12  # Show 12 checklists per page
+    sort = request.args.get('sort', 'recent')
+
+    # Build query with sorting
+    query = KillChecklist.query.filter_by(user_id=current_user.id)
+
+    if sort == 'name':
+        query = query.order_by(KillChecklist.name)
+    elif sort == 'criteria':
+        # Sort by number of criteria
+        from sqlalchemy import func
+        query = query.outerjoin(KillCriterion).group_by(KillChecklist.id)\
+                     .order_by(func.count(KillCriterion.id).desc())
+    elif sort == 'oldest':
+        query = query.order_by(KillChecklist.created_at)
+    else:  # 'recent' is default
+        query = query.order_by(KillChecklist.created_at.desc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template('manage_kill_checklists.html',
+                          title="Kill Checklists",
+                          checklists=pagination.items,
+                          pagination=pagination)
 
 @ideas_bp.route('/kill-checklists/new', methods=['GET', 'POST'])
 @login_required
@@ -385,8 +466,43 @@ def promote_idea(idea_id):
     
     if request.method == 'POST':
         promotion_action = request.form.get('action')
-        
-        if promotion_action == 'create_company' and idea.idea_type == 'company':
+
+        # Handle sector ideas - create/open sector notebook
+        if promotion_action == 'start_sector_research' and idea.idea_type == 'sector':
+            # Check if sector notebook already exists
+            existing_sector = SectorAnalysis.query.filter_by(
+                user_id=current_user.id,
+                sector_name=idea.name
+            ).first()
+
+            if existing_sector:
+                flash(f'Opening existing sector notebook for "{idea.name}"', 'info')
+                # Mark idea as promoted
+                idea.status = 'promoted'
+                idea.promoted_at = now_utc()
+                db.session.commit()
+                return redirect(url_for('sectors.notebook', sector_name=existing_sector.sector_name))
+            else:
+                # Create new sector notebook
+                new_sector = SectorAnalysis(
+                    author=current_user,
+                    sector_name=idea.name
+                )
+                db.session.add(new_sector)
+                db.session.flush()
+
+                # Initialize default sections
+                initialize_default_sections(new_sector)
+
+                # Mark idea as promoted
+                idea.status = 'promoted'
+                idea.promoted_at = now_utc()
+                db.session.commit()
+
+                flash(f'Sector notebook created for "{idea.name}". Start adding your research!', 'success')
+                return redirect(url_for('sectors.notebook', sector_name=new_sector.sector_name))
+
+        elif promotion_action == 'create_company' and idea.idea_type == 'company':
             # Check if company with ticker already exists
             if idea.ticker_symbol:
                 existing_company = Company.query.filter_by(ticker_symbol=idea.ticker_symbol).first()
@@ -439,13 +555,15 @@ def promote_idea(idea_id):
                     flash(f'You already have a research project for {company_for_constraint_check.name}. Only one project per company is allowed.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
-            # Create research project
+            # Create research project (company-only)
+            if not company_for_constraint_check:
+                flash('Company selection is required for research projects', 'error')
+                return redirect(url_for('ideas.promote_idea', idea_id=idea.id))
+
             project = ResearchProject(
                 researcher=current_user,
                 template=template,
-                research_subject_type=idea.idea_type,
-                research_subject_name=idea.name,
-                company_id=company_for_constraint_check.id if (idea.idea_type == 'company' and company_for_constraint_check) else None,
+                company_id=company_for_constraint_check.id,
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,

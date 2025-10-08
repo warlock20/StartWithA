@@ -28,6 +28,34 @@
     </header>
 
     {% if checklists %}
+    <!-- Sort Controls -->
+    <div class="sort-controls-bar">
+        <div class="sort-controls-content">
+            <label for="sortSelect" class="sort-label">
+                <i class="bi bi-funnel"></i> Sort by:
+            </label>
+            <select id="sortSelect" class="sort-select" onchange="window.location.href = this.value">
+                <option value="{{ url_for('ideas.manage_kill_checklists', sort='recent') }}"
+                        {% if request.args.get('sort', 'recent') == 'recent' %}selected{% endif %}>
+                    Recently Created
+                </option>
+                <option value="{{ url_for('ideas.manage_kill_checklists', sort='name') }}"
+                        {% if request.args.get('sort') == 'name' %}selected{% endif %}>
+                    Name (A-Z)
+                </option>
+                <option value="{{ url_for('ideas.manage_kill_checklists', sort='criteria') }}"
+                        {% if request.args.get('sort') == 'criteria' %}selected{% endif %}>
+                    Number of Criteria
+                </option>
+                <option value="{{ url_for('ideas.manage_kill_checklists', sort='oldest') }}"
+                        {% if request.args.get('sort') == 'oldest' %}selected{% endif %}>
+                    Oldest First
+                </option>
+            </select>
+            <span class="sort-results-count">{{ pagination.total }} checklist{{ 's' if pagination.total != 1 else '' }}</span>
+        </div>
+    </div>
+
     <div class="kill-checklists-grid">
         {% for checklist in checklists %}
         <div class="kill-checklist-card {% if checklist.is_default %}kill-checklist-default{% endif %}"
@@ -175,6 +203,46 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Kill checklists pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Previous -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_prev %}{{ url_for('ideas.manage_kill_checklists', page=pagination.prev_num) }}{% else %}#{% endif %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+
+            <!-- Page numbers -->
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('ideas.manage_kill_checklists', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_next %}{{ url_for('ideas.manage_kill_checklists', page=pagination.next_num) }}{% else %}#{% endif %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Pagination info -->
+        <p class="text-center text-muted small">
+            Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }} - {{ [pagination.page * pagination.per_page, pagination.total]|min }} of {{ pagination.total }} kill checklists
+        </p>
+    </nav>
+    {% endif %}
+
     {% else %}
     <!-- Empty State -->
     <div class="empty-state">

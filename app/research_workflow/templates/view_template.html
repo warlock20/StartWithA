@@ -151,20 +151,10 @@
                     </dd>
                     {% endif %}
                     
-                    {% if template.research_subject_types %}
                     <dt class="col-sm-5">Subject Type:</dt>
                     <dd class="col-sm-7">
-                        {% set subject_type = template.research_subject_types[0] %}
-                        <span class="badge bg-secondary">
-                            {% if subject_type == 'company' %}🏢 Companies
-                            {% elif subject_type == 'sector' %}🏭 Sectors
-                            {% elif subject_type == 'theme' %}💡 Themes
-                            {% elif subject_type == 'market' %}🌍 Markets
-                            {% elif subject_type == 'strategy' %}📊 Strategies
-                            {% else %}{{ subject_type|title }}{% endif %}
-                        </span>
+                        <span class="badge bg-secondary">🏢 Company Research</span>
                     </dd>
-                    {% endif %}
                     
                     <dt class="col-sm-5">Created:</dt>
                     <dd class="col-sm-7">{{ template.created_at.strftime('%Y-%m-%d') if template.created_at else 'N/A' }}</dd>
@@ -264,45 +254,19 @@
                     <input type="hidden" id="template_id" name="template_id">
                     <p>Using template: <strong id="template_name_display"></strong></p>
                     
-                    <!-- Research Subject Type Selection -->
+                    <!-- Company Selection -->
                     <div class="mb-3">
-                        <label for="subject_type" class="form-label">What are you researching?</label>
-                        <select class="form-select" id="subject_type" name="subject_type" onchange="updateSubjectFields()" required>
-                            {% if template.research_subject_types %}
-                                {% set subject_type = template.research_subject_types[0] %}
-                                <option value="{{ subject_type }}" selected>
-                                    {% if subject_type == 'company' %}🏢 Company
-                                    {% elif subject_type == 'sector' %}🏭 Sector/Industry
-                                    {% elif subject_type == 'market' %}🌍 Market/Geography
-                                    {% elif subject_type == 'theme' %}💡 Investment Theme
-                                    {% elif subject_type == 'strategy' %}🎯 Investment Strategy
-                                    {% else %}{{ subject_type|title }}{% endif %}
-                                </option>
-                            {% else %}
-                                <option value="company">🏢 Company</option>
-                            {% endif %}
-                        </select>
-                    </div>
-                    
-                    <!-- Company Selection (shown for company type) -->
-                    <div class="mb-3" id="company_selection">
-                        <label for="company_id" class="form-label">Select Company</label>
-                        <select class="form-select" id="company_id" name="company_id">
+                        <label for="company_id" class="form-label">Select Company <span class="text-danger">*</span></label>
+                        <select class="form-select" id="company_id" name="company_id" required>
                             <option value="">-- Choose a company --</option>
                             {% for company in current_user.companies.order_by('name').all() %}
                                 <option value="{{ company.id }}">
-                                    {{ company.name }} 
+                                    {{ company.name }}
                                     {% if company.ticker_symbol %}({{ company.ticker_symbol }}){% endif %}
                                 </option>
                             {% endfor %}
                         </select>
-                    </div>
-                    
-                    <!-- Manual Subject Name (shown for non-company types) -->
-                    <div class="mb-3" id="manual_subject" style="display: none;">
-                        <label for="subject_name" class="form-label">Subject Name</label>
-                        <input type="text" class="form-control" id="subject_name" name="subject_name" placeholder="e.g., Healthcare Sector, European Markets, AI Theme">
-                        <small class="form-text text-muted">Enter the name of what you're researching</small>
+                        <small class="form-text text-muted">Research templates are for company analysis only</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -321,44 +285,7 @@
 function showStartProjectModal(templateId, templateName) {
     document.getElementById('template_id').value = templateId;
     document.getElementById('template_name_display').textContent = templateName;
-    
-    // Reset form to default state
-    const subjectTypeSelect = document.getElementById('subject_type');
-    if (subjectTypeSelect.options.length > 0) {
-        subjectTypeSelect.value = subjectTypeSelect.options[0].value;
-    }
-    updateSubjectFields();
-    
     new bootstrap.Modal(document.getElementById('startProjectModal')).show();
-}
-
-function updateSubjectFields() {
-    const subjectType = document.getElementById('subject_type').value;
-    const companySelection = document.getElementById('company_selection');
-    const manualSubject = document.getElementById('manual_subject');
-    const companySelect = document.getElementById('company_id');
-    const subjectNameInput = document.getElementById('subject_name');
-    
-    if (subjectType === 'company') {
-        companySelection.style.display = 'block';
-        manualSubject.style.display = 'none';
-        companySelect.required = true;
-        subjectNameInput.required = false;
-    } else {
-        companySelection.style.display = 'none';
-        manualSubject.style.display = 'block';
-        companySelect.required = false;
-        subjectNameInput.required = true;
-        
-        // Update placeholder based on type
-        const placeholders = {
-            'sector': 'e.g., Technology Sector, Healthcare, Energy',
-            'market': 'e.g., European Markets, Emerging Markets, US Small Caps',
-            'theme': 'e.g., AI Revolution, ESG Investing, Digital Transformation',
-            'strategy': 'e.g., Value Investing, Growth Strategy, Dividend Focus'
-        };
-        subjectNameInput.placeholder = placeholders[subjectType] || 'Enter subject name';
-    }
 }
 </script>
 

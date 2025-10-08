@@ -289,8 +289,6 @@ def complete_step(step_number):
                         template_id=template.id,
                         company_id=progress.first_company_id,
                         project_name=f"Research: {progress.first_company_name}",
-                        research_subject_type='company',
-                        research_subject_name=progress.first_company_name,
                         status='active'
                     )
                     db.session.add(research_project)

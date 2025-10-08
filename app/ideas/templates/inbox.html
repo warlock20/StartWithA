@@ -102,6 +102,9 @@
                         <span class="badge {% if idea.status == 'survived' %}bg-success{% else %}bg-light text-dark{% endif %}">
                             {{ idea.idea_type|capitalize }}
                         </span>
+                        {% if idea.status == 'killing' %}
+                        <span class="badge bg-danger">⚡ In Kill Room</span>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -120,7 +123,12 @@
                 </div>
 
                 <div class="idea-card-actions">
-                    {% if idea.status == 'survived' or idea.idea_purpose in ['learning', 'research'] %}
+                    {% if idea.status == 'killing' %}
+                    <!-- Idea is currently in kill room - allow user to continue -->
+                    <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="btn btn-warning flex-grow-1">
+                        <i class="bi bi-arrow-clockwise"></i> Continue Kill Room
+                    </a>
+                    {% elif idea.status == 'survived' or idea.idea_purpose in ['learning', 'research'] %}
                     <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="btn btn-success flex-grow-1">
                         {% if idea.idea_purpose == 'learning' %}
                         <i class="bi bi-book"></i> Start Learning Project
@@ -128,15 +136,22 @@
                         <i class="bi bi-search"></i> Start Research Project
                         {% elif idea.idea_type == 'company' %}
                         <i class="bi bi-arrow-up-circle"></i> Promote to Company
+                        {% elif idea.idea_type == 'sector' %}
+                        <i class="bi bi-journal-plus"></i> Open Sector Notebook
                         {% else %}
                         <i class="bi bi-search"></i> Start Research Project
                         {% endif %}
                     </a>
-                    {% elif idea.idea_purpose == 'investment' and default_kill_checklist %}
+                    {% elif idea.idea_type == 'sector' %}
+                    <!-- Sector ideas skip kill room and go directly to notebook -->
+                    <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-journal-plus"></i> Open Sector Notebook
+                    </a>
+                    {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and default_kill_checklist %}
                     <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="btn btn-danger flex-grow-1">
                         <i class="bi bi-shield-x"></i> Enter Kill Room
                     </a>
-                    {% elif idea.idea_purpose == 'investment' and all_kill_checklists %}
+                    {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and all_kill_checklists %}
                     <div class="btn-group flex-grow-1">
                         <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown">
                             Select Checklist to Kill

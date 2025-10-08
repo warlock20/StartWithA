@@ -35,12 +35,45 @@ At its core, the platform empowers you to build a personalized, AI-assisted work
 - **Mistake Log:** Systematically document errors, understand root causes, and turn mistakes into lessons integrated back into your checklists.
 - **Analytics Dashboard:** Gain insights into your research habits, decision patterns, and most successful idea sources to improve your own behavior.
 
+## Research Workflow
+
+The platform supports two parallel research workflows that can intersect:
+
+### Company Workflow
+
+```
+Add Company → Idea Inbox → Kill Process → [Survives] → Research
+```
+
+1. **Add Company**: Add a company to the system
+2. **Idea Inbox**: Company enters the idea inbox for initial evaluation
+3. **Kill Process**: Company undergoes kill process to validate investment thesis
+4. **Research**: If company survives kill process, full research project is initiated
+
+### Sector Workflow
+
+```
+Add Sector Idea → [Inbox or Research] → Sector Research → Discover Companies → [Optional: Add to Inbox]
+                                                                                          ↓
+                                                                                   Company Workflow
+```
+
+1. **Add Sector Idea**: Identify a sector of interest
+2. **Inbox or Research**: Keep idea in inbox or proceed to sector research
+3. **Sector Research**: Conduct research on the sector
+4. **Discover Companies**: Identify relevant companies during research
+5. **Optional Company Addition**: Add discovered companies to idea inbox, initiating the Company Workflow
+
+**Workflow Intersection**: Sector research feeds into company research through the idea inbox. Companies discovered during sector research can be added to the inbox and then follow the standard Company Workflow.
+
 ## Features
 
 - Create and manage investment checklists (with hierarchical items)
 - Add, edit, and remove checklist items (supports sub-items)
-- Manage companies to research
-- Start research sessions for a company using a checklist
+- Manage companies and sectors to research
+- Idea pipeline with inbox and kill process
+- Start research sessions for companies using checklists
+- Sector research with company discovery
 - Save answers for each checklist item per research session
 - Resume in-progress research or review completed sessions
 - All data stored in a relational database (SQLite by default)

@@ -257,7 +257,6 @@ def ai_analyze_item(session_id, item_id, documents):
 ├── routes.py                # Main checklist management routes
 └── templates/
     ├── list_checklists.html        # Main checklist overview
-    ├── new_checklist_simple.html   # Simplified creation form
     ├── new_checklist.html          # Advanced creation interface
     ├── view_checklist.html         # Read-only checklist display
     ├── view_readonly_checklist.html # Public checklist view

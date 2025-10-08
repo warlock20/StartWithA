@@ -250,17 +250,11 @@ def create_template():
         description = request.form.get('description')
         investment_style = request.form.get('investment_style')
         custom_investment_style = request.form.get('custom_investment_style')
-        research_subject_type = request.form.get('research_subject_type')
-        
+
         # Use custom investment style if selected
         if investment_style == 'custom' and custom_investment_style:
             investment_style = custom_investment_style.strip()
-        
-        # Validate research subject type
-        if not research_subject_type:
-            flash('Research subject type must be selected', 'error')
-            return redirect(url_for('research_workflow.create_template'))
-        
+
         if not name:
             flash('Template name is required', 'error')
             return redirect(url_for('research_workflow.create_template'))
@@ -294,13 +288,12 @@ def create_template():
                 
                 workflow_steps.append(step)
         
-        # Create the template
+        # Create the template (company-only)
         template = ResearchTemplate(
             author=current_user,
             name=name,
             description=description,
             investment_style=investment_style,
-            research_subject_types=[research_subject_type],  # Store as single-item list for consistency
             workflow_steps=workflow_steps
         )
         
@@ -323,11 +316,6 @@ def create_template():
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
-        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
-        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
-        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
-        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
         {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
     ]
     
@@ -387,77 +375,53 @@ def view_template(template_id):
 @research_workflow_bp.route('/projects/start', methods=['POST'])
 @login_required
 def start_project():
-    """Start a new research project using a template"""
+    """Start a new research project for a company using a template"""
     template_id = request.form.get('template_id', type=int)
-    subject_type = request.form.get('subject_type', 'company')
-    subject_name = request.form.get('subject_name', '')
     company_id = request.form.get('company_id', type=int)
-    
-    # Validate inputs based on subject type
+
+    # Validate inputs
     if not template_id:
         flash('Template selection is required', 'error')
         return redirect(request.referrer or url_for('research_workflow.template_list'))
-    
-    if subject_type == 'company' and not company_id:
-        flash('Company selection is required for company research', 'error')
+
+    if not company_id:
+        flash('Company selection is required', 'error')
         return redirect(request.referrer or url_for('research_workflow.template_list'))
-    elif subject_type != 'company' and not subject_name:
-        flash('Research subject name is required', 'error')
-        return redirect(request.referrer or url_for('research_workflow.template_list'))
-    
+
     # Verify template ownership
     template = ResearchTemplate.query.get_or_404(template_id)
     if template.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.template_list'))
-    
-    # Handle company-specific logic
-    company = None
-    if subject_type == 'company':
-        company = Company.query.get_or_404(company_id)
-        if company.user_id != current_user.id:
-            flash('Access denied', 'error')
-            return redirect(url_for('research_workflow.template_list'))
 
-        subject_name = company.name
-    
+    # Get company
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+
     # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of template)
-    if subject_type == 'company' and company_id:
-        existing_project = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            company_id=company_id
-        ).filter(
-            ResearchProject.status.in_(['active', 'paused'])
-        ).first()
+    existing_project = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).filter(
+        ResearchProject.status.in_(['active', 'paused'])
+    ).first()
 
-        if existing_project:
-            if existing_project.status == 'active':
-                flash(f'You already have an active research project for {subject_name}. Only one project per company is allowed.', 'error')
-                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
-            elif existing_project.status == 'paused':
-                flash(f'You have a paused research project for {subject_name}. Resume it or delete it to start a new one.', 'warning')
-                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+    if existing_project:
+        if existing_project.status == 'active':
+            flash(f'You already have an active research project for {company.name}. Only one project per company is allowed.', 'error')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+        elif existing_project.status == 'paused':
+            flash(f'You have a paused research project for {company.name}. Resume it or delete it to start a new one.', 'warning')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
-    # Check for existing project with same template (for non-company subjects)
-    if subject_type != 'company':
-        existing = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            template_id=template_id,
-            research_subject_type=subject_type,
-            research_subject_name=subject_name
-        ).first()
-        if existing and existing.status in ['active', 'paused']:
-            flash(f'You already have a project for {subject_name} with this template', 'info')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=existing.id))
-    
     # Create new project
     project = ResearchProject(
         researcher=current_user,
         template=template,
-        research_subject_type=subject_type,
-        research_subject_name=subject_name,
         company=company,
-        project_name=f"{subject_name} - {template.name}",
+        project_name=f"{company.name} - {template.name}",
         status='active'
     )
     
@@ -481,7 +445,7 @@ def start_project():
             company_id=company.id if company else None,
             project_id=project.id
         )
-        flash(f'Research project started for {subject_name}!', 'success')
+        flash(f'Research project started for {company.name}!', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
     except Exception as e:
         db.session.rollback()
@@ -959,21 +923,14 @@ def save_decision(project_id):
     elif project.decision == 'pass':
         project.template.failed_investments += 1
 
-    # --- NEW LOGIC TO UNIFY WATCHLISTS ---
+    # --- Add company to watchlist if decision is watchlist ---
     flash_message = 'Decision saved!' # Default message
 
-    if decision == 'watchlist' and project.research_subject_type == 'company' and project.company:
+    if decision == 'watchlist' and project.company:
         company_to_watch = project.company
         if company_to_watch not in current_user.favorites:
             current_user.favorites.append(company_to_watch)
-            # Update flash message to inform the user
             flash_message = f'Decision saved. "{company_to_watch.name}" has been added to your Favorites/Watchlist.'
-    elif decision == 'watchlist':
-        # For non-company projects, just save the decision without adding to favorites
-        if project.research_subject_type == 'sector':
-            flash_message = f'Sector assessment saved. "{project.research_subject_name}" marked for watching.'
-        else:
-            flash_message = f'Research decision saved. "{project.research_subject_name}" marked for watching.'
 
     try:
         db.session.commit()
@@ -990,6 +947,13 @@ def save_decision(project_id):
         flash(f'Error saving decision: {str(e)}', 'error')
         return redirect(request.referrer)
 
+@research_workflow_bp.route('/start-new')
+@login_required
+def start_new_research():
+    """Subject type selection page for starting new research"""
+    return render_template('start_new_research.html',
+                          title="Start New Research")
+
 @research_workflow_bp.route('/my-projects')
 @login_required
 def my_projects():
@@ -999,10 +963,9 @@ def my_projects():
     paused_count = current_user.research_projects.filter_by(status='paused').count()
     completed_count = current_user.research_projects.filter_by(status='completed').count()
 
-    # Get Too Hard Basket count (completed company projects with 'pass' decision)
+    # Get Too Hard Basket count (completed projects with 'pass' decision)
     too_hard_count = current_user.research_projects.filter_by(
         status='completed',
-        research_subject_type='company',
         decision='pass'
     ).count()
 
@@ -1015,14 +978,12 @@ def my_projects():
     watchlist_decisions = current_user.research_projects.filter_by(decision='watchlist').count()
 
     # Calculate Too Hard Basket Rate (selectivity metric)
-    # Only count company projects with invest or pass decisions
+    # Count projects with invest or pass decisions
     company_invest_count = current_user.research_projects.filter_by(
-        research_subject_type='company',
         decision='invest'
     ).count()
 
     company_pass_count = current_user.research_projects.filter_by(
-        research_subject_type='company',
         decision='pass'
     ).count()
 
@@ -1047,7 +1008,6 @@ def my_projects():
 
     too_hard_preview = current_user.research_projects.filter_by(
         status='completed',
-        research_subject_type='company',
         decision='pass'
     ).order_by(ResearchProject.completed_at.desc()).limit(3).all()
 
@@ -1071,7 +1031,7 @@ def my_projects():
     }
 
     return render_template('projects_dashboard.html',
-                          title="My Research Projects",
+                          title="Investment Research",
                           dashboard_data=dashboard_data)
 
 @research_workflow_bp.route('/my-projects/active')
@@ -1089,21 +1049,15 @@ def active_projects():
 
     # Apply search filter
     if search_query:
-        # Search in project name (which is derived from subject)
+        # Search in company name or project name
         query = query.filter(
             db.or_(
-                ResearchProject.research_subject_type.ilike(f'%{search_query}%'),
-                # For company projects, search in company name
-                db.and_(
-                    ResearchProject.research_subject_type == 'company',
-                    ResearchProject.company.has(Company.name.ilike(f'%{search_query}%'))
-                )
+                ResearchProject.project_name.ilike(f'%{search_query}%'),
+                ResearchProject.company.has(Company.name.ilike(f'%{search_query}%'))
             )
         )
 
-    # Apply type filter
-    if type_filter and type_filter != 'all':
-        query = query.filter(ResearchProject.research_subject_type == type_filter)
+    # Type filter removed - all projects are company projects now
 
     # Order by last worked date
     query = query.order_by(ResearchProject.last_worked_at.desc())
@@ -1119,13 +1073,8 @@ def active_projects():
     paused_projects = current_user.research_projects.filter_by(status='paused')\
         .order_by(ResearchProject.created_at.desc()).all()
 
-    # Get unique project types for filter
-    project_types = db.session.query(ResearchProject.research_subject_type).filter(
-        ResearchProject.user_id == current_user.id,
-        ResearchProject.status == 'active',
-        ResearchProject.research_subject_type.isnot(None)
-    ).distinct().all()
-    types = [t[0] for t in project_types]
+    # All projects are company type now
+    types = ['company']
 
     return render_template('projects_active.html',
                           title="Active Research Projects",
@@ -1157,8 +1106,7 @@ def completed_projects():
             .filter(
                 db.or_(
                     Company.name.ilike(f'%{search_query}%'),
-                    Company.ticker_symbol.ilike(f'%{search_query}%'),
-                    ResearchProject.research_subject_type.ilike(f'%{search_query}%')
+                    Company.ticker_symbol.ilike(f'%{search_query}%')
                 )
             )
 
@@ -1205,7 +1153,6 @@ def too_hard_basket():
     # Start with base query
     query = current_user.research_projects.filter_by(
         status='completed',
-        research_subject_type='company',
         decision='pass'
     )
 
@@ -1270,8 +1217,7 @@ def paused_projects():
             .filter(
                 db.or_(
                     Company.name.ilike(f'%{search_query}%'),
-                    Company.ticker_symbol.ilike(f'%{search_query}%'),
-                    ResearchProject.research_subject_type.ilike(f'%{search_query}%')
+                    Company.ticker_symbol.ilike(f'%{search_query}%')
                 )
             )
 
@@ -1450,11 +1396,6 @@ def edit_template(template_id):
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
-        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
-        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
-        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
-        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
         {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
     ]
     

@@ -120,7 +120,7 @@
             <div class="completed-project-content">
                 <h3 class="completed-project-title font-poppins">{{ project.subject_display_name }}</h3>
                 <p class="completed-project-meta">
-                    <span class="project-type-badge">{{ project.research_subject_type.title() }}</span>
+                    <span class="project-type-badge">Company</span>
                     <span class="text-muted">•</span>
                     <span class="text-muted">{{ project.template.name }}</span>
                 </p>
@@ -155,7 +155,7 @@
                     <i class="bi bi-file-text"></i> Summary
                 </a>
 
-                {% if project.research_subject_type == 'company' and project.company %}
+                {% if project.company %}
                 <a href="{{ url_for('companies.destination_analysis', company_id=project.company.id) }}"
                    class="btn btn-outline-success btn-sm">
                     <i class="bi bi-bullseye"></i> Destination
@@ -168,7 +168,7 @@
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        {% if project.research_subject_type == 'company' and project.company %}
+                        {% if project.company %}
                         <li>
                             <a class="dropdown-item" href="{{ url_for('companies.scuttlebutt', company_id=project.company.id) }}">
                                 <i class="bi bi-search"></i> Digital Scuttlebutt

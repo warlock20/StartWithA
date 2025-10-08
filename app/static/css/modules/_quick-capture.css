@@ -300,3 +300,36 @@
         padding: 0.875rem 1.5rem;
     }
 }
+
+/* Highlight styles for when coming from start-new flow */
+.highlight-field {
+    border: 2px solid var(--primary-500) !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+    animation: highlight-pulse 2s ease-in-out 3;
+}
+
+.highlight-button {
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2) !important;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.25);
+    }
+}
+
+.pulse-animation {
+    animation: pulse-grow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-grow {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}

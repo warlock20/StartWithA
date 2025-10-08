@@ -3,158 +3,613 @@
 CREATE TEMPLATE PAGE STYLES
 =============================================================================
 Styles for research template creation and editing pages
+Inspired by modern workflow builder with visual timeline
 */
 
-/* Step Item Cards */
-.step-item {
+/* Template Builder Card */
+.template-builder-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    transition: all 0.2s ease;
 }
 
-.step-item:hover {
+/* Template Name Input */
+.template-name-input {
+    font-size: 1.5rem;
+    font-weight: 700;
+    border: none;
+    border-bottom: 2px solid var(--gray-200);
+    border-radius: 0;
+    padding: 0.5rem 0;
+    transition: border-color 0.3s ease;
+}
+
+.template-name-input:focus {
     border-color: var(--primary-500);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: none;
+    outline: none;
 }
 
-.step-item .card-body {
-    padding: 1.25rem;
+.template-name-input::placeholder {
+    color: var(--gray-400);
 }
 
-.step-item .form-label.fw-bold {
-    color: var(--gray-700);
-    font-size: 0.95rem;
+/* Template Settings Section */
+.template-settings-section {
+    background-color: var(--gray-50);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+/* Step Count Badge */
+.step-count-badge {
+    background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
+    color: var(--primary-700);
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.step-count-badge span {
+    font-size: 1.1rem;
+}
+
+/* Workflow Canvas */
+.workflow-canvas {
+    position: relative;
+    min-height: 400px;
+    background-color: var(--gray-50);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+/* Empty State */
+.workflow-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 350px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    width: 5rem;
+    height: 5rem;
+    background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state-icon i {
+    font-size: 2.5rem;
+    color: var(--primary-600);
+}
+
+.workflow-empty-state h6 {
+    color: var(--gray-800);
+    margin-bottom: 0.5rem;
+}
+
+.workflow-empty-state p {
+    max-width: 300px;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state-arrow {
+    font-size: 2rem;
+    color: var(--primary-400);
+    animation: bounceRight 2s ease-in-out infinite;
+}
+
+@keyframes bounceRight {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(10px); }
+}
+
+/* Workflow Step */
+.workflow-step {
+    position: relative;
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Timeline */
+.workflow-step-timeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.5rem;
+}
+
+.timeline-dot {
+    width: 1rem;
+    height: 1rem;
+    background-color: white;
+    border: 3px solid var(--primary-500);
+    border-radius: 50%;
+    z-index: 2;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.timeline-line {
+    width: 2px;
+    flex-grow: 1;
+    background: linear-gradient(180deg, var(--primary-300) 0%, var(--primary-200) 100%);
+    margin-top: 0.5rem;
+    min-height: 2rem;
+}
+
+/* Workflow Step Content */
+.workflow-step-content {
+    flex: 1;
+}
+
+/* Workflow Step Card */
+.workflow-step-card {
+    background-color: white;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.workflow-step-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateX(4px);
+}
+
+/* Drag Handle */
+.step-drag-handle {
+    color: var(--gray-300);
+    cursor: grab;
+    padding: 0.25rem;
+    transition: color 0.2s ease;
+}
+
+.workflow-step-card:hover .step-drag-handle {
+    color: var(--gray-500);
+}
+
+.step-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Dragging States */
+.workflow-step.dragging {
+    opacity: 0.5;
+}
+
+.workflow-step.dragging .workflow-step-card {
+    transform: rotate(2deg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.workflow-step.drag-over-top::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-500);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(79, 70, 229, 0.4);
+}
+
+.workflow-step.drag-over-bottom::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-500);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(79, 70, 229, 0.4);
+}
+
+/* Step Icon Badge */
+.step-icon-badge {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.workflow-step-card:hover .step-icon-badge {
+    transform: scale(1.1);
+}
+
+.step-badge-blue {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.15) 100%);
+    color: var(--primary-600);
+}
+
+.step-badge-purple {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(147, 51, 234, 0.15) 100%);
+    color: #9333ea;
+}
+
+.step-badge-green {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.15) 100%);
+    color: #10b981;
+}
+
+.step-badge-orange {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.15) 100%);
+    color: #f59e0b;
+}
+
+.step-badge-gray {
+    background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-150) 100%);
+    color: var(--gray-600);
+}
+
+/* Step Main Content */
+.step-main-content {
+    flex: 1;
+}
+
+/* Step Header Row */
+.step-header-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.875rem;
+}
+
+.step-number-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-500);
+    white-space: nowrap;
+}
+
+.workflow-step-name {
+    flex: 1;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    transition: border-color 0.2s ease;
+}
+
+.workflow-step-name:focus {
+    border-bottom-color: var(--primary-500);
+    box-shadow: none;
+    outline: none;
+}
+
+.workflow-step-name::placeholder {
+    color: var(--gray-400);
+    font-weight: 500;
+}
+
+/* Step Body Row */
+.step-body-row {
     margin-bottom: 0.75rem;
 }
 
-/* Step Configuration Section */
+.step-type-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--gray-50);
+    border-radius: 6px;
+    max-width: fit-content;
+}
+
+.step-type-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+/* Step Actions Menu */
+.step-actions-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--gray-500);
+    padding: 0.375rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-ghost:hover {
+    background-color: var(--gray-100);
+    border-color: var(--gray-300);
+    color: var(--gray-700);
+}
+
+.btn-ghost.text-danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #dc2626;
+}
+
+/* Step Configuration */
 .step-config {
     background-color: var(--gray-50);
     border-radius: 6px;
-    padding: 1rem;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
 }
 
 .step-config .form-label {
     color: var(--gray-700);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
 }
 
-.step-config .form-select {
-    border-color: var(--gray-300);
-}
-
 .step-config .form-text {
     color: var(--gray-600);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
-/* Quick Add Button Group */
-.btn-group-sm .btn-outline-primary {
-    font-size: 0.85rem;
-    padding: 0.375rem 0.75rem;
-    border-color: var(--primary-300);
-    color: var(--primary-600);
+/* Step Library Card */
+.step-library-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-color);
 }
 
-.btn-group-sm .btn-outline-primary:hover {
-    background-color: var(--primary-50);
-    border-color: var(--primary-400);
-    color: var(--primary-700);
-}
-
-/* Form Check Container */
-.form-check-container {
+/* Step Library */
+.step-library {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
 
-.form-check-container .form-check {
-    padding-left: 1.75rem;
-}
-
-.form-check-container .form-check-label {
-    font-size: 0.95rem;
-    color: var(--gray-700);
+/* Step Library Item */
+.step-library-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    background-color: var(--gray-50);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     cursor: pointer;
-}
-
-.form-check-container .form-check-input:checked {
-    background-color: var(--primary-600);
-    border-color: var(--primary-600);
-}
-
-/* Alert Info Box */
-.alert-info {
-    background-color: #e3f2fd;
-    border-color: #90caf9;
-    color: #1976d2;
-}
-
-.alert-info h6 {
-    color: #1565c0;
-    font-weight: 600;
-}
-
-.alert-info .small {
-    font-size: 0.875rem;
-    line-height: 1.6;
-}
-
-/* Steps Container */
-#steps-container {
-    margin-bottom: 1.5rem;
-}
-
-/* Add Step Button */
-#add-step-btn {
-    font-weight: 500;
-    padding: 0.5rem 1.25rem;
-    border-radius: 6px;
     transition: all 0.2s ease;
 }
 
-#add-step-btn:hover {
-    background-color: var(--gray-600);
-    transform: translateY(-1px);
+.step-library-item:hover {
+    background-color: var(--gray-100);
+    border-color: var(--primary-300);
+    transform: translateX(4px);
 }
 
-/* Move Step Buttons */
-.btn-outline-secondary.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.85rem;
-    border-radius: 4px;
-}
-
-/* Submit Buttons */
-.btn-lg {
-    padding: 0.75rem 2rem;
-    font-size: 1.1rem;
-    font-weight: 600;
+/* Step Library Icon */
+.step-library-icon {
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.step-icon-blue {
+    background-color: rgba(79, 70, 229, 0.1);
+    color: var(--primary-600);
+}
+
+.step-icon-purple {
+    background-color: rgba(147, 51, 234, 0.1);
+    color: #9333ea;
+}
+
+.step-icon-green {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.step-icon-orange {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.step-icon-gray {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Step Library Content */
+.step-library-content {
+    flex-grow: 1;
+}
+
+.step-library-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--gray-800);
+    margin-bottom: 0.125rem;
+}
+
+.step-library-desc {
+    font-size: 0.8rem;
+    color: var(--gray-600);
+}
+
+/* Color Utilities */
+.text-blue {
+    color: var(--primary-600);
+}
+
+.text-purple {
+    color: #9333ea;
+}
+
+.text-green {
+    color: #10b981;
+}
+
+.text-orange {
+    color: #f59e0b;
+}
+
+.text-teal {
+    color: #14b8a6;
+}
+
+.text-indigo {
+    color: #6366f1;
+}
+
+.text-cyan {
+    color: #06b6d4;
+}
+
+.text-violet {
+    color: #8b5cf6;
+}
+
+.text-pink {
+    color: #ec4899;
+}
+
+/* Additional Step Badge Colors */
+.step-badge-teal {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(20, 184, 166, 0.15) 100%);
+    color: #14b8a6;
+}
+
+.step-badge-indigo {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.15) 100%);
+    color: #6366f1;
+}
+
+.step-badge-cyan {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.15) 100%);
+    color: #06b6d4;
+}
+
+.step-badge-violet {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.15) 100%);
+    color: #8b5cf6;
+}
+
+.step-badge-pink {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0.15) 100%);
+    color: #ec4899;
+}
+
+/* Additional Step Icon Colors */
+.step-icon-teal {
+    background-color: rgba(20, 184, 166, 0.1);
+    color: #14b8a6;
+}
+
+.step-icon-indigo {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+}
+
+.step-icon-cyan {
+    background-color: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+}
+
+.step-icon-violet {
+    background-color: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.step-icon-pink {
+    background-color: rgba(236, 72, 153, 0.1);
+    color: #ec4899;
 }
 
 /* Responsive adjustments */
+@media (max-width: 992px) {
+    .step-library-card {
+        margin-top: 2rem;
+        position: static !important;
+    }
+}
+
 @media (max-width: 768px) {
-    .step-item .row {
+    .template-name-input {
+        font-size: 1.25rem;
+    }
+
+    .workflow-canvas {
+        padding: 1.5rem;
+    }
+
+    .workflow-step {
+        gap: 1rem;
+    }
+
+    .workflow-step-timeline {
+        display: none;
+    }
+
+    .workflow-step-card {
         flex-direction: column;
+        padding: 1rem;
     }
 
-    .step-item .col-md-6,
-    .step-item .col-md-4,
-    .step-item .col-md-2 {
-        width: 100%;
-        margin-bottom: 0.75rem;
+    .step-drag-handle {
+        display: none;
     }
 
-    .form-check-container {
+    .step-icon-badge {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.25rem;
+    }
+
+    .step-header-row {
         flex-direction: column;
-    }
-
-    .btn-group-sm {
-        flex-wrap: wrap;
+        align-items: flex-start;
         gap: 0.5rem;
+    }
+
+    .workflow-step-name {
+        width: 100%;
+        font-size: 1rem;
+    }
+
+    .step-actions-menu {
+        flex-direction: row;
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .step-type-select {
+        max-width: 100%;
     }
 }

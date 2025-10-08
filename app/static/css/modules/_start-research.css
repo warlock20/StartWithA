@@ -1,0 +1,264 @@
+/* =============================================================================
+   START NEW RESEARCH PAGE STYLES
+   ============================================================================= */
+
+/* Container */
+.start-research-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Subject Type Selection Grid */
+.subject-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+    .subject-type-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Subject Type Cards */
+.subject-type-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    border: 2px solid var(--gray-200);
+    box-shadow: var(--shadow-light);
+    padding: 2.5rem;
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.subject-type-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--transition-normal);
+}
+
+.subject-type-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+    border-color: var(--primary-400);
+}
+
+.subject-type-card:hover::before {
+    transform: scaleX(1);
+}
+
+/* Sector Icon Variation */
+.subject-type-card[data-subject="sector"]::before {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.subject-type-card[data-subject="sector"]:hover {
+    border-color: #10b981;
+}
+
+/* Icon */
+.subject-type-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    transition: all var(--transition-normal);
+}
+
+.subject-type-icon.sector-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.subject-type-card:hover .subject-type-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* Typography */
+.subject-type-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 1rem;
+}
+
+.subject-type-description {
+    color: var(--gray-600);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+/* Features List */
+.subject-type-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+    flex-grow: 1;
+}
+
+.subject-type-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    color: var(--gray-700);
+    font-size: 0.938rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.subject-type-features li:last-child {
+    margin-bottom: 0;
+}
+
+.subject-type-features .bi-check-circle-fill {
+    color: var(--primary-600);
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.subject-type-card[data-subject="sector"] .subject-type-features .bi-check-circle-fill {
+    color: #10b981;
+}
+
+/* Button */
+.subject-type-btn {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    font-size: 1.063rem;
+    font-weight: 600;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all var(--transition-normal);
+}
+
+.subject-type-btn .bi {
+    font-size: 1.25rem;
+}
+
+.subject-type-card[data-subject="sector"] .subject-type-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+}
+
+.subject-type-card[data-subject="sector"] .subject-type-btn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-2px);
+}
+
+/* Hint Text */
+.subject-type-hint {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.subject-type-hint .bi-lightbulb {
+    color: #f59e0b;
+}
+
+/* Quick Tips Section */
+.start-research-tips {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #fbbf24;
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+}
+
+.tips-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.tips-header .bi-info-circle {
+    font-size: 1.5rem;
+    color: #d97706;
+}
+
+.tips-header h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #78350f;
+    margin: 0;
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tip-item {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    color: #78350f;
+    font-size: 0.938rem;
+    line-height: 1.5;
+}
+
+.tip-item strong {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.subject-type-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.subject-type-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.start-research-tips {
+    animation: fadeInUp 0.5s ease-out;
+    animation-delay: 0.2s;
+}

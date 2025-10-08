@@ -2,124 +2,138 @@
 {% from "_macros.html" import display_items_for_edit_tree as display_items %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>✏️ {{ checklist.name }} <span class="badge-pro warning">Edit Mode</span></h1>
-        <p class="text-muted mb-0">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
-    </div>
-    <div class="d-flex gap-2">
-        {% if research_context %}
-            <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success">
-                <i class="bi bi-arrow-left"></i> Return to Research Project
-            </a>
-        {% endif %}
-        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-primary">
-            <i class="bi bi-eye"></i> View Mode
-        </a>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Checklists
-        </a>
-    </div>
-</div>
-
-<!-- Statistics Overview -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="metric-card primary">
-            <div class="metric-value">{{ total_items_count }}</div>
-            <div class="metric-label">Total Items</div>
-            <div class="metric-sublabel">Including sub-items</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card success">
-            <div class="metric-value">{{ items|length }}</div>
-            <div class="metric-label">Main Items</div>
-            <div class="metric-sublabel">Top-level items</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card warning">
-            <div class="metric-value">{{ total_questions }}</div>
-            <div class="metric-label">Question Bank</div>
-            <div class="metric-sublabel">Available questions</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card investment">
-            <div class="metric-value">{{ companies|length }}</div>
-            <div class="metric-label">Companies</div>
-            <div class="metric-sublabel">Ready for analysis</div>
-        </div>
-    </div>
-</div>
-
-<!-- Main Content Area -->
-<div class="row">
-    <div class="col-lg-5">
-        <div class="framework-card h-100">
-            <div class="framework-header">
-                <div class="framework-icon investment">
-                    <i class="bi bi-list-check"></i>
-                </div>
-                <div class="framework-title">
-                    <h3>Checklist Structure</h3>
-                    <p>Navigate and manage your checklist items</p>
-                </div>
-                {% if items %}
-                <div class="framework-status">
-                    <span class="badge-pro success">{{ items|length }} main items</span>
-                </div>
-                {% endif %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-pencil-square text-warning me-3"></i>{{ checklist.name }}
+            </h1>
+            <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <span class="badge bg-warning text-dark">Edit Mode</span>
+                </small>
             </div>
-            <div class="framework-body checklist-tree-container">
-                <div class="checklist-tree">
-                {% if items %}
-                    {{ display_items(items, ChecklistItem) }}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-illustration">
-                            <i class="bi bi-list-check"></i>
+        </div>
+        <div class="dashboard-header-actions">
+            {% if research_context %}
+                <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success me-2">
+                    <i class="bi bi-arrow-left"></i> Return to Research
+                </a>
+            {% endif %}
+            <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info me-2">
+                <i class="bi bi-eye"></i> View Mode
+            </a>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Checklists
+            </a>
+        </div>
+    </header>
+
+    <!-- Statistics Overview -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Items</h3>
+                        <span class="priority-card-number priority-number-blue">{{ total_items_count }}</span>
+                    </div>
+                    <p class="priority-card-description">Including sub-items</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Main Items</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ items|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Top-level items</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Question Bank</h3>
+                        <span class="priority-card-number priority-number-green">{{ total_questions }}</span>
+                    </div>
+                    <p class="priority-card-description">Available questions</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-portfolio">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Companies</h3>
+                        <span class="priority-card-number priority-number-purple">{{ companies|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Ready for analysis</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="checklist-edit-card h-100">
+                <div class="checklist-edit-header">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-list-check text-primary me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h3 class="mb-0 font-poppins">Checklist Structure</h3>
+                            <p class="text-muted mb-0 small">Navigate and manage your items</p>
                         </div>
-                        <div class="empty-title">No items yet</div>
-                        <div class="empty-description">
-                            This checklist is empty. Your checklist structure will appear here as you add items.
-                        </div>
-                        <div class="empty-actions">
-                            <div class="alert alert-info border-0 bg-primary-50 tip-pointer-right">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-arrow-right text-primary me-2 pulse-arrow"></i>
-                                    <span class="small">
-                                        <strong>Tip:</strong> Use the <strong>Item Editor</strong> on the right to add your first question or item
-                                    </span>
+                    </div>
+                    {% if items %}
+                    <div>
+                        <span class="badge bg-success">{{ items|length }} main items</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="checklist-edit-body">
+                    <div class="checklist-tree-container">
+                        <div class="checklist-tree">
+                        {% if items %}
+                            {{ display_items(items, ChecklistItem) }}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="bi bi-list-check"></i>
+                                <h3>No items yet</h3>
+                                <p>This checklist is empty. Your structure will appear here as you add items.</p>
+                                <div class="alert alert-info border-0 tip-pointer-right">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-arrow-right text-primary me-2 pulse-arrow"></i>
+                                        <span class="small">
+                                            <strong>Tip:</strong> Use the <strong>Item Editor</strong> on the right to add your first item
+                                        </span>
+                                    </div>
                                 </div>
+                            </div>
+                        {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div id="inspector-panel"
+                 data-edit-url-template="{{ url_for('checklists.edit_checklist_item', item_id=0) }}"
+                 data-delete-url-template="{{ url_for('checklists.delete_checklist_item', item_id=0) }}"
+                 data-move-url-template="{{ url_for('checklists.move_checklist_item', item_id=0, direction='__DIRECTION__') }}">
+
+                <div id="inspector-overview" class="checklist-edit-card">
+                    <div class="checklist-edit-header">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-gear text-primary me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h3 class="mb-0 font-poppins">Item Editor</h3>
+                                <p class="text-muted mb-0 small">Add new items or select one to edit</p>
                             </div>
                         </div>
                     </div>
-                {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-7">
-        <div id="inspector-panel"
-             data-edit-url-template="{{ url_for('checklists.edit_checklist_item', item_id=0) }}"
-             data-delete-url-template="{{ url_for('checklists.delete_checklist_item', item_id=0) }}"
-             data-move-url-template="{{ url_for('checklists.move_checklist_item', item_id=0, direction='__DIRECTION__') }}">
-
-            <div id="inspector-overview" class="framework-card">
-                <div class="framework-header">
-                    <div class="framework-icon primary">
-                        <i class="bi bi-gear"></i>
-                    </div>
-                    <div class="framework-title">
-                        <h3>Item Editor</h3>
-                        <p>Add new items or select an item to edit</p>
-                    </div>
-                </div>
-                <div class="framework-body">
+                    <div class="checklist-edit-body">
                     <div class="mb-4">
                         <p class="text-muted">Select an item from the tree on the left to see its specific details and actions.</p>
                     </div>
@@ -129,19 +143,19 @@
 
                         <!-- Question Bank Integration -->
                         {% if total_questions > 0 %}
-                        <div class="framework-card mb-4">
-                            <div class="framework-header">
-                                <div class="framework-icon warning">
-                                    <i class="bi bi-bank"></i>
-                                </div>
-                                <div class="framework-title">
-                                    <h4>Question Bank</h4>
-                                    <p>{{ total_questions }} questions available</p>
-                                </div>
-                                <div class="framework-status">
-                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse"
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-bank text-warning me-3" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <h5 class="mb-0 font-poppins">Question Bank</h5>
+                                            <p class="text-muted mb-0 small">{{ total_questions }} questions available</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
                                             data-bs-target="#editQuestionBankCollapse" aria-expanded="false">
-                                        <i class="bi bi-search"></i> Browse Questions
+                                        <i class="bi bi-search"></i> Browse
                                     </button>
                                 </div>
                             </div>
@@ -149,8 +163,8 @@
                         {% endif %}
 
                         <div class="collapse mb-4" id="editQuestionBankCollapse">
-                            <div class="framework-card">
-                                <div class="framework-body">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body">
                                     <p class="text-muted mb-3">
                                         <i class="bi bi-info-circle"></i> Click on a question to load it into the form below.
                                     </p>
@@ -161,7 +175,7 @@
                                             <h6 class="accordion-header" id="editHeading{{ loop.index }}">
                                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                                         data-bs-target="#editCollapse{{ loop.index }}" aria-expanded="false">
-                                                    {{ sector }} <span class="badge-pro secondary">{{ questions|length }}</span>
+                                                    {{ sector }} <span class="badge bg-secondary ms-2">{{ questions|length }}</span>
                                                 </button>
                                             </h6>
                                             <div id="editCollapse{{ loop.index }}" class="accordion-collapse collapse"
@@ -222,22 +236,20 @@
                 </div>
 
             <div id="inspector-content" class="d-none">
-                <div class="framework-card">
-                    <div class="framework-header">
-                        <div class="framework-icon warning">
-                            <i class="bi bi-pencil-square"></i>
+                <div class="checklist-edit-card">
+                    <div class="checklist-edit-header">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-pencil-square text-warning me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h3 class="mb-0 font-poppins" id="inspector-item-text">Selected Item</h3>
+                                <p class="text-muted mb-0 small">Edit, move, or manage this item</p>
+                            </div>
                         </div>
-                        <div class="framework-title">
-                            <h3 id="inspector-item-text">Selected Item</h3>
-                            <p>Edit, move, or manage this item</p>
-                        </div>
-                        <div class="framework-status">
-                            <button type="button" id="inspector-close-btn" class="btn btn-outline-secondary btn-sm" title="Deselect Item">
-                                <i class="bi bi-x"></i> Close
-                            </button>
-                        </div>
+                        <button type="button" id="inspector-close-btn" class="btn btn-outline-secondary btn-sm" title="Deselect Item">
+                            <i class="bi bi-x"></i> Close
+                        </button>
                     </div>
-                    <div class="framework-body">
+                    <div class="checklist-edit-body">
                         <div id="inspector-llm-prompt-display" class="alert alert-info" style="display:none;">
                             <div class="d-flex align-items-start gap-2">
                                 <i class="bi bi-robot"></i>
@@ -299,84 +311,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div>
             </div>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
     <script src="{{ url_for('static', filename='js/checklist_inspector.js') }}" defer></script>
-
-    <style>
-    /* Enhanced checklist view styling using site design system */
-
-    .checklist-tree-container {
-        max-height: 600px;
-        overflow-y: auto;
-        padding: var(--space-md);
-    }
-
-    .checklist-tree {
-        font-size: var(--font-size-sm);
-    }
-
-    /* Enhanced inspector panel animations */
-    #inspector-content {
-        animation: slideInUp 0.3s ease-out;
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(15px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Pro list item hover effects */
-    .pro-list-item {
-        transition: all var(--transition-normal);
-    }
-
-    .pro-list-item:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-medium);
-    }
-
-    /* Form enhancements */
-    .form-pro .form-control:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
-    }
-
-    /* Action grid responsiveness */
-    @media (max-width: 768px) {
-        .action-grid {
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .action-grid .btn {
-            width: 100%;
-        }
-    }
-
-    /* Metric cards hover effect */
-    .metric-card {
-        transition: all var(--transition-normal);
-        cursor: default;
-    }
-
-    .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-medium);
-    }
-    </style>
 
     <script>
     // Function to add a question from Question Bank to the edit form

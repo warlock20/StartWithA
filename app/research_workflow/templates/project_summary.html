@@ -8,11 +8,9 @@
             <div>
                 <h1 class="summary-page-title">{{ project.project_name }}</h1>
                 <p class="summary-page-subtitle">
-                    {% if project.research_subject_type == 'company' and project.company %}
+                    {% if project.company %}
                     {{ project.company.name }}
                     {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
-                    {% else %}
-                    {{ project.research_subject_name }}
                     {% endif %}
                     • Make your final investment decision
                 </p>
@@ -36,15 +34,7 @@
                         <i class="bi bi-clipboard-check"></i>
                     </div>
                     <div class="decision-card-title">
-                        <h2>
-                            {% if project.research_subject_type == 'company' %}
-                            Investment Decision
-                            {% elif project.research_subject_type == 'sector' %}
-                            Sector Assessment
-                            {% else %}
-                            Research Decision
-                            {% endif %}
-                        </h2>
+                        <h2>Investment Decision</h2>
                         <p>Based on {{ project.total_hours_spent|round(1) }} hours of research</p>
                     </div>
                 </div>
@@ -55,7 +45,6 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold mb-3">Your Decision:</label>
                         <div class="decision-options">
-                            {% if project.research_subject_type == 'company' %}
                             <div class="decision-option invest">
                                 <input type="radio" name="decision" id="decision_invest" value="invest" required>
                                 <label for="decision_invest">
@@ -77,51 +66,6 @@
                                     Watchlist
                                 </label>
                             </div>
-                            {% elif project.research_subject_type == 'sector' %}
-                            <div class="decision-option invest">
-                                <input type="radio" name="decision" id="decision_invest" value="invest" required>
-                                <label for="decision_invest">
-                                    <i class="bi bi-graph-up-arrow text-success d-block mb-2" style="font-size: 2rem;"></i>
-                                    Invest in Sector
-                                </label>
-                            </div>
-                            <div class="decision-option pass">
-                                <input type="radio" name="decision" id="decision_pass" value="pass">
-                                <label for="decision_pass">
-                                    <i class="bi bi-x-circle-fill text-danger d-block mb-2" style="font-size: 2rem;"></i>
-                                    Pass on Sector
-                                </label>
-                            </div>
-                            <div class="decision-option watchlist">
-                                <input type="radio" name="decision" id="decision_watchlist" value="watchlist">
-                                <label for="decision_watchlist">
-                                    <i class="bi bi-eye-fill text-warning d-block mb-2" style="font-size: 2rem;"></i>
-                                    Watch Sector
-                                </label>
-                            </div>
-                            {% else %}
-                            <div class="decision-option invest">
-                                <input type="radio" name="decision" id="decision_invest" value="invest" required>
-                                <label for="decision_invest">
-                                    <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
-                                    Positive
-                                </label>
-                            </div>
-                            <div class="decision-option pass">
-                                <input type="radio" name="decision" id="decision_pass" value="pass">
-                                <label for="decision_pass">
-                                    <i class="bi bi-x-circle-fill text-danger d-block mb-2" style="font-size: 2rem;"></i>
-                                    Negative
-                                </label>
-                            </div>
-                            <div class="decision-option watchlist">
-                                <input type="radio" name="decision" id="decision_watchlist" value="watchlist">
-                                <label for="decision_watchlist">
-                                    <i class="bi bi-dash-circle-fill text-warning d-block mb-2" style="font-size: 2rem;"></i>
-                                    Neutral
-                                </label>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
 
@@ -142,55 +86,25 @@
 
                     <!-- Investment Thesis -->
                     <div class="mb-4">
-                        {% if project.research_subject_type == 'company' %}
                         <label for="decision_notes" class="form-label fw-bold">Final Investment Thesis:</label>
                         <textarea class="form-control" name="decision_notes" id="decision_notes" rows="5"
                                   placeholder="Summarize the core reasons for your investment decision..." required></textarea>
-                        {% elif project.research_subject_type == 'sector' %}
-                        <label for="decision_notes" class="form-label fw-bold">Sector Assessment Summary:</label>
-                        <textarea class="form-control" name="decision_notes" id="decision_notes" rows="5"
-                                  placeholder="Summarize your sector outlook and investment rationale..." required></textarea>
-                        {% else %}
-                        <label for="decision_notes" class="form-label fw-bold">Research Summary:</label>
-                        <textarea class="form-control" name="decision_notes" id="decision_notes" rows="5"
-                                  placeholder="Summarize your key findings and conclusions..." required></textarea>
-                        {% endif %}
                     </div>
 
                     <!-- Key Positives and Risks -->
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            {% if project.research_subject_type == 'company' %}
                             <label for="green_flags" class="form-label fw-bold">
                                 <i class="bi bi-plus-circle-fill text-success me-2"></i>Key Positives:
                             </label>
-                            {% elif project.research_subject_type == 'sector' %}
-                            <label for="green_flags" class="form-label fw-bold">
-                                <i class="bi bi-plus-circle-fill text-success me-2"></i>Sector Tailwinds:
-                            </label>
-                            {% else %}
-                            <label for="green_flags" class="form-label fw-bold">
-                                <i class="bi bi-plus-circle-fill text-success me-2"></i>Key Positives:
-                            </label>
-                            {% endif %}
                             <textarea class="form-control" name="green_flags" rows="4"
                                       placeholder="One finding per line..."></textarea>
                             <small class="text-muted">One per line</small>
                         </div>
                         <div class="col-md-6">
-                            {% if project.research_subject_type == 'company' %}
                             <label for="red_flags" class="form-label fw-bold">
                                 <i class="bi bi-dash-circle-fill text-danger me-2"></i>Key Risks:
                             </label>
-                            {% elif project.research_subject_type == 'sector' %}
-                            <label for="red_flags" class="form-label fw-bold">
-                                <i class="bi bi-dash-circle-fill text-danger me-2"></i>Sector Headwinds:
-                            </label>
-                            {% else %}
-                            <label for="red_flags" class="form-label fw-bold">
-                                <i class="bi bi-dash-circle-fill text-danger me-2"></i>Key Risks:
-                            </label>
-                            {% endif %}
                             <textarea class="form-control" name="red_flags" rows="4"
                                       placeholder="One risk per line..."></textarea>
                             <small class="text-muted">One per line</small>
@@ -258,11 +172,7 @@
                 <div>
                     <div class="project-stat-item">
                         <span class="project-stat-label">
-                            {% if project.research_subject_type == 'company' %}
                             Company:
-                            {% else %}
-                            Subject:
-                            {% endif %}
                         </span>
                         <span class="project-stat-value">
                             {{ project.company.name if project.company else project.research_subject_name }}
@@ -336,7 +246,7 @@
                        class="btn btn-outline-primary">
                         <i class="bi bi-arrow-left"></i> Back to Dashboard
                     </a>
-                    {% if project.research_subject_type == 'company' and project.company %}
+                    {% if project.company %}
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}"
                        class="btn btn-outline-secondary">
                         <i class="bi bi-building"></i> Company Profile

@@ -68,11 +68,13 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="idea_type" class="form-label">Subject Type</label>
-                                <select class="form-select" id="idea_type" name="idea_type">
-                                    <option value="company" selected>Company</option>
-                                    <option value="sector">Sector/Industry</option>
-                                    <option value="theme">Theme/Trend</option>
+                                <select class="form-select {% if from_start == 'true' %}highlight-field{% endif %}" id="idea_type" name="idea_type">
+                                    <option value="company" {% if prefill_type == 'company' or not prefill_type %}selected{% endif %}>Company</option>
+                                    <option value="sector" {% if prefill_type == 'sector' %}selected{% endif %}>Sector/Industry</option>
                                 </select>
+                                <small class="form-text text-muted">
+                                    Companies use structured research. Sectors use free-form notebooks.
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -165,10 +167,21 @@
                         </div>
                     </div>
 
+                    <!-- Direct to Notebook Option (for sectors only) -->
+                    <div id="notebook-option" class="mb-4" style="display: none;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="add_to_notebook" name="add_to_notebook" value="true">
+                            <label class="form-check-label" for="add_to_notebook">
+                                <strong>Add directly to Sector Notebook</strong>
+                                <small class="d-block text-muted">Skip the inbox and start researching immediately</small>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Submit Buttons -->
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn quick-capture-submit">
-                            <i class="bi bi-inbox-fill me-2"></i> Add to Inbox
+                        <button type="submit" class="btn quick-capture-submit {% if from_start == 'true' %}highlight-button pulse-animation{% endif %}" id="submitBtn">
+                            <i class="bi bi-inbox-fill me-2" id="submitIcon"></i> <span id="submitText">Add to Inbox</span>
                         </button>
                         <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
                             Cancel
@@ -240,13 +253,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateCompanyRequirement() {
         const isCompany = ideaTypeSelect.value === 'company';
+        const isSector = ideaTypeSelect.value === 'sector';
         const isInvestment = ideaPurposeSelect.value === 'investment';
         const showCompanySelection = isCompany && isInvestment;
 
         const companyField = document.getElementById('company-selection-field');
         const companyIdInput = document.getElementById('company_id');
         const companyRequired = document.getElementById('company-required');
+        const notebookOption = document.getElementById('notebook-option');
 
+        // Show/hide company selection
         if (showCompanySelection) {
             companyField.style.display = 'block';
             companyIdInput.required = true;
@@ -256,6 +272,29 @@ document.addEventListener('DOMContentLoaded', function() {
             companyIdInput.required = false;
             companyRequired.style.display = 'none';
             clearSelectedCompany();
+        }
+
+        // Show/hide notebook option for sectors
+        if (isSector) {
+            notebookOption.style.display = 'block';
+        } else {
+            notebookOption.style.display = 'none';
+            document.getElementById('add_to_notebook').checked = false;
+            updateSubmitButton();
+        }
+    }
+
+    function updateSubmitButton() {
+        const addToNotebook = document.getElementById('add_to_notebook').checked;
+        const submitText = document.getElementById('submitText');
+        const submitIcon = document.getElementById('submitIcon');
+
+        if (addToNotebook) {
+            submitText.textContent = 'Add to Notebook';
+            submitIcon.className = 'bi bi-journal-plus me-2';
+        } else {
+            submitText.textContent = 'Add to Inbox';
+            submitIcon.className = 'bi bi-inbox-fill me-2';
         }
     }
 
@@ -360,6 +399,12 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCompanyRequirement();
     ideaTypeSelect.addEventListener('change', updateCompanyRequirement);
     ideaPurposeSelect.addEventListener('change', updateCompanyRequirement);
+
+    // Listen for checkbox changes
+    const addToNotebookCheckbox = document.getElementById('add_to_notebook');
+    if (addToNotebookCheckbox) {
+        addToNotebookCheckbox.addEventListener('change', updateSubmitButton);
+    }
 
     // Ctrl+Enter shortcut
     document.getElementById('quickCaptureForm').addEventListener('keydown', function(e) {

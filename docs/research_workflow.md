@@ -2,7 +2,59 @@
 
 ## Overview
 
-This document describes the current research workflow implementation in the Investment Checklist platform, including the user journey, technical implementation, and identified areas for enhancement.
+This document describes the investment research workflow in the Investment Checklist platform. The system supports two parallel research workflows: Company-focused and Sector-focused research, which can intersect when companies are discovered during sector research.
+
+---
+
+## High-Level Workflow
+
+### Company Workflow
+
+```
+Add Company → Idea Inbox → Kill Process → [Survives] → Research
+```
+
+**Steps:**
+1. **Add Company**: User adds a company to the system
+2. **Idea Inbox**: Company enters the idea inbox for initial evaluation
+3. **Kill Process**: Company undergoes kill process to validate investment thesis
+4. **Research**: If company survives kill process, full research project is initiated
+
+### Sector Workflow
+
+```
+Add Sector Idea → [Inbox or Research] → Sector Research → Discover Companies → [Optional: Add to Inbox]
+                                                                                          ↓
+                                                                                   Company Workflow
+```
+
+**Steps:**
+1. **Add Sector Idea**: User identifies a sector of interest
+2. **Inbox or Research**: User can either:
+   - Keep idea in inbox for later
+   - Proceed directly to sector research
+3. **Sector Research**: User conducts research on the sector
+4. **Discover Companies**: During research, user identifies relevant companies
+5. **Optional Company Addition**: Companies can be added to idea inbox, which initiates the Company Workflow
+
+### Workflow Intersection
+
+Sector research feeds into company research through the idea inbox:
+- Companies discovered during sector research can be added to the idea inbox
+- Once in inbox, they follow the standard Company Workflow (Kill Process → Research)
+
+### Key Principles
+
+1. **Flexible Entry**: Users can start with either a company or sector
+2. **Structured Progression**: Companies must pass through kill process before full research
+3. **Connected Workflows**: Sector research naturally feeds company pipeline
+4. **Optional Integration**: Adding sector companies to inbox is optional, allowing flexibility
+
+---
+
+## Technical Implementation
+
+This section describes the current research workflow implementation, including the user journey, technical implementation, and identified areas for enhancement.
 
 ## Current Research Workflow
 

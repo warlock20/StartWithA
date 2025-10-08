@@ -38,10 +38,34 @@
         </div>
     </div>
 
+    <!-- Status Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'active' %}active{% endif %}"
+               href="{{ url_for('sectors.index', status='active') }}">
+                <i class="bi bi-play-fill"></i> Active
+                <span class="badge bg-primary ms-2">{{ active_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'archived' %}active{% endif %}"
+               href="{{ url_for('sectors.index', status='archived') }}">
+                <i class="bi bi-archive-fill"></i> Archived
+                <span class="badge bg-secondary ms-2">{{ archived_count }}</span>
+            </a>
+        </li>
+    </ul>
+
     <!-- Sector Notebooks Section -->
     {% if sector_analyses %}
     <div class="sectors-section">
-        <h2 class="section-title font-poppins mb-4">Your Notebooks</h2>
+        <h2 class="section-title font-poppins mb-4">
+            {% if status_filter == 'archived' %}
+                Archived Notebooks
+            {% else %}
+                Active Notebooks
+            {% endif %}
+        </h2>
         <div class="sectors-grid">
             {% for analysis in sector_analyses %}
             <div class="sector-notebook-card">
@@ -75,18 +99,24 @@
     {% else %}
     <!-- Empty State -->
     <div class="empty-state">
-        <i class="bi bi-journal-bookmark"></i>
-        <h3>No Sector Notebooks Yet</h3>
-        <p>Create your first sector research notebook to build deep industry knowledge and competitive advantages.</p>
-        <div class="empty-state-hint">
-            <p class="text-muted mb-2"><strong>Why use sector notebooks?</strong></p>
-            <ul class="text-muted text-start" style="max-width: 600px; margin: 0 auto;">
-                <li>Track industry trends and dynamics</li>
-                <li>Compare companies within the same sector</li>
-                <li>Build expertise in specific industries</li>
-                <li>Identify patterns and opportunities</li>
-            </ul>
-        </div>
+        {% if status_filter == 'archived' %}
+            <i class="bi bi-archive"></i>
+            <h3>No Archived Sectors</h3>
+            <p>Archived sectors will appear here when you complete or pause research on a sector.</p>
+        {% else %}
+            <i class="bi bi-journal-bookmark"></i>
+            <h3>No Sector Notebooks Yet</h3>
+            <p>Create your first sector research notebook to build deep industry knowledge and competitive advantages.</p>
+            <div class="empty-state-hint">
+                <p class="text-muted mb-2"><strong>Why use sector notebooks?</strong></p>
+                <ul class="text-muted text-start" style="max-width: 600px; margin: 0 auto;">
+                    <li>Track industry trends and dynamics</li>
+                    <li>Compare companies within the same sector</li>
+                    <li>Build expertise in specific industries</li>
+                    <li>Identify patterns and opportunities</li>
+                </ul>
+            </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

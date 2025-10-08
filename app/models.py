@@ -9,6 +9,7 @@ from werkzeug.security import (
 )  # Import hashing functions
 from flask_login import UserMixin  # Import UserMixin
 from app import login_manager  # Import login_manager from app/__init__.py
+import re  # For HTML tag stripping in word count
 
 favorite_companies = db.Table(
     "favorite_companies",
@@ -146,6 +147,8 @@ class Checklist(db.Model):
     user_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False
     )  # Link to User
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
 
     # Relationships: A checklist has many items
     items = db.relationship(
@@ -506,6 +509,11 @@ class SectorAnalysis(db.Model):
     # A large text field for free-form research notes (backward compatible)
     notes = db.Column(db.Text, nullable=True)
 
+    # Research status and tracking
+    status = db.Column(db.String(20), nullable=False, default='active')  # active, archived
+    total_time_spent = db.Column(db.Integer, nullable=False, default=0)  # in seconds
+    archived_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
     updated_at = db.Column(
         db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
@@ -520,6 +528,160 @@ class SectorAnalysis(db.Model):
     __table_args__ = (
         db.UniqueConstraint("user_id", "sector_name", name="uq_user_sector"),
     )
+
+    @property
+    def word_count(self):
+        """Calculate total word count from notes"""
+        if not self.notes:
+            return 0
+        # Strip HTML tags and count words
+        text = re.sub(r'<[^>]+>', '', self.notes)
+        return len(text.split())
+
+    @property
+    def companies_count(self):
+        """Count companies in this sector"""
+        return Company.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).count()
+
+    @property
+    def researched_companies_count(self):
+        """Count companies with completed research projects"""
+        companies = Company.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).all()
+
+        researched = 0
+        for company in companies:
+            has_research = ResearchProject.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                status='completed'
+            ).first()
+            if has_research:
+                researched += 1
+        return researched
+
+    @property
+    def sources_count(self):
+        """Count research sources added"""
+        return self.sources.count()
+
+    @property
+    def questions_count(self):
+        """Count questions in question bank for this sector"""
+        return QuestionBankItem.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).count()
+
+    @property
+    def research_progress_score(self):
+        """
+        Calculate comprehensive research progress score (0-100)
+        Weighted: word_count 30%, time 20%, companies 25%, sources 15%, questions 10%
+        """
+        # Word count score (0-100)
+        word_count = self.word_count
+        if word_count >= 5000:
+            word_score = 100
+        elif word_count >= 3000:
+            word_score = 80
+        elif word_count >= 1500:
+            word_score = 60
+        elif word_count >= 500:
+            word_score = 40
+        else:
+            word_score = min((word_count / 500) * 40, 40)
+
+        # Time spent score (0-100)
+        hours = self.total_time_spent / 3600
+        if hours >= 10:
+            time_score = 100
+        elif hours >= 6:
+            time_score = 80
+        elif hours >= 3:
+            time_score = 60
+        elif hours >= 1:
+            time_score = 40
+        else:
+            time_score = min((hours / 1) * 40, 40)
+
+        # Companies analyzed score (0-100)
+        researched = self.researched_companies_count
+        if researched >= 15:
+            companies_score = 100
+        elif researched >= 10:
+            companies_score = 80
+        elif researched >= 5:
+            companies_score = 60
+        elif researched >= 2:
+            companies_score = 40
+        else:
+            companies_score = min((researched / 2) * 40, 40)
+
+        # Sources score (0-100)
+        sources = self.sources_count
+        if sources >= 15:
+            sources_score = 100
+        elif sources >= 10:
+            sources_score = 80
+        elif sources >= 5:
+            sources_score = 60
+        elif sources >= 2:
+            sources_score = 40
+        else:
+            sources_score = min((sources / 2) * 40, 40)
+
+        # Questions score (0-100)
+        questions = self.questions_count
+        if questions >= 25:
+            questions_score = 100
+        elif questions >= 15:
+            questions_score = 80
+        elif questions >= 8:
+            questions_score = 60
+        elif questions >= 3:
+            questions_score = 40
+        else:
+            questions_score = min((questions / 3) * 40, 40)
+
+        # Weighted average
+        total_score = (
+            word_score * 0.30 +
+            time_score * 0.20 +
+            companies_score * 0.25 +
+            sources_score * 0.15 +
+            questions_score * 0.10
+        )
+
+        return int(total_score)
+
+    @property
+    def progress_stage(self):
+        """Get progress stage emoji and label"""
+        score = self.research_progress_score
+        if score >= 76:
+            return {'emoji': '🟢', 'label': 'Comprehensive'}
+        elif score >= 51:
+            return {'emoji': '🟠', 'label': 'Advanced'}
+        elif score >= 26:
+            return {'emoji': '🟡', 'label': 'In Progress'}
+        else:
+            return {'emoji': '🔴', 'label': 'Early Stage'}
+
+    @property
+    def time_spent_formatted(self):
+        """Format total time spent as readable string"""
+        hours = self.total_time_spent // 3600
+        minutes = (self.total_time_spent % 3600) // 60
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
 
     @property
     def completion_percentage(self):
@@ -809,19 +971,21 @@ class KillChecklistSuggestion(db.Model):
 class ResearchTemplate(db.Model):
     """
     A research template is a reusable workflow that defines how an investor
-    analyzes opportunities. Think of it as a 'recipe' for research that ensures
-    consistency while allowing flexibility for different investment styles.
+    analyzes COMPANIES. Think of it as a 'recipe' for systematic company research
+    that ensures consistency while allowing flexibility for different investment styles.
+
+    Note: Sector research uses a separate free-form notebook approach (SectorAnalysis model).
+    Templates are ONLY for company analysis.
     """
     __tablename__ = 'research_template'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
+
     # Basic template information
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     investment_style = db.Column(db.String(100))  # 'value', 'growth', 'special_situations', etc.
-    research_subject_types = db.Column(db.JSON)  # ['company', 'sector', 'theme', 'market', 'strategy']
     
     # The workflow is stored as JSON to allow maximum flexibility
     # Each step can reference different types of analysis tools
@@ -870,24 +1034,19 @@ class ResearchTemplate(db.Model):
 
 class ResearchProject(db.Model):
     """
-    A research project is an active execution of a research template for any research subject
-    (companies, sectors, markets, themes, strategies). It tracks progress, time spent, 
-    findings, and ultimately research conclusions or investment decisions.
+    A research project is an active execution of a research template for COMPANY analysis.
+    It tracks progress, time spent, findings, and ultimately investment decisions.
+
+    Note: Sector research uses the free-form SectorAnalysis notebook, not this model.
     """
     __tablename__ = 'research_project'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
-    
-    # Multi-subject research support
-    research_subject_type = db.Column(db.String(50), nullable=False, default='company')  # 'company', 'sector', 'market', 'strategy', 'theme'
-    research_subject_name = db.Column(db.String(200))  # Human-readable subject name
-    
-    # Subject-specific foreign keys (nullable for flexibility)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))  # For company research
-    # sector_id will be added when Sector model is created
-    # market_id, theme_id, etc. can be added later as needed
+
+    # Company being researched (required)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     
     # If this project originated from an idea in the pipeline
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
@@ -968,50 +1127,14 @@ class ResearchProject(db.Model):
         return days_idle > 14  # Consider overdue after 2 weeks of inactivity
     
     @property
-    def research_subject(self):
-        """Get the actual research subject object"""
-        if self.research_subject_type == 'company' and self.company:
-            return self.company
-        # Sectors, markets, themes, strategies use research_subject_name for now
-        # TODO: Add dedicated models and relationships as needed
-        return None
-    
-    @property 
     def subject_display_name(self):
-        """Get display name for the research subject"""
-        if self.research_subject_name:
-            return self.research_subject_name
-        elif self.research_subject:
-            return getattr(self.research_subject, 'name', str(self.research_subject))
-        return f"Unknown {self.research_subject_type}"
-    
-    @property
-    def subject_type_display(self):
-        """Get human-readable research subject type"""
-        type_map = {
-            'company': 'Company',
-            'sector': 'Sector', 
-            'market': 'Market',
-            'theme': 'Theme',
-            'strategy': 'Strategy'
-        }
-        return type_map.get(self.research_subject_type, self.research_subject_type.title())
-    
-    @property
-    def requires_kill_checklist(self):
-        """Determine if this research subject type typically needs kill checklist screening"""
-        # Companies always need screening due to high volume
-        if self.research_subject_type == 'company':
-            return True
-        # Sectors might need screening (template-configurable) 
-        elif self.research_subject_type == 'sector':
-            return False  # Template will decide
-        # Markets, themes, strategies typically skip screening
-        else:
-            return False
-    
+        """Get display name for the company being researched"""
+        if self.company:
+            return self.company.name
+        return "Unknown Company"
+
     def __repr__(self):
-        return f'<ResearchProject {self.project_name or f"{self.subject_type_display}: {self.subject_display_name}"}>'
+        return f'<ResearchProject {self.project_name or self.subject_display_name}>'
 
 
 class WorkSession(db.Model):
