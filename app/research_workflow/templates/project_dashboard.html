@@ -1,318 +1,405 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>{{ project.project_name }}</h1>
-        <p class="text-muted mb-0">
-            Template: {{ project.template.name }} |
-            {% if project.research_subject_type == 'company' and project.company %}
-                Company: {{ project.company.name }}
+
+<!-- Onboarding Guidance Modal -->
+{% if request.args.get('from_onboarding') %}
+<div class="modal fade" id="onboardingGuidanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">🎉 Welcome to Your Research Dashboard!</h5>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Congratulations! You've successfully set up your first research template.</p>
+                <p class="mb-3">You're now ready to start your investment research. Here's how to begin:</p>
+                <div class="alert alert-primary border-0" role="alert">
+                    <h6 class="text-primary mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Next Step:
+                    </h6>
+                    <p class="mb-0 small">Click the <strong>"Continue Step"</strong> button below to begin your current research step.</p>
+                </div>
+                <p class="mb-0">The system will guide you through each step of your research workflow.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    Got it! Let's start researching
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <p class="text-primary text-uppercase fw-semibold small mb-2">Value Investing Framework</p>
+            <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
+            <p class="dashboard-subtitle">
+                {% if project.company %}
+                {{ project.company.name }}
                 {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
-            {% else %}
-                {{ project.research_subject_type.title() }}: {{ project.research_subject_name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            {% if project.status == 'active' %}
+            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}" style="display: inline;">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="bi bi-pause-circle"></i> Pause Project
+                </button>
+            </form>
             {% endif %}
-        </p>
-    </div>
-    <div>
-        {% if project.status == 'active' %}
-        <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}"
-            style="display: inline;">
-            <button type="submit" class="btn btn-warning">⏸ Pause Project</button>
-        </form>
-        {% endif %}
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary">Back to Projects</a>
-    </div>
-</div>
-
-<!-- Progress overview -->
-<div class="card mb-4">
-    <div class="card-body">
-        <h5>Overall Progress</h5>
-        <div class="progress" style="height: 30px;">
-            <div class="progress-bar bg-success" role="progressbar" style="width: {{ project.progress_percentage }}%">
-                {{ project.progress_percentage }}% Complete
-            </div>
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
         </div>
-        <div class="row mt-3 text-center">
-            <div class="col">
-                <h4>{{ project.completed_steps|length }}</h4>
-                <small class="text-muted">Steps Completed</small>
-            </div>
-            <div class="col">
-                <h4>{{ project.template.step_count - project.completed_steps|length }}</h4>
-                <small class="text-muted">Steps Remaining</small>
-            </div>
-            <div class="col">
-                <h4>{{ project.total_hours_spent|round(1) }}h</h4>
-                <small class="text-muted">Time Invested</small>
-            </div>
-            <div class="col">
-                <h4>
-                    {% if project.last_worked_at %}
-                    {{ (datetime.utcnow() - project.last_worked_at).days }}d
-                    {% else %}
-                    -
-                    {% endif %}
-                </h4>
-                <small class="text-muted">Days Since Last Work</small>
-            </div>
-        </div>
-    </div>
-</div>
+    </header>
 
-<div class="row">
-    <!-- Current/Next steps -->
-    <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Workflow Steps</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    {% for step in project.template.workflow_steps %}
-                    {% set step_index = loop.index0 %}
-                    {% set is_completed = step_index in project.completed_steps %}
-                    {% set is_current = step_index == project.current_step_index %}
+    <!-- Main Content Grid -->
+    <div class="row g-4">
 
-                    <div
-                        class="list-group-item {% if is_current %}list-group-item-primary{% elif is_completed %}list-group-item-success{% endif %}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">
-                                    {{ loop.index }}. {{ step.name }}
-                                    {% if is_completed %}
-                                    <span class="badge bg-success ms-2">✓ Completed</span>
-                                    {% elif is_current %}
-                                    <span class="badge bg-primary ms-2">Current</span>
-                                    {% endif %}
-                                </h6>
-                                <small class="text-muted">
-                                    Type: {{ step.type|replace('_', ' ')|title }} |
-                                    Est: {{ step.estimated_minutes }} min
+        <!-- Timeline Column (Main) -->
+        <div class="col-lg-8">
+            <h2 class="font-poppins fw-bold mb-4">Project Workflow</h2>
+
+            <!-- All Steps Completed - Make Decision CTA -->
+            {% if project.progress_percentage == 100 and not project.decision %}
+            <div class="alert alert-success border-0 shadow-sm mb-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="bi bi-check-circle-fill me-2"></i>Research Complete!
+                        </h5>
+                        <p class="mb-0">All workflow steps completed. Ready to make your final investment decision.</p>
+                    </div>
+                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                       class="btn btn-success btn-lg ms-3">
+                        <i class="bi bi-clipboard-check"></i> Make Decision
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="project-timeline-container">
+                {% for step in project.template.workflow_steps %}
+                {% set step_index = loop.index0 %}
+                {% set is_completed = step_index in project.completed_steps %}
+                {% set is_current = step_index == project.current_step_index %}
+                {% set is_pending = step_index > project.current_step_index %}
+
+                <div class="project-timeline-item">
+                    <!-- Timeline Dot -->
+                    <div class="project-timeline-dot {% if is_completed %}completed{% elif is_current %}active{% else %}pending{% endif %}">
+                        {% if is_completed %}
+                        <i class="bi bi-check text-white" style="font-size: 0.625rem;"></i>
+                        {% elif is_current %}
+                        <i class="bi bi-arrow-right text-white" style="font-size: 0.625rem;"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- Timeline Card -->
+                    <div class="project-timeline-card {% if is_completed %}completed{% elif is_current %}active{% else %}pending{% endif %}">
+                        {% if is_completed %}
+                        <!-- Completed Step - Minimal View -->
+                        <div class="p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="fw-semibold text-muted mb-1">Step {{ loop.index }}: {{ step.name }}</p>
                                     {% if project.time_per_step and project.time_per_step[step_index|string] %}
-                                    | Actual: {{ project.time_per_step[step_index|string] }} min
+                                    <p class="text-muted small mb-0">Completed • {{ project.time_per_step[step_index|string] }} min</p>
+                                    {% else %}
+                                    <p class="text-muted small mb-0">Completed</p>
                                     {% endif %}
-                                </small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="showNotes('{{ step_index }}')">
+                                    <i class="bi bi-journal-text"></i> View Notes
+                                </button>
                             </div>
-                            <div>
-                                {% if is_current %}
-                                <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
-                                    class="btn btn-primary">Start Step</a>
-                                {% elif is_completed %}
+
+                            <!-- Step notes (hidden by default) -->
+                            <div id="notes-{{ step_index }}" class="mt-3 pt-3 border-top" style="display: none;">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-journal-text text-primary me-2"></i>
+                                    <strong>Step Notes</strong>
+                                </div>
                                 {% if project.step_notes and project.step_notes[step_index|string] %}
-                                <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="showNotes('{{ step_index }}')">View Notes</button>
-                                {% endif %}
+                                <div class="step-notes-content">
+                                    {{ project.step_notes[step_index|string]|markdown|safe }}
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info border-0 mb-0">
+                                    <p class="mb-0"><em>No notes available for this step.</em></p>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Step notes (hidden by default) -->
-                        {% if is_completed and project.step_notes and project.step_notes[step_index|string] %}
-                        <div id="notes-{{ step_index }}" class="mt-3 p-3 bg-light rounded" style="display: none;">
-                            <strong>Notes:</strong><br>
-                            {{ project.step_notes[step_index|string]|replace('\n', '<br>')|safe }}
+                        {% elif is_current %}
+                        <!-- Current Step - Full Card -->
+                        <div class="p-4">
+                            <p class="text-primary fw-semibold small mb-2">CURRENT STEP</p>
+                            <h3 class="fw-bold mb-2">{{ step.name }}</h3>
+                            {% if step.description %}
+                            <p class="text-muted small mb-3">{{ step.description }}</p>
+                            {% endif %}
+                            <div class="d-flex gap-3 text-muted small mb-3">
+                                <span><i class="bi bi-tag"></i> {{ step.type|replace('_', ' ')|title }}</span>
+                                <span><i class="bi bi-clock"></i> Est: {{ step.estimated_minutes }} min</span>
+                            </div>
+                            <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
+                               class="btn btn-primary fw-semibold">
+                                Continue Step <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        </div>
+
+                        {% else %}
+                        <!-- Pending Step - Minimal View -->
+                        <div class="p-3">
+                            <p class="fw-semibold text-muted mb-0">Step {{ loop.index }}: {{ step.name }}</p>
                         </div>
                         {% endif %}
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- Investment thesis evolution -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Evolving Investment Thesis</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
-                    <textarea class="form-control mb-3" name="investment_thesis" rows="4"
-                        placeholder="Document your evolving thesis as you progress through research...">{{ project.investment_thesis or '' }}</textarea>
-                    <button type="submit" class="btn btn-secondary btn-sm">Save Thesis</button>
-                </form>
+        <!-- Intelligence Hub Sidebar -->
+        <div class="col-lg-4">
 
-                <!-- Quick finding buttons -->
-                <div class="mt-3">
-                    <button class="btn btn-success btn-sm" onclick="showAddFindingModal('green_flag')">
-                        + Add Green Flag
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="showAddFindingModal('red_flag')">
-                        + Add Red Flag
-                    </button>
-                </div>
-
-                <!-- Display existing flags -->
-                {% if project.green_flags %}
-                <div class="mt-3">
-                    <h6>✅ Green Flags:</h6>
-                    <ul>
-                        {% for flag in project.green_flags %}
-                        <li>{{ flag }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                {% if project.red_flags %}
-                <div class="mt-3">
-                    <h6>❌ Red Flags:</h6>
-                    <ul>
-                        {% for flag in project.red_flags %}
-                        <li>{{ flag }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-        <!-- Quick actions -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0">Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    {% if project.company_id %}
-                        <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
-                            class="btn btn-outline-primary">View Company Docs</a>
-
-                        <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
-                            class="btn btn-outline-secondary">Research Journal</a>
-                    {% else %}
-                        <a href="{{ url_for('journal_enhanced.search') }}"
-                            class="btn btn-outline-secondary">Research Journal</a>
-                        
-                        <button class="btn btn-outline-muted" disabled>
-                            📁 No Company Documents
-                        </button>
-                    {% endif %}
-
-                    {% if project.progress_percentage == 100 %}
-                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
-                        class="btn btn-success">View Summary & Decision</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Time breakdown -->
-        {% if time_breakdown %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0">Time Breakdown</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="timeChart"></canvas>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Recent work sessions -->
-        {% if recent_sessions %}
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Recent Work Sessions</h6>
-            </div>
-            <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    {% for session in recent_sessions %}
-                    <div class="list-group-item">
-                        <strong>{{ session.step_name }}</strong><br>
-                        <small class="text-muted">
-                            {{ session.start_time.strftime('%Y-%m-%d %H:%M') }}
-                            {% if session.duration_minutes %}
-                            ({{ session.duration_minutes }} min)
+            <!-- Project Vitals -->
+            <div class="project-vitals-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">Project Vitals</h3>
+                <div>
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Status:</span>
+                        <span class="project-vitals-value">
+                            {% if project.status == 'active' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% elif project.status == 'paused' %}
+                            <span class="badge bg-warning">Paused</span>
+                            {% elif project.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
                             {% endif %}
-                        </small>
+                        </span>
                     </div>
-                    {% endfor %}
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Progress:</span>
+                        <span class="project-vitals-value">{{ project.progress_percentage }}%</span>
+                    </div>
+                    <div class="project-progress-bar mb-2">
+                        <div class="project-progress-fill" style="width: {{ project.progress_percentage }}%"></div>
+                    </div>
+                    <div class="project-vitals-item">
+                        <span class="project-vitals-label">Time Spent:</span>
+                        <span class="project-vitals-value">{{ project.total_hours_spent|round(1) }} Hours</span>
+                    </div>
+                    <div class="project-vitals-item border-bottom-0 pb-0">
+                        <span class="project-vitals-label">Days Since Work:</span>
+                        <span class="project-vitals-value">
+                            {% if days_since_last_work is not none %}
+                            {{ days_since_last_work }}d
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
-        {% endif %}
-    </div>
-    <div class="modal fade" id="addFindingModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="findingModalTitle">Add Finding</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST" action="{{ url_for('research_workflow.add_finding', project_id=project.id) }}">
-                    <div class="modal-body">
-                        <input type="hidden" id="finding_type" name="finding_type">
-                        <div class="mb-3">
-                            <label for="finding_text" class="form-label">Finding:</label>
-                            <textarea class="form-control" id="finding_text" name="finding_text" rows="3"
-                                required></textarea>
+
+            <!-- Evolving Thesis -->
+            <div class="evolving-thesis-card mb-4">
+                <h3 class="font-poppins fw-bold mb-2">Evolving Thesis</h3>
+                {% if project.investment_thesis %}
+                <p class="evolving-thesis-text">"{{ project.investment_thesis }}"</p>
+                {% else %}
+                <p class="evolving-thesis-text text-muted">No thesis documented yet. Start building your investment thesis as you progress through research.</p>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#thesisModal">
+                    <i class="bi bi-pencil"></i> Edit Thesis
+                </button>
+            </div>
+
+            <!-- Key Findings -->
+            <div class="key-findings-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">Key Findings</h3>
+                <div>
+                    {% if project.green_flags %}
+                    {% for flag in project.green_flags %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-plus-circle-fill key-finding-icon green"></i>
+                        <div>
+                            <span class="key-finding-label">Green Flag:</span>
+                            <span class="key-finding-text">{{ flag }}</span>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Add Finding</button>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if project.red_flags %}
+                    {% for flag in project.red_flags %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-dash-circle-fill key-finding-icon red"></i>
+                        <div>
+                            <span class="key-finding-label">Red Flag:</span>
+                            <span class="key-finding-text">{{ flag }}</span>
+                        </div>
                     </div>
-                </form>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if not project.green_flags and not project.red_flags %}
+                    <p class="text-muted small mb-0">No key findings documented yet.</p>
+                    {% endif %}
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-success me-2" onclick="showAddFindingModal('green_flag')">
+                        <i class="bi bi-plus-lg"></i> Green Flag
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="showAddFindingModal('red_flag')">
+                        <i class="bi bi-plus-lg"></i> Red Flag
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions-card">
+                <h3 class="font-poppins fw-bold mb-3">Quick Actions</h3>
+                <div>
+                    {% if project.company %}
+                    <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-building"></i> Company Dashboard
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-action-link">
+                        <i class="bi bi-folder"></i> All Projects
+                    </a>
+                    <button class="quick-action-link" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                        <i class="bi bi-lightbulb"></i> Research Tips
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Thesis Modal -->
+<div class="modal fade" id="thesisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Investment Thesis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
+                <div class="modal-body">
+                    <textarea class="form-control" name="investment_thesis" rows="6"
+                              placeholder="Document your evolving thesis as you progress through research...">{{ project.investment_thesis or '' }}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Thesis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Finding Modal -->
+<div class="modal fade" id="addFindingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="findingModalTitle">Add Finding</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" id="addFindingForm">
+                <div class="modal-body">
+                    <input type="hidden" name="finding_type" id="findingType">
+                    <div class="mb-3">
+                        <label for="findingText" class="form-label">Finding Description</label>
+                        <textarea class="form-control" name="finding_text" id="findingText" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Finding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tips Modal -->
+<div class="modal fade" id="tipsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-lightbulb-fill me-2"></i>Research Tips & Best Practices</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="fw-bold">Effective Research Workflow</h6>
+                <ul>
+                    <li>Take detailed notes during each step - they'll be invaluable for your final decision</li>
+                    <li>Document green and red flags as you discover them</li>
+                    <li>Update your investment thesis regularly as your understanding evolves</li>
+                    <li>Don't rush - quality research takes time</li>
+                </ul>
+
+                <h6 class="fw-bold mt-4">Using the Dashboard</h6>
+                <ul>
+                    <li>The timeline shows your progress through the research workflow</li>
+                    <li>Current step is highlighted - click "Continue Step" to work on it</li>
+                    <li>View notes from completed steps anytime by clicking "View Notes"</li>
+                    <li>Track key findings in the sidebar to maintain a clear decision framework</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-    function showNotes(stepIndex) {
-        const notesDiv = document.getElementById(`notes-${stepIndex}`);
-        if (notesDiv.style.display === 'none') {
-            notesDiv.style.display = 'block';
-        } else {
-            notesDiv.style.display = 'none';
-        }
-    }
-
-    // Time breakdown chart
-    {% if time_breakdown %}
-    const ctx = document.getElementById('timeChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ time_breakdown.keys() | list | tojson }},
-        datasets: [{
-            data: {{ time_breakdown.values() | list | tojson }},
-        backgroundColor: [
-            'rgba(255, 99, 132, 0.8)',
-            'rgba(54, 162, 235, 0.8)',
-            'rgba(255, 206, 86, 0.8)',
-            'rgba(75, 192, 192, 0.8)',
-            'rgba(153, 102, 255, 0.8)',
-        ]
-       }]
-   },
-        options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-            },
-            title: {
-                display: false
-            }
-        }
-    }
+// Show onboarding modal if from onboarding flow
+{% if request.args.get('from_onboarding') %}
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('onboardingGuidanceModal'));
+    modal.show();
 });
-    {% endif %}
+{% endif %}
 
-    function showAddFindingModal(findingType) {
-        document.getElementById('finding_type').value = findingType;
-        const title = findingType === 'green_flag' ? 'Add Green Flag' : 'Add Red Flag';
-        document.getElementById('findingModalTitle').textContent = title;
-        new bootstrap.Modal(document.getElementById('addFindingModal')).show();
+// Toggle step notes visibility
+function showNotes(stepIndex) {
+    const notesDiv = document.getElementById('notes-' + stepIndex);
+    if (notesDiv) {
+        notesDiv.style.display = notesDiv.style.display === 'none' ? 'block' : 'none';
     }
+}
+
+// Show add finding modal
+function showAddFindingModal(findingType) {
+    const modal = new bootstrap.Modal(document.getElementById('addFindingModal'));
+    const form = document.getElementById('addFindingForm');
+    const title = document.getElementById('findingModalTitle');
+    const typeInput = document.getElementById('findingType');
+
+    typeInput.value = findingType;
+    title.textContent = findingType === 'green_flag' ? 'Add Green Flag' : 'Add Red Flag';
+    form.action = '{{ url_for("research_workflow.add_finding", project_id=project.id) }}';
+
+    modal.show();
+}
 </script>
 {% endblock %}

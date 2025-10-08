@@ -1,13 +1,16 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
-from flask_login import current_user, login_required 
+from flask_login import current_user, login_required
+from flask import session as flask_session
+
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
 import os
-from datetime import datetime 
+from datetime import datetime
 import fitz
+from app.utils.time_utils import now_utc
 
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
@@ -62,7 +65,7 @@ def select_checklist_for_company(company_id):
     if company.user_id != current_user.id:
     # Or if company.creator != current_user: (if using the backref)
         flash('You are not authorized to access this company.', 'error')
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     user_checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
     
@@ -113,8 +116,7 @@ def select_checklist_for_company(company_id):
                            checklists_data=checklists_data,
                            title=f"Select or Resume Research for {company.name}")
     
-# DEPRECATED: Legacy research session creation removed
-# Research sessions are now handled through the research workflow system
+# This is the checklist execution route
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def research_step(session_id, item_id):
@@ -122,7 +124,7 @@ def research_step(session_id, item_id):
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # Basic security check: ensure the item belongs to the session's checklist
     if current_item.checklist_id != session.checklist_id:
@@ -145,12 +147,10 @@ def research_step(session_id, item_id):
         flash('Error finding current item in checklist order.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=session.checklist_id))
 
-    company_documents_for_llm = []
-    if current_item.llm_prompt:
-        company_docs_query = CompanyDocument.query.filter_by(company_id=session.company_id)\
-                                                .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
-                                                .all()
-        company_documents_for_llm = company_docs_query
+    # Always fetch company documents for the sidebar and AI analysis
+    company_documents_for_llm = CompanyDocument.query.filter_by(company_id=session.company_id)\
+                                            .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
+                                            .all()
         
     # Fetch existing answer for this item in this session
     research_answer = ResearchAnswer.query.filter_by(
@@ -163,7 +163,7 @@ def research_step(session_id, item_id):
         satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
         if research_answer:
             research_answer.answer_text = answer_text
-            research_answer.answered_at = datetime.utcnow()
+            research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status_from_form
         else:
             research_answer = ResearchAnswer(
@@ -186,7 +186,7 @@ def research_step(session_id, item_id):
             db.session.commit()
             flash('Checklist completed! Research session finished.', 'success')
             # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research.view_research_session_summary', session_id=session.id)) # We'll create this route next
+            return redirect(url_for('research.view_checklist_session_summary', session_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -195,15 +195,6 @@ def research_step(session_id, item_id):
     previous_item_id = None
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
-           
-    ##or
-    #TODO: Handle the case where the session is not calculated correctly for the last question
-    # total_items_count = len(all_items_in_order)
-    # answered_count = 0
-    # if total_items_count > 0:
-    #     # Efficiently count answers for this session
-    #     answered_count = ResearchAnswer.query.filter_by(research_session_id=session.id).count()
-    # progress_percent = (answered_count / total_items_count) * 100 if total_items_count > 0 else 0
 
     return render_template(
         'research_step.html',
@@ -438,12 +429,12 @@ def ai_analyze_item(session_id, item_id):
 # We also need a route for the session summary. Let's add a placeholder for now.
 @research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
 @login_required
-def view_research_session_summary(session_id):
+def view_checklist_session_summary(session_id):
     # Fetch the core session object and authorize the user
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
     
     # Handle POST request for updating the session's conclusion
     if request.method == 'POST':
@@ -454,7 +445,7 @@ def view_research_session_summary(session_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        return redirect(url_for('research.view_research_session_summary', session_id=session.id))
+        return redirect(url_for('research.view_checklist_session_summary', session_id=session.id))
 
     # --- GET Request Logic ---
     # Prepare all data needed for rendering the template
@@ -486,13 +477,12 @@ def view_research_session_summary(session_id):
             intrinsic_display_value = str(val)
     
     # 5. Check for research workflow context
-    from flask import session as flask_session
     research_context = flask_session.get('research_context')
 
     # 6. Render the template, passing all the prepared data
     return render_template(
         'session_summary.html',
-        title=f"Research Summary: {session.company.name}", # Use the company name in the title
+        title=f"Checklist Summary: {session.company.name}", # Use the company name in the title
         session=session,
         all_ordered_items=all_ordered_items,
         answers_map=answers_map,
@@ -501,100 +491,6 @@ def view_research_session_summary(session_id):
         research_context=research_context  # Pass research workflow context
     )
 
-# DEPRECATED: Research session deletion moved to research_workflow blueprint
-    
-@research_bp.route('/sessions', methods=['GET'])
-@login_required
-def list_research_sessions():
-    # Redirect to the modern research workflow page which now includes research sessions
-    flash('Research sessions have been integrated into the Research Workflow dashboard.', 'info')
-    return redirect(url_for('research_workflow.my_projects'))
-
-    # Legacy code below - kept for reference but no longer executed
-    user = current_user
-    # Get sorting parameters
-    sort_by = request.args.get('sort', 'date')  # Default sort by date
-    order = request.args.get('order', 'desc')   # Default descending order
-    
-    # Fetch all sessions for this user, ordered by start date descending by default
-    sessions_query = ResearchSession.query.filter_by(user_id=current_user.id)
-    
-    # Apply sorting to the database query when possible
-    if sort_by == 'date':
-        if order == 'desc':
-            sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
-        else:
-            sessions_query = sessions_query.order_by(ResearchSession.start_date.asc())
-    else:
-        # For other sorts, we'll sort in Python after building the data
-        sessions_query = sessions_query.order_by(ResearchSession.start_date.desc())
-    
-    sessions_list = sessions_query.all()
-    
-    sessions_data = []
-    for session in sessions_list:
-        # Get the total number of items for the session's checklist
-        total_item_count = ChecklistItem.query.filter_by(checklist_id=session.checklist_id).count()
-
-        # Get the number of items marked as 'satisfied' for this specific session
-        satisfied_count = ResearchAnswer.query.filter_by(
-            research_session_id=session.id,
-            satisfaction_status='satisfied'
-        ).count()
-        
-        # Calculate outcome for sorting
-        if session.status == 'completed':
-            if total_item_count > 0 and total_item_count == satisfied_count:
-                outcome_sort_value = 1  # Passed
-            else:
-                outcome_sort_value = 2  # Needs Review
-        elif session.status == 'in_progress':
-            outcome_sort_value = 3  # In Progress
-        else:
-            outcome_sort_value = 4  # Other
-        
-        data = {
-            'session_obj': session,
-            'company_name': session.company.name, # Assuming session.company relationship works
-            'checklist_name': session.checklist.name, # Assuming session.checklist relationship works
-            'resume_item_id': None,
-            'total_item_count': total_item_count, # Add total count to data
-            'satisfied_count': satisfied_count,   # Add satisfied count to data
-            'outcome_sort_value': outcome_sort_value  # For sorting purposes
-        }
-        
-        if session.status == 'in_progress':
-            all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
-            if all_items_in_order:
-                # Default to the first item if no other logic finds a better place
-                resume_item_id_candidate = all_items_in_order[0].id 
-                for item in all_items_in_order:
-                    answer_exists = ResearchAnswer.query.filter_by(
-                        research_session_id=session.id,
-                        checklist_item_id=item.id
-                    ).first()
-                    if not answer_exists:
-                        resume_item_id_candidate = item.id 
-                        break
-                data['resume_item_id'] = resume_item_id_candidate
-            else: # Checklist has no items, but session is in_progress
-                data['resume_item_id'] = None # Cannot resume if no items
- 
-        sessions_data.append(data)
-
-    # Apply Python-based sorting for non-date columns
-    if sort_by == 'company':
-        sessions_data.sort(key=lambda x: x['company_name'].lower(), 
-                          reverse=(order == 'desc'))
-    elif sort_by == 'outcome':
-        sessions_data.sort(key=lambda x: x['outcome_sort_value'], 
-                          reverse=(order == 'desc'))
-    # Date sorting is already handled by the database query
-
-    return render_template('list_research_sessions.html', 
-                           sessions_data=sessions_data, 
-                           title="My Research Sessions")
-    
 @research_bp.route('/session/<int:session_id>/export/txt')
 @login_required
 def export_session_to_txt(session_id):
@@ -602,7 +498,7 @@ def export_session_to_txt(session_id):
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
@@ -668,7 +564,6 @@ def task_status(task_id):
     """
     Checks the status of a Celery background task.
     """
-    # Get the task object from the Celery result backend (Redis)
     task = celery.AsyncResult(task_id)
 
     response_data = {
@@ -676,19 +571,23 @@ def task_status(task_id):
     }
 
     if task.state == 'PENDING':
-        # The task is waiting to be picked up by a worker.
         response_data['status_message'] = 'Task is pending...'
     elif task.state == 'SUCCESS':
-        # The task completed successfully.
-        # task.info will contain the return value of your task function.
         response_data['result'] = task.info
         response_data['status_message'] = 'Task completed successfully!'
-    elif task.state != 'FAILURE':
-        # For other states like 'PROGRESS', if you were to implement them.
-        response_data['status_message'] = 'Task is in progress...'
+    elif task.state == 'FAILURE':
+        # This is the key fix. On failure, task.info is the raw exception.
+        # The custom error message we set in the task is stored in the task's metadata.
+        # We access it through the task's result backend.
+        if hasattr(task, 'backend') and hasattr(task.backend, 'get_task_meta'):
+            meta = task.backend.get_task_meta(task.id)
+            # Use our custom message if it exists, otherwise fall back to the raw exception string.
+            response_data['status_message'] = meta.get('exc_message', str(task.info))
+        else:
+            response_data['status_message'] = str(task.info) # Fallback for different backends
     else:
-        # The task failed. task.info will contain the exception.
-        response_data['status_message'] = str(task.info) # The error message
+        # For other states like 'PROGRESS' or 'STARTED'
+        response_data['status_message'] = 'Task is in progress...'
 
     return jsonify(response_data)
 
@@ -698,7 +597,7 @@ def select_model(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # NEW: Check if there is at least one completed research session for this company
     has_completed_research = ResearchSession.query.filter_by(

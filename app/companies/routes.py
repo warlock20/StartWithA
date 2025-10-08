@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import User, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
+from app.models import ResearchProject, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.companies import companies_bp
 from app.tasks import fetch_financial_data_task
@@ -49,7 +49,7 @@ def get_company_market_data(ticker):
 
 @companies_bp.route('/', methods=['GET'])
 @login_required
-def list_companies():
+def companies_dashboard():
     # --- 1. Fetch all necessary data in efficient queries ---
 
     # Get all companies for the current user
@@ -85,72 +85,300 @@ def list_companies():
     favorite_companies_data.sort(key=lambda x: x['company_obj'].name)
     other_companies_data.sort(key=lambda x: x['company_obj'].name)
 
+    # Dashboard overview data
+    dashboard_data = {
+        'portfolio_count': len(portfolio_companies_data),
+        'watchlist_count': len(favorite_companies_data),
+        'research_count': len([p for p in current_user.research_projects.all() if p.status == 'active']),
+        'total_companies': len(all_user_companies),
+        'recent_activity': []  # We'll populate this later
+    }
+
+    # Get recent activity (last 5 items)
+    recent_projects = ResearchProject.query.filter_by(user_id=current_user.id)\
+                                          .order_by(ResearchProject.last_worked_at.desc())\
+                                          .limit(5).all()
+
+    for project in recent_projects:
+        if project.last_worked_at:
+            dashboard_data['recent_activity'].append({
+                'type': 'research',
+                'company_name': project.subject_display_name,
+                'action': f"Research {project.status}",
+                'date': project.last_worked_at,
+                'link': url_for('research_workflow.project_dashboard', project_id=project.id) if project.status == 'active'
+                       else url_for('research_workflow.project_summary', project_id=project.id)
+            })
+
     return render_template(
-        'list_companies.html', 
-        portfolio_companies_data=portfolio_companies_data,
-        favorite_companies_data=favorite_companies_data,
-        other_companies_data=other_companies_data,
+        'companies_dashboard.html',
+        dashboard_data=dashboard_data,
+        portfolio_companies_data=portfolio_companies_data[:3],  # Show top 3 for preview
+        favorite_companies_data=favorite_companies_data[:3],    # Show top 3 for preview
         portfolio_ids=portfolio_ids,
         favorite_ids=favorite_ids,
-        # We no longer need to pass eligible_for_da_ids as it's part of the new structure
-        title=f"{current_user.username}'s Companies"
+        title="Companies Overview"
     )
 
-@companies_bp.route('/new', methods=['GET', 'POST'])
+@companies_bp.route('/portfolio')
+@login_required
+def portfolio():
+    """Portfolio companies dedicated page"""
+    # Get all user companies
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
+
+    # Get additional data for enrichment
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build enriched portfolio data
+    portfolio_companies_data = []
+    for company in portfolio_companies:
+        portfolio_companies_data.append({
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+        })
+
+    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
+
+    # Calculate portfolio metrics
+    active_research_count = current_user.research_projects.filter_by(status='active').count()
+    completed_analysis_count = len([d for d in portfolio_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
+
+    # Sector allocation
+    sectors = {}
+    for company in portfolio_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        sectors[sector] = sectors.get(sector, 0) + 1
+
+    return render_template('portfolio.html',
+                         portfolio_companies_data=portfolio_companies_data,
+                         active_research_count=active_research_count,
+                         completed_analysis_count=completed_analysis_count,
+                         sectors=sectors)
+
+@companies_bp.route('/watchlist')
+@login_required
+def watchlist():
+    """Watchlist/favorite companies dedicated page"""
+    # Get pagination and filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    sector_filter = request.args.get('sector', '', type=str).strip()
+    analysis_status = request.args.get('status', '', type=str).strip()
+
+    # Get all user companies
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+
+    # Filter for watchlist companies (favorites that are not in portfolio)
+    watchlist_companies = [c for c in all_user_companies if c.id in favorite_ids and c.id not in portfolio_ids]
+
+    # Get additional data for enrichment
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build enriched watchlist data
+    watchlist_companies_data = []
+    for company in watchlist_companies:
+        has_completed_checklist = company.id in completed_checklist_ids
+        has_swot = company.id in swot_analysis_ids
+        has_destination_analysis = company.id in dest_analysis_ids
+
+        company_data = {
+            'company_obj': company,
+            'has_completed_checklist': has_completed_checklist,
+            'has_swot': has_swot,
+            'has_destination_analysis': has_destination_analysis,
+        }
+
+        # Apply search filter
+        if search_query:
+            if not (search_query.lower() in company.name.lower() or
+                   (company.ticker_symbol and search_query.lower() in company.ticker_symbol.lower())):
+                continue
+
+        # Apply sector filter
+        if sector_filter:
+            company_sector = company.sector if company.sector else 'Unclassified'
+            if company_sector != sector_filter:
+                continue
+
+        # Apply analysis status filter
+        if analysis_status:
+            if analysis_status == 'analyzed' and not (has_completed_checklist or has_swot or has_destination_analysis):
+                continue
+            elif analysis_status == 'not_analyzed' and (has_completed_checklist or has_swot or has_destination_analysis):
+                continue
+
+        watchlist_companies_data.append(company_data)
+
+    # Sort by company name
+    watchlist_companies_data.sort(key=lambda x: x['company_obj'].name)
+
+    # Paginate
+    total_items = len(watchlist_companies_data)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_data = watchlist_companies_data[start_idx:end_idx]
+
+    # Create pagination object
+    class Pagination:
+        def __init__(self, page, per_page, total_items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total_items
+            self.pages = (total_items + per_page - 1) // per_page if per_page > 0 else 0
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+
+        def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+
+    pagination = Pagination(page, per_page, total_items)
+
+    # Calculate watchlist metrics (from all data, not just current page)
+    research_ready_count = len([d for d in watchlist_companies_data if not d['has_completed_checklist'] and not d['has_swot'] and not d['has_destination_analysis']])
+    analyzed_count = len([d for d in watchlist_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
+
+    # Get all sectors for filter dropdown (from unfiltered watchlist)
+    all_sectors = set()
+    for company in watchlist_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        all_sectors.add(sector)
+
+    sectors_list = sorted(list(all_sectors))
+
+    # Sector allocation (for metrics display)
+    sectors = {}
+    for company in watchlist_companies:
+        sector = company.sector if company.sector else 'Unclassified'
+        sectors[sector] = sectors.get(sector, 0) + 1
+
+    return render_template('watchlist.html',
+                         watchlist_companies_data=paginated_data,
+                         research_ready_count=research_ready_count,
+                         analyzed_count=analyzed_count,
+                         sectors=sectors,
+                         pagination=pagination,
+                         current_search=search_query,
+                         current_sector=sector_filter,
+                         current_status=analysis_status,
+                         current_per_page=per_page,
+                         sectors_list=sectors_list)
+
+@companies_bp.route('/list')
+@login_required
+def list_companies():
+    """Show all companies with pagination, search, and sector filtering"""
+    # Get query parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    sector_filter = request.args.get('sector', '', type=str).strip()
+    type_filter = request.args.get('filter', 'all', type=str).strip()
+
+    # Base query for user's companies
+    query = Company.query.filter_by(user_id=current_user.id)
+
+    # Get all favorite IDs for filtering
+    all_favorite_ids = {c.id for c in current_user.favorites.all()}
+
+    # Apply type filter (portfolio/watchlist/all)
+    if type_filter == 'portfolio':
+        query = query.filter(Company.is_in_portfolio == True)
+    elif type_filter == 'watchlist':
+        query = query.filter(Company.id.in_(all_favorite_ids))
+
+    # Apply search filter
+    if search_query:
+        query = query.filter(
+            db.or_(
+                Company.name.ilike(f'%{search_query}%'),
+                Company.ticker_symbol.ilike(f'%{search_query}%')
+            )
+        )
+
+    # Apply sector filter
+    if sector_filter and sector_filter != 'all':
+        query = query.filter(Company.sector == sector_filter)
+
+    # Order by name
+    query = query.order_by(Company.name)
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    companies = pagination.items
+
+    # Get sets of IDs for categorization
+    favorite_ids = all_favorite_ids
+    portfolio_ids = {c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()}
+
+    # Get sets of company IDs that have a specific analysis completed
+    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
+    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
+
+    # Build the enriched data structure for the template
+    companies_data_list = []
+    for company in companies:
+        data = {
+            'company_obj': company,
+            'has_completed_checklist': company.id in completed_checklist_ids,
+            'has_swot': company.id in swot_analysis_ids,
+            'has_destination_analysis': company.id in dest_analysis_ids,
+            'is_portfolio': company.id in portfolio_ids,
+            'is_favorite': company.id in favorite_ids,
+        }
+        companies_data_list.append(data)
+
+    # Get all unique sectors for filter dropdown
+    all_sectors = db.session.query(Company.sector).filter(
+        Company.user_id == current_user.id,
+        Company.sector.isnot(None),
+        Company.sector != ''
+    ).distinct().order_by(Company.sector).all()
+    sectors = [s[0] for s in all_sectors]
+
+    return render_template('list_companies.html',
+                         companies_data_list=companies_data_list,
+                         pagination=pagination,
+                         portfolio_ids=portfolio_ids,
+                         favorite_ids=favorite_ids,
+                         sectors=sectors,
+                         current_search=search_query,
+                         current_sector=sector_filter,
+                         current_per_page=per_page,
+                         title="All Companies")
+
+@companies_bp.route('/research')
+@login_required
+def research():
+    """Research projects subpage - redirect to research workflow"""
+    return redirect(url_for('research_workflow.my_projects'))
+
+@companies_bp.route('/new')
 @login_required
 def new_company():
-    if request.method == 'POST':
-        base_ticker = request.form.get('base_ticker', '').upper()
-        exchange_suffix = request.form.get('exchange_suffix', '')
-
-        if not base_ticker:
-            flash('Base Ticker Symbol is required.', 'error')
-            return redirect(url_for('companies.new_company'))
-        
-        # Combine the base ticker and suffix to create the full yfinance ticker
-        full_ticker_symbol = f"{base_ticker}{exchange_suffix}"
-
-        try:
-            company_ticker = yf.Ticker(full_ticker_symbol)
-            info = company_ticker.info
-            
-            if info and info.get('longName'):
-                # --- SUCCESSFUL LOOKUP PATH ---
-                company_name = info.get('longName')
-                company_summary = info.get('longBusinessSummary', 'No summary available.')
-                company_sector = info.get('sector', 'N/A')
-                company_industry = info.get('industry', 'N/A')
-                # Check if user already has this company
-                existing_company = Company.query.filter_by(ticker_symbol=full_ticker_symbol, user_id=current_user.id).first()
-                if existing_company:
-                    flash(f'You have already added "{company_name}" ({full_ticker_symbol}) to your list.', 'info')
-                    return redirect(url_for('companies.list_companies'))
-                
-                return render_template('confirm_company.html',
-                                       title="Confirm Company",
-                                       ticker=full_ticker_symbol,
-                                       name=company_name,
-                                       summary=company_summary,
-                                       sector=company_sector,    
-                                       industry=company_industry 
-                                       )
-            else:
-                # --- FAILED LOOKUP / MANUAL OVERRIDE PATH ---
-                flash(f'Could not automatically find details for ticker "{full_ticker_symbol}". Please enter the company name manually.', 'warning')
-                return render_template('new_company_manual.html',
-                                       title="Add Company Manually",
-                                       ticker=full_ticker_symbol) # Pass the full ticker
-        except Exception as e:
-            print(f"yfinance lookup error for ticker {full_ticker_symbol}: {e}")
-            flash(f'An error occurred while looking up ticker "{full_ticker_symbol}". Please enter details manually.', 'warning')
-            return render_template('new_company_manual.html',
-                                   title="Add Company Manually",
-                                   ticker=full_ticker_symbol)
-
-    # For GET request, pass the exchanges dictionary to the template
-    return render_template('new_company.html', 
-                           title="Add New Company", 
-                           exchanges=EXCHANGES)
+    """Redirect to companies dashboard with modal trigger for adding new company"""
+    return redirect(url_for('companies.companies_dashboard', open_modal='add_company'))
 
 @companies_bp.route('/add_confirmed', methods=['POST'])
 @login_required
@@ -158,11 +386,16 @@ def add_company_confirmed():
     for key, value in request.form.items():
         print(f"  - {key}: '{value}'")
 
-    name = request.form.get('name')
-    ticker_symbol = request.form.get('ticker_symbol')
-    summary = request.form.get('summary')
-    sector = request.form.get('sector')
-    industry = request.form.get('industry')
+    name = request.form.get('name', '').strip() if request.form.get('name') else None
+    ticker_symbol = request.form.get('ticker_symbol', '').strip() if request.form.get('ticker_symbol') else None
+    summary = request.form.get('summary', '').strip() if request.form.get('summary') else None
+    sector = request.form.get('sector', '').strip() if request.form.get('sector') else None
+    industry = request.form.get('industry', '').strip() if request.form.get('industry') else None
+
+    # Validate required fields
+    if not name or not ticker_symbol:
+        flash('Company name and ticker symbol are required.', 'error')
+        return redirect(url_for('companies.new_company'))
 
     # Enhanced duplicate detection
     detector = DuplicateDetectionService(current_user.id)
@@ -187,7 +420,7 @@ def add_company_confirmed():
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
     else:
         flash('There was an error adding the company. Please try again.', 'error')
         return redirect(url_for('companies.new_company'))
@@ -200,7 +433,7 @@ def delete_company(company_id):
     # Authorization check
     if company_to_delete.user_id != current_user.id:
         flash("You are not authorized to delete this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     try:
         # Two-phase deletion to handle foreign key constraints
@@ -242,7 +475,7 @@ def delete_company(company_id):
         db.session.rollback()
         flash(f'Error deleting company: {str(e)}', 'error')
 
-    return redirect(url_for('companies.list_companies'))
+    return redirect(url_for('companies.companies_dashboard'))
 
 
 # In app/companies/routes.py
@@ -377,7 +610,7 @@ def toggle_favorite(company_id):
     # Authorization: Ensure user can only favorite their own companies
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company's favorite status.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     if company in current_user.favorites:
         # If it's already a favorite, remove it
@@ -390,7 +623,7 @@ def toggle_favorite(company_id):
 
     db.session.commit()
     # Redirect back to the page the user was on
-    return redirect(request.referrer or url_for('companies.list_companies'))
+    return redirect(request.referrer or url_for('companies.companies_dashboard'))
 
 # Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint
 # For now, placing it under the /companies prefix.
@@ -407,17 +640,17 @@ def serve_company_document(filepath):
         company_id_str = filepath.split(os.sep, 1)[0]
         if not company_id_str.isdigit():
             flash("Invalid file path.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(400)
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(400)
 
         company_id = int(company_id_str)
         doc_company = Company.query.get_or_404(company_id)
         if doc_company.user_id != current_user.id:
             flash("You are not authorized to access this file.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(403)
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(403)
     except Exception as e: # Broad exception for path splitting or int conversion
         print(f"Error in serve_company_document path processing: {e}") # Log this
         flash("Invalid file path.", "error")
-        return redirect(url_for('companies.list_companies')) # Or abort(404)
+        return redirect(url_for('companies.companies_dashboard')) # Or abort(404)
 
     # send_from_directory needs the base directory and then the relative path from that directory
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
@@ -428,7 +661,7 @@ def set_intrinsic_value(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     value_str = request.form.get('value', '').replace(',', '')
     multiplier_str = request.form.get('unit_multiplier', '1')
@@ -463,7 +696,7 @@ def delete_document(doc_id):
     # Authorization: Ensure the user owns the company this document belongs to
     if doc_to_delete.company.user_id != current_user.id:
         flash("You are not authorized to delete this document.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Store company_id for redirection before we delete the object
     company_id = doc_to_delete.company_id
@@ -494,7 +727,7 @@ def fetch_news(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Call the background task
     task = fetch_company_news_task.delay(company.id)
@@ -512,7 +745,7 @@ def fetch_sec_filings(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Get the 'years' value from the form, defaulting to 5 if not found
     years_from_form = request.form.get('years', 5, type=int)
@@ -536,7 +769,7 @@ def add_checkpoint(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     metric = request.form.get('metric')
     expectation = request.form.get('expectation')
@@ -575,7 +808,7 @@ def destination_analysis(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
 
@@ -592,7 +825,7 @@ def update_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to update this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Get data from the form
     new_status = request.form.get('status')
@@ -620,7 +853,7 @@ def delete_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to delete this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     company_id = checkpoint.company_id # Store for redirect before deleting
     try:
@@ -641,7 +874,7 @@ def edit_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to edit this checkpoint.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     if request.method == 'POST':
         # Handle the form submission for updating
@@ -679,7 +912,7 @@ def toggle_portfolio(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Flip the boolean status
     company.is_in_portfolio = not company.is_in_portfolio
@@ -692,7 +925,7 @@ def toggle_portfolio(company_id):
         db.session.rollback()
         flash(f"An error occurred: {e}", "error")
 
-    return redirect(request.referrer or url_for('companies.list_companies'))  
+    return redirect(request.referrer or url_for('companies.companies_dashboard'))  
 
 @companies_bp.route('/<int:company_id>/scuttlebutt')
 @login_required
@@ -700,7 +933,7 @@ def scuttlebutt(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Fetch saved articles for this company, newest first
     articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
@@ -720,7 +953,7 @@ def analyze_scuttlebutt(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Call the background task
     task = analyze_scuttlebutt_task.delay(company.id)
@@ -737,7 +970,7 @@ def swot_analysis(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Try to find an existing SWOT analysis for this company and user
     analysis = QualitativeAnalysis.query.filter_by(
@@ -799,7 +1032,7 @@ def porters_five_forces_analysis(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     analysis_type = 'PortersFiveForces'
     analysis = QualitativeAnalysis.query.filter_by(
@@ -876,7 +1109,7 @@ def financials(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
+        return redirect(url_for('companies.companies_dashboard'))
 
     # Fetch all financial data for this company, ordered by date
     all_financial_data = company.financial_data.order_by(FinancialData.period_date.asc()).all()
@@ -1012,10 +1245,14 @@ def api_create_company():
     try:
         data = request.get_json()
 
-        name = data.get('name', '').strip()
-        ticker_symbol = data.get('ticker_symbol', '').strip().upper()
-        industry = data.get('industry', '').strip() or None
-        sector = data.get('sector', '').strip() or None
+        name = (data.get('name') or '').strip()
+        ticker_symbol = (data.get('ticker_symbol') or '').strip().upper()
+        industry = (data.get('industry') or '').strip() or None
+        sector = (data.get('sector') or '').strip() or None
+        summary = (data.get('summary') or '').strip() or None
+
+        if not ticker_symbol:
+            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
 
         if not name:
             return jsonify({'success': False, 'error': 'Company name is required'})
@@ -1025,7 +1262,7 @@ def api_create_company():
             Company.user_id == current_user.id,
             db.or_(
                 Company.name.ilike(name),
-                db.and_(Company.ticker_symbol == ticker_symbol, ticker_symbol != '')
+                Company.ticker_symbol == ticker_symbol
             )
         ).first()
 
@@ -1039,9 +1276,10 @@ def api_create_company():
         company = Company(
             user_id=current_user.id,
             name=name,
-            ticker_symbol=ticker_symbol if ticker_symbol else None,
+            ticker_symbol=ticker_symbol,
             industry=industry,
-            sector=sector
+            sector=sector,
+            summary=summary
         )
 
         db.session.add(company)
@@ -1054,10 +1292,53 @@ def api_create_company():
                 'name': company.name,
                 'ticker_symbol': company.ticker_symbol,
                 'industry': company.industry,
-                'sector': company.sector
+                'sector': company.sector,
+                'summary': company.summary
             }
         })
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})            
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@companies_bp.route('/api/lookup/<ticker>')
+@login_required
+def api_lookup_ticker(ticker):
+    """AJAX endpoint for looking up company info via yfinance"""
+    import yfinance as yf
+
+    try:
+        ticker = ticker.upper().strip()
+        if not ticker:
+            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
+
+        # Try yfinance lookup
+        company_ticker = yf.Ticker(ticker)
+        info = company_ticker.info
+
+        if info and info.get('longName'):
+            company_info = {
+                'name': info.get('longName'),
+                'ticker_symbol': ticker,
+                'summary': info.get('longBusinessSummary', ''),
+                'sector': info.get('sector', ''),
+                'industry': info.get('industry', ''),
+                'source': 'yfinance'
+            }
+
+            return jsonify({
+                'success': True,
+                'company_info': company_info
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Could not find company data for ticker "{ticker}"'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error looking up ticker: {str(e)}'
+        })            

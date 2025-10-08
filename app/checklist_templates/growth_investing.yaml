@@ -1,0 +1,80 @@
+# Growth Investing Checklist Template
+# Focus on companies with high growth potential and market expansion
+
+name: Growth Investing Framework
+description: Focus on companies with high growth potential and market expansion
+category: investing_style
+difficulty: intermediate
+estimated_time: 3-5 hours
+icon: 🚀
+
+items:
+  - text: Total Addressable Market (TAM)
+    llm_prompt: Assess the size and growth potential of the target market
+    subitems:
+      - text: Current market size estimation
+        llm_prompt: Calculate the current TAM using bottom-up and top-down approaches
+      - text: Market growth rate (CAGR)
+        llm_prompt: Research projected market growth over next 5-10 years
+      - text: Company's potential market share
+        llm_prompt: Estimate realistic market share capture potential
+      - text: Geographic expansion opportunities
+        llm_prompt: Identify untapped international markets for expansion
+      - text: Adjacent market opportunities
+        llm_prompt: Analyze potential to expand into related product categories
+
+  - text: Revenue Growth Analysis
+    llm_prompt: Evaluate the sustainability and quality of revenue growth
+    subitems:
+      - text: Historical revenue growth rate (3-5 years)
+        llm_prompt: Calculate revenue CAGR and identify acceleration/deceleration trends
+      - text: Revenue growth vs. industry average
+        llm_prompt: Compare growth rate to competitors and industry benchmarks
+      - text: Customer acquisition trends
+        llm_prompt: Analyze new customer growth and acquisition costs (CAC)
+      - text: Revenue retention and expansion
+        llm_prompt: Calculate net dollar retention rate and expansion revenue
+      - text: Revenue quality and sustainability
+        llm_prompt: Assess if growth is organic, sustainable, and profitable
+
+  - text: Unit Economics & Scalability
+    llm_prompt: Analyze profitability at the unit level and scalability potential
+    subitems:
+      - text: Customer Lifetime Value (LTV)
+        llm_prompt: Calculate average customer lifetime value
+      - text: Customer Acquisition Cost (CAC)
+        llm_prompt: Determine blended CAC across all channels
+      - text: LTV:CAC ratio > 3:1
+        llm_prompt: Verify the unit economics are healthy and improving
+      - text: Gross margin expansion path
+        llm_prompt: Project how gross margins will improve with scale
+      - text: Operating leverage potential
+        llm_prompt: Analyze how incremental revenue flows to profit
+
+  - text: Competitive Positioning
+    llm_prompt: Assess competitive advantages in a fast-growing market
+    subitems:
+      - text: Technology or product differentiation
+        llm_prompt: Identify unique features and technological advantages
+      - text: Speed of innovation
+        llm_prompt: Evaluate R&D investments and product release cadence
+      - text: First-mover or fast-follower advantage
+        llm_prompt: Assess timing advantage and market position strength
+      - text: Barriers to competition
+        llm_prompt: Analyze what prevents competitors from replicating success
+      - text: Winner-take-most dynamics
+        llm_prompt: Determine if market structure favors dominant players
+
+  - text: Growth Sustainability Factors
+    llm_prompt: Evaluate if growth can continue for multiple years
+    subitems:
+      - text: Product roadmap and pipeline
+        llm_prompt: Review upcoming product launches and feature releases
+      - text: Management execution track record
+        llm_prompt: Assess management's ability to deliver on growth targets
+      - text: Funding and cash runway
+        llm_prompt: Evaluate financial resources to fund growth investments
+      - text: Key risk factors to growth
+        llm_prompt: Identify what could derail or slow down growth trajectory
+      - text: Path to profitability
+        llm_prompt: Project when the company will achieve sustainable profitability

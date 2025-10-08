@@ -1,0 +1,116 @@
+/* =============================================================================
+   CSS VARIABLES - DESIGN TOKENS
+   ============================================================================= */
+
+:root {
+    /* Modern Investment Platform Color Palette */
+    --primary-600: #4338ca;      /* Indigo - main brand */
+    --primary-700: #3730a3;      /* Indigo hover state */
+    --primary-50: #eff6ff;       /* Very light blue for backgrounds */
+    --primary-100: #dbeafe;      /* Light blue for subtle highlights */
+
+    /* Refined Secondary Colors */
+    --gray-50: #f7f8fc;          /* Cooler, modern light gray */
+    --gray-100: #f3f4f6;         /* Light gray for cards */
+    --gray-200: #e5e7eb;         /* Borders and dividers */
+    --gray-300: #d1d5db;         /* Subtle borders */
+    --gray-400: #9ca3af;         /* Muted text */
+    --gray-500: #6b7280;         /* Secondary text */
+    --gray-600: #4b5563;         /* Body text */
+    --gray-700: #374151;         /* Dark text */
+    --gray-800: #1f2937;         /* Headings */
+    --gray-900: #111827;         /* Darkest text */
+
+    /* Sophisticated Semantic Colors */
+    --success-500: #10b981;      /* Green - success */
+    --success-600: #059669;      /* Green hover */
+    --success-50: #f0fdf4;       /* Success background */
+
+    --warning-500: #f59e0b;      /* Warm amber */
+    --warning-600: #d97706;      /* Warm amber hover */
+    --warning-50: #fef3c7;       /* Warning background */
+
+    --danger-500: #ef4444;       /* Error red */
+    --danger-600: #dc2626;       /* Error red hover */
+    --danger-50: #fef2f2;        /* Error background */
+
+    --info-500: #3b82f6;         /* Blue - info */
+    --info-600: #2563eb;         /* Blue hover */
+    --info-50: #eff6ff;          /* Info background */
+
+    /* Additional Platform Colors */
+    --sage-teal: #0f766e;        /* Primary sage teal for wisdom themes */
+    --sage-teal-light: #14b8a6;  /* Lighter sage teal */
+    --warm-amber: #d97706;       /* Primary warm amber for attention themes */
+    --warm-amber-light: #f59e0b; /* Lighter warm amber */
+    --accent-color: #4f46e5;     /* Indigo accent */
+    --charcoal: #374151;         /* Primary charcoal text */
+    --warm-stone: #6b7280;       /* Warm stone for secondary text */
+
+    /* Legacy variable mappings for backwards compatibility */
+    --primary-color: var(--primary-600);
+    --primary-hover: var(--primary-700);
+    --text-dark: var(--text-primary);
+    --bg-light: var(--background-light);
+    --bg-white: var(--background-white);
+    --border-color: var(--border-light);
+
+    /* Text Colors */
+    --text-primary: var(--gray-700);
+    --text-secondary: var(--gray-600);
+    --text-muted: var(--gray-500);
+    --text-white: #ffffff;
+
+    /* Background Colors */
+    --background-light: var(--gray-50);
+    --background-white: #ffffff;
+    --background-dark: var(--gray-800);
+
+    /* Border Colors */
+    --border-light: var(--gray-200);
+    --border-medium: var(--gray-300);
+
+    /* Component Colors */
+    --color-primary: var(--primary-600);
+    --color-primary-dark: var(--primary-700);
+    --color-success: var(--success-500);
+    --color-warning: var(--warning-500);
+    --color-danger: var(--danger-500);
+    --color-info: var(--info-500);
+
+    /* Shadows */
+    --shadow-light: 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-heavy: 0 8px 32px rgba(0,0,0,0.12);
+    --shadow-hover: 0 12px 40px rgba(0,0,0,0.15);
+
+    /* Spacing Scale */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* Typography Scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 2rem;
+
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 24px;
+    --radius-pill: 50px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}

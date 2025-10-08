@@ -1,0 +1,505 @@
+/* =============================================================================
+   COMPANIES LIST - ENHANCED CARD-BASED COMPANY GRID
+   ============================================================================= */
+
+/* Page Container */
+.companies-list-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* Header Section */
+.companies-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    gap: 2rem;
+}
+
+.companies-list-title-section h1 {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.companies-list-title-section h1 i {
+    color: var(--primary-600);
+}
+
+.companies-list-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.companies-list-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* High-Level Insights Cards */
+.companies-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.companies-insight-card {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    border: 2px solid var(--border-light);
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-fast);
+}
+
+.companies-insight-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-medium);
+}
+
+.companies-insight-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.companies-insight-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0.5rem 0;
+}
+
+.companies-insight-secondary {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--primary-600);
+    margin: 0.5rem 0;
+}
+
+/* Filters Card */
+.companies-filter-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--border-light);
+}
+
+.companies-filter-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.companies-filter-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.companies-filter-btn {
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-pill);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+}
+
+.companies-filter-btn:hover {
+    color: var(--primary-600);
+    background: var(--primary-50);
+    border-color: var(--primary-600);
+}
+
+.companies-filter-btn.active {
+    color: var(--primary-600);
+    background: var(--primary-50);
+    border-color: var(--primary-600);
+}
+
+.companies-search-wrapper {
+    flex: 1;
+    min-width: 250px;
+}
+
+.companies-search-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.companies-search-input:focus {
+    outline: none;
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.1);
+}
+
+/* Companies Grid */
+.companies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Company Card */
+.company-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.company-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-heavy);
+}
+
+/* Company Card Header */
+.company-card-header {
+    padding: 1.5rem;
+    flex-grow: 1;
+}
+
+.company-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+}
+
+.company-card-info h3 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 0.25rem 0;
+}
+
+.company-card-ticker {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-400);
+}
+
+.company-card-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-pill);
+}
+
+.company-card-badge.portfolio {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.company-card-badge.watchlist {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Company Card Stats */
+.company-card-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.company-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--gray-600);
+    font-size: var(--font-size-sm);
+}
+
+.company-stat-item i {
+    color: var(--gray-400);
+    width: 16px;
+    text-align: center;
+}
+
+.company-stat-item i.text-success {
+    color: var(--success-500) !important;
+}
+
+.company-stat-item i.text-warning {
+    color: var(--warning-500) !important;
+}
+
+.company-stat-item i.text-danger {
+    color: var(--danger-500) !important;
+}
+
+/* Thesis Health Badge */
+.thesis-health {
+    font-weight: 600;
+}
+
+.thesis-health.on-track {
+    color: var(--success-500);
+}
+
+.thesis-health.needs-review {
+    color: var(--warning-500);
+}
+
+.thesis-health.not-started {
+    color: var(--gray-400);
+}
+
+/* Company Card Footer */
+.company-card-footer {
+    background: var(--gray-50);
+    padding: 1rem 1.5rem;
+    margin-top: auto;
+    border-top: 1px solid var(--border-light);
+}
+
+.company-card-link {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--primary-600);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    transition: color var(--transition-fast);
+}
+
+.company-card-link:hover {
+    color: var(--primary-700);
+    gap: 0.5rem;
+}
+
+.company-card-link i {
+    font-size: 1.25rem;
+}
+
+/* Empty State */
+.companies-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, var(--gray-50), white);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-light);
+}
+
+.companies-empty-state i {
+    font-size: 5rem;
+    color: var(--gray-300);
+    margin-bottom: 1.5rem;
+}
+
+.companies-empty-state h3 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-bottom: 0.75rem;
+}
+
+.companies-empty-state p {
+    font-size: var(--font-size-base);
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+/* Pagination */
+.companies-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+}
+
+.companies-pagination-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-light);
+    background: white;
+    color: var(--gray-700);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.companies-pagination-btn:hover:not(:disabled) {
+    border-color: var(--primary-600);
+    color: var(--primary-600);
+}
+
+.companies-pagination-btn.active {
+    background: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+}
+
+.companies-pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Sector Selector */
+.companies-sector-selector {
+    padding: 0.625rem 1rem;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--gray-700);
+    background: white;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 180px;
+}
+
+.companies-sector-selector:focus {
+    outline: none;
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.1);
+}
+
+/* Loading State */
+.companies-loading {
+    text-align: center;
+    padding: 3rem;
+}
+
+.companies-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--gray-200);
+    border-top-color: var(--primary-600);
+    border-radius: 50%;
+    animation: companies-spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes companies-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .companies-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .companies-list-container {
+        padding: 1rem;
+    }
+
+    .companies-list-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .companies-list-title-section h1 {
+        font-size: var(--font-size-2xl);
+    }
+
+    .companies-list-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .companies-insights-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .companies-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .companies-filter-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .companies-search-wrapper {
+        width: 100%;
+    }
+
+    .companies-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .companies-sector-selector {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .companies-list-title-section h1 {
+        font-size: var(--font-size-xl);
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .companies-insight-value {
+        font-size: 2rem;
+    }
+
+    .company-card-header {
+        padding: 1.25rem;
+    }
+
+    .company-card-footer {
+        padding: 0.75rem 1.25rem;
+    }
+}
+
+/* =============================================================================
+   DROPDOWN FIX - Prevent blinking when dropdown overlaps other cards
+   ============================================================================= */
+
+/* Elevate card when dropdown is open */
+.completed-project-card {
+    position: relative;
+    z-index: 1;
+    transition: z-index 0s;
+}
+
+.completed-project-card:has(.dropdown-menu.show) {
+    z-index: 1000;
+}
+
+/* Ensure dropdown menu stays on top */
+.completed-project-card .dropdown-menu {
+    z-index: 1050 !important;
+    position: absolute !important;
+}

@@ -3,36 +3,58 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (IdeaPipeline, KillChecklist, KillCriterion,
-                       KillSession, KillAnswer, Company)
+from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
+                       KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
+                       KillChecklistSuggestion, MistakeLog, SectorAnalysis)
 from app.services.duplicate_detection import DuplicateDetectionService
+from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
-from datetime import datetime, timedelta
+from app.sectors.routes import initialize_default_sections
+from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
+from app.utils.time_utils import now_utc
 
 @ideas_bp.route('/inbox')
 @login_required
 def inbox():
     """Display the user's idea inbox - ideas waiting to be evaluated"""
-    # Query for ideas that are in the inbox or survived but have not been promoted
+    # Query for ideas that are in the inbox, being evaluated (killing), or survived but not promoted
     ideas = IdeaPipeline.query.filter(
         IdeaPipeline.user_id == current_user.id,
-        IdeaPipeline.status.in_(['inbox', 'survived'])
+        IdeaPipeline.status.in_(['inbox', 'killing', 'survived'])
     ).order_by(IdeaPipeline.created_at.desc()).all()
-    
+
     default_kill_checklist = KillChecklist.query.filter_by(
-        user_id=current_user.id, 
+        user_id=current_user.id,
         is_default=True
     ).first()
     all_kill_checklists = KillChecklist.query.filter_by(user_id=current_user.id).all()
-    return render_template('inbox.html', 
+
+    # Calculate days since oldest idea (handle timezone awareness)
+    days_since_oldest = None
+    if ideas:
+        oldest_idea = min(ideas, key=lambda x: x.created_at)
+        if oldest_idea.created_at:
+            from app.utils.time_utils import ensure_timezone_aware
+            oldest_date_aware = ensure_timezone_aware(oldest_idea.created_at)
+            current_time = now_utc()
+            days_since_oldest = (current_time - oldest_date_aware).days
+
+    from flask import make_response
+    response = make_response(render_template('inbox.html',
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
                           all_kill_checklists=all_kill_checklists,
-                          now=datetime.utcnow()
-                          )
+                          now=now_utc(),
+                          days_since_oldest=days_since_oldest
+                          ))
+    # Prevent caching to ensure fresh data is always loaded
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @ideas_bp.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -57,10 +79,65 @@ def add_idea():
             flash('Source is required - please specify where this idea came from', 'error')
             return redirect(url_for('ideas.add_idea'))
 
+        # Handle sector ideas - check if adding directly to notebook
+        if idea_type == 'sector':
+            add_to_notebook = request.form.get('add_to_notebook') == 'true'
+
+            if add_to_notebook:
+                # User chose to add directly to notebook
+                # Check if sector notebook already exists
+                existing_sector = SectorAnalysis.query.filter_by(
+                    user_id=current_user.id,
+                    sector_name=name
+                ).first()
+
+                if existing_sector:
+                    flash(f'Opening existing sector notebook for "{name}"', 'info')
+                    return redirect(url_for('sectors.notebook', sector_name=existing_sector.sector_name))
+                else:
+                    flash(f'Creating sector notebook for "{name}". Add your research notes there!', 'success')
+                    # Create new sector notebook
+                    new_sector = SectorAnalysis(
+                        author=current_user,
+                        sector_name=name
+                    )
+                    db.session.add(new_sector)
+                    db.session.commit()
+
+                    # Initialize default sections
+                    initialize_default_sections(new_sector)
+
+                    return redirect(url_for('sectors.notebook', sector_name=new_sector.sector_name))
+            # If not adding to notebook directly, continue to add to inbox below
+
         # Validate company requirement for investment companies
         if idea_purpose == 'investment' and idea_type == 'company' and not company_id:
             flash('Company selection is required for company investment ideas', 'error')
             return redirect(url_for('ideas.add_idea'))
+
+        # Check for existing research projects for this company (Intelligent Duplication Prevention)
+        if company_id:
+            # Check for active research project
+            active_project = ResearchProject.query.filter_by(
+                user_id=current_user.id,
+                company_id=company_id,
+                status='active'
+            ).first()
+
+            if active_project:
+                flash(f'You already have an active research project for this company. Redirecting to project dashboard.', 'info')
+                return redirect(url_for('research_workflow.project_dashboard', project_id=active_project.id))
+
+            # Check for completed research project
+            completed_project = ResearchProject.query.filter_by(
+                user_id=current_user.id,
+                company_id=company_id,
+                status='completed'
+            ).first()
+
+            if completed_project:
+                flash(f'You already have completed research for this company. Redirecting to project summary.', 'info')
+                return redirect(url_for('research_workflow.project_summary', project_id=completed_project.id))
 
         # Enhanced duplicate detection
         detector = DuplicateDetectionService(current_user.id)
@@ -107,7 +184,21 @@ def add_idea():
             db.session.rollback()
             flash(f'Error adding idea: {str(e)}', 'error')
 
-    return render_template('add_idea.html', title="Quick Capture")
+    # Get URL parameters for pre-filling and highlighting
+    prefill_type = request.args.get('type', '')
+    from_start = request.args.get('from_start', '')
+
+    # If coming from start-new flow, show flash message
+    if from_start == 'true':
+        if prefill_type == 'company':
+            flash('Add your company idea here to start the research process', 'info')
+        elif prefill_type == 'sector':
+            flash('Add your sector idea here to start the research process', 'info')
+
+    return render_template('add_idea.html',
+                          title="Quick Capture",
+                          prefill_type=prefill_type,
+                          from_start=from_start)
 
 # In app/ideas/routes.py
 
@@ -169,9 +260,9 @@ def kill_room(idea_id):
             idea.status = 'killed'
             idea.kill_reason = current_criterion.question
             idea.failed_criterion = current_criterion
-            idea.killed_at = datetime.utcnow()
+            idea.killed_at = now_utc()
             kill_session.outcome = 'killed'
-            kill_session.completed_at = datetime.utcnow()
+            kill_session.completed_at = now_utc()
             kill_session.checklist.total_ideas_evaluated += 1
             kill_session.checklist.total_ideas_killed += 1
             db.session.commit()
@@ -193,9 +284,9 @@ def kill_room(idea_id):
         
         # If no next criterion is found, the idea survived
         idea.status = 'survived'
-        idea.promoted_at = datetime.utcnow()
+        idea.promoted_at = now_utc()
         kill_session.outcome = 'survived'
-        kill_session.completed_at = datetime.utcnow()
+        kill_session.completed_at = now_utc()
         kill_session.checklist.total_ideas_evaluated += 1
         db.session.commit()
         
@@ -217,23 +308,53 @@ def kill_room(idea_id):
 @ideas_bp.route('/graveyard')
 @login_required
 def graveyard():
+    from app.utils.time_utils import ensure_timezone_aware
     killed_ideas = current_user.idea_pipeline.filter_by(status='killed').order_by(IdeaPipeline.killed_at.desc()).all()
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and idea.killed_at > thirty_days_ago)
+    thirty_days_ago = now_utc() - timedelta(days=30)
+    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and ensure_timezone_aware(idea.killed_at) > thirty_days_ago)
     kill_reasons = {}
     for idea in killed_ideas:
         reason = idea.kill_reason or "Unknown"
         if reason not in kill_reasons:
             kill_reasons[reason] = []
         kill_reasons[reason].append(idea)
+
+    # Calculate most common kill reason count
+    most_common_count = max((len(ideas) for ideas in kill_reasons.values()), default=0)
+
     return render_template('graveyard.html', title="Idea Graveyard", killed_ideas=killed_ideas,
-                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count)
+                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count,
+                           most_common_count=most_common_count)
 
 @ideas_bp.route('/kill-checklists')
 @login_required
 def manage_kill_checklists():
-    checklists = current_user.kill_checklists.all()
-    return render_template('manage_kill_checklists.html', title="Kill Checklists", checklists=checklists)
+    """Show kill checklists for the currently logged-in user with pagination and sorting"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 12  # Show 12 checklists per page
+    sort = request.args.get('sort', 'recent')
+
+    # Build query with sorting
+    query = KillChecklist.query.filter_by(user_id=current_user.id)
+
+    if sort == 'name':
+        query = query.order_by(KillChecklist.name)
+    elif sort == 'criteria':
+        # Sort by number of criteria
+        from sqlalchemy import func
+        query = query.outerjoin(KillCriterion).group_by(KillChecklist.id)\
+                     .order_by(func.count(KillCriterion.id).desc())
+    elif sort == 'oldest':
+        query = query.order_by(KillChecklist.created_at)
+    else:  # 'recent' is default
+        query = query.order_by(KillChecklist.created_at.desc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template('manage_kill_checklists.html',
+                          title="Kill Checklists",
+                          checklists=pagination.items,
+                          pagination=pagination)
 
 @ideas_bp.route('/kill-checklists/new', methods=['GET', 'POST'])
 @login_required
@@ -345,8 +466,43 @@ def promote_idea(idea_id):
     
     if request.method == 'POST':
         promotion_action = request.form.get('action')
-        
-        if promotion_action == 'create_company' and idea.idea_type == 'company':
+
+        # Handle sector ideas - create/open sector notebook
+        if promotion_action == 'start_sector_research' and idea.idea_type == 'sector':
+            # Check if sector notebook already exists
+            existing_sector = SectorAnalysis.query.filter_by(
+                user_id=current_user.id,
+                sector_name=idea.name
+            ).first()
+
+            if existing_sector:
+                flash(f'Opening existing sector notebook for "{idea.name}"', 'info')
+                # Mark idea as promoted
+                idea.status = 'promoted'
+                idea.promoted_at = now_utc()
+                db.session.commit()
+                return redirect(url_for('sectors.notebook', sector_name=existing_sector.sector_name))
+            else:
+                # Create new sector notebook
+                new_sector = SectorAnalysis(
+                    author=current_user,
+                    sector_name=idea.name
+                )
+                db.session.add(new_sector)
+                db.session.flush()
+
+                # Initialize default sections
+                initialize_default_sections(new_sector)
+
+                # Mark idea as promoted
+                idea.status = 'promoted'
+                idea.promoted_at = now_utc()
+                db.session.commit()
+
+                flash(f'Sector notebook created for "{idea.name}". Start adding your research!', 'success')
+                return redirect(url_for('sectors.notebook', sector_name=new_sector.sector_name))
+
+        elif promotion_action == 'create_company' and idea.idea_type == 'company':
             # Check if company with ticker already exists
             if idea.ticker_symbol:
                 existing_company = Company.query.filter_by(ticker_symbol=idea.ticker_symbol).first()
@@ -363,7 +519,7 @@ def promote_idea(idea_id):
             db.session.flush()
             idea.promoted_to_company = company
             idea.status = 'promoted'
-            idea.promoted_at = datetime.utcnow()
+            idea.promoted_at = now_utc()
             db.session.commit()
             flash(f'"{idea.name}" promoted to your companies list!', 'success')
             return redirect(url_for('research_workflow.intelligent_routing', company_id=company.id, source='idea_promotion'))
@@ -376,7 +532,6 @@ def promote_idea(idea_id):
                 return redirect(request.url)
             
             # Verify template ownership
-            from app.models import ResearchTemplate, ResearchProject
             template = ResearchTemplate.query.get_or_404(template_id)
             if template.user_id != current_user.id:
                 flash('Access denied', 'error')
@@ -400,13 +555,15 @@ def promote_idea(idea_id):
                     flash(f'You already have a research project for {company_for_constraint_check.name}. Only one project per company is allowed.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
-            # Create research project
+            # Create research project (company-only)
+            if not company_for_constraint_check:
+                flash('Company selection is required for research projects', 'error')
+                return redirect(url_for('ideas.promote_idea', idea_id=idea.id))
+
             project = ResearchProject(
                 researcher=current_user,
                 template=template,
-                research_subject_type=idea.idea_type,
-                research_subject_name=idea.name,
-                company_id=company_for_constraint_check.id if (idea.idea_type == 'company' and company_for_constraint_check) else None,
+                company_id=company_for_constraint_check.id,
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,
@@ -419,7 +576,7 @@ def promote_idea(idea_id):
             try:
                 db.session.add(project)
                 idea.status = 'promoted'
-                idea.promoted_at = datetime.utcnow()
+                idea.promoted_at = now_utc()
                 db.session.commit()
                 
                 from app.analytics.utils import log_research_activity
@@ -438,7 +595,6 @@ def promote_idea(idea_id):
                 return redirect(url_for('ideas.inbox'))
     
     # Get available templates for the GET request
-    from app.models import ResearchTemplate
     templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
     
     return render_template('promote_idea.html', 
@@ -454,7 +610,10 @@ def edit_idea(idea_id):
     if idea.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('ideas.inbox'))
-    
+
+    # Get return URL from query parameter, default to inbox
+    return_to = request.args.get('return_to', 'inbox')
+
     if request.method == 'POST':
         idea.name = request.form.get('name', idea.name)
         idea.idea_type = request.form.get('idea_type', idea.idea_type)
@@ -472,7 +631,7 @@ def edit_idea(idea_id):
             ).first()
             if existing_company:
                 flash(f'You already have a company with ticker {new_ticker}: {existing_company.name}. Cannot change to this ticker.', 'error')
-                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id, return_to=return_to))
 
             # Check existing ideas (excluding current idea)
             existing_idea = IdeaPipeline.query.filter(
@@ -482,7 +641,7 @@ def edit_idea(idea_id):
             ).first()
             if existing_idea:
                 flash(f'You already have an idea with ticker {new_ticker}: {existing_idea.name} (Status: {existing_idea.status}). Cannot change to this ticker.', 'error')
-                return redirect(url_for('ideas.edit_idea', idea_id=idea.id))
+                return redirect(url_for('ideas.edit_idea', idea_id=idea.id, return_to=return_to))
 
         idea.ticker_symbol = new_ticker
         idea.source = request.form.get('source')
@@ -492,11 +651,15 @@ def edit_idea(idea_id):
         try:
             db.session.commit()
             flash('Idea updated successfully', 'success')
-            return redirect(url_for('ideas.inbox'))
+            # Route back to the appropriate page
+            if return_to == 'graveyard':
+                return redirect(url_for('ideas.graveyard'))
+            else:
+                return redirect(url_for('ideas.inbox'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating idea: {str(e)}', 'error')
-            
+
     base_ticker, exchange_suffix = '', ''
     if idea.ticker_symbol:
         if '.' in idea.ticker_symbol:
@@ -505,9 +668,10 @@ def edit_idea(idea_id):
             exchange_suffix = '.' + parts[1]
         else:
             base_ticker = idea.ticker_symbol
-            
+
     return render_template('edit_idea.html', title="Edit Idea", idea=idea,
-                           exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix)
+                           exchanges=EXCHANGES, base_ticker=base_ticker, exchange_suffix=exchange_suffix,
+                           return_to=return_to)
 
 @ideas_bp.route('/<int:idea_id>/delete', methods=['POST'])
 @login_required
@@ -518,9 +682,6 @@ def delete_idea(idea_id):
         return redirect(url_for('ideas.inbox'))
 
     try:
-        # Delete related records first to avoid foreign key constraint violations
-        from app.models import ResearchLog, ResearchProject, JournalEntry
-
         # Delete research logs that reference this idea
         ResearchLog.query.filter_by(idea_id=idea_id).delete()
 
@@ -568,7 +729,7 @@ def mark_someday(idea_id):
         return redirect(url_for('ideas.inbox'))
     
     idea.status = 'someday'
-    idea.last_reviewed_at = datetime.utcnow()
+    idea.last_reviewed_at = now_utc()
     
     try:
         db.session.commit()
@@ -630,3 +791,246 @@ def search_sources():
     # Return list of source names
     result = [{'source': source[0], 'count': source[1]} for source in sources]
     return jsonify(result)
+
+
+# ===============================================
+# DYNAMIC KILL CHECKLIST - INTELLIGENT FEATURES
+# ===============================================
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/suggestions')
+@login_required
+def get_checklist_suggestions(checklist_id):
+    """Get intelligent suggestions for optimizing a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Get pending suggestions for this checklist
+        suggestions = KillChecklistSuggestion.query.filter_by(
+            kill_checklist_id=checklist_id,
+            user_id=current_user.id,
+            status='pending'
+        ).order_by(KillChecklistSuggestion.effectiveness_gain.desc()).all()
+
+        # Convert to JSON format
+        suggestions_data = []
+        for suggestion in suggestions:
+            suggestions_data.append({
+                'id': suggestion.id,
+                'type': suggestion.suggestion_type,
+                'title': suggestion.title,
+                'description': suggestion.description,
+                'reasoning': suggestion.reasoning,
+                'effectiveness_gain': suggestion.effectiveness_gain,
+                'confidence_score': suggestion.confidence_score,
+                'created_at': suggestion.created_at.isoformat(),
+                'age_hours': suggestion.age_hours,
+                'suggestion_data': suggestion.suggestion_data
+            })
+
+        return jsonify({
+            'suggestions': suggestions_data,
+            'checklist_stats': {
+                'total_evaluations': checklist.total_ideas_evaluated,
+                'kill_rate': checklist.kill_rate,
+                'criteria_count': checklist.criteria_count
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/analyze', methods=['POST'])
+@login_required
+def analyze_checklist(checklist_id):
+    """Trigger analysis and generate new suggestions for a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Generate reordering suggestions
+        reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist_id)
+        suggestions_created = 0
+
+        if reorder_suggestion:
+            db.session.add(reorder_suggestion)
+            suggestions_created += 1
+
+        # Generate cleanup suggestions
+        cleanup_suggestions = KillChecklistAnalytics._suggest_cleanup(checklist_id)
+        for suggestion in cleanup_suggestions:
+            db.session.add(suggestion)
+            suggestions_created += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f'Analysis complete. {suggestions_created} new suggestions generated.',
+            'suggestions_created': suggestions_created
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/suggestions/<int:suggestion_id>/apply', methods=['POST'])
+@login_required
+def apply_suggestion(suggestion_id):
+    """Apply a suggestion to optimize the kill checklist"""
+    try:
+        success = SuggestionEngine.apply_suggestion(suggestion_id, current_user.id)
+
+        if success:
+            return jsonify({'message': 'Suggestion applied successfully'})
+        else:
+            return jsonify({'error': 'Failed to apply suggestion'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/suggestions/<int:suggestion_id>/reject', methods=['POST'])
+@login_required
+def reject_suggestion(suggestion_id):
+    """Reject a suggestion"""
+    try:
+        suggestion = KillChecklistSuggestion.query.filter_by(
+            id=suggestion_id,
+            user_id=current_user.id,
+            status='pending'
+        ).first()
+
+        if not suggestion:
+            return jsonify({'error': 'Suggestion not found'}), 404
+
+        suggestion.status = 'rejected'
+        suggestion.responded_at = now_utc()
+        db.session.commit()
+
+        return jsonify({'message': 'Suggestion rejected'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/kill-checklist/<int:checklist_id>/effectiveness')
+@login_required
+def get_effectiveness_analysis(checklist_id):
+    """Get detailed effectiveness analysis for a kill checklist"""
+    try:
+        checklist = KillChecklist.query.filter_by(
+            id=checklist_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+
+        # Analyze each criterion
+        criteria_analysis = []
+        for criterion in checklist.criteria.order_by(KillCriterion.order):
+            # Calculate/update effectiveness score
+            effectiveness = KillChecklistAnalytics.calculate_criterion_effectiveness(criterion.id)
+
+            criteria_analysis.append({
+                'id': criterion.id,
+                'question': criterion.question,
+                'order': criterion.order,
+                'times_evaluated': criterion.times_evaluated,
+                'times_failed': criterion.times_failed,
+                'failure_rate': criterion.failure_rate,
+                'effectiveness_score': effectiveness,
+                'last_used': criterion.last_used.isoformat() if criterion.last_used else None,
+                'auto_suggested': criterion.auto_suggested,
+                'has_source_mistake': criterion.source_mistake_id is not None
+            })
+
+        return jsonify({
+            'checklist': {
+                'id': checklist.id,
+                'name': checklist.name,
+                'total_evaluations': checklist.total_ideas_evaluated,
+                'total_kills': checklist.total_ideas_killed,
+                'kill_rate': checklist.kill_rate
+            },
+            'criteria_analysis': criteria_analysis,
+            'recommendations': {
+                'most_effective': max(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+                'least_effective': min(criteria_analysis, key=lambda x: x['effectiveness_score'])['question'] if criteria_analysis else None,
+                'underutilized': [c['question'] for c in criteria_analysis if c['times_evaluated'] < 5]
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@ideas_bp.route('/api/mistake-log/<int:mistake_id>/suggest-criteria', methods=['POST'])
+@login_required
+def suggest_criteria_from_mistake(mistake_id):
+    """Analyze a mistake and suggest kill criteria to prevent similar issues"""
+    try:
+        mistake = MistakeLog.query.filter_by(
+            id=mistake_id,
+            user_id=current_user.id
+        ).first()
+
+        if not mistake:
+            return jsonify({'error': 'Mistake not found'}), 404
+
+        # Generate suggestion from mistake
+        suggestion = KillChecklistAnalytics.analyze_mistake_for_criteria(mistake_id)
+
+        if suggestion:
+            db.session.add(suggestion)
+            db.session.commit()
+
+            return jsonify({
+                'message': 'Suggestion generated from mistake analysis',
+                'suggestion': {
+                    'id': suggestion.id,
+                    'title': suggestion.title,
+                    'description': suggestion.description,
+                    'suggested_criterion': suggestion.suggestion_data.get('new_criterion', {}).get('question')
+                }
+            })
+        else:
+            return jsonify({
+                'message': 'No actionable criteria could be extracted from this mistake',
+                'reason': 'The mistake description may not contain specific patterns that can be converted to kill criteria'
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# Webhook for milestone-based suggestions (called from kill session completion)
+def trigger_milestone_analysis(user_id, checklist_id, evaluation_count):
+    """Trigger milestone-based analysis (called internally)"""
+    try:
+        SuggestionEngine.process_evaluation_milestone(user_id, checklist_id, evaluation_count)
+    except Exception as e:
+        print(f"Error in milestone analysis: {e}")
+
+
+# Webhook for mistake-based suggestions (called when mistake is logged)
+def trigger_mistake_analysis(mistake_id):
+    """Trigger mistake-based analysis (called internally)"""
+    try:
+        SuggestionEngine.process_mistake_logged(mistake_id)
+    except Exception as e:
+        print(f"Error in mistake analysis: {e}")

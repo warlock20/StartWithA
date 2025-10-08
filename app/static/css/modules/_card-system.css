@@ -1,0 +1,728 @@
+/* =============================================================================
+   PROFESSIONAL CARD SYSTEM
+   ============================================================================= */
+
+/* NOTE: Basic card styles are in _cards.css
+   This module contains the complete professional card system with
+   metrics, headers, badges, and interactive elements */
+
+   PROFESSIONAL CARD SYSTEM
+   ============================================================================= */
+
+/* Base Professional Card */
+.pro-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-normal);
+}
+
+.pro-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.pro-card-body {
+    padding: var(--space-lg);
+}
+
+/* Framework Cards (like dashboard) */
+.framework-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-normal);
+}
+
+.framework-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-heavy);
+}
+
+.framework-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+}
+
+.framework-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.framework-icon.primary {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+}
+
+.framework-icon.success {
+    background: linear-gradient(135deg, var(--accent-green) 0%, #58d68d 100%);
+}
+
+.framework-icon.danger {
+    background: linear-gradient(135deg, var(--accent-red) 0%, #ec7063 100%);
+}
+
+.framework-icon.warning {
+    background: linear-gradient(135deg, var(--accent-orange) 0%, #f7dc6f 100%);
+}
+
+.framework-title {
+    flex: 1;
+}
+
+.framework-title h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.framework-title p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.framework-body {
+    padding: var(--space-lg);
+}
+
+/* Status Indicators */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.active {
+    background: var(--accent-green);
+}
+
+.status-indicator.inactive {
+    background: var(--accent-orange);
+}
+
+.status-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.status-indicator.active + .status-text {
+    color: var(--accent-green);
+}
+
+.status-indicator.inactive + .status-text {
+    color: var(--accent-orange);
+}
+
+/* =============================================================================
+   METRIC CARDS & STATISTICS
+   ============================================================================= */
+
+.metric-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    text-align: center;
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-light);
+    height: 100%;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.metric-value {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--accent-blue);
+    line-height: 1;
+    margin-bottom: var(--space-xs);
+}
+
+.metric-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-sublabel {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-xs);
+}
+
+/* Colored Metric Variants */
+.metric-card.primary .metric-value { color: var(--accent-blue); }
+.metric-card.success .metric-value { color: var(--accent-green); }
+.metric-card.danger .metric-value { color: var(--accent-red); }
+.metric-card.warning .metric-value { color: var(--accent-orange); }
+
+/* =============================================================================
+   PAGE HEADERS & SECTIONS
+   ============================================================================= */
+
+.page-header-pro {
+    background: linear-gradient(135deg, var(--background-light) 0%, #e8f4f8 100%);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--space-2xl) 0;
+    margin-bottom: var(--space-xl);
+}
+
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+    letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-bottom: 0;
+}
+
+.section-header {
+    margin-bottom: var(--space-xl);
+    text-align: center;
+}
+
+.section-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.section-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* =============================================================================
+   LIST ITEMS & INTERACTIVE ELEMENTS
+   ============================================================================= */
+
+.pro-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) 0;
+    border-bottom: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+}
+
+.pro-list-item:last-child {
+    border-bottom: none;
+}
+
+.pro-list-item:hover {
+    background: var(--background-light);
+    margin: 0 calc(-1 * var(--space-lg));
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+    border-radius: var(--radius-md);
+}
+
+.list-item-content {
+    flex: 1;
+}
+
+.list-item-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.list-item-meta {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.list-item-action {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--background-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.list-item-action:hover {
+    background: var(--accent-blue);
+    color: white;
+    transform: translateX(2px);
+}
+
+/* =============================================================================
+   BADGES & STATUS INDICATORS
+   ============================================================================= */
+
+.badge-pro {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-pro.primary {
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--accent-blue);
+}
+
+.badge-pro.success {
+    background: rgba(39, 174, 96, 0.1);
+    color: var(--accent-green);
+}
+
+.badge-pro.warning {
+    background: rgba(243, 156, 18, 0.1);
+    color: var(--accent-orange);
+}
+
+.badge-pro.danger {
+    background: rgba(231, 76, 60, 0.1);
+    color: var(--accent-red);
+}
+
+/* =============================================================================
+   EMPTY STATES
+   ============================================================================= */
+
+.empty-state {
+    text-align: center;
+    padding: var(--space-2xl) var(--space-md);
+}
+
+.empty-illustration {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--background-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--space-lg);
+    color: var(--text-muted);
+    font-size: 2rem;
+}
+
+.empty-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.empty-description {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-lg);
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.empty-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+/* =============================================================================
+   DROPDOWN MENUS
+   ============================================================================= */
+
+.dropdown-menu-pro {
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: var(--space-sm) 0;
+    box-shadow: var(--shadow-heavy);
+    border: 1px solid var(--border-color);
+    min-width: 280px;
+    background: var(--background-white);
+    backdrop-filter: blur(10px);
+}
+
+.dropdown-header-pro {
+    padding: var(--space-sm) var(--space-md) var(--space-xs);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--space-sm);
+}
+
+.dropdown-item-pro {
+    padding: var(--space-sm) var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    border: none;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+.dropdown-item-pro:hover {
+    background: var(--background-light);
+    transform: translateX(2px);
+    color: var(--text-primary);
+}
+
+.dropdown-item-pro:focus {
+    background: var(--background-light);
+    box-shadow: inset 3px 0 0 var(--accent-blue);
+    color: var(--text-primary);
+}
+
+.dropdown-item-pro i {
+    width: 20px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.dropdown-item-pro .item-content {
+    flex: 1;
+}
+
+.dropdown-item-pro strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.dropdown-item-pro small {
+    font-size: var(--font-size-sm);
+    line-height: 1.3;
+    color: var(--text-muted);
+}
+
+/* =============================================================================
+   GLOBAL VISUAL ENHANCEMENTS (Non-structural)
+   ============================================================================= */
+
+/* Enhance existing Bootstrap cards with professional styling - Inspired by Sample Dashboard */
+.card {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1) !important;
+    background-color: white !important;
+}
+
+.card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05) !important;
+    transform: translateY(-4px) !important;
+}
+
+.card-header {
+    background: var(--gray-50) !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    font-weight: 600 !important;
+    color: var(--gray-800) !important;
+}
+
+
+/* Typography enhancements */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Table styling improvements */
+.table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.table thead th {
+    background: var(--gray-800) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+    border-top: none !important;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease !important;
+}
+
+.table tbody tr:hover {
+    background: var(--gray-50) !important;
+}
+
+.table tbody td {
+    border-top: 1px solid var(--border-light) !important;
+    padding: 1rem !important;
+    vertical-align: middle !important;
+}
+
+.table tbody td:first-child {
+    border-left: none !important;
+}
+
+/* Progress bar styling */
+.progress {
+    background-color: var(--gray-200) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+}
+
+.progress-bar {
+    background-color: var(--primary-600) !important;
+    color: white !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    transition: width 0.3s ease !important;
+}
+
+/* Badge improvements */
+.badge {
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+.bg-primary {
+    background-color: var(--primary-600) !important;
+}
+
+.bg-success {
+    background-color: var(--success-500) !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-500) !important;
+}
+
+.bg-danger {
+    background-color: var(--danger-500) !important;
+}
+
+.bg-info {
+    background-color: var(--info-500) !important;
+}
+
+.bg-secondary {
+    background-color: var(--gray-500) !important;
+}
+
+/* Alert styling */
+.alert {
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    padding: 1rem !important;
+}
+
+.alert-info {
+    background-color: var(--info-50) !important;
+    border-color: var(--info-500) !important;
+    color: var(--gray-800) !important;
+}
+
+/* Form styling improvements */
+.form-control {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 6px !important;
+    padding: 0.5rem 0.75rem !important;
+    transition: all 0.2s ease !important;
+    font-size: 0.875rem !important;
+}
+
+.form-control:focus {
+    border-color: var(--primary-600) !important;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15) !important;
+    outline: none !important;
+}
+
+.form-select {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 6px !important;
+    padding: 0.5rem 2rem 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+}
+
+.form-select:focus {
+    border-color: var(--primary-600) !important;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Page header improvements */
+.page-header h1 {
+    font-size: 2.5rem !important;
+    margin-bottom: 0.5rem !important;
+    color: var(--gray-900) !important;
+}
+
+.page-header p {
+    font-size: 1.1rem !important;
+    color: var(--gray-600) !important;
+}
+
+/* Filter button group styling */
+.project-filter-group .btn-check:checked + .btn {
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+    color: white !important;
+    box-shadow: none !important;
+}
+
+.project-filter-group .btn-check:checked + .btn:hover {
+    background-color: var(--primary-700) !important;
+    border-color: var(--primary-700) !important;
+    color: white !important;
+}
+
+.project-filter-group .btn-check:focus + .btn {
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25) !important;
+}
+
+.project-filter-group .btn-outline-primary {
+    transition: all 0.2s ease !important;
+}
+
+.project-filter-group .btn-outline-primary:not(:checked) {
+    background-color: transparent !important;
+    border-color: var(--gray-300) !important;
+    color: var(--gray-600) !important;
+}
+
+.project-filter-group .btn-outline-primary:hover:not(.btn-check:checked + .btn) {
+    background-color: var(--gray-50) !important;
+    border-color: var(--primary-600) !important;
+    color: var(--primary-600) !important;
+}
+
+/* Additional table fixes for analytics pages */
+.table-responsive {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 8px !important;
+}
+
+.table thead th:first-child {
+    border-top-left-radius: 8px !important;
+}
+
+.table thead th:last-child {
+    border-top-right-radius: 8px !important;
+}
+
+/* Ensure table displays properly */
+.table {
+    margin-bottom: 0 !important;
+    width: 100% !important;
+}
+
+.table td, .table th {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+}
+
+.table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 8px !important;
+}
+
+.table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 8px !important;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 2rem;
+    }
+    
+    .framework-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+    
+    .pro-card-body {
+        padding: var(--space-md);
+    }
+    
+    .framework-body {
+        padding: var(--space-md);
+    }
+    
+    .btn-pro {
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-muted { color: var(--text-muted) !important; }
+
+.bg-light-pro { background-color: var(--background-light) !important; }
+.bg-white-pro { background-color: var(--background-white) !important; }
+
+.border-light-pro { border-color: var(--border-color) !important; }
+
+.shadow-light-pro { box-shadow: var(--shadow-light) !important; }
+.shadow-medium-pro { box-shadow: var(--shadow-medium) !important; }
+.shadow-heavy-pro { box-shadow: var(--shadow-heavy) !important; }
+
+.rounded-pro { border-radius: var(--radius-lg) !important; }
+.rounded-xl-pro { border-radius: var(--radius-xl) !important; }
+
+.transition-pro { transition: all var(--transition-normal) !important; }
+/* =============================================================================

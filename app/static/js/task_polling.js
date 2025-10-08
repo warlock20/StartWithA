@@ -1,8 +1,7 @@
 // In app/static/js/task_polling.js
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const pollingDiv = document.getElementById('task-polling-status');
-    const generateBtn = document.getElementById('generate-ai-summary-btn'); 
     // Return early if the polling div doesn't exist on the page
     if (!pollingDiv) return;
 
@@ -21,16 +20,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 Your request is being processed. This may take a few minutes...
             </div>
         `;
-        if (generateBtn) {
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = `
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Processing...
-            `;
-        }
-        const interval = setInterval(function() {
+        
+        const interval = setInterval(function () {
             // Poll the task_status route
-            fetch(`/research/task_status/${taskId}`)
+            fetch(`/tasks/task_status/${taskId}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log('Polling status:', data);
@@ -39,32 +32,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         clearInterval(interval); // Stop polling
 
                         let alertClass = data.state === 'SUCCESS' ? 'alert-success' : 'alert-danger';
-                        let finalMessage = data.state === 'SUCCESS' ? 'Task completed successfully!' : 'Task failed.';
+                        let finalMessage = '';
+
+                        if (data.state === 'SUCCESS') {
+                            finalMessage = data.message || 'Task completed successfully! Page will now reload.';
+                        } else {
+                            // Use the specific error message from the backend
+                            finalMessage = `Task failed: ${data.message || 'An unknown error occurred.'} The page will reload.`;
+                        }
 
                         // Display the final status message
                         pollingDiv.innerHTML = `
                             <div class="alert ${alertClass}">
-                                ${finalMessage} The page will now reload to show the results.
+                                ${finalMessage}
                             </div>
                         `;
 
-                        // Reload the page after a short delay to show the new documents
-                        setTimeout(function() {
-                                // This reloads the page to its base URL, removing the "?task_id=..." part
-                                window.location.href = window.location.pathname;
-                            }, 2500);
+                        // Always reload the page after a delay to show results or clear the polling state
+                        setTimeout(function () {
+                            // This reloads the page to its base URL, removing the "?task_id=..." part
+                            window.location.href = window.location.pathname;
+                        }, 4000); // Increased delay for error messages
                     }
                     // If the task is still PENDING or in another state, the interval will just continue.
                 })
                 .catch(error => {
                     clearInterval(interval);
-                    pollingDiv.innerHTML = `<div class="alert alert-danger">Error: Could not check task status.</div>`;
+                    pollingDiv.innerHTML = `<div class="alert alert-danger">Error: Could not check task status. Please manually refresh the page.</div>`;
                     console.error('Polling error:', error);
-
-                    if (generateBtn) {
-                        generateBtn.disabled = false;
-                        generateBtn.innerHTML = '✨ Generate New AI Summary'; // Restore original text
-                    }
                 });
         }, 5000); // Poll every 5 seconds
     }

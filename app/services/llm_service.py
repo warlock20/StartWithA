@@ -9,6 +9,8 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+import signal
+import time
 
 # LLM API imports
 try:
@@ -170,12 +172,14 @@ class UnifiedLLMService:
             if not GEMINI_AVAILABLE:
                 raise ImportError("Google Generative AI not installed. Install with: pip install google-generativeai")
 
+            # Use environment variable directly (same as working ResearchJournalIntelligence)
             api_key = os.getenv('GEMINI_API_KEY')
             if not api_key:
-                raise ValueError("GEMINI_API_KEY environment variable not set")
+                raise ValueError("GEMINI_API_KEY not found in environment variables")
 
+            # Configure Gemini API with default endpoint
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            self.model = genai.GenerativeModel('gemini-pro')
 
     async def generate_content_async(self, prompt: str, **kwargs) -> str:
         """Generate content using the configured LLM provider (async)"""
@@ -190,16 +194,44 @@ class UnifiedLLMService:
             return self._gemini_generate(prompt, **kwargs)
         else:
             raise NotImplementedError("Synchronous OpenAI calls not supported. Use generate_content_async instead.")
-
+        
     def _gemini_generate(self, prompt: str, **kwargs) -> str:
-        """Generate content using Gemini"""
+        """Generate content using Gemini with signal-based timeout"""
+        def timeout_handler(signum, frame):
+            _ = signum, frame  # Mark parameters as used
+            raise TimeoutError("Gemini API call timed out after 60 seconds")
+
         try:
-            response = self.model.generate_content(prompt)
+            # Set up the signal handler for timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(60)  # 60 second timeout
+
+            logger.info("Starting Gemini API call...")
+
+            # Handle Gemini-specific parameters
+            generation_config = {}
+            if 'max_tokens' in kwargs:
+                generation_config['max_output_tokens'] = kwargs['max_tokens']
+
+            if generation_config:
+                response = self.model.generate_content(prompt, generation_config=generation_config)
+            else:
+                response = self.model.generate_content(prompt)
+
+            # Clear the alarm
+            signal.alarm(0)
+
             return response.text
+
+        except TimeoutError as e:
+            logger.error(f"Gemini API timeout: {e}")
+            raise
         except Exception as e:
+            # Clear the alarm in case of other errors
+            signal.alarm(0)
             logger.error(f"Gemini generation error: {e}")
             raise
-
+        
     async def _openai_generate(self, prompt: str, **kwargs) -> str:
         """Generate content using OpenAI"""
         try:
@@ -223,58 +255,37 @@ class UnifiedLLMService:
 
     def generate_json(self, prompt: str, **kwargs) -> Dict:
         """Generate structured JSON response"""
-        system_message = kwargs.get('system_message', "You are a helpful assistant. Always respond with valid JSON.")
-
+        timeout = kwargs.get('timeout', 180) # Default timeout of 180 seconds (3 minutes)
+        
         if self.provider == LLMProvider.GEMINI:
             try:
-                response = self.model.generate_content(prompt)
+                generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
+                request_options = {"timeout": timeout}
+                
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=generation_config,
+                    request_options=request_options
+                )
+                
                 content = response.text
+                
+                if not content:
+                    raise ValueError("Received empty response from Gemini API")
 
-                # Remove markdown code blocks if present
-                if "```json" in content:
-                    content = content.split("```json")[1].split("```")[0].strip()
-                elif "```" in content:
-                    # Handle generic code blocks
-                    parts = content.split("```")
-                    if len(parts) >= 3:
-                        content = parts[1].strip()
-
-                # Try to find JSON in the response
-                content = content.strip()
-
-                # Look for JSON object boundaries
-                start_idx = content.find('{')
-                if start_idx == -1:
-                    raise ValueError("No opening brace found in Gemini response")
-
-                # Find matching closing brace
-                brace_count = 0
-                end_idx = -1
-                for i, char in enumerate(content[start_idx:], start_idx):
-                    if char == '{':
-                        brace_count += 1
-                    elif char == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            end_idx = i + 1
-                            break
-
-                if end_idx == -1:
-                    raise ValueError("No matching closing brace found in Gemini response")
-
-                json_content = content[start_idx:end_idx]
+                # The API should return valid JSON, but this is a safeguard
+                json_content = content.strip()
                 return json.loads(json_content)
 
-            except json.JSONDecodeError as e:
-                logger.error(f"Gemini JSON generation error: {e}")
-                logger.error(f"Content that failed to parse: {content}")
-                raise ValueError(f"No valid JSON found in response: {str(e)}")
             except Exception as e:
+                if 'DeadlineExceeded' in str(e) or 'timeout' in str(e).lower():
+                     logger.error(f"Gemini API call for JSON timed out after {timeout} seconds.")
+                     raise TimeoutError(f"Gemini API call for JSON timed out after {timeout} seconds.")
                 logger.error(f"Gemini JSON generation error: {e}")
+                logger.error(f"Content that failed to parse: {content if 'content' in locals() else 'N/A'}")
                 raise
         else:
             raise NotImplementedError("OpenAI JSON generation not implemented yet")
-
 
 class LLMChecklistProcessor(UnifiedLLMService):
     """Specialized service for document-to-checklist conversion"""
@@ -283,60 +294,21 @@ class LLMChecklistProcessor(UnifiedLLMService):
         super().__init__(provider)
 
     def _create_prompt(self, document_text: str, approach: ProcessingApproach) -> str:
-        """Create LLM prompt based on processing approach"""
-
-        base_prompt = """
-You are an expert investment analyst helping to convert a document into a structured investment checklist.
-
-Analyze the following document and extract actionable checklist items for investment analysis.
-
-REQUIREMENTS:
-1. Extract items as hierarchical bullet points (main items and sub-items)
-2. Focus on actionable analysis questions and evaluation criteria
-3. Suggest relevant LLM prompts for each item where appropriate
-4. Categorize items by investment analysis area when possible
-5. Provide a suggested checklist name and description
-
-DOCUMENT CONTENT:
-{document_text}
-
-IMPORTANT: Respond with ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks.
-
-OUTPUT FORMAT - Return exactly this JSON structure:
-{{
-    "suggested_name": "Brief descriptive name for this checklist",
-    "suggested_description": "2-3 sentence description of the checklist purpose",
-    "items": [
-        {{
-            "text": "Main checklist item text",
-            "llm_prompt": "Optional: Suggested LLM prompt for this item",
-            "category": "Optional: Category like 'Financial', 'Competitive', 'Management', etc.",
-            "sub_items": [
-                {{
-                    "text": "Sub-item text",
-                    "llm_prompt": "Optional LLM prompt"
-                }}
-            ]
-        }}
-    ]
-}}
-"""
+        """Create LLM prompt based on processing approach using centralized prompt service"""
+        from app.services.prompt_service import prompt_service
 
         if approach == ProcessingApproach.IMMEDIATE:
-            return base_prompt + """
-PROCESSING MODE: IMMEDIATE
-- Provide a complete, ready-to-use checklist
-- Use high confidence thresholds
-- Focus on the most important items only
-"""
+            return prompt_service.get_prompt(
+                'document_processing',
+                'document_to_checklist_immediate',
+                document_text=document_text
+            )
         else:  # INTERACTIVE
-            return base_prompt + """
-PROCESSING MODE: INTERACTIVE
-- Extract ALL potential checklist items (even uncertain ones)
-- Include confidence scores for each item
-- Provide multiple options where applicable
-- The user will review and edit these suggestions
-"""
+            return prompt_service.get_prompt(
+                'document_processing',
+                'document_to_checklist_interactive',
+                document_text=document_text
+            )
 
     async def process_with_openai(self, prompt: str) -> Dict:
         """Process document using OpenAI API"""
@@ -454,7 +426,6 @@ PROCESSING MODE: INTERACTIVE
         approach: ProcessingApproach
     ) -> ProcessingResult:
         """Main processing method"""
-        import time
         start_time = time.time()
 
         try:

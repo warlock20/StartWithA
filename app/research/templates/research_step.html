@@ -1,214 +1,223 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<!-- Clean, focused research evaluation page -->
-<div class="research-session-container">
-    <!-- Minimal header with progress -->
-    <div class="research-header">
-        <div class="container-fluid px-4">
-            <div class="d-flex justify-content-between align-items-center py-3">
-                <div class="research-subject">
-                    <h2 class="mb-1">{{ session.company.name }}</h2>
-                    <p class="text-muted mb-0">{{ session.company.ticker_symbol }} • {{ session.checklist.name }}</p>
-                </div>
-                <div class="progress-indicator">
-                    <div class="progress-stats mb-2">
-                        <span class="current">{{ current_item_number }}</span>
-                        <span class="divider">/</span>
-                        <span class="total">{{ total_items }}</span>
-                    </div>
-                    <div class="progress-bar-minimal">
-                        <div class="progress-fill" data-progress="{{ progress_percent }}"></div>
-                    </div>
-                </div>
+<div class="container-fluid mt-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>Research: {{ session.company.name }} ({{ session.company.ticker_symbol }})</h1>
+                <p class="text-muted mb-0">Using Checklist: "{{ session.checklist.name }}" • Progress: Item {{
+                    current_item_number }} of {{ total_items }}</p>
+            </div>
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary me-2">← Back to
+                    Projects</a>
             </div>
         </div>
     </div>
 
-    <!-- Main content area - focused and centered -->
-    <div class="research-content">
-        <div class="container-fluid">
-            <div class="row justify-content-center">
-                <div class="col-lg-8 col-xl-7">
-
-                    <!-- Current checklist item card -->
-                    <div class="question-card">
-                        <div class="question-header">
-                            <span class="question-number">Question {{ current_item_number }}</span>
-                            {% if current_item.parent %}
-                            <span class="question-context">Sub-item of: {{ current_item.parent.text }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="question-text">
-                            {{ current_item.text }}
-                        </div>
-                    </div>
-
-                    <!-- AI Analysis Section (if available) -->
-                    {% if current_item.llm_prompt %}
-                    <div class="ai-section">
-                        <div class="framework-card mb-4">
-                            <div class="framework-header">
-                                <div class="framework-icon warning">
-                                    <i class="bi bi-robot"></i>
-                                </div>
-                                <div class="framework-title">
-                                    <h4>AI Analysis Assistant</h4>
-                                    <p>Use AI to help analyze this question</p>
-                                </div>
-                                <div class="framework-status">
-                                    <button type="button" class="btn-pro outline-primary btn-sm"
-                                        data-bs-toggle="collapse" data-bs-target="#aiAnalysisSection"
-                                        aria-expanded="false">
-                                        <i class="bi bi-magic"></i> Use AI
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="collapse" id="aiAnalysisSection">
-                                <div class="framework-body">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">AI Prompt:</label>
-                                        <div class="ai-prompt-display">{{ current_item.llm_prompt }}</div>
-                                    </div>
-
-                                    <form id="aiAnalysisForm"
-                                        data-analysis-url="{{ url_for('research.ai_analyze_item', session_id=session.id, item_id=current_item.id) }}">
-                                        <input type="hidden" name="llm_actual_prompt"
-                                            value="{{ current_item.llm_prompt }}">
-                                        <input type="hidden" name="session_id_for_ai" value="{{ session.id }}">
-                                        <input type="hidden" name="item_id_for_ai" value="{{ current_item.id }}">
-
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">AI Model:</label>
-                                            <div class="d-flex gap-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="selected_ai_model" id="localModel" value="local" checked>
-                                                    <label class="form-check-label" for="localModel">
-                                                        <i class="bi bi-shield-check"></i> Local (Private)
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="selected_ai_model" id="geminiModel" value="gemini">
-                                                    <label class="form-check-label" for="geminiModel">
-                                                        <i class="bi bi-cloud"></i> Gemini (Powerful)
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {% if company_documents %}
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Select Documents:</label>
-                                            <div class="documents-grid">
-                                                {% for doc in company_documents %}
-                                                <div class="document-item">
-                                                    <input class="form-check-input" type="checkbox"
-                                                        name="selected_document_ids" value="{{ doc.id }}"
-                                                        id="doc_{{ doc.id }}">
-                                                    <label class="form-check-label" for="doc_{{ doc.id }}">
-                                                        <div class="doc-name">{{ doc.document_title if
-                                                            doc.document_title else doc.original_filename }}</div>
-                                                        <div class="doc-type">{{ doc.document_group }}</div>
-                                                    </label>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        <button type="button" id="submitAIAnalysisPlaceholderButton"
-                                            class="btn-pro primary w-100">
-                                            <i class="bi bi-magic"></i> Analyze with AI
-                                        </button>
-                                        {% else %}
-                                        <div class="alert alert-info">
-                                            <i class="bi bi-info-circle"></i>
-                                            No company documents available.
-                                            <a href="{{ url_for('companies.company_dashboard', company_id=session.company_id) }}"
-                                                class="alert-link">
-                                                Upload documents
-                                            </a> for AI analysis.
-                                        </div>
-                                        {% endif %}
-                                    </form>
-
-                                    <div id="aiAnalysisResult" class="mt-3"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="row">
+        <main class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Question {{ current_item_number }}: {{ current_item.text }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if current_item.parent %}
+                    <p class="text-muted">Sub-item of: {{ current_item.parent.text }}</p>
                     {% endif %}
 
-                    <!-- Answer form -->
-                    <div class="answer-section">
-                        <div class="framework-card">
-                            <div class="framework-header">
-                                <div class="framework-icon primary">
-                                    <i class="bi bi-pencil-square"></i>
-                                </div>
-                                <div class="framework-title">
-                                    <h4>Your Analysis</h4>
-                                    <p>Record your findings and evaluation</p>
+                    <div class="d-flex gap-2 mt-3">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="readQuestionAloud()"
+                            title="Read Question Aloud">
+                            <i class="bi bi-volume-up"></i> Read Aloud
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFocusMode()"
+                            title="Toggle Focus Mode">
+                            <i class="bi bi-eye"></i> Focus
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- AI Analysis Section (if available) -->
+            {% if current_item.llm_prompt %}
+            <div class="accordion mb-4" id="aiAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseAI">
+                            ✨ <strong>Analyze with AI Assistant</strong>
+                        </button>
+                    </h2>
+                    <div id="collapseAI" class="accordion-collapse collapse" data-bs-parent="#aiAccordion">
+                        <div class="accordion-body">
+                            <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
+
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Select Documents for AI Context:</strong></label>
+                                <div class="document-list border rounded p-3"
+                                    style="max-height: 200px; overflow-y: auto;">
+                                    {% if company_documents %}
+                                    {% for doc in company_documents %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="{{ doc.id }}"
+                                            id="doc{{ doc.id }}" checked>
+                                        <label class="form-check-label" for="doc{{ doc.id }}">{{ doc.document_title or
+                                            doc.original_filename }}</label>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <div class="text-muted">No documents uploaded yet</div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="framework-body">
-                                <form method="POST"
-                                    action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}"
-                                    class="form-pro">
-                                    <div class="mb-4">
-                                        <label for="answer_text" class="form-label fw-bold">Your Answer/Notes:</label>
-                                        <textarea class="form-control answer-textarea" id="answer_text"
-                                            name="answer_text" rows="6"
-                                            placeholder="Enter your analysis, findings, and notes for this question...">{{ answer.answer_text if answer else '' }}</textarea>
-                                    </div>
 
-                                    <div class="mb-4">
-                                        <label for="satisfaction_status" class="form-label fw-bold">Evaluation
-                                            Status:</label>
-                                        <select id="satisfaction_status" name="satisfaction_status" class="form-select">
-                                            <option value="neutral" {% if not answer or not answer.satisfaction_status
-                                                or answer.satisfaction_status=='neutral' %}selected{% endif %}>
-                                                <i class="bi bi-dash-circle"></i> Neutral / Informational
-                                            </option>
-                                            <option value="satisfied" {% if answer and
-                                                answer.satisfaction_status=='satisfied' %}selected{% endif %}>
-                                                ✅ Satisfied / Met
-                                            </option>
-                                            <option value="not_satisfied" {% if answer and
-                                                answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>
-                                                ❌ Not Satisfied / Not Met
-                                            </option>
-                                            <option value="needs_attention" {% if answer and
-                                                answer.satisfaction_status=='needs_attention' %}selected{% endif %}>
-                                                ⚠️ Needs Attention
-                                            </option>
-                                        </select>
-                                    </div>
+                            <button type="button" class="btn btn-primary"><i class="bi bi-robot"></i> Run AI
+                                Analysis</button>
 
-                                    <div class="navigation-actions">
-                                        {% if previous_item_id %}
-                                        <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
-                                            class="btn btn-outline-secondary">
-                                            <i class="bi bi-arrow-left"></i> Previous
-                                        </a>
-                                        {% else %}
-                                        <div></div>
-                                        {% endif %}
-
-                                        <button type="submit" class="btn-pro success">
-                                            <i class="bi bi-check-circle"></i> Save & Continue
-                                        </button>
-                                    </div>
-                                </form>
+                            <div id="aiAnalysisResult" class="mt-3">
+                                <!-- AI results will appear here -->
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
-        </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Answer & Synthesis</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST"
+                        action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
+                        <div class="mb-3">
+                            <label for="answer_text" class="form-label">Synthesize your findings, incorporating your
+                                research and insights.</label>
+                            <textarea class="form-control" id="answer_text" name="answer_text" rows="12"
+                                placeholder="Start writing your analysis...">{{ answer.answer_text if answer else '' }}</textarea>
+                        </div>
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <label for="satisfaction_status" class="form-label">Status for this item:</label>
+                                <select id="satisfaction_status" name="satisfaction_status" class="form-select">
+                                    <option value="neutral" {% if not answer or not answer.satisfaction_status or
+                                        answer.satisfaction_status=='neutral' %}selected{% endif %}>Neutral /
+                                        Informational</option>
+                                    <option value="satisfied" {% if answer and answer.satisfaction_status=='satisfied'
+                                        %}selected{% endif %}>✅ Satisfied / Met</option>
+                                    <option value="not_satisfied" {% if answer and
+                                        answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>❌ Not
+                                        Satisfied / Not Met</option>
+                                    <option value="needs_attention" {% if answer and
+                                        answer.satisfaction_status=='needs_attention' %}selected{% endif %}>⚠️ Needs
+                                        Attention</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                {% if previous_item_id %}
+                                <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
+                                    class="btn btn-secondary">← Previous Item</a>
+                                {% endif %}
+                                <button type="submit" class="btn btn-success">Save and Next →</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <aside class="col-lg-4 context-sidebar">
+            <div class="sticky-top">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ session.company.name }} ({{ session.company.ticker_symbol }})</h5>
+                        <p class="card-text text-muted">{{ session.company.sector|default('Technology', true) }} • {{
+                            session.company.market_cap_category|default('Large Cap', true) }}</p>
+                        <p><strong>Market Cap:</strong> {{ session.company.market_cap|default('$250.0B', true) }}</p>
+                        <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-primary" role="progressbar"
+                                style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}"
+                                aria-valuemin="0" aria-valuemax="100">
+                                Progress: {{ progress_percent }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-files"></i> Relevant Documents</h6>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% if company_documents %}
+                        {% for doc in company_documents %}
+                        <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
+                            class="list-group-item list-group-item-action" target="_blank">
+                            {{ doc.document_title or doc.original_filename }}
+                        </a>
+                        {% endfor %}
+                        {% else %}
+                        <div class="list-group-item text-muted">
+                            <i class="bi bi-info-circle"></i> No documents uploaded yet
+                        </div>
+                        {% endif %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=session.company.id) }}"
+                            class="list-group-item list-group-item-action text-primary">
+                            <i class="bi bi-plus-circle"></i> Upload New Document
+                        </a>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-journal-text"></i> Research Notes</h6>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action" onclick="openNotesModal()">
+                            <i class="bi bi-sticky"></i> Question-Specific Notes
+                            <small class="text-muted d-block">Notes for current question</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="showSavedItems()">
+                            <i class="bi bi-bookmarks"></i> Saved Questions
+                            <small class="text-muted d-block">Questions marked for review</small>
+                        </a>
+                        <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
+                            class="list-group-item list-group-item-action">
+                            <i class="bi bi-clipboard-data"></i> Session Summary
+                            <small class="text-muted d-block">Overall research progress</small>
+                        </a>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-lightning-charge"></i> Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="performSearch()"
+                                title="Smart Search (Ctrl+S)">
+                                <i class="bi bi-search"></i> Smart Search
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="searchFinancials()">
+                                <i class="bi bi-graph-up"></i> Financial Data
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="searchNews()">
+                                <i class="bi bi-newspaper"></i> Latest News
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="openNotesModal()"
+                                title="Research Notes (Ctrl+R)">
+                                <i class="bi bi-journal-text"></i> Research Notes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
 </div>
 {% endblock %}
@@ -216,261 +225,874 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
+
+<!-- Quill Rich Text Editor (more reliable than Tiptap) -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
-// Set progress bar width from data attribute
-document.addEventListener('DOMContentLoaded', function() {
-    const progressFill = document.querySelector('.progress-fill');
-    if (progressFill) {
-        const progress = progressFill.getAttribute('data-progress');
-        progressFill.style.width = progress + '%';
+    // Set progress bar width from data attribute
+    document.addEventListener('DOMContentLoaded', function () {
+        const progressFill = document.querySelector('.progress-fill');
+        if (progressFill) {
+            const progress = progressFill.getAttribute('data-progress');
+            progressFill.style.width = progress + '%';
+        }
+    });
+
+    // Focus mode toggle
+    function toggleFocusMode() {
+        const questionCard = document.querySelector('.card');
+        const focusBtn = document.querySelector('.btn[onclick="toggleFocusMode()"]');
+        questionCard.classList.toggle('focus-mode');
+        focusBtn.classList.toggle('active');
     }
-});
+
+    // Read question aloud functionality
+    function readQuestionAloud() {
+        const questionText = document.querySelector('.card-header h4').textContent;
+        const readBtn = document.querySelector('.btn[onclick="readQuestionAloud()"]');
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+
+            if (readBtn.classList.contains('speaking')) {
+                readBtn.classList.remove('speaking');
+                readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(questionText);
+            utterance.rate = 0.8;
+
+            utterance.onstart = function () {
+                readBtn.classList.add('speaking');
+                readBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Stop Reading';
+            };
+
+            utterance.onend = function () {
+                readBtn.classList.remove('speaking');
+                readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
+            };
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert('Speech synthesis not supported in this browser');
+        }
+    }
+
+    // Research Tools Functionality
+    const researchTools = {
+        savedItems: JSON.parse(localStorage.getItem('research_saved_items_{{ session.id }}') || '[]'),
+        notes: JSON.parse(localStorage.getItem('research_notes_{{ session.id }}') || '{}'),
+        session: {
+            id: {{ session.id }},
+    companyName: '{{ session.company.name }}',
+        ticker: '{{ session.company.ticker_symbol }}',
+            currentItemId: { { current_item.id } }
+    }
+};
+
+    function performSearch() {
+        const questionText = document.querySelector('.card-header h4').textContent.trim();
+        const searchTerms = `${researchTools.session.companyName} ${researchTools.session.ticker} ${questionText}`;
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`;
+        window.open(searchUrl, '_blank');
+        console.log(`Research: Searched for "${searchTerms}"`);
+    }
+
+    function searchDocs() {
+        const aiSection = document.querySelector('#collapseAI');
+        if (aiSection) {
+            const collapseElement = new bootstrap.Collapse(aiSection, { show: true });
+        } else {
+            alert('No document analysis available for this item.');
+        }
+    }
+
+    function searchFinancials() {
+        const ticker = researchTools.session.ticker;
+        if (!ticker) {
+            alert('No ticker symbol available for financial search.');
+            return;
+        }
+
+        const sites = [
+            `https://finance.yahoo.com/quote/${ticker}`,
+            `https://www.sec.gov/edgar/search/#/q=${ticker}`,
+            `https://finviz.com/quote.ashx?t=${ticker}`
+        ];
+
+        sites.forEach(url => window.open(url, '_blank'));
+        console.log(`Research: Opened financial data for ${ticker}`);
+    }
+
+    function searchNews() {
+        const companyName = researchTools.session.companyName;
+        const searchTerms = `${companyName} news`;
+
+        const newsUrls = [
+            `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}&tbm=nws`,
+            `https://finance.yahoo.com/quote/${researchTools.session.ticker}/news`
+        ];
+
+        newsUrls.forEach(url => window.open(url, '_blank'));
+        console.log(`Research: Searched news for ${companyName}`);
+    }
+
+    // Global variables for Tiptap editor
+    let researchEditor = null;
+    let currentSources = [];
+
+    function openNotesModal() {
+        try {
+            console.log('Opening notes modal...');
+
+            const questionText = document.querySelector('.card-header h4').textContent.trim();
+            const itemId = researchTools.session.currentItemId;
+            const existingNotes = researchTools.notes[itemId] || '';
+            const existingSources = researchTools.notes[itemId + '_sources'] || [];
+            currentSources = [...existingSources];
+
+            console.log('Modal data:', { questionText, itemId, existingNotes: existingNotes.length, sources: currentSources.length });
+
+            const modalHTML = `
+        <div class="modal fade" id="researchNotesModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-journal-text"></i> Research Notes
+                            <small class="text-muted ms-2">${questionText}</small>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div class="research-editor">
+                            <!-- Toolbar -->
+                            <div class="research-toolbar">
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="toggleBold()" title="Bold (Ctrl+B)">
+                                        <i class="bi bi-type-bold"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleItalic()" title="Italic (Ctrl+I)">
+                                        <i class="bi bi-type-italic"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleHighlight()" title="Highlight">
+                                        <i class="bi bi-highlighter"></i>
+                                    </button>
+                                </div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="toggleBulletList()" title="Bullet List">
+                                        <i class="bi bi-list-ul"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleOrderedList()" title="Numbered List">
+                                        <i class="bi bi-list-ol"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="toggleBlockquote()" title="Quote">
+                                        <i class="bi bi-quote"></i>
+                                    </button>
+                                </div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" onclick="addLink()" title="Add Link">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="addFinding()" title="Key Finding">
+                                        <i class="bi bi-lightbulb"></i> Finding
+                                    </button>
+                                    <button type="button" class="toolbar-btn" onclick="addRisk()" title="Risk Factor">
+                                        <i class="bi bi-exclamation-triangle"></i> Risk
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Editor Content -->
+                            <div id="researchEditorContent" class="research-content"></div>
+
+                            <!-- Source Manager -->
+                            <div class="source-manager">
+                                <h6 class="mb-2"><i class="bi bi-link"></i> Sources & References</h6>
+                                <div class="source-input-group">
+                                    <input type="url" class="source-input" id="sourceUrlInput" placeholder="Add source URL (e.g., https://example.com/article)">
+                                    <input type="text" class="source-input" id="sourceTitleInput" placeholder="Source title (optional)">
+                                    <button type="button" class="source-btn" onclick="addSource()">
+                                        <i class="bi bi-plus"></i> Add Source
+                                    </button>
+                                </div>
+                                <div class="sources-list" id="sourcesList"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveResearchNotes()">
+                            <i class="bi bi-save"></i> Save Notes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+            const existingModal = document.getElementById('researchNotesModal');
+            if (existingModal) existingModal.remove();
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Initialize Tiptap editor
+            initializeResearchEditor(existingNotes);
+
+            // Render existing sources
+            renderSources();
+
+            const modal = new bootstrap.Modal(document.getElementById('researchNotesModal'));
+            modal.show();
+
+        } catch (error) {
+            console.error('Error opening notes modal:', error);
+            showToast('Error opening notes modal. Check console for details.', 'error');
+        }
+    }
+
+    // Initialize Quill rich text editor
+    function initializeResearchEditor(existingContent) {
+        try {
+            console.log('Initializing Quill editor...');
+
+            // Check if Quill is loaded
+            if (!window.Quill) {
+                throw new Error('Quill library not loaded');
+            }
+
+            // Create Quill editor with research-focused toolbar
+            const toolbarOptions = [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'header': 1 }, { 'header': 2 }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                [{ 'script': 'sub' }, { 'script': 'super' }],
+                ['link'],
+                ['clean']
+            ];
+
+            researchEditor = new Quill('#researchEditorContent', {
+                theme: 'snow',
+                modules: {
+                    toolbar: {
+                        container: toolbarOptions,
+                        handlers: {
+                            'link': function () {
+                                const range = this.quill.getSelection();
+                                if (range) {
+                                    const url = prompt('Enter URL:');
+                                    if (url) {
+                                        this.quill.format('link', url);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                placeholder: 'Start your research notes here...'
+            });
+
+            // Set existing content
+            if (existingContent) {
+                // If existingContent is HTML, use pasteHTML, otherwise use setText
+                if (existingContent.includes('<') && existingContent.includes('>')) {
+                    researchEditor.root.innerHTML = existingContent;
+                } else {
+                    researchEditor.setText(existingContent);
+                }
+            }
+
+            // Add custom toolbar buttons for research-specific templates
+            addCustomQuillButtons();
+
+            console.log('Quill editor initialized successfully');
+
+        } catch (error) {
+            console.error('Error initializing Quill editor:', error);
+
+            // Fallback to simple textarea
+            const editorElement = document.getElementById('researchEditorContent');
+            if (editorElement) {
+                editorElement.innerHTML = `
+                <textarea class="form-control" rows="15" placeholder="Rich editor failed to load. Using fallback textarea..."
+                          id="fallbackTextarea">${existingContent || ''}</textarea>
+            `;
+            }
+
+            showToast('Rich editor failed to load, using simple text editor', 'warning');
+        }
+    }
+
+    // Add custom Quill buttons for research templates
+    function addCustomQuillButtons() {
+        // Add custom buttons to Quill toolbar
+        const toolbar = researchEditor.getModule('toolbar');
+        if (toolbar && toolbar.container) {
+            const customGroup = document.createElement('span');
+            customGroup.className = 'ql-formats';
+            customGroup.innerHTML = `
+            <button type="button" class="ql-finding" title="Add Key Finding">💡</button>
+            <button type="button" class="ql-risk" title="Add Risk Factor">⚠️</button>
+        `;
+
+            toolbar.container.appendChild(customGroup);
+
+            // Add event listeners for custom buttons
+            customGroup.querySelector('.ql-finding').addEventListener('click', addFinding);
+            customGroup.querySelector('.ql-risk').addEventListener('click', addRisk);
+        }
+    }
+
+    // Research template functions for Quill
+    function addFinding() {
+        if (researchEditor) {
+            const range = researchEditor.getSelection();
+            if (range) {
+                researchEditor.insertText(range.index, '\n💡 Key Finding: ', 'bold', true);
+                researchEditor.setSelection(range.index + 18, 0);
+            }
+        }
+    }
+
+    function addRisk() {
+        if (researchEditor) {
+            const range = researchEditor.getSelection();
+            if (range) {
+                researchEditor.insertText(range.index, '\n⚠️ Risk Factor: ', 'bold', true);
+                researchEditor.setSelection(range.index + 17, 0);
+            }
+        }
+    }
+
+    // Simplified toolbar functions (Quill handles most formatting automatically)
+    function toggleBold() {
+        if (researchEditor) {
+            researchEditor.format('bold', !researchEditor.getFormat()['bold']);
+        }
+    }
+
+    function toggleItalic() {
+        if (researchEditor) {
+            researchEditor.format('italic', !researchEditor.getFormat()['italic']);
+        }
+    }
+
+    function toggleHighlight() {
+        if (researchEditor) {
+            researchEditor.format('background', researchEditor.getFormat()['background'] ? false : '#ffff00');
+        }
+    }
+
+    function toggleBulletList() {
+        if (researchEditor) {
+            researchEditor.format('list', 'bullet');
+        }
+    }
+
+    function toggleOrderedList() {
+        if (researchEditor) {
+            researchEditor.format('list', 'ordered');
+        }
+    }
+
+    function toggleBlockquote() {
+        if (researchEditor) {
+            researchEditor.format('blockquote', !researchEditor.getFormat()['blockquote']);
+        }
+    }
+
+    function addLink() {
+        if (researchEditor) {
+            const range = researchEditor.getSelection();
+            if (range) {
+                const url = prompt('Enter URL:');
+                if (url) {
+                    researchEditor.format('link', url);
+                }
+            }
+        }
+    }
+
+    // Source management functions
+    function addSource() {
+        const urlInput = document.getElementById('sourceUrlInput');
+        const titleInput = document.getElementById('sourceTitleInput');
+        const url = urlInput.value.trim();
+        const title = titleInput.value.trim();
+
+        if (!url) {
+            showToast('Please enter a URL', 'warning');
+            return;
+        }
+
+        // Auto-fetch title if not provided
+        const finalTitle = title || url;
+
+        const source = {
+            url: url,
+            title: finalTitle,
+            timestamp: new Date().toISOString(),
+            id: Date.now() // Simple ID generation
+        };
+
+        currentSources.push(source);
+        urlInput.value = '';
+        titleInput.value = '';
+
+        renderSources();
+        showToast('Source added successfully', 'success');
+    }
+
+    function removeSource(sourceId) {
+        currentSources = currentSources.filter(source => source.id !== sourceId);
+        renderSources();
+        showToast('Source removed', 'info');
+    }
+
+    function renderSources() {
+        const sourcesList = document.getElementById('sourcesList');
+        if (!sourcesList) return;
+
+        if (currentSources.length === 0) {
+            sourcesList.innerHTML = '<p class="text-muted small mb-0">No sources added yet</p>';
+            return;
+        }
+
+        sourcesList.innerHTML = currentSources.map(source => `
+        <div class="source-item">
+            <a href="${source.url}" target="_blank" class="source-link" title="${source.url}">
+                ${source.title}
+            </a>
+            <button type="button" class="source-remove" onclick="removeSource(${source.id})" title="Remove source">
+                ×
+            </button>
+        </div>
+    `).join('');
+    }
+
+    function saveResearchNotes() {
+        const itemId = researchTools.session.currentItemId;
+        let editorContent = '';
+
+        // Try to get content from Quill editor first
+        if (researchEditor && researchEditor.getContents) {
+            // Get HTML content from Quill
+            editorContent = researchEditor.root.innerHTML;
+        } else {
+            // Fallback to textarea if Quill failed
+            const fallbackTextarea = document.getElementById('fallbackTextarea');
+            if (fallbackTextarea) {
+                editorContent = fallbackTextarea.value;
+            } else {
+                showToast('No editor content found', 'error');
+                return;
+            }
+        }
+
+        // Save both notes and sources
+        researchTools.notes[itemId] = editorContent;
+        researchTools.notes[itemId + '_sources'] = currentSources;
+
+        localStorage.setItem('research_notes_{{ session.id }}', JSON.stringify(researchTools.notes));
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('researchNotesModal'));
+        modal.hide();
+
+        showToast('Research notes and sources saved successfully!', 'success');
+
+        // Cleanup
+        if (researchEditor && researchEditor.destroy) {
+            researchEditor.destroy();
+            researchEditor = null;
+        }
+    }
+
+    function saveLater() {
+        const questionText = document.querySelector('.card-header h4').textContent.trim();
+        const itemId = researchTools.session.currentItemId;
+
+        const savedItem = {
+            itemId: itemId,
+            text: questionText,
+            timestamp: new Date().toISOString(),
+            sessionId: researchTools.session.id,
+            company: researchTools.session.companyName
+        };
+
+        const existingIndex = researchTools.savedItems.findIndex(item => item.itemId === itemId);
+        if (existingIndex >= 0) {
+            researchTools.savedItems.splice(existingIndex, 1);
+            showToast('Removed from saved items', 'info');
+        } else {
+            researchTools.savedItems.push(savedItem);
+            showToast('Saved for later review', 'success');
+        }
+
+        localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
+        updateSaveLaterButton();
+    }
+
+    function updateSaveLaterButton() {
+        const button = document.querySelector('[onclick="saveLater()"]');
+        if (button) {
+            const itemId = researchTools.session.currentItemId;
+            const isSaved = researchTools.savedItems.some(item => item.itemId === itemId);
+            if (isSaved) {
+                button.classList.remove('btn-outline-dark');
+                button.classList.add('btn-warning');
+                button.innerHTML = '<i class="bi bi-bookmark-fill"></i> Saved <small class="d-block text-muted">Bookmark question</small>';
+            } else {
+                button.classList.remove('btn-warning');
+                button.classList.add('btn-outline-dark');
+                button.innerHTML = '<i class="bi bi-bookmark"></i> Save Later <small class="d-block text-muted">Bookmark question</small>';
+            }
+        }
+    }
+
+    function showSavedItems() {
+        const savedItems = researchTools.savedItems;
+        if (savedItems.length === 0) {
+            showToast('No saved items yet. Use the "Save Later" button on questions to bookmark them.', 'info');
+            return;
+        }
+
+        let modalHTML = `
+        <div class="modal fade" id="savedItemsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-bookmarks"></i> Saved Questions</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="list-group">`;
+
+        savedItems.forEach((item, index) => {
+            const timestamp = new Date(item.timestamp).toLocaleDateString();
+            modalHTML += `
+            <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${item.text}</h6>
+                    <small class="text-muted">Saved on ${timestamp}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeSavedItem(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>`;
+        });
+
+        modalHTML += `
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        const existingModal = document.getElementById('savedItemsModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = new bootstrap.Modal(document.getElementById('savedItemsModal'));
+        modal.show();
+    }
+
+    function removeSavedItem(index) {
+        researchTools.savedItems.splice(index, 1);
+        localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
+        showToast('Item removed from saved list', 'info');
+        updateSaveLaterButton();
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('savedItemsModal'));
+        modal.hide();
+        setTimeout(() => showSavedItems(), 300);
+    }
+
+
+    function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'secondary'} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        const toast = new bootstrap.Toast(document.getElementById(toastId));
+        toast.show();
+
+        document.getElementById(toastId).addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    }
+
+    // Enhanced research tools integration
+    function captureCurrentPageAsSource() {
+        const currentUrl = window.location.href;
+        const currentTitle = document.title;
+
+        // Auto-populate source fields if modal is open
+        const urlInput = document.getElementById('sourceUrlInput');
+        const titleInput = document.getElementById('sourceTitleInput');
+
+        if (urlInput && titleInput) {
+            urlInput.value = currentUrl;
+            titleInput.value = currentTitle;
+            showToast('Current page captured as source', 'info');
+        }
+    }
+
+    function enhanceResearchTools() {
+        // Add source capture to existing research tools
+        const originalPerformSearch = window.performSearch;
+        window.performSearch = function () {
+            originalPerformSearch();
+            setTimeout(() => captureCurrentPageAsSource(), 1000);
+        };
+
+        const originalSearchNews = window.searchNews;
+        window.searchNews = function () {
+            originalSearchNews();
+            setTimeout(() => captureCurrentPageAsSource(), 1000);
+        };
+
+        const originalSearchFinancials = window.searchFinancials;
+        window.searchFinancials = function () {
+            originalSearchFinancials();
+            setTimeout(() => captureCurrentPageAsSource(), 1000);
+        };
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function (e) {
+        // Global shortcuts (when not in editor)
+        if (e.ctrlKey && !e.target.matches('input, textarea, select, .research-content *')) {
+            switch (e.key.toLowerCase()) {
+                case 's':
+                    e.preventDefault();
+                    performSearch();
+                    break;
+                case 'd':
+                    e.preventDefault();
+                    searchDocs();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    openNotesModal();
+                    break;
+            }
+        }
+
+        // Editor-specific shortcuts
+        if (researchEditor && document.getElementById('researchNotesModal')) {
+            if (e.ctrlKey) {
+                switch (e.key.toLowerCase()) {
+                    case 'b':
+                        e.preventDefault();
+                        toggleBold();
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        toggleItalic();
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        addLink();
+                        break;
+                    case 'enter':
+                        e.preventDefault();
+                        addSource();
+                        break;
+                }
+            }
+        }
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        updateSaveLaterButton();
+        enhanceResearchTools();
+    });
 </script>
 
 <style>
-    /* Research session focused design */
-    .research-session-container {
-        min-height: 100vh;
-        background: linear-gradient(135deg, var(--background-light) 0%, var(--background-white) 100%);
+    .context-sidebar .card {
+        margin-bottom: 1.5rem;
     }
 
-    .research-header {
-        background: var(--background-white);
-        border-bottom: 1px solid var(--border-light);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        box-shadow: var(--shadow-light);
-    }
-
-    .research-subject h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--text-dark);
-        margin: 0;
-    }
-
-    .progress-indicator {
-        text-align: center;
-        min-width: 120px;
-    }
-
-    .progress-stats {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-dark);
-    }
-
-    .progress-stats .current {
-        color: var(--color-primary);
-        font-size: 1.2rem;
-    }
-
-    .progress-stats .divider {
-        margin: 0 0.5rem;
-        color: var(--text-muted);
-    }
-
-    .progress-bar-minimal {
-        width: 100px;
-        height: 6px;
-        background: var(--gray-200);
-        border-radius: 3px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-success));
-        border-radius: 3px;
-        transition: width 0.3s ease;
-    }
-
-    .research-content {
-        padding: 2rem 0;
-    }
-
-    /* Question card styling */
-    .question-card {
-        background: var(--background-white);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: var(--shadow-medium);
-        border-left: 4px solid var(--color-investment);
-    }
-
-    .question-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .question-number {
-        background: var(--investment-50);
-        color: var(--color-investment);
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--radius-md);
-        font-size: 0.875rem;
-        font-weight: 600;
-    }
-
-    .question-context {
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        font-style: italic;
-    }
-
-    .question-text {
-        font-size: 1.25rem;
-        font-weight: 500;
-        line-height: 1.6;
-        color: var(--text-dark);
-    }
-
-    /* AI section improvements */
-    .ai-prompt-display {
-        background: var(--warning-50);
-        border: 1px solid var(--warning-200);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        font-style: italic;
-        color: var(--text-dark);
-        font-size: 0.9rem;
-    }
-
-    .documents-grid {
-        display: grid;
-        gap: 0.75rem;
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid var(--border-light);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        background: var(--background-light);
-    }
-
-    .document-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        padding: 0.5rem;
-        border-radius: var(--radius-sm);
-        transition: background var(--transition-normal);
-    }
-
-    .document-item:hover {
-        background: var(--background-white);
-    }
-
-    .document-item label {
-        flex: 1;
-        cursor: pointer;
-        margin: 0;
-    }
-
-    .doc-name {
-        font-weight: 500;
-        color: var(--text-dark);
-        font-size: 0.9rem;
-    }
-
-    .doc-type {
-        color: var(--text-muted);
-        font-size: 0.8rem;
-    }
-
-    /* Answer section */
-    .answer-section {
-        margin-top: 1.5rem;
-    }
-
-    .answer-textarea {
-        resize: vertical;
-        min-height: 150px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    .navigation-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 1.5rem;
-    }
-
-    /* Focus states */
-    .form-control:focus,
-    .form-select:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .research-header .d-flex {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .progress-indicator {
-            align-self: stretch;
-            text-align: left;
-        }
-
-        .question-card {
-            padding: 1.5rem;
-        }
-
-        .question-text {
-            font-size: 1.1rem;
-        }
-
-        .navigation-actions {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .navigation-actions .btn-pro {
-            width: 100%;
-        }
-    }
-
-    /* Loading states and animations */
-    .framework-card {
-        animation: slideInUp 0.3s ease-out;
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(15px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Enhanced visual hierarchy */
-    .research-content h4 {
-        color: var(--text-dark);
-        font-weight: 600;
-    }
-
-    .form-label {
-        color: var(--text-dark);
-        font-weight: 500;
+    .sticky-top {
+        top: 1rem;
     }
 
     .alert {
-        border-radius: var(--radius-md);
+        white-space: pre-wrap;
+    }
+
+    /* Tiptap Research Editor Styles */
+    .research-editor {
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background: white;
+    }
+
+    .research-toolbar {
+        border-bottom: 1px solid #e5e5e5;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+        display: flex;
+        gap: 2px;
+        padding-right: 8px;
+        border-right: 1px solid #ddd;
+        margin-right: 8px;
+    }
+
+    .toolbar-group:last-child {
+        border-right: none;
+        margin-right: 0;
+    }
+
+    .toolbar-btn {
+        background: none;
+        border: 1px solid transparent;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #495057;
+    }
+
+    .toolbar-btn:hover {
+        background: #e9ecef;
+        border-color: #adb5bd;
+    }
+
+    .toolbar-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .research-content {
+        padding: 12px;
+        min-height: 300px;
+        outline: none;
+    }
+
+    .research-content p {
+        margin-bottom: 8px;
+    }
+
+    .research-content ul,
+    .research-content ol {
+        padding-left: 20px;
+        margin-bottom: 8px;
+    }
+
+    .research-content blockquote {
+        border-left: 4px solid #007bff;
+        margin: 12px 0;
+        padding: 8px 16px;
+        background: #f8f9fa;
+        font-style: italic;
+    }
+
+    .research-content mark {
+        background: #fff3cd;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    .source-manager {
+        border-top: 1px solid #e5e5e5;
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .source-input-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .source-input {
+        flex: 1;
+        padding: 6px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .source-btn {
+        padding: 6px 12px;
+        background: #007bff;
+        color: white;
         border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .source-btn:hover {
+        background: #0056b3;
+    }
+
+    .sources-list {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .source-item {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        padding: 6px 8px;
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        font-size: 12px;
+    }
+
+    .source-link {
+        color: #007bff;
+        text-decoration: none;
+        flex: 1;
+        margin-right: 8px;
+    }
+
+    .source-remove {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
     }
 </style>
 {% endblock %}

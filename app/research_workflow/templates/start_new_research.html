@@ -1,0 +1,88 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">🚀 Start New Research</h1>
+            <p class="dashboard-subtitle">Choose your research subject to get started</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </header>
+
+    <!-- Subject Type Selection Cards -->
+    <div class="start-research-container">
+        <div class="subject-type-grid">
+            <!-- Company Research Card -->
+            <div class="subject-type-card" data-subject="company">
+                <div class="subject-type-icon">
+                    <i class="bi bi-building"></i>
+                </div>
+                <h2 class="subject-type-title">Company Research</h2>
+                <p class="subject-type-description">
+                    Systematic, template-based analysis for individual companies. Follow your proven research workflow to make disciplined investment decisions.
+                </p>
+                <ul class="subject-type-features">
+                    <li><i class="bi bi-check-circle-fill"></i> Structured research templates</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Kill checklist screening</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Financial & competitive analysis</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Investment decision tracking</li>
+                </ul>
+                <a href="{{ url_for('ideas.add_idea', type='company', from_start='true') }}" class="btn btn-primary btn-lg subject-type-btn">
+                    <i class="bi bi-arrow-right-circle-fill"></i> Start Company Research
+                </a>
+                <div class="subject-type-hint">
+                    <i class="bi bi-lightbulb"></i> Idea → Kill Checklist → Research Project → Decision
+                </div>
+            </div>
+
+            <!-- Sector Research Card -->
+            <div class="subject-type-card" data-subject="sector">
+                <div class="subject-type-icon sector-icon">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </div>
+                <h2 class="subject-type-title">Sector Research</h2>
+                <p class="subject-type-description">
+                    Free-form notebook for building sector expertise. Understand industry dynamics, trends, and identify promising companies.
+                </p>
+                <ul class="subject-type-features">
+                    <li><i class="bi bi-check-circle-fill"></i> Flexible Porter's 5 Forces analysis</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Evolving notes & insights</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Industry trends tracking</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Identify investment opportunities</li>
+                </ul>
+                <a href="{{ url_for('sectors.index') }}" class="btn btn-primary btn-lg subject-type-btn">
+                    <i class="bi bi-arrow-right-circle-fill"></i> Open Sector Notebook
+                </a>
+                <div class="subject-type-hint">
+                    <i class="bi bi-lightbulb"></i> Build knowledge → Identify companies → Research systematically
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Tips Section -->
+        <div class="start-research-tips">
+            <div class="tips-header">
+                <i class="bi bi-info-circle"></i>
+                <h3>Understanding the Two Approaches</h3>
+            </div>
+            <div class="tips-grid">
+                <div class="tip-item">
+                    <strong>Company Research (Systematic):</strong> Use structured templates for disciplined, repeatable analysis leading to invest/pass decisions.
+                </div>
+                <div class="tip-item">
+                    <strong>Sector Research (Exploratory):</strong> Use free-form notebooks to build industry knowledge and discover promising companies to research.
+                </div>
+                <div class="tip-item">
+                    <strong>Recommended Flow:</strong> Start with sector notebook → Identify companies → Screen with kill checklist → Deep research with templates.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

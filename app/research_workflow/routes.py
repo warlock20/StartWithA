@@ -3,12 +3,134 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        ResearchLog, Company, Checklist, KillChecklist, IdeaPipeline, CompanyDocument, 
-                       ResearchLog, DecisionJournal, JournalEntry)
+                       DecisionJournal, JournalEntry, ResearchSession, ResearchAnswer)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from datetime import datetime, timedelta, timezone
-import json
+from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
 from app.services.llm_service import generate_ai_content
+from app.research.routes import get_all_ordered_items_for_checklist
+from app.services.adaptive_template_service import (
+    suggest_template_adaptations,
+    apply_template_adaptations,
+    adaptive_template_service
+)
+
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+@research_workflow_bp.route('/api/server-time')
+@login_required
+def get_server_time():
+    """API endpoint to get current server time for timer synchronization"""
+    return jsonify({
+        'server_time': now_utc().isoformat(),
+        'timezone': 'UTC'
+    })
+
+def collect_research_session_summary(project, step_index):
+    """
+    Collect and summarize the actual research data from the completed research session
+    """
+    try:
+        # Find the most recent research session for this project's company
+
+        if not project.company_id:
+            return "Completed research checklist evaluation (no company data)"
+
+        # Get the most recent research session for this company (check all statuses first)
+        all_sessions = ResearchSession.query.filter_by(
+            user_id=current_user.id,
+            company_id=project.company_id
+        ).order_by(ResearchSession.start_date.desc()).all()
+
+
+        # Get the most recent research session for this company (try 'completed' first)
+        recent_session = ResearchSession.query.filter_by(
+            user_id=current_user.id,
+            company_id=project.company_id,
+            status='completed'
+        ).order_by(ResearchSession.start_date.desc()).first()
+
+        # If no completed session, try any recent session
+        if not recent_session and all_sessions:
+            recent_session = all_sessions[0]
+
+        if not recent_session:
+            return "Completed research checklist evaluation (no research session found)"
+
+        # Collect all research answers from the session
+        research_answers = ResearchAnswer.query.filter_by(
+            research_session_id=recent_session.id
+        ).all()
+
+        if not research_answers:
+            return f"Completed research evaluation using {recent_session.checklist.name} (no answers recorded)"
+
+        # Build summary from the research answers
+        summary_parts = [
+            f"**Research Summary: {recent_session.checklist.name}**",
+            f"Company: {project.company.name} ({project.company.ticker_symbol})",
+            f"Completed: {recent_session.start_date.strftime('%Y-%m-%d')}",
+            "",
+            "**Key Research Findings:**"
+        ]
+
+        # Categorize answers by satisfaction status
+        satisfied_items = []
+        not_satisfied_items = []
+        needs_attention_items = []
+        informational_items = []
+
+        for answer in research_answers:
+            item_text = answer.item.text[:100] + "..." if len(answer.item.text) > 100 else answer.item.text
+
+            if answer.satisfaction_status == 'satisfied':
+                satisfied_items.append(f"✅ {item_text}")
+            elif answer.satisfaction_status == 'not_satisfied':
+                not_satisfied_items.append(f"❌ {item_text}")
+            elif answer.satisfaction_status == 'needs_attention':
+                needs_attention_items.append(f"⚠️ {item_text}")
+            else:
+                informational_items.append(f"ℹ️ {item_text}")
+
+        # Add categorized findings
+        if satisfied_items:
+            summary_parts.append("\n**Positive Findings:**")
+            summary_parts.extend(satisfied_items[:5])  # Limit to top 5
+
+        if not_satisfied_items:
+            summary_parts.append("\n**Concerns:**")
+            summary_parts.extend(not_satisfied_items[:5])
+
+        if needs_attention_items:
+            summary_parts.append("\n**Needs Attention:**")
+            summary_parts.extend(needs_attention_items[:5])
+
+        # Add summary statistics
+        total_items = len(research_answers)
+        satisfied_count = len(satisfied_items)
+        pass_rate = round((satisfied_count / total_items) * 100) if total_items > 0 else 0
+
+        summary_parts.extend([
+            "",
+            f"**Summary Stats:**",
+            f"- Total Items Evaluated: {total_items}",
+            f"- Satisfied: {satisfied_count} ({pass_rate}%)",
+            f"- Concerns: {len(not_satisfied_items)}",
+            f"- Needs Attention: {len(needs_attention_items)}"
+        ])
+
+        final_summary = "\n".join(summary_parts)
+        return final_summary
+
+    except Exception as e:
+        import traceback
+        print(f"ERROR in collect_research_session_summary: {e}")
+        print(f"TRACEBACK: {traceback.format_exc()}")
+        return f"Completed research checklist evaluation (error collecting details: {str(e)})"
 
 @research_workflow_bp.route('/intelligent-routing')
 @login_required
@@ -128,17 +250,11 @@ def create_template():
         description = request.form.get('description')
         investment_style = request.form.get('investment_style')
         custom_investment_style = request.form.get('custom_investment_style')
-        research_subject_type = request.form.get('research_subject_type')
-        
+
         # Use custom investment style if selected
         if investment_style == 'custom' and custom_investment_style:
             investment_style = custom_investment_style.strip()
-        
-        # Validate research subject type
-        if not research_subject_type:
-            flash('Research subject type must be selected', 'error')
-            return redirect(url_for('research_workflow.create_template'))
-        
+
         if not name:
             flash('Template name is required', 'error')
             return redirect(url_for('research_workflow.create_template'))
@@ -164,20 +280,6 @@ def create_template():
                 
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
-                    # Handle dynamic checklist items
-                    items = request.form.getlist(f'step_{i}_checklist_items[]')
-                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
-                    
-                    checklist_items = []
-                    for j, item in enumerate(items):
-                        if item.strip():  # Only add non-empty items
-                            checklist_items.append({
-                                'item': item.strip(),
-                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
-                            })
-                    
-                    step['config']['checklist_items'] = checklist_items
-                elif step['type'] == 'investment_checklist_reference':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
                 elif step['type'] == 'kill_checklist_reference':
                     step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
@@ -186,13 +288,12 @@ def create_template():
                 
                 workflow_steps.append(step)
         
-        # Create the template
+        # Create the template (company-only)
         template = ResearchTemplate(
             author=current_user,
             name=name,
             description=description,
             investment_style=investment_style,
-            research_subject_types=[research_subject_type],  # Store as single-item list for consistency
             workflow_steps=workflow_steps
         )
         
@@ -211,30 +312,16 @@ def create_template():
     
     # Define available step types and mental models
     step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
-        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
-        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
+        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
-        {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
-        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
-        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
-        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
-        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
         {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
     ]
     
     mental_models = [
         'SWOT Analysis',
-        'Porter\'s Five Forces',
-        'Moat Analysis',
-        'Management Quality Assessment',
-        'Unit Economics',
-        'TAM Analysis',
-        'Risk Assessment'
+        'Porter\'s Five Forces'
     ]
     
     return render_template('create_template.html',
@@ -288,77 +375,53 @@ def view_template(template_id):
 @research_workflow_bp.route('/projects/start', methods=['POST'])
 @login_required
 def start_project():
-    """Start a new research project using a template"""
+    """Start a new research project for a company using a template"""
     template_id = request.form.get('template_id', type=int)
-    subject_type = request.form.get('subject_type', 'company')
-    subject_name = request.form.get('subject_name', '')
     company_id = request.form.get('company_id', type=int)
-    
-    # Validate inputs based on subject type
+
+    # Validate inputs
     if not template_id:
         flash('Template selection is required', 'error')
         return redirect(request.referrer or url_for('research_workflow.template_list'))
-    
-    if subject_type == 'company' and not company_id:
-        flash('Company selection is required for company research', 'error')
+
+    if not company_id:
+        flash('Company selection is required', 'error')
         return redirect(request.referrer or url_for('research_workflow.template_list'))
-    elif subject_type != 'company' and not subject_name:
-        flash('Research subject name is required', 'error')
-        return redirect(request.referrer or url_for('research_workflow.template_list'))
-    
+
     # Verify template ownership
     template = ResearchTemplate.query.get_or_404(template_id)
     if template.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.template_list'))
-    
-    # Handle company-specific logic
-    company = None
-    if subject_type == 'company':
-        company = Company.query.get_or_404(company_id)
-        if company.user_id != current_user.id:
-            flash('Access denied', 'error')
-            return redirect(url_for('research_workflow.template_list'))
 
-        subject_name = company.name
-    
+    # Get company
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.template_list'))
+
     # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY (regardless of template)
-    if subject_type == 'company' and company_id:
-        existing_project = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            company_id=company_id
-        ).filter(
-            ResearchProject.status.in_(['active', 'paused'])
-        ).first()
+    existing_project = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).filter(
+        ResearchProject.status.in_(['active', 'paused'])
+    ).first()
 
-        if existing_project:
-            if existing_project.status == 'active':
-                flash(f'You already have an active research project for {subject_name}. Only one project per company is allowed.', 'error')
-                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
-            elif existing_project.status == 'paused':
-                flash(f'You have a paused research project for {subject_name}. Resume it or abandon it to start a new one.', 'warning')
-                return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+    if existing_project:
+        if existing_project.status == 'active':
+            flash(f'You already have an active research project for {company.name}. Only one project per company is allowed.', 'error')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
+        elif existing_project.status == 'paused':
+            flash(f'You have a paused research project for {company.name}. Resume it or delete it to start a new one.', 'warning')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
-    # Check for existing project with same template (for non-company subjects)
-    if subject_type != 'company':
-        existing = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            template_id=template_id,
-            research_subject_type=subject_type,
-            research_subject_name=subject_name
-        ).first()
-        if existing and existing.status in ['active', 'paused']:
-            flash(f'You already have a project for {subject_name} with this template', 'info')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=existing.id))
-    
     # Create new project
     project = ResearchProject(
         researcher=current_user,
         template=template,
-        research_subject_type=subject_type,
-        research_subject_name=subject_name,
         company=company,
-        project_name=f"{subject_name} - {template.name}",
+        project_name=f"{company.name} - {template.name}",
         status='active'
     )
     
@@ -382,12 +445,12 @@ def start_project():
             company_id=company.id if company else None,
             project_id=project.id
         )
-        flash(f'Research project started for {subject_name}!', 'success')
+        flash(f'Research project started for {company.name}!', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
     except Exception as e:
         db.session.rollback()
         flash(f'Error starting project: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('companies.list_companies'))
+        return redirect(request.referrer or url_for('companies.companies_dashboard'))
 
 @research_workflow_bp.route('/projects/<int:project_id>')
 @login_required
@@ -419,14 +482,31 @@ def project_dashboard(project_id):
                 next_steps.append(step)
                 if len(next_steps) >= 3:  # Show next 3 upcoming steps
                     break
-    
+
+    # Get latest research session for the company (for checklist analysis button)
+    latest_research_session = None
+    if project.company_id:
+        latest_research_session = ResearchSession.query.filter_by(
+            company_id=project.company_id,
+            user_id=current_user.id,
+            status='completed'
+        ).order_by(ResearchSession.start_date.desc()).first()
+
+    # Calculate days since last work using proper timezone handling
+    days_since_last_work = None
+    if project.last_worked_at:
+        last_worked_aware = ensure_timezone_aware(project.last_worked_at)
+        current_time = now_utc()
+        days_since_last_work = (current_time - last_worked_aware).days
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
                           recent_sessions=recent_sessions,
                           time_breakdown=time_breakdown,
                           next_steps=next_steps,
-                          datetime=datetime)
+                          latest_research_session=latest_research_session,
+                          days_since_last_work=days_since_last_work)
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
 @login_required
@@ -444,34 +524,30 @@ def execute_step(project_id, step_index):
         flash('Invalid step', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
     
-    # Start a work session
-    session = WorkSession(
-        project=project,
-        user=current_user,
+    # Check for existing active session for this step
+    existing_session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
         step_index=step_index,
-        step_name=step['name'],
-        start_time=datetime.utcnow()
-    )
-    db.session.add(session)
-    db.session.commit()
-    
+        end_time=None
+    ).first()
+
+    if existing_session:
+        # Reuse existing active session
+        session = existing_session
+    else:
+        # Create new session
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
-        # Handle new dynamic checklist items
-        checklist_items = step['config'].get('checklist_items', [])
-        if checklist_items:
-            return render_template('execute_checklist_step.html',
-                                title=f"Execute: {step['name']}",
-                                project=project,
-                                step=step,
-                                step_index=step_index,
-                                session=session,
-                                checklist_items=checklist_items)
-        else:
-            flash('No checklist items configured for this step', 'warning')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-    
-    elif step['type'] == 'investment_checklist_reference':
         # Handle investment checklist reference - redirect to research session evaluation
         checklist_id = step['config'].get('checklist_id')
         if checklist_id:
@@ -488,9 +564,6 @@ def execute_step(project_id, step_index):
                     flash(f'The company associated with this project (ID: {project.company_id}) no longer exists. Please update the project.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
-                # Import ResearchSession model from research module
-                from app.models import ResearchSession, ResearchAnswer
-
                 # Check if a research session already exists for this checklist and company
                 existing_research_session = ResearchSession.query.filter_by(
                     user_id=current_user.id,
@@ -501,7 +574,6 @@ def execute_step(project_id, step_index):
                 if existing_research_session:
                     # If session exists and is in progress, find the first unanswered item
                     if existing_research_session.status == 'in_progress':
-                        from app.research.routes import get_all_ordered_items_for_checklist
                         all_items = get_all_ordered_items_for_checklist(checklist_id)
 
                         if all_items:
@@ -532,7 +604,7 @@ def execute_step(project_id, step_index):
 
                     elif existing_research_session.status == 'completed':
                         flash('Investment checklist research already completed. Viewing summary.', 'info')
-                        return redirect(url_for('research.view_research_session_summary',
+                        return redirect(url_for('research.view_checklist_session_summary',
                                               session_id=existing_research_session.id))
                 else:
                     # Create new research session
@@ -548,7 +620,6 @@ def execute_step(project_id, step_index):
                         db.session.commit()
 
                         # Get first item and redirect to it
-                        from app.research.routes import get_all_ordered_items_for_checklist
                         all_items = get_all_ordered_items_for_checklist(checklist_id)
 
                         if all_items:
@@ -603,16 +674,24 @@ def execute_step(project_id, step_index):
             return redirect(url_for('companies.swot_analysis', 
                                   company_id=project.company_id))
         elif model_type == 'Porter\'s Five Forces':
-            return redirect(url_for('companies.porters_five_forces_analysis', 
+            return redirect(url_for('companies.porters_five_forces_analysis',
                                   company_id=project.company_id))
-    
+
+    elif step['type'] == 'competitor_analysis':
+        return redirect(url_for('research_workflow.competitor_analysis_step',
+                              project_id=project_id, step_index=step_index))
+
     # For other step types, show the generic execution interface
+    # Format session start time for JavaScript timer
+    session_start_js = format_for_javascript(session.start_time)
+
     return render_template('execute_step.html',
                           title=f"Execute: {step['name']}",
                           project=project,
                           step=step,
                           step_index=step_index,
-                          session=session)
+                          session=session,
+                          session_start_js=session_start_js)
 
 @research_workflow_bp.route('/projects/<int:project_id>/complete-step', methods=['POST'])
 @login_required
@@ -632,9 +711,9 @@ def complete_step(project_id):
     if session_id:
         session = WorkSession.query.get(session_id)
         if session and session.user_id == current_user.id:
-            session.end_time = datetime.utcnow()
-            session.duration_minutes = int(
-                (session.end_time - session.start_time).total_seconds() / 60
+            session.end_time = now_utc()
+            session.duration_minutes = calculate_duration_minutes(
+                session.start_time, session.end_time
             )
             session.notes = notes
             
@@ -659,14 +738,14 @@ def complete_step(project_id):
     project.step_notes[str(step_index)] = notes
     
     # Update project progress
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     # Move to next step or complete project
     if step_index + 1 < len(project.template.workflow_steps):
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
         flash('Research project completed! Time to make your investment decision.', 'success')
     
     try:
@@ -717,22 +796,27 @@ def complete_research_step(project_id, step_index):
         if step_index not in project.completed_steps:
             project.completed_steps = project.completed_steps + [step_index]
 
-        # Save step notes
+        # Save step notes - collect actual research data
         if not project.step_notes:
             project.step_notes = {}
-        project.step_notes[str(step_index)] = 'Completed research checklist evaluation'
+
+        # Try to collect actual research session data
+        research_session_data = collect_research_session_summary(project, step_index)
+        project.step_notes[str(step_index)] = research_session_data
+        # Explicitly mark the JSON field as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(project, 'step_notes')
 
         # Move to next step if not at the end
         if step_index + 1 < len(project.template.workflow_steps):
             project.current_step_index = step_index + 1
         else:
             project.status = 'completed'
-            project.completed_at = datetime.utcnow()
+            project.completed_at = now_utc()
 
         db.session.commit()
 
         # Clear research context since we're done with this step
-        from flask import session as flask_session
         flask_session.pop('research_context', None)
 
         if project.status == 'completed':
@@ -746,6 +830,45 @@ def complete_research_step(project_id, step_index):
         db.session.rollback()
         flash(f'Error completing research step: {str(e)}', 'error')
         return redirect(request.referrer)
+
+@research_workflow_bp.route('/projects/<int:project_id>/notes')
+@login_required
+def view_project_notes(project_id):
+    """View all research notes for a project"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    # Authorization check
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Get all step notes
+    step_notes = project.step_notes or {}
+
+    # Get template steps for context
+    template_steps = project.template.workflow_steps if project.template else []
+
+    # Combine notes with step information
+    notes_with_context = []
+    for step_index, notes in step_notes.items():
+        step_idx = int(step_index)
+        step_name = "Unknown Step"
+        if step_idx < len(template_steps):
+            step_name = template_steps[step_idx].get('name', f'Step {step_idx + 1}')
+
+        notes_with_context.append({
+            'step_index': step_idx,
+            'step_name': step_name,
+            'notes': notes
+        })
+
+    # Sort by step index
+    notes_with_context.sort(key=lambda x: x['step_index'])
+
+    return render_template('project_notes.html',
+                          title=f"Research Notes - {project.research_subject_name}",
+                          project=project,
+                          notes_with_context=notes_with_context)
 
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
@@ -786,7 +909,7 @@ def save_decision(project_id):
     project.decision = decision # Save the decision to the project
     project.decision_confidence = request.form.get('confidence', type=int)
     project.decision_notes = request.form.get('decision_notes')
-    project.decision_date = datetime.utcnow()
+    project.decision_date = now_utc()
 
     # Parse key findings
     green_flags = request.form.get('green_flags', '').split('\n')
@@ -800,21 +923,14 @@ def save_decision(project_id):
     elif project.decision == 'pass':
         project.template.failed_investments += 1
 
-    # --- NEW LOGIC TO UNIFY WATCHLISTS ---
+    # --- Add company to watchlist if decision is watchlist ---
     flash_message = 'Decision saved!' # Default message
 
-    if decision == 'watchlist' and project.research_subject_type == 'company' and project.company:
+    if decision == 'watchlist' and project.company:
         company_to_watch = project.company
         if company_to_watch not in current_user.favorites:
             current_user.favorites.append(company_to_watch)
-            # Update flash message to inform the user
             flash_message = f'Decision saved. "{company_to_watch.name}" has been added to your Favorites/Watchlist.'
-    elif decision == 'watchlist':
-        # For non-company projects, just save the decision without adding to favorites
-        if project.research_subject_type == 'sector':
-            flash_message = f'Sector assessment saved. "{project.research_subject_name}" marked for watching.'
-        else:
-            flash_message = f'Research decision saved. "{project.research_subject_name}" marked for watching.'
 
     try:
         db.session.commit()
@@ -822,7 +938,7 @@ def save_decision(project_id):
 
         if project.decision == 'invest':
             # Redirect to portfolio or next steps
-            return redirect(url_for('companies.list_companies'))
+            return redirect(url_for('companies.companies_dashboard'))
         else:
             # Back to project list
             return redirect(url_for('research_workflow.my_projects'))
@@ -831,50 +947,348 @@ def save_decision(project_id):
         flash(f'Error saving decision: {str(e)}', 'error')
         return redirect(request.referrer)
 
+@research_workflow_bp.route('/start-new')
+@login_required
+def start_new_research():
+    """Subject type selection page for starting new research"""
+    return render_template('start_new_research.html',
+                          title="Start New Research")
+
 @research_workflow_bp.route('/my-projects')
 @login_required
 def my_projects():
-    """Show all research projects for the current user"""
-    # Get projects grouped by status
-    active_projects = current_user.research_projects.filter_by(status='active')\
-                                                    .order_by(ResearchProject.last_worked_at.desc()).all()
-    
-    paused_projects = current_user.research_projects.filter_by(status='paused')\
-                                                    .order_by(ResearchProject.created_at.desc()).all()
-    
-    completed_projects = current_user.research_projects.filter_by(status='completed')\
-                                                      .order_by(ResearchProject.completed_at.desc()).limit(10).all()
+    """Dashboard view for all research projects"""
+    # Get counts for different project statuses
+    active_count = current_user.research_projects.filter_by(status='active').count()
+    paused_count = current_user.research_projects.filter_by(status='paused').count()
+    completed_count = current_user.research_projects.filter_by(status='completed').count()
 
-    abandoned_projects = current_user.research_projects.filter_by(status='abandoned')\
-                                                       .order_by(ResearchProject.last_worked_at.desc()).all()
+    # Get Too Hard Basket count (completed projects with 'pass' decision)
+    too_hard_count = current_user.research_projects.filter_by(
+        status='completed',
+        decision='pass'
+    ).count()
+
+    # Calculate total time invested
+    total_time_invested = sum(p.total_hours_spent for p in current_user.research_projects.all())
+
+    # Success metrics
+    invest_decisions = current_user.research_projects.filter_by(decision='invest').count()
+    pass_decisions = current_user.research_projects.filter_by(decision='pass').count()
+    watchlist_decisions = current_user.research_projects.filter_by(decision='watchlist').count()
+
+    # Calculate Too Hard Basket Rate (selectivity metric)
+    # Count projects with invest or pass decisions
+    company_invest_count = current_user.research_projects.filter_by(
+        decision='invest'
+    ).count()
+
+    company_pass_count = current_user.research_projects.filter_by(
+        decision='pass'
+    ).count()
+
+    total_decided_companies = company_invest_count + company_pass_count
+
+    if total_decided_companies > 0:
+        too_hard_rate = (company_pass_count / total_decided_companies) * 100
+    else:
+        too_hard_rate = 0
+
+    # Get recent activity (last 5 projects worked on)
+    recent_activity = current_user.research_projects.order_by(
+        ResearchProject.last_worked_at.desc()
+    ).limit(5).all()
+
+    # Get preview data for each section (top 3)
+    active_preview = current_user.research_projects.filter_by(status='active')\
+        .order_by(ResearchProject.last_worked_at.desc()).limit(3).all()
+
+    completed_preview = current_user.research_projects.filter_by(status='completed')\
+        .order_by(ResearchProject.completed_at.desc()).limit(3).all()
+
+    too_hard_preview = current_user.research_projects.filter_by(
+        status='completed',
+        decision='pass'
+    ).order_by(ResearchProject.completed_at.desc()).limit(3).all()
+
+    dashboard_data = {
+        'active_count': active_count,
+        'paused_count': paused_count,
+        'completed_count': completed_count,
+        'too_hard_count': too_hard_count,
+        'total_time_invested': round(total_time_invested, 1),
+        'invest_decisions': invest_decisions,
+        'pass_decisions': pass_decisions,
+        'watchlist_decisions': watchlist_decisions,
+        'too_hard_rate': round(too_hard_rate, 1),
+        'total_decided_companies': total_decided_companies,
+        'company_invest_count': company_invest_count,
+        'company_pass_count': company_pass_count,
+        'recent_activity': recent_activity,
+        'active_preview': active_preview,
+        'completed_preview': completed_preview,
+        'too_hard_preview': too_hard_preview
+    }
+
+    return render_template('projects_dashboard.html',
+                          title="Investment Research",
+                          dashboard_data=dashboard_data)
+
+@research_workflow_bp.route('/my-projects/active')
+@login_required
+def active_projects():
+    """Detailed view of active research projects with pagination and filters"""
+    # Get query parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    type_filter = request.args.get('type', '', type=str).strip()
+
+    # Base query for active projects
+    query = current_user.research_projects.filter_by(status='active')
+
+    # Apply search filter
+    if search_query:
+        # Search in company name or project name
+        query = query.filter(
+            db.or_(
+                ResearchProject.project_name.ilike(f'%{search_query}%'),
+                ResearchProject.company.has(Company.name.ilike(f'%{search_query}%'))
+            )
+        )
+
+    # Type filter removed - all projects are company projects now
+
+    # Order by last worked date
+    query = query.order_by(ResearchProject.last_worked_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    active_projects = pagination.items
 
     # Flag overdue projects
     overdue_projects = [p for p in active_projects if p.is_overdue]
-    
-    # Calculate total time invested
-    total_time_invested = sum(p.total_hours_spent for p in current_user.research_projects.all())
-    
-    # Success metrics
-    total_decisions = current_user.research_projects.filter(
-        ResearchProject.decision.isnot(None)
-    ).count()
-    
-    invest_decisions = current_user.research_projects.filter_by(decision='invest').count()
-    pass_decisions = current_user.research_projects.filter_by(decision='pass').count()
 
-    # Legacy research sessions removed - now handled through research workflow system
+    # Get paused projects (no pagination for this smaller section)
+    paused_projects = current_user.research_projects.filter_by(status='paused')\
+        .order_by(ResearchProject.created_at.desc()).all()
 
-    return render_template('my_projects.html',
-                          title="My Research Projects",
+    # All projects are company type now
+    types = ['company']
+
+    return render_template('projects_active.html',
+                          title="Active Research Projects",
                           active_projects=active_projects,
+                          pagination=pagination,
                           paused_projects=paused_projects,
-                          completed_projects=completed_projects,
-                          abandoned_projects=abandoned_projects,
                           overdue_projects=overdue_projects,
-                          total_time_invested=round(total_time_invested, 1),
-                          total_decisions=total_decisions,
-                          invest_decisions=invest_decisions,
-                          pass_decisions=pass_decisions)
+                          project_types=types,
+                          current_search=search_query,
+                          current_type=type_filter,
+                          current_per_page=per_page)
+
+@research_workflow_bp.route('/my-projects/completed')
+@login_required
+def completed_projects():
+    """Detailed view of completed research projects"""
+    # Get pagination and filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    decision_filter = request.args.get('decision', '', type=str).strip()
+
+    # Start with base query - only show projects with a final decision
+    query = current_user.research_projects.filter(ResearchProject.status == 'completed')
+
+    # Apply search filter
+    if search_query:
+        query = query.join(Company, ResearchProject.company_id == Company.id, isouter=True)\
+            .filter(
+                db.or_(
+                    Company.name.ilike(f'%{search_query}%'),
+                    Company.ticker_symbol.ilike(f'%{search_query}%')
+                )
+            )
+
+    # Apply decision filter
+    if decision_filter:
+        query = query.filter(ResearchProject.decision == decision_filter)
+
+    # Order by completed time (most recent first)
+    query = query.order_by(ResearchProject.completed_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    completed_projects = pagination.items
+
+    # Get unique decisions for filter dropdown
+    all_decisions = db.session.query(ResearchProject.decision)\
+        .filter(
+            ResearchProject.user_id == current_user.id,
+            ResearchProject.status == 'completed',
+            ResearchProject.decision.isnot(None)
+        ).distinct().all()
+    decisions = [d[0] for d in all_decisions if d[0]]
+
+    return render_template('projects_completed.html',
+                          title="Completed Research Projects",
+                          completed_projects=completed_projects,
+                          pagination=pagination,
+                          current_search=search_query,
+                          current_decision=decision_filter,
+                          current_per_page=per_page,
+                          decisions=decisions)
+
+@research_workflow_bp.route('/my-projects/too-hard-basket')
+@login_required
+def too_hard_basket():
+    """Warren Buffett's 'Too Hard' Basket - Companies we passed on"""
+    # Get pagination and filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    confidence_filter = request.args.get('confidence', '', type=str).strip()
+    sort_order = request.args.get('sort', 'recent', type=str)  # recent or oldest
+
+    # Start with base query
+    query = current_user.research_projects.filter_by(
+        status='completed',
+        decision='pass'
+    )
+
+    # Apply search filter
+    if search_query:
+        query = query.join(Company, ResearchProject.company_id == Company.id, isouter=True)\
+            .filter(
+                db.or_(
+                    Company.name.ilike(f'%{search_query}%'),
+                    Company.ticker_symbol.ilike(f'%{search_query}%')
+                )
+            )
+
+    # Apply confidence filter
+    if confidence_filter:
+        if confidence_filter == 'high':
+            query = query.filter(ResearchProject.decision_confidence >= 7)
+        elif confidence_filter == 'medium':
+            query = query.filter(
+                ResearchProject.decision_confidence >= 4,
+                ResearchProject.decision_confidence < 7
+            )
+        elif confidence_filter == 'low':
+            query = query.filter(ResearchProject.decision_confidence < 4)
+
+    # Order by completed time (passed on date)
+    if sort_order == 'oldest':
+        query = query.order_by(ResearchProject.completed_at.asc())
+    else:  # recent
+        query = query.order_by(ResearchProject.completed_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    too_hard_projects = pagination.items
+
+    return render_template('projects_too_hard.html',
+                          title="Too Hard Basket",
+                          too_hard_projects=too_hard_projects,
+                          pagination=pagination,
+                          current_search=search_query,
+                          current_confidence=confidence_filter,
+                          current_sort=sort_order,
+                          current_per_page=per_page)
+
+@research_workflow_bp.route('/my-projects/paused')
+@login_required
+def paused_projects():
+    """Detailed view of paused research projects"""
+    # Get pagination and filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search_query = request.args.get('search', '', type=str).strip()
+    template_filter = request.args.get('template', '', type=str).strip()
+    sort_order = request.args.get('sort', 'recent', type=str)  # recent or oldest
+
+    # Start with base query
+    query = current_user.research_projects.filter_by(status='paused')
+
+    # Apply search filter
+    if search_query:
+        query = query.join(Company, ResearchProject.company_id == Company.id, isouter=True)\
+            .filter(
+                db.or_(
+                    Company.name.ilike(f'%{search_query}%'),
+                    Company.ticker_symbol.ilike(f'%{search_query}%')
+                )
+            )
+
+    # Apply template filter
+    if template_filter:
+        query = query.filter(ResearchProject.template_id == int(template_filter))
+
+    # Order by last worked time
+    if sort_order == 'oldest':
+        query = query.order_by(ResearchProject.last_worked_at.asc())
+    else:  # recent
+        query = query.order_by(ResearchProject.last_worked_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    paused_projects = pagination.items
+
+    # Get unique templates for filter dropdown
+    all_templates = db.session.query(ResearchTemplate.id, ResearchTemplate.name)\
+        .join(ResearchProject, ResearchProject.template_id == ResearchTemplate.id)\
+        .filter(
+            ResearchProject.user_id == current_user.id,
+            ResearchProject.status == 'paused'
+        ).distinct().all()
+    templates = [{'id': t[0], 'name': t[1]} for t in all_templates]
+
+    # Calculate paused duration for each project
+    current_time = now_utc()
+    projects_with_duration = []
+    for project in paused_projects:
+        project_data = {
+            'project': project,
+            'days_paused': 0,
+            'duration_text': 'Unknown',
+            'duration_class': 'text-muted'
+        }
+
+        if project.last_worked_at:
+            last_worked_aware = ensure_timezone_aware(project.last_worked_at)
+            days_paused = (current_time - last_worked_aware).days
+            project_data['days_paused'] = days_paused
+
+            if days_paused < 1:
+                project_data['duration_text'] = 'Today'
+                project_data['duration_class'] = 'text-muted'
+            elif days_paused == 1:
+                project_data['duration_text'] = '1 day'
+                project_data['duration_class'] = 'text-muted'
+            elif days_paused < 7:
+                project_data['duration_text'] = f'{days_paused} days'
+                project_data['duration_class'] = 'text-muted'
+            elif days_paused < 30:
+                weeks = days_paused // 7
+                project_data['duration_text'] = f'{weeks} week{"s" if weeks > 1 else ""}'
+                project_data['duration_class'] = 'text-warning'
+            else:
+                months = days_paused // 30
+                project_data['duration_text'] = f'{months} month{"s" if months > 1 else ""}'
+                project_data['duration_class'] = 'text-danger'
+
+        projects_with_duration.append(project_data)
+
+    return render_template('projects_paused.html',
+                          title="Paused Research Projects",
+                          projects_with_duration=projects_with_duration,
+                          pagination=pagination,
+                          current_search=search_query,
+                          current_template=template_filter,
+                          current_sort=sort_order,
+                          current_per_page=per_page,
+                          templates=templates)
 
 @research_workflow_bp.route('/projects/<int:project_id>/pause', methods=['POST'])
 @login_required
@@ -887,7 +1301,7 @@ def pause_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
     
     project.status = 'paused'
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -909,7 +1323,7 @@ def resume_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
     
     project.status = 'active'
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -953,20 +1367,6 @@ def edit_template(template_id):
                 
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
-                    # Handle dynamic checklist items
-                    items = request.form.getlist(f'step_{i}_checklist_items[]')
-                    prompts = request.form.getlist(f'step_{i}_checklist_prompts[]')
-                    
-                    checklist_items = []
-                    for j, item in enumerate(items):
-                        if item.strip():  # Only add non-empty items
-                            checklist_items.append({
-                                'item': item.strip(),
-                                'prompt': prompts[j].strip() if j < len(prompts) and prompts[j].strip() else None
-                            })
-                    
-                    step['config']['checklist_items'] = checklist_items
-                elif step['type'] == 'investment_checklist_reference':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
                 elif step['type'] == 'kill_checklist_reference':
                     step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
@@ -976,7 +1376,7 @@ def edit_template(template_id):
                 workflow_steps.append(step)
         
         template.workflow_steps = workflow_steps
-        template.updated_at = datetime.utcnow()
+        template.updated_at = now_utc()
         
         try:
             db.session.commit()
@@ -992,30 +1392,16 @@ def edit_template(template_id):
     
     # Define available step types and mental models (same as create)
     step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist (Custom)', 'icon': '📋'},
-        {'value': 'investment_checklist_reference', 'label': 'Investment Checklist (Existing)', 'icon': '📊'},
-        {'value': 'kill_checklist_reference', 'label': 'Kill Checklist (Screening)', 'icon': '⚡'},
+        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
         {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'document_review', 'label': 'Document Analysis', 'icon': '📄'},
-        {'value': 'valuation', 'label': 'Valuation Work', 'icon': '💰'},
         {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
         {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'learning_overview', 'label': 'Learning Overview', 'icon': '📚'},
-        {'value': 'concept_study', 'label': 'Concept Study', 'icon': '🎓'},
-        {'value': 'industry_deep_dive', 'label': 'Industry Deep Dive', 'icon': '🏭'},
-        {'value': 'business_model_analysis', 'label': 'Business Model Analysis', 'icon': '💼'},
-        {'value': 'case_study', 'label': 'Case Study', 'icon': '📖'},
         {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
     ]
     
     mental_models = [
         'SWOT Analysis',
-        'Porter\'s Five Forces',
-        'Moat Analysis',
-        'Management Quality Assessment',
-        'Unit Economics',
-        'TAM Analysis',
-        'Risk Assessment'
+        'Porter\'s Five Forces'
     ]
     
     return render_template('edit_template.html',
@@ -1091,7 +1477,7 @@ def update_thesis(project_id):
     
     thesis = request.form.get('investment_thesis', '').strip()
     project.investment_thesis = thesis
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1129,7 +1515,7 @@ def add_finding(project_id):
     else:
         return jsonify({'error': 'Invalid finding type'}), 400
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1138,147 +1524,12 @@ def add_finding(project_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@research_workflow_bp.route('/projects/<int:project_id>/abandon', methods=['POST'])
-@login_required
-def abandon_project(project_id):
-    """Abandon a research project"""
-    project = ResearchProject.query.get_or_404(project_id)
-    
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-    
-    # Get project name and company name before deletion
-    project_name = project.project_name
-    company_name = project.company.name if project.company else "Unknown"
 
-    # When abandoning a project, we completely remove it - do NOT reset idea status
-    # The idea should remain in its current state (promoted) but the project is gone
-
-    current_app.logger.info(f"Abandoning project for {company_name} - completely removing project but preserving company")
-
-    try:
-        # Delete research logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete associated work sessions
-        WorkSession.query.filter_by(research_project_id=project.id).delete()
-
-        # Delete research activity logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete decision journal entries that reference this project
-        DecisionJournal.query.filter_by(project_id=project.id).delete()
-
-        # Delete journal entries that reference this project
-        JournalEntry.query.filter_by(project_id=project.id).delete()
-
-        # Clear research-related data but preserve company, journal entries, and mistake logs
-        if project.company:
-            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
-
-            # Remove only research-specific documents, NOT journal entries or mistake logs
-            research_docs = project.company.documents.filter(
-                CompanyDocument.document_group.in_(['Financial Data', 'Research Notes', 'Analysis'])
-            ).all()
-
-            for doc in research_docs:
-                current_app.logger.info(f"Removing research document: {doc.original_filename}")
-                db.session.delete(doc)
-
-        # Commit the deletions of related records first
-        db.session.commit()
-
-        # Now we can safely delete the project
-        db.session.delete(project)
-        db.session.commit()
-
-        flash(f'Project "{project_name}" has been completely removed. Company preserved for future use.', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error abandoning project: {str(e)}")
-        flash(f'Error abandoning project: {str(e)}', 'error')
-    
-    return redirect(url_for('research_workflow.my_projects'))
-
-@research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
-@login_required
-def delete_project(project_id):
-    """Delete a research project permanently"""
-    project = ResearchProject.query.get_or_404(project_id)
-    
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-    
-    # Get project name before deletion
-    project_name = project.project_name
-
-    # Delete the associated idea if this project was created from a promoted idea
-    idea_to_delete = None
-    if project.idea and project.idea.status == 'promoted':
-        current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
-        idea_to_delete = project.idea
-
-    # NEW LOGIC: Never remove companies - they can be reused
-    # Only remove research-related data while preserving Journal Entry and Mistake logs
-    company_name = project.company.name if project.company else "Unknown"
-    current_app.logger.info(f"Deleting project for {company_name} - preserving company but clearing research data")
-
-    try:
-        # Delete all related records first to avoid foreign key constraints
-        from app.models import ResearchLog
-
-        # Delete research logs that reference this project
-        ResearchLog.query.filter_by(project_id=project.id).delete()
-
-        # Delete associated work sessions
-        WorkSession.query.filter_by(research_project_id=project.id).delete()
-
-        # Commit the deletions of related records first
-        db.session.commit()
-
-        # Delete the associated idea if there is one
-        if idea_to_delete:
-            current_app.logger.info(f"Deleting idea: {idea_to_delete.name}")
-            db.session.delete(idea_to_delete)
-
-        # Now we can safely delete the project
-        db.session.delete(project)
-        db.session.commit()
-
-        # Clear research-related data but preserve company, journal entries, and mistake logs
-        if project.company:
-            current_app.logger.info(f"Clearing research data for company {project.company.name} while preserving company and journal entries")
-
-            # Remove only research-specific documents, NOT journal entries or mistake logs
-            research_docs = project.company.company_documents.filter(
-                CompanyDocument.doc_type.in_(['financial_data', 'research_note', 'analysis'])
-            ).all()
-
-            for doc in research_docs:
-                current_app.logger.info(f"Removing research document: {doc.filename}")
-                db.session.delete(doc)
-
-            # Legacy research sessions are no longer used in the new workflow system
-
-            db.session.commit()
-
-        flash(f'Project "{project_name}" has been deleted. Company preserved for future use.', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting project: {str(e)}', 'error')
-    
-    return redirect(url_for('research_workflow.my_projects'))
 
 @research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
 @login_required
 def delete_research_session(session_id):
     """Delete a research session that is not in progress or completed"""
-    from app.models import ResearchSession, ResearchAnswer
-
     session = ResearchSession.query.get_or_404(session_id)
 
     # Authorization check
@@ -1290,7 +1541,6 @@ def delete_research_session(session_id):
 
     # For completed sessions, only allow deletion if they're incomplete/failed
     if session.status == 'completed':
-        from app.models import ResearchAnswer
         total_answers = ResearchAnswer.query.filter_by(research_session_id=session_id).all()
         total_item_count = len(total_answers)
         satisfied_count = len([ans for ans in total_answers if ans.satisfaction_status == 'satisfied'])
@@ -1322,8 +1572,6 @@ def delete_research_session(session_id):
 @login_required
 def delete_research_project(project_id):
     """Delete a research project"""
-    from app.models import ResearchProject
-
     project = ResearchProject.query.get_or_404(project_id)
 
     # Authorization check
@@ -1337,22 +1585,29 @@ def delete_research_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
 
     try:
-        # Get project name before deletion to avoid session issues
-        project_name = project.research_subject_name or f"{project.research_subject_type} project"
+        project_name = project.research_subject_name or f"project"
 
-        # Delete the associated idea if this project was created from a promoted idea
-        if project.idea and project.idea.status == 'promoted':
-            current_app.logger.info(f"Deleting idea {project.idea.id} due to project deletion")
-            db.session.delete(project.idea)
+        # If project is linked to an idea, we must handle its dependencies before deleting the idea itself.
+        if project.idea:
+            idea_to_delete = project.idea
+            ResearchLog.query.filter_by(idea_id=idea_to_delete.id).delete(synchronize_session=False)
+            JournalEntry.query.filter_by(idea_id=idea_to_delete.id).update({'idea_id': None}, synchronize_session=False)
+            db.session.delete(idea_to_delete)
 
-        # Delete the research project
+        # Clean up journal_entry references to this project
+        JournalEntry.query.filter_by(project_id=project.id).update({'project_id': None}, synchronize_session=False)
         db.session.delete(project)
         db.session.commit()
 
-        flash(f'Research project "{project_name}" has been deleted', 'success')
+        flash(f'Research project "{project_name}" has been deleted successfully.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error deleting research project: {str(e)}', 'error')
+        current_app.logger.error(f"Error deleting research project {project_id}: {str(e)}")
+        # Provide a more specific error message if it's a foreign key violation
+        if 'ForeignKeyViolation' in str(e):
+             flash('Error deleting project: Could not remove related records. Please check for dependencies in other parts of the application.', 'error')
+        else:
+             flash(f'An unexpected error occurred while deleting the project.', 'error')
 
     return redirect(url_for('research_workflow.my_projects'))
 
@@ -1386,9 +1641,9 @@ def skip_step(project_id, step_index):
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1478,8 +1733,9 @@ def complete_checklist_step(project_id, session_id):
     }
     
     # Complete the session
-    session.end_time = datetime.utcnow()
-    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.end_time = now_utc()
+    start_time_aware = ensure_timezone_aware(session.start_time)
+    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
     session.notes = step_notes
     session.results = checklist_results
     session.status = 'completed'
@@ -1505,9 +1761,9 @@ def complete_checklist_step(project_id, session_id):
         project.current_step_index = session.step_index + 1
     else:
         project.status = 'completed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1583,8 +1839,9 @@ def complete_kill_checklist_step(project_id, session_id):
     }
     
     # Complete the session
-    session.end_time = datetime.utcnow()
-    session.duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    session.end_time = now_utc()
+    start_time_aware = ensure_timezone_aware(session.start_time)
+    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
     session.notes = step_notes
     session.results = kill_checklist_results
     session.status = 'completed'
@@ -1608,7 +1865,7 @@ def complete_kill_checklist_step(project_id, session_id):
     # Handle kill decision
     if overall_result == 'kill':
         project.status = 'killed'
-        project.completed_at = datetime.utcnow()
+        project.completed_at = now_utc()
         project.kill_reason = f"Failed screening: {step_notes}"
     else:
         # Move to next step
@@ -1616,9 +1873,9 @@ def complete_kill_checklist_step(project_id, session_id):
             project.current_step_index = session.step_index + 1
         else:
             project.status = 'completed'
-            project.completed_at = datetime.utcnow()
+            project.completed_at = now_utc()
     
-    project.last_worked_at = datetime.utcnow()
+    project.last_worked_at = now_utc()
     
     try:
         db.session.commit()
@@ -1908,7 +2165,7 @@ def return_from_checklist(project_id, step_index):
             project.step_notes[str(step_index)] = 'Completed via legacy investment checklist'
             
             # Update last worked timestamp
-            project.last_worked_at = datetime.now(timezone.utc)
+            project.last_worked_at = now_utc()
             
             try:
                 db.session.commit()
@@ -1923,3 +2180,481 @@ def return_from_checklist(project_id, step_index):
         # No valid research context, just go to project dashboard
         flash('Returned from checklist execution', 'info')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+# Adaptive Research Template API Routes
+
+@research_workflow_bp.route('/api/template/<int:template_id>/adaptations')
+@login_required
+def get_template_adaptations(template_id):
+    """Get adaptive suggestions for a research template based on company context"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    # Get company from request parameters
+    company_id = request.args.get('company_id', type=int)
+    if not company_id:
+        return jsonify({'error': 'Company ID required'}), 400
+
+    company = Company.query.get_or_404(company_id)
+    if company.user_id != current_user.id:
+        return jsonify({'error': 'Access denied to company'}), 403
+
+    try:
+        logger.info(f"Getting adaptations for template {template_id}, company {company_id}")
+
+        # Get comprehensive adaptations
+        adaptations = suggest_template_adaptations(template, company, current_user.id)
+
+        logger.info(f"Successfully generated adaptations: {adaptations}")
+
+        return jsonify({
+            'success': True,
+            'adaptations': adaptations,
+            'template_id': template_id,
+            'company_id': company_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting template adaptations: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+
+@research_workflow_bp.route('/api/template/<int:template_id>/apply-adaptations', methods=['POST'])
+@login_required
+def apply_adaptations(template_id):
+    """Apply selected adaptations to a research template"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No adaptation data provided'}), 400
+
+        # Apply the adaptations
+        success = apply_template_adaptations(template, data)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Template adaptations applied successfully',
+                'template_id': template_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to apply adaptations'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error applying template adaptations: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/template/<int:template_id>/time-estimates')
+@login_required
+def get_personalized_time_estimates(template_id):
+    """Get personalized time estimates for template steps based on user history"""
+    template = ResearchTemplate.query.get_or_404(template_id)
+
+    # Security check
+    if template.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        estimates = adaptive_template_service.get_personalized_time_estimates(
+            template, current_user.id
+        )
+
+        return jsonify({
+            'success': True,
+            'estimates': estimates,
+            'template_id': template_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting time estimates: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/company/<int:company_id>/sector-questions')
+@login_required
+def get_sector_questions(company_id):
+    """Get sector-specific questions available for a company"""
+    company = Company.query.get_or_404(company_id)
+
+    # Security check
+    if company.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        if not company.sector:
+            return jsonify({
+                'success': True,
+                'questions': [],
+                'message': 'No sector specified for this company'
+            })
+
+        questions = adaptive_template_service.get_sector_questions(
+            company.sector, current_user.id
+        )
+
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'sector': company.sector,
+            'company_id': company_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sector questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_workflow_bp.route('/api/project/<int:project_id>/adaptive-suggestions')
+@login_required
+def get_project_adaptive_suggestions(project_id):
+    """Get adaptive suggestions when starting a new research project"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    # Security check
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        template = project.template
+        company = project.company
+
+        logger.info(f"Getting project suggestions for project {project_id}, template: {template.id if template else 'None'}, company: {company.id if company else 'None'}")
+
+        if not company:
+            logger.warning(f"Project {project_id} has no company associated")
+            return jsonify({
+                'success': True,
+                'suggestions': [],
+                'message': 'No company associated with this project'
+            })
+
+        if not company.sector:
+            logger.warning(f"Company {company.id} has no sector specified")
+            return jsonify({
+                'success': True,
+                'suggestions': [],
+                'message': f'No sector specified for {company.name}'
+            })
+
+        # Get comprehensive suggestions
+        adaptations = suggest_template_adaptations(template, company, current_user.id)
+
+        # Calculate potential time savings/additions
+        step_suggestions = adaptations.get('step_injections', {}).get('suggestions', [])
+        time_estimates = adaptations.get('time_estimates', {}).get('estimates', [])
+
+        # Create actionable suggestions summary
+        suggestions_summary = {
+            'sector_questions_available': len(step_suggestions),
+            'time_estimates_available': len([e for e in time_estimates if e.get('confidence', 0) > 0.5]),
+            'recommended_injections': [
+                {
+                    'step_name': s['step_name'],
+                    'questions_count': len(s['questions']),
+                    'confidence': s['confidence']
+                }
+                for s in step_suggestions
+                if s['confidence'] > 0.7
+            ],
+            'time_insights': adaptations.get('time_estimates', {}).get('insights', [])
+        }
+
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions_summary,
+            'full_adaptations': adaptations,
+            'project_id': project_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting project adaptive suggestions: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }), 500
+
+@research_workflow_bp.route('/projects/<int:project_id>/competitor-analysis/<int:step_index>', methods=['GET', 'POST'])
+@login_required
+def competitor_analysis_step(project_id, step_index):
+    """Execute competitor analysis step with LLM-powered competitor discovery and analysis"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    # Get the step details
+    step = project.template.get_step(step_index)
+    if not step or step['type'] != 'competitor_analysis':
+        flash('Invalid competitor analysis step', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    # Check if project has a company (required for competitor analysis)
+    if not project.company_id:
+        flash('Research project must have a company assigned for competitor analysis. Please assign a company to this project first.', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    company = project.company
+
+    # Get or create work session
+    session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
+        step_index=step_index,
+        end_time=None
+    ).first()
+
+    if not session:
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
+
+    # Handle form submission
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'analyze_competitors':
+            # LLM-powered competitor discovery
+            try:
+                from app.services.llm_service import generate_ai_content
+                from app.services.prompt_service import get_competitor_analysis_prompt
+
+                analysis_prompt = get_competitor_analysis_prompt(
+                    'landscape_analysis',
+                    company_name=company.name,
+                    ticker_symbol=company.ticker_symbol,
+                    company_description=company.summary or 'No description available',
+                    sector=company.sector or 'Unknown',
+                    industry=company.industry or 'Unknown'
+                )
+
+                competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=1500)
+
+                # Store the analysis in session notes
+                session.notes = competitor_analysis
+                session.updated_at = now_utc()
+                db.session.commit()
+
+                flash('Competitor analysis completed successfully!', 'success')
+
+            except Exception as e:
+                flash(f'Error generating competitor analysis: {str(e)}', 'error')
+
+        elif action == 'complete_step':
+            # Mark step as completed
+            notes = request.form.get('notes', '')
+            if notes:
+                session.notes = notes
+
+            session.end_time = now_utc()
+            session.updated_at = now_utc()
+            session.status = 'completed'
+
+            # Mark the step as completed in the project
+            completed_steps = project.completed_steps or []
+            if step_index not in completed_steps:
+                completed_steps.append(step_index)
+                project.completed_steps = completed_steps
+                project.last_worked_at = now_utc()
+
+            # Check if this is the last step
+            if step_index + 1 < len(project.template.workflow_steps):
+                project.current_step_index = step_index + 1
+            else:
+                project.status = 'completed'
+                project.completed_at = now_utc()
+
+            db.session.commit()
+            flash('Competitor analysis step completed!', 'success')
+
+            # Redirect to summary if project is complete, otherwise to dashboard
+            if project.status == 'completed':
+                return redirect(url_for('research_workflow.project_summary', project_id=project_id))
+            else:
+                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    # Format session start time for JavaScript timer
+    session_start_js = format_for_javascript(session.start_time)
+
+    return render_template('competitor_analysis_step.html',
+                          title=f"Competitor Analysis: {step['name']}",
+                          project=project,
+                          company=company,
+                          step=step,
+                          step_index=step_index,
+                          session=session,
+                          session_start_js=session_start_js)
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/competitor-analysis/<int:step_index>/api/analyze', methods=['POST'])
+@login_required
+def competitor_analysis_api(project_id, step_index):
+    """AJAX endpoint for competitor analysis with progress feedback"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    # Get the step details
+    step = project.template.get_step(step_index)
+    if not step or step['type'] != 'competitor_analysis':
+        return jsonify({'success': False, 'error': 'Invalid step'}), 400
+
+    company = project.company
+    if not company:
+        return jsonify({'success': False, 'error': 'No company associated with this project'}), 400
+
+    # Get or create work session
+    session = WorkSession.query.filter_by(
+        research_project_id=project_id,
+        user_id=current_user.id,
+        step_index=step_index,
+        end_time=None
+    ).first()
+
+    if not session:
+        session = WorkSession(
+            project=project,
+            user=current_user,
+            step_index=step_index,
+            step_name=step['name'],
+            start_time=now_utc()
+        )
+        db.session.add(session)
+        db.session.commit()
+
+    # Start background task for competitor analysis
+    try:
+        from app.services.background_tasks import BackgroundTaskService
+
+        # Start background task
+        task_id = BackgroundTaskService.start_competitor_analysis(
+            user_id=current_user.id,
+            project_id=project_id,
+            step_index=step_index,
+            company=company
+        )
+
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Competitor analysis started. This may take 30-60 seconds...'
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to start competitor analysis: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to start analysis: {str(e)}'
+        }), 500
+
+
+@research_workflow_bp.route('/api/background-task/<string:task_id>', methods=['GET'])
+@login_required
+def get_background_task_status(task_id):
+    """Get status of a background task"""
+    try:
+        from app.services.background_tasks import BackgroundTaskService
+
+        status = BackgroundTaskService.get_task_status(task_id)
+        if not status:
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+
+        # Check if task belongs to current user
+        from app.models import BackgroundTask
+        task = BackgroundTask.query.get(task_id)
+        if task and task.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting task status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error getting task status: {str(e)}'
+        }), 500
+
+
+@research_workflow_bp.route('/api/running-tasks', methods=['GET'])
+@login_required
+def get_running_tasks():
+    """Check for running background tasks for a specific project/step"""
+    try:
+        project_id = request.args.get('project_id', type=int)
+        step_index = request.args.get('step_index', type=int)
+
+        if not project_id or step_index is None:
+            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+        from app.models import BackgroundTask
+
+        # Find running task for this project/step
+        running_task = BackgroundTask.query.filter_by(
+            user_id=current_user.id,
+            project_id=project_id,
+            step_index=step_index,
+            task_type='competitor_analysis'
+        ).filter(
+            BackgroundTask.status.in_(['pending', 'running'])
+        ).first()
+
+        if running_task:
+            return jsonify({
+                'success': True,
+                'task_id': running_task.id,
+                'status': running_task.status
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'task_id': None
+            })
+
+    except Exception as e:
+        logger.error(f"Error checking running tasks: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error checking running tasks: {str(e)}'
+        }), 500

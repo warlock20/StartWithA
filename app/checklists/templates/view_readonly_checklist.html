@@ -1,65 +1,106 @@
 {% extends "main/_base.html" %}
-{# Import the macro from our new file #}
-
 {% from "_macros.html" import display_items_for_readonly_view %}
-{% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>👁️ {{ checklist.name }} <span class="badge bg-info">View Mode</span></h1>
-        <p class="text-muted mb-0">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
-    </div>
-    <div>
-        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-outline-warning">
-            <i class="bi bi-pencil"></i> Switch to Edit Mode
-        </a>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to All Checklists
-        </a>
-    </div>
-</div>
 
-<div class="row g-4">
-    <div class="col-lg-8">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">📋 Checklist Items</h5>
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-eye text-info me-3"></i>{{ checklist.name }}
+            </h1>
+            <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <span class="badge bg-info">View Mode</span>
+                </small>
             </div>
-            <div class="card-body">
-                {% if items %}
-                    {# Call the macro with readonly=True #}
-                    {{ display_items_for_readonly_view(items, ChecklistItem) }}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-list text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2">No items in this checklist yet.</p>
-                        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-plus"></i> Add Items
-                        </a>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-warning me-2">
+                <i class="bi bi-pencil"></i> Edit Mode
+            </a>
+            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Checklists
+            </a>
+        </div>
+    </header>
+
+    <!-- Statistics Overview -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Items</h3>
+                        <span class="priority-card-number priority-number-blue">{{ total_items_count }}</span>
                     </div>
-                {% endif %}
+                    <p class="priority-card-description">Including sub-items</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Main Items</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ items|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Top-level items</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">AI-Enhanced</h3>
+                        <span class="priority-card-number priority-number-green">{{ items_with_llm }}</span>
+                    </div>
+                    <p class="priority-card-description">Items with LLM prompts</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-portfolio">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Companies</h3>
+                        <span class="priority-card-number priority-number-purple">{{ companies|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Ready for analysis</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">🔬 Research Workflow</h5>
+    <!-- Main Content Area -->
+    <div class="checklist-view-card">
+        <div class="checklist-view-header">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-list-check text-primary me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <h3 class="mb-0 font-poppins">Checklist Structure</h3>
+                    <p class="text-muted mb-0 small">Review your checklist items and hierarchy</p>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="text-center py-3">
-                    <i class="bi bi-arrow-up-right-circle text-primary" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2 mb-3">Research has been migrated to the new workflow system.</p>
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-primary">
-                            <i class="bi bi-play-circle"></i> Start New Research
-                        </a>
-                        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-list-task"></i> View My Projects
+            {% if items %}
+            <div>
+                <span class="badge bg-success">{{ items|length }} main items</span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="checklist-view-body">
+            {% if items %}
+                <div class="checklist-items-container">
+                    {{ display_items_for_readonly_view(items, ChecklistItem) }}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-list-check"></i>
+                    <h3>No items yet</h3>
+                    <p>This checklist is empty. Switch to edit mode to add items.</p>
+                    <div class="mt-4">
+                        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-primary">
+                            <i class="bi bi-pencil"></i> Switch to Edit Mode
                         </a>
                     </div>
                 </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>

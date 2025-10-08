@@ -1,189 +1,269 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📊 Research Templates</h1>
-        <p class="text-muted mb-0">Systematic workflows for different investment approaches</p>
-    </div>
-    <div>
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary">
-            My Projects
-        </a>
-        <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Create Template
-        </a>
-    </div>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Research Templates</h1>
+            <p class="dashboard-subtitle">Systematic workflows for different investment approaches</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-folder"></i> My Projects
+            </a>
+            <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> Create Template
+            </a>
+        </div>
+    </header>
 
-<!-- Statistics cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ templates|length }}</h3>
-                <small class="text-muted">Templates Created</small>
+    <!-- Statistics Priority Cards -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid">
+            <!-- Templates Created -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Templates Created</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ templates|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Reusable research workflows you've built.</p>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ active_projects }}</h3>
-                <small class="text-muted">Active Projects</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ total_projects }}</h3>
-                <small class="text-muted">Total Projects</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ total_research_hours }}h</h3>
-                <small class="text-muted">Research Time</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Templates grid -->
-{% if templates %}
-<div class="row">
-    {% for template in templates %}
-    <div class="col-lg-6 mb-4">
-        <div class="card h-100 {% if not template.is_active %}opacity-75{% endif %}">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        {{ template.name }}
-                        {% if not template.is_active %}
-                            <span class="badge bg-secondary ms-2">Inactive</span>
+            <!-- Active Projects -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Active Projects</h3>
+                        <span class="priority-card-number priority-number-blue">{{ active_projects }}</span>
+                    </div>
+                    <p class="priority-card-description">Companies currently being researched using templates.</p>
+                </div>
+            </div>
+
+            <!-- Total Projects -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Projects</h3>
+                        <span class="priority-card-number priority-number-green">{{ total_projects }}</span>
+                    </div>
+                    <p class="priority-card-description">All research projects completed or in progress.</p>
+                </div>
+            </div>
+
+            <!-- Research Time -->
+            <div class="priority-card priority-card-warning">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Research Time</h3>
+                        <span class="priority-card-number priority-number-red">{{ total_research_hours }}h</span>
+                    </div>
+                    <p class="priority-card-description">Total hours invested in systematic research.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid: Templates + Sidebar -->
+    {% if templates %}
+    <div class="template-main-grid">
+        <!-- Templates List (Main Column) -->
+        <div class="templates-main-column">
+            <h2 class="section-title font-poppins mb-4">Your Templates</h2>
+            {% for template in templates %}
+            <div class="template-card-enhanced {% if not template.is_active %}template-card-inactive{% endif %}">
+                <div class="template-card-top">
+                    <div class="template-header-left">
+                        <h3 class="template-card-title-enhanced">
+                            <i class="bi bi-gem text-primary me-2"></i>
+                            {{ template.name }}
+                        </h3>
+                        {% if template.description %}
+                        <p class="template-description-enhanced">{{ template.description }}</p>
                         {% endif %}
-                    </h5>
-                    <span class="badge bg-primary">{{ template.step_count }} steps</span>
-                </div>
-            </div>
-            <div class="card-body">
-                {% if template.description %}
-                    <p class="card-text">{{ template.description }}</p>
-                {% endif %}
-                
-                {% if template.investment_style %}
-                    <p class="mb-2">
-                        <strong>Style:</strong> 
-                        <span class="badge bg-info">{{ template.investment_style|capitalize }}</span>
-                    </p>
-                {% endif %}
-                
-                <!-- Workflow preview -->
-                <h6>Workflow Steps:</h6>
-                <ol class="small">
-                    {% for step in template.workflow_steps[:3] %}
-                        <li>{{ step.name }}</li>
-                    {% endfor %}
-                    {% if template.step_count > 3 %}
-                        <li class="text-muted">...and {{ template.step_count - 3 }} more steps</li>
-                    {% endif %}
-                </ol>
-                
-                <!-- Statistics -->
-                <div class="row text-center mb-3">
-                    <div class="col-4">
-                        <h5>{{ template.times_used }}</h5>
-                        <small class="text-muted">Uses</small>
                     </div>
-                    <div class="col-4">
-                        <h5>{{ template.success_rate }}%</h5>
-                        <small class="text-muted">Success</small>
-                    </div>
-                    <div class="col-4">
-                        <h5>
-                            {% set total_mins = 0 %}
-                            {% for step in template.workflow_steps %}
-                                {% set total_mins = total_mins + (step.estimated_minutes|default(60)) %}
-                            {% endfor %}
-                            {{ (total_mins / 60)|round(1) }}h
-                        </h5>
-                        <small class="text-muted">Est. Time</small>
+                    <div class="template-success-badge">
+                        <p class="success-rate-number">{{ template.success_rate }}%</p>
+                        <p class="success-rate-label">SUCCESS RATE</p>
                     </div>
                 </div>
-                
-                <!-- Actions -->
-                <div class="d-flex justify-content-between">
-                    <button class="btn btn-primary btn-sm" 
-                            onclick="showStartProjectModal({{ template.id }}, '{{ template.name }}')">
-                        Start New Project
-                    </button>
-                    <div>
-                        <a href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}"
-                           class="btn btn-outline-secondary btn-sm">Edit</a>
-                        {% if template.times_used == 0 %}
-                        <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}"
-                              style="display: inline;">
-                            <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('Delete this template? This cannot be undone.');">Delete</button>
-                        </form>
-                        {% else %}
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-danger btn-sm dropdown-toggle"
-                                    data-bs-toggle="dropdown" style="z-index: 1050;">Delete</button>
-                            <ul class="dropdown-menu" style="z-index: 1055;">
-                                <li><h6 class="dropdown-header text-warning">⚠️ Template has been used</h6></li>
-                                <li><form method="POST" action="{{ url_for('research_workflow.force_delete_template', template_id=template.id) }}"
-                                          style="margin: 0;">
-                                    <button type="submit" class="dropdown-item text-danger"
-                                            onclick="return confirm('⚠️ FORCE DELETE?\n\nThis template has been used {{ template.times_used }} times. Deleting it will not affect existing projects, but this action cannot be undone.\n\nAre you sure?');">
-                                        🗑️ Force Delete Template
-                                    </button>
-                                </form></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-muted" href="#" onclick="return false;">
-                                    <small>Existing projects remain unaffected</small>
-                                </a></li>
-                            </ul>
+
+                <!-- Process Blueprint -->
+                <div class="template-blueprint">
+                    <h4 class="blueprint-title">PROCESS BLUEPRINT</h4>
+                    <div class="blueprint-flow">
+                        {% for step in template.workflow_steps[:3] %}
+                        <div class="blueprint-step">
+                            <span>{{ loop.index }}. {{ step.name }}</span>
+                        </div>
+                        {% if not loop.last %}
+                        <i class="bi bi-chevron-right blueprint-arrow"></i>
+                        {% endif %}
+                        {% endfor %}
+                        {% if template.step_count > 3 %}
+                        <i class="bi bi-chevron-right blueprint-arrow"></i>
+                        <div class="blueprint-step">
+                            <span>+ {{ template.step_count - 3 }} more</span>
                         </div>
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Stats and Actions -->
+                <div class="template-card-footer">
+                    <div class="template-stats-horizontal">
+                        <div class="stat-item-horizontal">
+                            <span class="stat-value-horizontal">{{ template.times_used }}</span>
+                            <span class="stat-label-horizontal">Uses</span>
+                        </div>
+                        <div class="stat-item-horizontal">
+                            {% set total_mins = 0 %}
+                            {% for step in template.workflow_steps %}
+                                {% set total_mins = total_mins + (step.estimated_minutes|default(60)) %}
+                            {% endfor %}
+                            <span class="stat-value-horizontal">~{{ (total_mins / 60)|round(1) }}h</span>
+                            <span class="stat-label-horizontal">Avg. Time</span>
+                        </div>
+                    </div>
+                    <div class="template-action-group">
+                        <button class="btn btn-primary template-use-btn"
+                                onclick="showStartProjectModal({{ template.id }}, '{{ template.name }}')">
+                            Use Template
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-icon-only" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('research_workflow.edit_template', template_id=template.id) }}">
+                                        <i class="bi bi-pencil me-2"></i> Edit Template
+                                    </a>
+                                </li>
+                                {% if template.times_used == 0 %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}"
+                                          style="margin: 0;">
+                                        <button type="submit" class="dropdown-item text-danger"
+                                                onclick="return confirm('Delete this template? This cannot be undone.');">
+                                            <i class="bi bi-trash me-2"></i> Delete
+                                        </button>
+                                    </form>
+                                </li>
+                                {% else %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header text-warning"><i class="bi bi-exclamation-triangle"></i> Template In Use</h6></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('research_workflow.force_delete_template', template_id=template.id) }}"
+                                          style="margin: 0;">
+                                        <button type="submit" class="dropdown-item text-danger"
+                                                onclick="return confirm('⚠️ FORCE DELETE?\n\nThis template has been used {{ template.times_used }} times. Deleting it will not affect existing projects, but this action cannot be undone.\n\nAre you sure?');">
+                                            <i class="bi bi-trash me-2"></i> Force Delete
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="templates-sidebar">
+            <!-- Template Insights -->
+            {% set most_successful = templates|sort(attribute='success_rate', reverse=true)|first %}
+            {% set most_used = templates|sort(attribute='times_used', reverse=true)|first %}
+
+            <div class="sidebar-card">
+                <h3 class="sidebar-card-title font-poppins">Template Insights</h3>
+                <div class="insights-grid">
+                    {% if most_successful %}
+                    <div class="insight-box insight-success">
+                        <h4 class="insight-title">
+                            <i class="bi bi-trophy-fill me-2"></i> Most Successful
+                        </h4>
+                        <p class="insight-value">{{ most_successful.name }}</p>
+                        <p class="insight-detail">with {{ most_successful.success_rate }}% success rate.</p>
+                    </div>
+                    {% endif %}
+
+                    {% if most_used %}
+                    <div class="insight-box insight-used">
+                        <h4 class="insight-title">
+                            <i class="bi bi-arrow-repeat me-2"></i> Most Used
+                        </h4>
+                        <p class="insight-value">{{ most_used.name }}</p>
+                        <p class="insight-detail">used in {{ most_used.times_used }} projects.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Process Stats -->
+            <div class="sidebar-card">
+                <h3 class="sidebar-card-title font-poppins">Your Process Stats</h3>
+                <div class="stats-list">
+                    <div class="stat-row">
+                        <span class="stat-row-label">Total Templates</span>
+                        <span class="stat-row-value">{{ templates|length }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-row-label">Total Projects Run</span>
+                        <span class="stat-row-value">{{ total_projects }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-row-label">Avg. Success Rate</span>
+                        {% set avg_success = (templates|sum(attribute='success_rate') / templates|length)|round(0) if templates|length > 0 else 0 %}
+                        <span class="stat-row-value stat-success">{{ avg_success }}%</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    {% endfor %}
+    {% else %}
+    <!-- Empty State -->
+    <div class="template-empty-state">
+        <i class="bi bi-clipboard-data"></i>
+        <h3>No Research Templates Yet</h3>
+        <p>Create your first research template to systematize your investment analysis process.</p>
+        <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle-fill"></i> Create Your First Template
+        </a>
+    </div>
+    {% endif %}
+
 </div>
-{% else %}
-<div class="alert alert-info">
-    <h5>No Research Templates Yet</h5>
-    <p>Create your first research template to systematize your investment analysis process.</p>
-    <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">Create Your First Template</a>
-</div>
-{% endif %}
 
 <!-- Start Project Modal -->
 <div class="modal fade" id="startProjectModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Start Research Project</h5>
+                <h5 class="modal-title font-poppins">Start Research Project</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('research_workflow.start_project') }}">
                 <div class="modal-body">
                     <input type="hidden" id="template_id" name="template_id">
                     <p>Using template: <strong id="template_name_display"></strong></p>
-                    
+
                     <div class="mb-3">
                         <label for="company_id" class="form-label">Select Company to Research</label>
                         <select class="form-select" id="company_id" name="company_id" required>
                             <option value="">-- Choose a company --</option>
                             {% for company in current_user.companies.order_by('name').all() %}
                                 <option value="{{ company.id }}">
-                                    {{ company.name }} 
+                                    {{ company.name }}
                                     {% if company.ticker_symbol %}({{ company.ticker_symbol }}){% endif %}
                                 </option>
                             {% endfor %}
@@ -192,79 +272,28 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Start Project</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-play-circle"></i> Start Project
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<!-- Suggested Templates -->
-<div class="card mt-4">
-    <div class="card-header bg-light">
-        <h6 class="mb-0">💡 Suggested Template Structures</h6>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <h6>Value Investor Template</h6>
-                <ol class="small">
-                    <li>Quick financial health check</li>
-                    <li>Business quality assessment</li>
-                    <li>Management evaluation</li>
-                    <li>Competitive position analysis</li>
-                    <li>Valuation work</li>
-                    <li>Risk assessment</li>
-                    <li>Investment thesis</li>
-                </ol>
-            </div>
-            <div class="col-md-4">
-                <h6>Growth Investor Template</h6>
-                <ol class="small">
-                    <li>TAM and market opportunity</li>
-                    <li>Unit economics analysis</li>
-                    <li>Growth drivers assessment</li>
-                    <li>Competitive moat analysis</li>
-                    <li>Management vision check</li>
-                    <li>Valuation scenarios</li>
-                    <li>Scaling risks review</li>
-                </ol>
-            </div>
-            <div class="col-md-4">
-                <h6>Special Situations Template</h6>
-                <ol class="small">
-                    <li>Situation overview</li>
-                    <li>Catalyst identification</li>
-                    <li>Downside protection</li>
-                    <li>Timeline analysis</li>
-                    <li>Key stakeholder review</li>
-                    <li>Scenario modeling</li>
-                    <li>Risk/reward assessment</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
+
+<!-- Tips Modal -->
+{% set tips_title = "Suggested Template Structures" %}
+{% set tips_intro = "Here are proven research workflows for different investment styles:" %}
+{% set tips = [
+    "<strong>Value Investor:</strong> 1) Quick financial health check 2) Business quality assessment 3) Management evaluation 4) Competitive position analysis 5) Valuation work 6) Risk assessment 7) Investment thesis",
+    "<strong>Growth Investor:</strong> 1) TAM and market opportunity 2) Unit economics analysis 3) Growth drivers assessment 4) Competitive moat analysis 5) Management vision check 6) Valuation scenarios 7) Scaling risks review",
+    "<strong>Special Situations:</strong> 1) Situation overview 2) Catalyst identification 3) Downside protection 4) Timeline analysis 5) Key stakeholder review 6) Scenario modeling 7) Risk/reward assessment"
+] %}
+{% include 'main/_tips_modal.html' %}
 
 {% block scripts %}
 {{ super() }}
-<style>
-/* Fix dropdown z-index issues */
-.btn-group .dropdown-menu {
-    z-index: 1055 !important;
-}
-
-.card {
-    overflow: visible;
-}
-
-/* Ensure dropdowns appear above all other content */
-.dropdown-menu.show {
-    z-index: 1055 !important;
-}
-</style>
-
 <script>
 function showStartProjectModal(templateId, templateName) {
     document.getElementById('template_id').value = templateId;

@@ -54,7 +54,7 @@
                                         <span id="companyDisplayInfo">
                                             {% if entry.company %}
                                                 {{ entry.company.name }}
-                                                {% if entry.company.ticker %}({{ entry.company.ticker }}){% endif %}
+                                                {% if entry.company.ticker_symbol %}({{ entry.company.ticker_symbol }}){% endif %}
                                             {% endif %}
                                         </span>
                                     </small>
@@ -329,7 +329,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${company.name}</strong>
-                        ${company.ticker ? `<span class="badge bg-primary ms-1">${company.ticker}</span>` : ''}
+                        ${company.ticker_symbol ? `<span class="badge bg-primary ms-1">${company.ticker_symbol}</span>` : ''}
                         ${company.sector ? `<br><small class="text-muted">${company.sector}</small>` : ''}
                     </div>
                 </div>
@@ -378,7 +378,7 @@
                 const resultsDiv = document.getElementById('searchResults');
                 resultsDiv.innerHTML = `
                     <div class="alert alert-success">
-                        <strong>Success!</strong> Added ${data.company.name} (${data.company.ticker})
+                        <strong>Success!</strong> Added ${data.company.name} (${data.company.ticker_symbol})
                     </div>
                 `;
                 resultsDiv.style.display = 'block';
@@ -413,7 +413,7 @@
     function handleCompanySelection(company) {
         document.getElementById('company_id').value = company.id;
         document.getElementById('companyDisplayInfo').textContent =
-            `${company.name}${company.ticker ? ` (${company.ticker})` : ''}`;
+            `${company.name}${company.ticker_symbol ? ` (${company.ticker_symbol})` : ''}`;
         document.getElementById('selectedCompanyInfo').style.display = 'block';
         document.getElementById('clearCompanyBtn').style.display = 'block';
     }

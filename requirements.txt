@@ -20,3 +20,4 @@ secedgar
 requests
 pandas
 openai
+PyYAML

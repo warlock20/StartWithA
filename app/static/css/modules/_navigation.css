@@ -1,0 +1,150 @@
+/* =============================================================================
+   NAVIGATION & HEADER STYLES
+   ============================================================================= */
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* Professional Navigation Styling */
+.navbar-dark {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 12px rgba(30, 64, 175, 0.15);
+    z-index: 1030 !important;
+    position: relative !important;
+}
+
+.navbar-brand {
+    font-weight: 700 !important;
+    font-size: 1.25rem !important;
+    color: white !important;
+    letter-spacing: -0.02em;
+}
+
+.navbar-brand:hover {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: 6px;
+    margin: 0 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link:focus {
+    color: white !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+.navbar-nav .nav-link.dropdown-toggle::after {
+    margin-left: 0.5rem;
+}
+
+/* Professional Dropdown Menus */
+.navbar .dropdown {
+    position: relative !important;
+}
+
+.dropdown-menu {
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+    padding: 0.75rem 0 !important;
+    margin-top: 0.5rem !important;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.98) !important;
+    min-width: 280px !important;
+    z-index: 10000 !important;
+    position: absolute !important;
+    left: auto !important;
+    right: auto !important;
+    top: 100% !important;
+    transform: none !important;
+}
+
+.navbar-nav .dropdown-menu {
+    z-index: 10001 !important;
+}
+
+.navbar .dropdown-menu.show {
+    z-index: 10002 !important;
+    display: block !important;
+}
+
+.navbar-nav .dropdown-menu-end {
+    right: 0 !important;
+    left: auto !important;
+}
+
+.dropdown-header {
+    color: var(--text-muted) !important;
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.75rem 1.25rem 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.dropdown-item {
+    color: var(--text-dark) !important;
+    font-weight: 500 !important;
+    padding: 0.75rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    border-radius: 0 !important;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background: linear-gradient(135deg, var(--bg-light) 0%, rgba(30, 64, 175, 0.05) 100%) !important;
+    color: var(--primary-color) !important;
+    transform: translateX(4px);
+}
+
+.dropdown-divider {
+    border-color: var(--border-color) !important;
+    margin: 0.5rem 1.25rem !important;
+}
+
+.navbar .badge {
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.4rem !important;
+    margin-left: 0.25rem;
+    background-color: var(--warm-amber) !important;
+    color: white !important;
+}
+
+.navbar-toggler {
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    padding: 0.5rem !important;
+}
+
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25) !important;
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-nav .nav-link {
+        margin: 0.25rem 0 !important;
+        border-radius: 6px;
+    }
+
+    .dropdown-menu {
+        margin-top: 0 !important;
+        border-radius: 8px !important;
+        min-width: 100% !important;
+    }
+}

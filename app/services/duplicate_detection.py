@@ -47,9 +47,13 @@ class DuplicateDetectionService:
 
     def normalize_ticker(self, ticker):
         """Normalize ticker symbol for comparison"""
-        if not ticker:
+        if not ticker or ticker is None:
             return ""
-        return ticker.upper().strip()
+        # Handle empty strings and whitespace-only strings
+        ticker_str = str(ticker).strip()
+        if not ticker_str:
+            return ""
+        return ticker_str.upper()
 
     def calculate_similarity(self, str1, str2):
         """Calculate similarity between two strings (0-1 scale)"""

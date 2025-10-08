@@ -1,585 +1,325 @@
 {% extends "main/_base.html" %}
 
-{# The macro now iterates through the enriched 'companies_data_list' #}
-{% macro render_companies_table(companies_data_list, portfolio_ids, favorite_ids) %}
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th style="width: 45%;">Company & Analysis Status</th>
-                <th style="width: 15%;">Sector</th>
-                <th style="width: 40%;">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for data in companies_data_list %}
-            {% set company = data.company_obj %}
-            <tr>
-                <td>
-                    <strong>{{ company.name }}</strong> ({{ company.ticker_symbol }})
-                    {# --- Analysis Status Badges --- #}
-                    <div class="mt-2">
-                        {% if data.has_completed_checklist %}
-                        <a href="{{ url_for('research.list_research_sessions') }}"
-                            class="badge text-decoration-none bg-primary">Checklist</a>
-                        {% endif %}
-                        {% if data.has_swot %}
-                        <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
-                            class="badge text-decoration-none bg-info">SWOT</a>
-                        {% endif %}
-                        {% if data.has_destination_analysis %}
-                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
-                            class="badge text-decoration-none bg-success">Destination Analysis</a>
-                        {% endif %}
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">🏢 My Companies</h1>
+            <p class="dashboard-subtitle">{{ pagination.total }} compan{{ 'ies' if pagination.total != 1 else 'y' }} tracked</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('companies.new_company') }}'">
+                <i class="bi bi-plus-circle-fill"></i> Add Company
+            </button>
+        </div>
+    </header>
 
-                        {# Check for active research projects #}
-                        {% set active_project = current_user.research_projects.filter_by(
-                        company_id=company.id,
-                        status='active'
-                        ).first() %}
-                        {% if active_project %}
-                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=active_project.id) }}"
-                            class="badge text-decoration-none bg-warning text-dark">
-                            Active Research ({{ active_project.progress_percentage }}%)
-                        </a>
-                        {% endif %}
-                    </div>
-                </td>
-                <td>
-                    {{ company.sector if company.sector else 'N/A' }}
-                </td>
-                <td>
-                    <div class="d-flex flex-wrap gap-1 justify-content-end">
-                        {# Main research button with dropdown for templates #}
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
-                                aria-expanded="false">
-                                <i class="bi bi-search"></i> Research
-                            </button>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item"
-                                    href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}">
-                                    📋 Quick Checklist Analysis
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item"
-                                    href="{{ url_for('research.select_model', company_id=company.id) }}">
-                                    🧠 Mental Models
-                                </a>
-                            </li>
-
-                            {# Research Templates Section #}
-                            {% set user_templates =
-                            current_user.research_templates.filter_by(is_active=True).limit(3).all() %}
-                            {% if user_templates %}
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <h6 class="dropdown-header">📊 Use Research Template:</h6>
-                            </li>
-                            {% for template in user_templates %}
-                            <li>
-                                <form method="POST" action="{{ url_for('research_workflow.start_project') }}"
-                                    style="margin: 0;">
-                                    <input type="hidden" name="company_id" value="{{ company.id }}">
-                                    <input type="hidden" name="template_id" value="{{ template.id }}">
-                                    <button type="submit" class="dropdown-item">
-                                        {{ template.name }}
-                                        <small class="text-muted">({{ template.step_count }} steps)</small>
-                                    </button>
-                                </form>
-                            </li>
-                            {% endfor %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('research_workflow.template_list') }}">
-                                    <em>View All Templates...</em>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('research_workflow.create_template') }}">
-                                    <em>Create Research Template</em>
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </div>
-
-                        {# Secondary actions dropdown #}
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-three-dots"></i>
-                            </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            {# FIX: Changed endpoint from 'journal.index' to 'journal_enhanced.search' #}
-                            <li><a class="dropdown-item"
-                                    href="{{ url_for('journal_enhanced.search', company_id=company.id) }}">
-                                    📓 Research Journal</a>
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{{ url_for('companies.company_dashboard', company_id=company.id) }}">
-                                    📄 Manage Docs & Data</a>
-                            </li>
-                            {% if active_project %}
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{{ url_for('research_workflow.project_dashboard', project_id=active_project.id) }}">
-                                    📈 Continue Active Research</a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </div>
-
-                        {# Quick action buttons #}
-                        <div class="btn-group" role="group">
-                            {# Portfolio toggle #}
-                            <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}"
-                                style="display: inline;">
-                                {% if company.id in portfolio_ids %}
-                                <button type="submit" class="btn btn-outline-success btn-sm"
-                                    title="In Portfolio (Click to Remove)">📈</button>
-                                {% else %}
-                                <button type="submit" class="btn btn-success btn-sm" title="Add to Portfolio">📈</button>
-                                {% endif %}
-                            </form>
-
-                            {# Favorite toggle #}
-                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}"
-                                style="display: inline;">
-                                {% if company.id in favorite_ids %}
-                                <button type="submit" class="btn btn-warning btn-sm"
-                                    title="Favorite (Click to Unfavorite)">⭐</button>
-                                {% else %}
-                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Add to Favorites">⭐</button>
-                                {% endif %}
-                            </form>
-
-                            {# Delete button #}
-                            <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
-                                style="display: inline;">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('⚠️ Delete this company?\n\nThis will permanently delete all associated research and documents. This action cannot be undone.');"
-                                    title="Delete Company">🗑️</button>
-                            </form>
+    <!-- Search and Filter Bar -->
+    <div class="card mb-4">
+        <div class="card-body p-4">
+            <form method="GET" action="{{ url_for('companies.list_companies') }}">
+                <div class="row g-3">
+                    <!-- Search Box -->
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" name="search"
+                                   placeholder="Search by company name or ticker..."
+                                   value="{{ current_search }}">
                         </div>
                     </div>
-                </td>
-            </tr>
+
+                    <!-- Type Filter -->
+                    <div class="col-md-3">
+                        <select class="form-select" name="filter">
+                            <option value="all" {% if not request.args.get('filter') or request.args.get('filter') == 'all' %}selected{% endif %}>All Companies</option>
+                            <option value="portfolio" {% if request.args.get('filter') == 'portfolio' %}selected{% endif %}>📈 Portfolio</option>
+                            <option value="watchlist" {% if request.args.get('filter') == 'watchlist' %}selected{% endif %}>⭐ Watchlist</option>
+                        </select>
+                    </div>
+
+                    <!-- Sector Filter -->
+                    <div class="col-md-2">
+                        <select class="form-select" name="sector">
+                            <option value="">All Sectors</option>
+                            {% for sector in sectors %}
+                            <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>
+                                {{ sector }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Per Page Selector -->
+                    <div class="col-md-1">
+                        <select class="form-select" name="per_page">
+                            <option value="12" {% if current_per_page == 12 %}selected{% endif %}>12</option>
+                            <option value="24" {% if current_per_page == 24 %}selected{% endif %}>24</option>
+                            <option value="48" {% if current_per_page == 48 %}selected{% endif %}>48</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter Button -->
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                {% if current_search or current_sector or (request.args.get('filter') and request.args.get('filter') != 'all') %}
+                <div class="mt-3">
+                    <small class="text-muted me-2">Active filters:</small>
+                    {% if current_search %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-search"></i> "{{ current_search }}"
+                    </span>
+                    {% endif %}
+                    {% if request.args.get('filter') and request.args.get('filter') != 'all' %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-tag"></i> {{ request.args.get('filter').title() }}
+                    </span>
+                    {% endif %}
+                    {% if current_sector %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-building"></i> {{ current_sector }}
+                    </span>
+                    {% endif %}
+                    <a href="{{ url_for('companies.list_companies') }}" class="badge bg-secondary text-decoration-none">
+                        <i class="bi bi-x-circle"></i> Clear All
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Companies Grid -->
+    {% if companies_data_list %}
+    <div class="completed-projects-grid">
+        {% for data in companies_data_list %}
+        {% set company = data.company_obj %}
+        {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
+
+        <!-- Company Card -->
+        <div class="completed-project-card {% if company.id in portfolio_ids %}decision-invest{% elif company.id in favorite_ids %}decision-watchlist{% endif %}">
+            <!-- Status Badge Header -->
+            <div class="decision-header">
+                {% if company.id in portfolio_ids %}
+                <div class="decision-badge decision-invest">
+                    <i class="bi bi-briefcase-fill"></i> Portfolio
+                </div>
+                {% elif company.id in favorite_ids %}
+                <div class="decision-badge decision-watchlist">
+                    <i class="bi bi-star-fill"></i> Watchlist
+                </div>
+                {% else %}
+                <div class="decision-badge decision-pending">
+                    <i class="bi bi-building"></i> Tracked
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Card Content -->
+            <div class="completed-project-content">
+                <h3 class="completed-project-title font-poppins">{{ company.name }}</h3>
+                <p class="completed-project-meta">
+                    <span class="project-type-badge">{{ company.ticker_symbol }}</span>
+                    {% if company.sector %}
+                    <span class="text-muted">•</span>
+                    <span class="text-muted">{{ company.sector }}</span>
+                    {% endif %}
+                </p>
+
+                <!-- Stats Row -->
+                <div class="completed-stats-row">
+                    <div class="stat-item">
+                        <i class="bi bi-folder text-muted"></i>
+                        <span class="stat-value">
+                            {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
+                            {{ project_count }} project{{ 's' if project_count != 1 else '' }}
+                        </span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="bi bi-file-text text-muted"></i>
+                        <span class="stat-value">
+                            {% set doc_count = company.documents.count() %}
+                            {{ doc_count }} doc{{ 's' if doc_count != 1 else '' }}
+                        </span>
+                    </div>
+                    {% if active_project %}
+                    <div class="stat-item">
+                        <i class="bi bi-activity text-success"></i>
+                        <span class="stat-value text-success">{{ active_project.progress_percentage }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="completed-project-actions">
+                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                   class="btn btn-outline-primary btn-sm flex-grow-1">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+
+                {% if data.has_destination_analysis %}
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
+                   class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-bullseye"></i> Destination
+                </a>
+                {% endif %}
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}">
+                                <i class="bi bi-clipboard-check"></i> Quick Checklist
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.search', company_id=company.id) }}">
+                                <i class="bi bi-journal-text"></i> Research Journal
+                            </a>
+                        </li>
+                        {% if data.has_swot %}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('companies.swot_analysis', company_id=company.id) }}">
+                                <i class="bi bi-lightbulb"></i> SWOT Analysis
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if active_project %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('research_workflow.project_dashboard', project_id=active_project.id) }}">
+                                <i class="bi bi-graph-up"></i> Continue Research
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}" class="dropdown-form">
+                                <button type="submit" class="dropdown-item">
+                                    {% if company.id in portfolio_ids %}
+                                    <i class="bi bi-box-arrow-right"></i> Remove from Portfolio
+                                    {% else %}
+                                    <i class="bi bi-folder-plus"></i> Add to Portfolio
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </li>
+                        <li>
+                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}" class="dropdown-form">
+                                <button type="submit" class="dropdown-item">
+                                    {% if company.id in favorite_ids %}
+                                    <i class="bi bi-star"></i> Remove from Watchlist
+                                    {% else %}
+                                    <i class="bi bi-star-fill"></i> Add to Watchlist
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
+                                  onsubmit="return confirm('⚠️ Delete {{ company.name }}?\n\nThis will permanently delete all associated research and documents. This action cannot be undone.');" class="dropdown-form">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash"></i> Delete Company
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Previous Button -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.prev_num, per_page=current_per_page, search=current_search, sector=current_sector, filter=request.args.get('filter')) }}">
+                    Previous
+                </a>
+            </li>
+
+            <!-- Page Numbers -->
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('companies.list_companies', page=page_num, per_page=current_per_page, search=current_search, sector=current_sector, filter=request.args.get('filter')) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
             {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endmacro %}
 
+            <!-- Next Button -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.next_num, per_page=current_per_page, search=current_search, sector=current_sector, filter=request.args.get('filter')) }}">
+                    Next
+                </a>
+            </li>
+        </ul>
 
-{% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>🏢 {{ title }}</h1>
-        <p class="text-muted mb-0">Track and analyze your investment opportunities</p>
-    </div>
-    <div>
-        {# Quick access to idea pipeline #}
-        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-primary">
-            💡 Idea Inbox
-            {% set inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count() %}
-            {% if inbox_count > 0 %}
-            <span class="badge bg-danger">{{ inbox_count }}</span>
+        <!-- Page Info -->
+        <div class="text-center text-muted small mt-3">
+            {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
+            {% set end = pagination.page * pagination.per_page %}
+            {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
+            Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
+        </div>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state-container">
+        <div class="empty-state-icon">
+            <i class="bi bi-building"></i>
+        </div>
+        <h3 class="empty-state-title">
+            {% if current_search or current_sector or (request.args.get('filter') and request.args.get('filter') != 'all') %}
+            No Companies Found
+            {% else %}
+            No Companies Yet
             {% endif %}
-        </a>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Add Company
-        </a>
-    </div>
-</div>
-
-{# --- Research Pipeline Status Bar --- #}
-{% set ideas_inbox = current_user.idea_pipeline.filter_by(status='inbox').count() %}
-{% set ideas_killing = current_user.idea_pipeline.filter_by(status='killing').count() %}
-{% set active_projects = current_user.research_projects.filter_by(status='active').count() %}
-{% if ideas_inbox > 0 or ideas_killing > 0 or active_projects > 0 %}
-<div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <strong>Research Pipeline:</strong>
-        {% if ideas_inbox > 0 %}
-        <span class="badge bg-primary ms-2">{{ ideas_inbox }} ideas in inbox</span>
-        {% endif %}
-        {% if ideas_killing > 0 %}
-        <span class="badge bg-danger ms-2">{{ ideas_killing }} in kill room</span>
-        {% endif %}
-        {% if active_projects > 0 %}
-        <span class="badge bg-warning text-dark ms-2">{{ active_projects }} active research projects</span>
-        {% endif %}
-    </div>
-    <div>
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-sm btn-outline-primary">
-            View All Projects
-        </a>
-    </div>
-</div>
-{% endif %}
-{% if current_user.metrics %}
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">📊 Your Research Stats</h5>
-        <div class="row text-center">
-            <div class="col">
-                <h4>{{ current_user.metrics.total_ideas_captured or 0 }}</h4>
-                <small class="text-muted">Ideas Captured</small>
-            </div>
-            <div class="col">
-                {# FIX: Provide a default value of 0 if kill_rate is None #}
-                <h4>{{ "%.0f"|format(current_user.metrics.kill_rate or 0) }}%</h4>
-                <small class="text-muted">Kill Rate</small>
-            </div>
-            <div class="col">
-                {# FIX: Provide a default value of 0 if total_research_hours is None #}
-                <h4>{{ "%.1f"|format(current_user.metrics.total_research_hours or 0) }}h</h4>
-                <small class="text-muted">Research Time</small>
-            </div>
-            <div class="col">
-                <h4>{{ current_user.metrics.research_streak_days or 0 }}d</h4>
-                <small class="text-muted">Current Streak</small>
-            </div>
-        </div>
-        <div class="text-center mt-3">
-            <a href="{{ url_for('analytics.dashboard') }}" class="btn btn-sm btn-outline-primary">
-                View Full Analytics →
-            </a>
-        </div>
-    </div>
-</div>
-{% endif %}
-{# --- ACTIVE PORTFOLIO SECTION --- #}
-<div class="d-flex justify-content-between align-items-center mb-3 section-header">
-    <h3>📈 Active Portfolio</h3>
-    {% if portfolio_companies_data %}
-    <small class="text-muted">{{ portfolio_companies_data|length }} companies</small>
-    {% endif %}
-</div>
-{% if portfolio_companies_data %}
-{{ render_companies_table(portfolio_companies_data, portfolio_ids, favorite_ids) }}
-{% else %}
-<div class="card mb-4">
-    <div class="card-body text-center py-4">
-        <p class="text-muted mb-3">You haven't added any companies to your active portfolio yet.</p>
-        <p class="text-muted">Companies in your portfolio are those you're actively invested in or monitoring closely.
+        </h3>
+        <p class="empty-state-description">
+            {% if current_search or current_sector or (request.args.get('filter') and request.args.get('filter') != 'all') %}
+            Try adjusting your search or filter criteria to see more results.
+            {% else %}
+            Start building your investment research database by adding your first company.
+            {% endif %}
         </p>
+        {% if current_search or current_sector or (request.args.get('filter') and request.args.get('filter') != 'all') %}
+        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Clear Filters
+        </a>
+        {% else %}
+        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle-fill"></i> Add Your First Company
+        </a>
+        {% endif %}
     </div>
-</div>
-{% endif %}
-
-<hr class="my-4">
-
-{# --- FAVORITE COMPANIES SECTION --- #}
-<div class="d-flex justify-content-between align-items-center mb-3 section-header">
-    <h3>⭐ Favorite Companies (Watchlist)</h3>
-    {% if favorite_companies_data %}
-    <small class="text-muted">{{ favorite_companies_data|length }} companies</small>
     {% endif %}
+
 </div>
-{% if favorite_companies_data %}
-{{ render_companies_table(favorite_companies_data, portfolio_ids, favorite_ids) }}
-{% else %}
-<div class="card mb-4">
-    <div class="card-body text-center py-4">
-        <p class="text-muted mb-3">You have no favorite companies outside your portfolio.</p>
-        <p class="text-muted">Use favorites to track companies you're interested in but not actively researching.</p>
-    </div>
-</div>
-{% endif %}
-
-<hr class="my-4">
-
-{# --- OTHER COMPANIES SECTION --- #}
-<div class="d-flex justify-content-between align-items-center mb-3 section-header">
-    <h3>📋 Other Companies</h3>
-    {% if other_companies_data %}
-    <small class="text-muted">{{ other_companies_data|length }} companies</small>
-    {% endif %}
-</div>
-{% if other_companies_data %}
-{{ render_companies_table(other_companies_data, portfolio_ids, favorite_ids) }}
-{% else %}
-{% if not portfolio_companies_data and not favorite_companies_data %}
-<div class="alert alert-info">
-    <h5>Welcome to Your Research Platform!</h5>
-    <p>You haven't added any companies yet. Here's how to get started:</p>
-    <ol>
-        <li><strong>Capture Ideas:</strong> Use the <a href="{{ url_for('ideas.add_idea') }}">Idea Inbox</a> to quickly
-            capture investment ideas</li>
-        <li><strong>Kill Bad Ideas:</strong> Run ideas through your <a
-                href="{{ url_for('ideas.manage_kill_checklists') }}">Kill Checklist</a> to eliminate losers quickly</li>
-        <li><strong>Deep Research:</strong> Promote survivors to companies for systematic analysis</li>
-    </ol>
-    <div class="mt-3">
-        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">Start with an Idea</a>
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-outline-primary">Add Company Directly</a>
-    </div>
-</div>
-{% else %}
-<p class="text-muted text-center py-3">All your companies are either in your portfolio or favorites.</p>
-{% endif %}
-{% endif %}
-
-{# --- Quick Stats Footer --- #}
-<div class="card mt-4 stats-card">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <h4>{{ portfolio_companies_data|length + favorite_companies_data|length + other_companies_data|length }}
-                </h4>
-                <small class="text-muted">Total Companies</small>
-            </div>
-            <div class="col">
-                <h4>{{ current_user.research_projects.filter_by(status='active').count() }}</h4>
-                <small class="text-muted">Active Research</small>
-            </div>
-            <div class="col">
-                <h4>{{ current_user.research_projects.filter_by(status='completed').count() }}</h4>
-                <small class="text-muted">Completed Research</small>
-            </div>
-            <div class="col">
-                <h4>{{ current_user.idea_pipeline.filter_by(status='killed').count() }}</h4>
-                <small class="text-muted">Ideas Killed</small>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<style>
-/* Companies table styling improvements */
-.table {
-    margin-bottom: 2rem;
-}
-
-.table thead th {
-    border-bottom: 2px solid var(--border-medium);
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    background-color: var(--gray-50);
-    padding: 0.75rem 1rem;
-}
-
-.table tbody td {
-    vertical-align: middle;
-    padding: 1rem;
-    border-top: 1px solid var(--border-light);
-}
-
-.table tbody tr:hover {
-    background-color: var(--gray-50);
-}
-
-/* Button group improvements */
-.btn-group .btn {
-    margin: 0;
-}
-
-.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    border-radius: 4px;
-}
-
-/* Actions column layout */
-.actions-column {
-    min-width: 280px;
-}
-
-.actions-column .btn-group {
-    margin-bottom: 0.25rem;
-}
-
-/* Badge improvements */
-.badge {
-    font-size: 0.7rem;
-    margin-right: 0.25rem;
-    margin-bottom: 0.25rem;
-}
-
-/* Empty state improvements */
-.empty-state {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-muted);
-}
-
-/* Section headers */
-.section-header {
-    border-bottom: 1px solid var(--border-light);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Stats card improvements */
-.stats-card .col {
-    padding: 0.5rem;
-}
-
-.stats-card h4 {
-    color: var(--primary-600);
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-}
-
-/* Research pipeline alert */
-.alert-info {
-    border-left: 4px solid var(--info-500);
-}
-
-/* Dropdown z-index fix */
-.table-responsive {
-    overflow: visible !important;
-}
-
-.table .dropdown,
-.table .btn-group {
-    position: static !important;
-}
-
-.table .dropdown-menu {
-    position: fixed !important;
-    z-index: 9999 !important;
-    transform: translate3d(0, 0, 0) !important;
-    will-change: transform;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
-}
-
-.table .dropdown-menu.show {
-    display: block !important;
-    position: fixed !important;
-    z-index: 9999 !important;
-}
-
-.table .dropdown-menu .dropdown-item {
-    z-index: 9999 !important;
-    position: relative;
-    display: block !important;
-    padding: 0.5rem 1rem;
-    clear: both;
-    font-weight: 400;
-    color: var(--text-primary) !important;
-    text-decoration: none;
-    white-space: nowrap;
-    background-color: transparent;
-    border: 0;
-}
-
-.table .dropdown-menu .dropdown-item:hover,
-.table .dropdown-menu .dropdown-item:focus {
-    color: var(--text-primary) !important;
-    background-color: var(--gray-100) !important;
-}
-
-/* Fix for dropdown positioning in tables */
-.table tbody tr {
-    position: relative;
-}
-
-.table tbody td {
-    overflow: visible !important;
-}
-
-.table .dropdown-menu-end {
-    right: auto !important;
-    left: auto !important;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .actions-column {
-        min-width: auto;
-    }
-
-    .d-flex.flex-wrap {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .btn-group {
-        margin-bottom: 0.5rem;
-    }
-
-    .table .dropdown-menu {
-        position: fixed;
-        z-index: 1060;
-    }
-}
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Initialize tooltips if using Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-
-    // Add actions-column class to action cells
-    const actionCells = document.querySelectorAll('table td:last-child');
-    actionCells.forEach(cell => {
-        cell.classList.add('actions-column');
-    });
-
-    // Fix dropdown positioning in tables
-    const dropdownButtons = document.querySelectorAll('.table .dropdown-toggle');
-    dropdownButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            // Force dropdown to appear above everything
-            setTimeout(() => {
-                const dropdownMenu = this.nextElementSibling;
-                if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
-                    const rect = this.getBoundingClientRect();
-                    dropdownMenu.style.position = 'fixed';
-                    dropdownMenu.style.zIndex = '9999';
-                    dropdownMenu.style.top = (rect.bottom + window.scrollY) + 'px';
-                    dropdownMenu.style.left = (rect.left + window.scrollX) + 'px';
-                    dropdownMenu.style.transform = 'none';
-                    dropdownMenu.style.willChange = 'transform';
-                }
-            }, 10);
-        });
-    });
-
-    // Handle dropdown menu positioning with Bootstrap events
-    document.addEventListener('shown.bs.dropdown', function (e) {
-        const dropdownToggle = e.target;
-        const dropdownMenu = e.target.nextElementSibling;
-
-        if (dropdownMenu && dropdownToggle.closest('.table')) {
-            const rect = dropdownToggle.getBoundingClientRect();
-            dropdownMenu.style.position = 'fixed';
-            dropdownMenu.style.zIndex = '9999';
-            dropdownMenu.style.top = (rect.bottom + window.scrollY) + 'px';
-            dropdownMenu.style.left = (rect.left + window.scrollX) + 'px';
-            dropdownMenu.style.transform = 'none';
-            dropdownMenu.style.maxHeight = '300px';
-            dropdownMenu.style.overflowY = 'auto';
-
-            // Adjust if menu goes off screen
-            const menuRect = dropdownMenu.getBoundingClientRect();
-            if (menuRect.right > window.innerWidth) {
-                dropdownMenu.style.left = (rect.right + window.scrollX - menuRect.width) + 'px';
-            }
-            if (menuRect.bottom > window.innerHeight) {
-                dropdownMenu.style.top = (rect.top + window.scrollY - menuRect.height) + 'px';
-            }
-        }
-    });
-});
-</script>
 {% endblock %}

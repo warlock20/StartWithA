@@ -6,6 +6,7 @@ from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
                        ResearchProject, IdeaPipeline, JournalEntry,
                        ResearchLog, WorkSession, LearningNote)
 import statistics
+from app.utils.time_utils import now_utc
 
 def get_weekly_metrics(user_id, week_start):
     """
@@ -171,7 +172,7 @@ def calculate_learning_score(user_id):
         factors['postmortems'] = f'{postmortems}/{decisions_with_outcomes} completed'
     
     # Journal consistency
-    last_30_days = datetime.utcnow() - timedelta(days=30)
+    last_30_days = now_utc() - timedelta(days=30)
     journal_entries = JournalEntry.query.filter(
         JournalEntry.user_id == user_id,
         JournalEntry.created_at >= last_30_days

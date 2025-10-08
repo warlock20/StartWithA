@@ -1,0 +1,329 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Step 4: Your Research Template{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <!-- Progress Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">Step {{ step_number }} of {{ total_steps }}: Your Research Template</h4>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-stopwatch me-2 text-muted"></i>
+                            <span class="badge bg-primary" id="timer">2:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar"
+                             style="width: {{ (step_number / total_steps) * 100 }}%"></div>
+                    </div>
+
+                    <!-- Progress Dots -->
+                    <div class="d-flex justify-content-between">
+                        {% for i in range(1, total_steps + 1) %}
+                        <div class="progress-dot">
+                            {% if i < step_number %}
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                            {% elif i == step_number %}
+                                <i class="bi bi-circle-fill text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-circle text-muted"></i>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Card -->
+            <div class="card">
+                <div class="card-body">
+
+                    <!-- Header -->
+                    <div class="text-center mb-5">
+                        <div class="p-4 rounded-3 mb-4 bg-light">
+                            <i class="bi bi-clipboard-check fs-1 mb-3 text-primary"></i>
+                            <h5 class="mb-2">Let's create your research workflow</h5>
+                            <p class="mb-0 text-muted">We'll build a simple template based on <span id="company-name-display" class="fw-bold">[Company]</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Template Options -->
+                    <form id="research-template-form">
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="bi bi-list-check me-2"></i>
+                                Choose your research approach:
+                            </h6>
+
+                            <!-- Quick Template Option -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="template_type" id="quick-template" value="quick" checked>
+                                        <label class="form-check-label" for="quick-template">
+                                            <div class="d-flex align-items-start">
+                                                <div class="me-3">
+                                                    <i class="bi bi-lightning-charge-fill text-warning fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Quick Start Template</h6>
+                                                    <p class="mb-0 text-muted small">
+                                                        Essential questions covering business model, financials, and risks
+                                                        <br><span class="text-primary">⏱️ ~30-45 minutes per company</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Comprehensive Template Option -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="template_type" id="comprehensive-template" value="comprehensive">
+                                        <label class="form-check-label" for="comprehensive-template">
+                                            <div class="d-flex align-items-start">
+                                                <div class="me-3">
+                                                    <i class="bi bi-search text-info fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Deep Dive Template</h6>
+                                                    <p class="mb-0 text-muted small">
+                                                        Thorough analysis including competitive analysis, management quality, and valuation
+                                                        <br><span class="text-primary">⏱️ ~90-120 minutes per company</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Template Option -->
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="template_type" id="custom-template" value="custom">
+                                        <label class="form-check-label" for="custom-template">
+                                            <div class="d-flex align-items-start">
+                                                <div class="me-3">
+                                                    <i class="bi bi-gear-fill text-secondary fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Skip for Now</h6>
+                                                    <p class="mb-0 text-muted small">
+                                                        I'll create my own template later from scratch
+                                                        <br><span class="text-muted">⏱️ You can always add templates later</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Template Preview -->
+                        <div id="template-preview" class="mb-4" style="display: none;">
+                            <div class="alert alert-info border-0">
+                                <h6><i class="bi bi-eye me-2"></i>Template Preview:</h6>
+                                <div id="preview-content"></div>
+                            </div>
+                        </div>
+
+                        <!-- Learning Note -->
+                        <div class="alert alert-success border-0 mb-4" role="alert">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-lightbulb fs-4 me-3 text-success"></i>
+                                <div>
+                                    <strong>Why templates matter:</strong>
+                                    <br>
+                                    Consistency is key to improving your investment decisions. Having a repeatable process helps you:
+                                    <ul class="mb-0 mt-2">
+                                        <li>Compare companies fairly</li>
+                                        <li>Avoid missing important factors</li>
+                                        <li>Learn from your decisions over time</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg" id="create-template-btn">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                Create My Research Template
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('research-template-form');
+    const createBtn = document.getElementById('create-template-btn');
+    const timerEl = document.getElementById('timer');
+    const previewDiv = document.getElementById('template-preview');
+    const previewContent = document.getElementById('preview-content');
+
+    // Get company name from previous step
+    const companyName = '{{ progress.first_company_name or "Your Company" }}';
+    document.getElementById('company-name-display').textContent = companyName;
+
+    // Start timer (target: 2 minutes = 120 seconds)
+    let timeLeft = 120;
+    const timer = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            timerEl.textContent = '0:00';
+            timerEl.classList.remove('bg-primary');
+            timerEl.classList.add('bg-success');
+        }
+        timeLeft--;
+    }, 1000);
+
+    // Template previews
+    const templatePreviews = {
+        quick: `
+            <strong>Quick Start Template includes:</strong>
+            <ul class="mb-0 mt-2">
+                <li>Business Model Analysis (15 min)</li>
+                <li>Financial Health Check (15 min)</li>
+                <li>Key Risks Assessment (10 min)</li>
+            </ul>
+        `,
+        comprehensive: `
+            <strong>Deep Dive Template includes:</strong>
+            <ul class="mb-0 mt-2">
+                <li>Business Model & Strategy (25 min)</li>
+                <li>Financial Analysis (30 min)</li>
+                <li>Competitive Position (20 min)</li>
+                <li>Management Quality (15 min)</li>
+                <li>Valuation Analysis (25 min)</li>
+                <li>Risk Assessment (15 min)</li>
+            </ul>
+        `,
+        custom: `
+            <strong>Skip template creation</strong>
+            <p class="mb-0 mt-2">You can create custom templates later in the main dashboard.</p>
+        `
+    };
+
+    // Handle template selection changes
+    document.querySelectorAll('input[name="template_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                previewDiv.style.display = 'none';
+                createBtn.innerHTML = '<i class="bi bi-arrow-right me-2"></i>Skip to Dashboard';
+                createBtn.className = 'btn btn-secondary btn-lg';
+            } else {
+                previewDiv.style.display = 'block';
+                previewContent.innerHTML = templatePreviews[this.value];
+                createBtn.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Create My Research Template';
+                createBtn.className = 'btn btn-primary btn-lg';
+            }
+        });
+    });
+
+    // Initialize with quick template selected
+    previewDiv.style.display = 'block';
+    previewContent.innerHTML = templatePreviews.quick;
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const templateType = document.querySelector('input[name="template_type"]:checked').value;
+
+        try {
+            createBtn.disabled = true;
+            if (templateType === 'custom') {
+                createBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Finishing Up...';
+            } else {
+                createBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Creating Template...';
+            }
+
+            const formData = {
+                template_type: templateType,
+                create_template: templateType !== 'custom',
+                time_spent: 120 - timeLeft
+            };
+
+            const response = await fetch(`{{ url_for('onboarding.complete_step', step_number=step_number) }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Show success feedback briefly
+                if (templateType === 'custom') {
+                    createBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Ready for Dashboard!';
+                } else {
+                    createBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Template Created!';
+                }
+                createBtn.classList.remove('btn-primary');
+                createBtn.classList.add('btn-success');
+
+                // Redirect after brief delay
+                setTimeout(() => {
+                    window.location.href = result.redirect_url;
+                }, 1000);
+            } else {
+                throw new Error(result.error || 'Failed to create template');
+            }
+
+        } catch (error) {
+            console.error('Error creating template:', error);
+            createBtn.disabled = false;
+            createBtn.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Create My Research Template';
+            alert('Failed to create template. Please try again.');
+        }
+    });
+});
+</script>
+
+<style>
+.progress-dot {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+</style>
+
+{% endblock %}

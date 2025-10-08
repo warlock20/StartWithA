@@ -1,81 +1,55 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <!-- Hero Section -->
-    <section class="bg-white py-5">
-        <div class="container">
-            <div class="row min-vh-50 align-items-center">
-                <div class="col-lg-10 mx-auto text-center">
-                    <div class="mb-3">
-                        <span class="text-muted fs-6">Intelligent Investment Platform</span>
-                    </div>
-                    <h1 class="display-4 fw-bold text-dark mb-4">
-                        Build Your Personal Investment Framework
+    <!-- Page Navigation -->
+    <nav class="page-nav">
+        <div class="nav-dots">
+            <a href="#hero" class="nav-dot active" data-section="hero"></a>
+            <a href="#problem-solution" class="nav-dot" data-section="problem-solution"></a>
+            <a href="#how-it-works" class="nav-dot" data-section="how-it-works"></a>
+            <a href="#capabilities" class="nav-dot" data-section="capabilities"></a>
+            <a href="#cta" class="nav-dot" data-section="cta"></a>
+        </div>
+    </nav>
+
+    <!-- Scroll Down Arrow -->
+    <div class="scroll-indicator">
+        <div class="scroll-arrow">
+            <i class="bi bi-chevron-down"></i>
+        </div>
+    </div>
+
+    <!-- Hero Section with Munger Quote -->
+    <section id="hero" class="hero-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="hero-title font-poppins">
+                        Stop Drowning in Data.<br>
+                        Start <span class="gradient-text">Building Your Wisdom.</span>
                     </h1>
-                    <p class="lead mb-3 text-dark">
-                        <strong>Every great investor needs their own systematic approach.</strong>
+                    <p class="hero-subtitle">
+                        An intelligent investment platform for serious researchers who want to develop their own systematic approach to analyzing opportunities.
                     </p>
-                    <p class="fs-5 text-muted mb-4" style="max-width: 650px; margin: 0 auto;">
-                        Transform proven mental models into personalized, actionable checklists. 
-                        <strong>AI-powered research assistance</strong> helps you analyze companies faster and more thoroughly.
-                    </p>
-                    
-                    <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg px-4 py-2">
-                            Start Building Your Checklist
+
+                    <!-- Munger Quote Integration -->
+                    <div class="munger-quote-hero">
+                        <blockquote class="quote-hero">
+                            <p>
+                                "It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."
+                            </p>
+                            <footer>
+                                <strong>Charlie Munger</strong>
+                            </footer>
+                        </blockquote>
+                    </div>
+
+                    <div class="hero-cta">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg">
+                            Start Building Your Framework
                         </a>
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-dark btn-lg px-4 py-2">
-                            Login
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Munger Quote Section -->
-    <section class="bg-light py-5 border-top border-bottom">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-10 mx-auto text-center">
-                    <blockquote class="blockquote mb-0">
-                        <p class="h3 fw-normal mb-4 text-dark" style="font-style: italic; line-height: 1.6;">
-                            "It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid, instead of trying to be very intelligent."
-                        </p>
-                        <footer class="blockquote-footer fs-5">
-                            <strong>Charlie Munger</strong>, Berkshire Hathaway Vice Chairman
-                        </footer>
-                    </blockquote>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Philosophy Section -->
-    <section class="py-5 bg-white">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    <div class="text-center mb-5">
-                        <h2 class="h1 text-dark mb-4">The Core Philosophy</h2>
-                        <p class="lead text-muted mb-4" style="max-width: 700px; margin: 0 auto;">
-                            This platform helps you create and refine your <strong>personal investment checklist</strong> - a living document that captures your investment principles, lessons learned, and systematic approach to evaluating opportunities.
-                        </p>
-                    </div>
-                    
-                    <div class="row justify-content-center">
-                        <div class="col-md-8">
-                            <div class="card border shadow-sm">
-                                <div class="card-body p-4 text-center">
-                                    <h3 class="h4 text-dark mb-3">Why Personal Checklists Matter</h3>
-                                    <p class="text-muted mb-4">
-                                        Just as pilots use checklists to avoid catastrophic mistakes, successful investors use systematic approaches to stay disciplined and avoid costly errors.
-                                    </p>
-                                    <a href="{{ url_for('main.mental_models') }}" class="btn btn-outline-dark">
-                                        Explore Our Mental Models →
-                                    </a>
-                                </div>
-                            </div>
+                        <div class="mt-3">
+                            <small class="text-muted">Free to start • No credit card required</small>
                         </div>
                     </div>
                 </div>
@@ -83,158 +57,132 @@
         </div>
     </section>
 
-    <!-- AI Research Feature -->
-    <section class="py-5 bg-light border-top">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10 text-center">
-                    <h2 class="h1 text-dark mb-4">AI-Powered Research Assistant</h2>
-                    <p class="lead text-muted mb-5">
-                        Speed up your investment research with advanced AI models that analyze companies, 
-                        extract insights, and help you make better decisions faster.
-                    </p>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Annual Report Parsing</h5>
-                                    <p class="text-muted mb-0">Advanced LLM models extract key insights from 10-K and 10-Q filings, highlighting critical financial metrics and management discussions</p>
+    <!-- Problem & Solution Section -->
+    <section id="problem-solution" class="problem-solution-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-12 mx-auto">
+                    <div class="section-header text-center mb-5">
+                        <h2 class="section-title">Why Most Investment Research Fails</h2>
+                        <p class="section-subtitle">And how systematic thinking changes everything</p>
+                    </div>
+
+                    <div class="problem-solution-container">
+                        <!-- The Problem Side -->
+                        <div class="problem-side">
+                            <div class="problem-content">
+                                <div class="problem-badge">
+                                    <span class="badge-text">The Reality</span>
+                                </div>
+                                <h3>You're Smart, But Your Process Isn't</h3>
+                                <div class="problem-list">
+                                    <div class="problem-item">
+                                        <div class="problem-icon">⚡</div>
+                                        <div class="problem-text">
+                                            <strong>FOMO-driven decisions</strong><br>
+                                            <span class="text-muted">You hear a hot tip and scramble to research it in hours, not days</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">🌊</div>
+                                        <div class="problem-text">
+                                            <strong>Information tsunami</strong><br>
+                                            <span class="text-muted">Drowning in earnings calls, news, and analysis with no filter</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">🎯</div>
+                                        <div class="problem-text">
+                                            <strong>Inconsistent criteria</strong><br>
+                                            <span class="text-muted">What excited you about Tesla doesn't apply to your bank stock analysis</span>
+                                        </div>
+                                    </div>
+                                    <div class="problem-item">
+                                        <div class="problem-icon">😔</div>
+                                        <div class="problem-text">
+                                            <strong>Repeating mistakes</strong><br>
+                                            <span class="text-muted">No system to learn from past decisions or failed investments</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="problem-visual">
+                                <div class="chaos-visualization">
+                                    <div class="chaos-elements">
+                                        <div class="chaos-item">📰</div>
+                                        <div class="chaos-item">📊</div>
+                                        <div class="chaos-item">💹</div>
+                                        <div class="chaos-item">🤔</div>
+                                        <div class="chaos-item">😰</div>
+                                        <div class="chaos-item">📱</div>
+                                    </div>
+                                    <div class="chaos-overlay">
+                                        <p class="chaos-text">Mental chaos leads to bad decisions</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Checklist Evaluation</h5>
-                                    <p class="text-muted mb-0">AI evaluates companies against your custom checklists, providing systematic scoring and highlighting areas requiring attention</p>
-                                </div>
+
+                        <!-- Transformation Arrow -->
+                        <div class="transformation-arrow">
+                            <div class="arrow-container">
+                                <div class="arrow-line"></div>
+                                <div class="arrow-head">→</div>
+                                <div class="arrow-text">Transform</div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Market Research</h5>
-                                    <p class="text-muted mb-0">Automated industry trend analysis, news synthesis, and competitive landscape mapping from multiple data sources</p>
+
+                        <!-- The Solution Side -->
+                        <div class="solution-side">
+                            <div class="solution-content">
+                                <div class="solution-badge">
+                                    <span class="badge-text">The Solution</span>
+                                </div>
+                                <h3>Systematic Thinking + AI Acceleration</h3>
+                                <div class="solution-list">
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🛡️</div>
+                                        <div class="solution-text">
+                                            <strong>Kill Checklist first</strong><br>
+                                            <span class="text-muted">Eliminate bad ideas in minutes, not hours of research</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🎯</div>
+                                        <div class="solution-text">
+                                            <strong>Consistent methodology</strong><br>
+                                            <span class="text-muted">Same rigorous approach whether analyzing tech or utilities</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">🤖</div>
+                                        <div class="solution-text">
+                                            <strong>AI research assistant</strong><br>
+                                            <span class="text-muted">Parse 10-Ks and earnings calls in seconds, not weekends</span>
+                                        </div>
+                                    </div>
+                                    <div class="solution-item">
+                                        <div class="solution-icon">📈</div>
+                                        <div class="solution-text">
+                                            <strong>Continuous improvement</strong><br>
+                                            <span class="text-muted">Track what works, eliminate what doesn't, compound wisdom</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card border h-100">
-                                <div class="card-body p-4 text-center">
-                                    <h5 class="card-title text-dark">Risk Assessment</h5>
-                                    <p class="text-muted mb-0">Systematic identification of potential risks and red flags across financial statements and market data</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Tools Section -->
-    <section class="py-5 bg-white">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="h1 text-dark mb-3">Your Investment Toolkit</h2>
-                <p class="lead text-muted">Four systematic tools for disciplined investing</p>
-            </div>
-
-            <div class="row g-4">
-                <!-- Tool 1: Personal Checklist -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Personal Investment Checklist</h4>
-                            <small class="text-muted">Your core systematic approach</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Create personalized checklists that evolve with your experience, capturing hard-won lessons and preventing repeated mistakes.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Build Your Checklist →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 2: Strategic Analysis -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Strategic Frameworks</h4>
-                            <small class="text-muted">SWOT & Porter's Five Forces</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Analyze companies using proven business strategy frameworks to understand competitive positioning and strategic advantages.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Analyze Companies →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 3: Long-term Monitoring -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Destination Analysis</h4>
-                            <small class="text-muted">Long-term thesis tracking</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Set multi-year checkpoints for your investment thesis, focusing on enduring competitive advantages rather than quarterly results.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Set Checkpoints →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tool 4: Learning System -->
-                <div class="col-md-6">
-                    <div class="card border h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h4 class="card-title mb-1 text-dark">Learning System</h4>
-                            <small class="text-muted">Scuttlebutt & Mistake Log</small>
-                        </div>
-                        <div class="card-body p-4">
-                            <p class="text-muted mb-4">Continuously improve through structured learning from market research and systematic capture of investment mistakes.</p>
-                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark">
-                                Start Learning →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Call to Action Section -->
-    <section class="py-5 bg-dark text-white">
-        <div class="container text-center">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <h2 class="h1 fw-bold mb-4">Ready to Build Your Investment System?</h2>
-                    <p class="lead mb-4">
-                        Every successful investor has a systematic approach. Yours should be unique to your experience, lessons, and investment philosophy.
-                    </p>
-                    
-                    <div class="row mt-5">
-                        <div class="col-md-6 mx-auto">
-                            <div class="card border-0">
-                                <div class="card-body p-4">
-                                    <h4 class="text-dark mb-3">Start Your Journey</h4>
-                                    <p class="text-muted mb-4">
-                                        Begin with proven mental models, then customize based on your experience. Your system improves with every decision.
-                                    </p>
-                                    
-                                    <div class="d-grid gap-2">
-                                        <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg">
-                                            Create My First Checklist
-                                        </a>
-                                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-dark btn-lg">
-                                            Start with an Idea
-                                        </a>
+                            <div class="solution-visual">
+                                <div class="order-visualization">
+                                    <div class="systematic-flow">
+                                        <div class="flow-step">1</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">2</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">3</div>
+                                        <div class="flow-arrow">→</div>
+                                        <div class="flow-step">✓</div>
+                                    </div>
+                                    <div class="order-overlay">
+                                        <p class="order-text">Systematic process leads to better outcomes</p>
                                     </div>
                                 </div>
                             </div>
@@ -245,19 +193,187 @@
         </div>
     </section>
 
-    <!-- Custom Styles -->
-    <style>
-        .min-vh-50 {
-            min-height: 50vh;
-        }
-        
-        .card {
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
+    <!-- How It Works -->
+    <section id="how-it-works" class="how-it-works-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-8 mx-auto">
+                    <div class="text-center mb-5">
+                        <h2 class="section-title">How It Works</h2>
+                        <p class="section-subtitle">A systematic approach to investment research</p>
+                    </div>
+
+                    <div class="workflow-steps">
+                        <div class="workflow-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>Capture Ideas</h4>
+                                <p>Log any investment opportunity that catches your attention—from stock tips to market trends.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>Apply Kill Checklist</h4>
+                                <p>Quickly eliminate bad ideas using your personalized deal-breaker criteria before investing time in research.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>Systematic Research</h4>
+                                <p>Follow your custom research template with AI assistance to analyze the opportunity thoroughly.</p>
+                            </div>
+                        </div>
+
+                        <div class="workflow-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>Learn & Improve</h4>
+                                <p>Document your process, track outcomes, and refine your approach based on what works.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Capabilities -->
+    <section id="capabilities" class="capabilities-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-10 mx-auto">
+                    <div class="text-center mb-5">
+                        <h2 class="section-title">Your Research Toolkit</h2>
+                        <p class="section-subtitle">Four integrated systems for disciplined investment research</p>
+                    </div>
+
+                    <div class="capabilities-grid">
+                        <!-- Idea Pipeline -->
+                        <div class="capability-card">
+                            <div class="capability-icon">💡</div>
+                            <h3>Idea Pipeline</h3>
+                            <p>Capture investment ideas instantly, then ruthlessly filter using your personalized "Kill Checklist" to save your most valuable asset: time.</p>
+                        </div>
+
+                        <!-- Research Templates -->
+                        <div class="capability-card">
+                            <div class="capability-icon">📋</div>
+                            <h3>Research Templates</h3>
+                            <p>Design reusable workflows that reflect your investment style. Follow structured processes that ensure you never miss critical due diligence.</p>
+                        </div>
+
+                        <!-- AI Assistant -->
+                        <div class="capability-card">
+                            <div class="capability-icon">🤖</div>
+                            <h3>AI Research Assistant</h3>
+                            <p>Analyze financial documents, earnings transcripts, and news in seconds. Get insights and answers to pressing questions without losing your systematic approach.</p>
+                        </div>
+
+                        <!-- Learning Loop -->
+                        <div class="capability-card">
+                            <div class="capability-icon">📈</div>
+                            <h3>Continuous Learning</h3>
+                            <p>Track thesis evolution, document mistakes systematically, and analyze your decision patterns to continuously improve your research process.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section id="cta" class="final-cta-section">
+        <div class="container h-100">
+            <div class="row h-100 align-items-center">
+                <div class="col-lg-8 mx-auto text-center">
+                    <div class="cta-content">
+                        <h2>Ready to Transform Your Research?</h2>
+                        <p class="lead mb-4">
+                            Join serious investors who are building systematic approaches to research and decision-making.
+                        </p>
+                        <div class="cta-actions">
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-dark btn-lg mb-3">
+                                Start Building Your System
+                            </a>
+                            <div class="cta-meta">
+                                <small class="text-muted">
+                                    Already have an account? <a href="{{ url_for('auth.login') }}" class="text-decoration-none">Sign in</a>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript for Navigation -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section');
+            const navDots = document.querySelectorAll('.nav-dot');
+            const scrollIndicator = document.querySelector('.scroll-indicator');
+
+            // Update active navigation dot on scroll
+            function updateActiveNav() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.clientHeight;
+                    if (scrollY >= (sectionTop - sectionHeight / 3)) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navDots.forEach(dot => {
+                    dot.classList.remove('active');
+                    if (dot.getAttribute('data-section') === current) {
+                        dot.classList.add('active');
+                    }
+                });
+
+                // Hide scroll indicator on last section
+                if (current === 'cta') {
+                    scrollIndicator.classList.add('hidden');
+                } else {
+                    scrollIndicator.classList.remove('hidden');
+                }
+            }
+
+            // Smooth scroll to next section
+            function scrollToNext() {
+                const currentSection = document.querySelector('.nav-dot.active');
+                const nextSection = currentSection ? currentSection.nextElementSibling : navDots[0];
+                if (nextSection) {
+                    const targetId = nextSection.getAttribute('data-section');
+                    document.getElementById(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            }
+
+            // Event listeners
+            window.addEventListener('scroll', updateActiveNav);
+            scrollIndicator.addEventListener('click', scrollToNext);
+
+            // Navigation dot click handlers
+            navDots.forEach(dot => {
+                dot.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = dot.getAttribute('data-section');
+                    document.getElementById(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Initialize
+            updateActiveNav();
+        });
+    </script>
 
 {% endblock %}
