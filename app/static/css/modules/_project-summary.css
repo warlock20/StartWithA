@@ -1,0 +1,256 @@
+/* =============================================================================
+   PROJECT SUMMARY - FINAL DECISION PAGE
+   ============================================================================= */
+
+/* Summary page header */
+.summary-page-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+}
+
+.summary-page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.summary-page-subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+}
+
+/* Decision card */
+.decision-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--gray-200);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.decision-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.decision-card-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.decision-card-title h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.decision-card-title p {
+    color: var(--gray-600);
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
+/* Decision options */
+.decision-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.decision-option {
+    position: relative;
+}
+
+.decision-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.decision-option label {
+    display: block;
+    padding: 1.5rem 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.decision-option label:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-light);
+}
+
+.decision-option input[type="radio"]:checked + label {
+    border-width: 3px;
+}
+
+.decision-option.invest input[type="radio"]:checked + label {
+    border-color: var(--success);
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.decision-option.pass input[type="radio"]:checked + label {
+    border-color: var(--danger);
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.decision-option.watchlist input[type="radio"]:checked + label {
+    border-color: var(--warning);
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+/* Confidence slider */
+.confidence-section {
+    background: var(--gray-50);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+}
+
+.confidence-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.confidence-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.confidence-slider {
+    width: 100%;
+}
+
+/* Research notes accordion */
+.research-notes-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--gray-200);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.research-notes-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.research-notes-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--info) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+/* Project stats sidebar */
+.project-stats-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--gray-200);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.project-stats-card h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.project-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.project-stat-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.project-stat-label {
+    font-weight: 500;
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.project-stat-value {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* Research summary card */
+.research-summary-card {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid var(--primary);
+}
+
+.research-summary-card h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--gray-900);
+}
+
+.research-summary-card p {
+    margin-bottom: 0;
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .decision-options {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-page-title {
+        font-size: 1.5rem;
+    }
+
+    .decision-card,
+    .research-notes-card {
+        padding: 1.5rem;
+    }
+}

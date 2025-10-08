@@ -4,6 +4,7 @@ import shutil
 import uuid
 import re
 import requests
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 import yfinance as yf
@@ -15,9 +16,11 @@ from flask import current_app
 from app.services.llm_service import generate_ai_content
 
 from app import db, create_app
-from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData 
+from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData, BackgroundTask, WorkSession
 from celery_app import celery
-from dateutil.parser import isoparse 
+from dateutil.parser import isoparse
+from app.services.prompt_service import get_competitor_analysis_prompt
+from app.utils.time_utils import now_utc
 
 @celery.task(bind=True)
 def fetch_financial_data_task(self, company_id):
@@ -100,6 +103,85 @@ def fetch_financial_data_task(self, company_id):
             print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
             return f"Task failed: {e}"
 
+
+@celery.task(bind=True)
+def competitor_analysis_task(self, task_id, company_data):
+    """
+    A Celery task to perform AI competitor analysis for a company.
+    """
+    app = create_app()
+    with app.app_context():
+        try:
+            # Get fresh task instance from database
+            task = BackgroundTask.query.get(task_id)
+            if not task:
+                print(f"BACKGROUND TASK FAILED ({self.request.id}): Task {task_id} not found")
+                return f"Task {task_id} not found"
+
+            # Update task status to running
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
+
+            # Import prompt service within task context
+            from app.services.prompt_service import get_competitor_analysis_prompt
+
+            # Generate the analysis prompt
+            analysis_prompt = get_competitor_analysis_prompt(
+                'landscape_analysis',
+                company_name=company_data['name'],
+                ticker_symbol=company_data['ticker_symbol'],
+                company_description=company_data['summary'] or 'No description available',
+                sector=company_data['sector'] or 'Unknown',
+                industry=company_data['industry'] or 'Unknown'
+            )
+
+            # Call LLM service - this is where the long wait happens
+            print(f"BACKGROUND TASK ({self.request.id}): Calling LLM service...")
+            competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=2000)
+
+            # Store result in work session
+            session = WorkSession.query.filter_by(
+                research_project_id=task.project_id,
+                user_id=task.user_id,
+                step_index=task.step_index,
+                end_time=None
+            ).first()
+
+            if session:
+                session.notes = competitor_analysis
+                session.updated_at = now_utc()
+
+            # Update task as completed
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            import json
+            task.result = json.dumps({
+                "analysis": competitor_analysis,
+                "message": "Competitor analysis completed successfully!"
+            })
+
+            db.session.commit()
+
+            result_message = f"Competitor analysis completed successfully for {company_data['name']}"
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+
+            # Update task as failed
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return f"Task failed: {e}"
+
 @celery.task(bind=True)
 def fetch_company_news_task(self, company_id):
     """
@@ -177,6 +259,81 @@ def fetch_company_news_task(self, company_id):
             print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
             return f"Task failed: {e}"
 
+
+@celery.task(bind=True)
+def competitor_analysis_task(self, task_id, company_data):
+    """
+    A Celery task to perform AI competitor analysis for a company.
+    """
+    app = create_app()
+    with app.app_context():
+        try:
+            # Get fresh task instance from database
+            task = BackgroundTask.query.get(task_id)
+            if not task:
+                print(f"BACKGROUND TASK FAILED ({self.request.id}): Task {task_id} not found")
+                return f"Task {task_id} not found"
+
+            # Update task status to running
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
+
+            # Generate the analysis prompt
+            analysis_prompt = get_competitor_analysis_prompt(
+                'landscape_analysis',
+                company_name=company_data['name'],
+                ticker_symbol=company_data['ticker_symbol'],
+                company_description=company_data['summary'] or 'No description available',
+                sector=company_data['sector'] or 'Unknown',
+                industry=company_data['industry'] or 'Unknown'
+            )
+
+            # Call LLM service - this is where the long wait happens
+            print(f"BACKGROUND TASK ({self.request.id}): Calling LLM service...")
+            competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=2000)
+
+            # Store result in work session
+            session = WorkSession.query.filter_by(
+                research_project_id=task.project_id,
+                user_id=task.user_id,
+                step_index=task.step_index,
+                end_time=None
+            ).first()
+
+            if session:
+                session.notes = competitor_analysis
+                session.updated_at = now_utc()
+
+            # Update task as completed
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps({
+                "analysis": competitor_analysis,
+                "message": "Competitor analysis completed successfully!"
+            })
+
+            db.session.commit()
+
+            result_message = f"Competitor analysis completed successfully for {company_data['name']}"
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+
+            # Update task as failed
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return f"Task failed: {e}"
+
 @celery.task(bind=True)
 def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
     """
@@ -202,7 +359,7 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
 
         try:
             #print(f"BACKGROUND TASK ({self.request.id}): Fetching filings for {company.ticker_symbol}...")
-            start_date = (datetime.now() - timedelta(days=years_to_fetch * 365.25)).date()
+            start_date = (now_utc() - timedelta(days=years_to_fetch * 365.25)).date()
             
             filing_docs = filings(
                 cik_lookup=company.ticker_symbol,
@@ -364,4 +521,83 @@ def analyze_scuttlebutt_task(self, company_id):
         except Exception as e:
             db.session.rollback()
             print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+            return f"Task failed: {e}"
+
+
+@celery.task(bind=True)
+def competitor_analysis_task(self, task_id, company_data):
+    """
+    A Celery task to perform AI competitor analysis for a company.
+    """
+    app = create_app()
+    with app.app_context():
+        try:
+            # Get fresh task instance from database
+            task = BackgroundTask.query.get(task_id)
+            if not task:
+                print(f"BACKGROUND TASK FAILED ({self.request.id}): Task {task_id} not found")
+                return f"Task {task_id} not found"
+
+            # Update task status to running
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
+
+            # Import prompt service within task context
+            from app.services.prompt_service import get_competitor_analysis_prompt
+
+            # Generate the analysis prompt
+            analysis_prompt = get_competitor_analysis_prompt(
+                'landscape_analysis',
+                company_name=company_data['name'],
+                ticker_symbol=company_data['ticker_symbol'],
+                company_description=company_data['summary'] or 'No description available',
+                sector=company_data['sector'] or 'Unknown',
+                industry=company_data['industry'] or 'Unknown'
+            )
+
+            # Call LLM service - this is where the long wait happens
+            print(f"BACKGROUND TASK ({self.request.id}): Calling LLM service...")
+            competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=2000)
+
+            # Store result in work session
+            session = WorkSession.query.filter_by(
+                research_project_id=task.project_id,
+                user_id=task.user_id,
+                step_index=task.step_index,
+                end_time=None
+            ).first()
+
+            if session:
+                session.notes = competitor_analysis
+                session.updated_at = now_utc()
+
+            # Update task as completed
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            import json
+            task.result = json.dumps({
+                "analysis": competitor_analysis,
+                "message": "Competitor analysis completed successfully!"
+            })
+
+            db.session.commit()
+
+            result_message = f"Competitor analysis completed successfully for {company_data['name']}"
+            print(f"BACKGROUND TASK ({self.request.id}): Finished. {result_message}")
+            return result_message
+
+        except Exception as e:
+            print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
+
+            # Update task as failed
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
             return f"Task failed: {e}"

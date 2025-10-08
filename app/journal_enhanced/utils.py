@@ -5,6 +5,7 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
 import re
 from collections import Counter
 from sqlalchemy import text
+from app.utils.time_utils import now_utc
 
 def extract_tags_from_content(content):
     """
@@ -81,7 +82,7 @@ def get_review_queue(user_id):
         JournalEntry.user_id == user_id,
         JournalEntry.is_starred == True,
         JournalEntry.last_reviewed.isnot(None),  # Exclude never-reviewed entries (they're in pending)
-        JournalEntry.last_reviewed < datetime.utcnow() - timedelta(days=30),
+        JournalEntry.last_reviewed < now_utc() - timedelta(days=30),
         JournalEntry.is_archived == False
     ).all()
 
@@ -263,7 +264,7 @@ def get_journal_statistics(user_id):
     tag_counts = Counter(all_tags).most_common(10)
     
     # Recent activity
-    last_7_days = datetime.utcnow() - timedelta(days=7)
+    last_7_days = now_utc() - timedelta(days=7)
     recent_entries = JournalEntry.query.filter(
         JournalEntry.user_id == user_id,
         JournalEntry.created_at >= last_7_days

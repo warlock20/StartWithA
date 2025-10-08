@@ -1,0 +1,437 @@
+/* =============================================================================
+   PROFESSIONAL CUSTOM BUTTON SYSTEM
+   ============================================================================= */
+
+/* NOTE: Base .btn styling is defined in _buttons.css
+   This module contains advanced platform-specific button variants */
+
+/* Custom Platform Button Variants */
+
+/* Primary - Deep Navy */
+.btn-platform-primary {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    color: white;
+    border: 1px solid var(--primary-600);
+    box-shadow: 0 2px 4px rgba(30, 64, 175, 0.15);
+}
+
+.btn-platform-primary:hover {
+    background: linear-gradient(135deg, var(--primary-700) 0%, #1e3a8a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+    color: white;
+}
+
+.btn-platform-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(30, 64, 175, 0.15);
+}
+
+/* Secondary - Sage Teal */
+.btn-platform-secondary {
+    background: linear-gradient(135deg, var(--sage-teal) 0%, var(--sage-teal-light) 100%);
+    color: white;
+    border: 1px solid var(--sage-teal);
+    box-shadow: 0 2px 4px rgba(15, 118, 110, 0.15);
+}
+
+.btn-platform-secondary:hover {
+    background: linear-gradient(135deg, #0d9488 0%, var(--sage-teal) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
+    color: white;
+}
+
+/* Tertiary - Warm Amber */
+.btn-platform-tertiary {
+    background: linear-gradient(135deg, var(--warm-amber) 0%, var(--warm-amber-light) 100%);
+    color: white;
+    border: 1px solid var(--warm-amber);
+    box-shadow: 0 2px 4px rgba(217, 119, 6, 0.15);
+}
+
+.btn-platform-tertiary:hover {
+    background: linear-gradient(135deg, #b45309 0%, var(--warm-amber) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+    color: white;
+}
+
+/* Outline Variants */
+.btn-platform-outline {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1.5px solid var(--border-color);
+}
+
+.btn-platform-outline:hover {
+    background: var(--bg-light);
+    border-color: var(--primary-600);
+    color: var(--primary-600);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.1);
+}
+
+.btn-platform-outline-primary {
+    background: transparent;
+    color: var(--primary-600);
+    border: 1.5px solid var(--primary-600);
+}
+
+.btn-platform-outline-primary:hover {
+    background: var(--primary-600);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+}
+
+.btn-platform-outline-secondary {
+    background: transparent;
+    color: var(--sage-teal);
+    border: 1.5px solid var(--sage-teal);
+}
+
+.btn-platform-outline-secondary:hover {
+    background: var(--sage-teal);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
+}
+
+/* Ghost Variants - Subtle */
+.btn-platform-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: 0.5rem 0.75rem;
+}
+
+.btn-platform-ghost:hover {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* Size Variants */
+.btn-platform-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+.btn-platform-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 10px;
+}
+
+.btn-platform-xl {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* Icon Buttons */
+.btn-platform-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-platform-icon-sm {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+}
+
+.btn-platform-icon-lg {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.125rem;
+}
+
+/* States */
+.btn-platform-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-platform-loading::before {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Success/Complete State */
+.btn-platform-complete {
+    background: linear-gradient(135deg, var(--sage-teal) 0%, var(--sage-teal-light) 100%);
+    color: white;
+    border: 1px solid var(--sage-teal);
+}
+
+.btn-platform-complete:hover {
+    background: linear-gradient(135deg, #0d9488 0%, var(--sage-teal) 100%);
+    transform: translateY(-1px);
+    color: white;
+}
+
+/* Disabled State */
+.btn-platform-disabled,
+.btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Focus States for Accessibility */
+.btn[class*="btn-platform"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.25);
+}
+
+/* Button Groups */
+.btn-platform-group {
+    display: inline-flex;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-platform-group .btn {
+    border-radius: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-platform-group .btn:first-child {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.btn-platform-group .btn:last-child {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-right: none;
+}
+
+.btn-pro {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+    color: white;
+    border-radius: var(--radius-pill);
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: var(--shadow-medium);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-pro:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-heavy);
+    background: linear-gradient(135deg, #2980b9 0%, var(--accent-blue) 100%);
+    color: white;
+}
+
+.btn-pro::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-pro:hover::before {
+    left: 100%;
+}
+
+/* Button variants */
+.btn-pro.primary {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #5dade2 100%);
+}
+
+.btn-pro.primary:hover {
+    background: linear-gradient(135deg, #2980b9 0%, var(--accent-blue) 100%);
+    color: white;
+}
+
+.btn-pro.success {
+    background: linear-gradient(135deg, var(--accent-green) 0%, #58d68d 100%);
+}
+
+.btn-pro.success:hover {
+    background: linear-gradient(135deg, #229954 0%, var(--accent-green) 100%);
+    color: white;
+}
+
+.btn-pro.warning {
+    background: linear-gradient(135deg, var(--accent-orange) 0%, #f7dc6f 100%);
+}
+
+.btn-pro.warning:hover {
+    background: linear-gradient(135deg, #d68910 0%, var(--accent-orange) 100%);
+    color: white;
+}
+
+.btn-pro.danger {
+    background: linear-gradient(135deg, var(--accent-red) 0%, #ec7063 100%);
+}
+
+.btn-pro.danger:hover {
+    background: linear-gradient(135deg, #c0392b 0%, var(--accent-red) 100%);
+    color: white;
+}
+
+.btn-pro.investment {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+}
+
+.btn-pro.investment:hover {
+    background: linear-gradient(135deg, var(--primary-700) 0%, #1e3a8a 100%);
+    color: white;
+}
+
+/* =============================================================================
+   BOOTSTRAP BUTTON OVERRIDES (with !important for specificity)
+   ============================================================================= */
+
+/* NOTE: These overrides use !important to ensure they take precedence over
+   Bootstrap's default button styles. Base .btn styling is in _buttons.css */
+
+.btn-primary {
+    background-color: #4338ca !important;
+    border-color: #4338ca !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2) !important;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #3730a3 !important;
+    border-color: #3730a3 !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3) !important;
+}
+
+.btn-success {
+    background-color: var(--success-500) !important;
+    border-color: var(--success-500) !important;
+    color: white !important;
+}
+
+.btn-success:hover, .btn-success:focus {
+    background-color: var(--success-600) !important;
+    border-color: var(--success-600) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-secondary {
+    background-color: var(--gray-600) !important;
+    border-color: var(--gray-600) !important;
+    color: white !important;
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: var(--gray-700) !important;
+    border-color: var(--gray-700) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-primary {
+    background-color: transparent !important;
+    color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-secondary {
+    background-color: transparent !important;
+    color: var(--gray-600) !important;
+    border-color: var(--gray-300) !important;
+}
+
+.btn-outline-secondary:hover, .btn-outline-secondary:focus {
+    background-color: var(--gray-600) !important;
+    border-color: var(--gray-600) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-success {
+    background-color: transparent !important;
+    color: var(--success-500) !important;
+    border-color: var(--success-500) !important;
+}
+
+.btn-outline-success:hover, .btn-outline-success:focus {
+    background-color: var(--success-500) !important;
+    border-color: var(--success-500) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-warning {
+    background-color: transparent !important;
+    color: var(--warning-500) !important;
+    border-color: var(--warning-500) !important;
+}
+
+.btn-outline-warning:hover, .btn-outline-warning:focus {
+    background-color: var(--warning-500) !important;
+    border-color: var(--warning-500) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-danger {
+    background-color: transparent !important;
+    color: var(--danger-500) !important;
+    border-color: var(--danger-500) !important;
+}
+
+.btn-outline-danger:hover, .btn-outline-danger:focus {
+    background-color: var(--danger-500) !important;
+    border-color: var(--danger-500) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-warning {
+    background-color: var(--warning-500) !important;
+    border-color: var(--warning-500) !important;
+    color: white !important;
+}
+
+.btn-warning:hover, .btn-warning:focus {
+    background-color: var(--warning-600) !important;
+    border-color: var(--warning-600) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}

@@ -246,10 +246,21 @@ updateTimer();
 // AI Analysis Functions
 function toggleAnalysisFor(itemIndex) {
     const section = document.getElementById(`analysis-section-${itemIndex}`);
-    if (section.style.display === 'none') {
+    if (!section) {
+        console.error(`Element analysis-section-${itemIndex} not found`);
+        return;
+    }
+
+    // More robust display check
+    const isHidden = section.style.display === 'none' ||
+                     window.getComputedStyle(section).display === 'none';
+
+    if (isHidden) {
         section.style.display = 'block';
+        console.log(`Showing analysis section ${itemIndex}`);
     } else {
         section.style.display = 'none';
+        console.log(`Hiding analysis section ${itemIndex}`);
     }
 }
 

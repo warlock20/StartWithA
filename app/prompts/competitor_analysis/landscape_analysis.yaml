@@ -1,0 +1,61 @@
+description: "Comprehensive competitive landscape analysis for a company"
+version: "1.0"
+max_tokens: 1500
+temperature: 0.7
+last_modified: "2025-01-12"
+
+system_context: |
+  You are an expert investment analyst specializing in competitive landscape analysis.
+  Provide thorough, data-driven insights that help investors understand market positioning
+  and competitive dynamics.
+
+template: |
+  Analyze the competitive landscape for {company_name} ({ticker_symbol}).
+
+  Company Details:
+  - Name: {company_name}
+  - Ticker: {ticker_symbol}
+  - Description: {company_description}
+  - Sector: {sector}
+  - Industry: {industry}
+
+  Please provide a comprehensive analysis covering:
+
+  ## 1. Direct Competitors
+  Identify 5-7 primary direct competitors that compete for the same customers and market segments.
+
+  ## 2. Market Positioning Analysis
+  - How does {company_name} position itself in the market?
+  - What is their unique value proposition?
+  - How do competitors differentiate themselves?
+
+  ## 3. Market Share & Scale
+  - Relative market share estimates (if available)
+  - Revenue scale comparisons
+  - Market leadership positions
+
+  ## 4. Competitive Advantages & Disadvantages
+  - {company_name}'s key competitive strengths
+  - Areas where competitors have advantages
+  - Barriers to entry and competitive moats
+
+  ## 5. Competitive Threats & Opportunities
+  - Emerging competitive threats
+  - Market opportunities being pursued
+  - Potential disruptive forces
+
+  ## 6. Strategic Differentiation
+  - Technology advantages/disadvantages
+  - Distribution channel strengths
+  - Brand positioning differences
+  - Pricing strategy variations
+
+output_format: |
+  Structure your response with clear headers and bullet points for easy scanning.
+  Focus on actionable insights that would influence investment decisions.
+  Include specific company names and data points where possible.
+
+examples:
+  - "When analyzing Apple's competitive landscape, focus on both hardware competitors (Samsung, Google) and ecosystem competitors (Microsoft, Amazon)"
+  - "For Netflix analysis, consider traditional media companies, streaming pure-plays, and tech giants entering streaming"
+  - "Analyze both direct product competitors and platform/ecosystem competition where relevant"

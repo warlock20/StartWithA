@@ -1,43 +1,136 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <div class="page-header">
-        <h1>{{ title }}</h1>
-        <p class="lead">Your collection of deep-dive research notebooks for specific industries and sectors.</p>
-    </div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">{{ title }}</h1>
+            <p class="dashboard-subtitle">Your collection of deep-dive research notebooks for specific industries and sectors.</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+        </div>
+    </header>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Start Research on a New Sector</h5>
-            <form method="POST" action="{{ url_for('sectors.index') }}" class="row g-2">
-                <div class="col-auto flex-grow-1">
-                    <label for="sector_name" class="visually-hidden">Sector Name</label>
-                    <input type="text" class="form-control" id="sector_name" name="sector_name" placeholder="e.g., Shipping, Semiconductors, Banking..." required>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">Create Notebook</button>
+    <!-- Create New Sector Card -->
+    <div class="card framework-card mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-3">
+                <i class="bi bi-journal-plus text-primary me-3" style="font-size: 1.5rem;"></i>
+                <h2 class="card-title font-poppins mb-0">Start Research on a New Sector</h2>
+            </div>
+            <form method="POST" action="{{ url_for('sectors.index') }}" class="sector-create-form">
+                <div class="input-group input-group-lg">
+                    <input type="text"
+                           class="form-control"
+                           id="sector_name"
+                           name="sector_name"
+                           placeholder="e.g., Shipping, Semiconductors, Banking..."
+                           required>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-plus-circle-fill"></i> Create Notebook
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <h4>Your Notebooks</h4>
+    <!-- Status Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'active' %}active{% endif %}"
+               href="{{ url_for('sectors.index', status='active') }}">
+                <i class="bi bi-play-fill"></i> Active
+                <span class="badge bg-primary ms-2">{{ active_count }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status_filter == 'archived' %}active{% endif %}"
+               href="{{ url_for('sectors.index', status='archived') }}">
+                <i class="bi bi-archive-fill"></i> Archived
+                <span class="badge bg-secondary ms-2">{{ archived_count }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Sector Notebooks Section -->
     {% if sector_analyses %}
-        <div class="list-group">
+    <div class="sectors-section">
+        <h2 class="section-title font-poppins mb-4">
+            {% if status_filter == 'archived' %}
+                Archived Notebooks
+            {% else %}
+                Active Notebooks
+            {% endif %}
+        </h2>
+        <div class="sectors-grid">
             {% for analysis in sector_analyses %}
-                <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">{{ analysis.sector_name }}</h5>
-                        <small class="text-muted">Last updated: {{ analysis.updated_at.strftime('%Y-%m-%d') }}</small>
+            <div class="sector-notebook-card">
+                <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="sector-card-link">
+                    <div class="sector-card-header">
+                        <div class="sector-icon">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <div class="sector-title-area">
+                            <h3 class="sector-card-title">{{ analysis.sector_name }}</h3>
+                            <p class="sector-update-time">
+                                <i class="bi bi-clock"></i> {{ analysis.updated_at.strftime('%b %d, %Y') }}
+                            </p>
+                        </div>
                     </div>
-                    <p class="mb-1 text-muted">
-                        {{ analysis.notes|striptags|truncate(150) if analysis.notes else 'No notes yet.' }}
-                    </p>
+                    <div class="sector-card-body">
+                        <p class="sector-preview">
+                            {{ analysis.notes|striptags|truncate(120) if analysis.notes else 'No notes yet. Start building your sector knowledge base.' }}
+                        </p>
+                    </div>
+                    <div class="sector-card-footer">
+                        <span class="sector-action-link">
+                            Open Notebook <i class="bi bi-arrow-right-short"></i>
+                        </span>
+                    </div>
                 </a>
+            </div>
             {% endfor %}
         </div>
+    </div>
     {% else %}
-        <p>You haven't started any sector research. Create your first notebook above.</p>
+    <!-- Empty State -->
+    <div class="empty-state">
+        {% if status_filter == 'archived' %}
+            <i class="bi bi-archive"></i>
+            <h3>No Archived Sectors</h3>
+            <p>Archived sectors will appear here when you complete or pause research on a sector.</p>
+        {% else %}
+            <i class="bi bi-journal-bookmark"></i>
+            <h3>No Sector Notebooks Yet</h3>
+            <p>Create your first sector research notebook to build deep industry knowledge and competitive advantages.</p>
+            <div class="empty-state-hint">
+                <p class="text-muted mb-2"><strong>Why use sector notebooks?</strong></p>
+                <ul class="text-muted text-start" style="max-width: 600px; margin: 0 auto;">
+                    <li>Track industry trends and dynamics</li>
+                    <li>Compare companies within the same sector</li>
+                    <li>Build expertise in specific industries</li>
+                    <li>Identify patterns and opportunities</li>
+                </ul>
+            </div>
+        {% endif %}
+    </div>
     {% endif %}
+</div>
 
+<!-- Tips Modal -->
+{% set tips_title = "Sector Research Tips" %}
+{% set tips_intro = "Master sector analysis for better investment decisions:" %}
+{% set tips = [
+    "<strong>Build Deep Knowledge:</strong> Use sector notebooks to develop expertise in specific industries over time",
+    "<strong>Track Trends:</strong> Document macro trends, regulatory changes, and technological shifts in each sector",
+    "<strong>Compare Companies:</strong> Easier to compare businesses when you understand their industry context",
+    "<strong>Competitive Dynamics:</strong> Map out competitive landscapes, barriers to entry, and power structures",
+    "<strong>Regular Updates:</strong> Revisit and update your sector knowledge quarterly or when major events occur",
+    "<strong>Start Focused:</strong> Begin with 2-3 sectors you're most interested in, then expand gradually"
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}

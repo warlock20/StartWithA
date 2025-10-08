@@ -1,140 +1,217 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>✅ {{ title }}</h1>
-        <p class="text-muted mb-0">Create, edit, and manage your personalized investment checklists</p>
-        <!-- Cross-navigation -->
-        <div class="mt-2">
-            <small class="text-muted">
-                Also explore:
-                <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none">📋 Kill Checklists</a> |
-                <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none">❓ Question Bank</a>
-            </small>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-card-checklist text-primary me-3"></i>{{ title }}
+            </h1>
+            <p class="dashboard-subtitle">Your library of personal investment frameworks</p>
+            <div class="mt-2">
+                <small class="text-muted">
+                    Also explore:
+                    <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none fw-semibold">📋 Kill Checklists</a> |
+                    <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none fw-semibold">❓ Question Bank</a>
+                </small>
+            </div>
         </div>
-    </div>
-    <div>
-        <div class="btn-group" role="group">
-            <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Create New Checklist
-            </a>
-            <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="visually-hidden">Toggle Dropdown</span>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
             </button>
-            <ul class="dropdown-menu">
-                <li><h6 class="dropdown-header">Create From</h6></li>
-                <li><a class="dropdown-item" href="{{ url_for('checklists.new_checklist') }}">
-                    <i class="bi bi-plus-circle"></i> Manual Creation
-                </a></li>
-                <li><a class="dropdown-item" href="{{ url_for('checklists.import_document') }}">
-                    <i class="bi bi-file-earmark-text"></i> Import from Document
-                </a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('checklists.import_history') }}">
-                    <i class="bi bi-clock-history"></i> Import History
-                </a></li>
-            </ul>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle-fill"></i> Create New
+                </a>
+                <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">Toggle Dropdown</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><h6 class="dropdown-header">Create From</h6></li>
+                    <li><a class="dropdown-item" href="{{ url_for('checklists.new_checklist') }}">
+                        <i class="bi bi-plus-circle"></i> Manual Creation
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('checklists.import_document') }}">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Import from Document
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('checklists.import_history') }}">
+                        <i class="bi bi-clock-history"></i> Import History
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    {% if checklists %}
+    <!-- Sort Controls -->
+    <div class="sort-controls-bar">
+        <div class="sort-controls-content">
+            <label for="sortSelect" class="sort-label">
+                <i class="bi bi-funnel"></i> Sort by:
+            </label>
+            <select id="sortSelect" class="sort-select" onchange="window.location.href = this.value">
+                <option value="{{ url_for('checklists.list_checklists', sort='recent') }}"
+                        {% if request.args.get('sort', 'recent') == 'recent' %}selected{% endif %}>
+                    Recently Updated
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='name') }}"
+                        {% if request.args.get('sort') == 'name' %}selected{% endif %}>
+                    Name (A-Z)
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='items') }}"
+                        {% if request.args.get('sort') == 'items' %}selected{% endif %}>
+                    Number of Items
+                </option>
+                <option value="{{ url_for('checklists.list_checklists', sort='oldest') }}"
+                        {% if request.args.get('sort') == 'oldest' %}selected{% endif %}>
+                    Oldest First
+                </option>
+            </select>
+            <span class="sort-results-count">{{ pagination.total }} checklist{{ 's' if pagination.total != 1 else '' }}</span>
         </div>
     </div>
-</div>
 
-{% if checklists %}
-    <div class="row">
+    <!-- Checklists Grid -->
+    <div class="investment-checklists-grid">
         {% for checklist in checklists %}
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">{{ checklist.name }}</h5>
-                        <span class="badge bg-secondary">{{ checklist.items.count() }} items</span>
+        <div class="investment-checklist-card">
+            <div class="investment-checklist-content">
+                <div class="investment-checklist-header">
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                        <h3 class="investment-checklist-title font-poppins">
+                            <i class="bi bi-gem text-primary me-2"></i>{{ checklist.name }}
+                        </h3>
+                        <div class="investment-checklist-stats">
+                            <div class="investment-stat">
+                                <div class="investment-stat-value">{{ checklist.items.count() }}</div>
+                                <div class="investment-stat-label">Items</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="card-body">
+
                     {% if checklist.description %}
-                        <p class="card-text">{{ checklist.description }}</p>
+                    <p class="investment-checklist-description">{{ checklist.description }}</p>
                     {% endif %}
+                </div>
 
-                    <!-- Statistics -->
-                    <div class="row text-center mb-3">
-                        <div class="col-4">
-                            <h4>{{ checklist.items.count() }}</h4>
-                            <small class="text-muted">Questions</small>
-                        </div>
-                        <div class="col-4">
-                            <h4 class="text-primary">{{ checklist.id }}</h4>
-                            <small class="text-muted">Checklist ID</small>
-                        </div>
-                        <div class="col-4">
-                            <h4>{{ checklist.author.username|title }}</h4>
-                            <small class="text-muted">Author</small>
-                        </div>
-                    </div>
-
-                    <!-- Sample questions -->
-                    <h6>Questions Preview:</h6>
-                    <ol class="small">
+                <div class="investment-checklist-body">
+                    <div class="investment-questions-preview">
                         {% for item in checklist.items.limit(3).all() %}
-                            <li>{{ item.text|truncate(60) }}</li>
+                        <div class="investment-question-item">
+                            <i class="bi bi-check-circle-fill text-muted"></i>
+                            <span>{{ item.text|truncate(80) }}</span>
+                        </div>
                         {% endfor %}
                         {% if checklist.items.count() > 3 %}
-                            <li class="text-muted">...and {{ checklist.items.count() - 3 }} more</li>
+                        <div class="investment-question-more">
+                            +{{ checklist.items.count() - 3 }} more questions
+                        </div>
                         {% endif %}
-                    </ol>
-
-                    <!-- Actions -->
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
-                           class="btn btn-outline-primary btn-sm">View</a>
-                        <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
-                           class="btn btn-outline-secondary btn-sm">Edit</a>
-                        <form method="POST" action="{{ url_for('checklists.delete_checklist', checklist_id=checklist.id) }}"
-                              style="display: inline;">
-                            <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('Delete this checklist? This cannot be undone.');">
-                                Delete
-                            </button>
-                        </form>
                     </div>
                 </div>
+            </div>
+
+            <div class="investment-checklist-footer">
+                <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}"
+                   class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <form method="POST" action="{{ url_for('checklists.delete_checklist', checklist_id=checklist.id) }}"
+                      style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Delete this checklist? This cannot be undone.');">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
             </div>
         </div>
         {% endfor %}
     </div>
-{% else %}
-    <div class="alert alert-info">
-        <h5>No Investment Checklists Yet</h5>
-        <p>Create your first checklist to organize and standardize your investment analysis process.</p>
-        <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-primary">Create Your First Checklist</a>
-    </div>
-{% endif %}
 
-<!-- Suggested starter checklist -->
-<div class="card mt-4">
-    <div class="card-header bg-light">
-        <h6 class="mb-0">💡 Suggested Investment Questions to Get Started</h6>
-    </div>
-    <div class="card-body">
-        <p>Here are some essential questions from proven investment frameworks:</p>
-        <ul class="small">
-            <li><strong>"What is the company's competitive advantage?"</strong> - Warren Buffett's moat analysis</li>
-            <li><strong>"Is management honest and competent?"</strong> - Character and capability assessment</li>
-            <li><strong>"What is the intrinsic value vs. market price?"</strong> - Margin of safety principle</li>
-            <li><strong>"Can I understand this business model easily?"</strong> - Circle of competence check</li>
-            <li><strong>"What are the key risks that could destroy value?"</strong> - Risk assessment</li>
-            <li><strong>"Is this company generating consistent free cash flow?"</strong> - Cash generation quality</li>
-            <li><strong>"How does this fit with my portfolio thesis?"</strong> - Portfolio construction</li>
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Checklists pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Previous -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_prev %}{{ url_for('checklists.list_checklists', page=pagination.prev_num) }}{% else %}#{% endif %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+
+            <!-- Page numbers -->
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('checklists.list_checklists', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if pagination.has_next %}{{ url_for('checklists.list_checklists', page=pagination.next_num) }}{% else %}#{% endif %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
         </ul>
-    </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<style>
-.empty-state-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-</style>
+        <!-- Pagination info -->
+        <p class="text-center text-muted small">
+            Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }} - {{ [pagination.page * pagination.per_page, pagination.total]|min }} of {{ pagination.total }} checklists
+        </p>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <i class="bi bi-card-checklist"></i>
+        <h3>No Investment Checklists Yet</h3>
+        <p>Create your first checklist to organize and standardize your investment analysis process.</p>
+        <div class="empty-state-hint">
+            <p class="text-muted mb-2"><strong>Why use investment checklists?</strong></p>
+            <ul class="text-muted text-start" style="max-width: 600px; margin: 0 auto;">
+                <li>Ensure consistent analysis across all investments</li>
+                <li>Avoid missing critical factors in your due diligence</li>
+                <li>Build repeatable frameworks that improve over time</li>
+                <li>Document your investment process and decision rationale</li>
+            </ul>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('checklists.new_checklist') }}" class="btn btn-primary btn-lg me-2">
+                <i class="bi bi-plus-circle-fill"></i> Create Your First Checklist
+            </a>
+            <a href="{{ url_for('checklists.import_document') }}" class="btn btn-outline-primary btn-lg">
+                <i class="bi bi-file-earmark-arrow-up"></i> Import from Document
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Investment Checklist Best Practices" %}
+{% set tips_intro = "Build powerful investment frameworks:" %}
+{% set tips = [
+    "<strong>Start with Proven Frameworks:</strong> Begin with established methodologies (value investing, growth, etc.) and customize from there",
+    "<strong>Keep Questions Specific:</strong> Avoid vague questions - use concrete, measurable criteria",
+    "<strong>Organize by Category:</strong> Group questions into themes (Business Quality, Management, Valuation, Risks, etc.)",
+    "<strong>Essential Questions to Include:</strong><br>• 'What is the company's competitive advantage?' - Warren Buffett's moat analysis<br>• 'Is management honest and competent?' - Character and capability<br>• 'What is the intrinsic value vs. market price?' - Margin of safety<br>• 'Can I understand this business model easily?' - Circle of competence<br>• 'What are the key risks that could destroy value?' - Risk assessment<br>• 'Is this company generating consistent free cash flow?' - Cash quality",
+    "<strong>Iterate Based on Results:</strong> Review and refine your checklists as you learn what works",
+    "<strong>Use Multiple Checklists:</strong> Create specialized checklists for different investment styles or sectors",
+    "<strong>Document Import Feature:</strong> Save time by importing checklists from PDFs, articles, or books"
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}

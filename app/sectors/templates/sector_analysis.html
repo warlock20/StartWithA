@@ -1,88 +1,481 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+<!-- Quill.js for rich text editing -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<!-- Company Search Component -->
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1>{{ title }}</h1>
-    <p class="lead">Your research notebook and question bank for this sector. Distill your findings into reusable
-        checklist items.</p>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-7">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5>Research Notes</h5>
+<div class="dashboard-container">
+    <!-- Sector Snapshot Bar -->
+    <div class="sector-snapshot-bar">
+        <div class="sector-snapshot-header">
+            <div class="sector-snapshot-title">
+                <h2>📊 {{ analysis.sector_name }}</h2>
+                <span class="sector-status-badge {{ analysis.status }}">
+                    {% if analysis.status == 'active' %}
+                        <i class="bi bi-play-fill"></i> Active
+                    {% else %}
+                        <i class="bi bi-archive-fill"></i> Archived
+                    {% endif %}
+                </span>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}">
-                    <div class="mb-3">
-                        <label for="notes" class="visually-hidden">Research Notes</label>
-                        <textarea name="notes" id="notes" class="form-control" rows="20"
-                            placeholder="Log your findings, insights, and sources here...">{{ analysis.notes if analysis.notes }}</textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Save Notes</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-5">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5>Question Bank for "{{ analysis.sector_name }}"</h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted small">Add specific, reusable questions based on your research notes.</p>
-                <form method="POST"
-                    action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}"
-                    class="mb-4">
-                    <div class="mb-2">
-                        <label for="text" class="form-label">New Question Text:</label>
-                        <textarea name="text" id="text" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-2">
-                        <label for="llm_prompt" class="form-label">Optional LLM Prompt:</label>
-                        <textarea name="llm_prompt" id="llm_prompt" class="form-control" rows="2"></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-success btn-sm">Add to Bank</button>
-                </form>
-                <hr>
-                <h6>Existing Questions for this Sector:</h6>
-                {% if question_bank_items %}
-                <ul class="list-group list-group-flush">
-                    {% for q in question_bank_items %}
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">{{ q.text }}</div>
-                        </div>
-                        <div class="btn-group btn-group-sm align-self-center" style="margin-left: auto;">
-                            <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}"
-                                class="btn btn-outline-secondary btn-sm" title="Edit Question">
-                                <i class="bi bi-pencil-square"></i>
-                            </a>    
-                            <form method="POST"
-                                action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}"
-                                style="display: inline;">
-                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete Question"
-                                    onclick="return confirm('Are you sure?');">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
+            <div class="sector-snapshot-actions">
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                    <i class="bi bi-layout-text-sidebar"></i> Templates
+                </button>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                {% if analysis.status == 'active' %}
+                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#archiveModal">
+                    <i class="bi bi-archive"></i> Archive Research
+                </button>
                 {% else %}
-                <p class="text-muted">No questions added yet for this sector.</p>
+                <form method="POST" action="{{ url_for('sectors.unarchive_sector', sector_name=analysis.sector_name) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="bi bi-arrow-counterclockwise"></i> Unarchive
+                    </button>
+                </form>
                 {% endif %}
+                <a href="{{ url_for('sectors.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> All Sectors
+                </a>
+            </div>
+        </div>
+
+        <div class="sector-progress-section">
+            <div class="sector-progress-row">
+                <span class="sector-progress-label">Research Progress:</span>
+                <div class="sector-progress-bar-container">
+                    <div class="sector-progress-bar-fill {{ analysis.progress_stage.label|lower|replace(' ', '-') }}"
+                         style="width: {{ analysis.research_progress_score }}%">
+                        <span class="sector-progress-percent">{{ analysis.research_progress_score }}%</span>
+                    </div>
+                </div>
+                <span class="sector-progress-stage">
+                    {{ analysis.progress_stage.emoji }} {{ analysis.progress_stage.label }}
+                </span>
+            </div>
+        </div>
+
+        <div class="sector-metrics-compact">
+            <div class="sector-metric-compact">
+                <i class="bi bi-clock-history"></i>
+                <span><strong>{{ analysis.time_spent_formatted }}</strong> active research</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-building"></i>
+                <span><strong>{{ sector_metrics.total }}</strong> companies tracked</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-check-circle"></i>
+                <span><strong>{{ sector_metrics.researched }}</strong> researched</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-star"></i>
+                <span><strong>{{ sector_metrics.watchlist }}</strong> watchlist</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-briefcase"></i>
+                <span><strong>{{ sector_metrics.portfolio }}</strong> portfolio</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-file-text"></i>
+                <span><strong>{{ analysis.word_count }}</strong> words</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-link-45deg"></i>
+                <span><strong>{{ analysis.sources_count }}</strong> sources</span>
+            </div>
+            <div class="sector-metric-compact">
+                <i class="bi bi-question-circle"></i>
+                <span><strong>{{ analysis.questions_count }}</strong> questions</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Research Notes Column -->
+        <div class="col-lg-8">
+            <!-- Quick Template Buttons -->
+            <!-- <div class="template-buttons">
+                {% for template in template_list[:5] %}
+                <button class="template-btn" onclick="insertTemplate('{{ template.key }}')">
+                    {{ template.icon }} {{ template.name }}
+                </button>
+                {% endfor %}
+            </div> -->
+
+            <!-- Quill Editor -->
+            <div class="sector-editor-container">
+                <div class="sector-editor-header">
+                    <h3><i class="bi bi-journal-text"></i> Research Notes</h3>
+                    <div class="editor-status saved" id="editorStatus">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span id="statusText">Saved</span>
+                    </div>
+                </div>
+                <div id="sectorEditor">{# Content will be loaded from backend #}</div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="sticky-sidebar">
+                <!-- Question Bank -->
+                <div class="sector-sidebar-card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-question-circle"></i> Question Bank</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Key questions for evaluating companies in this sector</p>
+
+                        <form method="POST" action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}" class="mb-3">
+                            <textarea name="text" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a question..." required></textarea>
+                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                <i class="bi bi-plus-circle"></i> Add Question
+                            </button>
+                        </form>
+
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            {% if question_bank_items %}
+                            {% for q in question_bank_items %}
+                            <div class="question-item">
+                                <div class="question-text">{{ q.text }}</div>
+                                <div class="question-actions">
+                                    <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="text-muted small text-center">No questions yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Companies Widget -->
+                <div class="sector-sidebar-card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-building"></i> Companies</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Track companies in this sector</p>
+
+                        {% if other_companies %}
+                        <form method="POST" class="mb-3" id="addCompanyForm">
+                            <div class="input-group input-group-sm">
+                                <select class="form-select form-select-sm" id="companySelect" name="company_id" required>
+                                    <option value="">Select company...</option>
+                                    {% for company in other_companies %}
+                                    <option value="{{ company.id }}">{{ company.name }} ({{ company.ticker_symbol }})</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="addCompanyToSector()">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            {% if companies_data %}
+                            {% for data in companies_data %}
+                            {% set company = data.company %}
+                            <div class="company-item">
+                                <div class="company-info">
+                                    <div class="company-name">{{ company.name }}</div>
+                                    <div class="company-ticker">{{ company.ticker_symbol }}</div>
+                                    <div class="company-badges">
+                                        {% if data.is_in_portfolio %}
+                                        <span class="badge bg-info">Portfolio</span>
+                                        {% elif data.is_in_watchlist %}
+                                        <span class="badge bg-warning">Watchlist</span>
+                                        {% endif %}
+                                        {% if data.active_project %}
+                                        <span class="badge bg-primary">Research {{ data.active_project.progress_percentage }}%</span>
+                                        {% elif data.completed_project %}
+                                        <span class="badge bg-success">✓ Researched</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="company-actions">
+                                    {% if not data.active_project and not data.completed_project %}
+                                    <form method="POST" action="{{ url_for('sectors.send_company_to_inbox', company_id=company.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn-send-to-inbox" title="Send to Idea Inbox">
+                                            <i class="bi bi-inbox"></i> Send to Inbox
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="text-muted small text-center">No companies tracked</p>
+                            {% endif %}
+                        </div>
+
+                        <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="newCompanyBtn">
+                            <i class="bi bi-plus-circle"></i> New Company
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-<div class="mt-4">
-    <a href="{{ url_for('sectors.edit_sector', analysis_id=analysis.id) }}" class="btn btn-outline-secondary">Edit
-        Sector
-        Name</a>
-    <a href="{{ url_for('sectors.index') }}" class="btn btn-secondary">Back to All Sector Notebooks</a>
+
+<!-- Templates Modal -->
+<div class="modal fade" id="templatesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-poppins"><i class="bi bi-layout-text-sidebar"></i> Research Templates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Click a template to insert it into your research notes</p>
+                <div class="template-modal-grid">
+                    {% for template in template_list %}
+                    <div class="template-card" onclick="insertTemplate('{{ template.key }}'); closeModal();">
+                        <h6>{{ template.icon }} {{ template.name }}</h6>
+                        <p>{{ template.description }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Sector Research Tips" %}
+{% set tips_intro = "Best practices for systematic sector analysis:" %}
+{% set tips = [
+    "Start with sector overview to understand the big picture",
+    "Use templates to ensure consistent research across sectors",
+    "Build a question bank specific to this sector's dynamics",
+    "Track multiple companies to identify patterns and outliers",
+    "Focus on what makes winners vs. losers in this specific industry"
+] %}
+{% include 'main/_tips_modal.html' %}
+
+<!-- Company Search Modal -->
+{% include 'components/company_search_modal.html' %}
+
+<!-- Archive Research Modal -->
+<div class="modal fade archive-modal" id="archiveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-archive"></i> Archive Sector Research?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('sectors.archive_sector', sector_name=analysis.sector_name) }}">
+                <div class="modal-body">
+                    <div class="research-summary">
+                        <div class="research-summary-title">
+                            <i class="bi bi-bar-chart-line"></i> Research Summary
+                        </div>
+                        <ul class="research-summary-list">
+                            <li class="research-summary-item">
+                                <i class="bi bi-file-text"></i>
+                                <span><strong>{{ analysis.word_count }}</strong> words written</span>
+                            </li>
+                            <li class="research-summary-item">
+                                <i class="bi bi-clock-history"></i>
+                                <span><strong>{{ analysis.time_spent_formatted }}</strong> active research time</span>
+                            </li>
+                            <li class="research-summary-item">
+                                <i class="bi bi-building"></i>
+                                <span><strong>{{ analysis.companies_count }}</strong> companies tracked</span>
+                            </li>
+                            <li class="research-summary-item">
+                                <i class="bi bi-question-circle"></i>
+                                <span><strong>{{ analysis.questions_count }}</strong> questions created</span>
+                            </li>
+                            <li class="research-summary-item">
+                                <i class="bi bi-link-45deg"></i>
+                                <span><strong>{{ analysis.sources_count }}</strong> sources added</span>
+                            </li>
+                            <li class="research-summary-item">
+                                <i class="bi bi-graph-up"></i>
+                                <span><strong>{{ analysis.research_progress_score }}%</strong> research progress</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="archive-info-box">
+                        <div class="archive-info-title">
+                            <i class="bi bi-info-circle"></i> Archive will:
+                        </div>
+                        <ul class="archive-info-list">
+                            <li>Move research to "Archived Sectors"</li>
+                            <li>Keep all data accessible</li>
+                            <li>Can be unarchived anytime</li>
+                            <li>Remove from active research list</li>
+                        </ul>
+                    </div>
+
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Archive research when you've completed initial sector analysis or want to focus on other sectors.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-archive"></i> Archive Research
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let quill;
+let saveTimer;
+
+// Initialize Quill
+document.addEventListener('DOMContentLoaded', function() {
+    quill = new Quill('#sectorEditor', {
+        theme: 'snow',
+        placeholder: 'Start your sector research here... Use templates above for structured analysis.',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, 4, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'indent': '-1'}, { 'indent': '+1' }],
+                [{ 'color': [] }, { 'background': [] }],
+                ['link', 'image'],
+                ['clean']
+            ]
+        }
+    });
+
+    // Load initial content
+    fetch('{{ url_for("sectors.get_research_notes", sector_name=analysis.sector_name) }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.content) {
+                quill.root.innerHTML = data.content;
+            }
+        });
+
+    // Auto-save on change
+    quill.on('text-change', function() {
+        updateStatus('saving');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveResearchNotes, 2000);
+    });
+});
+
+function saveResearchNotes() {
+    const content = quill.root.innerHTML;
+
+    fetch('{{ url_for("sectors.save_research_notes", sector_name=analysis.sector_name) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateStatus('saved');
+        } else {
+            updateStatus('error');
+        }
+    })
+    .catch(() => updateStatus('error'));
+}
+
+function updateStatus(status) {
+    const statusDiv = document.getElementById('editorStatus');
+    const statusText = document.getElementById('statusText');
+
+    statusDiv.className = 'editor-status ' + status;
+
+    if (status === 'saving') {
+        statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> <span>Saving...</span>';
+    } else if (status === 'saved') {
+        statusDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i> <span>Saved</span>';
+    } else if (status === 'error') {
+        statusDiv.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> <span>Error</span>';
+    }
+}
+
+// Template insertion - Load templates from backend
+const templates = {
+    {% for key, template in research_templates.items() %}
+    {{ key }}: `{{ template.content | safe }}`,
+    {% endfor %}
+};
+
+function insertTemplate(templateName) {
+    const template = templates[templateName];
+    if (template) {
+        const currentLength = quill.getLength();
+        quill.insertText(currentLength - 1, '\n\n');
+        quill.clipboard.dangerouslyPasteHTML(currentLength + 1, template);
+        quill.setSelection(currentLength + 1, 0);
+    }
+}
+
+function closeModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('templatesModal'));
+    modal.hide();
+}
+
+function addCompanyToSector() {
+    const select = document.getElementById('companySelect');
+    const companyId = select.value;
+    if (!companyId) {
+        alert('Please select a company');
+        return;
+    }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("sectors.add_company_to_sector", sector_name=analysis.sector_name, company_id=0) }}'.replace('/0', '/' + companyId);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Handle company selection from modal for sector research
+function handleCompanySelectionForSector(company) {
+    console.log('Company selected for sector:', company);
+
+    // Automatically assign the company to this sector and reload
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("sectors.add_company_to_sector", sector_name=analysis.sector_name, company_id=0) }}'.replace('/0', '/' + company.id);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Initialize company search modal when button is clicked
+document.addEventListener('DOMContentLoaded', function() {
+    const newCompanyBtn = document.getElementById('newCompanyBtn');
+    if (newCompanyBtn) {
+        newCompanyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openCompanyModal(handleCompanySelectionForSector);
+        });
+    }
+});
+</script>
 {% endblock %}

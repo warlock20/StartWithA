@@ -1,0 +1,38 @@
+/* =============================================================================
+   ALERT & MESSAGE STYLES
+   ============================================================================= */
+
+.alert-success {
+    background-color: rgba(15, 118, 110, 0.1);
+    border-color: var(--sage-teal);
+    color: var(--sage-teal);
+}
+
+.alert-warning {
+    background-color: rgba(217, 119, 6, 0.1);
+    border-color: var(--warm-amber);
+    color: var(--warm-amber);
+}
+
+.alert-info {
+    background-color: rgba(30, 64, 175, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* AI Analysis Result Boxes */
+.ai-error {
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    background-color: #f8d7da;
+    border-radius: 0.25rem;
+}
+
+.ai-warning {
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 1rem;
+    background-color: #fff3cd;
+    border-radius: 0.25rem;
+}

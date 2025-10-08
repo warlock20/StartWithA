@@ -1,138 +1,150 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<!-- Header -->
+
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{title}}</h1>
+        <small class="text-secondary">Template: {{ project.template.name }}</small>
+    </div>
+    <div>
+        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
+            class="btn btn-platform-outline">
+            <i class="bi bi-arrow-left"></i> Back to Project
+        </a>
+    </div>
+</div>
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <!-- Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2>📝 Research Notes</h2>
-                    <h4 class="text-muted">{{ project.research_subject_name }}</h4>
-                    <small class="text-secondary">Template: {{ project.template.name }}</small>
-                </div>
-                <div>
-                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                       class="btn btn-secondary">← Back to Project</a>
-                </div>
-            </div>
-
             <!-- Notes Content -->
             {% if notes_with_context %}
-                <div class="row">
-                    <div class="col-lg-8">
-                        {% for note in notes_with_context %}
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h5 class="mb-0">
-                                    Step {{ note.step_index + 1 }}: {{ note.step_name }}
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                {% if note.notes == '[SKIPPED]' %}
-                                    <div class="text-warning">
-                                        <i class="fas fa-skip"></i> This step was skipped
-                                    </div>
-                                {% elif note.notes.startswith('Completed via legacy') %}
-                                    <div class="text-info">
-                                        <i class="fas fa-info-circle"></i> {{ note.notes }}
-                                    </div>
-                                {% else %}
-                                    <div class="research-notes">
-                                        {{ note.notes|safe|nl2br }}
-                                    </div>
-                                {% endif %}
-                            </div>
+            <div class="row">
+                <div class="col-lg-8">
+                    {% for note in notes_with_context %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                Step {{ note.step_index + 1 }}: {{ note.step_name }}
+                            </h5>
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Sidebar with project info -->
-                    <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">Project Information</h6>
+                        <div class="card-body">
+                            {% if note.notes == '[SKIPPED]' %}
+                            <div class="text-warning">
+                                <i class="fas fa-skip"></i> This step was skipped
                             </div>
-                            <div class="card-body">
-                                <p><strong>Progress:</strong> {{ project.progress_percentage }}%</p>
-                                <p><strong>Status:</strong>
-                                    <span class="badge
+                            {% elif note.notes.startswith('Completed via legacy') %}
+                            <div class="text-info">
+                                <i class="fas fa-info-circle"></i> {{ note.notes }}
+                            </div>
+                            {% else %}
+                            <div class="research-notes">
+                                {{ note.notes|markdown|safe }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Sidebar with project info -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Project Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Progress:</strong> {{ project.progress_percentage }}%</p>
+                            <p><strong>Status:</strong>
+                                <span class="badge
                                         {% if project.status == 'active' %}badge-success
                                         {% elif project.status == 'completed' %}badge-primary
                                         {% elif project.status == 'paused' %}badge-warning
                                         {% else %}badge-secondary{% endif %}">
-                                        {{ project.status.title() }}
-                                    </span>
-                                </p>
-                                {% if project.created_at %}
-                                <p><strong>Started:</strong> {{ project.created_at.strftime('%b %d, %Y') }}</p>
-                                {% endif %}
-                                {% if project.last_worked_at %}
-                                <p><strong>Last Activity:</strong> {{ project.last_worked_at.strftime('%b %d, %Y') }}</p>
-                                {% endif %}
-                                <p><strong>Total Steps:</strong> {{ notes_with_context|length }}</p>
-                            </div>
+                                    {{ project.status.title() }}
+                                </span>
+                            </p>
+                            {% if project.created_at %}
+                            <p><strong>Started:</strong> {{ project.created_at.strftime('%b %d, %Y') }}</p>
+                            {% endif %}
+                            {% if project.last_worked_at %}
+                            <p><strong>Last Activity:</strong> {{ project.last_worked_at.strftime('%b %d, %Y') }}</p>
+                            {% endif %}
+                            <p><strong>Total Steps:</strong> {{ notes_with_context|length }}</p>
                         </div>
+                    </div>
 
-                        <!-- Quick Actions -->
-                        <div class="card mt-3">
-                            <div class="card-header">
-                                <h6 class="mb-0">Quick Actions</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    {% if project.company_id %}
-                                        <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
-                                            class="btn btn-outline-primary btn-sm">View Company</a>
-                                        <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
-                                            class="btn btn-outline-secondary btn-sm">Research Journal</a>
-                                    {% endif %}
-                                    {% if project.progress_percentage == 100 %}
-                                    <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
-                                        class="btn btn-success btn-sm">View Summary</a>
-                                    {% endif %}
-                                </div>
+                    <!-- Quick Actions -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Quick Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                {% if project.company_id %}
+                                <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
+                                    class="btn btn-platform-outline-primary btn-platform-sm">
+                                    <i class="bi bi-building"></i> View Company
+                                </a>
+                                <a href="{{ url_for('journal_enhanced.search', company_id=project.company_id) }}"
+                                    class="btn btn-platform-outline-secondary btn-platform-sm">
+                                    <i class="bi bi-journal-text"></i> Research Journal
+                                </a>
+                                {% endif %}
+                                {% if project.progress_percentage == 100 %}
+                                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                                    class="btn btn-platform-complete btn-platform-sm">
+                                    <i class="bi bi-check-circle"></i> View Summary
+                                </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
             {% else %}
-                <div class="text-center py-5">
-                    <div class="text-muted">
-                        <i class="fas fa-sticky-note fa-3x mb-3"></i>
-                        <h4>No Research Notes</h4>
-                        <p>This project doesn't have any research notes yet.</p>
-                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                           class="btn btn-primary">Continue Research</a>
-                    </div>
+            <div class="text-center py-5">
+                <div class="text-muted">
+                    <i class="fas fa-sticky-note fa-3x mb-3"></i>
+                    <h4>No Research Notes</h4>
+                    <p>This project doesn't have any research notes yet.</p>
+                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
+                        class="btn btn-platform-primary btn-platform-lg">
+                        <i class="bi bi-arrow-right"></i> Continue Research
+                    </a>
                 </div>
+            </div>
             {% endif %}
         </div>
     </div>
 </div>
 
 <style>
-.research-notes {
-    line-height: 1.6;
-    font-size: 0.95rem;
-}
+    .research-notes {
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
 
-.research-notes h1, .research-notes h2, .research-notes h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-}
+    .research-notes h1,
+    .research-notes h2,
+    .research-notes h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
 
-.research-notes ul, .research-notes ol {
-    margin: 1rem 0;
-    padding-left: 1.5rem;
-}
+    .research-notes ul,
+    .research-notes ol {
+        margin: 1rem 0;
+        padding-left: 1.5rem;
+    }
 
-.research-notes blockquote {
-    border-left: 4px solid #dee2e6;
-    padding-left: 1rem;
-    margin: 1rem 0;
-    font-style: italic;
-    color: #6c757d;
-}
+    .research-notes blockquote {
+        border-left: 4px solid #dee2e6;
+        padding-left: 1rem;
+        margin: 1rem 0;
+        font-style: italic;
+        color: #6c757d;
+    }
 </style>
 {% endblock %}

@@ -1,0 +1,356 @@
+/* =============================================================================
+   DESTINATION ANALYSIS - ENHANCED TIMELINE & CHECKPOINT TRACKING
+   ============================================================================= */
+
+/* Destination Analysis Timeline Container */
+.destination-timeline {
+    position: relative;
+    padding: 3rem 0;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Timeline center line with gradient */
+.destination-timeline::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg,
+        var(--primary-600) 0%,
+        var(--primary-600) 50%,
+        var(--gray-300) 100%);
+    transform: translateX(-50%);
+    box-shadow: 0 0 20px rgba(67, 56, 202, 0.15);
+}
+
+/* Timeline items with enhanced spacing */
+.timeline-item {
+    position: relative;
+    width: 50%;
+    padding: 1.5rem 4rem;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+/* Stagger animation for sequential appearance */
+.timeline-item:nth-child(1) { animation-delay: 0.1s; }
+.timeline-item:nth-child(2) { animation-delay: 0.2s; }
+.timeline-item:nth-child(3) { animation-delay: 0.3s; }
+.timeline-item:nth-child(4) { animation-delay: 0.4s; }
+.timeline-item:nth-child(5) { animation-delay: 0.5s; }
+.timeline-item:nth-child(n+6) { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Alternate left/right positioning */
+.timeline-item:nth-child(odd) {
+    left: 0;
+    padding-right: 4rem;
+}
+
+.timeline-item:nth-child(even) {
+    left: 50%;
+    padding-left: 4rem;
+}
+
+/* Timeline date badge */
+.timeline-date {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, var(--primary-50), white);
+    border: 2px solid var(--primary-600);
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--primary-600);
+    box-shadow: var(--shadow-light);
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 5;
+}
+
+.timeline-item:nth-child(odd) .timeline-date {
+    float: right;
+}
+
+.timeline-item:nth-child(even) .timeline-date {
+    float: left;
+}
+
+/* Enhanced timeline dots with glow effects */
+.timeline-dot {
+    position: absolute;
+    top: 2rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 5px solid var(--primary-600);
+    z-index: 15;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8),
+                0 0 20px rgba(67, 56, 202, 0.3);
+    transition: all var(--transition-normal);
+}
+
+.timeline-item:nth-child(odd) .timeline-dot {
+    right: -12px;
+}
+
+.timeline-item:nth-child(even) .timeline-dot {
+    left: -12px;
+}
+
+/* Dot hover effect */
+.timeline-item:hover .timeline-dot {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.9),
+                0 0 30px rgba(67, 56, 202, 0.5);
+}
+
+/* Connector line from dot to card */
+.timeline-item::after {
+    content: '';
+    position: absolute;
+    top: 2.75rem;
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-600), transparent);
+    z-index: 5;
+}
+
+.timeline-item:nth-child(odd)::after {
+    right: 4rem;
+    background: linear-gradient(270deg, var(--primary-600), transparent);
+}
+
+.timeline-item:nth-child(even)::after {
+    left: 4rem;
+}
+
+/* Dot variants with enhanced styling */
+.timeline-dot-completed {
+    border-color: var(--success-500);
+    background: var(--success-50);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8),
+                0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.timeline-dot-completed::before {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--success-500);
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+.timeline-dot-missed {
+    border-color: var(--danger-500);
+    background: var(--danger-50);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8),
+                0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.timeline-dot-missed::before {
+    content: '✕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--danger-500);
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+.timeline-dot-active {
+    border-color: var(--warning-500);
+    background: var(--warning-50);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8),
+                    0 0 0 8px rgba(245, 158, 11, 0.4),
+                    0 0 20px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8),
+                    0 0 0 16px rgba(245, 158, 11, 0),
+                    0 0 30px rgba(245, 158, 11, 0.5);
+    }
+}
+
+/* Enhanced checkpoint card */
+.timeline-item .card {
+    border-radius: var(--radius-lg);
+    border: 2px solid transparent;
+    transition: all var(--transition-normal);
+    overflow: hidden;
+    background: white;
+}
+
+.timeline-item:hover .card {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--primary-600);
+}
+
+.timeline-item-completed .card {
+    border-color: var(--success-500);
+    background: linear-gradient(to bottom right, white, var(--success-50));
+}
+
+.timeline-item-missed .card {
+    border-color: var(--danger-500);
+    background: linear-gradient(to bottom right, white, var(--danger-50));
+}
+
+.timeline-item-active .card {
+    border-color: var(--warning-500);
+    background: linear-gradient(to bottom right, white, var(--warning-50));
+}
+
+/* Progress indicator on timeline */
+.timeline-progress {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 4px;
+    background: var(--success-500);
+    transform: translateX(-50%);
+    z-index: 1;
+    transition: height 1s ease;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+/* Checkpoint metrics display */
+.checkpoint-metrics {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+}
+
+.metric-item {
+    flex: 1;
+    text-align: center;
+    padding: 0.75rem;
+    background: white;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+}
+
+.metric-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.metric-value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Empty state enhancement */
+.timeline-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, var(--gray-50), white);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-light);
+}
+
+.timeline-empty-state i {
+    font-size: 5rem;
+    color: var(--gray-300);
+    margin-bottom: 1.5rem;
+    display: block;
+}
+
+/* Add checkpoint card enhancement */
+.add-checkpoint-card {
+    border: 2px solid var(--primary-600);
+    background: linear-gradient(135deg, var(--primary-50), white);
+    transition: all var(--transition-normal);
+}
+
+.add-checkpoint-card:hover {
+    box-shadow: var(--shadow-heavy);
+    transform: translateY(-2px);
+}
+
+/* Responsive - Stack on tablet and mobile */
+@media (max-width: 992px) {
+    .destination-timeline::before {
+        left: 30px;
+    }
+
+    .timeline-item {
+        width: 100%;
+        padding-left: 5rem !important;
+        padding-right: 1rem !important;
+        left: 0 !important;
+    }
+
+    .timeline-item:nth-child(odd) .timeline-date,
+    .timeline-item:nth-child(even) .timeline-date {
+        float: none;
+        display: inline-block;
+    }
+
+    .timeline-dot {
+        left: 22px !important;
+        right: auto !important;
+    }
+
+    .timeline-item::after {
+        left: 3.5rem !important;
+        right: auto !important;
+        width: 30px;
+    }
+
+    .checkpoint-metrics {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 768px) {
+    .destination-timeline {
+        padding: 2rem 0;
+    }
+
+    .timeline-item {
+        padding-left: 4rem !important;
+        margin-bottom: 2rem;
+    }
+
+    .timeline-date {
+        font-size: var(--font-size-xs);
+        padding: 0.375rem 0.75rem;
+    }
+
+    .timeline-empty-state i {
+        font-size: 3rem;
+    }
+}

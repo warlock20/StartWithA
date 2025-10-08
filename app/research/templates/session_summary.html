@@ -17,7 +17,7 @@
     </div>
     <div class="d-flex gap-2">
         <a href="{{ url_for('research.export_session_to_txt', session_id=session.id) }}"
-            class="btn-pro outline-primary">
+            class="btn btn-outline-primary">
             <i class="bi bi-download"></i> Export
         </a>
 
@@ -25,7 +25,7 @@
         <!-- Research workflow context - show completion action -->
         <a href="{{ url_for('research_workflow.complete_research_step',
                                   project_id=research_context.project_id,
-                                  step_index=research_context.step_index) }}" class="btn-pro success">
+                                  step_index=research_context.step_index) }}" class="btn btn-success">
             <i class="bi bi-check-circle"></i> Complete & Continue
         </a>
         {% endif %}
@@ -130,7 +130,7 @@
                                 <div class="answer-content">
                                     {% if current_ans_obj and current_ans_obj.answer_text %}
                                     <div class="answer-text">
-                                        {{ current_ans_obj.answer_text|replace('\n', '<br>')|safe }}
+                                        {{ current_ans_obj.answer_text|markdown|safe }}
                                     </div>
                                     {% else %}
                                     <div class="no-answer">
@@ -174,7 +174,7 @@
             <div class="card-body">
                 {% if session.conclusion %}
                 <div class="conclusion-display">
-                    {{ session.conclusion|replace('\n', '<br>')|safe }}
+                    {{ session.conclusion|markdown|safe }}
                 </div>
                 <hr>
                 {% else %}
@@ -193,7 +193,7 @@
                         <textarea id="conclusion" name="conclusion" class="form-control" rows="4"
                             placeholder="Enter your overall conclusion and investment thesis...">{{ session.conclusion if session.conclusion else '' }}</textarea>
                     </div>
-                    <button type="submit" class="btn-pro success w-100">
+                    <button type="submit" class="btn btn-success w-100">
                         <i class="bi bi-save"></i> Save Conclusion
                     </button>
                 </form>
@@ -237,7 +237,7 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="btn-pro primary w-100">
+                    <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-calculator"></i> Save Valuation
                     </button>
                 </form>

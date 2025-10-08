@@ -14,6 +14,14 @@ from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
 import json
+import logging
+from app.services.research_journal_intelligence import (
+    analyze_journal_entry,
+    detect_thesis_contradictions,
+    find_related_entries as ai_find_related_entries
+)
+
+logger = logging.getLogger(__name__)
 
 # File upload configuration
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'xlsx', 'xls', 'doc', 'docx'}
@@ -196,8 +204,8 @@ def entry_detail(entry_id):
     
     # Don't automatically mark as reviewed - let user control this manually
     
-    # Get related entries
-    related_entries = get_related_entries(entry, limit=5)
+    # Get related entries using existing rule-based function
+    related_entries = get_related_entries(entry)
     
     # Get attachments
     attachments = entry.attachments.all()
@@ -756,6 +764,261 @@ def delete_entry(entry_id):
         db.session.rollback()
         flash('Error deleting entry', 'error')
         return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+
+
+# AI-Powered Research Journal Intelligence Routes
+
+@journal_enhanced_bp.route('/api/entry/<int:entry_id>/analyze', methods=['POST'])
+@login_required
+def analyze_entry(entry_id):
+    """Run AI analysis on a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check
+    if entry.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        # Set processing status
+        entry.ai_processing_status = 'processing'
+        db.session.commit()
+
+        # Run AI analysis
+        analysis_result = analyze_journal_entry(entry)
+
+        # Store results
+        entry.ai_analysis_result = analysis_result
+        entry.ai_analyzed_at = datetime.utcnow()
+        entry.ai_confidence_score = analysis_result.get('ai_confidence', 0.8)
+        entry.ai_suggested_tags = analysis_result.get('suggested_tags', [])
+        entry.ai_themes_extracted = analysis_result.get('key_themes', [])
+        entry.ai_processing_status = 'completed'
+
+        # If thesis implications found, check for contradictions
+        if entry.company_id and analysis_result.get('thesis_implications'):
+            contradiction_result = detect_thesis_contradictions(entry, entry.company_id)
+            if contradiction_result.get('contradiction_detected'):
+                entry.contradiction_flags = contradiction_result
+
+        # Find related entries
+        related_result = ai_find_related_entries(entry)
+        if related_result.get('related_entries'):
+            entry.related_entry_ids = [
+                r['entry_id'] for r in related_result['related_entries']
+                if r.get('relevance_score', 0) > 0.6  # Only store high-confidence relations
+            ]
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'analysis': analysis_result,
+            'has_contradictions': bool(entry.contradiction_flags),
+            'related_entries_count': len(entry.related_entry_ids or [])
+        })
+
+    except Exception as e:
+        # Update status on failure
+        entry.ai_processing_status = 'failed'
+        db.session.commit()
+
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@journal_enhanced_bp.route('/api/entry/<int:entry_id>/related')
+@login_required
+def api_get_related_entries(entry_id):
+    """Get related entries for a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check
+    if entry.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    # Get related entries from stored IDs or run analysis
+    related_entry_ids = entry.related_entry_ids or []
+
+    if not related_entry_ids:
+        # Run real-time analysis
+        try:
+            related_result = ai_find_related_entries(entry)
+            related_entries_data = related_result.get('related_entries', [])
+        except Exception as e:
+            logger.error(f"Error finding related entries: {e}")
+            related_entries_data = []
+    else:
+        # Get entries from stored IDs
+        related_entries = JournalEntry.query.filter(
+            JournalEntry.id.in_(related_entry_ids),
+            JournalEntry.user_id == current_user.id
+        ).all()
+
+        related_entries_data = [
+            {
+                'entry_id': entry.id,
+                'entry_title': entry.title or 'Untitled',
+                'entry_type': entry.entry_type,
+                'created_at': entry.created_at.strftime('%Y-%m-%d'),
+                'company_name': entry.company.name if entry.company else None,
+                'relevance_score': 0.8,  # Default for stored relations
+                'relationship_type': 'cached'
+            }
+            for entry in related_entries
+        ]
+
+    return jsonify({
+        'success': True,
+        'related_entries': related_entries_data
+    })
+
+
+@journal_enhanced_bp.route('/api/entry/<int:entry_id>/contradictions')
+@login_required
+def get_contradictions(entry_id):
+    """Get thesis contradictions for a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+
+    # Security check
+    if entry.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    contradictions = entry.contradiction_flags or {}
+
+    if not contradictions and entry.company_id:
+        # Run real-time analysis
+        try:
+            contradictions = detect_thesis_contradictions(entry, entry.company_id)
+        except Exception as e:
+            logger.error(f"Error detecting contradictions: {e}")
+            contradictions = {'contradiction_detected': False}
+
+    return jsonify({
+        'success': True,
+        'contradictions': contradictions
+    })
+
+
+@journal_enhanced_bp.route('/api/entries/auto-tag', methods=['POST'])
+@login_required
+def auto_tag_entries():
+    """Batch auto-tag recent entries that haven't been analyzed"""
+    try:
+        # Get recent unprocessed entries
+        unprocessed_entries = JournalEntry.query.filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.ai_processing_status.is_(None)
+        ).order_by(JournalEntry.created_at.desc()).limit(10).all()
+
+        processed_count = 0
+        for entry in unprocessed_entries:
+            try:
+                # Set processing status
+                entry.ai_processing_status = 'processing'
+                db.session.commit()
+
+                # Run analysis
+                analysis_result = analyze_journal_entry(entry)
+
+                # Store AI-suggested tags
+                if analysis_result.get('suggested_tags'):
+                    # Merge with existing tags
+                    existing_tags = set(entry.tags or [])
+                    suggested_tags = set(analysis_result['suggested_tags'])
+                    entry.tags = list(existing_tags.union(suggested_tags))
+
+                entry.ai_suggested_tags = analysis_result.get('suggested_tags', [])
+                entry.ai_themes_extracted = analysis_result.get('key_themes', [])
+                entry.ai_processing_status = 'completed'
+                entry.ai_analyzed_at = datetime.utcnow()
+
+                processed_count += 1
+
+            except Exception as e:
+                entry.ai_processing_status = 'failed'
+                logger.error(f"Failed to process entry {entry.id}: {e}")
+
+            db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'processed_entries': processed_count,
+            'message': f'Successfully processed {processed_count} entries'
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@journal_enhanced_bp.route('/api/intelligence/dashboard')
+@login_required
+def intelligence_dashboard():
+    """Get AI intelligence insights for the user's journal"""
+    try:
+        # Get statistics about AI processing
+        total_entries = JournalEntry.query.filter_by(user_id=current_user.id).count()
+
+        processed_entries = JournalEntry.query.filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.ai_processing_status == 'completed'
+        ).count()
+
+        entries_with_contradictions = JournalEntry.query.filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.contradiction_flags.isnot(None)
+        ).count()
+
+        # Get most common themes
+        theme_entries = JournalEntry.query.filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.ai_themes_extracted.isnot(None)
+        ).all()
+
+        theme_counts = {}
+        for entry in theme_entries:
+            for theme in (entry.ai_themes_extracted or []):
+                theme_counts[theme] = theme_counts.get(theme, 0) + 1
+
+        top_themes = sorted(theme_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        # Get recent AI insights
+        recent_insights = JournalEntry.query.filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.ai_analysis_result.isnot(None)
+        ).order_by(JournalEntry.ai_analyzed_at.desc()).limit(5).all()
+
+        insights_data = []
+        for entry in recent_insights:
+            analysis = entry.ai_analysis_result or {}
+            insights_data.append({
+                'entry_id': entry.id,
+                'entry_title': entry.title or 'Untitled',
+                'key_insights': analysis.get('key_insights', []),
+                'analyzed_at': entry.ai_analyzed_at.strftime('%Y-%m-%d %H:%M') if entry.ai_analyzed_at else None
+            })
+
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_entries': total_entries,
+                'processed_entries': processed_entries,
+                'processing_percentage': round((processed_entries / total_entries) * 100, 1) if total_entries > 0 else 0,
+                'entries_with_contradictions': entries_with_contradictions
+            },
+            'top_themes': top_themes,
+            'recent_insights': insights_data
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/mark_pending', methods=['POST'])
 @login_required

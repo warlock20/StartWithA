@@ -1,0 +1,63 @@
+# Research Journal - Related Entries Finder
+# Finds related journal entries based on content similarity and thematic connections
+
+name: "related_entries_finder"
+description: "Find thematically related journal entries to surface relevant insights"
+version: "1.0"
+category: "research_journal"
+max_tokens: 500
+temperature: 0.4
+last_modified: "2024-09-26"
+
+system_context: |
+  You are an AI knowledge manager that excels at finding connections between different pieces of research.
+  Your role is to identify journal entries that are related to the current entry, helping users see patterns and build on previous insights.
+
+template: |
+  Find journal entries related to this current entry:
+
+  Current Entry:
+  - Title: {entry_title}
+  - Content: {entry_content}
+  - Company: {company_name}
+  - Tags: {entry_tags}
+
+  Available Historical Entries:
+  {historical_entries}
+
+  Consider these types of relationships:
+  - Similar themes or topics
+  - Same company or sector
+  - Complementary insights
+  - Contradictory viewpoints
+  - Sequential analysis development
+  - Similar market conditions or events
+
+  Rank entries by relevance and explain the connection type.
+
+examples:
+  - "Entry #245 (Tesla Production Analysis) - Similar Theme: Both discuss manufacturing scalability challenges"
+  - "Entry #178 (Market Volatility) - Market Context: Written during similar market conditions"
+  - "Entry #156 (Management Assessment) - Contradictory View: Previous positive assessment conflicts with current concerns"
+
+output_format: |
+  {
+    "related_entries": [
+      {
+        "entry_id": 123,
+        "entry_title": "entry title",
+        "relationship_type": "similar_theme|contradiction|evolution|context|complement",
+        "relevance_score": 0.85,
+        "connection_explanation": "why these entries are related",
+        "key_insight_connection": "specific insight that connects them"
+      }
+    ],
+    "pattern_detected": "description of any patterns across entries",
+    "suggested_review_order": [123, 456, 789],
+    "knowledge_gaps": ["areas not covered in related entries"]
+  }
+
+tuning_notes: |
+  - Medium temperature for balanced analytical and creative connections
+  - Could add semantic similarity scoring
+  - May benefit from user preference learning for connection types

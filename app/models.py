@@ -1,13 +1,15 @@
 # company_research_platform/app/models.py
 
 from app import db  # Import the db instance from app/__init__.py
-from datetime import datetime
+from datetime import datetime, timezone
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from werkzeug.security import (
     generate_password_hash,
     check_password_hash,
 )  # Import hashing functions
 from flask_login import UserMixin  # Import UserMixin
 from app import login_manager  # Import login_manager from app/__init__.py
+import re  # For HTML tag stripping in word count
 
 favorite_companies = db.Table(
     "favorite_companies",
@@ -104,7 +106,27 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                     lazy='dynamic', cascade='all, delete-orphan')
     patterns = db.relationship('PatternRecognition', backref='user',
                               lazy='dynamic', cascade='all, delete-orphan')
-    
+
+    # Onboarding tracking
+    onboarding_completed = db.Column(db.Boolean, default=False)
+    onboarding_step = db.Column(db.Integer, default=0)  # Track current step (0-5)
+    onboarding_started_at = db.Column(db.DateTime)
+    onboarding_completed_at = db.Column(db.DateTime)
+
+    # User preferences
+    preferred_sprint_duration = db.Column(db.Integer, default=30)  # minutes
+    research_experience_level = db.Column(db.String(20), default='intermediate')  # beginner, intermediate, expert
+    notification_preferences = db.Column(db.JSON, default={'pattern_alerts': True, 'weekly_review': True, 'fomo_alerts': True})
+
+    # Community features
+    buddy_system_enabled = db.Column(db.Boolean, default=False)
+    peer_feedback_count = db.Column(db.Integer, default=0)
+    community_reputation = db.Column(db.Integer, default=0)
+
+    # FOMO protection
+    last_fomo_alert = db.Column(db.DateTime)
+    fomo_protection_level = db.Column(db.String(20), default='medium')  # low, medium, high
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -125,6 +147,8 @@ class Checklist(db.Model):
     user_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False
     )  # Link to User
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
 
     # Relationships: A checklist has many items
     items = db.relationship(
@@ -234,7 +258,7 @@ class Company(db.Model):
 
 class ResearchSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    start_date = db.Column(db.DateTime, nullable=False, default=now_utc)
     status = db.Column(db.String(50), nullable=False, default="in_progress")
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -269,7 +293,7 @@ class ResearchAnswer(db.Model):
     answer_text = db.Column(db.Text, nullable=True)  # Textual answer from the user
     # file_path: For later, when we implement PDF uploads for specific questions
     # file_path = db.Column(db.String(300), nullable=True)
-    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime, default=now_utc)
     satisfaction_status = db.Column(db.String(30), nullable=True, default="neutral")
 
     research_session_id = db.Column(
@@ -313,7 +337,7 @@ class CompanyDocument(db.Model):
     )  # Publication date of the document, or period end date
 
     description = db.Column(db.Text, nullable=True)  # Optional user description
-    uploaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     # Relationships (these will create the backrefs on Company and User)
     # company = db.relationship('Company', backref=db.backref('documents', lazy='dynamic')) # This is one way
@@ -348,7 +372,7 @@ class DestinationCheckpoint(db.Model):
     )  # E.g., 'Active', 'Met', 'Not Met'
     outcome_notes = db.Column(db.Text, nullable=True)  # User's analysis of the outcome
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<DestinationCheckpoint {self.metric} for Company {self.company_id}>"
@@ -376,7 +400,7 @@ class CompanyArticle(db.Model):
     published_at = db.Column(db.DateTime, nullable=False, index=True)
 
     # The date we fetched the article
-    fetched_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fetched_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<CompanyArticle {self.title[:50]}...>"
@@ -393,7 +417,7 @@ class ScuttlebuttAnalysis(db.Model):
 
     # The date the analysis was generated
     generated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+        db.DateTime, nullable=False, default=now_utc, index=True
     )
 
     def __repr__(self):
@@ -416,9 +440,9 @@ class QualitativeAnalysis(db.Model):
     # For SWOT, it will look like: {"strengths": "...", "weaknesses": "...", ...}
     content = db.Column(db.JSON, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
     updated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
 
     # Ensure a user can only have one of each analysis type per company
@@ -470,7 +494,7 @@ class QuestionBankItem(db.Model):
     # The sector tag to categorize the question. Can be null for general questions.
     sector = db.Column(db.String(100), nullable=True, index=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"
@@ -482,21 +506,296 @@ class SectorAnalysis(db.Model):
     # The name of the sector being analyzed
     sector_name = db.Column(db.String(100), nullable=False, index=True)
 
-    # A large text field for free-form research notes
+    # A large text field for free-form research notes (backward compatible)
     notes = db.Column(db.Text, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Research status and tracking
+    status = db.Column(db.String(20), nullable=False, default='active')  # active, archived
+    total_time_spent = db.Column(db.Integer, nullable=False, default=0)  # in seconds
+    archived_at = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
     updated_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
+
+    # Relationship to flexible research sections
+    sections = db.relationship('SectorResearchSection', backref='sector_analysis',
+                              lazy='dynamic', cascade='all, delete-orphan',
+                              order_by='SectorResearchSection.display_order')
 
     # Ensure a user can only have one analysis notebook per sector name
     __table_args__ = (
         db.UniqueConstraint("user_id", "sector_name", name="uq_user_sector"),
     )
 
+    @property
+    def word_count(self):
+        """Calculate total word count from notes"""
+        if not self.notes:
+            return 0
+        # Strip HTML tags and count words
+        text = re.sub(r'<[^>]+>', '', self.notes)
+        return len(text.split())
+
+    @property
+    def companies_count(self):
+        """Count companies in this sector"""
+        return Company.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).count()
+
+    @property
+    def researched_companies_count(self):
+        """Count companies with completed research projects"""
+        companies = Company.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).all()
+
+        researched = 0
+        for company in companies:
+            has_research = ResearchProject.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                status='completed'
+            ).first()
+            if has_research:
+                researched += 1
+        return researched
+
+    @property
+    def sources_count(self):
+        """Count research sources added"""
+        return self.sources.count()
+
+    @property
+    def questions_count(self):
+        """Count questions in question bank for this sector"""
+        return QuestionBankItem.query.filter_by(
+            user_id=self.user_id,
+            sector=self.sector_name
+        ).count()
+
+    @property
+    def research_progress_score(self):
+        """
+        Calculate comprehensive research progress score (0-100)
+        Weighted: word_count 30%, time 20%, companies 25%, sources 15%, questions 10%
+        """
+        # Word count score (0-100)
+        word_count = self.word_count
+        if word_count >= 5000:
+            word_score = 100
+        elif word_count >= 3000:
+            word_score = 80
+        elif word_count >= 1500:
+            word_score = 60
+        elif word_count >= 500:
+            word_score = 40
+        else:
+            word_score = min((word_count / 500) * 40, 40)
+
+        # Time spent score (0-100)
+        hours = self.total_time_spent / 3600
+        if hours >= 10:
+            time_score = 100
+        elif hours >= 6:
+            time_score = 80
+        elif hours >= 3:
+            time_score = 60
+        elif hours >= 1:
+            time_score = 40
+        else:
+            time_score = min((hours / 1) * 40, 40)
+
+        # Companies analyzed score (0-100)
+        researched = self.researched_companies_count
+        if researched >= 15:
+            companies_score = 100
+        elif researched >= 10:
+            companies_score = 80
+        elif researched >= 5:
+            companies_score = 60
+        elif researched >= 2:
+            companies_score = 40
+        else:
+            companies_score = min((researched / 2) * 40, 40)
+
+        # Sources score (0-100)
+        sources = self.sources_count
+        if sources >= 15:
+            sources_score = 100
+        elif sources >= 10:
+            sources_score = 80
+        elif sources >= 5:
+            sources_score = 60
+        elif sources >= 2:
+            sources_score = 40
+        else:
+            sources_score = min((sources / 2) * 40, 40)
+
+        # Questions score (0-100)
+        questions = self.questions_count
+        if questions >= 25:
+            questions_score = 100
+        elif questions >= 15:
+            questions_score = 80
+        elif questions >= 8:
+            questions_score = 60
+        elif questions >= 3:
+            questions_score = 40
+        else:
+            questions_score = min((questions / 3) * 40, 40)
+
+        # Weighted average
+        total_score = (
+            word_score * 0.30 +
+            time_score * 0.20 +
+            companies_score * 0.25 +
+            sources_score * 0.15 +
+            questions_score * 0.10
+        )
+
+        return int(total_score)
+
+    @property
+    def progress_stage(self):
+        """Get progress stage emoji and label"""
+        score = self.research_progress_score
+        if score >= 76:
+            return {'emoji': '🟢', 'label': 'Comprehensive'}
+        elif score >= 51:
+            return {'emoji': '🟠', 'label': 'Advanced'}
+        elif score >= 26:
+            return {'emoji': '🟡', 'label': 'In Progress'}
+        else:
+            return {'emoji': '🔴', 'label': 'Early Stage'}
+
+    @property
+    def time_spent_formatted(self):
+        """Format total time spent as readable string"""
+        hours = self.total_time_spent // 3600
+        minutes = (self.total_time_spent % 3600) // 60
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+
+    @property
+    def completion_percentage(self):
+        """Calculate research completion based on sections with content"""
+        total_sections = self.sections.count()
+        if total_sections == 0:
+            return 0
+        completed_sections = self.sections.filter(
+            db.and_(
+                SectorResearchSection.content.isnot(None),
+                SectorResearchSection.content != ''
+            )
+        ).count()
+        return int((completed_sections / total_sections) * 100)
+
+    @property
+    def last_edited_section(self):
+        """Get the most recently edited section"""
+        return self.sections.order_by(SectorResearchSection.updated_at.desc()).first()
+
     def __repr__(self):
         return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
+
+
+class SectorResearchSection(db.Model):
+    """
+    Flexible research sections for sector analysis.
+    Users can customize, reorder, add, or remove sections in the future.
+    """
+    __tablename__ = 'sector_research_section'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Section metadata
+    title = db.Column(db.String(200), nullable=False)
+    icon = db.Column(db.String(50), nullable=True)  # Emoji or icon class
+    description = db.Column(db.String(500), nullable=True)  # Helpful description/prompt
+
+    # Rich text content (HTML from Quill.js)
+    content = db.Column(db.Text, nullable=True)
+
+    # Display order (for future drag-and-drop reordering)
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Section type for future categorization
+    section_type = db.Column(db.String(50), nullable=True, default='custom')
+    # Types: 'overview', 'analysis', 'trends', 'risks', 'opportunities', 'custom'
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_utc, onupdate=now_utc)
+
+    # Metadata for future features
+    is_visible = db.Column(db.Boolean, default=True)  # Users can hide sections
+    is_locked = db.Column(db.Boolean, default=False)  # Prevent deletion of important sections
+
+    @property
+    def is_completed(self):
+        """Check if section has content"""
+        return self.content is not None and len(self.content.strip()) > 0
+
+    @property
+    def word_count(self):
+        """Estimate word count (strip HTML tags for rough count)"""
+        if not self.content:
+            return 0
+        import re
+        text = re.sub(r'<[^>]+>', '', self.content)
+        return len(text.split())
+
+    def __repr__(self):
+        return f'<SectorResearchSection "{self.title}" for Analysis {self.sector_analysis_id}>'
+
+
+class SectorResearchSource(db.Model):
+    """
+    Track research sources and references for sector analysis.
+    Helps organize articles, reports, videos, and other materials.
+    """
+    __tablename__ = 'sector_research_source'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Source metadata
+    title = db.Column(db.String(300), nullable=False)
+    url = db.Column(db.String(1000), nullable=True)
+    source_type = db.Column(db.String(50), nullable=False, default='article')
+    # Types: 'article', 'report', 'video', 'podcast', 'book', 'other'
+
+    # Description and notes
+    description = db.Column(db.Text, nullable=True)
+    key_takeaways = db.Column(db.Text, nullable=True)
+
+    # Publication info
+    author = db.Column(db.String(200), nullable=True)
+    publisher = db.Column(db.String(200), nullable=True)
+    published_date = db.Column(db.Date, nullable=True)
+
+    # Categorization
+    tags = db.Column(db.String(500), nullable=True)  # Comma-separated tags
+    relevance_score = db.Column(db.Integer, nullable=True)  # 1-5 rating
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    accessed_at = db.Column(db.DateTime, nullable=True)  # Last time user accessed
+
+    # Relationship back to sector analysis
+    sector_analysis = db.relationship('SectorAnalysis', backref=db.backref('sources', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<SectorResearchSource "{self.title}" for Analysis {self.sector_analysis_id}>'
+
 
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'
@@ -513,7 +812,7 @@ class IdeaPipeline(db.Model):
     status = db.Column(db.String(50), default='inbox', index=True)
     kill_reason = db.Column(db.Text)
     failed_criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     killed_at = db.Column(db.DateTime)
     promoted_at = db.Column(db.DateTime)
     last_reviewed_at = db.Column(db.DateTime)
@@ -538,8 +837,8 @@ class KillChecklist(db.Model):
     kill_sessions = db.relationship('KillSession', backref='checklist', lazy='dynamic', cascade='all, delete-orphan')
     total_ideas_evaluated = db.Column(db.Integer, default=0)
     total_ideas_killed = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     criteria = db.relationship('KillCriterion', backref='kill_checklist', lazy='dynamic', cascade='all, delete-orphan', order_by='KillCriterion.order')
 
     @property
@@ -564,7 +863,17 @@ class KillCriterion(db.Model):
     order = db.Column(db.Integer, default=0)
     times_evaluated = db.Column(db.Integer, default=0)
     times_failed = db.Column(db.Integer, default=0)
+
+    # New fields for Dynamic Kill Checklist
+    effectiveness_score = db.Column(db.Float, default=0.0)
+    last_calculated = db.Column(db.DateTime)
+    auto_suggested = db.Column(db.Boolean, default=False)
+    source_mistake_id = db.Column(db.Integer, db.ForeignKey('mistake_log.id'))
+    created_at = db.Column(db.DateTime, default=now_utc)
+    last_used = db.Column(db.DateTime)
+
     killed_ideas = db.relationship('IdeaPipeline', backref='failed_criterion', foreign_keys='IdeaPipeline.failed_criterion_id')
+    source_mistake = db.relationship('MistakeLog', backref='generated_criteria')
 
     @property
     def failure_rate(self):
@@ -580,7 +889,7 @@ class KillSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False)
     kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime)
     outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
     answers = db.relationship('KillAnswer', backref='session', lazy='dynamic', cascade='all, delete-orphan')
@@ -596,29 +905,87 @@ class KillAnswer(db.Model):
     criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False)
     passed = db.Column(db.Boolean)
     notes = db.Column(db.Text)
-    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime, default=now_utc)
     criterion = db.relationship('KillCriterion')
 
     def __repr__(self):
         return f'<KillAnswer {self.passed}>'
+
+class KillChecklistSuggestion(db.Model):
+    """
+    Intelligent suggestions for optimizing Kill Checklists based on usage patterns and mistakes.
+    This model tracks all suggestions made by the system and user responses to them.
+    """
+    __tablename__ = 'kill_checklist_suggestion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+
+    # Suggestion details
+    suggestion_type = db.Column(db.String(50), nullable=False)
+    # Types: 'reorder_criteria', 'add_criterion', 'remove_criterion', 'modify_criterion', 'merge_criteria'
+
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    reasoning = db.Column(db.Text)  # Why this suggestion was made
+
+    # Suggestion data (JSON format for flexibility)
+    suggestion_data = db.Column(db.JSON, nullable=False)
+    # Example for reorder: {"from_positions": [1,2,3], "to_positions": [3,1,2], "criteria_ids": [10,11,12]}
+    # Example for add: {"question": "Is debt-to-equity < 0.3?", "position": 2, "source": "mistake_log"}
+
+    # Performance prediction
+    effectiveness_gain = db.Column(db.Float)  # Predicted improvement percentage
+    confidence_score = db.Column(db.Float, default=0.5)  # 0-1 confidence in suggestion
+
+    # Tracking
+    created_at = db.Column(db.DateTime, default=now_utc)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'accepted', 'rejected', 'auto_applied'
+    responded_at = db.Column(db.DateTime)
+
+    # Source information
+    trigger_event = db.Column(db.String(100))  # 'evaluation_milestone', 'mistake_logged', 'periodic_analysis'
+    source_data = db.Column(db.JSON)  # Related mistake_id, evaluation_count, etc.
+
+    # Relationships
+    checklist = db.relationship('KillChecklist', backref='suggestions')
+    user = db.relationship('User')
+
+    @property
+    def age_hours(self):
+        """How many hours old is this suggestion"""
+        if not self.created_at:
+            return 0
+        return (now_utc() - self.created_at).total_seconds() / 3600
+
+    @property
+    def is_expired(self):
+        """Suggestions expire after 30 days if not acted upon"""
+        return self.age_hours > (30 * 24)
+
+    def __repr__(self):
+        return f'<KillChecklistSuggestion {self.suggestion_type}: {self.title[:30]}>'
 # Add these new models to app/models.py after your existing IdeaPipeline models
 
 class ResearchTemplate(db.Model):
     """
     A research template is a reusable workflow that defines how an investor
-    analyzes opportunities. Think of it as a 'recipe' for research that ensures
-    consistency while allowing flexibility for different investment styles.
+    analyzes COMPANIES. Think of it as a 'recipe' for systematic company research
+    that ensures consistency while allowing flexibility for different investment styles.
+
+    Note: Sector research uses a separate free-form notebook approach (SectorAnalysis model).
+    Templates are ONLY for company analysis.
     """
     __tablename__ = 'research_template'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
+
     # Basic template information
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     investment_style = db.Column(db.String(100))  # 'value', 'growth', 'special_situations', etc.
-    research_subject_types = db.Column(db.JSON)  # ['company', 'sector', 'theme', 'market', 'strategy']
     
     # The workflow is stored as JSON to allow maximum flexibility
     # Each step can reference different types of analysis tools
@@ -635,8 +1002,8 @@ class ResearchTemplate(db.Model):
     average_research_hours = db.Column(db.Float)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Relationships
     research_projects = db.relationship('ResearchProject', backref='template', 
@@ -667,24 +1034,19 @@ class ResearchTemplate(db.Model):
 
 class ResearchProject(db.Model):
     """
-    A research project is an active execution of a research template for any research subject
-    (companies, sectors, markets, themes, strategies). It tracks progress, time spent, 
-    findings, and ultimately research conclusions or investment decisions.
+    A research project is an active execution of a research template for COMPANY analysis.
+    It tracks progress, time spent, findings, and ultimately investment decisions.
+
+    Note: Sector research uses the free-form SectorAnalysis notebook, not this model.
     """
     __tablename__ = 'research_project'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
-    
-    # Multi-subject research support
-    research_subject_type = db.Column(db.String(50), nullable=False, default='company')  # 'company', 'sector', 'market', 'strategy', 'theme'
-    research_subject_name = db.Column(db.String(200))  # Human-readable subject name
-    
-    # Subject-specific foreign keys (nullable for flexibility)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))  # For company research
-    # sector_id will be added when Sector model is created
-    # market_id, theme_id, etc. can be added later as needed
+
+    # Company being researched (required)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     
     # If this project originated from an idea in the pipeline
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
@@ -726,7 +1088,7 @@ class ResearchProject(db.Model):
     green_flags = db.Column(db.JSON, default=list)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime)
     
     # Relationships
@@ -759,54 +1121,20 @@ class ResearchProject(db.Model):
         """Check if this project has been idle too long"""
         if self.status != 'active' or not self.last_worked_at:
             return False
-        days_idle = (datetime.utcnow() - self.last_worked_at).days
+        last_worked_at_aware = ensure_timezone_aware(self.last_worked_at)
+        current_time = now_utc()
+        days_idle = (current_time - last_worked_at_aware).days
         return days_idle > 14  # Consider overdue after 2 weeks of inactivity
     
     @property
-    def research_subject(self):
-        """Get the actual research subject object"""
-        if self.research_subject_type == 'company' and self.company:
-            return self.company
-        # Sectors, markets, themes, strategies use research_subject_name for now
-        # TODO: Add dedicated models and relationships as needed
-        return None
-    
-    @property 
     def subject_display_name(self):
-        """Get display name for the research subject"""
-        if self.research_subject_name:
-            return self.research_subject_name
-        elif self.research_subject:
-            return getattr(self.research_subject, 'name', str(self.research_subject))
-        return f"Unknown {self.research_subject_type}"
-    
-    @property
-    def subject_type_display(self):
-        """Get human-readable research subject type"""
-        type_map = {
-            'company': 'Company',
-            'sector': 'Sector', 
-            'market': 'Market',
-            'theme': 'Theme',
-            'strategy': 'Strategy'
-        }
-        return type_map.get(self.research_subject_type, self.research_subject_type.title())
-    
-    @property
-    def requires_kill_checklist(self):
-        """Determine if this research subject type typically needs kill checklist screening"""
-        # Companies always need screening due to high volume
-        if self.research_subject_type == 'company':
-            return True
-        # Sectors might need screening (template-configurable) 
-        elif self.research_subject_type == 'sector':
-            return False  # Template will decide
-        # Markets, themes, strategies typically skip screening
-        else:
-            return False
-    
+        """Get display name for the company being researched"""
+        if self.company:
+            return self.company.name
+        return "Unknown Company"
+
     def __repr__(self):
-        return f'<ResearchProject {self.project_name or f"{self.subject_type_display}: {self.subject_display_name}"}>'
+        return f'<ResearchProject {self.project_name or self.subject_display_name}>'
 
 
 class WorkSession(db.Model):
@@ -881,7 +1209,7 @@ class TemplateStep(db.Model):
     category = db.Column(db.String(100))  # 'fundamental', 'technical', 'qualitative', etc.
     tags = db.Column(db.JSON, default=list)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<TemplateStep {self.name}>'    
@@ -942,7 +1270,7 @@ class ResearchMetrics(db.Model):
     last_research_date = db.Column(db.Date)
     
     # Timestamps
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<ResearchMetrics for User {self.user_id}>'
@@ -977,7 +1305,7 @@ class IdeaSourceAnalysis(db.Model):
     average_return = db.Column(db.Float)
     
     last_idea_date = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     __table_args__ = (
         db.UniqueConstraint('user_id', 'source_name', name='_user_source_uc'),
@@ -1012,7 +1340,7 @@ class ResearchLog(db.Model):
     duration_minutes = db.Column(db.Integer)
     
     # When it happened
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=now_utc, index=True)
     day_of_week = db.Column(db.Integer)  # 0=Monday, 6=Sunday
     hour_of_day = db.Column(db.Integer)  # 0-23
     
@@ -1061,8 +1389,8 @@ class DecisionJournal(db.Model):
     mistake_category = db.Column(db.String(100))  # 'valuation', 'thesis_wrong', 'timing', etc.
     success_category = db.Column(db.String(100))  # 'thesis_correct', 'patience', 'contrarian', etc.
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     def __repr__(self):
         return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'    
@@ -1109,8 +1437,8 @@ class JournalEntry(db.Model):
     source_url = db.Column(db.String(500))
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, index=True)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Review tracking
     last_reviewed = db.Column(db.DateTime)
@@ -1119,11 +1447,27 @@ class JournalEntry(db.Model):
     is_starred = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     
+    # AI Intelligence fields
+    ai_analysis_result = db.Column(db.JSON)  # Full AI analysis results
+    ai_analyzed_at = db.Column(db.DateTime)  # When AI analysis was performed
+    ai_confidence_score = db.Column(db.Float)  # AI confidence in analysis (0-1)
+
+    # Intelligent tagging and theme extraction
+    ai_suggested_tags = db.Column(db.JSON)  # AI-suggested tags for this entry
+    ai_themes_extracted = db.Column(db.JSON)  # AI-extracted themes and insights
+
+    # Connection tracking
+    related_entry_ids = db.Column(db.JSON)  # IDs of related entries found by AI
+    contradiction_flags = db.Column(db.JSON)  # Detected thesis contradictions
+
+    # Processing status for AI features
+    ai_processing_status = db.Column(db.String(50))  # 'pending', 'processing', 'completed', 'failed', 'skipped'
+
     # Relationships
     company = db.relationship('Company', backref='journal_entries')
-    attachments = db.relationship('JournalAttachment', backref='entry', 
+    attachments = db.relationship('JournalAttachment', backref='entry',
                                  lazy='dynamic', cascade='all, delete-orphan')
-    
+
     def __repr__(self):
         return f'<JournalEntry {self.title or self.id}>'
 
@@ -1144,7 +1488,7 @@ class JournalAttachment(db.Model):
     
     caption = db.Column(db.Text)
     
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<JournalAttachment {self.filename}>'
@@ -1181,7 +1525,7 @@ class ThesisEvolution(db.Model):
     # Status
     is_current = db.Column(db.Boolean, default=True)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='thesis_versions')
@@ -1236,8 +1580,8 @@ class LearningNote(db.Model):
     next_review_date = db.Column(db.Date)
     review_interval_days = db.Column(db.Integer, default=7)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Tags for cross-referencing
     tags = db.Column(db.JSON, default=list)
@@ -1269,7 +1613,7 @@ class JournalTemplate(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_public = db.Column(db.Boolean, default=False)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<JournalTemplate {self.name}>'
@@ -1316,8 +1660,8 @@ class MistakeLog(db.Model):
     last_reviewed = db.Column(db.DateTime)
     prevented_similar = db.Column(db.Integer, default=0)  # Times prevented similar mistake
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='mistake_logs')
@@ -1368,7 +1712,7 @@ class WeeklyReview(db.Model):
     market_sentiment = db.Column(db.String(50))  # 'bullish', 'bearish', 'neutral'
     
     completed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<WeeklyReview {self.week_start}>'
@@ -1429,7 +1773,7 @@ class InvestmentPostMortem(db.Model):
     # Supporting documents
     attachments = db.Column(db.JSON)  # Links or filenames
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     # Relationships
     company = db.relationship('Company', backref='postmortems')
@@ -1472,7 +1816,7 @@ class LearningPath(db.Model):
     
     status = db.Column(db.String(50), default='planned')  # 'planned', 'active', 'completed', 'paused'
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<LearningPath {self.name}>'
@@ -1508,10 +1852,10 @@ class PatternRecognition(db.Model):
     confidence_level = db.Column(db.Integer)  # 1-10
     needs_more_data = db.Column(db.Boolean, default=False)
     
-    identified_date = db.Column(db.Date, default=datetime.utcnow().date)
+    identified_date = db.Column(db.Date, default=now_utc().date)
     last_observed = db.Column(db.Date)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     
     def __repr__(self):
         return f'<PatternRecognition {self.pattern_name}>'
@@ -1551,7 +1895,7 @@ class DocumentImport(db.Model):
     error_message = db.Column(db.Text)
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc)
     processed_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
 
@@ -1561,3 +1905,81 @@ class DocumentImport(db.Model):
 
     def __repr__(self):
         return f'<DocumentImport {self.filename} - {self.status}>'
+
+
+class OnboardingProgress(db.Model):
+    """
+    Track detailed onboarding progress and user's first experience
+    """
+    __tablename__ = 'onboarding_progress'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # Step tracking
+    current_step = db.Column(db.Integer, default=0)
+    completed_steps = db.Column(db.JSON, default=[])  # List of completed step numbers
+
+    # First experience data
+    first_company_name = db.Column(db.String(200))  # Their first company idea
+    first_company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='SET NULL'))
+    first_kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id', ondelete='SET NULL'))
+    first_research_template_id = db.Column(db.Integer, db.ForeignKey('research_template.id', ondelete='SET NULL'))
+    first_research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'))
+
+    # Timing
+    step_start_times = db.Column(db.JSON, default={})  # Track time spent on each step
+    step_completion_times = db.Column(db.JSON, default={})
+
+    # Feedback
+    onboarding_feedback = db.Column(db.Text)
+    satisfaction_score = db.Column(db.Integer)  # 1-10
+
+    # Research data from onboarding session
+    onboarding_research_answers = db.Column(db.JSON)  # Raw answers from Step 5
+    onboarding_structured_answers = db.Column(db.JSON)  # Structured Q&A pairs
+
+    # Step 5 confirmation
+    checklist_confirmed = db.Column(db.Boolean, default=False)
+    checklist_confirmation_time = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, default=now_utc)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref='onboarding_progress')
+    first_company = db.relationship('Company', foreign_keys=[first_company_id])
+    first_kill_checklist = db.relationship('KillChecklist', foreign_keys=[first_kill_checklist_id])
+    first_research_template = db.relationship('ResearchTemplate', foreign_keys=[first_research_template_id])
+    first_research_project = db.relationship('ResearchProject', foreign_keys=[first_research_project_id])
+
+    def __repr__(self):
+        return f'<OnboardingProgress User:{self.user_id} Step:{self.current_step}>'
+
+
+class BackgroundTask(db.Model):
+    """Simple background task tracking for LLM operations"""
+    id = db.Column(db.String(36), primary_key=True)  # UUID
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    task_type = db.Column(db.String(50), nullable=False)  # 'competitor_analysis', etc.
+    status = db.Column(db.String(20), default='pending')  # pending, running, completed, failed
+
+    # Task parameters
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    step_index = db.Column(db.Integer)
+
+    # Results
+    result = db.Column(db.Text)  # JSON string of results
+    error_message = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc)
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref='background_tasks')
+    project = db.relationship('ResearchProject', backref='background_tasks')
+
+    def __repr__(self):
+        return f'<BackgroundTask {self.id} {self.task_type} {self.status}>'

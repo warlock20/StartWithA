@@ -7,6 +7,7 @@ from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
                                 get_time_allocation_data, log_research_activity, KillSession)
 from datetime import datetime, timedelta
+from app.utils.time_utils import now_utc
 import json
 
 @analytics_bp.route('/dashboard')
@@ -90,7 +91,7 @@ def time_analysis():
     productivity_by_day = {}
     
     recent_logs = current_user.research_logs.filter(
-        ResearchLog.timestamp >= datetime.utcnow() - timedelta(days=days)
+        ResearchLog.timestamp >= now_utc() - timedelta(days=days)
     ).all()
     
     for log in recent_logs:
@@ -163,7 +164,7 @@ def new_decision():
             user=current_user,
             company_id=company_id,
             decision_type=decision_type,
-            decision_date=datetime.utcnow().date(),
+            decision_date=now_utc().date(),
             confidence_score=confidence,
             investment_thesis=thesis,
             expected_return=expected_return,
@@ -186,7 +187,7 @@ def new_decision():
             if not project.decision:
                 project.decision = decision_type
                 project.decision_confidence = confidence
-                project.decision_date = datetime.utcnow()
+                project.decision_date = now_utc()
         
         db.session.add(decision)
         
@@ -233,7 +234,7 @@ def update_decision_outcome(decision_id):
        decision.would_repeat = request.form.get('would_repeat') == 'true'
        decision.mistake_category = request.form.get('mistake_category')
        decision.success_category = request.form.get('success_category')
-       decision.updated_at = datetime.utcnow()
+       decision.updated_at = now_utc()
        
        try:
            db.session.commit()
@@ -313,8 +314,8 @@ def research_patterns():
    # Analyze research velocity over time
    velocity_data = []
    for i in range(12):  # Last 12 months
-       start_date = datetime.utcnow() - timedelta(days=(i+1)*30)
-       end_date = datetime.utcnow() - timedelta(days=i*30)
+       start_date = now_utc() - timedelta(days=(i+1)*30)
+       end_date = now_utc() - timedelta(days=i*30)
        
        projects_completed = ResearchProject.query.filter(
            ResearchProject.user_id == current_user.id,

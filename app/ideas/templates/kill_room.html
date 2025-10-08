@@ -5,166 +5,180 @@
     <div class="row">
         <!-- Main kill interface -->
         <div class="col-lg-8">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h3 class="mb-0">🎯 Kill Room: {{ idea.name }}</h3>
+            <!-- Progress Bar -->
+            <div class="kill-progress-card">
+                <div class="kill-progress-header">
+                    <span class="kill-progress-label">Kill Room Progress</span>
+                    <span class="kill-progress-count">{{ existing_answers|length }} / {{ total_criteria }} criteria</span>
                 </div>
-                <div class="card-body">
-                    <!-- Progress bar -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Progress: {{ (existing_answers|length) }} / {{ total_criteria }} criteria</span>
-                            <span>{{ "%.0f"|format(progress_percent) }}%</span>
-                        </div>
-                        <div class="progress" style="height: 25px;">
-                            <div class="progress-bar bg-danger" role="progressbar" 
-                                 style="width: {{ progress_percent }}%">
-                            </div>
+                <div class="kill-progress-bar">
+                    <div class="kill-progress-fill" style="width: {{ progress_percent }}%"></div>
+                </div>
+            </div>
+
+            {% if current_criterion %}
+                <!-- Current Question -->
+                <div class="kill-question-card">
+                    <div class="kill-question-header">
+                        <div class="kill-question-number">{{ current_index + 1 }}</div>
+                        <div class="kill-question-meta">
+                            <div class="kill-question-label">Question</div>
+                            <div class="kill-question-progress">{{ current_index + 1 }} of {{ total_criteria }}</div>
                         </div>
                     </div>
 
-                    {% if current_criterion %}
-                        <!-- Current question -->
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h4 class="mb-0">Question {{ current_index + 1 }} of {{ total_criteria }}</h4>
+                    <h2 class="kill-question-text">{{ current_criterion.question }}</h2>
+
+                    {% if current_criterion.help_text %}
+                        <div class="kill-help-alert">
+                            <div class="d-flex align-items-start">
+                                <div class="alert-icon">💡</div>
+                                <p class="kill-help-text">{{ current_criterion.help_text }}</p>
                             </div>
-                            <div class="card-body">
-                                <h5 class="mb-3">{{ current_criterion.question }}</h5>
-                                
-                                {% if current_criterion.help_text %}
-                                    <div class="alert alert-info">
-                                        <small>{{ current_criterion.help_text }}</small>
-                                    </div>
-                                {% endif %}
-
-                                {% if current_criterion.failure_reason %}
-                                    <div class="alert alert-warning">
-                                        <strong>Why this matters:</strong> {{ current_criterion.failure_reason }}
-                                    </div>
-                                {% endif %}
-
-                                <!-- Answer form -->
-                                <form method="POST" action="{{ url_for('ideas.kill_room', idea_id=idea.id) }}">
-                                    <div class="mb-3">
-                                        <label class="form-label">Your Assessment:</label>
-                                        <div class="btn-group d-block" role="group">
-                                            <input type="radio" class="btn-check" name="passed" 
-                                                   id="pass" value="true" required>
-                                            <label class="btn btn-outline-success" for="pass" style="width: 50%">
-                                                ✅ Yes / Pass
-                                            </label>
-
-                                            <input type="radio" class="btn-check" name="passed" 
-                                                   id="fail" value="false" required>
-                                            <label class="btn btn-outline-danger" for="fail" style="width: 50%">
-                                                ❌ No / Fail (Kill the idea)
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="notes" class="form-label">
-                                            Quick Notes <small class="text-muted">(optional)</small>
-                                        </label>
-                                        <textarea class="form-control" id="notes" name="notes" rows="2"
-                                                  placeholder="Brief reasoning for your decision..."></textarea>
-                                    </div>
-
-                                    <button type="submit" class="btn btn-primary btn-lg">
-                                        Submit & Continue
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    {% else %}
-                        <!-- Completed all criteria - survived! -->
-                        <div class="alert alert-success">
-                            <h4>🎉 This idea survived the kill checklist!</h4>
-                            <p>It passed all {{ total_criteria }} criteria and is ready for deep research.</p>
-                            <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" 
-                               class="btn btn-success">
-                                {% if idea.idea_type == 'company' %}
-                                    Promote to Company Research
-                                {% else %}
-                                    Start Research Project
-                                {% endif %}
-                            </a>
                         </div>
                     {% endif %}
+
+                    {% if current_criterion.failure_reason %}
+                        <div class="kill-failure-alert">
+                            <div class="d-flex align-items-start">
+                                <div class="alert-icon">⚠️</div>
+                                <div>
+                                    <div class="kill-failure-title">Why this matters:</div>
+                                    <p class="kill-failure-text">{{ current_criterion.failure_reason }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Answer Form -->
+                    <form method="POST" action="{{ url_for('ideas.kill_room', idea_id=idea.id, checklist_id=session.checklist.id) }}">
+                        <div class="kill-assessment-section">
+                            <label class="kill-assessment-label">Your Assessment:</label>
+                            <div class="kill-assessment-options">
+                                <div class="kill-option kill-option-pass">
+                                    <input type="radio" name="passed" id="pass" value="true" required>
+                                    <label class="kill-option-label" for="pass">
+                                        <div class="kill-option-icon">✅</div>
+                                        <div class="kill-option-text">Yes / Pass</div>
+                                    </label>
+                                </div>
+
+                                <div class="kill-option kill-option-fail">
+                                    <input type="radio" name="passed" id="fail" value="false" required>
+                                    <label class="kill-option-label" for="fail">
+                                        <div class="kill-option-icon">❌</div>
+                                        <div class="kill-option-text">No / Fail (Kill the idea)</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="kill-notes-section">
+                            <label for="notes" class="kill-notes-label">
+                                Quick Notes <span class="optional-text">(optional)</span>
+                            </label>
+                            <textarea class="kill-notes-textarea" id="notes" name="notes" rows="2"
+                                      placeholder="Brief reasoning for your decision..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn kill-submit">
+                            Submit & Continue
+                        </button>
+                    </form>
                 </div>
-            </div>
+            {% else %}
+                <!-- Completed all criteria - survived! -->
+                <div class="kill-success-card">
+                    <div class="kill-success-icon">🎉</div>
+                    <h2 class="kill-success-title">This idea survived the kill checklist!</h2>
+                    <p class="kill-success-text">It passed all {{ total_criteria }} criteria and is ready for deep research.</p>
+                    <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}"
+                       class="btn kill-promote">
+                        {% if idea.idea_type == 'company' %}
+                            Promote to Company Research
+                        {% else %}
+                            Start Research Project
+                        {% endif %}
+                    </a>
+                </div>
+            {% endif %}
         </div>
 
         <!-- Sidebar with idea details and previous answers -->
         <div class="col-lg-4">
             <!-- Idea details -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Idea Details</h5>
+            <div class="kill-idea-card">
+                <div class="kill-idea-header">
+                    <h3 class="kill-idea-title">🎯 {{ idea.name }}</h3>
                 </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Type:</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-primary">{{ idea.idea_type|capitalize }}</span>
-                        </dd>
-                        
-                        {% if idea.ticker_symbol %}
-                        <dt class="col-sm-4">Ticker:</dt>
-                        <dd class="col-sm-8">{{ idea.ticker_symbol }}</dd>
-                        {% endif %}
-                        
-                        {% if idea.source %}
-                        <dt class="col-sm-4">Source:</dt>
-                        <dd class="col-sm-8">{{ idea.source }}</dd>
-                        {% endif %}
-                        
-                        {% if idea.thesis_summary %}
-                        <dt class="col-sm-4">Thesis:</dt>
-                        <dd class="col-sm-8">{{ idea.thesis_summary }}</dd>
-                        {% endif %}
-                        
-                        <dt class="col-sm-4">Added:</dt>
-                        <dd class="col-sm-8">{{ idea.created_at.strftime('%Y-%m-%d') }}</dd>
-                    </dl>
-                    
-                    {% if idea.initial_notes %}
-                    <hr>
-                    <h6>Initial Notes:</h6>
-                    <p class="small">{{ idea.initial_notes }}</p>
+
+                <div class="kill-idea-details">
+                    <div class="kill-idea-row">
+                        <span class="kill-idea-label">Type:</span>
+                        <span class="kill-idea-value">
+                            <span class="kill-idea-badge bg-primary text-white">{{ idea.idea_type|capitalize }}</span>
+                        </span>
+                    </div>
+
+                    {% if idea.ticker_symbol %}
+                    <div class="kill-idea-row">
+                        <span class="kill-idea-label">Ticker:</span>
+                        <span class="kill-idea-value">{{ idea.ticker_symbol }}</span>
+                    </div>
                     {% endif %}
+
+                    {% if idea.source %}
+                    <div class="kill-idea-row">
+                        <span class="kill-idea-label">Source:</span>
+                        <span class="kill-idea-value">{{ idea.source }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if idea.thesis_summary %}
+                    <div class="kill-idea-row">
+                        <span class="kill-idea-label">Thesis:</span>
+                        <span class="kill-idea-value">{{ idea.thesis_summary }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="kill-idea-row">
+                        <span class="kill-idea-label">Added:</span>
+                        <span class="kill-idea-value">{{ idea.created_at.strftime('%Y-%m-%d') }}</span>
+                    </div>
                 </div>
+
+                {% if idea.initial_notes %}
+                <div class="kill-idea-notes">
+                    <div class="kill-idea-notes-title">Initial Notes:</div>
+                    <p class="kill-idea-notes-text">{{ idea.initial_notes }}</p>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Previous answers in this session -->
             {% if existing_answers %}
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Previous Answers</h5>
+            <div class="kill-answers-card">
+                <div class="kill-answers-header">
+                    <h3 class="kill-answers-title">Previous Answers</h3>
                 </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        {% for criterion_id, answer in existing_answers.items() %}
-                        <div class="list-group-item px-0">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <small class="text-muted">{{ answer.criterion.question }}</small>
-                                </div>
-                                <div class="ms-2">
-                                    {% if answer.passed %}
-                                        <span class="badge bg-success">✅</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">❌</span>
-                                    {% endif %}
-                                </div>
+                <div class="kill-answers-list">
+                    {% for criterion_id, answer in existing_answers.items() %}
+                    <div class="kill-answer-item">
+                        <div class="kill-answer-header">
+                            <div class="kill-answer-question">{{ answer.criterion.question }}</div>
+                            <div class="kill-answer-badge">
+                                {% if answer.passed %}
+                                    ✅
+                                {% else %}
+                                    ❌
+                                {% endif %}
                             </div>
-                            {% if answer.notes %}
-                                <small class="text-muted">{{ answer.notes }}</small>
-                            {% endif %}
                         </div>
-                        {% endfor %}
+                        {% if answer.notes %}
+                            <div class="kill-answer-notes">{{ answer.notes }}</div>
+                        {% endif %}
                     </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
@@ -173,15 +187,14 @@
 </div>
 
 <!-- Timer/discipline reminder -->
-<div class="position-fixed bottom-0 end-0 p-3">
-    <div class="toast show" role="alert">
-        <div class="toast-header">
-            <strong class="me-auto">⏱️ Time Check</strong>
-        </div>
-        <div class="toast-body">
-            Remember: Kill decisions should be quick. Trust your first instinct.
-        </div>
+<div class="kill-reminder-toast">
+    <div class="kill-reminder-header">
+        <span class="kill-reminder-icon">⏱️</span>
+        <h4 class="kill-reminder-title">Time Check</h4>
     </div>
+    <p class="kill-reminder-text">
+        Remember: Kill decisions should be quick. Trust your first instinct.
+    </p>
 </div>
 {% endblock %}
 
@@ -190,7 +203,7 @@
 <script>
     // Track time spent on this decision
     const startTime = Date.now();
-    
+
     // Warn if taking too long
     setTimeout(() => {
         if (!document.querySelector('form').submitted) {

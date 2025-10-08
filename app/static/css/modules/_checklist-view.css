@@ -1,0 +1,192 @@
+/* ============================================================================
+   Checklist View Module
+   Styles for checklist view pages (both edit and readonly modes)
+   ============================================================================ */
+
+/* Checklist View Card (Readonly Mode) */
+.checklist-view-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.checklist-view-header {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.checklist-view-body {
+    padding: 1.5rem;
+}
+
+.checklist-items-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+/* Checklist Edit Card (Edit Mode) */
+.checklist-edit-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.checklist-edit-header {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+    border-bottom: 1px solid #ffc107;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.checklist-edit-body {
+    padding: 1.5rem;
+}
+
+/* Checklist Tree Container */
+.checklist-tree-container {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Edit Mode Tree Styles */
+.checklist-tree {
+    font-size: var(--font-size-sm);
+}
+
+/* Readonly Mode Tree Styles */
+.checklist-tree-readonly {
+    font-size: var(--font-size-sm);
+}
+
+.checklist-tree-readonly .checklist-item {
+    padding: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-normal);
+}
+
+.checklist-tree-readonly .checklist-item:hover {
+    background-color: var(--color-background-hover);
+}
+
+/* Make items with LLM prompts visually distinct */
+.checklist-tree-readonly [data-has-llm="true"] {
+    border-left: 3px solid var(--color-primary);
+    padding-left: calc(var(--space-sm) + 3px);
+}
+
+/* Inspector Panel Animations */
+#inspector-content {
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pro List Item Hover Effects (for Question Bank) */
+.pro-list-item {
+    transition: all var(--transition-normal);
+}
+
+.pro-list-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+/* Form Enhancements */
+.form-pro .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+}
+
+/* Empty State Tip Pointer */
+.tip-pointer-right {
+    position: relative;
+}
+
+.tip-pointer-right::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -10px;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid var(--bs-primary-bg);
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+}
+
+/* Subtle pulse animation for the arrow */
+.pulse-arrow {
+    animation: pulse-arrow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-arrow {
+    0%, 100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    50% {
+        transform: translateX(4px);
+        opacity: 0.7;
+    }
+}
+
+/* Metric Cards Hover Effect */
+.metric-card {
+    transition: all var(--transition-normal);
+    cursor: default;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+/* Action Grid Responsiveness */
+@media (max-width: 768px) {
+    .action-grid {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .action-grid .btn {
+        width: 100%;
+    }
+
+    .checklist-tree-container {
+        max-height: 400px;
+    }
+}
+
+/* Mobile adjustments for readonly view */
+@media (max-width: 576px) {
+    .checklist-tree-container {
+        padding: var(--space-sm);
+    }
+
+    .metric-card {
+        margin-bottom: var(--space-sm);
+    }
+}

@@ -1,0 +1,131 @@
+/* =============================================================================
+   SORT CONTROLS MODULE
+   ============================================================================= */
+
+/* Sorting and filtering controls for list pages */
+
+.sort-controls-bar {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.sort-controls-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.sort-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.sort-label i {
+    font-size: 1.125rem;
+    color: #6b7280;
+}
+
+.sort-select {
+    padding: 0.5rem 2.5rem 0.5rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #111827;
+    background-color: white;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    min-width: 180px;
+}
+
+.sort-select:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: #4338ca;
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+}
+
+.sort-results-count {
+    margin-left: auto;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sort-controls-bar {
+        padding: 1rem;
+    }
+
+    .sort-controls-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .sort-label {
+        font-size: 0.875rem;
+    }
+
+    .sort-select {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .sort-results-count {
+        margin-left: 0;
+        text-align: center;
+    }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+    .sort-controls-bar {
+        background: linear-gradient(145deg, #1f2937, #111827);
+        border-color: #374151;
+    }
+
+    .sort-label {
+        color: #e5e7eb;
+    }
+
+    .sort-select {
+        background-color: #1f2937;
+        color: #f9fafb;
+        border-color: #374151;
+    }
+
+    .sort-select:hover {
+        border-color: #4b5563;
+    }
+
+    .sort-results-count {
+        background: #374151;
+        color: #d1d5db;
+    }
+}

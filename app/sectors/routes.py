@@ -1,8 +1,78 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import SectorAnalysis, QuestionBankItem
+from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
+                       Company, ResearchProject, SectorResearchSource)
+from sqlalchemy import func
+from datetime import datetime
 from . import sectors_bp
+from .research_templates import get_all_templates, get_template_list
+
+
+def initialize_default_sections(sector_analysis):
+    """
+    Create default research sections for a new sector analysis.
+    These can be customized, reordered, or removed by users in the future.
+    """
+    default_sections = [
+        {
+            'title': 'Sector Overview & Scope',
+            'icon': '📊',
+            'description': 'Define the industry, market size, growth rate, and key segments',
+            'section_type': 'overview',
+            'display_order': 1,
+            'is_locked': False
+        },
+        {
+            'title': 'Industry Analysis (Porter\'s 5 Forces)',
+            'icon': '🔍',
+            'description': 'Analyze competitive rivalry, barriers to entry, supplier/buyer power, and threat of substitutes',
+            'section_type': 'analysis',
+            'display_order': 2,
+            'is_locked': False
+        },
+        {
+            'title': 'Current Trends & Catalysts',
+            'icon': '📈',
+            'description': 'Document technological disruptions, regulatory changes, and market shifts',
+            'section_type': 'trends',
+            'display_order': 3,
+            'is_locked': False
+        },
+        {
+            'title': 'Risks & Challenges',
+            'icon': '⚠️',
+            'description': 'Identify cyclicality, regulatory risks, competitive threats, and headwinds',
+            'section_type': 'risks',
+            'display_order': 4,
+            'is_locked': False
+        },
+        {
+            'title': 'Investment Opportunities',
+            'icon': '💎',
+            'description': 'Key subsectors to focus on, what to look for in companies, and investment thesis',
+            'section_type': 'opportunities',
+            'display_order': 5,
+            'is_locked': False
+        },
+        {
+            'title': 'Additional Research Notes',
+            'icon': '📝',
+            'description': 'Free-form notes, sources, links, and miscellaneous research',
+            'section_type': 'custom',
+            'display_order': 6,
+            'is_locked': False
+        }
+    ]
+
+    for section_data in default_sections:
+        section = SectorResearchSection(
+            sector_analysis_id=sector_analysis.id,
+            **section_data
+        )
+        db.session.add(section)
+
+    db.session.commit()
 
 @sectors_bp.route('/', methods=['GET', 'POST'])
 @login_required
@@ -26,17 +96,40 @@ def index():
         )
         db.session.add(new_analysis)
         db.session.commit()
+
+        # Initialize default research sections
+        initialize_default_sections(new_analysis)
+
         flash(f'New research notebook for "{sector_name}" created.', 'success')
         # Redirect to the new notebook page
         return redirect(url_for('sectors.notebook', sector_name=new_analysis.sector_name))
 
 
     # GET Request: Fetch and display all existing sector analyses
-    sector_analyses = SectorAnalysis.query.filter_by(user_id=current_user.id).order_by(SectorAnalysis.sector_name).all()
+    # Get filter from query param (default to 'active')
+    status_filter = request.args.get('status', 'active')
 
-    return render_template('list_sectors.html', 
+    if status_filter == 'archived':
+        sector_analyses = SectorAnalysis.query.filter_by(
+            user_id=current_user.id,
+            status='archived'
+        ).order_by(SectorAnalysis.archived_at.desc()).all()
+    else:
+        sector_analyses = SectorAnalysis.query.filter_by(
+            user_id=current_user.id,
+            status='active'
+        ).order_by(SectorAnalysis.updated_at.desc()).all()
+
+    # Count for tabs
+    active_count = SectorAnalysis.query.filter_by(user_id=current_user.id, status='active').count()
+    archived_count = SectorAnalysis.query.filter_by(user_id=current_user.id, status='archived').count()
+
+    return render_template('list_sectors.html',
                            title="My Sector Research",
-                           sector_analyses=sector_analyses)
+                           sector_analyses=sector_analyses,
+                           status_filter=status_filter,
+                           active_count=active_count,
+                           archived_count=archived_count)
     
 @sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
 @login_required
@@ -44,8 +137,12 @@ def notebook(sector_name):
     # Fetch the main analysis object for this sector
     analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
 
+    # Initialize sections if they don't exist (backward compatibility for existing analyses)
+    if analysis.sections.count() == 0:
+        initialize_default_sections(analysis)
+
     if request.method == 'POST':
-        # This POST handles saving the main notes textarea
+        # This POST handles saving the main notes textarea (backward compatible)
         analysis.notes = request.form.get('notes')
         db.session.commit()
         flash('Notes saved successfully.', 'success')
@@ -57,11 +154,84 @@ def notebook(sector_name):
         sector=sector_name
     ).order_by(QuestionBankItem.created_at.desc()).all()
 
+    # Get all sections ordered by display_order
+    sections = analysis.sections.filter_by(is_visible=True).all()
+
+    # Get companies in this sector
+    sector_companies = Company.query.filter_by(
+        user_id=current_user.id,
+        sector=sector_name
+    ).all()
+
+    # Enrich with research project status
+    companies_data = []
+    for company in sector_companies:
+        # Get active research project
+        active_project = ResearchProject.query.filter_by(
+            user_id=current_user.id,
+            company_id=company.id,
+            status='active'
+        ).first()
+
+        # Get completed research project
+        completed_project = ResearchProject.query.filter_by(
+            user_id=current_user.id,
+            company_id=company.id,
+            status='completed'
+        ).first()
+
+        companies_data.append({
+            'company': company,
+            'active_project': active_project,
+            'completed_project': completed_project,
+            'is_in_watchlist': company in current_user.favorites.all(),
+            'is_in_portfolio': company.is_in_portfolio
+        })
+
+    # Get all user companies not in this sector (for adding)
+    other_companies = Company.query.filter(
+        Company.user_id == current_user.id,
+        db.or_(
+            Company.sector != sector_name,
+            Company.sector.is_(None)
+        )
+    ).order_by(Company.name).all()
+
+    # Calculate sector metrics
+    total_companies = len(sector_companies)
+    researched_companies = sum(1 for c in companies_data if c['completed_project'])
+    watchlist_companies = sum(1 for c in companies_data if c['is_in_watchlist'])
+    portfolio_companies = sum(1 for c in companies_data if c['is_in_portfolio'])
+
+    # Get research sources
+    sources = analysis.sources.order_by(SectorResearchSource.created_at.desc()).all()
+
+    # Group sources by type
+    sources_by_type = {}
+    for source in sources:
+        source_type = source.source_type
+        if source_type not in sources_by_type:
+            sources_by_type[source_type] = []
+        sources_by_type[source_type].append(source)
+
     return render_template(
         'sector_analysis.html',
         title=f"Research: {analysis.sector_name}",
         analysis=analysis,
-        question_bank_items=question_bank_items
+        question_bank_items=question_bank_items,
+        sections=sections,
+        companies_data=companies_data,
+        other_companies=other_companies,
+        sector_metrics={
+            'total': total_companies,
+            'researched': researched_companies,
+            'watchlist': watchlist_companies,
+            'portfolio': portfolio_companies
+        },
+        sources=sources,
+        sources_by_type=sources_by_type,
+        research_templates=get_all_templates(),
+        template_list=get_template_list()
     )
 
 @sectors_bp.route('/<string:sector_name>/add_question', methods=['POST'])
@@ -160,4 +330,250 @@ def edit_sector(analysis_id):
             return redirect(url_for('question_bank.index'))
 
     # GET request
-    return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)        
+    return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)
+
+
+@sectors_bp.route('/section/<int:section_id>/save', methods=['POST'])
+@login_required
+def save_section(section_id):
+    """
+    API endpoint to save a section's content via AJAX.
+    Supports auto-save functionality from Quill.js editor.
+    """
+    section = SectorResearchSection.query.get_or_404(section_id)
+
+    # Authorization check
+    if section.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    # Get content from request
+    content = request.json.get('content', '')
+
+    # Update section
+    section.content = content
+    section.updated_at = db.func.now()  # Explicitly update timestamp
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'word_count': section.word_count,
+            'updated_at': section.updated_at.strftime('%b %d, %Y %I:%M %p')
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@sectors_bp.route('/<string:sector_name>/add_company/<int:company_id>', methods=['POST'])
+@login_required
+def add_company_to_sector(sector_name, company_id):
+    """Add a company to this sector"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    company = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+    # Update company sector
+    company.sector = sector_name
+    db.session.commit()
+
+    flash(f'{company.name} added to {sector_name} sector', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+@sectors_bp.route('/<string:sector_name>/remove_company/<int:company_id>', methods=['POST'])
+@login_required
+def remove_company_from_sector(sector_name, company_id):
+    """Remove a company from this sector"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    company = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+    # Clear company sector
+    company.sector = None
+    db.session.commit()
+
+    flash(f'{company.name} removed from {sector_name} sector', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+@sectors_bp.route('/<string:sector_name>/add_source', methods=['POST'])
+@login_required
+def add_source(sector_name):
+    """Add a research source/reference"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+
+    # Get form data
+    title = request.form.get('title', '').strip()
+    url = request.form.get('url', '').strip()
+    source_type = request.form.get('source_type', 'article')
+    description = request.form.get('description', '').strip()
+
+    if not title:
+        flash('Source title is required', 'error')
+        return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+    # Create new source
+    source = SectorResearchSource(
+        sector_analysis_id=analysis.id,
+        title=title,
+        url=url if url else None,
+        source_type=source_type,
+        description=description if description else None
+    )
+
+    db.session.add(source)
+    db.session.commit()
+
+    flash(f'Source "{title}" added successfully', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+@sectors_bp.route('/source/<int:source_id>/delete', methods=['POST'])
+@login_required
+def delete_source(source_id):
+    """Delete a research source"""
+    source = SectorResearchSource.query.get_or_404(source_id)
+
+    # Authorization check
+    if source.sector_analysis.author != current_user:
+        flash('Access denied', 'error')
+        return redirect(url_for('sectors.index'))
+
+    sector_name = source.sector_analysis.sector_name
+    db.session.delete(source)
+    db.session.commit()
+
+    flash('Source deleted', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+@sectors_bp.route('/source/<int:source_id>/mark_accessed', methods=['POST'])
+@login_required
+def mark_source_accessed(source_id):
+    """Mark a source as accessed (update accessed_at timestamp)"""
+    source = SectorResearchSource.query.get_or_404(source_id)
+
+    # Authorization check
+    if source.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    source.accessed_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+@sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
+@login_required
+def get_research_notes(sector_name):
+    """Get research notes content for the simplified editor"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    return jsonify({
+        'success': True,
+        'content': analysis.notes or ''
+    })
+
+@sectors_bp.route('/<path:sector_name>/research-notes', methods=['POST'])
+@login_required
+def save_research_notes(sector_name):
+    """Save research notes content from the simplified editor"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    data = request.get_json()
+    content = data.get('content', '')
+
+    analysis.notes = content
+    analysis.updated_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Notes saved successfully'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@sectors_bp.route('/company/<int:company_id>/send-to-inbox', methods=['POST'])
+@login_required
+def send_company_to_inbox(company_id):
+    """Send a company from sector research to idea inbox"""
+    company = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('sectors.index'))
+
+    # Check if already in inbox
+    from app.models import IdeaPipeline
+    existing_idea = IdeaPipeline.query.filter_by(
+        user_id=current_user.id,
+        company_id=company.id
+    ).first()
+
+    if existing_idea:
+        flash(f'{company.name} is already in your idea pipeline', 'info')
+    else:
+        idea = IdeaPipeline(
+            author=current_user,
+            company_id=company.id,
+            idea_name=company.name,
+            idea_description=f"Added from {company.sector} sector research",
+            status='inbox',
+            source='sector_research'
+        )
+        db.session.add(idea)
+        db.session.commit()
+        flash(f'{company.name} added to Idea Inbox', 'success')
+
+    # Redirect back to sector page
+    if company.sector:
+        return redirect(url_for('sectors.notebook', sector_name=company.sector))
+    else:
+        return redirect(url_for('sectors.index'))
+
+@sectors_bp.route('/<string:sector_name>/archive', methods=['POST'])
+@login_required
+def archive_sector(sector_name):
+    """Archive a sector research"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+
+    analysis.status = 'archived'
+    analysis.archived_at = datetime.utcnow()
+    db.session.commit()
+
+    flash(f'{sector_name} sector research archived', 'success')
+    return redirect(url_for('sectors.index'))
+
+@sectors_bp.route('/<string:sector_name>/unarchive', methods=['POST'])
+@login_required
+def unarchive_sector(sector_name):
+    """Unarchive a sector research"""
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+
+    analysis.status = 'active'
+    analysis.archived_at = None
+    db.session.commit()
+
+    flash(f'{sector_name} sector research unarchived', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))

@@ -1,0 +1,63 @@
+/* =============================================================================
+   BUTTON STYLES
+   ============================================================================= */
+
+/* Base Button Styling - Enhanced from Professional Button System */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-dark {
+    background-color: #4338ca;
+    border-color: #4338ca;
+    color: white;
+}
+
+.btn-dark:hover {
+    background-color: #3730a3;
+    border-color: #3730a3;
+    transform: translateY(-1px);
+}
+
+.btn-outline-dark {
+    color: #4338ca;
+    border-color: #4338ca;
+}
+
+.btn-outline-dark:hover {
+    background-color: #4338ca;
+    border-color: #4338ca;
+}
+
+.btn-success {
+    background-color: var(--sage-teal);
+    border-color: var(--sage-teal);
+}
+
+.btn-success:hover {
+    background-color: var(--sage-teal-light);
+    border-color: var(--sage-teal-light);
+}
+
+.btn-warning {
+    background-color: var(--warm-amber);
+    border-color: var(--warm-amber);
+}
+
+.btn-warning:hover {
+    background-color: var(--warm-amber-light);
+    border-color: var(--warm-amber-light);
+}

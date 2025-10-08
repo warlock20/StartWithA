@@ -1,5 +1,5 @@
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
-from flask_login import current_user, login_required 
+from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
@@ -8,8 +8,9 @@ from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
 import os
-from datetime import datetime 
+from datetime import datetime
 import fitz
+from app.utils.time_utils import now_utc
 
 # For LLM-related functionality, ensure you have the transformers library installed
 from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
@@ -123,7 +124,7 @@ def research_step(session_id, item_id):
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # Basic security check: ensure the item belongs to the session's checklist
     if current_item.checklist_id != session.checklist_id:
@@ -162,7 +163,7 @@ def research_step(session_id, item_id):
         satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
         if research_answer:
             research_answer.answer_text = answer_text
-            research_answer.answered_at = datetime.utcnow()
+            research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status_from_form
         else:
             research_answer = ResearchAnswer(
@@ -433,7 +434,7 @@ def view_checklist_session_summary(session_id):
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
     
     # Handle POST request for updating the session's conclusion
     if request.method == 'POST':
@@ -497,7 +498,7 @@ def export_session_to_txt(session_id):
     session = ResearchSession.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
-        return redirect(url_for('research.list_research_sessions'))
+        return redirect(url_for('research_workflow.my_projects'))
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
@@ -563,7 +564,6 @@ def task_status(task_id):
     """
     Checks the status of a Celery background task.
     """
-    # Get the task object from the Celery result backend (Redis)
     task = celery.AsyncResult(task_id)
 
     response_data = {
@@ -571,19 +571,23 @@ def task_status(task_id):
     }
 
     if task.state == 'PENDING':
-        # The task is waiting to be picked up by a worker.
         response_data['status_message'] = 'Task is pending...'
     elif task.state == 'SUCCESS':
-        # The task completed successfully.
-        # task.info will contain the return value of your task function.
         response_data['result'] = task.info
         response_data['status_message'] = 'Task completed successfully!'
-    elif task.state != 'FAILURE':
-        # For other states like 'PROGRESS', if you were to implement them.
-        response_data['status_message'] = 'Task is in progress...'
+    elif task.state == 'FAILURE':
+        # This is the key fix. On failure, task.info is the raw exception.
+        # The custom error message we set in the task is stored in the task's metadata.
+        # We access it through the task's result backend.
+        if hasattr(task, 'backend') and hasattr(task.backend, 'get_task_meta'):
+            meta = task.backend.get_task_meta(task.id)
+            # Use our custom message if it exists, otherwise fall back to the raw exception string.
+            response_data['status_message'] = meta.get('exc_message', str(task.info))
+        else:
+            response_data['status_message'] = str(task.info) # Fallback for different backends
     else:
-        # The task failed. task.info will contain the exception.
-        response_data['status_message'] = str(task.info) # The error message
+        # For other states like 'PROGRESS' or 'STARTED'
+        response_data['status_message'] = 'Task is in progress...'
 
     return jsonify(response_data)
 

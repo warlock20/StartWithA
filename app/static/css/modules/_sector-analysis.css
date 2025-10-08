@@ -1,0 +1,1019 @@
+/* =============================================================================
+   SECTOR ANALYSIS & NOTEBOOK COMPONENTS
+   ============================================================================= */
+
+/* Sector notebooks, analysis tools, and sector-specific research components */
+
+/* ========================================
+   SECTOR SNAPSHOT BAR (Compact Metrics)
+   ======================================== */
+
+.sector-snapshot-bar {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.sector-snapshot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.sector-snapshot-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sector-snapshot-title h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.sector-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.sector-status-badge.active {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+}
+
+.sector-status-badge.archived {
+    background: #9ca3af;
+    color: white;
+}
+
+.sector-snapshot-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sector-progress-section {
+    margin-bottom: 1rem;
+}
+
+.sector-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.sector-progress-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #374151;
+    min-width: 140px;
+}
+
+.sector-progress-bar-container {
+    flex: 1;
+    height: 24px;
+    background: #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.sector-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 12px;
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.5rem;
+}
+
+.sector-progress-bar-fill.comprehensive {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.sector-progress-bar-fill.advanced {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.sector-progress-bar-fill.in-progress {
+    background: linear-gradient(90deg, #eab308, #fde047);
+}
+
+.sector-progress-bar-fill.early {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.sector-progress-percent {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+}
+
+.sector-progress-stage {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    min-width: 140px;
+}
+
+.sector-metrics-compact {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.sector-metric-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.sector-metric-compact strong {
+    color: #111827;
+    font-weight: 600;
+}
+
+.sector-metric-compact i {
+    font-size: 1rem;
+    opacity: 0.6;
+}
+
+/* ========================================
+   SECTOR NOTEBOOK CARDS
+   ======================================== */
+
+.sectors-section {
+    margin-top: 2rem;
+}
+
+.sectors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .sectors-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sector-notebook-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.sector-notebook-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-4px);
+}
+
+.sector-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.sector-card-header {
+    padding: 1.5rem;
+    display: flex;
+    align-items: start;
+    gap: 1rem;
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sector-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.sector-title-area {
+    flex: 1;
+}
+
+.sector-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.25rem 0;
+}
+
+.sector-update-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sector-card-body {
+    padding: 1.5rem;
+}
+
+.sector-preview {
+    font-size: 0.9375rem;
+    color: #6b7280;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.sector-card-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.sector-action-link {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #4338ca;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sector-notebook-card:hover .sector-action-link {
+    color: #3730a3;
+}
+
+/* Sector Create Form */
+.sector-create-form .input-group {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sector-create-form .form-control {
+    border-right: none;
+    padding: 0.75rem 1.25rem;
+}
+
+.sector-create-form .form-control:focus {
+    border-color: #4338ca;
+    box-shadow: none;
+}
+
+.sector-create-form .btn-primary {
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Empty State Hint */
+.empty-state-hint {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-radius: 0.75rem;
+    display: inline-block;
+}
+
+.empty-state-hint ul {
+    list-style-position: inside;
+    margin: 0;
+}
+
+/* ========================================
+   KILL CHECKLIST CARDS
+   ======================================== */
+
+.kill-checklists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: 2.5rem;
+    margin-top: 2.5rem;
+}
+
+@media (max-width: 768px) {
+    .kill-checklists-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kill-checklist-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease-in-out;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+.kill-checklist-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+    transform: translateY(-4px);
+}
+
+.kill-checklist-default {
+    border-color: #4338ca;
+    border-width: 2px;
+    box-shadow: 0 6px 16px rgba(67, 56, 202, 0.15);
+}
+
+.kill-checklist-header {
+    padding: 1.75rem;
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.kill-checklist-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.25rem 0;
+    line-height: 1.3;
+}
+
+.kill-checklist-description {
+    font-size: 0.9375rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.kill-checklist-badges-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.kill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.kill-badge-default {
+    background: linear-gradient(135deg, #4338ca, #6366f1);
+    color: white;
+}
+
+.kill-badge-criteria {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.kill-badge-smart {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+}
+
+.kill-badge-suggestions {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: white;
+}
+
+/* Smart Alert */
+.kill-smart-alert {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.kill-smart-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+}
+
+.kill-smart-title {
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 0.9375rem;
+    margin-bottom: 0.25rem;
+}
+
+.kill-smart-preview {
+    font-size: 0.8125rem;
+    color: #3b82f6;
+}
+
+/* Performance Metrics */
+.kill-metrics-section {
+    padding: 1.5rem 1.75rem;
+    background: white;
+}
+
+.kill-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.kill-metric {
+    text-align: center;
+    position: relative;
+}
+
+.kill-metric-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.kill-metric-danger {
+    color: #dc2626;
+}
+
+.kill-metric-info {
+    color: #3b82f6;
+}
+
+.kill-metric-success {
+    color: #10b981;
+}
+
+.kill-metric-warning {
+    color: #f59e0b;
+}
+
+.kill-metric-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.kill-metric-label i {
+    margin-right: 0.25rem;
+    opacity: 0.7;
+}
+
+.kill-metric-bar {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.kill-metric-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.kill-metric:has(.kill-metric-success) .kill-metric-bar-fill {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.kill-metric:has(.kill-metric-danger) .kill-metric-bar-fill {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+/* Criteria Preview */
+.kill-criteria-preview {
+    padding: 1.5rem 1.75rem;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+}
+
+.kill-criteria-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.kill-criteria-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.kill-criteria-title i {
+    margin-right: 0.375rem;
+    color: #6b7280;
+}
+
+.kill-criteria-count {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+.kill-criteria-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kill-criteria-item {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.kill-criteria-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.kill-criteria-text {
+    flex: 1;
+    padding-top: 2px;
+}
+
+.kill-criteria-more {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    font-weight: 500;
+    font-style: italic;
+    padding-left: 32px;
+}
+
+/* Kill Checklist Footer */
+.kill-checklist-footer {
+    padding: 1.25rem 1.75rem;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+}
+
+.kill-footer-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Suggested Criteria List */
+.suggested-criteria-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.suggested-criterion {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.suggested-criterion i {
+    font-size: 1.125rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.suggested-criterion div {
+    flex: 1;
+}
+
+.suggested-criterion strong {
+    display: block;
+    color: #111827;
+    margin-bottom: 0.25rem;
+}
+
+.suggested-criterion .text-muted {
+    font-size: 0.875rem;
+}
+
+/* Create Kill Checklist - Criteria Container */
+.criteria-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.criterion-item {
+    opacity: 1;
+    transform: translateX(0);
+    transition: all 0.2s ease-in-out;
+}
+
+.criterion-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.2s ease-in-out;
+}
+
+.criterion-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.criterion-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.criterion-number-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #4338ca, #6366f1);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.criterion-number {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: white;
+}
+
+.criterion-header-content {
+    flex: 1;
+}
+
+.criterion-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.criterion-body {
+    padding: 1.25rem;
+    background: white;
+}
+
+.remove-criterion-btn {
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.remove-criterion-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Investment Checklists Page */
+.investment-checklists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.investment-checklist-card {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.investment-checklist-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.investment-checklist-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.investment-checklist-header {
+    padding: 1.75rem;
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.investment-checklist-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.investment-checklist-description {
+    font-size: 0.9375rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.investment-checklist-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.investment-stat {
+    text-align: center;
+}
+
+.investment-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+}
+
+.investment-stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-top: 0.25rem;
+}
+
+.investment-checklist-body {
+    padding: 1.75rem;
+    flex: 1;
+}
+
+.investment-questions-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.investment-question-item {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.investment-question-item i {
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+    font-size: 1rem;
+    opacity: 0.5;
+}
+
+.investment-question-more {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    font-weight: 500;
+    font-style: italic;
+    padding-left: 1.75rem;
+    margin-top: 0.25rem;
+}
+
+.investment-checklist-footer {
+    padding: 1.25rem 1.75rem;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.investment-checklist-footer form {
+    margin-left: auto;
+}
+
+/* ========================================
+   ARCHIVE RESEARCH MODAL
+   ======================================== */
+
+.archive-modal .modal-header {
+    background: linear-gradient(145deg, #ffffff, #fff7ed);
+    border-bottom: 2px solid #fed7aa;
+}
+
+.archive-modal .modal-title {
+    font-weight: 700;
+    color: #111827;
+}
+
+.research-summary {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.research-summary-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.research-summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.research-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    color: #6b7280;
+}
+
+.research-summary-item i {
+    width: 24px;
+    text-align: center;
+    color: #9ca3af;
+}
+
+.research-summary-item strong {
+    color: #111827;
+    font-weight: 600;
+}
+
+.archive-info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.archive-info-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 0.5rem;
+}
+
+.archive-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.archive-info-list li {
+    font-size: 0.875rem;
+    color: #3b82f6;
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.archive-info-list li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+/* ========================================
+   COMPANY SIDEBAR WITH SEND TO INBOX
+   ======================================== */
+
+.company-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.company-item:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.company-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.company-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.company-ticker {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    font-family: 'Courier New', monospace;
+}
+
+.company-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+}
+
+.company-actions {
+    display: flex;
+    gap: 0.375rem;
+    flex-shrink: 0;
+}
+
+.btn-send-to-inbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #10b981, #34d399);
+    border: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-send-to-inbox:hover {
+    background: linear-gradient(135deg, #059669, #10b981);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-send-to-inbox i {
+    font-size: 0.875rem;
+}
+
+/* =============================================================================

@@ -1,0 +1,256 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Step 5: Create Your Research Checklist{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <!-- Page Header -->
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>Step {{ step_number }} of {{ total_steps }}: Review Your Research Setup</h1>
+                    <p class="text-muted mb-0">Confirm your 3-step research template is ready</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-stopwatch me-2 text-muted"></i>
+                    <span class="badge bg-primary" id="timer">0:30</span>
+                </div>
+            </div>
+
+            <!-- Progress Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" id="main-progress"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        {% for i in range(1, total_steps + 1) %}
+                        <div class="progress-dot">
+                            {% if i < step_number %}
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                            {% elif i == step_number %}
+                                <i class="bi bi-circle-fill text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-circle text-muted"></i>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Card -->
+            <div class="card">
+                <div class="card-body">
+
+                    <!-- Header -->
+                    <div class="text-center mb-5">
+                        <div class="p-4 rounded-3 mb-4 bg-light">
+                            <i class="bi bi-check-circle fs-1 mb-3 text-success"></i>
+                            <h5 class="mb-2">🎉 Your research setup for <span id="company-name-display" class="fw-bold">[Company]</span> is complete!</h5>
+                            <p class="text-muted mb-0">You're ready to start your investment research</p>
+                        </div>
+                    </div>
+
+                    <!-- Template Review -->
+                    <form id="confirm-form">
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="bi bi-list-check me-2"></i>
+                                Your 3-Step Research Template:
+                            </h6>
+
+                            <!-- Step 1 -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <span class="fw-bold">1</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">📄 Analyze and Understand the Business Model</h6>
+                                            <small class="text-muted">Research how the company makes money and if the business model is sustainable</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 2 -->
+                            <div class="card mb-3 border-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <span class="fw-bold">2</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">📋 My Simple Checklist</h6>
+                                            <small class="text-muted">Answer focused questions to evaluate this investment opportunity</small>
+                                            <div class="mt-2">
+                                                <small class="text-success">
+                                                    <i class="bi bi-check-circle me-1"></i>
+                                                    3 questions ready: Business model, Financial health, Valuation
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3 -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <span class="fw-bold">3</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">✍️ My Investment Thesis</h6>
+                                            <small class="text-muted">Write a clear, concise thesis summarizing your investment decision</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Next Steps -->
+                        <div class="alert alert-primary border-0 mb-4" role="alert">
+                            <h6 class="text-primary mb-2">
+                                <i class="bi bi-info-circle me-2"></i>
+                                What happens next:
+                            </h6>
+                            <ul class="mb-0 small">
+                                <li>Your research template is saved and ready to use</li>
+                                <li>You can start researching anytime from your dashboard</li>
+                                <li>Complete each step at your own pace</li>
+                            </ul>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-lg" id="confirm-setup-btn">
+                                <i class="bi bi-play-circle me-2"></i>
+                                Let's Start My Research!
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('confirm-form');
+    const confirmBtn = document.getElementById('confirm-setup-btn');
+    const timerEl = document.getElementById('timer');
+
+    // Get data from previous steps
+    const companyName = '{{ progress.first_company_name or "Your Company" }}';
+    document.getElementById('company-name-display').textContent = companyName;
+
+    // Set progress bar width (Step 5 of 6 = 83.33%)
+    document.getElementById('main-progress').style.width = '83.33%';
+
+    // Start timer (target: 30 seconds - just time to review)
+    let timeLeft = 30;
+    const timer = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            timerEl.textContent = '0:00';
+            timerEl.classList.remove('bg-primary');
+            timerEl.classList.add('bg-success');
+        }
+        timeLeft--;
+    }, 1000);
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        try {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Confirming Setup...';
+
+            const formData = {
+                setup_confirmed: true,
+                time_spent: 30 - timeLeft
+            };
+
+            const response = await fetch(`{{ url_for('onboarding.complete_step', step_number=step_number) }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Show success feedback briefly
+                confirmBtn.innerHTML = '<i class="bi bi-rocket me-2"></i>Starting Research...';
+                confirmBtn.classList.remove('btn-success');
+                confirmBtn.classList.add('btn-info');
+
+                // Redirect after delay
+                setTimeout(() => {
+                    window.location.href = result.redirect_url;
+                }, 1500);
+            } else {
+                throw new Error(result.error || 'Failed to confirm setup');
+            }
+
+        } catch (error) {
+            console.error('Error confirming setup:', error);
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Let\'s Start My Research!';
+            confirmBtn.className = 'btn btn-success btn-lg';
+            alert('Failed to start research. Please try again.');
+        }
+    });
+});
+</script>
+
+<style>
+.progress-dot {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-check-label {
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.form-check-label:hover {
+    background-color: #f8f9fa;
+}
+
+.form-check-input:checked + .form-check-label {
+    background-color: #e7f3ff;
+    border: 1px solid #0d6efd;
+}
+</style>
+
+{% endblock %}
