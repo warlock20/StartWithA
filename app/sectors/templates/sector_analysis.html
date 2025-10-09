@@ -4,6 +4,36 @@
 <!-- Quill.js for rich text editing -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<!-- Sector Research Modules -->
+<script>
+    // Global URL configuration for JavaScript modules
+    window.sectorUrls = {
+        // Section endpoints
+        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector_name) }}',
+        updateSection: '{{ url_for("sectors.update_section", section_id=0) }}',
+        deleteSection: '{{ url_for("sectors.delete_section", section_id=0) }}',
+
+        // Note endpoints
+        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector_name) }}',
+        updateNote: '{{ url_for("sectors.update_note", note_id=0) }}',
+        deleteNote: '{{ url_for("sectors.delete_note", note_id=0) }}',
+
+        // Document endpoints
+        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector_name) }}',
+        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector_name) }}',
+        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector_name) }}',
+
+        // Source and snippet endpoints
+        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector_name) }}',
+        addSnippet: '{{ url_for("sectors.add_snippet", sector_name=analysis.sector_name) }}'
+    };
+</script>
+
+<script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-document.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-snippets.js') }}"></script>
+
 <!-- Company Search Component -->
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 {% endblock %}
@@ -24,9 +54,6 @@
                 </span>
             </div>
             <div class="sector-snapshot-actions">
-                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
-                    <i class="bi bi-layout-text-sidebar"></i> Templates
-                </button>
                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
@@ -99,33 +126,444 @@
     </div>
 
     <div class="row">
-        <!-- Main Research Notes Column -->
+        <!-- Main Research Area with Tabs -->
         <div class="col-lg-8">
-            <!-- Quick Template Buttons -->
-            <!-- <div class="template-buttons">
-                {% for template in template_list[:5] %}
-                <button class="template-btn" onclick="insertTemplate('{{ template.key }}')">
-                    {{ template.icon }} {{ template.name }}
-                </button>
-                {% endfor %}
-            </div> -->
+            <div class="research-tabs-container">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs research-tabs" id="researchTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="canvas-tab" data-bs-toggle="tab" data-bs-target="#canvas" type="button" role="tab">
+                            <i class="bi bi-kanban"></i> Research Canvas
+                            <span class="badge bg-info ms-1">New</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+                            <i class="bi bi-journal-text"></i> Document View
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="ai-insights-tab" data-bs-toggle="tab" data-bs-target="#ai-insights" type="button" role="tab">
+                            <i class="bi bi-stars"></i> AI Insights
+                            <span class="badge bg-primary ms-1" id="aiInsightsCount">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sources-tab" data-bs-toggle="tab" data-bs-target="#sources-view" type="button" role="tab">
+                            <i class="bi bi-link-45deg"></i> Sources
+                            <span class="badge bg-secondary ms-1">{{ sources|length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="snippets-tab" data-bs-toggle="tab" data-bs-target="#snippets" type="button" role="tab">
+                            <i class="bi bi-scissors"></i> Snippets
+                            <span class="badge bg-success ms-1" id="snippetsCount">{{ snippets|length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="takeaways-tab" data-bs-toggle="tab" data-bs-target="#takeaways" type="button" role="tab">
+                            <i class="bi bi-lightbulb"></i> Key Takeaways
+                        </button>
+                    </li>
+                </ul>
 
-            <!-- Quill Editor -->
-            <div class="sector-editor-container">
-                <div class="sector-editor-header">
-                    <h3><i class="bi bi-journal-text"></i> Research Notes</h3>
-                    <div class="editor-status saved" id="editorStatus">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span id="statusText">Saved</span>
+                <!-- Tab Content -->
+                <div class="tab-content research-tab-content" id="researchTabContent">
+                    <!-- Atomic Notes Canvas Tab -->
+                    <div class="tab-pane fade show active" id="canvas" role="tabpanel">
+                        <div class="atomic-canvas-container">
+                            <!-- Canvas Toolbar -->
+                            <div class="canvas-toolbar">
+                                <button class="btn btn-primary btn-sm" onclick="createNewNote()">
+                                    <i class="bi bi-plus-lg"></i> New Note
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="createNewSection()">
+                                    <i class="bi bi-layout-wtf"></i> New Section
+                                </button>
+                                <div class="canvas-toolbar-spacer"></div>
+                                <div class="canvas-view-options">
+                                    <small class="text-muted">Notes are auto-saved</small>
+                                </div>
+                            </div>
+
+                            <!-- Notes Canvas Area -->
+                            <div class="notes-canvas" id="notesCanvas">
+                                {% if canvas_sections|length == 0 %}
+                                <!-- Empty State -->
+                                <div class="canvas-empty-state" id="canvasEmptyState">
+                                    <i class="bi bi-kanban" style="font-size: 3rem; color: #d1d5db;"></i>
+                                    <h3 class="text-muted">Your Research Canvas</h3>
+                                    <p class="text-muted">Start by creating a section to organize your notes</p>
+                                    <button class="btn btn-primary mt-3" onclick="createNewSection()">
+                                        <i class="bi bi-plus-circle"></i> Create First Section
+                                    </button>
+                                </div>
+                                {% else %}
+                                <!-- Render Sections -->
+                                {% for section in canvas_sections %}
+                                <div class="canvas-section" data-section-id="{{ section.id }}">
+                                    <div class="canvas-section-header">
+                                        <div class="canvas-section-title">
+                                            {% if section.icon %}
+                                            <span class="canvas-section-icon">{{ section.icon }}</span>
+                                            {% endif %}
+                                            <h2>{{ section.title }}</h2>
+                                        </div>
+                                        <div class="canvas-section-actions">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="addNoteToSection({{ section.id }})">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="editSection({{ section.id }}, '{{ section.title }}', '{{ section.description or '' }}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSection({{ section.id }})">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% if section.description %}
+                                    <div class="canvas-section-description">{{ section.description }}</div>
+                                    {% endif %}
+
+                                    <!-- Notes in this section -->
+                                    <div class="note-cards-grid" data-section-id="{{ section.id }}">
+                                        {% set section_notes = section.section_notes.order_by('sort_order').all() %}
+                                        {% if section_notes %}
+                                        {% for note in section_notes %}
+                                        <div class="note-card" draggable="true"
+                                             data-note-id="{{ note.id }}"
+                                             data-note-title="{{ note.title }}"
+                                             data-note-content="{{ note.content | escape }}"
+                                             data-note-source-url="{{ note.source_reference or '' }}"
+                                             data-note-source-title="{{ note.source_title or '' }}"
+                                             data-note-tags="{{ note.tags or '' }}"
+                                             data-section-id="{{ note.section_id or '' }}">
+                                            <div class="note-card-header">
+                                                <h3 class="note-card-title">{{ note.title }}</h3>
+                                                <div class="note-card-menu-wrapper">
+                                                    <button class="note-card-menu-btn" onclick="toggleNoteMenu({{ note.id }})">
+                                                        <i class="bi bi-three-dots-vertical"></i>
+                                                    </button>
+                                                    <div class="note-card-dropdown" id="noteMenu{{ note.id }}" style="display: none;">
+                                                        <button onclick="viewNote({{ note.id }})">
+                                                            <i class="bi bi-eye"></i> View Full Note
+                                                        </button>
+                                                        <button onclick="editNote({{ note.id }})">
+                                                            <i class="bi bi-pencil"></i> Edit
+                                                        </button>
+                                                        <button onclick="deleteNote({{ note.id }})" class="text-danger">
+                                                            <i class="bi bi-trash"></i> Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="note-card-content">{{ note.content | safe }}</div>
+                                            <div class="note-card-footer">
+                                                <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
+                                                    {% if note.note_type == 'ai_insight' %}
+                                                        <i class="bi bi-sparkles"></i> AI Insight
+                                                    {% elif note.note_type == 'web_clip' %}
+                                                        <i class="bi bi-scissors"></i> Web Clip
+                                                    {% elif note.note_type == 'snippet' %}
+                                                        <i class="bi bi-bookmark"></i> Snippet
+                                                    {% else %}
+                                                        <i class="bi bi-pencil"></i> Note
+                                                    {% endif %}
+                                                </div>
+                                                {% if note.source_reference %}
+                                                <a href="{{ note.source_reference }}" target="_blank" class="note-card-source">
+                                                    <i class="bi bi-box-arrow-up-right"></i> Source
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                            {% if note.tags %}
+                                            <div class="note-card-tags">
+                                                {% for tag in note.tags.split(',') %}
+                                                <span class="note-card-tag">{{ tag.strip() }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                        {% else %}
+                                        <button class="add-note-btn" onclick="addNoteToSection({{ section.id }})">
+                                            <i class="bi bi-plus-circle"></i> Add First Note
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Research Notes Tab (Document View) -->
+                    <div class="tab-pane fade" id="notes" role="tabpanel">
+                        <div class="sector-editor-container">
+                            <div class="sector-editor-header">
+                                <div class="editor-header-actions">
+                                    <button class="btn btn-outline-success btn-sm" onclick="generateDocumentFromCanvas()">
+                                        <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pasteFromAIModal">
+                                        <i class="bi bi-stars"></i> Paste from AI
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                                        <i class="bi bi-layout-text-sidebar"></i> Templates
+                                    </button>
+                                    <div class="editor-status saved" id="editorStatus">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span id="statusText">Saved</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="sectorEditor">{# Content will be loaded from backend #}</div>
+                            <!-- Floating Save Snippet Button -->
+                            <button id="saveSnippetBtn" class="save-snippet-btn" style="display: none;" onclick="openSaveSnippetModal()">
+                                <i class="bi bi-scissors"></i> Save as Snippet
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights Tab -->
+                    <div class="tab-pane fade" id="ai-insights" role="tabpanel">
+                        <div class="ai-insights-container">
+                            <div class="ai-insights-header">
+                                <p class="text-muted mb-3">AI-generated summaries and insights from Gemini, ChatGPT, and other tools</p>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pasteFromAIModal">
+                                    <i class="bi bi-plus-circle"></i> Add AI Insight
+                                </button>
+                            </div>
+                            <div class="ai-insights-grid" id="aiInsightsGrid">
+                                <div class="empty-state">
+                                    <i class="bi bi-stars" style="font-size: 3rem; color: #d1d5db;"></i>
+                                    <p class="text-muted">No AI insights yet</p>
+                                    <p class="text-muted small">Use "Paste from AI" to add summaries from Gemini or ChatGPT</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sources Tab -->
+                    <div class="tab-pane fade" id="sources-view" role="tabpanel">
+                        <div class="sources-tab-container">
+                            <div class="sources-tab-header">
+                                <p class="text-muted mb-3">Track articles, reports, videos, and references</p>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                    <i class="bi bi-plus-circle"></i> Add Source
+                                </button>
+                            </div>
+                            <div class="sources-grid">
+                                {% if sources %}
+                                {% for source in sources %}
+                                <div class="source-card">
+                                    <div class="source-card-header">
+                                        <div class="source-type-badge source-type-{{ source.source_type }}">
+                                            {% if source.source_type == 'article' %}
+                                                <i class="bi bi-newspaper"></i>
+                                            {% elif source.source_type == 'report' %}
+                                                <i class="bi bi-file-earmark-text"></i>
+                                            {% elif source.source_type == 'video' %}
+                                                <i class="bi bi-play-circle"></i>
+                                            {% elif source.source_type == 'podcast' %}
+                                                <i class="bi bi-mic"></i>
+                                            {% elif source.source_type == 'gemini' %}
+                                                <i class="bi bi-stars"></i>
+                                            {% else %}
+                                                <i class="bi bi-bookmark"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="source-card-actions">
+                                            <form method="POST" action="{{ url_for('sectors.delete_source', source_id=source.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this source?');">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="source-card-body">
+                                        <h5 class="source-card-title">{{ source.title }}</h5>
+                                        {% if source.url %}
+                                        <a href="{{ source.url }}" target="_blank" class="source-card-url" onclick="markSourceAccessed({{ source.id }})">
+                                            <i class="bi bi-box-arrow-up-right"></i> {{ source.url|truncate(50) }}
+                                        </a>
+                                        {% endif %}
+                                        {% if source.description %}
+                                        <p class="source-card-description">{{ source.description }}</p>
+                                        {% endif %}
+                                        {% if source.accessed_at %}
+                                        <small class="text-muted">Last accessed: {{ source.accessed_at.strftime('%b %d, %Y') }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="empty-state">
+                                    <i class="bi bi-link-45deg" style="font-size: 3rem; color: #d1d5db;"></i>
+                                    <p class="text-muted">No sources yet</p>
+                                    <p class="text-muted small">Add articles, reports, and references to track your research</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Snippets Tab -->
+                    <div class="tab-pane fade" id="snippets" role="tabpanel">
+                        <div class="snippets-container">
+                            <div class="snippets-header">
+                                <p class="text-muted mb-3">Save and categorize key passages from your research</p>
+                                <div class="snippets-instructions">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>How to save snippets:</strong> In the Research Notes tab, select text and use the "Save Snippet" button that appears
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="snippet-category-filter mb-4">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary active" data-category="all" onclick="filterSnippets('all')">
+                                        All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="competitive_advantage" onclick="filterSnippets('competitive_advantage')">
+                                        💪 Competitive Advantage
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="risks" onclick="filterSnippets('risks')">
+                                        ⚠️ Risks
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="valuation" onclick="filterSnippets('valuation')">
+                                        💰 Valuation
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="growth_drivers" onclick="filterSnippets('growth_drivers')">
+                                        📈 Growth Drivers
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="industry_trends" onclick="filterSnippets('industry_trends')">
+                                        🔍 Industry Trends
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="management" onclick="filterSnippets('management')">
+                                        👔 Management
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Snippets Grid -->
+                            <div class="snippets-grid" id="snippetsGrid">
+                                {% if snippets %}
+                                {% for snippet in snippets %}
+                                <div class="snippet-card" data-category="{{ snippet.category }}">
+                                    <div class="snippet-card-header">
+                                        <span class="snippet-category-badge snippet-category-{{ snippet.category }}">
+                                            {% if snippet.category == 'competitive_advantage' %}
+                                                💪 Competitive Advantage
+                                            {% elif snippet.category == 'risks' %}
+                                                ⚠️ Risks
+                                            {% elif snippet.category == 'valuation' %}
+                                                💰 Valuation
+                                            {% elif snippet.category == 'growth_drivers' %}
+                                                📈 Growth Drivers
+                                            {% elif snippet.category == 'industry_trends' %}
+                                                🔍 Industry Trends
+                                            {% elif snippet.category == 'management' %}
+                                                👔 Management
+                                            {% else %}
+                                                📌 Other
+                                            {% endif %}
+                                        </span>
+                                        <div class="snippet-card-actions">
+                                            <form method="POST" action="{{ url_for('sectors.delete_snippet', snippet_id=snippet.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this snippet?');">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="snippet-card-body">
+                                        <div class="snippet-content">{{ snippet.content }}</div>
+                                        {% if snippet.notes %}
+                                        <div class="snippet-notes">
+                                            <i class="bi bi-chat-left-text"></i> {{ snippet.notes }}
+                                        </div>
+                                        {% endif %}
+                                        {% if snippet.tags %}
+                                        <div class="snippet-tags">
+                                            {% for tag in snippet.tags.split(',') %}
+                                            <span class="snippet-tag">{{ tag.strip() }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="snippet-card-footer">
+                                        <small class="text-muted">Saved {{ snippet.created_at.strftime('%b %d, %Y') }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="empty-state">
+                                    <i class="bi bi-scissors" style="font-size: 3rem; color: #d1d5db;"></i>
+                                    <p class="text-muted">No snippets saved yet</p>
+                                    <p class="text-muted small">Select text in Research Notes and save it as a snippet</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Takeaways Tab -->
+                    <div class="tab-pane fade" id="takeaways" role="tabpanel">
+                        <div class="takeaways-container">
+                            <div class="takeaways-header">
+                                <p class="text-muted mb-3">Summarize your most important findings in bullet points</p>
+                            </div>
+                            <div class="takeaways-editor-container">
+                                <div id="takeawaysEditor"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div id="sectorEditor">{# Content will be loaded from backend #}</div>
             </div>
         </div>
 
         <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="sticky-sidebar">
+                <!-- Collector (Inbox for unorganized notes) -->
+                <div class="sector-sidebar-card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-inbox"></i> Collector</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Quick capture area. Drag notes to canvas when ready to organize.</p>
+
+                        <button class="btn btn-primary btn-sm w-100 mb-3" onclick="createQuickNote()">
+                            <i class="bi bi-lightning-charge"></i> Quick Capture
+                        </button>
+
+                        <div class="collector-items" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Unorganized notes will be displayed here -->
+                            <div id="collectorNotes">
+                                {% if collector_notes %}
+                                {% for note in collector_notes %}
+                                <div class="collector-item" draggable="true" data-note-id="{{ note.id }}">
+                                    <div class="collector-item-title">{{ note.title }}</div>
+                                    <div class="collector-item-content">{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</div>
+                                    {% if note.source_reference %}
+                                    <a href="{{ note.source_reference }}" target="_blank" class="collector-item-source">
+                                        <i class="bi bi-link-45deg"></i> {{ note.source_title or 'Source' }}
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <p class="text-muted small text-center">No items in collector</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Question Bank -->
                 <div class="sector-sidebar-card">
                     <div class="card-header">
@@ -239,29 +677,10 @@
     </div>
 </div>
 
-<!-- Templates Modal -->
-<div class="modal fade" id="templatesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title font-poppins"><i class="bi bi-layout-text-sidebar"></i> Research Templates</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted mb-3">Click a template to insert it into your research notes</p>
-                <div class="template-modal-grid">
-                    {% for template in template_list %}
-                    <div class="template-card" onclick="insertTemplate('{{ template.key }}'); closeModal();">
-                        <h6>{{ template.icon }} {{ template.name }}</h6>
-                        <p>{{ template.description }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
+<!-- Modals -->
+<!-- Sector-specific modals -->
+{% include 'components/templates_modal.html' %}
 <!-- Tips Modal -->
 {% set tips_title = "Sector Research Tips" %}
 {% set tips_intro = "Best practices for systematic sector analysis:" %}
@@ -273,209 +692,16 @@
     "Focus on what makes winners vs. losers in this specific industry"
 ] %}
 {% include 'main/_tips_modal.html' %}
-
-<!-- Company Search Modal -->
 {% include 'components/company_search_modal.html' %}
+{% include 'components/paste_ai_modal.html' %}
+{% include 'components/add_source_modal.html' %}
+{% include 'components/archive_modal.html' %}
 
-<!-- Archive Research Modal -->
-<div class="modal fade archive-modal" id="archiveModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-archive"></i> Archive Sector Research?</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('sectors.archive_sector', sector_name=analysis.sector_name) }}">
-                <div class="modal-body">
-                    <div class="research-summary">
-                        <div class="research-summary-title">
-                            <i class="bi bi-bar-chart-line"></i> Research Summary
-                        </div>
-                        <ul class="research-summary-list">
-                            <li class="research-summary-item">
-                                <i class="bi bi-file-text"></i>
-                                <span><strong>{{ analysis.word_count }}</strong> words written</span>
-                            </li>
-                            <li class="research-summary-item">
-                                <i class="bi bi-clock-history"></i>
-                                <span><strong>{{ analysis.time_spent_formatted }}</strong> active research time</span>
-                            </li>
-                            <li class="research-summary-item">
-                                <i class="bi bi-building"></i>
-                                <span><strong>{{ analysis.companies_count }}</strong> companies tracked</span>
-                            </li>
-                            <li class="research-summary-item">
-                                <i class="bi bi-question-circle"></i>
-                                <span><strong>{{ analysis.questions_count }}</strong> questions created</span>
-                            </li>
-                            <li class="research-summary-item">
-                                <i class="bi bi-link-45deg"></i>
-                                <span><strong>{{ analysis.sources_count }}</strong> sources added</span>
-                            </li>
-                            <li class="research-summary-item">
-                                <i class="bi bi-graph-up"></i>
-                                <span><strong>{{ analysis.research_progress_score }}%</strong> research progress</span>
-                            </li>
-                        </ul>
-                    </div>
+<!-- Reusable modals (shared across platform) -->
+{% include 'components/modals/section_modal.html' %}
+{% include 'components/modals/note_modal.html' %}
+{% include 'components/modals/view_note_modal.html' %}
+{% include 'components/modals/snippet_modal.html' %}
 
-                    <div class="archive-info-box">
-                        <div class="archive-info-title">
-                            <i class="bi bi-info-circle"></i> Archive will:
-                        </div>
-                        <ul class="archive-info-list">
-                            <li>Move research to "Archived Sectors"</li>
-                            <li>Keep all data accessible</li>
-                            <li>Can be unarchived anytime</li>
-                            <li>Remove from active research list</li>
-                        </ul>
-                    </div>
 
-                    <p class="text-muted small mb-0">
-                        <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Archive research when you've completed initial sector analysis or want to focus on other sectors.
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning">
-                        <i class="bi bi-archive"></i> Archive Research
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-let quill;
-let saveTimer;
-
-// Initialize Quill
-document.addEventListener('DOMContentLoaded', function() {
-    quill = new Quill('#sectorEditor', {
-        theme: 'snow',
-        placeholder: 'Start your sector research here... Use templates above for structured analysis.',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, 4, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'indent': '-1'}, { 'indent': '+1' }],
-                [{ 'color': [] }, { 'background': [] }],
-                ['link', 'image'],
-                ['clean']
-            ]
-        }
-    });
-
-    // Load initial content
-    fetch('{{ url_for("sectors.get_research_notes", sector_name=analysis.sector_name) }}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.content) {
-                quill.root.innerHTML = data.content;
-            }
-        });
-
-    // Auto-save on change
-    quill.on('text-change', function() {
-        updateStatus('saving');
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(saveResearchNotes, 2000);
-    });
-});
-
-function saveResearchNotes() {
-    const content = quill.root.innerHTML;
-
-    fetch('{{ url_for("sectors.save_research_notes", sector_name=analysis.sector_name) }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateStatus('saved');
-        } else {
-            updateStatus('error');
-        }
-    })
-    .catch(() => updateStatus('error'));
-}
-
-function updateStatus(status) {
-    const statusDiv = document.getElementById('editorStatus');
-    const statusText = document.getElementById('statusText');
-
-    statusDiv.className = 'editor-status ' + status;
-
-    if (status === 'saving') {
-        statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> <span>Saving...</span>';
-    } else if (status === 'saved') {
-        statusDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i> <span>Saved</span>';
-    } else if (status === 'error') {
-        statusDiv.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> <span>Error</span>';
-    }
-}
-
-// Template insertion - Load templates from backend
-const templates = {
-    {% for key, template in research_templates.items() %}
-    {{ key }}: `{{ template.content | safe }}`,
-    {% endfor %}
-};
-
-function insertTemplate(templateName) {
-    const template = templates[templateName];
-    if (template) {
-        const currentLength = quill.getLength();
-        quill.insertText(currentLength - 1, '\n\n');
-        quill.clipboard.dangerouslyPasteHTML(currentLength + 1, template);
-        quill.setSelection(currentLength + 1, 0);
-    }
-}
-
-function closeModal() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('templatesModal'));
-    modal.hide();
-}
-
-function addCompanyToSector() {
-    const select = document.getElementById('companySelect');
-    const companyId = select.value;
-    if (!companyId) {
-        alert('Please select a company');
-        return;
-    }
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ url_for("sectors.add_company_to_sector", sector_name=analysis.sector_name, company_id=0) }}'.replace('/0', '/' + companyId);
-    document.body.appendChild(form);
-    form.submit();
-}
-
-// Handle company selection from modal for sector research
-function handleCompanySelectionForSector(company) {
-    console.log('Company selected for sector:', company);
-
-    // Automatically assign the company to this sector and reload
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ url_for("sectors.add_company_to_sector", sector_name=analysis.sector_name, company_id=0) }}'.replace('/0', '/' + company.id);
-    document.body.appendChild(form);
-    form.submit();
-}
-
-// Initialize company search modal when button is clicked
-document.addEventListener('DOMContentLoaded', function() {
-    const newCompanyBtn = document.getElementById('newCompanyBtn');
-    if (newCompanyBtn) {
-        newCompanyBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            openCompanyModal(handleCompanySelectionForSector);
-        });
-    }
-});
-</script>
 {% endblock %}

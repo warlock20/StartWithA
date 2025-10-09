@@ -42,6 +42,9 @@ All complex components have been fully modularized.
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
 @import url('modules/_sector-research.css');      /* Simplified sector research page */
+@import url('modules/_research-sources.css');     /* Research sources component */
+@import url('modules/_research-tabs.css');        /* Research tabbed interface */
+@import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
 @import url('modules/_research-projects.css');    /* Research projects pages */
 @import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
 @import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */

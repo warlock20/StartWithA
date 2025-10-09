@@ -1,0 +1,54 @@
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="insertAIContent()">
+                    <i class="bi bi-plus-circle"></i> Insert into Notes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Source Modal -->
+<div class="modal fade" id="addSourceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-link-45deg"></i> Add Research Source</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('sectors.add_source', sector_name=analysis.sector_name) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Source Type</label>
+                        <select name="source_type" class="form-select" required>
+                            <option value="article">📰 Article</option>
+                            <option value="report">📄 Report</option>
+                            <option value="video">▶️ Video</option>
+                            <option value="podcast">🎙️ Podcast</option>
+                            <option value="gemini">✨ Gemini Chat</option>
+                            <option value="other">🔖 Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" class="form-control" placeholder="Source title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL</label>
+                        <input type="url" name="url" class="form-control" placeholder="https://...">
+                        <small class="text-muted">Link to article, video, or Gemini conversation</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description / Key Takeaways</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Quick summary or notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Source
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>

@@ -2,7 +2,8 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
-                       Company, ResearchProject, SectorResearchSource)
+                       Company, ResearchProject, SectorResearchSource, SectorResearchSnippet,
+                       SectorSection, SectorNote)
 from sqlalchemy import func
 from datetime import datetime
 from . import sectors_bp
@@ -142,10 +143,8 @@ def notebook(sector_name):
         initialize_default_sections(analysis)
 
     if request.method == 'POST':
-        # This POST handles saving the main notes textarea (backward compatible)
-        analysis.notes = request.form.get('notes')
-        db.session.commit()
-        flash('Notes saved successfully.', 'success')
+        # This shouldn't be used anymore - atomic notes and document view handle saving
+        flash('Please use the Document View or Research Canvas to save your notes.', 'info')
         return redirect(url_for('sectors.notebook', sector_name=analysis.sector_name))
 
     # GET Request: Fetch questions from the bank that are tagged with this sector
@@ -214,6 +213,23 @@ def notebook(sector_name):
             sources_by_type[source_type] = []
         sources_by_type[source_type].append(source)
 
+    # Get research snippets
+    snippets = analysis.snippets.order_by(SectorResearchSnippet.created_at.desc()).all()
+
+    # Group snippets by category
+    snippets_by_category = {}
+    for snippet in snippets:
+        category = snippet.category
+        if category not in snippets_by_category:
+            snippets_by_category[category] = []
+        snippets_by_category[category].append(snippet)
+
+    # Get canvas sections and notes
+    canvas_sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
+
+    # Get unorganized notes (collector items)
+    collector_notes = analysis.canvas_notes.filter(SectorNote.section_id == None).order_by(SectorNote.created_at.desc()).all()
+
     return render_template(
         'sector_analysis.html',
         title=f"Research: {analysis.sector_name}",
@@ -230,6 +246,10 @@ def notebook(sector_name):
         },
         sources=sources,
         sources_by_type=sources_by_type,
+        snippets=snippets,
+        snippets_by_category=snippets_by_category,
+        canvas_sections=canvas_sections,
+        collector_notes=collector_notes,
         research_templates=get_all_templates(),
         template_list=get_template_list()
     )
@@ -471,6 +491,329 @@ def mark_source_accessed(source_id):
 
     return jsonify({'success': True})
 
+
+@sectors_bp.route('/<string:sector_name>/add_snippet', methods=['POST'])
+@login_required
+def add_snippet(sector_name):
+    """Add a research snippet"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    data = request.get_json()
+    content = data.get('content', '').strip()
+    category = data.get('category', '').strip()
+    tags = data.get('tags', '').strip()
+    notes = data.get('notes', '').strip()
+
+    if not content or not category:
+        return jsonify({'success': False, 'error': 'Content and category are required'}), 400
+
+    # Create new snippet
+    snippet = SectorResearchSnippet(
+        sector_analysis_id=analysis.id,
+        content=content,
+        category=category,
+        tags=tags if tags else None,
+        notes=notes if notes else None
+    )
+
+    db.session.add(snippet)
+    db.session.commit()
+
+    return jsonify({'success': True, 'snippet_id': snippet.id})
+
+
+@sectors_bp.route('/snippet/<int:snippet_id>/delete', methods=['POST'])
+@login_required
+def delete_snippet(snippet_id):
+    """Delete a research snippet"""
+    snippet = SectorResearchSnippet.query.get_or_404(snippet_id)
+
+    # Authorization check
+    if snippet.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    sector_name = snippet.sector_analysis.sector_name
+    db.session.delete(snippet)
+    db.session.commit()
+
+    flash('Snippet deleted', 'success')
+    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+# ============================================================================
+# ATOMIC NOTES CANVAS ROUTES
+# ============================================================================
+
+@sectors_bp.route('/<string:sector_name>/section/create', methods=['POST'])
+@login_required
+def create_section(sector_name):
+    """Create a new section on the canvas"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    data = request.get_json()
+    title = data.get('title', '').strip()
+
+    if not title:
+        return jsonify({'success': False, 'error': 'Title is required'}), 400
+
+    # Get max sort_order
+    max_order = db.session.query(func.max(SectorSection.sort_order)).filter_by(
+        sector_analysis_id=analysis.id
+    ).scalar() or 0
+
+    section = SectorSection(
+        sector_analysis_id=analysis.id,
+        title=title,
+        description=data.get('description'),
+        sort_order=max_order + 1,
+        icon=data.get('icon'),
+        color=data.get('color')
+    )
+
+    db.session.add(section)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'section': {
+            'id': section.id,
+            'title': section.title,
+            'description': section.description,
+            'sort_order': section.sort_order
+        }
+    })
+
+
+@sectors_bp.route('/section/<int:section_id>/update', methods=['POST'])
+@login_required
+def update_section(section_id):
+    """Update a section"""
+    section = SectorSection.query.get_or_404(section_id)
+
+    if section.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+
+    if 'title' in data:
+        section.title = data['title'].strip()
+    if 'description' in data:
+        section.description = data.get('description')
+    if 'icon' in data:
+        section.icon = data.get('icon')
+    if 'color' in data:
+        section.color = data.get('color')
+    if 'sort_order' in data:
+        section.sort_order = data['sort_order']
+
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@sectors_bp.route('/section/<int:section_id>/delete', methods=['POST'])
+@login_required
+def delete_section(section_id):
+    """Delete a section (notes will be moved to collector)"""
+    section = SectorSection.query.get_or_404(section_id)
+
+    if section.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    # Move all notes in this section to collector (set section_id to None)
+    SectorNote.query.filter_by(section_id=section_id).update({'section_id': None})
+
+    db.session.delete(section)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@sectors_bp.route('/<string:sector_name>/note/create', methods=['POST'])
+@login_required
+def create_note(sector_name):
+    """Create a new note"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    data = request.get_json()
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+
+    if not title or not content:
+        return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+
+    section_id = data.get('section_id')
+
+    # Get max sort_order for this section
+    if section_id:
+        max_order = db.session.query(func.max(SectorNote.sort_order)).filter_by(
+            section_id=section_id
+        ).scalar() or 0
+    else:
+        max_order = 0
+
+    note = SectorNote(
+        sector_analysis_id=analysis.id,
+        section_id=section_id,
+        title=title,
+        content=content,
+        note_type=data.get('note_type', 'note'),
+        source_reference=data.get('source_reference'),
+        source_title=data.get('source_title'),
+        tags=data.get('tags'),
+        sort_order=max_order + 1
+    )
+
+    db.session.add(note)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'note': {
+            'id': note.id,
+            'title': note.title,
+            'content': note.content,
+            'note_type': note.note_type,
+            'section_id': note.section_id,
+            'created_at': note.created_at.isoformat()
+        }
+    })
+
+
+@sectors_bp.route('/note/<int:note_id>/update', methods=['POST'])
+@login_required
+def update_note(note_id):
+    """Update a note"""
+    note = SectorNote.query.get_or_404(note_id)
+
+    if note.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+
+    if 'title' in data:
+        note.title = data['title'].strip()
+    if 'content' in data:
+        note.content = data['content'].strip()
+    if 'section_id' in data:
+        note.section_id = data.get('section_id')
+    if 'sort_order' in data:
+        note.sort_order = data['sort_order']
+    if 'tags' in data:
+        note.tags = data.get('tags')
+    if 'source_reference' in data:
+        note.source_reference = data.get('source_reference')
+    if 'source_title' in data:
+        note.source_title = data.get('source_title')
+
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@sectors_bp.route('/note/<int:note_id>/delete', methods=['POST'])
+@login_required
+def delete_note(note_id):
+    """Delete a note"""
+    note = SectorNote.query.get_or_404(note_id)
+
+    if note.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db.session.delete(note)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@sectors_bp.route('/<string:sector_name>/generate-document', methods=['GET'])
+@login_required
+def generate_document_from_canvas(sector_name):
+    """Generate a formatted document from canvas sections and notes"""
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    # Get all sections in order
+    sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
+
+    if not sections:
+        return jsonify({
+            'success': False,
+            'error': 'No sections found in canvas. Create sections and notes first.'
+        })
+
+    # Build HTML document
+    html_parts = []
+    html_parts.append(f'<h1>{analysis.sector_name} Research</h1>')
+    html_parts.append(f'<p><em>Generated from Research Canvas on {datetime.utcnow().strftime("%B %d, %Y")}</em></p>')
+    html_parts.append('<hr>')
+
+    for section in sections:
+        # Section header
+        section_icon = section.icon or '📌'
+        html_parts.append(f'<h2>{section_icon} {section.title}</h2>')
+
+        if section.description:
+            html_parts.append(f'<p><em>{section.description}</em></p>')
+
+        # Get notes in this section
+        notes = section.section_notes.order_by(SectorNote.sort_order).all()
+
+        if notes:
+            for note in notes:
+                # Note title
+                html_parts.append(f'<h3>{note.title}</h3>')
+
+                # Note content (already HTML from Quill)
+                html_parts.append(note.content)
+
+                # Note source if available
+                if note.source_reference:
+                    source_text = note.source_title or note.source_reference
+                    html_parts.append(f'<p><small><em>Source: <a href="{note.source_reference}" target="_blank">{source_text}</a></em></small></p>')
+
+                # Note tags if available
+                if note.tags:
+                    tags_html = ' '.join([f'<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-right: 4px;">{tag.strip()}</span>' for tag in note.tags.split(',')])
+                    html_parts.append(f'<p>{tags_html}</p>')
+
+                html_parts.append('<br>')
+        else:
+            html_parts.append('<p><em>No notes in this section yet.</em></p>')
+
+        html_parts.append('<hr>')
+
+    # Check if there are notes in collector (not in any section)
+    collector_notes = analysis.canvas_notes.filter(SectorNote.section_id == None).order_by(SectorNote.created_at.desc()).all()
+    if collector_notes:
+        html_parts.append('<h2>📥 Additional Notes (from Collector)</h2>')
+        for note in collector_notes:
+            html_parts.append(f'<h3>{note.title}</h3>')
+            html_parts.append(note.content)
+            if note.source_reference:
+                source_text = note.source_title or note.source_reference
+                html_parts.append(f'<p><small><em>Source: <a href="{note.source_reference}" target="_blank">{source_text}</a></em></small></p>')
+            html_parts.append('<br>')
+
+    document_html = '\n'.join(html_parts)
+
+    return jsonify({
+        'success': True,
+        'html': document_html
+    })
+
+
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
 @login_required
 def get_research_notes(sector_name):
@@ -482,7 +825,8 @@ def get_research_notes(sector_name):
 
     return jsonify({
         'success': True,
-        'content': analysis.notes or ''
+        'content': analysis.document_content or '',
+        'takeaways': analysis.key_takeaways or ''
     })
 
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['POST'])
@@ -495,16 +839,21 @@ def save_research_notes(sector_name):
     ).first_or_404()
 
     data = request.get_json()
-    content = data.get('content', '')
+    content = data.get('content')
+    takeaways = data.get('takeaways')
 
-    analysis.notes = content
+    if content is not None:
+        analysis.document_content = content
+    if takeaways is not None:
+        analysis.key_takeaways = takeaways
+
     analysis.updated_at = datetime.utcnow()
 
     try:
         db.session.commit()
         return jsonify({
             'success': True,
-            'message': 'Notes saved successfully'
+            'message': 'Document saved successfully'
         })
     except Exception as e:
         db.session.rollback()

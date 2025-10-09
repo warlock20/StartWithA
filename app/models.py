@@ -506,8 +506,11 @@ class SectorAnalysis(db.Model):
     # The name of the sector being analyzed
     sector_name = db.Column(db.String(100), nullable=False, index=True)
 
-    # A large text field for free-form research notes (backward compatible)
-    notes = db.Column(db.Text, nullable=True)
+    # Document View content (generated from canvas or manually written)
+    document_content = db.Column(db.Text, nullable=True)
+
+    # Key takeaways from the research
+    key_takeaways = db.Column(db.Text, nullable=True)
 
     # Research status and tracking
     status = db.Column(db.String(20), nullable=False, default='active')  # active, archived
@@ -531,12 +534,21 @@ class SectorAnalysis(db.Model):
 
     @property
     def word_count(self):
-        """Calculate total word count from notes"""
-        if not self.notes:
-            return 0
-        # Strip HTML tags and count words
-        text = re.sub(r'<[^>]+>', '', self.notes)
-        return len(text.split())
+        """Calculate total word count from document content and atomic notes"""
+        total_words = 0
+
+        # Count words from document content
+        if self.document_content:
+            text = re.sub(r'<[^>]+>', '', self.document_content)
+            total_words += len(text.split())
+
+        # Count words from all atomic notes (using canvas_notes relationship)
+        for note in self.canvas_notes.all():
+            if note.content:
+                text = re.sub(r'<[^>]+>', '', note.content)
+                total_words += len(text.split())
+
+        return total_words
 
     @property
     def companies_count(self):
@@ -795,6 +807,112 @@ class SectorResearchSource(db.Model):
 
     def __repr__(self):
         return f'<SectorResearchSource "{self.title}" for Analysis {self.sector_analysis_id}>'
+
+
+class SectorResearchSnippet(db.Model):
+    """
+    Save and categorize key research snippets/passages for quick reference.
+    Helps organize important findings by category (competitive advantage, risks, etc.)
+    """
+    __tablename__ = 'sector_research_snippet'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Snippet content
+    content = db.Column(db.Text, nullable=False)
+
+    # Categorization
+    category = db.Column(db.String(50), nullable=False)
+    # Categories: 'competitive_advantage', 'risks', 'valuation', 'growth_drivers',
+    #             'industry_trends', 'management', 'other'
+
+    # Optional metadata
+    tags = db.Column(db.String(500), nullable=True)  # Comma-separated custom tags
+    notes = db.Column(db.Text, nullable=True)  # Additional context/notes
+    source_reference = db.Column(db.String(300), nullable=True)  # Where this came from
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=now_utc)
+
+    # Relationships
+    sector_analysis = db.relationship('SectorAnalysis', backref=db.backref('snippets', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<SectorResearchSnippet {self.category} for Analysis {self.sector_analysis_id}>'
+
+
+class SectorSection(db.Model):
+    """
+    Sections for organizing atomic notes in the research canvas.
+    Examples: "Key Themes", "Risks & Challenges", "Growth Drivers"
+    """
+    __tablename__ = 'sector_section'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+
+    # Section metadata
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    # Ordering
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Visual styling (optional)
+    icon = db.Column(db.String(50), nullable=True)  # Bootstrap icon class
+    color = db.Column(db.String(20), nullable=True)  # Color theme
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=now_utc)
+
+    # Relationships
+    sector_analysis = db.relationship('SectorAnalysis', backref=db.backref('canvas_sections', lazy='dynamic', cascade='all, delete-orphan', order_by='SectorSection.sort_order'))
+
+    def __repr__(self):
+        return f'<SectorSection "{self.title}" for Analysis {self.sector_analysis_id}>'
+
+
+class SectorNote(db.Model):
+    """
+    Atomic note cards for the research canvas.
+    Each note is a self-contained piece of information that can be organized into sections.
+    """
+    __tablename__ = 'sector_note'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sector_analysis_id = db.Column(db.Integer, db.ForeignKey('sector_analysis.id'), nullable=False)
+    section_id = db.Column(db.Integer, db.ForeignKey('sector_section.id'), nullable=True)  # Null = unorganized/inbox
+
+    # Note content
+    title = db.Column(db.String(300), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+
+    # Metadata
+    note_type = db.Column(db.String(50), nullable=False, default='note')
+    # Types: 'note' (user created), 'ai_insight' (from Gemini), 'web_clip' (from browser), 'snippet' (saved from editor)
+
+    source_reference = db.Column(db.String(500), nullable=True)  # URL or reference
+    source_title = db.Column(db.String(300), nullable=True)  # Title of source
+
+    # Tagging and categorization
+    tags = db.Column(db.String(500), nullable=True)  # Comma-separated tags
+
+    # Positioning within section
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=now_utc)
+
+    # Relationships
+    sector_analysis = db.relationship('SectorAnalysis', backref=db.backref('canvas_notes', lazy='dynamic', cascade='all, delete-orphan'))
+    section = db.relationship('SectorSection', backref=db.backref('section_notes', lazy='dynamic', cascade='all, delete-orphan', order_by='SectorNote.sort_order'))
+
+    def __repr__(self):
+        return f'<SectorNote "{self.title}" in Section {self.section_id}>'
 
 
 class IdeaPipeline(db.Model):
