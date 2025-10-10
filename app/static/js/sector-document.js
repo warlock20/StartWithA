@@ -7,6 +7,9 @@
 let quill, aiQuill, takeawaysQuill;
 let saveTimer;
 
+// Make document editor globally accessible for other modules
+window.documentQuill = null;
+
 // ==================== QUILL EDITOR INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -60,6 +63,9 @@ function initializeEditors() {
         }
     });
 
+    // Make it globally accessible for other modules (e.g., generate-document.js)
+    window.documentQuill = quill;
+
     // Auto-save on changes
     quill.on('text-change', function() {
         updateStatus('saving');
@@ -104,41 +110,48 @@ function initializeEditors() {
         saveTimer = setTimeout(saveTakeaways, 2000);
     });
 
-    // Initialize Note Content Quill Editor (for modals)
-    window.noteQuill = new Quill('#noteContentEditor', {
-        theme: 'snow',
-        placeholder: 'Write your note here...',
-        modules: {
-            toolbar: [
-                [{ 'header': [3, 4, false] }],
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link'],
-                ['clean']
-            ],
-            clipboard: {
-                matchVisual: false,
-                matchers: [
-                    ['*', function(node, delta) {
-                        delta.ops = delta.ops.map(op => {
-                            if (op.attributes) {
-                                const cleaned = {};
-                                if (op.attributes.bold) cleaned.bold = true;
-                                if (op.attributes.italic) cleaned.italic = true;
-                                if (op.attributes.underline) cleaned.underline = true;
-                                if (op.attributes.link) cleaned.link = op.attributes.link;
-                                if (op.attributes.header) cleaned.header = op.attributes.header;
-                                if (op.attributes.list) cleaned.list = op.attributes.list;
-                                op.attributes = cleaned;
-                            }
-                            return op;
-                        });
-                        return delta;
-                    }]
-                ]
+    // Initialize Note Content Quill Editor when noteModal is shown
+    const noteModal = document.getElementById('noteModal');
+    if (noteModal) {
+        noteModal.addEventListener('shown.bs.modal', function() {
+            if (!window.noteQuill) {
+                window.noteQuill = new Quill('#noteContentEditor', {
+                    theme: 'snow',
+                    placeholder: 'Write your note here...',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [3, 4, false] }],
+                            ['bold', 'italic', 'underline'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            ['link'],
+                            ['clean']
+                        ],
+                        clipboard: {
+                            matchVisual: false,
+                            matchers: [
+                                ['*', function(node, delta) {
+                                    delta.ops = delta.ops.map(op => {
+                                        if (op.attributes) {
+                                            const cleaned = {};
+                                            if (op.attributes.bold) cleaned.bold = true;
+                                            if (op.attributes.italic) cleaned.italic = true;
+                                            if (op.attributes.underline) cleaned.underline = true;
+                                            if (op.attributes.link) cleaned.link = op.attributes.link;
+                                            if (op.attributes.header) cleaned.header = op.attributes.header;
+                                            if (op.attributes.list) cleaned.list = op.attributes.list;
+                                            op.attributes = cleaned;
+                                        }
+                                        return op;
+                                    });
+                                    return delta;
+                                }]
+                            ]
+                        }
+                    }
+                });
             }
-        }
-    });
+        });
+    }
 }
 
 // ==================== CONTENT LOADING ====================

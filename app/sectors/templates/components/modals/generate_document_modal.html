@@ -1,0 +1,49 @@
+<!-- Generate Document from Canvas Modal -->
+<div class="modal fade" id="generateDocumentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark-text"></i> Generate Document from Canvas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Select which sections and notes to include in the generated document.
+                    The content will be inserted at your current cursor position in the Document View.
+                </p>
+
+                <!-- Select All / Deselect All -->
+                <div class="mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllSections()">
+                        <i class="bi bi-check-square"></i> Select All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllSections()">
+                        <i class="bi bi-square"></i> Deselect All
+                    </button>
+                </div>
+
+                <!-- Sections List -->
+                <div id="sectionsSelectionList">
+                    <!-- Will be populated dynamically -->
+                </div>
+
+                <!-- No sections message -->
+                <div id="noSectionsMessage" class="text-center py-4" style="display: none;">
+                    <i class="bi bi-inbox" style="font-size: 2rem; color: #9ca3af;"></i>
+                    <p class="mt-2 text-muted">No sections or notes found in canvas.</p>
+                    <p class="small text-muted">Create sections and notes first.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="insertSelectedSectionsToDocument()">
+                    <i class="bi bi-plus-circle"></i> Insert at Cursor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

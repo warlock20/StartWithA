@@ -1,0 +1,59 @@
+/* Generate Document from Canvas - Section Selection Styles */
+
+.section-selection-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.section-selection-item:hover {
+    background-color: #f9fafb;
+    border-color: #3b82f6;
+}
+
+.section-selection-item.selected {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.section-selection-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.section-selection-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.section-icon {
+    font-size: 1.2rem;
+}
+
+.section-info {
+    flex: 1;
+}
+
+.section-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.section-description {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.section-notes-count {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    padding: 2px 8px;
+    background-color: #f3f4f6;
+    border-radius: 12px;
+}

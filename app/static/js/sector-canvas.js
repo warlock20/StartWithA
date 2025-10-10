@@ -95,35 +95,53 @@ function deleteSection(sectionId) {
 // ==================== NOTE MANAGEMENT ====================
 
 function createNewNote() {
-    // Reset form
+    // Reset form fields
     document.getElementById('noteId').value = '';
     document.getElementById('noteSectionId').value = '';
     document.getElementById('noteTitle').value = '';
-    window.noteQuill.setText('');
     document.getElementById('noteSourceUrl').value = '';
     document.getElementById('noteSourceTitle').value = '';
     document.getElementById('noteTags').value = '';
     document.getElementById('noteModalTitle').textContent = 'Create Note (will go to Collector)';
     document.getElementById('noteSaveBtn').textContent = 'Create Note';
 
+    // Open modal first
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
+
+    // Clear Quill content after modal is shown (when Quill is initialized)
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearQuill() {
+        if (window.noteQuill) {
+            window.noteQuill.setText('');
+        }
+        // Remove this listener after first execution
+        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearQuill);
+    });
 }
 
 function addNoteToSection(sectionId) {
-    // Reset form
+    // Reset form fields
     document.getElementById('noteId').value = '';
     document.getElementById('noteSectionId').value = sectionId;
     document.getElementById('noteTitle').value = '';
-    window.noteQuill.setText('');
     document.getElementById('noteSourceUrl').value = '';
     document.getElementById('noteSourceTitle').value = '';
     document.getElementById('noteTags').value = '';
     document.getElementById('noteModalTitle').textContent = 'Add Note to Section';
     document.getElementById('noteSaveBtn').textContent = 'Create Note';
 
+    // Open modal first
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
+
+    // Clear Quill content after modal is shown (when Quill is initialized)
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearQuill() {
+        if (window.noteQuill) {
+            window.noteQuill.setText('');
+        }
+        // Remove this listener after first execution
+        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearQuill);
+    });
 }
 
 function createQuickNote() {
@@ -192,7 +210,27 @@ function saveNote() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Detect company mentions in the note content
+            const savedNoteId = (data.note && data.note.id) || noteId;
+            const combinedText = title + ' ' + textContent;
+
+            // Close the note modal first
+            const noteModalElement = document.getElementById('noteModal');
+            const noteModal = bootstrap.Modal.getInstance(noteModalElement);
+            if (noteModal) {
+                noteModal.hide();
+            }
+
+            // Trigger company detection (function from company-tagging.js)
+            if (typeof detectAndSuggestCompanies === 'function') {
+                detectAndSuggestCompanies(combinedText, 'note', savedNoteId, function() {
+                    // Reload page after company tagging is complete (or skipped)
+                    location.reload();
+                });
+            } else {
+                // If company tagging not available, just reload
+                location.reload();
+            }
         } else {
             alert('Error saving note: ' + (data.error || 'Unknown error'));
         }
@@ -317,16 +355,10 @@ function editNote(noteId) {
     const noteTags = noteCard.dataset.noteTags;
     const sectionId = noteCard.dataset.sectionId;
 
-    // Populate form
+    // Populate form fields (except Quill editor)
     document.getElementById('noteId').value = noteId;
     document.getElementById('noteSectionId').value = sectionId;
     document.getElementById('noteTitle').value = noteTitle;
-
-    // Set Quill content - decode HTML entities first
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = noteContent;
-    window.noteQuill.root.innerHTML = tempDiv.innerHTML;
-
     document.getElementById('noteSourceUrl').value = noteSourceUrl;
     document.getElementById('noteSourceTitle').value = noteSourceTitle;
     document.getElementById('noteTags').value = noteTags;
@@ -335,9 +367,21 @@ function editNote(noteId) {
     document.getElementById('noteModalTitle').textContent = 'Edit Note';
     document.getElementById('noteSaveBtn').textContent = 'Update Note';
 
-    // Open modal
+    // Open modal first
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
+
+    // Set Quill content after modal is shown (when Quill is initialized)
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', function setContent() {
+        if (window.noteQuill) {
+            // Decode HTML entities first
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = noteContent;
+            window.noteQuill.root.innerHTML = tempDiv.innerHTML;
+        }
+        // Remove this listener after first execution
+        document.getElementById('noteModal').removeEventListener('shown.bs.modal', setContent);
+    });
 
     // Close dropdown menu
     document.querySelectorAll('.note-card-dropdown').forEach(menu => {

@@ -27,12 +27,14 @@
 
 ### Quick Wins (High Impact, Low Effort)
 
-#### 1. Auto-tagging Company Mentions
-- [ ] Create function to detect company names/tickers in pasted content
-- [ ] Match against companies in database
-- [ ] Automatically add company tags to notes/snippets
-- [ ] Add visual indicators for tagged companies
-- [ ] Link to company research pages
+#### 1. Auto-tagging Company Mentions ✅ COMPLETED
+- [x] Create function to detect company names/tickers in pasted content
+- [x] Match against companies in database
+- [x] User confirmation workflow for suggested company tags
+- [x] Add visual indicators for tagged companies
+- [x] Link companies to notes and snippets
+- [x] Display company tags on note/snippet cards
+- [x] Support multiple companies per note
 
 #### 2. Search Within Research
 - [ ] Add search bar to research page
@@ -140,16 +142,6 @@
 - [ ] Offline support with sync
 
 ---
-
-## 🐛 Known Issues / Tech Debt
-
-- [ ] Authentication error preventing some users from testing
-- [ ] Drag and drop doesn't show visual placeholder during drag
-- [ ] No undo/redo functionality for note operations
-- [ ] Page reload after every drag operation (could use optimistic UI)
-- [ ] No keyboard shortcuts for quick actions
-- [ ] Empty sections could have better empty state
-
 ---
 
 ## 🎯 Recommended Next Steps

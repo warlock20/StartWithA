@@ -1,0 +1,236 @@
+/*
+=============================================================================
+Company Tags Module
+=============================================================================
+Styling for company tagging feature in sector research
+*/
+
+/* Company Tags Container */
+.linked-companies-container {
+    padding: 8px 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Company Tags List */
+.company-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Individual Company Tag */
+.company-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.company-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.company-tag i.bi-building {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+.company-tag-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.company-tag-ticker {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    letter-spacing: 0.5px;
+}
+
+/* Remove button */
+.company-tag-remove {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 2px;
+}
+
+.company-tag-remove:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+.company-tag-remove i {
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+/* Link Companies Button */
+.btn-link-companies {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border: 1px dashed #9ca3af;
+    background: transparent;
+    color: #6b7280;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-link-companies:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: #f3f4f6;
+}
+
+.btn-link-companies i {
+    font-size: 0.9rem;
+}
+
+/* Empty state for companies */
+.no-companies-linked {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Company tag in note/snippet cards */
+.card .linked-companies-container {
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+/* Company tags in modal footer */
+.modal-footer .company-tags-list {
+    margin-right: auto;
+    padding-right: 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .company-tag-name {
+        max-width: 100px;
+    }
+
+    .company-tag {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+
+    .company-tag-ticker {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+    }
+}
+
+/* Company detection button in modals */
+.detect-companies-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.detect-companies-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.detect-companies-btn i {
+    font-size: 0.9rem;
+}
+
+.detect-companies-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Company mention highlight in text */
+.company-mention {
+    background-color: #fef3c7;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border-bottom: 2px solid #fbbf24;
+    cursor: help;
+}
+
+/* Company info tooltip */
+.company-info-tooltip {
+    position: absolute;
+    background: #1f2937;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.company-info-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1f2937;
+}
+
+/* Loading state for company detection */
+.detecting-companies {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.detecting-companies::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #667eea;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 8px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

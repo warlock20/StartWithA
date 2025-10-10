@@ -4,6 +4,7 @@ from app import db
 from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
                        Company, ResearchProject, SectorResearchSource, SectorResearchSnippet,
                        SectorSection, SectorNote)
+from app.models.associations import sector_note_companies, sector_snippet_companies
 from sqlalchemy import func
 from datetime import datetime
 from . import sectors_bp
@@ -739,79 +740,68 @@ def delete_note(note_id):
 @login_required
 def generate_document_from_canvas(sector_name):
     """Generate a formatted document from canvas sections and notes"""
-    analysis = SectorAnalysis.query.filter_by(
-        user_id=current_user.id,
-        sector_name=sector_name
-    ).first_or_404()
+    try:
+        analysis = SectorAnalysis.query.filter_by(
+            user_id=current_user.id,
+            sector_name=sector_name
+        ).first_or_404()
 
-    # Get all sections in order
-    sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
+        # Get all sections in order
+        sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
 
-    if not sections:
+        # Get collector notes (notes without section_id)
+        collector_notes = analysis.canvas_notes.filter(SectorNote.section_id.is_(None)).order_by(SectorNote.created_at.desc()).all()
+
+        # Build structured data for frontend to process
+        sections_data = []
+        for section in sections:
+            # Get notes for this section
+            notes = section.section_notes.order_by(SectorNote.sort_order).all()
+            notes_list = list(notes) if hasattr(notes, '__iter__') else []
+
+            section_data = {
+                'id': section.id,
+                'title': section.title,
+                'icon': section.icon or '',
+                'description': section.description or '',
+                'notes_count': len(notes_list),
+                'notes': [{
+                    'id': note.id,
+                    'title': note.title or '',
+                    'content': note.content or '',
+                    'source_reference': note.source_reference or '',
+                    'source_title': note.source_title or '',
+                    'tags': note.tags or ''
+                } for note in notes_list]
+            }
+            sections_data.append(section_data)
+
+        # Build collector data
+        collector_data = [{
+            'id': note.id,
+            'title': note.title or '',
+            'content': note.content or '',
+            'source_reference': note.source_reference or '',
+            'source_title': note.source_title or '',
+            'tags': note.tags or ''
+        } for note in collector_notes]
+
         return jsonify({
-            'success': False,
-            'error': 'No sections found in canvas. Create sections and notes first.'
+            'success': True,
+            'sections': sections_data,
+            'collector_notes': collector_data
         })
 
-    # Build HTML document
-    html_parts = []
-    html_parts.append(f'<h1>{analysis.sector_name} Research</h1>')
-    html_parts.append(f'<p><em>Generated from Research Canvas on {datetime.utcnow().strftime("%B %d, %Y")}</em></p>')
-    html_parts.append('<hr>')
+    except Exception as e:
+        # Log the error for debugging
+        import traceback
+        print(f"Error in generate_document_from_canvas: {str(e)}")
+        print(traceback.format_exc())
 
-    for section in sections:
-        # Section header
-        section_icon = section.icon or '📌'
-        html_parts.append(f'<h2>{section_icon} {section.title}</h2>')
-
-        if section.description:
-            html_parts.append(f'<p><em>{section.description}</em></p>')
-
-        # Get notes in this section
-        notes = section.section_notes.order_by(SectorNote.sort_order).all()
-
-        if notes:
-            for note in notes:
-                # Note title
-                html_parts.append(f'<h3>{note.title}</h3>')
-
-                # Note content (already HTML from Quill)
-                html_parts.append(note.content)
-
-                # Note source if available
-                if note.source_reference:
-                    source_text = note.source_title or note.source_reference
-                    html_parts.append(f'<p><small><em>Source: <a href="{note.source_reference}" target="_blank">{source_text}</a></em></small></p>')
-
-                # Note tags if available
-                if note.tags:
-                    tags_html = ' '.join([f'<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-right: 4px;">{tag.strip()}</span>' for tag in note.tags.split(',')])
-                    html_parts.append(f'<p>{tags_html}</p>')
-
-                html_parts.append('<br>')
-        else:
-            html_parts.append('<p><em>No notes in this section yet.</em></p>')
-
-        html_parts.append('<hr>')
-
-    # Check if there are notes in collector (not in any section)
-    collector_notes = analysis.canvas_notes.filter(SectorNote.section_id == None).order_by(SectorNote.created_at.desc()).all()
-    if collector_notes:
-        html_parts.append('<h2>📥 Additional Notes (from Collector)</h2>')
-        for note in collector_notes:
-            html_parts.append(f'<h3>{note.title}</h3>')
-            html_parts.append(note.content)
-            if note.source_reference:
-                source_text = note.source_title or note.source_reference
-                html_parts.append(f'<p><small><em>Source: <a href="{note.source_reference}" target="_blank">{source_text}</a></em></small></p>')
-            html_parts.append('<br>')
-
-    document_html = '\n'.join(html_parts)
-
-    return jsonify({
-        'success': True,
-        'html': document_html
-    })
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
 
 
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
@@ -926,3 +916,179 @@ def unarchive_sector(sector_name):
 
     flash(f'{sector_name} sector research unarchived', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+# ============================================================================
+# COMPANY TAGGING ROUTES
+# ============================================================================
+
+@sectors_bp.route('/detect-companies', methods=['POST'])
+@login_required
+def detect_companies():
+    """Detect company mentions in text and return suggestions"""
+    from app.utils.company_detection import get_company_suggestions_for_text
+
+    data = request.get_json()
+    text = data.get('text', '')
+
+    if not text or not text.strip():
+        return jsonify({'success': False, 'error': 'No text provided'}), 400
+
+    suggestions = get_company_suggestions_for_text(text, current_user.id)
+
+    return jsonify({
+        'success': True,
+        'suggestions': suggestions
+    })
+
+
+@sectors_bp.route('/note/<int:note_id>/link-companies', methods=['POST'])
+@login_required
+def link_companies_to_note(note_id):
+    """Link selected companies to a note"""
+    note = SectorNote.query.get_or_404(note_id)
+
+    # Authorization check
+    if note.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    company_ids = data.get('company_ids', [])
+
+    if not company_ids:
+        return jsonify({'success': False, 'error': 'No companies selected'}), 400
+
+    # Verify all companies belong to the user
+    companies = Company.query.filter(
+        Company.id.in_(company_ids),
+        Company.user_id == current_user.id
+    ).all()
+
+    if len(companies) != len(company_ids):
+        return jsonify({'success': False, 'error': 'Invalid company IDs'}), 400
+
+    # Clear existing links and add new ones
+    # Delete existing associations
+    db.session.execute(
+        sector_note_companies.delete().where(
+            sector_note_companies.c.sector_note_id == note_id
+        )
+    )
+
+    # Add new associations
+    for company in companies:
+        db.session.execute(
+            sector_note_companies.insert().values(
+                sector_note_id=note_id,
+                company_id=company.id
+            )
+        )
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'linked_companies': [{
+            'id': c.id,
+            'name': c.name,
+            'ticker': c.ticker_symbol
+        } for c in companies]
+    })
+
+
+@sectors_bp.route('/note/<int:note_id>/unlink-company/<int:company_id>', methods=['POST'])
+@login_required
+def unlink_company_from_note(note_id, company_id):
+    """Remove a specific company link from a note"""
+    note = SectorNote.query.get_or_404(note_id)
+
+    # Authorization check
+    if note.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    company = Company.query.get_or_404(company_id)
+
+    if company.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    # Remove the link
+    note.linked_companies.remove(company)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@sectors_bp.route('/snippet/<int:snippet_id>/link-companies', methods=['POST'])
+@login_required
+def link_companies_to_snippet(snippet_id):
+    """Link selected companies to a snippet"""
+    snippet = SectorResearchSnippet.query.get_or_404(snippet_id)
+
+    # Authorization check
+    if snippet.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    company_ids = data.get('company_ids', [])
+
+    if not company_ids:
+        return jsonify({'success': False, 'error': 'No companies selected'}), 400
+
+    # Verify all companies belong to the user
+    companies = Company.query.filter(
+        Company.id.in_(company_ids),
+        Company.user_id == current_user.id
+    ).all()
+
+    if len(companies) != len(company_ids):
+        return jsonify({'success': False, 'error': 'Invalid company IDs'}), 400
+
+    # Clear existing links and add new ones
+    # Delete existing associations
+    db.session.execute(
+        sector_snippet_companies.delete().where(
+            sector_snippet_companies.c.sector_snippet_id == snippet_id
+        )
+    )
+
+    # Add new associations
+    for company in companies:
+        db.session.execute(
+            sector_snippet_companies.insert().values(
+                sector_snippet_id=snippet_id,
+                company_id=company.id
+            )
+        )
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'linked_companies': [{
+            'id': c.id,
+            'name': c.name,
+            'ticker': c.ticker_symbol
+        } for c in companies]
+    })
+
+
+@sectors_bp.route('/snippet/<int:snippet_id>/unlink-company/<int:company_id>', methods=['POST'])
+@login_required
+def unlink_company_from_snippet(snippet_id, company_id):
+    """Remove a specific company link from a snippet"""
+    snippet = SectorResearchSnippet.query.get_or_404(snippet_id)
+
+    # Authorization check
+    if snippet.sector_analysis.author != current_user:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    company = Company.query.get_or_404(company_id)
+
+    if company.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    # Remove the link
+    snippet.linked_companies.remove(company)
+    db.session.commit()
+
+    return jsonify({'success': True})
