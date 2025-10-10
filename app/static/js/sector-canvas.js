@@ -566,9 +566,97 @@ function initializeNoteCardExpand() {
     });
 }
 
+// ==================== SCROLL FADE EFFECTS ====================
+
+function initializeScrollFadeEffects() {
+    // Track scroll position for research tab content
+    const tabContent = document.querySelector('.research-tab-content');
+    if (tabContent) {
+        tabContent.addEventListener('scroll', function() {
+            // Add scrolled class when scrolled down from top
+            if (this.scrollTop > 20) {
+                this.classList.add('scrolled');
+            } else {
+                this.classList.remove('scrolled');
+            }
+
+            // Add scrolled-bottom class when near bottom
+            const isNearBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 20;
+            if (isNearBottom) {
+                this.classList.add('scrolled-bottom');
+            } else {
+                this.classList.remove('scrolled-bottom');
+            }
+        });
+    }
+
+    // Track scroll position for sticky sidebar
+    const sidebar = document.querySelector('.sticky-sidebar');
+    if (sidebar) {
+        sidebar.addEventListener('scroll', function() {
+            if (this.scrollTop > 20) {
+                this.classList.add('scrolled');
+            } else {
+                this.classList.remove('scrolled');
+            }
+        });
+    }
+
+    // Track scroll position for notes canvas
+    const notesCanvas = document.querySelector('.notes-canvas');
+    if (notesCanvas) {
+        notesCanvas.addEventListener('scroll', function() {
+            if (this.scrollTop > 20) {
+                this.classList.add('scrolled');
+            } else {
+                this.classList.remove('scrolled');
+            }
+        });
+    }
+}
+
+// ==================== QUICK TOOLS SIDEBAR ====================
+
+function updateAddCompanyAction(selectElement) {
+    const companyId = selectElement.value;
+    const form = document.getElementById('addCompanyForm');
+
+    if (companyId) {
+        // Get sector name from the URL (it's already URL-encoded)
+        const pathParts = window.location.pathname.split('/');
+        const sectorName = pathParts[pathParts.indexOf('sectors') + 1];
+
+        // Update form action to the add_company route
+        // Don't encode sectorName again - it's already encoded in the URL
+        form.action = `/sectors/${sectorName}/add_company/${companyId}`;
+    } else {
+        form.action = '#';
+    }
+}
+
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeDragAndDrop();
     initializeNoteCardExpand();
+    initializeScrollFadeEffects();
+
+    // Setup New Company button handler
+    const newCompanyBtn = document.getElementById('newCompanyBtn');
+    if (newCompanyBtn) {
+        newCompanyBtn.addEventListener('click', function() {
+            if (typeof openCompanyModal === 'function') {
+                openCompanyModal(function(company) {
+                    // Get sector name from URL
+                    const pathParts = window.location.pathname.split('/');
+                    const sectorName = pathParts[pathParts.indexOf('sectors') + 1];
+
+                    // Redirect to add company to sector
+                    window.location.href = `/sectors/${sectorName}/add_company/${company.id}`;
+                });
+            } else {
+                console.error('Company search component not loaded');
+            }
+        });
+    }
 });

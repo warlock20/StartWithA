@@ -293,6 +293,56 @@
     margin: 0.5rem 0;
 }
 
+/* Code blocks in notes */
+.note-card-content pre,
+.note-view-content pre {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+}
+
+.note-card-content code,
+.note-view-content code {
+    background: #f3f4f6;
+    color: #dc2626;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-size: 0.8125rem;
+    font-family: 'Courier New', monospace;
+}
+
+.note-card-content pre code,
+.note-view-content pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+}
+
+/* Blockquotes in notes */
+.note-card-content blockquote,
+.note-view-content blockquote {
+    border-left: 4px solid #3b82f6;
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* Images in notes */
+.note-card-content img,
+.note-view-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin: 0.75rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .note-card-footer {
     display: flex;
     align-items: center;

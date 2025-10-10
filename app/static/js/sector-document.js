@@ -10,12 +10,26 @@ let saveTimer;
 // Make document editor globally accessible for other modules
 window.documentQuill = null;
 
+// Configure syntax highlighting for Quill code blocks
+if (typeof hljs !== 'undefined') {
+    hljs.configure({
+        languages: ['javascript', 'python', 'sql', 'bash', 'json', 'html', 'css']
+    });
+}
+
 // ==================== QUILL EDITOR INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeEditors();
     // Load content after editors are fully initialized
     setTimeout(loadContent, 100);
+
+    // Initialize syntax highlighting for existing code blocks
+    document.querySelectorAll('pre.ql-syntax').forEach((block) => {
+        if (typeof hljs !== 'undefined') {
+            hljs.highlightElement(block);
+        }
+    });
 });
 
 function initializeEditors() {
@@ -121,9 +135,11 @@ function initializeEditors() {
                     modules: {
                         toolbar: [
                             [{ 'header': [3, 4, false] }],
-                            ['bold', 'italic', 'underline'],
+                            ['bold', 'italic', 'underline', 'strike'],
                             [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                            ['link'],
+                            [{ 'color': [] }, { 'background': [] }],
+                            ['blockquote', 'code-block'],
+                            ['link', 'image'],
                             ['clean']
                         ],
                         clipboard: {
@@ -136,9 +152,14 @@ function initializeEditors() {
                                             if (op.attributes.bold) cleaned.bold = true;
                                             if (op.attributes.italic) cleaned.italic = true;
                                             if (op.attributes.underline) cleaned.underline = true;
+                                            if (op.attributes.strike) cleaned.strike = true;
                                             if (op.attributes.link) cleaned.link = op.attributes.link;
                                             if (op.attributes.header) cleaned.header = op.attributes.header;
                                             if (op.attributes.list) cleaned.list = op.attributes.list;
+                                            if (op.attributes.color) cleaned.color = op.attributes.color;
+                                            if (op.attributes.background) cleaned.background = op.attributes.background;
+                                            if (op.attributes.blockquote) cleaned.blockquote = true;
+                                            if (op.attributes['code-block']) cleaned['code-block'] = true;
                                             op.attributes = cleaned;
                                         }
                                         return op;
@@ -149,9 +170,51 @@ function initializeEditors() {
                         }
                     }
                 });
+
+                // Custom image handler for better UX
+                const toolbar = window.noteQuill.getModule('toolbar');
+                toolbar.addHandler('image', imageHandler);
+
+                // Add syntax highlighting to code blocks
+                window.noteQuill.on('text-change', function() {
+                    document.querySelectorAll('#noteContentEditor pre.ql-syntax').forEach((block) => {
+                        if (typeof hljs !== 'undefined' && !block.dataset.highlighted) {
+                            hljs.highlightElement(block);
+                            block.dataset.highlighted = 'true';
+                        }
+                    });
+                });
             }
         });
     }
+}
+
+// Custom image handler
+function imageHandler() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (file) {
+            // Check file size (limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB');
+                return;
+            }
+
+            // Convert image to base64
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const range = window.noteQuill.getSelection(true);
+                window.noteQuill.insertEmbed(range.index, 'image', e.target.result);
+                window.noteQuill.setSelection(range.index + 1);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 }
 
 // ==================== CONTENT LOADING ====================

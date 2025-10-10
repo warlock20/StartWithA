@@ -45,6 +45,7 @@ All complex components have been fully modularized.
 @import url('modules/_research-sources.css');     /* Research sources component */
 @import url('modules/_research-tabs.css');        /* Research tabbed interface */
 @import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
+@import url('modules/_research-workspace.css');   /* Research workspace layout */
 @import url('modules/_company-tags.css');         /* Company tagging feature */
 @import url('modules/_generate-document.css');    /* Generate document from canvas */
 @import url('modules/_research-projects.css');    /* Research projects pages */

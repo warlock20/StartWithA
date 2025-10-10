@@ -3,13 +3,7 @@
    ============================================================================= */
 
 /* Tab navigation styling */
-
-.research-tabs-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
-}
+/* Note: Container styling is handled in _research-workspace.css */
 
 .research-tabs {
     background: linear-gradient(145deg, #f9fafb, #ffffff);
@@ -32,20 +26,22 @@
     background: transparent;
     color: #6b7280;
     font-weight: 600;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     transition: all 0.2s ease;
     border-radius: 8px 8px 0 0;
+    position: relative;
 }
 
 .research-tabs .nav-link:hover {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.05);
+    color: #1f2937;
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .research-tabs .nav-link.active {
-    color: #3b82f6;
+    color: #1f2937;
     background: white;
-    border-bottom-color: #3b82f6;
+    border-bottom-color: #6366f1;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .research-tabs .nav-link i {
@@ -53,8 +49,11 @@
 }
 
 .research-tabs .badge {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border: none;
+    font-weight: 600;
 }
 
 /* Tab content */
