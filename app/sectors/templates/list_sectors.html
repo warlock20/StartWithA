@@ -83,8 +83,7 @@
                     </div>
                     <div class="sector-card-body">
                         <p class="sector-preview">
-                            {% set first_note = analysis.canvas_notes.first() %}
-                            {{ first_note.content|striptags|truncate(120) if first_note else 'No notes yet. Start building your sector knowledge base.' }}
+                            {{ analysis.document_content|striptags|truncate(120) if analysis.document_content else 'No documentation yet. Start building your sector knowledge base.' }}
                         </p>
                     </div>
                     <div class="sector-card-footer">

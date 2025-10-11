@@ -8,7 +8,7 @@ from app.models.associations import sector_note_companies, sector_snippet_compan
 from sqlalchemy import func
 from datetime import datetime
 from . import sectors_bp
-from .research_templates import get_all_templates, get_template_list
+from .research_templates import get_all_templates, get_template_list, get_template
 
 
 def initialize_default_sections(sector_analysis):
@@ -1092,3 +1092,24 @@ def unlink_company_from_snippet(snippet_id, company_id):
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+# ============================================================================
+# TEMPLATE ROUTES
+# ============================================================================
+
+@sectors_bp.route('/template/<string:template_key>', methods=['GET'])
+@login_required
+def get_template_content(template_key):
+    """Get template content for insertion into document editor"""
+    template = get_template(template_key)
+
+    if not template:
+        return jsonify({'success': False, 'error': 'Template not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'content': template['content'],
+        'name': template['name'],
+        'icon': template['icon']
+    })

@@ -179,6 +179,69 @@ RESEARCH_TEMPLATES = {
     <li></li>
 </ul>
 """
+    },
+
+    'financial_analysis': {
+        'name': 'Financial Analysis',
+        'icon': '💵',
+        'description': 'Revenue model, profitability, cash flow, and capital structure',
+        'content': """
+<h2>💵 Financial Analysis</h2>
+<h3>Revenue Model</h3>
+<ul>
+    <li>Primary revenue streams: </li>
+    <li>Business model: </li>
+    <li>Revenue mix: </li>
+</ul>
+<h3>Profitability Metrics</h3>
+<ul>
+    <li>Gross margins: </li>
+    <li>Operating margins: </li>
+    <li>Net margins: </li>
+</ul>
+<h3>Cash Flow Characteristics</h3>
+<p></p>
+<h3>Capital Structure</h3>
+<ul>
+    <li>Debt levels: </li>
+    <li>Interest coverage: </li>
+</ul>
+<h3>Valuation Metrics</h3>
+<ul>
+    <li>P/E ratio: </li>
+    <li>EV/EBITDA: </li>
+    <li>PEG ratio: </li>
+</ul>
+"""
+    },
+
+    'risk_assessment': {
+        'name': 'Risk Assessment',
+        'icon': '🛡️',
+        'description': 'Market risks, operational risks, financial risks, and mitigation',
+        'content': """
+<h2>🛡️ Risk Assessment</h2>
+<h3>Market Risks</h3>
+<ul>
+    <li>Demand volatility: </li>
+    <li>Competitive pressure: </li>
+    <li>Price sensitivity: </li>
+</ul>
+<h3>Operational Risks</h3>
+<ul>
+    <li>Supply chain vulnerabilities: </li>
+    <li>Execution risk: </li>
+    <li>Key person dependencies: </li>
+</ul>
+<h3>Financial Risks</h3>
+<ul>
+    <li>Leverage concerns: </li>
+    <li>Liquidity issues: </li>
+    <li>Currency exposure: </li>
+</ul>
+<h3>Mitigation Strategies</h3>
+<p></p>
+"""
     }
 }
 

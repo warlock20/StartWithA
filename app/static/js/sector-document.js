@@ -369,6 +369,47 @@ function saveAISource(url, type, prompt) {
     .catch(err => console.error('Error saving source:', err));
 }
 
+// ==================== TEMPLATE INSERTION ====================
+
+function insertTemplate(templateKey) {
+    if (!window.documentQuill) {
+        alert('Editor not ready yet');
+        return;
+    }
+
+    // Fetch the template content from backend
+    fetch(`/sectors/template/${templateKey}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.content) {
+                // Get current cursor position or end of document
+                const range = window.documentQuill.getSelection();
+                const insertIndex = range ? range.index : window.documentQuill.getLength();
+
+                // Insert template content at cursor position
+                window.documentQuill.clipboard.dangerouslyPasteHTML(insertIndex, data.content);
+
+                // Move cursor to end of inserted content
+                window.documentQuill.setSelection(insertIndex + data.content.length);
+
+                // Trigger save
+                updateStatus('saving');
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(saveResearchNotes, 1000);
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('templatesModal'));
+                if (modal) modal.hide();
+            } else {
+                alert('Error loading template: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching template:', err);
+            alert('Error loading template');
+        });
+}
+
 // ==================== TEXT SELECTION FOR SNIPPETS ====================
 
 let selectedSnippetText = '';

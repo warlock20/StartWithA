@@ -283,6 +283,134 @@
     top: 2rem;
 }
 
+/* Progress Breakdown Modal */
+.progress-breakdown-container {
+    padding: 0.5rem 0;
+}
+
+.overall-score-card {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--gray-200);
+}
+
+.progress-bar-early-stage {
+    background: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-600) 100%);
+}
+
+.progress-bar-in-progress {
+    background: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-600) 100%);
+}
+
+.progress-bar-advanced {
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+}
+
+.progress-bar-comprehensive {
+    background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
+}
+
+.metric-breakdown-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    transition: all var(--transition-fast);
+}
+
+.metric-breakdown-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: var(--shadow-light);
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.metric-icon {
+    font-size: 1.5rem;
+}
+
+.metric-header h6 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.score-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: white;
+}
+
+.metric-body {
+    padding-top: 0.5rem;
+}
+
+.metric-current {
+    font-size: 0.9375rem;
+    color: var(--gray-700);
+}
+
+.metric-target {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.metric-target i {
+    margin-top: 0.125rem;
+}
+
+.scoring-guide {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--gray-200);
+}
+
+.scoring-guide h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.scoring-guide .table {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.scoring-guide .table th {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.scoring-guide .table td {
+    vertical-align: middle;
+}
+
+.progress-clickable {
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.progress-clickable:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
 /* Responsive Design */
 @media (max-width: 992px) {
     .sticky-sidebar {

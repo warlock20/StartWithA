@@ -87,7 +87,10 @@
         <div class="sector-progress-section">
             <div class="sector-progress-row">
                 <span class="sector-progress-label">Research Progress:</span>
-                <div class="sector-progress-bar-container">
+                <div class="sector-progress-bar-container progress-clickable"
+                     data-bs-toggle="modal"
+                     data-bs-target="#progressBreakdownModal"
+                     title="Click for detailed breakdown">
                     <div class="sector-progress-bar-fill {{ analysis.progress_stage.label|lower|replace(' ', '-') }}"
                          style="width: {{ analysis.research_progress_score }}%">
                         <span class="sector-progress-percent">{{ analysis.research_progress_score }}%</span>
@@ -149,7 +152,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
-                            <i class="bi bi-journal-text"></i> Document View
+                            <i class="bi bi-journal-text"></i> Documentation
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -308,7 +311,7 @@
                         </div>
                     </div>
 
-                    <!-- Research Notes Tab (Document View) -->
+                    <!-- Documentation Tab -->
                     <div class="tab-pane fade" id="notes" role="tabpanel">
                         <div class="sector-editor-container">
                             <div class="sector-editor-header">
@@ -319,8 +322,8 @@
                                     <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pasteFromAIModal">
                                         <i class="bi bi-stars"></i> Paste from AI
                                     </button>
-                                    <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
-                                        <i class="bi bi-layout-text-sidebar"></i> Templates
+                                    <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                                        <i class="bi bi-file-earmark-text"></i> Insert Template
                                     </button>
                                     <div class="editor-status saved" id="editorStatus">
                                         <i class="bi bi-check-circle-fill"></i>
@@ -661,6 +664,7 @@
 
 {% block modals %}
 <!-- Sector-specific modals -->
+{% include 'components/progress_breakdown_modal.html' %}
 {% include 'components/templates_modal.html' %}
 <!-- Tips Modal -->
 {% set tips_title = "Sector Research Tips" %}

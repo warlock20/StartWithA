@@ -1,16 +1,16 @@
-<!-- Templates Modal -->
+<!-- Document Templates Modal -->
 <div class="modal fade" id="templatesModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title font-poppins"><i class="bi bi-layout-text-sidebar"></i> Research Templates</h5>
+                <h5 class="modal-title font-poppins"><i class="bi bi-file-earmark-text"></i> Insert Template</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted mb-3">Click a template to insert it into your research notes</p>
+                <p class="text-muted mb-3">Click a template to insert formatted content at cursor position</p>
                 <div class="template-modal-grid">
                     {% for template in template_list %}
-                    <div class="template-card" onclick="insertTemplate('{{ template.key }}'); closeModal();">
+                    <div class="template-card" onclick="insertTemplate('{{ template.key }}');">
                         <h6>{{ template.icon }} {{ template.name }}</h6>
                         <p>{{ template.description }}</p>
                     </div>

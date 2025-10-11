@@ -102,7 +102,7 @@ I've been thinking about the core pillars of your platform—the Kill Checklist,
 
 Here are some ideas to supercharge those features:
 
-### ⚡️ Feature Supercharge Brainstorm
+### ⚡️ Feature Supercharge Brainstorm: DONE
 
 1.  **The "Dynamic Kill Checklist": From a List to a Lethal Weapon**
     * **The Idea:** Your `KillChecklist` is fantastic for discipline. Let's make it *smarter*. Instead of a static list, it becomes a dynamic, self-optimizing filter that learns from your decisions.
@@ -229,3 +229,233 @@ However, since you're in brainstorming mode, let's not stop at just one! The "be
 ### The Verdict
 
 While all three are powerful, the **Scenario Simulator** remains my pick for the most ambitious and transformative "killer" feature. It is the one that most directly embodies the idea of a platform that doesn't just help you research, but actively makes you a sharper, more critical thinker.
+
+## 🎯 PRIORITIZED USER JOURNEY IMPLEMENTATION PLAN
+
+### Phase 1: High Priority (Implement First)
+1. **✅ "Guided First Ten Minutes" Onboarding** - LOVE IT!
+   - Solves empty dashboard syndrome
+   - Immediate value demonstration
+   - Step-by-step guided tour of platform
+   - Creates personal investment with user's own company idea
+
+2. **⚡ "Research Sprint Mode"** - With careful design
+   - Time-boxed research sessions (15/30/60 min)
+   - Suggests bite-sized tasks from active projects
+   - **Important:** Design to complement, not replace full research flow
+   - Focus on specific tasks, not skipping research steps
+
+3. **🧠 "Pattern Recognition Alerts"** - REALLY LOOKING FORWARD TO THIS!
+   - Track kill checklist patterns over time
+   - Alert when same failure patterns emerge
+   - "You've killed 3 ideas due to high debt - pattern recognition improving!"
+   - Connect to learning loop
+
+4. **🤝 "The Investment Buddy System"** - KILLER IDEA!
+   - Optional community features
+   - Peer feedback on thesis before investing
+   - Sector-specific research groups
+   - Sanitized research sharing (company names hidden)
+   - Combat confirmation bias through peer review
+
+5. **🛡️ "The Anti-FOMO Circuit Breaker"** - LIKE IT!
+   - Market condition awareness
+   - Extra confirmation prompts during euphoria periods
+   - Historical context during high-risk periods
+   - Protect users when most vulnerable to emotional decisions
+
+### Phase 2: Later Implementation
+6. **📊 "The Victory Lap Dashboard"** - BRAINSTORM LATER
+   - Add to backlog for future discussion
+   - Need to rethink approach to celebrating process wins
+   - Focus on meaningful metrics, not vanity metrics
+
+### 🚀 STEP-BY-STEP IMPLEMENTATION APPROACH
+
+#### Step 1: Foundation (Week 1-2)
+- Design database schema updates for tracking patterns
+- Create onboarding flow wireframes
+- Plan user journey mapping
+
+#### Step 2: Guided Onboarding (Week 3-4)
+- Implement "First Ten Minutes" experience
+- Create starter templates and kill checklists
+- Build interactive tutorial system
+
+#### Step 3: Pattern Recognition (Week 5-6)
+- Implement tracking for kill checklist patterns
+- Build alert system for repeated failure patterns
+- Create learning insights dashboard
+
+#### Step 4: Research Sprint Mode (Week 7-8)
+- Design time-boxed task suggestion system
+- Create sprint progress tracking
+- Ensure integration with existing research flow
+
+#### Step 5: Community Features (Week 9-12)
+- Design Investment Buddy System architecture
+- Create peer review system
+- Build sector-based discussion groups
+
+#### Step 6: Market Intelligence (Week 13-14)
+- Implement Anti-FOMO Circuit Breaker
+- Create market condition monitoring
+- Build protective prompts and historical context
+
+### 🎯 SUCCESS METRICS
+- Onboarding completion rate > 80%
+- User retention after 30 days > 60%
+- Pattern recognition alerts leading to process improvements
+- Community engagement and peer feedback quality
+- Reduced impulsive decision-making during market euphoria
+
+### NEXT IMMEDIATE ACTION
+Choose which specific feature to start with first. Recommendation: "Guided First Ten Minutes" as it has highest impact on user retention.
+
+
+
+Current TODO: ● Excellent observation! You're absolutely right on both counts. Let me address each:
+
+  1. Splitting sector_analysis.html (Critical for Maintainability)
+
+  The file is currently 1800+ lines and will become unmaintainable. Here's my recommendation:
+
+  File Structure:
+
+  app/sectors/
+  ├── templates/
+  │   ├── sector_analysis.html (main template, ~200 lines)
+  │   ├── components/
+  │   │   ├── _canvas_section.html (reusable section component)
+  │   │   ├── _note_card.html (reusable note card)
+  │   │   ├── _modals.html (all modals: note, section, snippet, etc.)
+  │   │   ├── _research_tabs.html (tab navigation and content)
+  │   │   └── _collector_sidebar.html (collector sidebar)
+  ├── static/
+  │   └── js/
+  │       ├── sector-canvas.js (canvas operations: sections, notes, drag-drop)
+  │       ├── sector-document.js (document generation, Quill editors)
+  │       ├── sector-snippets.js (snippet functionality)
+  │       └── sector-sources.js (sources management)
+
+  Benefits:
+
+  - Each JS file < 300 lines
+  - Easy to find and fix bugs
+  - Better collaboration
+  - Can be minified/bundled for production
+
+  2. Reusable Components Across Platform (Smart Strategy!)
+
+  You're thinking ahead! Many patterns from Sector Research can be abstracted into reusable components:
+
+  Reusable Components to Create:
+
+  A. Research Canvas Component (Universal)
+
+  app/components/research_canvas/
+  ├── canvas.html
+  ├── canvas.css
+  ├── canvas.js
+  └── README.md
+  Use cases:
+  - Sector Research ✅
+  - Company Competitor Analysis
+  - Industry Trend Analysis
+  - Investment Thesis Building
+  - Due Diligence Checklists
+
+  Configuration:
+  canvas_config = {
+      'entity_type': 'sector',  # or 'company', 'industry'
+      'entity_id': sector_id,
+      'default_sections': ['Overview', 'Competitors', 'Risks'],
+      'note_types': ['note', 'ai_insight', 'web_clip'],
+      'allow_export': True
+  }
+
+  B. Rich Text Note System
+
+  app/components/notes/
+  ├── note_card.html
+  ├── note_modal.html
+  ├── note_viewer.html
+  ├── notes.css
+  └── notes.js
+  Use cases:
+  - Any research workflow
+  - Meeting notes
+  - Investment memos
+  - Analysis documentation
+
+  C. Research Sources Component
+
+  Already somewhat modular! Can be extracted:
+  app/components/sources/
+  ├── sources_panel.html
+  ├── sources.css
+  └── sources.js
+
+  D. Snippet/Highlights System
+
+  app/components/snippets/
+  ├── snippet_saver.html
+  ├── snippet_grid.html
+  ├── snippets.css
+  └── snippets.js
+
+  How This Benefits Company Research:
+
+  Current State: Each research type (company, sector, competitor) is separate
+  Future State: Shared component library
+
+  Example - Competitor Analysis Page:
+  # Reuse canvas for competitor notes
+  canvas_config = {
+      'entity_type': 'competitor_analysis',
+      'entity_id': analysis_id,
+      'default_sections': [
+          '🎯 Positioning',
+          '💰 Pricing Strategy',
+          '🏆 Strengths',
+          '⚠️ Weaknesses',
+          '📊 Market Share'
+      ]
+  }
+
+  # Reuse snippet system
+  snippet_categories = [
+      'competitive_advantage',
+      'pricing_tactics',
+      'product_features',
+      'customer_reviews'
+  ]
+
+  My Recommendation:
+
+  Phase 1: Refactor Sector Research (Now)
+
+  1. Split JavaScript into modules (1-2 hours)
+  2. Extract modals to _modals.html (30 min)
+  3. Create reusable note card component (30 min)
+
+  Phase 2: Create Component Library (After Sector is Done)
+
+  1. Abstract Research Canvas as universal component
+  2. Create component documentation
+  3. Build configuration system for different research types
+
+  Phase 3: Apply to Company Research
+
+  1. Redesign company competitor analysis with canvas
+  2. Add atomic notes to company research workflow
+  3. Unified research experience across platform
+
+  Should We Do This Now?
+
+  My suggestion:
+  1. Yes, split the JavaScript immediately - The file is already too large
+  2. Extract modals - They're self-contained
+  3. Wait on full component abstraction - Finish sector features first, then refactor when patterns are clear
+
+  Want me to start splitting the JavaScript into modular files?

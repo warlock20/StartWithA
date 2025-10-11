@@ -85,23 +85,53 @@
 - [ ] Filter canvas by linked company
 - [ ] Display company context in note card
 
-#### 7. Timeline View
-- [ ] Create timeline visualization of research
-- [ ] Group by date created
-- [ ] Filter by note type, section
-- [ ] Show research evolution over time
-- [ ] Highlight key milestones
+#### 7. Research Progress Enhancements
+**Note:** The Research Progress bar already exists (lines 86-98 in sector_analysis.html) showing progress score and stage.
 
-#### 8. Quick Templates
-- [ ] Create section template system
-- [ ] Pre-built templates:
-  - [ ] Porter's 5 Forces
-  - [ ] SWOT Analysis
-  - [ ] Competitive Landscape
-  - [ ] Financial Analysis
-  - [ ] Risk Assessment
-- [ ] Allow users to save custom templates
-- [ ] One-click template application
+**Enhancement Options:**
+- [x] **Progress Breakdown Modal** (Priority: High) ✅ COMPLETED
+  - Click progress bar to see detailed breakdown
+  - Show individual metric scores (word count, time, companies, sources, questions)
+  - Display actionable targets ("Add 3 more sources to reach 80%")
+  - Show weighted contribution of each metric
+  - Visual breakdown with progress bars for each component
+  - **Future Enhancement:** Allow users to customize scoring parameters (weights, thresholds)
+
+- [ ] **Progress History Chart** (Priority: Medium)
+  - Track progress score over time
+  - Display line/area chart showing research momentum
+  - Identify inactive periods
+  - Requires new database field/table to store snapshots
+
+- [ ] **Research Quality Indicators** (Priority: Medium - AI)
+  - AI-powered quality assessment beyond quantity
+  - Depth score (multiple sources per company, cross-references)
+  - Recency warning (last updated > 14 days)
+  - Coverage score (sections with content vs empty)
+  - Source diversity (mix of articles, reports, videos)
+  - Requires smart algorithm/AI to evaluate quality
+
+- [ ] **Smart Suggestions Panel** (Priority: Low - AI)
+  - AI-powered next steps based on current state
+  - Personalized guidance ("Deep dive into 3 more companies")
+  - Context-aware recommendations
+  - Reduce "what should I do next?" friction
+
+- [ ] **Research Completeness Checklist** (Priority: Low)
+  - Structured checklist of research components
+  - Clear actionable items (Porter's 5 Forces, Competitive Analysis, etc.)
+  - Visual completion tracking
+
+#### 8. Quick Templates ✅ COMPLETED
+- [x] Create section template system
+- [x] Pre-built templates:
+  - [x] Porter's 5 Forces
+  - [x] SWOT Analysis
+  - [x] Competitive Landscape
+  - [x] Financial Analysis
+  - [x] Risk Assessment
+- [x] One-click template application (Documentation)
+- [ ] Allow users to save custom templates (Future enhancement)
 
 #### 9. Search Within Research
 - [ ] Add search bar to research page
@@ -134,6 +164,7 @@
 - [ ] Auto-extract company mentions
 - [ ] Auto-categorize clipped content
 - [ ] Direct save to collector
+Web Clipper Browser Extension: This is a power-user feature, but it's a game-changer. A browser extension would allow your users to be on any website, highlight a piece of text, and with one click, send it directly to their sector research notes on your platform. The extension could automatically capture the source URL, and the user could even add a quick note or tag right from the extension.
 
 #### 12. Integration with Document Imports
 - [ ] Link imported PDFs to canvas notes

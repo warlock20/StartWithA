@@ -183,6 +183,143 @@ class SectorAnalysis(db.Model):
         return int(total_score)
 
     @property
+    def progress_breakdown(self):
+        """
+        Get detailed breakdown of progress metrics with targets.
+        Returns dict with individual scores, current values, targets, and recommendations.
+        """
+        word_count = self.word_count
+        hours = self.total_time_spent / 3600
+        researched = self.researched_companies_count
+        sources = self.sources_count
+        questions = self.questions_count
+
+        # Calculate individual scores (same logic as research_progress_score)
+        if word_count >= 5000:
+            word_score = 100
+        elif word_count >= 3000:
+            word_score = 80
+        elif word_count >= 1500:
+            word_score = 60
+        elif word_count >= 500:
+            word_score = 40
+        else:
+            word_score = min((word_count / 500) * 40, 40)
+
+        if hours >= 10:
+            time_score = 100
+        elif hours >= 6:
+            time_score = 80
+        elif hours >= 3:
+            time_score = 60
+        elif hours >= 1:
+            time_score = 40
+        else:
+            time_score = min((hours / 1) * 40, 40)
+
+        if researched >= 15:
+            companies_score = 100
+        elif researched >= 10:
+            companies_score = 80
+        elif researched >= 5:
+            companies_score = 60
+        elif researched >= 2:
+            companies_score = 40
+        else:
+            companies_score = min((researched / 2) * 40, 40)
+
+        if sources >= 15:
+            sources_score = 100
+        elif sources >= 10:
+            sources_score = 80
+        elif sources >= 5:
+            sources_score = 60
+        elif sources >= 2:
+            sources_score = 40
+        else:
+            sources_score = min((sources / 2) * 40, 40)
+
+        if questions >= 25:
+            questions_score = 100
+        elif questions >= 15:
+            questions_score = 80
+        elif questions >= 8:
+            questions_score = 60
+        elif questions >= 3:
+            questions_score = 40
+        else:
+            questions_score = min((questions / 3) * 40, 40)
+
+        # Determine next targets for each metric
+        def get_next_target(current, thresholds):
+            """Get next target value and score from thresholds"""
+            for threshold, score_val in thresholds:
+                if current < threshold:
+                    return threshold, score_val
+            return None, 100
+
+        word_targets = [(500, 40), (1500, 60), (3000, 80), (5000, 100)]
+        time_targets = [(1, 40), (3, 60), (6, 80), (10, 100)]
+        company_targets = [(2, 40), (5, 60), (10, 80), (15, 100)]
+        source_targets = [(2, 40), (5, 60), (10, 80), (15, 100)]
+        question_targets = [(3, 40), (8, 60), (15, 80), (25, 100)]
+
+        word_next, word_target_score = get_next_target(word_count, word_targets)
+        time_next, time_target_score = get_next_target(hours, time_targets)
+        company_next, company_target_score = get_next_target(researched, company_targets)
+        source_next, source_target_score = get_next_target(sources, source_targets)
+        question_next, question_target_score = get_next_target(questions, question_targets)
+
+        return {
+            'word_count': {
+                'current': word_count,
+                'score': int(word_score),
+                'weight': 30,
+                'next_target': word_next,
+                'target_score': word_target_score,
+                'label': 'Word Count',
+                'icon': '📝'
+            },
+            'time_spent': {
+                'current': hours,
+                'current_formatted': self.time_spent_formatted,
+                'score': int(time_score),
+                'weight': 20,
+                'next_target': time_next,
+                'target_score': time_target_score,
+                'label': 'Time Spent',
+                'icon': '⏱️'
+            },
+            'companies': {
+                'current': researched,
+                'score': int(companies_score),
+                'weight': 25,
+                'next_target': company_next,
+                'target_score': company_target_score,
+                'label': 'Companies Researched',
+                'icon': '🏢'
+            },
+            'sources': {
+                'current': sources,
+                'score': int(sources_score),
+                'weight': 15,
+                'next_target': source_next,
+                'target_score': source_target_score,
+                'label': 'Research Sources',
+                'icon': '🔗'
+            },
+            'questions': {
+                'current': questions,
+                'score': int(questions_score),
+                'weight': 10,
+                'next_target': question_next,
+                'target_score': question_target_score,
+                'label': 'Questions Bank',
+                'icon': '❓'
+            }
+        }
+
+    @property
     def progress_stage(self):
         """Get progress stage emoji and label"""
         score = self.research_progress_score
