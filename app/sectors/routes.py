@@ -7,8 +7,10 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
 from app.models.associations import sector_note_companies, sector_snippet_companies
 from sqlalchemy import func
 from datetime import datetime
+import re
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
+from app.ai import SummarizationService
 
 
 def initialize_default_sections(sector_analysis):
@@ -1113,3 +1115,102 @@ def get_template_content(template_key):
         'name': template['name'],
         'icon': template['icon']
     })
+
+
+# ============================================================================
+# AI-POWERED FEATURES
+# ============================================================================
+
+@sectors_bp.route('/<string:sector_name>/generate-ai-summary', methods=['POST'])
+@login_required
+def generate_ai_summary(sector_name):
+    """
+    Generate AI-powered summary of sector research for Key Takeaways.
+
+    Returns JSON with generated summary in HTML format.
+    """
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_name=sector_name
+    ).first_or_404()
+
+    try:
+        # Initialize summarization service
+        # You can customize the model per use case:
+        # - gemini-2.5-flash (default): Fast, cost-effective, good for most tasks
+        # - gemini-2.5-pro: More capable, better for complex analysis
+        # - gemini-2.0-flash: Alternative fast model
+        summarizer = SummarizationService(model="gemini-flash-latest")
+
+        # Prepare canvas notes data
+        canvas_notes_data = []
+        for note in analysis.canvas_notes.all():
+            # Strip HTML tags from content for cleaner prompts
+            clean_content = re.sub(r'<[^>]+>', '', note.content) if note.content else ''
+            canvas_notes_data.append({
+                'title': note.title,
+                'content': clean_content[:500]  # Limit length
+            })
+
+        # Prepare snippets data
+        snippets_data = []
+        for snippet in analysis.snippets.all():
+            clean_content = re.sub(r'<[^>]+>', '', snippet.content) if snippet.content else ''
+            snippets_data.append({
+                'content': clean_content[:300],
+                'category': snippet.category
+            })
+
+        # Prepare sources data
+        sources_data = []
+        for source in analysis.sources.all():
+            sources_data.append({
+                'title': source.title,
+                'description': source.description or ''
+            })
+
+        # Strip HTML from documentation
+        clean_documentation = re.sub(r'<[^>]+>', '', analysis.document_content) if analysis.document_content else ''
+
+        # Get request parameters (optional customization)
+        data = request.get_json() or {}
+        bullet_count = data.get('bullet_count', 7)
+        focus = data.get('focus', 'balanced')  # balanced, insights, risks, opportunities
+
+        # Generate summary
+        result = summarizer.generate_sector_summary(
+            sector_name=analysis.sector_name,
+            documentation=clean_documentation,
+            canvas_notes=canvas_notes_data,
+            snippets=snippets_data,
+            sources=sources_data,
+            bullet_count=bullet_count,
+            focus=focus
+        )
+
+        if not result['success']:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to generate summary')
+            }), 500
+
+        # Format as HTML for Quill editor
+        html_summary = summarizer.format_as_html(result['bullet_points'])
+
+        return jsonify({
+            'success': True,
+            'summary_html': html_summary,
+            'summary_text': result['summary'],
+            'bullet_points': result['bullet_points'],
+            'token_count': result.get('token_count', 0)
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Error generating AI summary: {str(e)}")
+        print(traceback.format_exc())
+
+        return jsonify({
+            'success': False,
+            'error': f'An error occurred while generating the summary: {str(e)}'
+        }), 500

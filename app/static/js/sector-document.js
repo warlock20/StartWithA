@@ -118,6 +118,9 @@ function initializeEditors() {
         }
     });
 
+    // Make it globally accessible for AI summary generation
+    window.takeawaysQuill = takeawaysQuill;
+
     // Auto-save takeaways
     takeawaysQuill.on('text-change', function() {
         clearTimeout(saveTimer);
@@ -413,6 +416,7 @@ function insertTemplate(templateKey) {
 // ==================== TEXT SELECTION FOR SNIPPETS ====================
 
 let selectedSnippetText = '';
+let selectedRange = null;
 
 function handleTextSelection(range, oldRange, source) {
     const btn = document.getElementById('saveSnippetBtn');
@@ -420,6 +424,7 @@ function handleTextSelection(range, oldRange, source) {
     if (range && range.length > 0) {
         // Text is selected
         selectedSnippetText = quill.getText(range.index, range.length);
+        selectedRange = { index: range.index, length: range.length };
 
         // Position the button near the selection
         const bounds = quill.getBounds(range.index, range.length);
@@ -427,8 +432,16 @@ function handleTextSelection(range, oldRange, source) {
         btn.style.top = (bounds.bottom + 10) + 'px';
         btn.style.left = bounds.left + 'px';
     } else {
-        // No selection
+        // No selection - hide button but DON'T clear the saved text yet
+        // This allows user to delete text and still save it as a snippet
         btn.style.display = 'none';
-        selectedSnippetText = '';
+        // Keep selectedSnippetText and selectedRange for a short time
+        // They will be cleared after snippet is saved or after timeout
     }
+}
+
+// Function to clear saved snippet (called after saving or after timeout)
+function clearSavedSnippet() {
+    selectedSnippetText = '';
+    selectedRange = null;
 }

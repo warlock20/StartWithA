@@ -17,6 +17,7 @@ class PromptService:
     """Central service for managing and loading LLM prompts"""
 
     def __init__(self):
+        # Updated path: now in app/ai/services/, prompts in app/ai/prompts/
         self.prompts_dir = Path(__file__).parent.parent / "prompts"
         self._cache = {}  # Simple in-memory cache
         self._load_all_prompts()
@@ -209,6 +210,11 @@ def get_competitor_analysis_prompt(name: str, **kwargs) -> str:
 def get_document_processing_prompt(name: str, **kwargs) -> str:
     """Convenience function for document processing prompts"""
     return prompt_service.get_prompt('document_processing', name, **kwargs)
+
+
+def get_sector_research_prompt(name: str, **kwargs) -> str:
+    """Convenience function for sector research prompts"""
+    return prompt_service.get_prompt('sector_research', name, **kwargs)
 
 
 # Development helper functions

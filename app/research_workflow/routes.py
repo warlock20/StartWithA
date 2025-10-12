@@ -2455,7 +2455,7 @@ def competitor_analysis_step(project_id, step_index):
             # LLM-powered competitor discovery
             try:
                 from app.services.llm_service import generate_ai_content
-                from app.services.prompt_service import get_competitor_analysis_prompt
+                from app.ai.services.prompt_service import get_competitor_analysis_prompt
 
                 analysis_prompt = get_competitor_analysis_prompt(
                     'landscape_analysis',

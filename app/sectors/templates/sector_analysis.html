@@ -46,6 +46,9 @@
 
 <!-- Generate Document Module -->
 <script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
+
+<!-- AI-Powered Features -->
+<script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -528,7 +531,17 @@
                     <div class="tab-pane fade" id="takeaways" role="tabpanel">
                         <div class="takeaways-container">
                             <div class="takeaways-header">
-                                <p class="text-muted mb-3">Summarize your most important findings in bullet points</p>
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <p class="text-muted mb-2">Summarize your most important findings in bullet points</p>
+                                        <small class="text-muted">
+                                            <i class="bi bi-lightbulb"></i> Use AI to generate a summary, or write your own takeaways
+                                        </small>
+                                    </div>
+                                    <button class="btn btn-primary" id="generateAISummaryBtn" onclick="generateAISummary()">
+                                        <i class="bi bi-stars"></i> Generate AI Summary
+                                    </button>
+                                </div>
                             </div>
                             <div class="takeaways-editor-container">
                                 <div id="takeawaysEditor"></div>

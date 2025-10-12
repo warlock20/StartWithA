@@ -57,7 +57,13 @@ function saveSnippet() {
             document.getElementById('snippetCategory').value = '';
             document.getElementById('snippetTags').value = '';
             document.getElementById('snippetNotes').value = '';
-            selectedSnippetText = '';
+
+            // Clear the saved snippet text
+            if (typeof clearSavedSnippet === 'function') {
+                clearSavedSnippet();
+            } else {
+                selectedSnippetText = '';
+            }
 
             // Reload page to show new snippet
             location.reload();
