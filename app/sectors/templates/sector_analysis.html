@@ -1,7 +1,10 @@
 {% extends "main/_base.html" %}
 
 {% block head %}
-<!-- Quill.js for rich text editing -->
+<!-- BlockNote Editor (React) -->
+<script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>
+
+<!-- Keep Quill for other editors (Takeaways, Note Modal) for now -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
@@ -35,7 +38,7 @@
 </script>
 
 <script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
-<script src="{{ url_for('static', filename='js/sector-document.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sector-snippets.js') }}"></script>
 
 <!-- Company Search Component -->
@@ -696,90 +699,8 @@
 {% include 'components/archive_modal.html' %}
 
 <!-- Reusable modals (shared across platform) -->
-<!-- Create/Edit Section Modal -->
-<div class="modal fade" id="sectionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="sectionModalTitle">Create Section</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="sectionId">
-                <div class="mb-3">
-                    <label class="form-label">Section Title *</label>
-                    <input type="text" id="sectionTitle" class="form-control" placeholder="e.g., Key Themes, Risks & Challenges" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Description (optional)</label>
-                    <textarea id="sectionDescription" class="form-control" rows="2" placeholder="Brief description of this section"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Icon (optional)</label>
-                    <input type="text" id="sectionIcon" class="form-control" placeholder="e.g., 💡, 🎯, ⚠️">
-                    <small class="text-muted">Add an emoji or leave blank</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveSection()">
-                    <i class="bi bi-check-circle"></i> <span id="sectionSaveBtn">Create Section</span>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Note Modal -->
-<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="noteModalTitle">Create Note</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="noteId">
-                <input type="hidden" id="noteSectionId">
-
-                <div class="mb-3">
-                    <label class="form-label">Title *</label>
-                    <input type="text" id="noteTitle" class="form-control" placeholder="Note title" required>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label">Content *</label>
-                    <div id="noteContentEditor" style="height: 150px; background: white;"></div>
-                    <input type="hidden" id="noteContent">
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Source URL (optional)</label>
-                        <input type="url" id="noteSourceUrl" class="form-control" placeholder="https://...">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Source Title (optional)</label>
-                        <input type="text" id="noteSourceTitle" class="form-control" placeholder="Article title, etc.">
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Tags (optional)</label>
-                    <input type="text" id="noteTags" class="form-control" placeholder="e.g., competitive advantage, pricing">
-                    <small class="text-muted">Separate multiple tags with commas</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveNote()">
-                    <i class="bi bi-check-circle"></i> <span id="noteSaveBtn">Create Note</span>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% include 'components/modals/section_modal.html' %}
+{% include 'components/modals/note_modal.html' %}
 {% include 'components/modals/view_note_modal.html' %}
 {% include 'components/modals/snippet_modal.html' %}
 {% include 'components/modals/company_suggestions_modal.html' %}

@@ -90,19 +90,19 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
-/* Tab content area - scrolls independently */
+/* Tab content area - no outer scroll, let content determine scrolling */
 .research-tab-content {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* Keep for tabs that need it (Canvas, Sources, etc) */
     overflow-x: hidden;
     position: relative;
     min-height: 0;
 }
 
-/* Individual tab panes */
+/* Individual tab panes - no scroll by default, BlockNote handles its own */
 .research-tab-content > .tab-pane {
     height: 100%;
-    overflow-y: auto;
+    overflow-y: visible; /* Changed from auto to visible - BlockNote grows naturally */
 }
 
 /* Sticky sidebar - quick tools area */

@@ -313,10 +313,10 @@
 }
 
 #sectorEditor {
-    min-height: 500px;
+    min-height: 600px; /* Minimum size for new documents */
     border: 1px solid #e5e7eb;
     border-radius: 12px;
-    overflow: hidden;
+    /* BlockNote handles its own scrolling internally */
 }
 
 #sectorEditor .ql-toolbar {

@@ -10,3 +10,10 @@ my_research_app.db # From the .env example
 .env
 instance/
 app/static/uploads/
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Webpack build
+app/static/js/dist/*.map
