@@ -1,5 +1,148 @@
 # Sector Research Enhancement TODO
 
+---
+
+## 📖 CONTEXT & CURRENT STATE (Last Updated: 2025-01-13)
+
+### What is Sector Research?
+A dedicated workspace for building deep industry knowledge through atomic notes, snippets, sources, and rich documentation. Users can research entire sectors (e.g., "Shipping", "Semiconductors") to build expertise and compare companies within the same industry.
+
+### Current Architecture
+
+**Database Models:**
+- `SectorAnalysis` - Main sector entity (name, status, progress, document_content, key_takeaways)
+- `SectorSection` - Sections for organizing notes (title, icon, description, sort_order)
+- `SectorNote` - Atomic notes within sections (title, content, note_type, tags, source_reference)
+- `SectorSource` - Research sources/references (url, title, description, source_type)
+- `SectorSnippet` - Highlighted passages (content, category, tags, notes)
+- `CompanySectorTag` - Links companies to sectors for multi-entity research
+
+**Key Files:**
+- **Templates:** `app/sectors/templates/sector_analysis.html` (main workspace - 700+ lines)
+- **Routes:** `app/sectors/routes.py` (CRUD for all entities)
+- **JavaScript:**
+  - `app/static/js/sector-canvas.js` (atomic canvas operations)
+  - `app/static/js/sector-document-init.js` (BlockNote editor initialization)
+  - `app/static/js/sector-snippets.js` (snippet management)
+  - `app/static/js/generate-document.js` (canvas → document generation)
+  - `app/static/js/company-tagging.js` (auto-detect company mentions)
+  - `app/static/js/ai-summary.js` (AI-powered summary generation)
+- **CSS:** `app/static/css/modules/_research-tabs.css` (tab styling)
+- **AI Services:** `app/ai/services/sector_summary.py` (summarization service)
+
+**Frontend Stack:**
+- **Rich Text Editors:**
+  - BlockNote (React) - Used for Documentation tab and Key Takeaways tab (with TOC navigation)
+  - Quill.js - Still used for Note Modal (atomic notes creation)
+- **UI Framework:** Bootstrap 5 with custom CSS modules
+- **Build:** Webpack for BlockNote bundle (`blocknote-editor.bundle.js` - 1.31 MiB)
+
+### Feature Status Overview
+
+**✅ COMPLETED (Phase 1-2):**
+1. ✅ Atomic Notes Canvas (sections, notes, drag-drop, CRUD)
+2. ✅ Research Sources sidebar
+3. ✅ Research Snippets with categorization
+4. ✅ Tabbed interface (Canvas, Documentation, AI Insights, Sources, Snippets, Key Takeaways)
+5. ✅ Auto-tagging company mentions
+6. ✅ Generate document from canvas
+7. ✅ Enhanced note editing (Quill.js with rich formatting)
+8. ✅ Fixed-height workspace (Notion/Obsidian style)
+9. ✅ Quick Templates (Porter's 5 Forces, SWOT, etc.) in Documentation
+10. ✅ Research Progress breakdown modal
+11. ✅ AI-powered summary generation for Key Takeaways
+12. ✅ **BlockNote Migration (2025-01-13):**
+    - Migrated Documentation tab from Quill to BlockNote (with TOC)
+    - Migrated Key Takeaways tab from Quill to BlockNote (with TOC)
+    - Created `blocknote_utils.py` for JSON-to-text conversion
+    - Fixed sector preview cards showing raw JSON
+    - Added `contentField` parameter for flexible field saving
+    - Only Note Modal still uses Quill.js
+
+**🔄 IN PROGRESS:**
+- None currently
+
+**📋 NEXT UP (Priority Queue):**
+1. Bulk operations (select multiple notes, bulk move/tag/delete)
+2. Link notes to companies (relationship enhancement)
+3. Search within research (cross-tab search)
+4. AI tagging suggestions for notes
+5. Export capabilities (PDF, Markdown, etc.)
+
+**🚀 FUTURE (Phase 3):**
+- Browser extension for web clipping
+- Graph view of note connections
+- Collaboration features
+- Advanced analytics
+- Mobile optimization
+
+### Recent Changes (Last Session - 2025-01-13)
+
+**Problem Solved:** Sector preview cards showing raw BlockNote JSON instead of readable text
+**Solution:** Created `blocknote_utils.py` with preview filter, registered as Jinja2 filter
+
+**Migration Completed:** Key Takeaways tab from Quill.js → BlockNote
+**Benefits:**
+- Consistent editor across Documentation and Key Takeaways
+- TOC navigation sidebar for both tabs
+- Auto-save with visual indicators
+- Better formatting capabilities
+- Structured JSON storage
+
+**Technical Enhancement:** Added `contentField` parameter to BlockNote editors
+**Impact:** Single editor component now works for multiple fields (content, takeaways, future fields)
+
+### Known Issues & Considerations
+
+**Performance:**
+- BlockNote bundle is 1.31 MiB (acceptable, loads async with `defer`)
+- Sector workspace has many components - consider lazy loading for inactive tabs
+
+**UX:**
+- Note Modal still uses Quill - could migrate to BlockNote for consistency
+- No auto-save indicator on atomic notes (only on Documentation/Takeaways)
+- Drag-drop could be smoother with visual feedback improvements
+
+**Technical Debt:**
+- `sector_analysis.html` is 700+ lines (consider splitting into components)
+- JavaScript files could be modularized further
+- CSS could benefit from more design tokens/variables
+
+### Testing Checklist (For Next Session)
+
+When resuming work, verify these work correctly:
+- [ ] Documentation tab loads with BlockNote + TOC
+- [ ] Key Takeaways tab loads with BlockNote + TOC
+- [ ] Auto-save works on both tabs (check "Saved" indicator)
+- [ ] Sector preview cards show readable text (not JSON)
+- [ ] TOC navigation scrolls to correct headings
+- [ ] Note Modal (atomic notes) still works with Quill
+- [ ] Company auto-tagging works on paste
+- [ ] Generate document from canvas works
+- [ ] AI summary generation works
+
+### Quick Reference Commands
+
+**Start dev server:**
+```bash
+flask run
+```
+
+**Rebuild BlockNote bundle:**
+```bash
+npm run build
+```
+
+**Check for errors:**
+```bash
+# JavaScript console in browser DevTools
+# Python errors in terminal running Flask
+```
+
+---
+
+# Sector Research Enhancement TODO
+
 ## ✅ Completed Features
 
 ### Phase 1: Atomic Notes System
