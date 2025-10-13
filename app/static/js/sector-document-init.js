@@ -32,11 +32,12 @@ function initializeDocumentEditor() {
     const editorContainer = document.getElementById('sectorEditor');
     if (!editorContainer) return;
 
-    // Initialize BlockNote React editor
-    window.initBlockNoteEditor('sectorEditor', {
+    // Initialize BlockNote React editor WITH TABLE OF CONTENTS
+    window.initBlockNoteEditorWithTOC('sectorEditor', {
         getResearchNotesUrl: window.sectorUrls.getResearchNotes,
         saveResearchNotesUrl: window.sectorUrls.saveResearchNotes,
         placeholder: 'Start your sector research here... Type "/" for commands',
+        showTOC: true, // Enable table of contents sidebar
         onSelectionChange: (selectedText, selection) => {
             // Update global variable for snippet saving
             selectedSnippetText = selectedText;
@@ -76,26 +77,24 @@ function initializeOtherEditors() {
         });
     }
 
-    // Key Takeaways Editor (Quill - keep for now)
+    // Key Takeaways Editor (BlockNote with TOC - NEW)
     if (document.getElementById('takeawaysEditor')) {
-        window.takeawaysQuill = new Quill('#takeawaysEditor', {
-            theme: 'snow',
-            placeholder: 'Key takeaways:\n• Finding 1\n• Finding 2\n• Finding 3',
-            modules: {
-                toolbar: [
-                    [{ 'header': [3, false] }],
-                    ['bold', 'italic'],
-                    [{ 'list': 'bullet' }],
-                    ['clean']
-                ]
-            }
-        });
+        // Create separate URLs for takeaways
+        const takeawaysUrls = {
+            getTakeaways: window.sectorUrls.getResearchNotes, // Same endpoint, returns both content and takeaways
+            saveTakeaways: window.sectorUrls.saveResearchNotes
+        };
 
-        // Auto-save takeaways
-        let saveTimer;
-        window.takeawaysQuill.on('text-change', function() {
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveTakeaways, 2000);
+        // Initialize BlockNote with TOC for takeaways
+        window.initBlockNoteEditorWithTOC('takeawaysEditor', {
+            getResearchNotesUrl: takeawaysUrls.getTakeaways,
+            saveResearchNotesUrl: takeawaysUrls.saveTakeaways,
+            placeholder: 'Key takeaways:\n• Finding 1\n• Finding 2\n• Finding 3',
+            showTOC: true, // Enable TOC sidebar for navigation
+            contentField: 'takeaways', // Save to 'takeaways' field instead of 'content'
+            onSave: (data) => {
+                console.log('Takeaways saved successfully');
+            }
         });
     }
 
@@ -124,19 +123,7 @@ function initializeOtherEditors() {
     }
 }
 
-function saveTakeaways() {
-    if (!window.takeawaysQuill) return;
-
-    const content = window.takeawaysQuill.root.innerHTML;
-
-    fetch(window.sectorUrls.saveResearchNotes, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ takeaways: content })
-    })
-    .then(response => response.json())
-    .catch(err => console.error('Error saving takeaways:', err));
-}
+// saveTakeaways() function removed - BlockNote handles auto-save internally
 
 // Export for use in other modules
 window.selectedSnippetText = selectedSnippetText;

@@ -254,41 +254,20 @@
 }
 
 .takeaways-header {
-    margin-bottom: 1.5rem;
-}
-
-.takeaways-editor-container {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    overflow: hidden;
+    margin-bottom: 1rem;
 }
 
 #takeawaysEditor {
-    min-height: 400px;
+    min-height: 600px; /* Same as sectorEditor */
+    max-height: 700px; /* Prevent overflow */
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden; /* Contain the BlockNote wrapper */
+    /* BlockNote handles its own scrolling internally */
 }
 
-#takeawaysEditor .ql-toolbar {
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-#takeawaysEditor .ql-container {
-    font-size: 1rem;
-}
-
-#takeawaysEditor .ql-editor {
-    padding: 1.5rem;
-}
-
-#takeawaysEditor .ql-editor ul {
-    padding-left: 1.5rem;
-}
-
-#takeawaysEditor .ql-editor li {
-    margin-bottom: 0.75rem;
-    font-size: 1rem;
-    line-height: 1.6;
+#takeawaysEditor .blocknote-editor-wrapper {
+    height: 100%; /* Fixed height to match container */
 }
 
 /* Research Notes Tab */
@@ -299,7 +278,7 @@
 }
 
 .sector-editor-header {
-    padding: 1rem 0 1.5rem;
+    padding: 0.1rem 0 0rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
