@@ -1,220 +1,611 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <h1>📊 Research Analytics Dashboard</h1>
-    <p class="text-muted">Track your research patterns and investment decision quality</p>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">📊 Research Analytics</h1>
+            <p class="dashboard-subtitle">Track your research patterns and improve your investment decision quality</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('analytics.decision_journal_list') }}" class="btn btn-outline-primary">
+                <i class="bi bi-journal-text"></i> Decision Journal
+            </a>
+        </div>
+    </header>
 
-<!-- Key Metrics Cards -->
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <h2 class="text-primary">{{ metrics.total_ideas_captured if metrics else 0 }}</h2>
-                <p class="mb-0">Total Ideas Captured</p>
-                <small class="text-muted">
-                    Kill Rate: {{ "%.1f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}%
-                </small>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <h2 class="text-success">{{ "%.1f"|format(metrics.total_research_hours) if metrics else 0 }}h</h2>
-                <p class="mb-0">Research Time</p>
-                <small class="text-muted">
-                    Avg per company: {{ "%.1f"|format(metrics.average_hours_per_company) if metrics and metrics.average_hours_per_company else 0 }}h
-                </small>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <h2 class="text-info">{{ metrics.total_investment_decisions if metrics else 0 }}</h2>
-                <p class="mb-0">Decisions Made</p>
-                <small class="text-muted">
-                    {{ success_rate }}% Invest Rate
-                </small>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card text-center h-100">
-            <div class="card-body">
-                <h2 class="text-warning">{{ metrics.research_streak_days if metrics else 0 }}d</h2>
-                <p class="mb-0">Research Streak</p>
-                <small class="text-muted">
-                    Last: {{ metrics.last_research_date.strftime('%b %d') if metrics and metrics.last_research_date else 'Never' }}
-                </small>
-            </div>
-        </div>
-    </div>
-</div>
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills analytics-nav-tabs mb-4" id="analyticsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                <i class="bi bi-speedometer2"></i> Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="time-analysis-tab" data-bs-toggle="tab" data-bs-target="#time-analysis" type="button" role="tab">
+                <i class="bi bi-clock-history"></i> Time Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="idea-sources-tab" data-bs-toggle="tab" data-bs-target="#idea-sources" type="button" role="tab">
+                <i class="bi bi-lightbulb"></i> Idea Sources
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="patterns-tab" data-bs-toggle="tab" data-bs-target="#patterns" type="button" role="tab">
+                <i class="bi bi-graph-up"></i> Research Patterns
+            </button>
+        </li>
+    </ul>
 
-<div class="row">
-    <!-- Time Allocation Chart -->
-    <div class="col-lg-8 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Research Activity (Last 30 Days)</h5>
+    <!-- Tab Content -->
+    <div class="tab-content" id="analyticsTabsContent">
+        <!-- ========================================
+             OVERVIEW TAB
+             ======================================== -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+            <!-- Compact Stats Overview -->
+            <div class="analytics-stats-overview">
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-yellow">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div class="analytics-stat-content">
+                        <div class="analytics-stat-number">{{ metrics.total_ideas_captured if metrics else 0 }}</div>
+                        <div class="analytics-stat-label">Ideas Captured</div>
+                        <div class="analytics-stat-meta">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}% killed</div>
+                    </div>
+                </div>
+
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-blue">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="analytics-stat-content">
+                        <div class="analytics-stat-number">{{ "%.0f"|format(metrics.total_research_hours) if metrics else 0 }}h</div>
+                        <div class="analytics-stat-label">Research Time</div>
+                        <div class="analytics-stat-meta">{{ "%.1f"|format(metrics.average_hours_per_company) if metrics and metrics.average_hours_per_company else 0 }}h avg</div>
+                    </div>
+                </div>
+
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-green">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="analytics-stat-content">
+                        <div class="analytics-stat-number">{{ metrics.total_investment_decisions if metrics else 0 }}</div>
+                        <div class="analytics-stat-label">Decisions Made</div>
+                        <div class="analytics-stat-meta">{{ success_rate }}% invest</div>
+                    </div>
+                </div>
+
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-red">
+                        <i class="bi bi-fire"></i>
+                    </div>
+                    <div class="analytics-stat-content">
+                        <div class="analytics-stat-number">{{ metrics.research_streak_days if metrics else 0 }}d</div>
+                        <div class="analytics-stat-label">Streak</div>
+                        <div class="analytics-stat-meta">{{ metrics.last_research_date.strftime('%b %d') if metrics and metrics.last_research_date else 'Never' }}</div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <canvas id="timeChart" height="100"></canvas>
+
+            <!-- Pipeline & Performance Grid -->
+            <div class="analytics-pipeline-grid">
+                <!-- Idea Pipeline Stats -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">💡 Idea Pipeline</h3>
+                    <div class="analytics-pipeline-stats">
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.ideas_in_pipeline if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">In Pipeline</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.ideas_killed if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Killed</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.ideas_promoted if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Promoted</span>
+                        </div>
+                    </div>
+                    {% if metrics and metrics.most_common_kill_reason %}
+                    <div class="analytics-pipeline-insight">
+                        Top Kill: <strong>{{ metrics.most_common_kill_reason|truncate(40) }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Research Projects Stats -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">🔬 Research Projects</h3>
+                    <div class="analytics-pipeline-stats">
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.invest_decisions if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Invested</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.pass_decisions if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Passed</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ "%.1f"|format(metrics.average_days_to_decision) if metrics and metrics.average_days_to_decision else 0 }}</span>
+                            <span class="analytics-pipeline-label">Days/Decision</span>
+                        </div>
+                    </div>
+                    {% if metrics and metrics.average_confidence_score %}
+                    <div class="analytics-pipeline-insight">
+                        Avg Confidence: <strong>{{ "%.1f"|format(metrics.average_confidence_score) }}/10</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Productivity Patterns -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">⚡ Productivity</h3>
+                    <div class="analytics-productivity-list">
+                        <div class="analytics-productivity-item">
+                            <span class="analytics-productivity-label">Best Day:</span>
+                            <span class="analytics-productivity-value">{{ metrics.most_productive_day or 'N/A' }}</span>
+                        </div>
+                        <div class="analytics-productivity-item">
+                            <span class="analytics-productivity-label">Peak Hour:</span>
+                            <span class="analytics-productivity-value">
+                                {% if metrics and metrics.most_productive_hour is not none %}
+                                    {{ metrics.most_productive_hour }}:00
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="analytics-productivity-item">
+                            <span class="analytics-productivity-label">Heavy Step:</span>
+                            <span class="analytics-productivity-value">{{ metrics.most_time_consuming_step|truncate(20) if metrics and metrics.most_time_consuming_step else 'N/A' }}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-footer text-muted">
-                <small>
-                    Total: {{ "%.1f"|format(time_data.total_minutes / 60) if time_data else 0 }} hours | 
-                    Daily Avg: {{ "%.1f"|format(time_data.total_minutes / 60 / 30) if time_data else 0 }} hours
-                </small>
+
+            <!-- Research Activity Chart -->
+            <div class="analytics-chart-section">
+                <div class="analytics-chart-card">
+                    <div class="analytics-chart-body">
+                        <h5 class="mb-3" style="font-weight: 700; color: #111827;">Research Activity (Last 30 Days)</h5>
+                        <div style="position: relative; height: 300px; max-height: 300px;">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-chart-footer">
+                        Total: {{ "%.1f"|format(time_data.total_minutes / 60) if time_data else 0 }} hours |
+                        Daily Avg: {{ "%.1f"|format(time_data.total_minutes / 60 / 30) if time_data else 0 }} hours
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Best Idea Sources -->
-    <div class="col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Top Idea Sources</h5>
-            </div>
-            <div class="card-body p-0">
-                {% if best_sources %}
-                <div class="list-group list-group-flush">
-                    {% for source in best_sources[:5] %}
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ source.source_name|truncate(30) }}</strong><br>
-                                <small class="text-muted">
-                                    {{ source.total_ideas }} ideas | 
-                                    {{ "%.0f"|format(source.survival_rate) if source.survival_rate else 0 }}% survive
-                                </small>
+
+            <!-- Two Column: Idea Sources + Stats -->
+            <div class="analytics-two-column-grid">
+                <!-- Idea Source Quality -->
+                <div class="analytics-sources-section">
+                    <div class="analytics-section-header">
+                        <h3 class="analytics-subsection-title">💡 Top Idea Sources</h3>
+                    </div>
+
+                    {% if best_sources %}
+                    <div class="analytics-sources-scroll">
+                        <table class="analytics-sources-table-compact">
+                            <thead>
+                                <tr>
+                                    <th>Source</th>
+                                    <th>Total</th>
+                                    <th>Killed</th>
+                                    <th>Promoted</th>
+                                    <th>Invested</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for source in best_sources %}
+                                <tr>
+                                    <td class="analytics-source-name">{{ source.source_name|truncate(30) }}</td>
+                                    <td>{{ source.total_ideas }}</td>
+                                    <td class="text-danger">{{ source.ideas_killed }}</td>
+                                    <td class="text-success">{{ source.ideas_promoted }}</td>
+                                    <td>
+                                        {% if source.ideas_invested > 0 %}
+                                        <span class="badge bg-success">{{ source.ideas_invested }}</span>
+                                        {% else %}
+                                        <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="analytics-no-data">No sources yet</p>
+                    {% endif %}
+                </div>
+
+                <!-- Additional Stats Column -->
+                <div class="analytics-extra-stats">
+                    <!-- Graveyard Stats -->
+                    <div class="analytics-mini-card">
+                        <h4 class="analytics-mini-title">💀 Graveyard</h4>
+                        <div class="analytics-mini-stats">
+                            <div class="analytics-mini-stat">
+                                <span class="analytics-mini-number">{{ metrics.ideas_killed if metrics else 0 }}</span>
+                                <span class="analytics-mini-label">Total Killed</span>
                             </div>
-                            {% if source.ideas_invested > 0 %}
-                            <span class="badge bg-success">{{ source.ideas_invested }} invested</span>
+                            <div class="analytics-mini-stat">
+                                <span class="analytics-mini-number">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}%</span>
+                                <span class="analytics-mini-label">Kill Rate</span>
+                            </div>
+                        </div>
+                        {% if metrics and metrics.most_common_kill_reason %}
+                        <div class="analytics-mini-insight">
+                            <strong>Top Kill:</strong> {{ metrics.most_common_kill_reason|truncate(30) }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Performance Stats -->
+                    <div class="analytics-mini-card">
+                        <h4 class="analytics-mini-title">📈 Performance</h4>
+                        <div class="analytics-mini-stats">
+                            <div class="analytics-mini-stat">
+                                <span class="analytics-mini-number">{{ metrics.winning_investments if metrics else 0 }}</span>
+                                <span class="analytics-mini-label">Winners</span>
+                            </div>
+                            <div class="analytics-mini-stat">
+                                <span class="analytics-mini-number">{{ metrics.losing_investments if metrics else 0 }}</span>
+                                <span class="analytics-mini-label">Losers</span>
+                            </div>
+                        </div>
+                        {% if metrics and metrics.average_return %}
+                        <div class="analytics-mini-insight">
+                            <strong>Avg Return:</strong> {{ "%.1f"|format(metrics.average_return) }}%
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Best Source -->
+                    {% if metrics and metrics.best_idea_source %}
+                    <div class="analytics-mini-card analytics-mini-card-highlight">
+                        <h4 class="analytics-mini-title">🏆 Best Source</h4>
+                        <div class="analytics-best-source">
+                            <div class="analytics-best-source-name">{{ metrics.best_idea_source|truncate(30) }}</div>
+                            <div class="analytics-best-source-rate">{{ "%.0f"|format(metrics.best_source_success_rate) if metrics.best_source_success_rate else 0 }}% success</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="analytics-activity-compact">
+                <div class="analytics-section-header">
+                    <h2 class="section-title font-poppins">Recent Activity</h2>
+                    <a href="{{ url_for('research_workflow.my_projects') }}" class="analytics-link-small">View All →</a>
+                </div>
+                {% if recent_logs %}
+                <div class="analytics-compact-list">
+                    {% for log in recent_logs[:5] %}
+                    <div class="analytics-compact-item">
+                        <div>
+                            <strong>{{ log.activity_type|replace('_', ' ')|title }}</strong>
+                            <span class="analytics-compact-meta">
+                                {% if log.company %}{{ log.company.name }}{% elif log.idea %}{{ log.idea.name }}{% endif %}
+                            </span>
+                        </div>
+                        <span class="analytics-compact-time">{{ log.timestamp.strftime('%b %d, %H:%M') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="analytics-no-data">No activity yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ========================================
+             TIME ANALYSIS TAB
+             ======================================== -->
+        <div class="tab-pane fade" id="time-analysis" role="tabpanel" aria-labelledby="time-analysis-tab">
+            {% if (step_chart_data and step_chart_data != '[]') or (company_chart_data and company_chart_data != '[]') or (productivity_by_hour and productivity_by_hour|length > 0) or (productivity_by_day and productivity_by_day|length > 0) %}
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Time by Research Step</h5>
+                            {% if step_chart_data and step_chart_data != '[]' %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="stepChart"></canvas>
+                            </div>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>📊</i>
+                                <p>No research time data yet. Start tracking your research to see analytics!</p>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <div class="p-3 text-center text-muted">
-                    No idea sources tracked yet
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Recent Activity -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Activity</h5>
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-sm btn-outline-primary">
-                    View Projects
-                </a>
-            </div>
-            <div class="card-body p-0">
-                {% if recent_logs %}
-                <div class="list-group list-group-flush">
-                    {% for log in recent_logs[:5] %}
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <strong>{{ log.activity_type|replace('_', ' ')|title }}</strong>
-                                {% if log.company %}
-                                    - {{ log.company.name }}
-                                {% elif log.idea %}
-                                    - {{ log.idea.name }}
-                                {% endif %}
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Time by Company</h5>
+                            {% if company_chart_data and company_chart_data != '[]' %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="companyChart"></canvas>
                             </div>
-                            <small class="text-muted">
-                                {{ log.timestamp.strftime('%b %d, %H:%M') }}
-                            </small>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>🏢</i>
+                                <p>No company research data yet</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <div class="p-3 text-center text-muted">
-                    No recent activity
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Activity by Hour of Day</h5>
+                            {% if productivity_by_hour and productivity_by_hour|length > 0 %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="hourChart"></canvas>
+                            </div>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>🕐</i>
+                                <p>No hourly activity data yet</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Activity by Day of Week</h5>
+                            {% if productivity_by_day and productivity_by_day|length > 0 %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="dayChart"></canvas>
+                            </div>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>📅</i>
+                                <p>No daily activity data yet</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
+            {% else %}
+            <div class="analytics-empty-state" style="padding: 4rem 2rem;">
+                <i style="font-size: 4rem;">⏱️</i>
+                <h3 style="margin-top: 1.5rem; color: #111827;">No Time Analysis Data Yet</h3>
+                <p style="font-size: 1rem; max-width: 500px; margin: 1rem auto 0;">
+                    Start researching companies to track how you spend your time. You'll see insights on which research steps take longest, your most productive hours, and more!
+                </p>
+            </div>
+            {% endif %}
         </div>
-    </div>
-    
-    <!-- Productivity Insights -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Productivity Insights</h5>
-            </div>
-            <div class="card-body">
-                {% if metrics %}
-                <dl class="row mb-0">
-                    <dt class="col-sm-6">Most Productive Day:</dt>
-                    <dd class="col-sm-6">{{ metrics.most_productive_day or 'Not enough data' }}</dd>
-                    
-                    <dt class="col-sm-6">Peak Hour:</dt>
-                    <dd class="col-sm-6">
-                        {% if metrics.most_productive_hour is not none %}
-                            {{ metrics.most_productive_hour }}:00 - {{ metrics.most_productive_hour + 1 }}:00
-                        {% else %}
-                            Not enough data
-                        {% endif %}
-                    </dd>
-                    
-                    <dt class="col-sm-6">Avg Decision Time:</dt>
-                    <dd class="col-sm-6">
-                        {{ "%.1f"|format(metrics.average_days_to_decision) if metrics.average_days_to_decision else 'N/A' }} days
-                    </dd>
-                    
-                    <dt class="col-sm-6">Time-Heavy Step:</dt>
-                    <dd class="col-sm-6">{{ metrics.most_time_consuming_step or 'N/A' }}</dd>
-                    
-                    <dt class="col-sm-6">Confidence Trend:</dt>
-                    <dd class="col-sm-6">
-                        {% if metrics.average_confidence_score %}
-                            {{ "%.1f"|format(metrics.average_confidence_score) }}/10
-                        {% else %}
-                            No data
-                        {% endif %}
-                    </dd>
-                </dl>
-                {% else %}
-                <p class="text-muted text-center">Not enough data for insights yet</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Quick Actions -->
-<div class="card">
-    <div class="card-body">
-        <h5>Deep Dive Analytics</h5>
-        <div class="btn-group" role="group">
-            <a href="{{ url_for('analytics.time_analysis') }}" class="btn btn-outline-primary">
-                ⏱️ Time Analysis
-            </a>
-            <a href="{{ url_for('analytics.decision_journal_list') }}" class="btn btn-outline-primary">
-                📓 Decision Journal
-            </a>
-            <a href="{{ url_for('analytics.idea_sources') }}" class="btn btn-outline-primary">
-                💡 Source Quality
-            </a>
-            <a href="{{ url_for('analytics.research_patterns') }}" class="btn btn-outline-primary">
-                📈 Research Patterns
-            </a>
+        <!-- ========================================
+             IDEA SOURCES TAB
+             ======================================== -->
+        <div class="tab-pane fade" id="idea-sources" role="tabpanel" aria-labelledby="idea-sources-tab">
+            <!-- Stats Overview for Sources -->
+            <div class="analytics-stats-overview">
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-blue">📊</div>
+                    <div class="analytics-stat-content">
+                        <div class="analytics-stat-number">{{ source_analyses|length if source_analyses else 0 }}</div>
+                        <div class="analytics-stat-label">Total Sources</div>
+                    </div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-green">✅</div>
+                    <div class="analytics-stat-content">
+                        {% set total_ideas = source_analyses|map(attribute='total_ideas')|sum if source_analyses else 0 %}
+                        <div class="analytics-stat-number">{{ total_ideas }}</div>
+                        <div class="analytics-stat-label">Total Ideas</div>
+                    </div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-yellow">💎</div>
+                    <div class="analytics-stat-content">
+                        {% set total_invested = source_analyses|map(attribute='ideas_invested')|sum if source_analyses else 0 %}
+                        <div class="analytics-stat-number">{{ total_invested }}</div>
+                        <div class="analytics-stat-label">Ideas Invested</div>
+                    </div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon analytics-stat-icon-red">⚰️</div>
+                    <div class="analytics-stat-content">
+                        {% set total_killed = source_analyses|map(attribute='ideas_killed')|sum if source_analyses else 0 %}
+                        <div class="analytics-stat-number">{{ total_killed }}</div>
+                        <div class="analytics-stat-label">Ideas Killed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Idea Funnel Chart -->
+            {% if source_chart_data and source_chart_data|length > 0 %}
+            <div class="analytics-chart-card mb-4">
+                <div class="analytics-chart-body">
+                    <h5 class="mb-3" style="font-weight: 700; color: #111827;">Idea Funnel by Source (Top 10)</h5>
+                    <div style="position: relative; height: 350px; max-height: 350px;">
+                        <canvas id="sourceChart"></canvas>
+                    </div>
+                </div>
+                <div class="analytics-chart-footer">
+                    Stacked view shows how ideas from each source progressed through your pipeline
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Full Source Table -->
+            <div class="analytics-section">
+                <div class="analytics-section-header">
+                    <h5 class="analytics-subsection-title">Source Leaderboard</h5>
+                </div>
+                {% if source_analyses %}
+                <div class="analytics-sources-scroll">
+                    <table class="analytics-sources-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Source Name</th>
+                                <th>Total</th>
+                                <th>Survival Rate</th>
+                                <th>Investment Rate</th>
+                                <th>Invested</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in by_survival %}
+                            <tr>
+                                <td class="analytics-source-name">{{ source.source_name }}</td>
+                                <td>{{ source.total_ideas }}</td>
+                                <td>
+                                    <div class="analytics-progress-bar">
+                                        <div class="analytics-progress-fill analytics-progress-success"
+                                             style="width: {{ source.survival_rate or 0 }}%;"></div>
+                                        <div class="analytics-progress-text">{{ "%.0f"|format(source.survival_rate or 0) }}%</div>
+                                    </div>
+                                </td>
+                                <td>{{ "%.0f"|format(source.investment_rate or 0) }}%</td>
+                                <td>
+                                    {% if source.ideas_invested > 0 %}
+                                        <span class="badge bg-success">{{ source.ideas_invested }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">0</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="analytics-empty-state">
+                    <i>📭</i>
+                    <p>No idea sources yet. Add ideas with sources to see quality metrics.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Top Performers -->
+            {% if source_analyses and source_analyses|length > 0 %}
+            <div class="analytics-bottom-grid mt-4">
+                <div class="analytics-compact-section">
+                    <h6 class="analytics-compact-title mb-3">🏆 Best Source by Survival</h6>
+                    {% if by_survival and by_survival|length > 0 and by_survival[0].survival_rate %}
+                    <div class="analytics-best-source">
+                        <div class="analytics-best-source-name">{{ by_survival[0].source_name }}</div>
+                        <div class="analytics-best-source-rate">{{ "%.0f"|format(by_survival[0].survival_rate) }}%</div>
+                        <p class="text-muted mb-0 mt-2" style="font-size: 0.875rem;">
+                            {{ by_survival[0].total_ideas }} ideas tracked
+                        </p>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">Not enough data yet</p>
+                    {% endif %}
+                </div>
+
+                <div class="analytics-compact-section">
+                    <h6 class="analytics-compact-title mb-3">💰 Best Source by Investment</h6>
+                    {% if by_investment and by_investment|length > 0 and by_investment[0].investment_rate %}
+                    <div class="analytics-best-source">
+                        <div class="analytics-best-source-name">{{ by_investment[0].source_name }}</div>
+                        <div class="analytics-best-source-rate">{{ "%.0f"|format(by_investment[0].investment_rate) }}%</div>
+                        <p class="text-muted mb-0 mt-2" style="font-size: 0.875rem;">
+                            {{ by_investment[0].ideas_invested }} investments made
+                        </p>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">Not enough data yet</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ========================================
+             RESEARCH PATTERNS TAB
+             ======================================== -->
+        <div class="tab-pane fade" id="patterns" role="tabpanel" aria-labelledby="patterns-tab">
+            {% if (top_kill_reasons and top_kill_reasons|length > 0) or (velocity_data and velocity_data != '[]') or (confidence_trend and confidence_trend != '[]') %}
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Top Kill Reasons</h5>
+                            {% if top_kill_reasons and top_kill_reasons|length > 0 %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="killReasonsChart"></canvas>
+                            </div>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>⚰️</i>
+                                <p>No kill criteria data yet. Kill some ideas to see patterns!</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="analytics-chart-card">
+                        <div class="analytics-chart-body">
+                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Research Velocity (Last 12 Months)</h5>
+                            {% if velocity_data and velocity_data != '[]' %}
+                            <div style="position: relative; height: 250px; max-height: 250px;">
+                                <canvas id="velocityChart"></canvas>
+                            </div>
+                            {% else %}
+                            <div class="analytics-empty-state">
+                                <i>📈</i>
+                                <p>Not enough historical data yet</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-chart-card">
+                <div class="analytics-chart-body">
+                    <h5 class="mb-3" style="font-weight: 700; color: #111827;">Decision Confidence Trend</h5>
+                    {% if confidence_trend and confidence_trend != '[]' %}
+                    <div style="position: relative; height: 300px; max-height: 300px;">
+                        <canvas id="confidenceChart"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="analytics-empty-state">
+                        <i>💯</i>
+                        <p>No decision data yet. Make some investment decisions to track confidence!</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if confidence_trend and confidence_trend != '[]' %}
+                <div class="analytics-chart-footer">
+                    Track how your confidence in decisions evolves over time
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="analytics-empty-state" style="padding: 4rem 2rem;">
+                <i style="font-size: 4rem;">📊</i>
+                <h3 style="margin-top: 1.5rem; color: #111827;">No Research Patterns Data Yet</h3>
+                <p style="font-size: 1rem; max-width: 500px; margin: 1rem auto 0;">
+                    As you use the platform to kill ideas, complete research projects, and make investment decisions, you'll see powerful patterns emerge here!
+                </p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -224,50 +615,312 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Time allocation chart
-const timeData = {{ time_by_day_chart|tojson|safe if time_by_day_chart is defined else '[]' }};
+document.addEventListener('DOMContentLoaded', function() {
+    let activeCharts = {};
 
-if (timeData && timeData.length > 0) {
-    const ctx = document.getElementById('timeChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: timeData.map(d => d.date),
-            datasets: [{
-                label: 'Research Hours',
-                data: timeData.map(d => d.hours),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
+    // Chart data from backend
+    const timeData = {{ time_by_day_chart|safe if time_by_day_chart is defined else '[]' }};
+    const stepData = {{ step_chart_data|safe if step_chart_data is defined else '[]' }};
+    const companyData = {{ company_chart_data|safe if company_chart_data is defined else '[]' }};
+    const sourceChartData = {{ source_chart_data|safe if source_chart_data is defined else '[]' }};
+    const productivityHour = {{ productivity_by_hour|tojson|safe if productivity_by_hour is defined else '{}' }};
+    const productivityDay = {{ productivity_by_day|tojson|safe if productivity_by_day is defined else '{}' }};
+    const topKillReasons = {{ top_kill_reasons|tojson|safe if top_kill_reasons is defined else '[]' }};
+    const velocityData = {{ velocity_data|safe if velocity_data is defined else '[]' }};
+    const confidenceTrend = {{ confidence_trend|safe if confidence_trend is defined else '[]' }};
+
+    function renderChart(canvasId, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        // Destroy existing chart instance
+        if (activeCharts[canvasId]) {
+            activeCharts[canvasId].destroy();
+            delete activeCharts[canvasId];
+        }
+
+        // Reset canvas dimensions to prevent infinite growth
+        canvas.removeAttribute('width');
+        canvas.removeAttribute('height');
+        canvas.removeAttribute('style');
+
+        // Create new chart
+        try {
+            activeCharts[canvasId] = new Chart(canvas.getContext('2d'), config);
+        } catch (err) {
+            console.error(`Error rendering chart ${canvasId}:`, err);
+        }
+    }
+
+    // Function to destroy charts when leaving a tab
+    function destroyTabCharts(tabId) {
+        const tab = document.querySelector(tabId);
+        if (tab) {
+            tab.querySelectorAll('canvas').forEach(canvas => {
+                const chartId = canvas.id;
+                if (activeCharts[chartId]) {
+                    activeCharts[chartId].destroy();
+                    delete activeCharts[chartId];
+                }
+            });
+        }
+    }
+
+    // Overview Tab - Time Chart
+    function renderTimeChart() {
+        if (timeData && timeData.length > 0) {
+            renderChart('timeChart', {
+                type: 'line',
+                data: {
+                    labels: timeData.map(d => d.date),
+                    datasets: [{
+                        label: 'Research Hours',
+                        data: timeData.map(d => d.hours),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.parsed.y + ' hours';
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: value => value + 'h' }
                         }
                     }
                 }
+            });
+        }
+    }
+
+    // Render time chart on initial load
+    renderTimeChart();
+
+    // Define chart configurations
+    const chartConfigs = {
+        'stepChart': () => ({
+            type: 'doughnut',
+            data: {
+                labels: stepData.map(d => d.step),
+                datasets: [{
+                    data: stepData.map(d => d.hours),
+                    backgroundColor: ['#4A90E2', '#50E3C2', '#F5A623', '#D0021B', '#7B68EE', '#FF6B9D']
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value + 'h';
-                        }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        }),
+        'companyChart': () => ({
+            type: 'bar',
+            data: {
+                labels: companyData.map(d => d.company),
+                datasets: [{
+                    label: 'Hours',
+                    data: companyData.map(d => d.hours),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        }),
+        'hourChart': () => {
+            const hourLabels = Object.keys(productivityHour).sort((a, b) => parseInt(a) - parseInt(b));
+            return {
+                type: 'line',
+                data: {
+                    labels: hourLabels.map(h => h + ':00'),
+                    datasets: [{
+                        label: 'Activity',
+                        data: hourLabels.map(h => productivityHour[h]),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            };
+        },
+        'dayChart': () => {
+            const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const dayData = dayLabels.map((_, idx) => productivityDay[idx] || 0);
+            return {
+                type: 'bar',
+                data: {
+                    labels: dayLabels.map(d => d.substring(0, 3)),
+                    datasets: [{
+                        label: 'Activity',
+                        data: dayData,
+                        backgroundColor: 'rgba(245, 166, 35, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            };
+        },
+        'sourceChart': () => ({
+            type: 'bar',
+            data: {
+                labels: sourceChartData.map(d => d.source),
+                datasets: [
+                    {
+                        label: 'Killed',
+                        data: sourceChartData.map(d => d.killed),
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)'
+                    },
+                    {
+                        label: 'Promoted',
+                        data: sourceChartData.map(d => d.promoted),
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)'
+                    },
+                    {
+                        label: 'Invested',
+                        data: sourceChartData.map(d => d.invested),
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)'
                     }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
                 }
             }
-        }
+        }),
+        'killReasonsChart': () => ({
+            type: 'bar',
+            data: {
+                labels: topKillReasons.map(r => r[0].substring(0, 30) + '...'),
+                datasets: [{
+                    label: 'Times Used',
+                    data: topKillReasons.map(r => r[1]),
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: { x: { beginAtZero: true } }
+            }
+        }),
+        'velocityChart': () => ({
+            type: 'line',
+            data: {
+                labels: velocityData.map(d => d.month),
+                datasets: [
+                    {
+                        label: 'Projects',
+                        data: velocityData.map(d => d.projects),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Ideas',
+                        data: velocityData.map(d => d.ideas),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        }),
+        'confidenceChart': () => ({
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Confidence Score',
+                    data: confidenceTrend.map(d => ({ x: d.date, y: d.confidence })),
+                    backgroundColor: confidenceTrend.map(d => d.type === 'invest' ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                    borderColor: confidenceTrend.map(d => d.type === 'invest' ? '#10b981' : '#ef4444')
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true, max: 10 }
+                }
+            }
+        })
+    };
+
+    // Unified tab event handler
+    document.querySelectorAll('#analyticsTabs button[data-bs-toggle="tab"]').forEach(tab => {
+        // Clean up charts when leaving a tab
+        tab.addEventListener('hide.bs.tab', e => {
+            const pane = document.querySelector(e.target.dataset.bsTarget);
+            if (pane) {
+                pane.querySelectorAll('canvas').forEach(canvas => {
+                    const chartId = canvas.id;
+                    if (activeCharts[chartId]) {
+                        activeCharts[chartId].destroy();
+                        delete activeCharts[chartId];
+                        // Reset canvas
+                        canvas.removeAttribute('width');
+                        canvas.removeAttribute('height');
+                        canvas.removeAttribute('style');
+                    }
+                });
+            }
+        });
+
+        // Render charts when entering a tab
+        tab.addEventListener('shown.bs.tab', e => {
+            const pane = document.querySelector(e.target.dataset.bsTarget);
+            if (!pane) return;
+
+            // Special handling for overview tab
+            if (e.target.dataset.bsTarget === '#overview') {
+                renderTimeChart();
+            }
+
+            // Render other charts in the tab
+            pane.querySelectorAll('canvas').forEach(canvas => {
+                const chartId = canvas.id;
+                // Skip timeChart as it's handled separately
+                if (chartId === 'timeChart') return;
+
+                const configFn = chartConfigs[chartId];
+                if (configFn) {
+                    try {
+                        const config = configFn();
+                        renderChart(chartId, config);
+                    } catch (err) {
+                        console.error(`Error rendering chart ${chartId}:`, err);
+                    }
+                }
+            });
+        });
     });
-}
+
+    // Clean up all charts when page is being unloaded
+    window.addEventListener('beforeunload', () => {
+        Object.keys(activeCharts).forEach(chartId => {
+            if (activeCharts[chartId]) {
+                activeCharts[chartId].destroy();
+            }
+        });
+    });
+});
 </script>
 {% endblock %}

@@ -58,3 +58,4 @@ All complex components have been fully modularized.
 @import url('modules/_start-research.css');       /* Start new research page */
 @import url('modules/_kill-room.css');            /* Kill room page */
 @import url('modules/_checklist-view.css');       /* Checklist view pages */
+@import url('modules/_analytics-hub.css');        /* Analytics dashboard */

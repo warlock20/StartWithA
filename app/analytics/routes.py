@@ -13,30 +13,32 @@ import json
 @analytics_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Main analytics dashboard"""
+    """Main analytics dashboard with all tabs"""
     # Update metrics first
     metrics = update_user_metrics(current_user.id)
-    
+
     # Get time allocation for last 30 days
     time_data = get_time_allocation_data(current_user.id, days=30)
-    
+
     # Get recent activity
     recent_logs = current_user.research_logs.order_by(
         ResearchLog.timestamp.desc()
     ).limit(10).all()
-    
+
     # Calculate success rates
     success_rate = 0
     if metrics and metrics.total_investment_decisions > 0:
         success_rate = (metrics.invest_decisions / metrics.total_investment_decisions) * 100
-    
+
     # Get idea source quality
     source_analyses = analyze_idea_sources(current_user.id)
-    best_sources = sorted(source_analyses, 
-                         key=lambda x: x.survival_rate or 0, 
+    best_sources = sorted(source_analyses,
+                         key=lambda x: x.survival_rate or 0,
                          reverse=True)[:5]
-    
-    # Prepare chart data
+    by_survival = sorted(source_analyses, key=lambda x: x.survival_rate or 0, reverse=True)
+    by_investment = sorted(source_analyses, key=lambda x: x.investment_rate or 0, reverse=True)
+
+    # Prepare chart data for Overview tab
     time_by_day_chart = []
     if time_data['by_day']:
         sorted_days = sorted(time_data['by_day'].items())
@@ -45,7 +47,106 @@ def dashboard():
                 'date': day.strftime('%Y-%m-%d'),
                 'hours': round(minutes / 60, 1)
             })
-    
+
+    # Prepare chart data for Time Analysis tab
+    step_chart_data = []
+    if time_data['by_type']:
+        for step, minutes in sorted(time_data['by_type'].items(),
+                                   key=lambda x: x[1], reverse=True)[:10]:
+            step_chart_data.append({
+                'step': step,
+                'hours': round(minutes / 60, 1)
+            })
+
+    company_chart_data = []
+    if time_data['by_company']:
+        for company, minutes in sorted(time_data['by_company'].items(),
+                                      key=lambda x: x[1], reverse=True)[:10]:
+            company_chart_data.append({
+                'company': company,
+                'hours': round(minutes / 60, 1)
+            })
+
+    # Productivity patterns
+    productivity_by_hour = {}
+    productivity_by_day = {}
+    recent_logs_30d = current_user.research_logs.filter(
+        ResearchLog.timestamp >= now_utc() - timedelta(days=30)
+    ).all()
+    for log in recent_logs_30d:
+        if log.hour_of_day is not None:
+            productivity_by_hour[log.hour_of_day] = \
+                productivity_by_hour.get(log.hour_of_day, 0) + 1
+        if log.day_of_week is not None:
+            productivity_by_day[log.day_of_week] = \
+                productivity_by_day.get(log.day_of_week, 0) + 1
+
+    # Prepare chart data for Idea Sources tab
+    source_chart_data = []
+    for source in source_analyses[:10]:
+        source_chart_data.append({
+            'source': source.source_name[:30],
+            'total': source.total_ideas,
+            'killed': source.ideas_killed,
+            'promoted': source.ideas_promoted,
+            'invested': source.ideas_invested
+        })
+
+    # Prepare data for Research Patterns tab
+    kill_criteria_stats = {}
+    kill_sessions = KillSession.query.filter_by(user_id=current_user.id).all()
+    for session in kill_sessions:
+        if session.idea and session.idea.failed_criterion_id:
+            criterion = session.checklist.criteria.filter_by(
+                id=session.idea.failed_criterion_id
+            ).first()
+            if criterion:
+                question = criterion.question
+                kill_criteria_stats[question] = kill_criteria_stats.get(question, 0) + 1
+
+    top_kill_reasons = sorted(kill_criteria_stats.items(),
+                            key=lambda x: x[1], reverse=True)[:10]
+
+    # Research velocity
+    velocity_data = []
+    for i in range(12):
+        start_date = now_utc() - timedelta(days=(i+1)*30)
+        end_date = now_utc() - timedelta(days=i*30)
+
+        projects_completed = ResearchProject.query.filter(
+            ResearchProject.user_id == current_user.id,
+            ResearchProject.completed_at >= start_date,
+            ResearchProject.completed_at < end_date
+        ).count()
+
+        ideas_processed = IdeaPipeline.query.filter(
+            IdeaPipeline.user_id == current_user.id,
+            IdeaPipeline.created_at >= start_date,
+            IdeaPipeline.created_at < end_date
+        ).count()
+
+        velocity_data.append({
+            'month': end_date.strftime('%b %Y'),
+            'projects': projects_completed,
+            'ideas': ideas_processed
+        })
+
+    velocity_data.reverse()
+
+    # Confidence trend
+    decisions = current_user.decision_journals.filter(
+        DecisionJournal.confidence_score.isnot(None)
+    ).order_by(DecisionJournal.decision_date).all()
+
+    confidence_trend = []
+    for decision in decisions:
+        confidence_trend.append({
+            'date': decision.decision_date.strftime('%Y-%m-%d'),
+            'confidence': decision.confidence_score,
+            'type': decision.decision_type,
+            'company': decision.company.name if decision.company else 'Unknown'
+        })
+
     return render_template('analytics_dashboard.html',
                           title="Research Analytics",
                           metrics=metrics,
@@ -53,7 +154,18 @@ def dashboard():
                           recent_logs=recent_logs,
                           success_rate=round(success_rate, 1),
                           best_sources=best_sources,
-                          time_by_day_chart=json.dumps(time_by_day_chart))
+                          source_analyses=source_analyses,
+                          by_survival=by_survival,
+                          by_investment=by_investment,
+                          time_by_day_chart=json.dumps(time_by_day_chart),
+                          step_chart_data=json.dumps(step_chart_data),
+                          company_chart_data=json.dumps(company_chart_data),
+                          productivity_by_hour=productivity_by_hour,
+                          productivity_by_day=productivity_by_day,
+                          source_chart_data=json.dumps(source_chart_data),
+                          top_kill_reasons=top_kill_reasons,
+                          velocity_data=json.dumps(velocity_data),
+                          confidence_trend=json.dumps(confidence_trend))
 
 @analytics_bp.route('/time-analysis')
 @login_required
@@ -254,37 +366,6 @@ def update_decision_outcome(decision_id):
                          title="Update Decision Outcome",
                          decision=decision)
 
-@analytics_bp.route('/idea-sources')
-@login_required
-def idea_sources():
-   """Analyze idea source quality"""
-   # Update source analyses
-   source_analyses = analyze_idea_sources(current_user.id)
-   
-   # Sort by different metrics
-   by_volume = sorted(source_analyses, key=lambda x: x.total_ideas, reverse=True)
-   by_survival = sorted(source_analyses, key=lambda x: x.survival_rate or 0, reverse=True)
-   by_investment = sorted(source_analyses, key=lambda x: x.investment_rate or 0, reverse=True)
-   
-   # Prepare chart data
-   source_chart_data = []
-   for source in source_analyses[:10]:  # Top 10 sources
-       source_chart_data.append({
-           'source': source.source_name[:30],  # Truncate long names
-           'total': source.total_ideas,
-           'killed': source.ideas_killed,
-           'promoted': source.ideas_promoted,
-           'invested': source.ideas_invested
-       })
-   
-   return render_template('idea_sources.html',
-                         title="Idea Source Analysis",
-                         source_analyses=source_analyses,
-                         by_volume=by_volume[:10],
-                         by_survival=by_survival[:10],
-                         by_investment=by_investment[:10],
-                         source_chart_data=json.dumps(source_chart_data))
-
 @analytics_bp.route('/research-patterns')
 @login_required
 def research_patterns():
@@ -297,11 +378,11 @@ def research_patterns():
    # Analyze kill patterns
    kill_criteria_stats = {}
    kill_sessions = KillSession.query.filter_by(user_id=current_user.id).all()
-   
+
    for session in kill_sessions:
-       if session.failed_criterion_id:
+       if session.idea and session.idea.failed_criterion_id:
            criterion = session.checklist.criteria.filter_by(
-               id=session.failed_criterion_id
+               id=session.idea.failed_criterion_id
            ).first()
            if criterion:
                question = criterion.question
