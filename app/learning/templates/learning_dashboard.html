@@ -1,213 +1,289 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <h1>🎓 Learning Center</h1>
-    <p class="text-muted">Transform experience into expertise through systematic learning</p>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Learning Center</h1>
+            <p class="dashboard-subtitle">Transform experience into expertise through systematic learning</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('learning.review_calendar') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-calendar-check"></i> Review Calendar
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" type="button"
+                        id="learningActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-plus-circle-fill"></i> Quick Action
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="learningActionsDropdown">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('learning.new_mistake') }}">
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                            Log Mistake
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">
+                            <i class="bi bi-journal-text text-primary me-2"></i>
+                            Weekly Review
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('learning.pattern_recognition') }}">
+                            <i class="bi bi-diagram-3 text-info me-2"></i>
+                            Find Patterns
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
 
-<!-- Learning Score Card -->
-<div class="card mb-4 border-primary">
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h3>Your Learning Score: {{ learning_score.total_score }}/{{ learning_score.max_score }}</h3>
-                <div class="progress mb-2" style="height: 25px;">
-                    <div class="progress-bar bg-primary" role="progressbar" 
-                         style="width: {{ (learning_score.total_score / learning_score.max_score * 100)|round }}%">
-                        Grade: {{ learning_score.grade }}
+    <!-- Learning Score Card -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid single-column">
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Your Learning Score</h3>
+                        <span class="priority-card-number priority-number-blue">{{ learning_score.total_score }} / {{ learning_score.max_score }}</span>
                     </div>
+                    <div class="learning-progress-bar">
+                        <div class="learning-progress-fill" style="width: {{ (learning_score.total_score / learning_score.max_score * 100)|round }}%"></div>
+                    </div>
+                    <p class="priority-card-description">Grade: {{ learning_score.grade }}</p>
                 </div>
-                <small class="text-muted">
-                    Factors: 
-                    {% for factor, value in learning_score.factors.items() %}
-                        {{ factor|replace('_', ' ')|title }}: {{ value }}{% if not loop.last %} | {% endif %}
-                    {% endfor %}
-                </small>
-            </div>
-            <div class="col-md-4 text-end">
-                <h1 class="display-4">{{ learning_score.grade }}</h1>
-                <p class="text-muted">Learning Grade</p>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Review Schedule Alert -->
-{% if review_schedule %}
-<div class="alert alert-info alert-dismissible fade show" role="alert">
-    <strong>📅 Upcoming Reviews:</strong>
-    {% for item in review_schedule[:3] %}
-        <span class="badge {% if item.status == 'overdue' %}bg-danger{% else %}bg-primary{% endif %} ms-2">
-            {{ item.type }} - {{ item.date.strftime('%b %d') }}
-        </span>
-    {% endfor %}
-    <a href="{{ url_for('learning.review_calendar') }}" class="alert-link ms-2">View Full Calendar →</a>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
+    <!-- Review Schedule Alert -->
+    {% if review_schedule %}
+    <div class="learning-alert">
+        <div class="learning-alert-icon">
+            <i class="bi bi-calendar-event"></i>
+        </div>
+        <div class="learning-alert-content">
+            <strong>Upcoming Reviews:</strong>
+            <div class="learning-alert-badges">
+                {% for item in review_schedule[:3] %}
+                <span class="learning-alert-badge {% if item.status == 'overdue' %}badge-danger{% else %}badge-primary{% endif %}">
+                    {{ item.type }} - {{ item.date.strftime('%b %d') }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        <a href="{{ url_for('learning.review_calendar') }}" class="learning-alert-link">
+            View Full Calendar <i class="bi bi-arrow-right-short"></i>
+        </a>
+    </div>
+    {% endif %}
 
-<!-- Improvement Metrics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4>{{ recent_mistakes|length }}</h4>
-                <small class="text-muted">Recent Mistakes Logged</small>
+    <!-- Metrics Grid -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Recent Mistakes</h3>
+                        <span class="priority-card-number priority-number-blue">{{ recent_mistakes|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Logged for learning</p>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4>{{ recent_patterns|length }}</h4>
-                <small class="text-muted">Patterns Identified</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4>{{ improvement_data.recent_confidence }}</h4>
-                <small class="text-muted">Recent Confidence</small>
-                {% if improvement_data.confidence_trend == 'improving' %}
-                    <span class="text-success">↑</span>
-                {% elif improvement_data.confidence_trend == 'declining' %}
-                    <span class="text-danger">↓</span>
-                {% else %}
-                    <span class="text-muted">→</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4>{{ active_paths|length }}</h4>
-                <small class="text-muted">Active Learning Paths</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row">
-    <!-- Learning Recommendations -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">💡 Recommended Actions</h5>
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Patterns Found</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ recent_patterns|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Behavioral insights</p>
+                </div>
             </div>
-            <div class="card-body">
-                {% if recommendations %}
-                <div class="list-group list-group-flush">
-                    {% for rec in recommendations %}
-                    <div class="list-group-item px-0">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">{{ rec.title }}</h6>
-                                <p class="mb-1 small text-muted">{{ rec.description }}</p>
-                                <small>
-                                    <span class="badge bg-{{ 'danger' if rec.priority == 'high' else 'warning' if rec.priority == 'medium' else 'info' }}">
-                                        {{ rec.priority|title }} Priority
-                                    </span>
-                                </small>
+
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Confidence Level</h3>
+                        <span class="priority-card-number priority-number-green">
+                            {{ improvement_data.recent_confidence }}
+                            {% if improvement_data.confidence_trend == 'improving' %}
+                            <span class="trend-arrow trend-up">↑</span>
+                            {% elif improvement_data.confidence_trend == 'declining' %}
+                            <span class="trend-arrow trend-down">↓</span>
+                            {% else %}
+                            <span class="trend-arrow trend-stable">→</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="priority-card-description">Recent average</p>
+                </div>
+            </div>
+
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Active Paths</h3>
+                        <span class="priority-card-number priority-number-blue">{{ active_paths|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Learning in progress</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="learning-content-grid">
+        <!-- Recommendations Column -->
+        <div class="learning-main-column">
+            <!-- Recommendations Card -->
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title">Recommended Actions</h5>
+                </div>
+                <div class="learning-card-body">
+                    {% if recommendations %}
+                    <div class="recommendations-list">
+                        {% for rec in recommendations %}
+                        <div class="recommendation-item">
+                            <div class="recommendation-content">
+                                <h6 class="recommendation-title">{{ rec.title }}</h6>
+                                <p class="recommendation-description">{{ rec.description }}</p>
+                            </div>
+                            <span class="recommendation-priority priority-{{ rec.priority }}">
+                                {{ rec.priority|title }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="learning-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <p>No specific recommendations at this time</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Patterns Card -->
+            {% if recent_patterns %}
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title">Identified Patterns</h5>
+                    <a href="{{ url_for('learning.pattern_recognition') }}" class="learning-card-link">
+                        View All <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+                <div class="learning-card-body">
+                    <div class="patterns-grid">
+                        {% for pattern in recent_patterns[:4] %}
+                        <div class="pattern-card">
+                            <h6 class="pattern-name">{{ pattern.pattern_name }}</h6>
+                            <p class="pattern-description">{{ pattern.description }}</p>
+                            <div class="pattern-badges">
+                                <span class="pattern-type-badge pattern-{{ pattern.pattern_type }}">
+                                    {{ pattern.pattern_type|replace('_', ' ')|title }}
+                                </span>
+                                <span class="pattern-count-badge">{{ pattern.occurrences }}x</span>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted text-center">No specific recommendations at this time</p>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
-    </div>
-    
-    <!-- Recent Mistakes -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">❌ Recent Mistakes</h5>
-                <a href="{{ url_for('learning.mistake_log') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body">
-                {% if recent_mistakes %}
-                <div class="list-group list-group-flush">
-                    {% for mistake in recent_mistakes[:5] %}
-                    <div class="list-group-item px-0">
-                        <h6 class="mb-1">{{ mistake.title }}</h6>
-                        <p class="mb-1 small text-muted">{{ mistake.lesson_learned|truncate(100) }}</p>
-                        <small>
-                            <span class="badge bg-danger">{{ mistake.mistake_type|replace('_', ' ')|title }}</span>
-                            <span class="text-muted">| Severity: {{ mistake.severity }}/10</span>
-                            {% if mistake.times_reviewed > 0 %}
-                                <span class="text-success">| Reviewed {{ mistake.times_reviewed }}x</span>
-                            {% endif %}
-                        </small>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted text-center">No mistakes logged yet - they're learning opportunities!</p>
-                <div class="text-center">
-                    <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-primary">Log Your First Mistake</a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Recent Patterns -->
-{% if recent_patterns %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">🔍 Identified Patterns</h5>
-        <a href="{{ url_for('learning.pattern_recognition') }}" class="btn btn-sm btn-outline-primary">View All</a>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            {% for pattern in recent_patterns[:4] %}
-            <div class="col-md-6 mb-3">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h6 class="card-title">{{ pattern.pattern_name }}</h6>
-                        <p class="card-text small">{{ pattern.description }}</p>
-                        <div>
-                            <span class="badge bg-{{ 'success' if pattern.pattern_type == 'success_pattern' else 'danger' if pattern.pattern_type == 'failure_pattern' else 'info' }}">
-                                {{ pattern.pattern_type|replace('_', ' ')|title }}
-                            </span>
-                            <span class="badge bg-secondary">{{ pattern.occurrences }} occurrences</span>
+        <!-- Mistakes Sidebar -->
+        <div class="learning-sidebar-column">
+            <!-- Recent Mistakes Card -->
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title">Recent Mistakes</h5>
+                    <a href="{{ url_for('learning.mistake_log') }}" class="learning-card-link">
+                        View All <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+                <div class="learning-card-body">
+                    {% if recent_mistakes %}
+                    <div class="mistakes-list">
+                        {% for mistake in recent_mistakes[:5] %}
+                        <div class="mistake-item">
+                            <div class="mistake-header">
+                                <h6 class="mistake-title">{{ mistake.title }}</h6>
+                                <span class="mistake-severity">{{ mistake.severity }}/10</span>
+                            </div>
+                            <p class="mistake-lesson">{{ mistake.lesson_learned|truncate(80) }}</p>
+                            <div class="mistake-meta">
+                                <span class="mistake-type-badge">{{ mistake.mistake_type|replace('_', ' ')|title }}</span>
+                                {% if mistake.times_reviewed > 0 %}
+                                <span class="mistake-reviewed">Reviewed {{ mistake.times_reviewed }}x</span>
+                                {% endif %}
+                            </div>
                         </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="learning-empty-state">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <p>No mistakes logged yet</p>
+                        <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-primary btn-sm mt-2">
+                            Log Your First Mistake
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title">Quick Actions</h5>
+                </div>
+                <div class="learning-card-body">
+                    <div class="quick-actions-list">
+                        <a href="{{ url_for('learning.weekly_review') }}" class="quick-action-item">
+                            <div class="quick-action-icon bg-primary">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <div class="quick-action-content">
+                                <div class="quick-action-title">Weekly Review</div>
+                                <div class="quick-action-description">Reflect on the week</div>
+                            </div>
+                        </a>
+                        <a href="{{ url_for('learning.new_mistake') }}" class="quick-action-item">
+                            <div class="quick-action-icon bg-danger">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="quick-action-content">
+                                <div class="quick-action-title">Log Mistake</div>
+                                <div class="quick-action-description">Document a learning moment</div>
+                            </div>
+                        </a>
+                        <a href="{{ url_for('learning.pattern_recognition') }}" class="quick-action-item">
+                            <div class="quick-action-icon bg-info">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <div class="quick-action-content">
+                                <div class="quick-action-title">Find Patterns</div>
+                                <div class="quick-action-description">Identify trends</div>
+                            </div>
+                        </a>
+                        <a href="{{ url_for('learning.learning_paths') }}" class="quick-action-item">
+                            <div class="quick-action-icon bg-success">
+                                <i class="bi bi-map"></i>
+                            </div>
+                            <div class="quick-action-content">
+                                <div class="quick-action-title">Learning Paths</div>
+                                <div class="quick-action-description">Structured growth</div>
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Quick Actions -->
-<div class="card">
-    <div class="card-body">
-        <h5>Quick Actions</h5>
-        <div class="btn-group" role="group">
-            <a href="{{ url_for('learning.weekly_review') }}" class="btn btn-outline-primary">
-                📝 Weekly Review
-            </a>
-            <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-outline-danger">
-                ❌ Log Mistake
-            </a>
-            <a href="{{ url_for('learning.pattern_recognition') }}" class="btn btn-outline-info">
-                🔍 Find Patterns
-            </a>
-            <a href="{{ url_for('learning.learning_paths') }}" class="btn btn-outline-success">
-                📚 Learning Paths
-            </a>
-            <a href="{{ url_for('learning.review_calendar') }}" class="btn btn-outline-warning">
-                📅 Review Calendar
-            </a>
         </div>
     </div>
 </div>

@@ -1,30 +1,38 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card">
-            <div class="card-header">
-                <h2>New Journal Entry</h2>
-                <p class="text-muted mb-0">Capture your investment thinking</p>
-            </div>
-            <div class="card-body">
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">New Journal Entry</h1>
+            <p class="dashboard-subtitle">Capture your investment thinking</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </header>
+
+    <!-- Entry Form -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data">
                 <!-- Template Selector -->
                 {% if templates %}
-                <div class="mb-3">
-                    <label class="form-label">Use Template:</label>
-                    <div class="btn-group" role="group">
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Use Template (Optional):</label>
+                    <div class="d-flex flex-wrap gap-2">
                         {% for template in templates[:4] %}
                         <button type="button" class="btn btn-outline-primary btn-sm"
-                            onclick="loadTemplate({{ template.id }}, {{ template.prompts|tojson }})">
-                            {{ template.name }}
+                            onclick="loadTemplate({{ template.id }}, {{ template.entry_type|tojson }}, {{ template.prompts|tojson }}, {{ template.example_content|tojson }})">
+                            <i class="bi bi-file-text"></i> {{ template.name }}
                         </button>
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
-
-                <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data">
                     <!-- Basic Info -->
                     <div class="row mb-3">
                         <div class="col-md-8">
@@ -54,10 +62,10 @@
                             <label class="form-label">Company (Optional)</label>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
-                                    🏢 Select Company
+                                    <i class="bi bi-building"></i> Select Company
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
-                                    ❌ Clear
+                                    <i class="bi bi-x-circle"></i> Clear
                                 </button>
                             </div>
                             <input type="hidden" id="company_id" name="company_id" value="">
@@ -128,10 +136,9 @@
                     <!-- Submit -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary btn-lg">Save Entry</button>
+                        <button type="submit" class="btn btn-primary">Save Entry</button>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
 </div>
@@ -290,7 +297,7 @@
                     <div class="flex-grow-1">
                         <h6 class="mb-1">
                             ${yahooSuggestion.name}
-                            <span class="badge bg-success ms-2">📊 Yahoo Finance</span>
+                            <span class="badge bg-success ms-2">Yahoo Finance</span>
                         </h6>
                         <p class="mb-1 fw-bold">${yahooSuggestion.ticker_symbol}</p>
                         <small class="text-muted">
@@ -299,7 +306,7 @@
                         </small>
                     </div>
                     <div class="text-end">
-                        <small class="text-success">🆕 Add to Portfolio</small>
+                        <small class="text-success">Add to Portfolio</small>
                     </div>
                 </div>
             `;
@@ -326,7 +333,7 @@
                         <small class="text-muted">${company.industry || 'Industry not specified'}</small>
                     </div>
                     <div class="text-end">
-                        <small class="text-primary">📁 Your Portfolio</small>
+                        <small class="text-primary">Your Portfolio</small>
                     </div>
                 </div>
             `;
@@ -540,7 +547,16 @@
     }
 
     // Load template prompts
-    function loadTemplate(templateId, prompts) {
+    function loadTemplate(templateId, entryType, prompts, exampleContent) {
+        // Set entry type if provided
+        if (entryType) {
+            const entryTypeSelect = document.getElementById('entry_type');
+            entryTypeSelect.value = entryType;
+            // Trigger change event to show/hide fields
+            entryTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Show prompts if available
         if (prompts && prompts.length > 0) {
             const promptsList = document.getElementById('promptsList');
             promptsList.innerHTML = '';
@@ -550,7 +566,32 @@
                 promptsList.appendChild(li);
             });
             document.getElementById('templatePrompts').style.display = 'block';
+        } else {
+            document.getElementById('templatePrompts').style.display = 'none';
         }
+
+        // Populate content field with example if available
+        if (exampleContent) {
+            const contentField = document.getElementById('content');
+            // Build template text
+            let templateText = '';
+
+            if (prompts && prompts.length > 0) {
+                // Add prompts as structure
+                prompts.forEach(prompt => {
+                    templateText += `${prompt}\n\n\n`;
+                });
+            } else if (exampleContent) {
+                // Use example content as guide
+                templateText = exampleContent;
+            }
+
+            contentField.value = templateText;
+            contentField.focus();
+        }
+
+        // Scroll to content field
+        document.getElementById('content').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // Auto-save draft (optional)

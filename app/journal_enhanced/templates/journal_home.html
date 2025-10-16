@@ -1,208 +1,226 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📔 Research Journal</h1>
-        <p class="text-muted mb-0">Capture insights, track thesis evolution, and build knowledge</p>
-    </div>
-    <div>
-        <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-success">
-            + New Entry
-        </a>
-        <a href="{{ url_for('journal_enhanced.search') }}" class="btn btn-outline-primary">
-            🔍 Search
-        </a>
-    </div>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Research Journal</h1>
+            <p class="dashboard-subtitle">Capture insights, track thesis evolution, and build knowledge</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('journal_enhanced.search') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-search"></i> Search
+            </a>
+            <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> New Entry
+            </a>
+        </div>
+    </header>
 
-<!-- Review Alert -->
-{% if review_queue.total_items > 0 %}
-<div class="alert alert-info alert-dismissible fade show" role="alert">
-    <strong>📚 Review Queue:</strong> You have {{ review_queue.total_items }} items due for review.
-    <a href="{{ url_for('journal_enhanced.review_queue') }}" class="alert-link">Review Now →</a>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
-
-<!-- Quick Entry for Active Companies -->
-{% if active_companies %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Quick Entry</h5>
+    <!-- Review Alert -->
+    {% if review_queue.total_items > 0 %}
+    <div class="journal-alert">
+        <div class="journal-alert-icon">
+            <i class="bi bi-bookmark-check"></i>
+        </div>
+        <div class="journal-alert-content">
+            <strong>Review Queue:</strong>
+            <span>You have {{ review_queue.total_items }} items due for review</span>
+        </div>
+        <a href="{{ url_for('journal_enhanced.review_queue') }}" class="journal-alert-link">
+            Review Now <i class="bi bi-arrow-right-short"></i>
+        </a>
     </div>
-    <div class="card-body">
-        <div class="row">
+    {% endif %}
+
+    <!-- Quick Entry for Active Companies -->
+    {% if active_companies %}
+    <div class="quick-entry-section">
+        <h3 class="quick-entry-title">Quick Entry</h3>
+        <div class="quick-entry-grid">
             {% for company in active_companies[:6] %}
-            <div class="col-md-2 mb-2">
-                <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id) }}" 
-                   class="btn btn-outline-primary btn-sm w-100">
-                    {{ company.ticker_symbol or company.name[:10] }}
-                </a>
-            </div>
+            <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id) }}"
+               class="quick-entry-button">
+                <span class="quick-entry-ticker">{{ company.ticker_symbol or company.name[:10] }}</span>
+                <i class="bi bi-pencil-square"></i>
+            </a>
             {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Statistics Overview -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ stats.total_entries }}</h3>
-                <small class="text-muted">Total Entries</small>
+    <!-- Statistics Overview -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Entries</h3>
+                        <span class="priority-card-number priority-number-blue">{{ stats.total_entries }}</span>
+                    </div>
+                    <p class="priority-card-description">All journal entries</p>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ stats.recent_entries }}</h3>
-                <small class="text-muted">Last 7 Days</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ stats.total_lessons }}</h3>
-                <small class="text-muted">Learning Notes</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ stats.pending_reviews }}</h3>
-                <small class="text-muted">Pending Reviews</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row">
-    <!-- Recent Entries -->
-    <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Entries</h5>
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Last 7 Days</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ stats.recent_entries }}</span>
+                    </div>
+                    <p class="priority-card-description">Recent activity</p>
+                </div>
             </div>
-            <div class="card-body p-0">
-                {% if recent_entries %}
-                <div class="list-group list-group-flush">
-                    {% for entry in recent_entries %}
-                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" 
-                       class="list-group-item list-group-item-action">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1">
-                                    {% if entry.is_starred %}⭐{% endif %}
-                                    {{ entry.title or "Untitled Entry" }}
-                                </h6>
-                                <p class="mb-1 text-muted small">
-                                    {{ entry.content|truncate(150) }}
-                                </p>
-                                <div>
-                                    <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Learning Notes</h3>
+                        <span class="priority-card-number priority-number-green">{{ stats.total_lessons }}</span>
+                    </div>
+                    <p class="priority-card-description">Captured lessons</p>
+                </div>
+            </div>
+
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Pending Reviews</h3>
+                        <span class="priority-card-number priority-number-blue">{{ stats.pending_reviews }}</span>
+                    </div>
+                    <p class="priority-card-description">Items to review</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="journal-content-grid">
+        <!-- Recent Entries Main Column -->
+        <div class="journal-main-column">
+            <div class="journal-content-card">
+                <div class="journal-card-header">
+                    <h5 class="journal-card-title">Recent Entries</h5>
+                </div>
+                <div class="journal-card-body">
+                    {% if recent_entries %}
+                    <div class="journal-entries-list">
+                        {% for entry in recent_entries %}
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
+                           class="journal-entry-item">
+                            <div class="entry-main">
+                                <div class="entry-header">
+                                    <h6 class="entry-title">
+                                        {% if entry.is_starred %}
+                                        <span class="entry-star">⭐</span>
+                                        {% endif %}
+                                        {{ entry.title or "Untitled Entry" }}
+                                    </h6>
+                                    <span class="entry-date">
+                                        {{ entry.created_at.strftime('%b %d') }}<br>
+                                        <small>{{ entry.created_at.strftime('%H:%M') }}</small>
+                                    </span>
+                                </div>
+                                <p class="entry-preview">{{ entry.content|truncate(150) }}</p>
+                                <div class="entry-badges">
+                                    <span class="entry-badge badge-type">{{ entry.entry_type|replace('_', ' ')|title }}</span>
                                     {% if entry.company %}
-                                        <span class="badge bg-primary">{{ entry.company.name }}</span>
+                                    <span class="entry-badge badge-company">{{ entry.company.name }}</span>
                                     {% endif %}
                                     {% if entry.sentiment %}
-                                        <span class="badge bg-info">{{ entry.sentiment|title }}</span>
+                                    <span class="entry-badge badge-sentiment">{{ entry.sentiment|title }}</span>
                                     {% endif %}
                                     {% for tag in (entry.tags or [])[:3] %}
-                                        <span class="badge bg-light text-dark">#{{ tag }}</span>
+                                    <span class="entry-badge badge-tag">#{{ tag }}</span>
                                     {% endfor %}
                                 </div>
                             </div>
-                            <div class="text-end ms-3">
-                                <small class="text-muted">
-                                    {{ entry.created_at.strftime('%b %d') }}<br>
-                                    {{ entry.created_at.strftime('%H:%M') }}
-                                </small>
-                            </div>
-                        </div>
-                    </a>
-                    {% endfor %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="journal-empty-state">
+                        <i class="bi bi-journal-text"></i>
+                        <h3>No Journal Entries Yet</h3>
+                        <p>Start documenting your research journey</p>
+                        <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary btn-lg mt-3">
+                            <i class="bi bi-plus-circle-fill me-2"></i> Create Your First Entry
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div class="p-4 text-center text-muted">
-                    <p>No journal entries yet</p>
-                    <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary">
-                        Create Your First Entry
-                    </a>
-                </div>
-                {% endif %}
             </div>
         </div>
-    </div>
-    
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-        <!-- Starred Entries -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0">⭐ Starred Entries</h6>
-            </div>
-            <div class="card-body p-0">
-                {% if starred_entries %}
-                <div class="list-group list-group-flush">
-                    {% for entry in starred_entries %}
-                    <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" 
-                       class="list-group-item list-group-item-action">
-                        <strong>{{ entry.title or "Untitled" }}</strong><br>
-                        <small class="text-muted">
-                            {{ entry.created_at.strftime('%b %d, %Y') }}
-                        </small>
-                    </a>
-                    {% endfor %}
+
+        <!-- Sidebar Column -->
+        <div class="journal-sidebar-column">
+            <!-- Starred Entries -->
+            <div class="journal-sidebar-card">
+                <div class="sidebar-card-header">
+                    <h6 class="sidebar-card-title">Starred Entries</h6>
                 </div>
-                {% else %}
-                <div class="p-3 text-center text-muted">
-                    <small>No starred entries</small>
+                <div class="sidebar-card-body">
+                    {% if starred_entries %}
+                    <div class="starred-entries-list">
+                        {% for entry in starred_entries %}
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
+                           class="starred-entry-item">
+                            <strong class="starred-entry-title">{{ entry.title or "Untitled" }}</strong>
+                            <small class="starred-entry-date">{{ entry.created_at.strftime('%b %d, %Y') }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="sidebar-empty-state">
+                        <small>No starred entries yet</small>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
-        </div>
-        
-        <!-- Top Tags -->
-        {% if stats.top_tags %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0">🏷️ Top Tags</h6>
+
+            <!-- Top Tags -->
+            {% if stats.top_tags %}
+            <div class="journal-sidebar-card">
+                <div class="sidebar-card-header">
+                    <h6 class="sidebar-card-title">Top Tags</h6>
+                </div>
+                <div class="sidebar-card-body">
+                    <div class="tags-cloud">
+                        {% for tag, count in stats.top_tags %}
+                        <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}"
+                           class="tag-item">
+                            #{{ tag }} <span class="tag-count">{{ count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                {% for tag, count in stats.top_tags %}
-                <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}" 
-                   class="badge bg-primary text-decoration-none me-1 mb-1">
-                    #{{ tag }} ({{ count }})
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Quick Links -->
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Quick Links</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('journal_enhanced.learning_notes') }}" 
-                       class="btn btn-outline-primary btn-sm">
-                        📚 Learning Notes
-                    </a>
-                    <a href="{{ url_for('journal_enhanced.manage_templates') }}" 
-                       class="btn btn-outline-primary btn-sm">
-                        📝 Templates
-                    </a>
-                    <a href="{{ url_for('journal_enhanced.export_journal') }}" 
-                       class="btn btn-outline-primary btn-sm">
-                        📤 Export Journal
-                    </a>
+            {% endif %}
+
+            <!-- Quick Links -->
+            <div class="journal-sidebar-card">
+                <div class="sidebar-card-header">
+                    <h6 class="sidebar-card-title">Quick Links</h6>
+                </div>
+                <div class="sidebar-card-body">
+                    <div class="quick-links-list">
+                        <a href="{{ url_for('journal_enhanced.learning_notes') }}"
+                           class="quick-link-item">
+                            <i class="bi bi-journal-bookmark"></i>
+                            <span>Learning Notes</span>
+                        </a>
+                        <a href="{{ url_for('journal_enhanced.manage_templates') }}"
+                           class="quick-link-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Templates</span>
+                        </a>
+                        <a href="{{ url_for('journal_enhanced.export_journal') }}"
+                           class="quick-link-item">
+                            <i class="bi bi-download"></i>
+                            <span>Export Journal</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

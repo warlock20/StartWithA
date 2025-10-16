@@ -901,6 +901,10 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.priority-lane-grid.single-column {
+    grid-template-columns: 1fr;
+}
+
 @media (max-width: 768px) {
     .priority-lane-grid.three-column {
         grid-template-columns: 1fr;

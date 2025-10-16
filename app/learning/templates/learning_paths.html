@@ -1,185 +1,177 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📚 Learning Paths</h1>
-        <p class="text-muted mb-0">Structured programs to improve your investment skills</p>
-    </div>
-    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newPathModal">
-        + Create Learning Path
-    </button>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">📚 Learning Paths</h1>
+            <p class="dashboard-subtitle">Structured programs to improve your investment skills</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newPathModal">
+                <i class="bi bi-plus-circle-fill me-2"></i> Create Learning Path
+            </button>
+        </div>
+    </header>
 
-<!-- Active Learning Paths -->
-{% set active_paths = paths|selectattr('status', 'equalto', 'active')|list %}
-{% if active_paths %}
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">🎯 Active Learning Paths</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
+    <!-- Active Learning Paths -->
+    {% set active_paths = paths|selectattr('status', 'equalto', 'active')|list %}
+    {% if active_paths %}
+    <div class="learning-paths-section">
+        <div class="section-header">
+            <h2 class="section-title">🎯 Active Learning Paths</h2>
+            <span class="section-count">{{ active_paths|length }} active</span>
+        </div>
+
+        <div class="learning-paths-grid">
             {% for path in active_paths %}
-            <div class="col-lg-6 mb-3">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ path.name }}</h5>
-                        <p class="card-text">{{ path.description }}</p>
-                        
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Progress</span>
-                                <span>{{ path.completed_steps }}/{{ path.total_steps }} steps</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: {{ (path.completed_steps / path.total_steps * 100) if path.total_steps else 0 }}%">
-                                    {{ ((path.completed_steps / path.total_steps * 100)|round) if path.total_steps else 0 }}%
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <p class="mb-2">
-                            <strong>Skill Area:</strong> 
-                            <span class="badge bg-info">{{ path.skill_area|replace('_', ' ')|title }}</span>
-                        </p>
-                        
-                        <p class="mb-2">
-                            <strong>Current Step:</strong> Step {{ path.current_step }}
-                            {% if path.milestones and path.current_step <= path.milestones|length %}
-                                - {{ path.milestones[path.current_step - 1] }}
-                            {% endif %}
-                        </p>
-                        
-                        {% if path.target_completion %}
-                        <p class="mb-2">
-                            <strong>Target:</strong> {{ path.target_completion.strftime('%B %d, %Y') }}
-                        </p>
-                        {% endif %}
-                        
-                        <div class="d-flex justify-content-between">
-                            <button class="btn btn-primary btn-sm" onclick="viewPath({{ path.id }})">
-                                Continue Learning
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="pausePath({{ path.id }})">
-                                Pause
-                            </button>
-                        </div>
+            <div class="learning-path-card">
+                <div class="learning-path-header">
+                    <h3 class="learning-path-title">{{ path.name }}</h3>
+                    <span class="learning-path-skill-badge">{{ path.skill_area|replace('_', ' ')|title }}</span>
+                </div>
+
+                <p class="learning-path-description">{{ path.description }}</p>
+
+                <div class="learning-path-progress">
+                    <div class="progress-header">
+                        <span class="progress-label">Progress</span>
+                        <span class="progress-value">{{ path.completed_steps }}/{{ path.total_steps }} steps</span>
                     </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: {{ (path.completed_steps / path.total_steps * 100) if path.total_steps else 0 }}%"></div>
+                    </div>
+                    <span class="progress-percentage">{{ ((path.completed_steps / path.total_steps * 100)|round) if path.total_steps else 0 }}%</span>
+                </div>
+
+                <div class="learning-path-current">
+                    <div class="current-step-label">Current Step {{ path.current_step }}</div>
+                    {% if path.milestones and path.current_step <= path.milestones|length %}
+                    <div class="current-step-description">{{ path.milestones[path.current_step - 1] }}</div>
+                    {% endif %}
+                </div>
+
+                {% if path.target_completion %}
+                <div class="learning-path-target">
+                    <i class="bi bi-calendar-event me-2"></i>
+                    <span>Target: {{ path.target_completion.strftime('%B %d, %Y') }}</span>
+                </div>
+                {% endif %}
+
+                <div class="learning-path-actions">
+                    <button class="btn btn-primary" onclick="viewPath({{ path.id }})">
+                        Continue Learning <i class="bi bi-arrow-right-short"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="pausePath({{ path.id }})">
+                        <i class="bi bi-pause-circle"></i> Pause
+                    </button>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Suggested Learning Paths -->
-{% if suggested_paths %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">💡 Suggested Learning Paths</h5>
-    </div>
-    <div class="card-body">
-        <p class="text-muted">Based on your recent mistakes and patterns, we recommend:</p>
-        <div class="row">
+    <!-- Suggested Learning Paths -->
+    {% if suggested_paths %}
+    <div class="suggested-paths-section">
+        <div class="section-header">
+            <h2 class="section-title">💡 Suggested Learning Paths</h2>
+            <p class="section-description">Based on your recent mistakes and patterns</p>
+        </div>
+
+        <div class="suggested-paths-grid">
             {% for suggestion in suggested_paths %}
-            <div class="col-lg-4 mb-3">
-                <div class="card">
-                    <div class="card-body">
-                        <h6 class="card-title">{{ suggestion.name }}</h6>
-                        <p class="card-text small">{{ suggestion.description }}</p>
-                        <p class="mb-2">
-                            <span class="badge bg-secondary">{{ suggestion.skill_area|replace('_', ' ')|title }}</span>
-                        </p>
-                        <button class="btn btn-sm btn-outline-primary" 
-                                onclick="startSuggestedPath('{{ suggestion.name }}', '{{ suggestion.skill_area }}')">
-                            Start This Path
-                        </button>
-                    </div>
-                </div>
+            <div class="suggested-path-card">
+                <div class="suggested-path-icon">💡</div>
+                <h4 class="suggested-path-title">{{ suggestion.name }}</h4>
+                <p class="suggested-path-description">{{ suggestion.description }}</p>
+                <span class="suggested-path-badge">{{ suggestion.skill_area|replace('_', ' ')|title }}</span>
+                <button class="btn btn-primary btn-sm mt-3"
+                        onclick="startSuggestedPath('{{ suggestion.name }}', '{{ suggestion.skill_area }}')">
+                    Start This Path <i class="bi bi-arrow-right-short"></i>
+                </button>
             </div>
             {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Completed Paths -->
-{% set completed_paths = paths|selectattr('status', 'equalto', 'completed')|list %}
-{% if completed_paths %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">✅ Completed Learning Paths</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Path Name</th>
-                        <th>Skill Area</th>
-                        <th>Completed</th>
-                        <th>Duration</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for path in completed_paths %}
-                    <tr>
-                        <td>{{ path.name }}</td>
-                        <td><span class="badge bg-success">{{ path.skill_area|replace('_', ' ')|title }}</span></td>
-                        <td>{{ path.completed_at.strftime('%b %d, %Y') if path.completed_at else 'N/A' }}</td>
-                        <td>
+    <!-- Completed Paths -->
+    {% set completed_paths = paths|selectattr('status', 'equalto', 'completed')|list %}
+    {% if completed_paths %}
+    <div class="completed-paths-section">
+        <div class="section-header">
+            <h2 class="section-title">✅ Completed Learning Paths</h2>
+            <span class="section-count">{{ completed_paths|length }} completed</span>
+        </div>
+
+        <div class="completed-paths-list">
+            {% for path in completed_paths %}
+            <div class="completed-path-item">
+                <div class="completed-path-main">
+                    <div class="completed-path-icon">✅</div>
+                    <div class="completed-path-info">
+                        <h4 class="completed-path-title">{{ path.name }}</h4>
+                        <div class="completed-path-meta">
+                            <span class="completed-path-skill">{{ path.skill_area|replace('_', ' ')|title }}</span>
+                            <span class="completed-path-date">Completed {{ path.completed_at.strftime('%b %d, %Y') if path.completed_at else 'N/A' }}</span>
                             {% if path.started_at and path.completed_at %}
-                                {{ (path.completed_at - path.started_at).days }} days
-                            {% else %}
-                                N/A
+                            <span class="completed-path-duration">{{ (path.completed_at - path.started_at).days }} days</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="viewPath({{ path.id }})">
-                                Review
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="viewPath({{ path.id }})">
+                    <i class="bi bi-eye"></i> Review
+                </button>
+            </div>
+            {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Learning Resources Library -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">📖 Learning Resources</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <h6>📚 Books</h6>
-                <ul class="small">
+    <!-- Learning Resources Library -->
+    <div class="resources-section">
+        <div class="section-header">
+            <h2 class="section-title">📖 Learning Resources</h2>
+            <p class="section-description">Curated resources to accelerate your learning</p>
+        </div>
+
+        <div class="resources-grid">
+            <div class="resource-card">
+                <div class="resource-header">
+                    <div class="resource-icon">📚</div>
+                    <h3 class="resource-title">Essential Books</h3>
+                </div>
+                <ul class="resource-list">
                     <li>"The Intelligent Investor" - Benjamin Graham</li>
                     <li>"Common Stocks and Uncommon Profits" - Philip Fisher</li>
                     <li>"One Up On Wall Street" - Peter Lynch</li>
                     <li>"The Most Important Thing" - Howard Marks</li>
                 </ul>
             </div>
-            <div class="col-md-4">
-                <h6>🎓 Courses</h6>
-                <ul class="small">
+
+            <div class="resource-card">
+                <div class="resource-header">
+                    <div class="resource-icon">🎓</div>
+                    <h3 class="resource-title">Recommended Courses</h3>
+                </div>
+                <ul class="resource-list">
                     <li>Financial Statement Analysis</li>
                     <li>Business Valuation Methods</li>
                     <li>Industry Analysis Frameworks</li>
                     <li>Risk Management Strategies</li>
                 </ul>
             </div>
-            <div class="col-md-4">
-                <h6>🔧 Practice Exercises</h6>
-                <ul class="small">
+
+            <div class="resource-card">
+                <div class="resource-header">
+                    <div class="resource-icon">🔧</div>
+                    <h3 class="resource-title">Practice Exercises</h3>
+                </div>
+                <ul class="resource-list">
                     <li>10-K Reading Challenge</li>
                     <li>DCF Model Building</li>
                     <li>Competitive Analysis Project</li>
@@ -188,6 +180,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Empty State for No Paths -->
+    {% if not active_paths and not completed_paths %}
+    <div class="learning-empty-state">
+        <i class="bi bi-map"></i>
+        <h3>No Learning Paths Yet</h3>
+        <p>Create your first learning path to start your structured learning journey</p>
+        <button class="btn btn-primary btn-lg mt-3" data-bs-toggle="modal" data-bs-target="#newPathModal">
+            <i class="bi bi-plus-circle-fill me-2"></i> Create Your First Path
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <!-- New Path Modal -->
@@ -204,12 +208,12 @@
                         <label for="path_name" class="form-label">Path Name</label>
                         <input type="text" class="form-control" id="path_name" name="name" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="path_description" class="form-label">Description</label>
                         <textarea class="form-control" id="path_description" name="description" rows="2"></textarea>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <label for="skill_area" class="form-label">Skill Area</label>
@@ -227,12 +231,12 @@
                             <input type="date" class="form-control" id="target_completion" name="target_completion">
                         </div>
                     </div>
-                    
+
                     <div class="mt-3">
                         <label class="form-label">Learning Milestones</label>
                         <div id="milestones-container">
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" name="milestones[]" 
+                                <input type="text" class="form-control" name="milestones[]"
                                        placeholder="Milestone 1">
                             </div>
                         </div>
@@ -260,7 +264,7 @@ function addMilestone() {
     const div = document.createElement('div');
     div.className = 'input-group mb-2';
     div.innerHTML = `
-        <input type="text" class="form-control" name="milestones[]" 
+        <input type="text" class="form-control" name="milestones[]"
                placeholder="Milestone ${count}">
         <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">
             Remove

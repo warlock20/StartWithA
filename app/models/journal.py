@@ -48,6 +48,9 @@ class DecisionJournal(db.Model):
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
+    # Relationships
+    company = db.relationship('Company', backref='decision_journals')
+
     def __repr__(self):
         return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'
 
