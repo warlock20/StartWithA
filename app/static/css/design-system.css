@@ -65,3 +65,4 @@ All complex components have been fully modularized.
 @import url('modules/_learning-paths.css');       /* Learning - Learning paths page */
 @import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
 @import url('modules/_learning-weekly-review.css'); /* Learning - Weekly review page */
+@import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */

@@ -1014,7 +1014,16 @@ def swot_analysis(company_id):
             db.session.rollback()
             flash(f'An error occurred while saving: {e}', 'error')
 
-        return redirect(url_for('companies.swot_analysis', company_id=company.id))
+        # Preserve research workflow context if present
+        project_id = request.args.get('project_id')
+        step_index = request.args.get('step_index')
+        if project_id and step_index:
+            return redirect(url_for('companies.swot_analysis',
+                                  company_id=company.id,
+                                  project_id=project_id,
+                                  step_index=step_index))
+        else:
+            return redirect(url_for('companies.swot_analysis', company_id=company.id))
 
     # For a GET request, prepare the existing data for the form
     existing_content = analysis.content if analysis and analysis.content else {}
@@ -1068,7 +1077,16 @@ def porters_five_forces_analysis(company_id):
             db.session.rollback()
             flash(f'An error occurred while saving: {e}', 'error')
 
-        return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
+        # Preserve research workflow context if present
+        project_id = request.args.get('project_id')
+        step_index = request.args.get('step_index')
+        if project_id and step_index:
+            return redirect(url_for('companies.porters_five_forces_analysis',
+                                  company_id=company.id,
+                                  project_id=project_id,
+                                  step_index=step_index))
+        else:
+            return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
 
     existing_content = analysis.content if analysis and analysis.content else {}
 

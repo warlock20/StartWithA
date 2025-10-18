@@ -6,9 +6,11 @@
 .summary-page-header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
     color: white;
-    padding: 2rem;
     border-radius: var(--radius-lg);
-    margin-bottom: 2rem;
+    /* 
+    padding: 2rem;
+    margin-bottom: 2rem; 
+    */
 }
 
 .summary-page-title {

@@ -58,10 +58,33 @@ Inspired by modern workflow builder with visual timeline
 /* Workflow Canvas */
 .workflow-canvas {
     position: relative;
-    min-height: 400px;
+    min-height: 300px;
+    max-height: 500px;
     background-color: var(--gray-50);
     border-radius: 12px;
     padding: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar for workflow canvas */
+.workflow-canvas::-webkit-scrollbar {
+    width: 8px;
+}
+
+.workflow-canvas::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 10px;
+}
+
+.workflow-canvas::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.workflow-canvas::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
 }
 
 /* Empty State */

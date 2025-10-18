@@ -165,6 +165,31 @@
 .search-results-list {
     display: flex;
     flex-direction: column;
+    max-height: calc(100vh - 550px);
+    min-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for search results list */
+.search-results-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.search-results-list::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 10px;
+}
+
+.search-results-list::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.search-results-list::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
 }
 
 .search-result-item {

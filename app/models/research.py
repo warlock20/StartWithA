@@ -150,6 +150,7 @@ class ResearchProject(db.Model):
     completed_steps = db.Column(db.JSON, default=list)  # Array of completed step indices
     step_notes = db.Column(db.JSON, default=dict)  # Notes for each step
     step_results = db.Column(db.JSON, default=dict)  # Detailed results for each step
+    step_overrides = db.Column(db.JSON, default=dict)  # Override step configs (e.g., if checklist was deleted)
 
     # Status tracking
     status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned', 'killed'

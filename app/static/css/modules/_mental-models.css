@@ -1,0 +1,401 @@
+/*
+=============================================================================
+MENTAL MODELS ANALYSIS STYLES
+=============================================================================
+Professional styles for mental model analysis pages (SWOT, Porter's 5 Forces, etc.)
+Follows the platform's design system with clean, focused layouts
+*/
+
+/* Mental Models Container - Uses dashboard-container from _dashboard.css */
+/* Override for mental models pages to enable scrolling */
+.dashboard-container:has(.mental-models-header) {
+    max-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.dashboard-container:has(.mental-models-header) > form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Mental Models Header */
+.mental-models-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.mental-models-header-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.mental-models-header-subtitle {
+    color: var(--gray-600);
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+.mental-models-header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* SWOT Analysis Grid */
+.swot-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for SWOT grid */
+.swot-analysis-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.swot-analysis-grid::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 10px;
+}
+
+.swot-analysis-grid::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.swot-analysis-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
+/* SWOT Quadrant Card */
+.swot-quadrant-card {
+    background: white;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    overflow: visible;
+    transition: all 0.3s ease;
+}
+
+.swot-quadrant-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* SWOT Quadrant Header */
+.swot-quadrant-header {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.swot-quadrant-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.swot-quadrant-header h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--gray-900);
+}
+
+/* Quadrant Color Variants */
+.swot-quadrant-header.strengths .swot-quadrant-icon {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.15) 100%);
+    color: #10b981;
+}
+
+.swot-quadrant-header.weaknesses .swot-quadrant-icon {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%);
+    color: #ef4444;
+}
+
+.swot-quadrant-header.opportunities .swot-quadrant-icon {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.15) 100%);
+    color: #3b82f6;
+}
+
+.swot-quadrant-header.threats .swot-quadrant-icon {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.15) 100%);
+    color: #f59e0b;
+}
+
+/* SWOT Quadrant Body */
+.swot-quadrant-body {
+    padding: 1.5rem;
+}
+
+.swot-quadrant-description {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.swot-quadrant-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    resize: vertical;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.swot-quadrant-textarea:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.swot-quadrant-textarea::placeholder {
+    color: var(--gray-400);
+}
+
+/* Mental Models Save Section */
+.mental-models-save-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem 0;
+    margin-top: 1rem;
+    flex-shrink: 0;
+}
+
+.mental-models-save-section .btn {
+    min-width: 180px;
+}
+
+
+/* =============================================================================
+   PORTER'S FIVE FORCES STYLES
+   ============================================================================= */
+
+/* Porter's Forces List */
+.porters-forces-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for Porter's list */
+.porters-forces-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.porters-forces-list::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 10px;
+}
+
+.porters-forces-list::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.porters-forces-list::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
+/* Porter's Force Card */
+.porters-force-card {
+    background: white;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    overflow: visible;
+    transition: all 0.3s ease;
+}
+
+.porters-force-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Porter's Force Header */
+.porters-force-header {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--gray-50);
+}
+
+.porters-force-number {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.porters-force-title-group {
+    flex: 1;
+}
+
+.porters-force-header h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    color: var(--gray-900);
+}
+
+.porters-force-description {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Porter's Force Body */
+.porters-force-body {
+    padding: 1.5rem;
+}
+
+.porters-force-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    resize: vertical;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.porters-force-textarea:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.porters-force-textarea::placeholder {
+    color: var(--gray-400);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .swot-analysis-grid {
+        gap: 1.25rem;
+    }
+
+    .swot-quadrant-textarea {
+        min-height: 180px;
+    }
+
+    .porters-force-textarea {
+        min-height: 140px;
+    }
+}
+
+@media (max-width: 768px) {
+    .mental-models-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .mental-models-header-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .mental-models-header-actions .btn {
+        width: 100%;
+    }
+
+    .swot-analysis-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .swot-quadrant-textarea {
+        min-height: 150px;
+        font-size: 0.875rem;
+    }
+
+    .porters-force-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .porters-force-textarea {
+        min-height: 120px;
+        font-size: 0.875rem;
+    }
+
+    .mental-models-save-section {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .mental-models-save-section .btn {
+        width: 100%;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .mental-models-header-actions,
+    .mental-models-save-section {
+        display: none;
+    }
+
+    .swot-quadrant-card,
+    .porters-force-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .swot-quadrant-textarea,
+    .porters-force-textarea {
+        border: 1px solid #ddd;
+        min-height: auto;
+    }
+}

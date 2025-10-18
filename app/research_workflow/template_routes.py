@@ -25,11 +25,41 @@ import json
 @research_workflow_bp.route('/templates')
 @login_required
 def template_list():
-    """Display all research templates for the current user with intelligent context"""
-    templates = current_user.research_templates.order_by(
-        ResearchTemplate.is_active.desc(),
-        ResearchTemplate.times_used.desc()
-    ).all()
+    """Display all research templates for the current user with sorting and pagination"""
+    # Get sort parameter (default: recent)
+    sort = request.args.get('sort', 'recent')
+    page = request.args.get('page', 1, type=int)
+    per_page = 8
+
+    # Base query
+    query = current_user.research_templates
+
+    # Apply sorting
+    if sort == 'name':
+        query = query.order_by(ResearchTemplate.name.asc())
+    elif sort == 'steps':
+        # Sort by number of steps (using JSON array length)
+        query = query.order_by(db.func.json_array_length(ResearchTemplate.workflow_steps).desc())
+    elif sort == 'uses':
+        query = query.order_by(ResearchTemplate.times_used.desc())
+    elif sort == 'success':
+        # Calculate success rate in SQL: successful / (successful + failed)
+        # Use CASE to handle division by zero
+        total_investments = ResearchTemplate.successful_investments + ResearchTemplate.failed_investments
+        success_rate_expr = db.case(
+            (total_investments > 0,
+             (ResearchTemplate.successful_investments * 100.0 / total_investments)),
+            else_=0
+        )
+        query = query.order_by(success_rate_expr.desc())
+    elif sort == 'oldest':
+        query = query.order_by(ResearchTemplate.created_at.asc())
+    else:  # recent (default)
+        query = query.order_by(ResearchTemplate.updated_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    templates = pagination.items
 
     # Get statistics for the dashboard
     total_projects = current_user.research_projects.count()
@@ -62,6 +92,7 @@ def template_list():
     return render_template('template_list.html',
                           title="Research Templates",
                           templates=templates,
+                          pagination=pagination,
                           total_projects=total_projects,
                           active_projects=active_projects,
                           total_research_hours=round(total_research_hours, 1),

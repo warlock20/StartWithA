@@ -398,11 +398,19 @@
     grid-template-columns: 2fr 1fr;
     gap: 2rem;
     margin-top: 2rem;
+    overflow: hidden;
+    max-height: calc(100vh - 450px);
+    min-height: 400px;
+}
+
+.template-main-grid > * {
+    min-height: 0;
 }
 
 @media (max-width: 1024px) {
     .template-main-grid {
         grid-template-columns: 1fr;
+        max-height: none;
     }
 }
 
@@ -410,6 +418,29 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for templates column */
+.templates-main-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.templates-main-column::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 10px;
+}
+
+.templates-main-column::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.templates-main-column::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
 }
 
 .template-card-enhanced {
@@ -873,3 +904,204 @@
 }
 
 /* ========================================
+   RESEARCH TEMPLATES GRID (CHECKLIST-STYLE)
+   ======================================== */
+
+/* Research Templates Grid - Matches investment checklist design */
+.research-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+    .research-templates-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Research Template Card - Professional design matching checklists */
+.research-template-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.research-template-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.research-template-card.template-card-inactive {
+    opacity: 0.6;
+}
+
+/* Research Template Content */
+.research-template-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Research Template Header */
+.research-template-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.research-template-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.research-template-description {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+/* Success Badge */
+.research-template-success-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 4rem;
+}
+
+.research-template-success-badge .success-rate-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--success-600);
+    line-height: 1;
+}
+
+.research-template-success-badge .success-rate-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+/* Process Blueprint */
+.research-template-blueprint {
+    padding: 1rem 1.5rem;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.research-template-blueprint .blueprint-title {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.research-template-blueprint .blueprint-flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.research-template-blueprint .blueprint-step {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 0.375rem 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.research-template-blueprint .blueprint-step span {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.research-template-blueprint .blueprint-arrow {
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    flex-shrink: 0;
+}
+
+/* Template Stats */
+.research-template-stats {
+    padding: 1rem 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.template-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.template-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+}
+
+.template-stat-label {
+    font-size: 0.6875rem;
+    color: var(--gray-600);
+    margin-top: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.template-stat-label i {
+    font-size: 0.75rem;
+}
+
+/* Research Template Footer */
+.research-template-footer {
+    padding: 1rem 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.research-template-footer .btn {
+    flex-shrink: 0;
+}
+
+.research-template-footer form {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .research-template-stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .research-template-footer {
+        flex-wrap: wrap;
+    }
+}

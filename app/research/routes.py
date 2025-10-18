@@ -196,6 +196,9 @@ def research_step(session_id, item_id):
     if current_item_index > 0 and all_items_in_order: # Check if not the first item
         previous_item_id = all_items_in_order[current_item_index - 1].id
 
+    # Check for research workflow context
+    research_context = flask_session.get('research_context')
+
     return render_template(
         'research_step.html',
         title=f"Research: {session.company.ticker_symbol} - Item {current_item_index + 1}/{len(all_items_in_order)}",
@@ -206,7 +209,8 @@ def research_step(session_id, item_id):
         total_items=len(all_items_in_order),
         progress_percent=progress_percent,
         previous_item_id=previous_item_id,
-        company_documents=company_documents_for_llm 
+        company_documents=company_documents_for_llm,
+        research_context=research_context  # Pass research workflow context
     )
     
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])

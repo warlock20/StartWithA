@@ -212,7 +212,14 @@ def execute_step(project_id, step_index):
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':
         # Handle investment checklist reference - redirect to research session evaluation
-        checklist_id = step['config'].get('checklist_id')
+        # Check for step override first (in case checklist was replaced)
+        checklist_id = None
+        if project.step_overrides and str(step_index) in project.step_overrides:
+            checklist_id = project.step_overrides[str(step_index)].get('checklist_id')
+
+        # Fall back to template config
+        if not checklist_id:
+            checklist_id = step['config'].get('checklist_id')
         if checklist_id:
             checklist = Checklist.query.get(checklist_id)
             if checklist and checklist.user_id == current_user.id:
@@ -305,11 +312,27 @@ def execute_step(project_id, step_index):
                         flash(f'Error starting research session: {str(e)}', 'error')
                         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
             else:
-                flash('Investment checklist not found or access denied', 'error')
-                return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+                # Checklist was deleted or not found - offer to select a new one
+                flash('The investment checklist for this step is no longer available. Please select a new checklist to continue.', 'warning')
+                user_checklists = current_user.checklists.all()
+                return render_template('select_checklist.html',
+                                     title=f"Select Checklist: {step['name']}",
+                                     project=project,
+                                     step=step,
+                                     step_index=step_index,
+                                     session=session,
+                                     user_checklists=user_checklists)
         else:
-            flash('No investment checklist configured for this step', 'warning')
-            return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+            # No checklist configured - offer to select one
+            flash('No investment checklist configured for this step. Please select one to continue.', 'info')
+            user_checklists = current_user.checklists.all()
+            return render_template('select_checklist.html',
+                                 title=f"Select Checklist: {step['name']}",
+                                 project=project,
+                                 step=step,
+                                 step_index=step_index,
+                                 session=session,
+                                 user_checklists=user_checklists)
 
     elif step['type'] == 'kill_checklist_reference':
         # Handle kill checklist reference
@@ -335,10 +358,14 @@ def execute_step(project_id, step_index):
         model_type = step['config'].get('model_type')
         if model_type == 'SWOT Analysis':
             return redirect(url_for('companies.swot_analysis',
-                                  company_id=project.company_id))
+                                  company_id=project.company_id,
+                                  project_id=project_id,
+                                  step_index=step_index))
         elif model_type == 'Porter\'s Five Forces':
             return redirect(url_for('companies.porters_five_forces_analysis',
-                                  company_id=project.company_id))
+                                  company_id=project.company_id,
+                                  project_id=project_id,
+                                  step_index=step_index))
 
     elif step['type'] == 'competitor_analysis':
         return redirect(url_for('research_workflow.competitor_analysis_step',
@@ -536,6 +563,76 @@ def skip_step(project_id, step_index):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/update-step-checklist/<int:step_index>', methods=['POST'])
+@login_required
+def update_step_checklist(project_id, step_index):
+    """Update the checklist for a specific step (with option to update template)"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    checklist_id = request.form.get('checklist_id', type=int)
+    update_template = request.form.get('update_template') == 'yes'
+
+    if not checklist_id:
+        flash('Please select a checklist', 'error')
+        return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
+
+    # Verify checklist exists and belongs to user
+    checklist = Checklist.query.get(checklist_id)
+    if not checklist or checklist.user_id != current_user.id:
+        flash('Invalid checklist selection', 'error')
+        return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
+
+    # Check if there are other active projects using this template
+    other_active_projects = ResearchProject.query.filter(
+        ResearchProject.template_id == project.template_id,
+        ResearchProject.id != project_id,
+        ResearchProject.status.in_(['active', 'paused'])
+    ).count()
+
+    # If user hasn't made a choice yet and there are no other active projects, ask
+    if 'update_template' not in request.form and other_active_projects == 0:
+        # Show confirmation modal
+        return render_template('confirm_checklist_update.html',
+                             title="Update Template?",
+                             project=project,
+                             step_index=step_index,
+                             checklist=checklist,
+                             checklist_id=checklist_id)
+
+    # Update the project's step configuration (always)
+    # We need to override the step config for this specific project
+    if not hasattr(project, 'step_overrides') or not project.step_overrides:
+        project.step_overrides = {}
+
+    project.step_overrides[str(step_index)] = {
+        'checklist_id': checklist_id
+    }
+    flag_modified(project, 'step_overrides')
+
+    # Update template if requested and safe to do so
+    if update_template and other_active_projects == 0:
+        template = project.template
+        if template and template.workflow_steps:
+            template.workflow_steps[step_index]['config']['checklist_id'] = checklist_id
+            flag_modified(template, 'workflow_steps')
+            flash(f'Checklist updated for this project and template "{template.name}"', 'success')
+    else:
+        flash(f'Checklist updated for this project only', 'success')
+
+    try:
+        db.session.commit()
+        # Now redirect to execute the step with the new checklist
+        return redirect(url_for('research_workflow.execute_step', project_id=project_id, step_index=step_index))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating checklist: {str(e)}', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
 @login_required

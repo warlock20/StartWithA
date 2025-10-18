@@ -169,30 +169,37 @@ def add_finding(project_id):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
 
     finding_type = request.form.get('finding_type')  # 'green_flag' or 'red_flag'
     finding_text = request.form.get('finding_text', '').strip()
 
     if not finding_text:
-        return jsonify({'error': 'Finding text is required'}), 400
+        flash('Finding text is required', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
     if finding_type == 'green_flag':
         if not project.green_flags:
             project.green_flags = []
         project.green_flags = project.green_flags + [finding_text]
+        flag_label = 'Green flag'
     elif finding_type == 'red_flag':
         if not project.red_flags:
             project.red_flags = []
         project.red_flags = project.red_flags + [finding_text]
+        flag_label = 'Red flag'
     else:
-        return jsonify({'error': 'Invalid finding type'}), 400
+        flash('Invalid finding type', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
     project.last_worked_at = now_utc()
 
     try:
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Finding added'})
+        flash(f'{flag_label} added successfully', 'success')
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        flash(f'Error adding finding: {str(e)}', 'error')
+
+    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
