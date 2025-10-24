@@ -50,6 +50,7 @@ from .research import (
     ResearchLog,
 )
 from .sector import (
+    Sector,
     SectorAnalysis,
     SectorResearchSection,
     SectorResearchSource,
@@ -123,6 +124,7 @@ __all__ = [
     'ResearchMetrics',
     'ResearchLog',
     # Sector models
+    'Sector',
     'SectorAnalysis',
     'SectorResearchSection',
     'SectorResearchSource',

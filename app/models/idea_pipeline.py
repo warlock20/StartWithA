@@ -13,12 +13,17 @@ class IdeaPipeline(db.Model):
     idea_purpose = db.Column(db.String(50), nullable=False, default='investment')  # Purpose: investment/learning/research
     ticker_symbol = db.Column(db.String(20))
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))  # Associated company for company-type ideas
+    sector_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True, index=True)  # Sector for analytics
     source = db.Column(db.String(200))
     thesis_summary = db.Column(db.Text)
     initial_notes = db.Column(db.Text)
     status = db.Column(db.String(50), default='inbox', index=True)
     kill_reason = db.Column(db.Text)
     failed_criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'))
+
+    # Circle of Competence tracking (for Too Hard Basket analytics)
+    within_circle_of_competence = db.Column(db.String(20))  # 'yes', 'no', 'unsure'
+
     created_at = db.Column(db.DateTime, default=now_utc)
     killed_at = db.Column(db.DateTime)
     promoted_at = db.Column(db.DateTime)
@@ -27,6 +32,7 @@ class IdeaPipeline(db.Model):
     promoted_to_company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
     kill_sessions = db.relationship('KillSession', backref='idea', lazy='dynamic', cascade='all, delete-orphan')
     company = db.relationship('Company', foreign_keys=[company_id])
+    sector = db.relationship('Sector', backref='ideas')
     promoted_to_company = db.relationship('Company', foreign_keys=[promoted_to_company_id])
 
     def __repr__(self):

@@ -13,6 +13,23 @@ from .research_templates import get_all_templates, get_template_list, get_templa
 from app.ai import SummarizationService
 
 
+def get_sector_by_name_or_slug(sector_name, user_id):
+    """
+    Helper function to look up a Sector object by slug or display name.
+    Returns Sector object or None if not found.
+    """
+    from app.models.sector import Sector as SectorModel
+
+    # Try by slug first
+    sector = SectorModel.query.filter_by(user_id=user_id, slug=sector_name).first()
+
+    if not sector:
+        # Try by display_name as fallback
+        sector = SectorModel.query.filter_by(user_id=user_id, display_name=sector_name).first()
+
+    return sector
+
+
 def initialize_default_sections(sector_analysis):
     """
     Create default research sections for a new sector analysis.
@@ -87,16 +104,20 @@ def index():
             flash('Sector name is required.', 'error')
             return redirect(url_for('sectors.index'))
 
+        # Find or create the Sector
+        from app.models.sector import Sector as SectorModel
+        from app.services.sector_service import SectorService
+        sector = SectorService.find_or_create_sector(current_user.id, sector_name.strip(), auto_create=True)
+
         # Check if an analysis for this sector already exists for the user
-        existing = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name.strip()).first()
+        existing = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first()
         if existing:
-            flash(f'You already have a research notebook for the "{sector_name}" sector.', 'info')
-            # Redirect to the existing notebook page (we'll create this route next)
-            return redirect(url_for('sectors.notebook', sector_name=existing.sector_name))
+            flash(f'You already have a research notebook for the "{sector.display_name}" sector.', 'info')
+            return redirect(url_for('sectors.notebook', sector_name=sector.slug))
 
         new_analysis = SectorAnalysis(
-            author=current_user,
-            sector_name=sector_name.strip()
+            user_id=current_user.id,
+            sector_id=sector.id
         )
         db.session.add(new_analysis)
         db.session.commit()
@@ -104,9 +125,8 @@ def index():
         # Initialize default research sections
         initialize_default_sections(new_analysis)
 
-        flash(f'New research notebook for "{sector_name}" created.', 'success')
-        # Redirect to the new notebook page
-        return redirect(url_for('sectors.notebook', sector_name=new_analysis.sector_name))
+        flash(f'New research notebook for "{sector.display_name}" created.', 'success')
+        return redirect(url_for('sectors.notebook', sector_name=sector.slug))
 
 
     # GET Request: Fetch and display all existing sector analyses
@@ -138,8 +158,20 @@ def index():
 @sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
 @login_required
 def notebook(sector_name):
+    # Look up the Sector object first
+    from app.models.sector import Sector as SectorModel
+    sector = SectorModel.query.filter_by(user_id=current_user.id, slug=sector_name).first()
+
+    if not sector:
+        # Try by display_name as fallback
+        sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
+
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.list_sectors'))
+
     # Fetch the main analysis object for this sector
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     # Initialize sections if they don't exist (backward compatibility for existing analyses)
     if analysis.sections.count() == 0:
@@ -148,22 +180,34 @@ def notebook(sector_name):
     if request.method == 'POST':
         # This shouldn't be used anymore - atomic notes and document view handle saving
         flash('Please use the Document View or Research Canvas to save your notes.', 'info')
-        return redirect(url_for('sectors.notebook', sector_name=analysis.sector_name))
+        return redirect(url_for('sectors.notebook', sector_name=sector.slug))
 
     # GET Request: Fetch questions from the bank that are tagged with this sector
     question_bank_items = QuestionBankItem.query.filter_by(
         user_id=current_user.id,
-        sector=sector_name
+        sector_id=sector.id
     ).order_by(QuestionBankItem.created_at.desc()).all()
 
     # Get all sections ordered by display_order
     sections = analysis.sections.filter_by(is_visible=True).all()
 
     # Get companies in this sector
-    sector_companies = Company.query.filter_by(
+    # Note: This route uses old SectorAnalysis with sector_name (string)
+    # We need to find the corresponding Sector object first
+    from app.models.sector import Sector as SectorModel
+    sector_obj = SectorModel.query.filter_by(
         user_id=current_user.id,
-        sector=sector_name
-    ).all()
+        name=sector_name
+    ).first()
+
+    if sector_obj:
+        sector_companies = Company.query.filter_by(
+            user_id=current_user.id,
+            sector_id=sector_obj.id
+        ).all()
+    else:
+        # Fallback: no sector found, show empty list
+        sector_companies = []
 
     # Enrich with research project status
     companies_data = []
@@ -191,13 +235,19 @@ def notebook(sector_name):
         })
 
     # Get all user companies not in this sector (for adding)
-    other_companies = Company.query.filter(
-        Company.user_id == current_user.id,
-        db.or_(
-            Company.sector != sector_name,
-            Company.sector.is_(None)
-        )
-    ).order_by(Company.name).all()
+    if sector_obj:
+        other_companies = Company.query.filter(
+            Company.user_id == current_user.id,
+            db.or_(
+                Company.sector_id != sector_obj.id,
+                Company.sector_id.is_(None)
+            )
+        ).order_by(Company.name).all()
+    else:
+        # If no sector found, show all companies
+        other_companies = Company.query.filter_by(
+            user_id=current_user.id
+        ).order_by(Company.name).all()
 
     # Calculate sector metrics
     total_companies = len(sector_companies)
@@ -235,7 +285,7 @@ def notebook(sector_name):
 
     return render_template(
         'sector_analysis.html',
-        title=f"Research: {analysis.sector_name}",
+        title=f"Research: {analysis.sector.display_name}",
         analysis=analysis,
         question_bank_items=question_bank_items,
         sections=sections,
@@ -261,7 +311,12 @@ def notebook(sector_name):
 @login_required
 def add_question_to_bank(sector_name):
     # This route specifically handles adding a new question to the bank from the notebook page
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     text = request.form.get('text')
     llm_prompt = request.form.get('llm_prompt')
@@ -306,42 +361,56 @@ def delete_question_from_bank(item_id):
 def edit_sector(analysis_id):
     analysis = SectorAnalysis.query.get_or_404(analysis_id)
     # Authorization check
-    if analysis.author != current_user:
+    if analysis.user_id != current_user.id:
         flash("You are not authorized to edit this sector analysis.", "error")
         return redirect(url_for('sectors.index'))
 
     if request.method == 'POST':
-        old_sector_name = analysis.sector_name
         new_sector_name = request.form.get('sector_name', '').strip()
 
         if not new_sector_name:
             flash("Sector name cannot be empty.", "error")
             return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)
 
-        # Check if a notebook with the new name already exists for this user
-        existing = SectorAnalysis.query.filter(
-            SectorAnalysis.user_id == current_user.id,
-            SectorAnalysis.sector_name == new_sector_name,
-            SectorAnalysis.id != analysis.id # Exclude the current one
-        ).first()
+        # Get the current sector
+        from app.models.sector import Sector as SectorModel
+        from app.services.sector_service import SectorService
 
-        if existing:
-            flash(f"You already have a research notebook named '{new_sector_name}'.", "error")
-            return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)
+        old_sector = analysis.sector
 
-        # --- Update the Question Bank Items ---
-        # Find all questions tagged with the old sector name and update them
-        QuestionBankItem.query.filter_by(user_id=current_user.id, sector=old_sector_name)\
-                              .update({'sector': new_sector_name})
+        # Find or create the new sector
+        new_sector = SectorService.find_or_create_sector(current_user.id, new_sector_name, auto_create=True)
 
-        # Update the analysis object itself
-        analysis.sector_name = new_sector_name
+        # Check if a notebook with this sector already exists for this user
+        if new_sector.id != old_sector.id:
+            existing = SectorAnalysis.query.filter(
+                SectorAnalysis.user_id == current_user.id,
+                SectorAnalysis.sector_id == new_sector.id,
+                SectorAnalysis.id != analysis.id # Exclude the current one
+            ).first()
+
+            if existing:
+                flash(f"You already have a research notebook for '{new_sector.display_name}'.", "error")
+                return render_template('edit_sector.html', title="Edit Sector", analysis=analysis)
+
+            # Update the analysis to point to the new sector
+            analysis.sector_id = new_sector.id
+
+            # Update question bank items to use the new sector
+            QuestionBankItem.query.filter_by(
+                user_id=current_user.id,
+                sector_id=old_sector.id
+            ).update({'sector_id': new_sector.id})
+
+        # Update the sector display name if it's the same sector
+        else:
+            old_sector.display_name = new_sector_name
 
         try:
             db.session.commit()
             flash("Sector analysis updated successfully.", "success")
-            # Redirect to the notebook page with the NEW name
-            return redirect(url_for('sectors.notebook', sector_name=new_sector_name))
+            # Redirect to the notebook page with the NEW slug
+            return redirect(url_for('sectors.notebook', sector_name=new_sector.slug))
         except Exception as e:
             db.session.rollback()
             flash(f"An error occurred: {e}", "error")
@@ -392,7 +461,12 @@ def save_section(section_id):
 @login_required
 def add_company_to_sector(sector_name, company_id):
     """Add a company to this sector"""
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
     company = Company.query.get_or_404(company_id)
 
     # Authorization check
@@ -412,7 +486,12 @@ def add_company_to_sector(sector_name, company_id):
 @login_required
 def remove_company_from_sector(sector_name, company_id):
     """Remove a company from this sector"""
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
     company = Company.query.get_or_404(company_id)
 
     # Authorization check
@@ -432,7 +511,12 @@ def remove_company_from_sector(sector_name, company_id):
 @login_required
 def add_source(sector_name):
     """Add a research source/reference"""
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     # Get form data
     title = request.form.get('title', '').strip()
@@ -471,12 +555,12 @@ def delete_source(source_id):
         flash('Access denied', 'error')
         return redirect(url_for('sectors.index'))
 
-    sector_name = source.sector_analysis.sector_name
+    sector_slug = source.sector_analysis.sector.slug
     db.session.delete(source)
     db.session.commit()
 
     flash('Source deleted', 'success')
-    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+    return redirect(url_for('sectors.notebook', sector_name=sector_slug))
 
 
 @sectors_bp.route('/source/<int:source_id>/mark_accessed', methods=['POST'])
@@ -538,12 +622,12 @@ def delete_snippet(snippet_id):
     if snippet.sector_analysis.author != current_user:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    sector_name = snippet.sector_analysis.sector_name
+    sector_slug = snippet.sector_analysis.sector.slug
     db.session.delete(snippet)
     db.session.commit()
 
     flash('Snippet deleted', 'success')
-    return redirect(url_for('sectors.notebook', sector_name=sector_name))
+    return redirect(url_for('sectors.notebook', sector_name=sector_slug))
 
 
 # ============================================================================
@@ -810,9 +894,20 @@ def generate_document_from_canvas(sector_name):
 @login_required
 def get_research_notes(sector_name):
     """Get research notes content for the simplified editor"""
+    # Look up sector by slug
+    from app.models.sector import Sector as SectorModel
+    sector = SectorModel.query.filter_by(user_id=current_user.id, slug=sector_name).first()
+
+    if not sector:
+        # Try by display_name as fallback
+        sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
+
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     return jsonify({
@@ -825,9 +920,20 @@ def get_research_notes(sector_name):
 @login_required
 def save_research_notes(sector_name):
     """Save research notes content from the simplified editor"""
+    # Look up sector by slug
+    from app.models.sector import Sector as SectorModel
+    sector = SectorModel.query.filter_by(user_id=current_user.id, slug=sector_name).first()
+
+    if not sector:
+        # Try by display_name as fallback
+        sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
+
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     data = request.get_json()
@@ -897,20 +1003,30 @@ def send_company_to_inbox(company_id):
 @login_required
 def archive_sector(sector_name):
     """Archive a sector research"""
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     analysis.status = 'archived'
     analysis.archived_at = datetime.utcnow()
     db.session.commit()
 
-    flash(f'{sector_name} sector research archived', 'success')
+    flash(f'{sector.display_name} sector research archived', 'success')
     return redirect(url_for('sectors.index'))
 
 @sectors_bp.route('/<string:sector_name>/unarchive', methods=['POST'])
 @login_required
 def unarchive_sector(sector_name):
     """Unarchive a sector research"""
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_name=sector_name).first_or_404()
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     analysis.status = 'active'
     analysis.archived_at = None
@@ -1179,7 +1295,7 @@ def generate_ai_summary(sector_name):
 
         # Generate summary
         result = summarizer.generate_sector_summary(
-            sector_name=analysis.sector_name,
+            sector_name=analysis.sector.display_name,
             documentation=clean_documentation,
             canvas_notes=canvas_notes_data,
             snippets=snippets_data,

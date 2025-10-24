@@ -5,12 +5,218 @@ from app.utils.time_utils import now_utc
 import re
 
 
+class Sector(db.Model):
+    """
+    Master sector registry for the entire platform.
+    Provides standardized sector definitions, metadata, and analytics.
+    Links all sector-related data across the platform (companies, research, ideas, etc.)
+    """
+    __tablename__ = 'sector'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+
+    # Core identification (multiple variants for flexibility)
+    name = db.Column(db.String(100), nullable=False)
+    # Primary name: "Financial Technology", "Software as a Service", etc.
+
+    display_name = db.Column(db.String(100), nullable=False)
+    # How to display: "FinTech", "SaaS", "Healthcare IT"
+
+    slug = db.Column(db.String(100), nullable=False, index=True)
+    # URL-friendly: "fintech", "saas", "healthcare-it"
+
+    # Alternative names for matching and search
+    aliases = db.Column(db.JSON, nullable=True)
+    # List: ["FinTech", "Financial Tech", "Financial Technology", "Banking Tech"]
+
+    # Categorization and hierarchy
+    parent_sector_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True)
+    # For hierarchical sectors: "Cloud Computing" parent of "SaaS"
+
+    category = db.Column(db.String(50), nullable=True)
+    # High-level: 'technology', 'healthcare', 'finance', 'consumer', 'industrial'
+
+    # Rich metadata
+    description = db.Column(db.Text, nullable=True)
+    # What defines this sector
+
+    key_characteristics = db.Column(db.JSON, nullable=True)
+    # List of defining traits: ["Recurring revenue", "Network effects", "High margins"]
+
+    typical_metrics = db.Column(db.JSON, nullable=True)
+    # What to look for: {"key_ratios": ["ARR growth", "NRR", "CAC/LTV"], ...}
+
+    # Visual customization
+    color = db.Column(db.String(20), nullable=True)
+    # Visual theming: "#3498db"
+
+    icon = db.Column(db.String(50), nullable=True)
+    # Icon class or emoji: "💰", "bi-bank"
+
+    # Status and type
+    status = db.Column(db.String(20), default='active')
+    # 'active', 'archived', 'merged'
+
+    is_default = db.Column(db.Boolean, default=False)
+    # System-provided vs user-created
+
+    merged_into_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True)
+    # If user merges two sectors, track the target
+
+    # Cached analytics (updated periodically via update_analytics())
+    total_companies = db.Column(db.Integer, default=0)
+    companies_analyzed = db.Column(db.Integer, default=0)
+    companies_invested = db.Column(db.Integer, default=0)
+    total_research_hours = db.Column(db.Float, default=0)
+
+    # Circle of Competence tracking (cached)
+    coc_yes_count = db.Column(db.Integer, default=0)
+    coc_no_count = db.Column(db.Integer, default=0)
+    coc_unsure_count = db.Column(db.Integer, default=0)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
+    last_researched = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    user = db.relationship('User', backref='sectors')
+
+    parent_sector = db.relationship(
+        'Sector',
+        remote_side=[id],
+        backref='sub_sectors',
+        foreign_keys=[parent_sector_id]
+    )
+
+    merged_into = db.relationship(
+        'Sector',
+        remote_side=[id],
+        foreign_keys=[merged_into_id]
+    )
+
+    # Ensure unique sector slugs per user
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'slug', name='_user_sector_slug_uc'),
+    )
+
+    @staticmethod
+    def make_slug(name):
+        """Create URL-friendly slug from sector name"""
+        import unicodedata
+        # Remove accents and convert to ASCII
+        name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
+        # Convert to lowercase and replace spaces/special chars with hyphens
+        slug = re.sub(r'[^\w\s-]', '', name.lower())
+        slug = re.sub(r'[-\s]+', '-', slug).strip('-')
+        return slug
+
+    @property
+    def full_name(self):
+        """Get full hierarchical name"""
+        if self.parent_sector:
+            return f"{self.parent_sector.display_name} > {self.display_name}"
+        return self.display_name
+
+    @property
+    def success_rate(self):
+        """Calculate investment success rate"""
+        total = self.companies_analyzed + self.companies_invested
+        if total == 0:
+            return 0
+        return round((self.companies_invested / total) * 100, 1)
+
+    @property
+    def coc_confidence(self):
+        """Calculate Circle of Competence confidence percentage"""
+        total = self.coc_yes_count + self.coc_no_count + self.coc_unsure_count
+        if total == 0:
+            return 0
+        return round((self.coc_yes_count / total) * 100, 1)
+
+    @property
+    def competence_level(self):
+        """Get competence level: expert, proficient, developing, novice"""
+        if self.companies_analyzed < 2:
+            return {'level': 'novice', 'emoji': '🔴', 'label': 'Novice'}
+
+        confidence = self.coc_confidence
+        success = self.success_rate
+
+        if confidence >= 70 and success >= 30:
+            return {'level': 'expert', 'emoji': '🟢', 'label': 'Expert'}
+        elif confidence >= 50 and success >= 20:
+            return {'level': 'proficient', 'emoji': '🟡', 'label': 'Proficient'}
+        elif confidence >= 30:
+            return {'level': 'developing', 'emoji': '🟠', 'label': 'Developing'}
+        else:
+            return {'level': 'novice', 'emoji': '🔴', 'label': 'Novice'}
+
+    def matches_name(self, search_term):
+        """Check if search term matches this sector (for autocomplete)"""
+        search_lower = search_term.lower().strip()
+
+        # Check main name
+        if search_lower in self.name.lower():
+            return True
+
+        # Check display name
+        if search_lower in self.display_name.lower():
+            return True
+
+        # Check slug
+        if search_lower == self.slug:
+            return True
+
+        # Check aliases
+        if self.aliases:
+            return any(search_lower in alias.lower() for alias in self.aliases)
+
+        return False
+
+    def update_analytics(self):
+        """Recalculate cached analytics from related records"""
+        from app.models.company import Company
+        from app.models.research import ResearchProject
+        from app.models.idea_pipeline import IdeaPipeline
+
+        # Count companies
+        self.total_companies = Company.query.filter_by(
+            user_id=self.user_id,
+            sector_id=self.id
+        ).count()
+
+        # Count research projects
+        projects = ResearchProject.query.filter_by(
+            user_id=self.user_id,
+            sector_id=self.id
+        ).all()
+
+        self.companies_analyzed = len([p for p in projects if p.status in ['completed', 'abandoned']])
+        self.companies_invested = len([p for p in projects if p.decision == 'invest'])
+        self.total_research_hours = sum(p.total_hours_spent or 0 for p in projects)
+
+        # Count CoC responses
+        self.coc_yes_count = len([p for p in projects if p.within_circle_of_competence == 'yes'])
+        self.coc_no_count = len([p for p in projects if p.within_circle_of_competence == 'no'])
+        self.coc_unsure_count = len([p for p in projects if p.within_circle_of_competence == 'unsure'])
+
+        # Update last researched
+        if projects:
+            latest = max(projects, key=lambda p: p.updated_at or p.created_at)
+            self.last_researched = latest.updated_at or latest.created_at
+
+    def __repr__(self):
+        return f'<Sector "{self.display_name}" ({self.slug})>'
+
+
 class SectorAnalysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
-    # The name of the sector being analyzed
-    sector_name = db.Column(db.String(100), nullable=False, index=True)
+    # Link to the Sector being analyzed
+    sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=False, index=True)
 
     # Document View content (generated from canvas or manually written)
     document_content = db.Column(db.Text, nullable=True)
@@ -28,14 +234,16 @@ class SectorAnalysis(db.Model):
         db.DateTime, nullable=False, default=now_utc, onupdate=now_utc
     )
 
-    # Relationship to flexible research sections
+    # Relationships
+    sector = db.relationship('Sector', backref='analyses')
+
     sections = db.relationship('SectorResearchSection', backref='sector_analysis',
                               lazy='dynamic', cascade='all, delete-orphan',
                               order_by='SectorResearchSection.display_order')
 
-    # Ensure a user can only have one analysis notebook per sector name
+    # Ensure a user can only have one analysis notebook per sector
     __table_args__ = (
-        db.UniqueConstraint("user_id", "sector_name", name="uq_user_sector"),
+        db.UniqueConstraint("user_id", "sector_id", name="uq_user_sector_id"),
     )
 
     @property
@@ -62,7 +270,7 @@ class SectorAnalysis(db.Model):
         from .company import Company
         return Company.query.filter_by(
             user_id=self.user_id,
-            sector=self.sector_name
+            sector_id=self.sector_id
         ).count()
 
     @property
@@ -72,7 +280,7 @@ class SectorAnalysis(db.Model):
         from .research import ResearchProject
         companies = Company.query.filter_by(
             user_id=self.user_id,
-            sector=self.sector_name
+            sector_id=self.sector_id
         ).all()
 
         researched = 0
@@ -97,8 +305,13 @@ class SectorAnalysis(db.Model):
         from .checklist import QuestionBankItem
         return QuestionBankItem.query.filter_by(
             user_id=self.user_id,
-            sector=self.sector_name
+            sector_id=self.sector_id
         ).count()
+
+    @property
+    def sector_name(self):
+        """Backward compatibility property - returns sector display name"""
+        return self.sector.display_name if self.sector else "Unknown Sector"
 
     @property
     def research_progress_score(self):
@@ -362,7 +575,8 @@ class SectorAnalysis(db.Model):
         return self.sections.order_by(SectorResearchSection.updated_at.desc()).first()
 
     def __repr__(self):
-        return f'<SectorAnalysis for "{self.sector_name}" by User {self.user_id}>'
+        sector_name = self.sector.display_name if self.sector else 'Unknown'
+        return f'<SectorAnalysis for "{sector_name}" by User {self.user_id}>'
 
 
 class SectorResearchSection(db.Model):

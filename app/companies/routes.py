@@ -152,7 +152,7 @@ def portfolio():
     # Sector allocation
     sectors = {}
     for company in portfolio_companies:
-        sector = company.sector if company.sector else 'Unclassified'
+        sector = company.sector.display_name if company.sector else 'Unclassified'
         sectors[sector] = sectors.get(sector, 0) + 1
 
     return render_template('portfolio.html',
@@ -207,7 +207,7 @@ def watchlist():
 
         # Apply sector filter
         if sector_filter:
-            company_sector = company.sector if company.sector else 'Unclassified'
+            company_sector = company.sector.display_name if company.sector else 'Unclassified'
             if company_sector != sector_filter:
                 continue
 
@@ -261,7 +261,7 @@ def watchlist():
     # Get all sectors for filter dropdown (from unfiltered watchlist)
     all_sectors = set()
     for company in watchlist_companies:
-        sector = company.sector if company.sector else 'Unclassified'
+        sector = company.sector.display_name if company.sector else 'Unclassified'
         all_sectors.add(sector)
 
     sectors_list = sorted(list(all_sectors))
@@ -269,7 +269,7 @@ def watchlist():
     # Sector allocation (for metrics display)
     sectors = {}
     for company in watchlist_companies:
-        sector = company.sector if company.sector else 'Unclassified'
+        sector = company.sector.display_name if company.sector else 'Unclassified'
         sectors[sector] = sectors.get(sector, 0) + 1
 
     return render_template('watchlist.html',
@@ -318,7 +318,10 @@ def list_companies():
 
     # Apply sector filter
     if sector_filter and sector_filter != 'all':
-        query = query.filter(Company.sector == sector_filter)
+        from app.models.sector import Sector
+        query = query.join(Sector, Company.sector_id == Sector.id).filter(
+            Sector.display_name == sector_filter
+        )
 
     # Order by name
     query = query.order_by(Company.name)
@@ -350,11 +353,12 @@ def list_companies():
         companies_data_list.append(data)
 
     # Get all unique sectors for filter dropdown
-    all_sectors = db.session.query(Company.sector).filter(
-        Company.user_id == current_user.id,
-        Company.sector.isnot(None),
-        Company.sector != ''
-    ).distinct().order_by(Company.sector).all()
+    from app.models.sector import Sector
+    all_sectors = db.session.query(Sector.display_name).join(
+        Company, Company.sector_id == Sector.id
+    ).filter(
+        Company.user_id == current_user.id
+    ).distinct().order_by(Sector.display_name).all()
     sectors = [s[0] for s in all_sectors]
 
     return render_template('list_companies.html',

@@ -11,12 +11,14 @@ class Company(db.Model):
     ticker_symbol = db.Column(db.String(20), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     summary = db.Column(db.Text, nullable=True)
-    sector = db.Column(db.String(100), nullable=True)
+    sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=True, index=True)
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)
     is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     # Relationships
+    sector = db.relationship("Sector", backref="companies")
+
     research_sessions = db.relationship(
         "ResearchSession",
         backref="company",

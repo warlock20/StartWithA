@@ -95,6 +95,66 @@
         </div>
     </div>
 
+    <!-- Investment Discipline Banner -->
+    <div class="discipline-banner">
+        <div class="discipline-banner-content">
+            <div class="discipline-banner-main">
+                <div class="discipline-banner-icon">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div class="discipline-banner-text">
+                    <h3 class="discipline-banner-title">Investment Discipline</h3>
+                    <p class="discipline-banner-subtitle">Understanding what to avoid is as important as knowing what to invest in</p>
+                </div>
+            </div>
+            <div class="discipline-banner-stats">
+                <div class="discipline-stat-item">
+                    <div class="discipline-stat-value">{{ too_hard_total_count }}</div>
+                    <div class="discipline-stat-label">Companies Passed</div>
+                </div>
+                <div class="discipline-stat-divider"></div>
+                <div class="discipline-stat-item">
+                    <div class="discipline-stat-value">{{ too_hard_rate }}%</div>
+                    <div class="discipline-stat-label">Selectivity Rate</div>
+                </div>
+                <div class="discipline-stat-divider"></div>
+                <div class="discipline-stat-item">
+                    <div class="discipline-stat-value">{{ recent_rejections_count }}</div>
+                    <div class="discipline-stat-label">Last 30 Days</div>
+                </div>
+            </div>
+            <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="discipline-banner-link">
+                Review Too Hard Basket <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="discipline-banner-breakdown">
+            <div class="breakdown-item">
+                <div class="breakdown-bar">
+                    <div class="breakdown-fill breakdown-fill-early" style="width: {% if too_hard_total_count > 0 %}{{ (early_kills_count / too_hard_total_count * 100)|round|int }}{% else %}0{% endif %}%;"></div>
+                </div>
+                <div class="breakdown-label">
+                    <span class="breakdown-count">{{ early_kills_count }}</span> Early Kills
+                </div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-bar">
+                    <div class="breakdown-fill breakdown-fill-mid" style="width: {% if too_hard_total_count > 0 %}{{ (mid_research_count / too_hard_total_count * 100)|round|int }}{% else %}0{% endif %}%;"></div>
+                </div>
+                <div class="breakdown-label">
+                    <span class="breakdown-count">{{ mid_research_count }}</span> Mid-Research
+                </div>
+            </div>
+            <div class="breakdown-item">
+                <div class="breakdown-bar">
+                    <div class="breakdown-fill breakdown-fill-deep" style="width: {% if too_hard_total_count > 0 %}{{ (deep_analysis_count / too_hard_total_count * 100)|round|int }}{% else %}0{% endif %}%;"></div>
+                </div>
+                <div class="breakdown-label">
+                    <span class="breakdown-count">{{ deep_analysis_count }}</span> Deep Analysis
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Grid Layout -->
     <div class="dashboard-main-grid">
         <!-- Main Content Column -->

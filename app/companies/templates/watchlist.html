@@ -124,7 +124,7 @@
                     <span class="project-type-badge">{{ company.ticker_symbol }}</span>
                     {% if company.sector %}
                     <span class="text-muted">•</span>
-                    <span class="text-muted">{{ company.sector }}</span>
+                    <span class="text-muted">{{ company.sector.display_name }}</span>
                     {% endif %}
                 </p>
 

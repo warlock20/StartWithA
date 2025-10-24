@@ -1,0 +1,147 @@
+/* =============================================================================
+   MARK COMPANY AS TOO HARD - PAGE STYLES
+   ============================================================================= */
+
+/* Ensure the row extends properly and doesn't get cut off */
+.dashboard-container:has(.too-hard-form) .row.justify-content-center {
+    min-height: fit-content;
+    height: auto;
+    overflow: visible;
+    padding-bottom: 4rem;
+}
+
+/* Ensure dashboard container doesn't constrain height */
+.dashboard-container:has(.too-hard-form) {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 4rem;
+}
+
+/* Override the default last-child padding for forms */
+.dashboard-container:has(.too-hard-form) > *:last-child {
+    padding-bottom: 4rem;
+}
+
+/* Reason Selection Grid */
+.reason-selection-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.reason-option {
+    position: relative;
+}
+
+.reason-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.reason-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0;
+}
+
+.reason-label i {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.reason-label:hover {
+    border-color: var(--primary-600);
+    background: var(--primary-50);
+}
+
+.reason-option input[type="radio"]:checked + .reason-label {
+    border-color: var(--warning-500);
+    background: var(--warning-50);
+}
+
+.reason-option input[type="radio"]:checked + .reason-label i {
+    color: var(--warning-600);
+}
+
+/* Circle of Competence Grid */
+.coc-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.coc-option {
+    position: relative;
+}
+
+.coc-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.coc-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.5rem 1rem;
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0;
+    height: 100%;
+}
+
+.coc-label i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.coc-label:hover {
+    border-color: var(--primary-600);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.coc-option input[type="radio"]:checked + .coc-label {
+    border-color: var(--primary-600);
+    background: var(--primary-50);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+/* Current Sector Display */
+.current-sector-display {
+    padding: 0.5rem 0.75rem;
+    background: var(--gray-100);
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Sector Action Options */
+.sector-action-options {
+    margin-top: 1rem;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-600);
+    border-color: var(--primary-600);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .coc-selection-grid {
+        grid-template-columns: 1fr;
+    }
+}

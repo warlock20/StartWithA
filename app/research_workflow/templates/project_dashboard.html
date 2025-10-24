@@ -50,11 +50,9 @@
                 <i class="bi bi-lightbulb"></i> Tips
             </button>
             {% if project.status == 'active' %}
-            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}" style="display: inline;">
-                <button type="submit" class="btn btn-outline-secondary">
-                    <i class="bi bi-pause-circle"></i> Pause Project
-                </button>
-            </form>
+            <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
+                <i class="bi bi-archive"></i> Mark as Too Hard
+            </a>
             {% endif %}
             <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Back to Projects

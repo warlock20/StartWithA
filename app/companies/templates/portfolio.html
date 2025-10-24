@@ -82,7 +82,7 @@
                             </div>
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ company.sector if company.sector else 'N/A' }}</span>
+                            <span class="badge bg-secondary">{{ company.sector.display_name if company.sector else 'N/A' }}</span>
                         </td>
                         <td>
                             <div class="d-flex flex-wrap gap-1">

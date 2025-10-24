@@ -13,8 +13,9 @@ Extracted from routes.py lines: 189-226, 228-251, 253-303, 314-334, 337-370
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject
+from app.models import ResearchTemplate, ResearchProject, Sector
 from app.research_workflow import research_workflow_bp
+from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
 
 
@@ -203,3 +204,104 @@ def add_finding(project_id):
         flash(f'Error adding finding: {str(e)}', 'error')
 
     return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+@research_workflow_bp.route('/too-hard-basket')
+@login_required
+def too_hard_basket():
+    """Unified page showing all rejected companies from all sources"""
+    # Get filter parameters
+    rejection_stage = request.args.get('stage')  # 'kill_checklist', 'mid_research', 'full_analysis'
+    sector_filter = request.args.get('sector')
+    coc_filter = request.args.get('coc')  # 'yes', 'no', 'unsure'
+    search_query = request.args.get('search', '').strip()
+    sort_by = request.args.get('sort', 'recent')  # 'recent', 'oldest', 'time', 'confidence'
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Get ALL items first for accurate counts (without filters except user_id)
+    all_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
+
+    # Calculate statistics from ALL items (not filtered)
+    total_count = len(all_items)
+    kill_count = sum(1 for item in all_items if item.rejection_stage == 'kill_checklist')
+    mid_research_count = sum(1 for item in all_items if item.rejection_stage == 'mid_research')
+    full_analysis_count = sum(1 for item in all_items if item.rejection_stage == 'full_analysis')
+
+    # Get unique sectors from ALL items for filter dropdown
+    all_sectors = set(item.sector for item in all_items if item.sector)
+    sectors_list = sorted(list(all_sectors))
+
+    # Now build filters for displaying items
+    filters = {}
+    if rejection_stage:
+        filters['rejection_stage'] = rejection_stage
+    if sector_filter:
+        filters['sector'] = sector_filter
+    if coc_filter:
+        filters['within_coc'] = coc_filter
+    if search_query:
+        filters['search'] = search_query
+
+    # Get filtered items for display
+    too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, filters)
+
+    # Apply sorting
+    if sort_by == 'oldest':
+        too_hard_items.sort(key=lambda x: x.rejection_date or now_utc())
+    elif sort_by == 'time':
+        too_hard_items.sort(key=lambda x: x.time_invested_hours or 0, reverse=True)
+    elif sort_by == 'confidence':
+        too_hard_items.sort(key=lambda x: x.confidence or 0, reverse=True)
+    # Default is 'recent' which is already sorted by TooHardBasketService
+
+    # Pagination
+    total_filtered = len(too_hard_items)
+    total_pages = (total_filtered + per_page - 1) // per_page  # Ceiling division
+    page = max(1, min(page, total_pages if total_pages > 0 else 1))
+
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_items = too_hard_items[start_idx:end_idx]
+
+    # Create pagination object similar to Flask-SQLAlchemy
+    class SimplePagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+
+        def iter_pages(self, left_edge=2, left_current=2, right_current=2, right_edge=2):
+            last = 0
+            for num in range(1, self.pages + 1):
+                if num <= left_edge or \
+                   (num >= self.page - left_current and num <= self.page + right_current) or \
+                   num > self.pages - right_edge:
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+
+    pagination = SimplePagination(paginated_items, page, per_page, total_filtered)
+
+    return render_template('too_hard_basket.html',
+                         title='Too Hard Basket',
+                         too_hard_items=paginated_items,
+                         pagination=pagination,
+                         total_count=total_count,
+                         kill_count=kill_count,
+                         mid_research_count=mid_research_count,
+                         full_analysis_count=full_analysis_count,
+                         sectors_list=sectors_list,
+                         current_stage=rejection_stage,
+                         current_sector=sector_filter,
+                         current_coc=coc_filter,
+                         search_query=search_query,
+                         sort_by=sort_by,
+                         current_per_page=per_page)

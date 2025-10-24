@@ -245,12 +245,15 @@ def view_checklist(checklist_id):
     research_context = flask_session.get('research_context')
 
     # Get Question Bank items for integration
-    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.sector, QuestionBankItem.text).all()
+    from app.models.sector import Sector
+    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id)\
+        .outerjoin(Sector, QuestionBankItem.sector_id == Sector.id)\
+        .order_by(Sector.display_name, QuestionBankItem.text).all()
 
     # Group questions by sector for better organization
     questions_by_sector = {}
     for item in question_bank_items:
-        sector = item.sector if item.sector else "General"
+        sector = item.sector.display_name if item.sector else "General"
         if sector not in questions_by_sector:
             questions_by_sector[sector] = []
         questions_by_sector[sector].append(item)

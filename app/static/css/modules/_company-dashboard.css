@@ -1,0 +1,366 @@
+/* =============================================================================
+   COMPANY DASHBOARD PAGE - PROFESSIONAL STYLES
+   ============================================================================= */
+
+/* Company header section */
+.company-dashboard-header {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border-bottom: 2px solid var(--border-light);
+    padding: 2rem;
+    margin: -1rem -1rem 2rem -1rem;
+}
+
+.company-info-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.company-header-main h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.company-ticker-badge {
+    display: inline-block;
+    background: var(--primary-600);
+    color: white;
+    padding: 0.375rem 0.875rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-left: 1rem;
+}
+
+.company-summary-text {
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-left: 3px solid var(--primary-600);
+    border-radius: 6px;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--gray-700);
+}
+
+/* Tabs styling */
+.company-nav-tabs {
+    border-bottom: 2px solid var(--border-light);
+    margin-bottom: 2rem;
+    background: white;
+}
+
+.company-nav-tabs .nav-link {
+    border: none;
+    color: var(--gray-700);
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.company-nav-tabs .nav-link:hover {
+    color: var(--gray-900);
+    background: var(--gray-100);
+}
+
+.company-nav-tabs .nav-link.active {
+    color: var(--primary-600);
+    background: white;
+    border-bottom-color: var(--primary-600);
+    font-weight: 600;
+}
+
+/* Tab content area */
+.company-tab-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Section cards */
+.company-section-card {
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.company-section-card-header {
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    border-bottom: 1px solid var(--border-light);
+    padding: 1.25rem 1.5rem;
+}
+
+.company-section-card-header h5 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.company-section-card-body {
+    padding: 1.5rem;
+}
+
+.company-section-description {
+    color: var(--gray-600);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+/* Document groups accordion */
+.documents-accordion .accordion-item {
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.documents-accordion .accordion-button {
+    background: var(--gray-50);
+    color: var(--gray-900);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+.documents-accordion .accordion-button:not(.collapsed) {
+    background: var(--primary-50);
+    color: var(--primary-600);
+    box-shadow: none;
+}
+
+.documents-accordion .accordion-button:focus {
+    box-shadow: none;
+    border-color: var(--border-light);
+}
+
+.documents-accordion .accordion-body {
+    padding: 0;
+}
+
+/* Document list items */
+.document-list-item {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.2s ease;
+}
+
+.document-list-item:last-child {
+    border-bottom: none;
+}
+
+.document-list-item:hover {
+    background: var(--gray-50);
+}
+
+.document-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.document-item-info h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.375rem;
+}
+
+.document-item-meta {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.document-item-description {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.document-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Upload form styling */
+.upload-form-container {
+    background: var(--gray-50);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px dashed var(--border-light);
+}
+
+.form-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-light);
+}
+
+/* Valuation form */
+.valuation-form-section {
+    background: var(--primary-50);
+    border-left: 4px solid var(--primary-600);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+/* Competitor list */
+.competitor-list-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.competitor-list-item:hover {
+    background: var(--gray-50);
+}
+
+.competitor-list-item:last-child {
+    border-bottom: none;
+}
+
+.competitor-link {
+    color: var(--primary-600);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.competitor-link:hover {
+    color: var(--primary-700);
+    text-decoration: underline;
+}
+
+/* Alert banners */
+.info-banner {
+    background: var(--info-50);
+    border-left: 4px solid var(--info-500);
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.warning-banner {
+    background: var(--warning-50);
+    border-left: 4px solid var(--warning-500);
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+/* Empty states */
+.company-empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--gray-500);
+}
+
+.company-empty-state i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: 1rem;
+}
+
+.company-empty-state p {
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Badge styling */
+.group-badge {
+    background: var(--gray-200);
+    color: var(--gray-700);
+    padding: 0.25rem 0.625rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* Status indicator for fetch operations */
+.fetch-status-container {
+    margin-top: 1rem;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--info-50);
+    border-radius: 8px;
+    border: 1px solid var(--info-500);
+}
+
+.status-indicator.success {
+    background: var(--success-50);
+    border-color: var(--success-500);
+}
+
+.status-indicator.error {
+    background: var(--danger-50);
+    border-color: var(--danger-500);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .company-dashboard-header {
+        padding: 1.5rem 1rem;
+        margin: -1rem -0.5rem 1.5rem -0.5rem;
+    }
+
+    .company-info-section {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .company-header-main h1 {
+        font-size: 1.75rem;
+    }
+
+    .company-ticker-badge {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.5rem;
+        width: fit-content;
+    }
+
+    .company-tab-content {
+        padding: 1.25rem;
+    }
+
+    .company-section-card-body {
+        padding: 1.25rem;
+    }
+
+    .document-item-header {
+        flex-direction: column;
+    }
+
+    .document-item-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

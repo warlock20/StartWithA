@@ -156,6 +156,203 @@
     color: #4338ca;
 }
 
+/* Investment Discipline Banner */
+.discipline-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    color: white;
+}
+
+.discipline-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.discipline-banner-main {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+}
+
+.discipline-banner-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.discipline-banner-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.discipline-banner-text h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    color: white;
+}
+
+.discipline-banner-subtitle {
+    font-size: 0.95rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+}
+
+.discipline-banner-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.discipline-stat-item {
+    text-align: center;
+}
+
+.discipline-stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1;
+    color: white;
+    display: block;
+    margin-bottom: 0.375rem;
+}
+
+.discipline-stat-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+
+.discipline-stat-divider {
+    width: 1px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.discipline-banner-link {
+    background: white;
+    color: #667eea;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.discipline-banner-link:hover {
+    background: rgba(255, 255, 255, 0.95);
+    color: #764ba2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.discipline-banner-breakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.breakdown-item {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.breakdown-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+.breakdown-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.breakdown-fill-early {
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+.breakdown-fill-mid {
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+
+.breakdown-fill-deep {
+    background: linear-gradient(90deg, #a78bfa, #8b5cf6);
+}
+
+.breakdown-label {
+    font-size: 0.875rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.breakdown-count {
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .discipline-banner-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .discipline-banner-stats {
+        justify-content: space-around;
+    }
+
+    .discipline-banner-link {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .discipline-banner {
+        padding: 1.5rem;
+    }
+
+    .discipline-banner-stats {
+        gap: 1rem;
+    }
+
+    .discipline-stat-divider {
+        display: none;
+    }
+
+    .discipline-banner-breakdown {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Main Grid Layout */
 .dashboard-main-grid {
     display: grid;

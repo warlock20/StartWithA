@@ -23,6 +23,7 @@ from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
 from app.research.routes import get_all_ordered_items_for_checklist
+from app.services.sector_service import SectorService
 from sqlalchemy.orm.attributes import flag_modified
 import logging
 
@@ -467,6 +468,94 @@ def complete_step(project_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error completing step: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/mark-too-hard', methods=['GET', 'POST'])
+@login_required
+def mark_too_hard(project_id):
+    """Mark a research project as too hard (abandon mid-research)"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if request.method == 'GET':
+        # Show the mark as too hard form
+        # Get user's sectors for autocomplete
+        user_sectors = SectorService.get_user_sectors_list(current_user.id, include_inactive=False)
+
+        return render_template('mark_too_hard.html',
+                             title=f"Mark as Too Hard: {project.company.name if project.company else project.project_name}",
+                             project=project,
+                             user_sectors=user_sectors)
+
+    # POST - Process the form submission
+    too_hard_reason = request.form.get('too_hard_reason')
+    within_coc = request.form.get('within_circle_of_competence')
+    too_hard_notes = request.form.get('too_hard_notes', '').strip()
+    sector_action = request.form.get('sector_action')
+    sector_id = request.form.get('sector_id', type=int)
+    new_sector_name = request.form.get('new_sector_name', '').strip()
+
+    # Validation
+    if not too_hard_reason:
+        flash('Please select a reason for marking this as too hard', 'error')
+        return redirect(request.referrer)
+
+    if not within_coc:
+        flash('Please indicate if this is within your circle of competence', 'error')
+        return redirect(request.referrer)
+
+    try:
+        # Update project status
+        project.status = 'abandoned'
+        project.too_hard_reason = too_hard_reason
+        project.within_circle_of_competence = within_coc
+        project.too_hard_notes = too_hard_notes
+        project.abandoned_at = now_utc()
+
+        # Handle sector assignment
+        if sector_action == 'existing' and sector_id:
+            project.sector_id = sector_id
+            # Also update company sector if not set
+            if project.company and not project.company.sector_id:
+                project.company.sector_id = sector_id
+
+        elif sector_action == 'new' and new_sector_name:
+            # Create or find sector
+            sector = SectorService.find_or_create_sector(
+                current_user.id,
+                new_sector_name,
+                auto_create=True
+            )
+            project.sector_id = sector.id
+            # Also update company sector if not set
+            if project.company and not project.company.sector_id:
+                project.company.sector_id = sector.id
+
+        db.session.commit()
+
+        log_research_activity(
+            current_user.id,
+            'project_abandoned',
+            company_id=project.company_id,
+            project_id=project.id,
+            details={
+                'reason': too_hard_reason,
+                'within_coc': within_coc,
+                'hours_spent': project.total_hours_spent
+            }
+        )
+
+        flash(f'Research project marked as too hard. Time invested: {project.total_hours_spent:.1f} hours', 'info')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error marking project as too hard: {str(e)}')
+        flash(f'Error marking project as too hard: {str(e)}', 'error')
         return redirect(request.referrer)
 
 

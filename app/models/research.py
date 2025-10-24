@@ -138,6 +138,9 @@ class ResearchProject(db.Model):
     # Company being researched (required)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
 
+    # Sector for analytics and Circle of Competence tracking
+    sector_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True, index=True)
+
     # If this project originated from an idea in the pipeline
     idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
 
@@ -167,6 +170,14 @@ class ResearchProject(db.Model):
     decision_confidence = db.Column(db.Integer)  # 1-10 scale
     decision_notes = db.Column(db.Text)
 
+    # Circle of Competence tracking (for Too Hard Basket analytics)
+    within_circle_of_competence = db.Column(db.String(20))  # 'yes', 'no', 'unsure'
+
+    # Too Hard / Abandon tracking
+    too_hard_reason = db.Column(db.String(100))  # 'too_complex', 'insufficient_info', 'outside_competence', 'better_opportunities', 'other'
+    too_hard_notes = db.Column(db.Text)  # What they learned
+    abandoned_at = db.Column(db.DateTime)  # When marked as too hard
+
     # If invested, track the outcome
     investment_amount = db.Column(db.Float)
     investment_date = db.Column(db.Date)
@@ -184,6 +195,7 @@ class ResearchProject(db.Model):
 
     # Relationships
     company = db.relationship('Company', backref='research_projects')
+    sector = db.relationship('Sector', backref='research_projects')
     idea = db.relationship('IdeaPipeline', backref='research_project')
     work_sessions = db.relationship('WorkSession', backref='project',
                                    lazy='dynamic', cascade='all, delete-orphan')

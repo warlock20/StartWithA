@@ -210,61 +210,10 @@ def completed_projects():
 
 @research_workflow_bp.route('/my-projects/too-hard-basket')
 @login_required
-def too_hard_basket():
-    """Warren Buffett's 'Too Hard' Basket - Companies we passed on"""
-    # Get pagination and filter parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    search_query = request.args.get('search', '', type=str).strip()
-    confidence_filter = request.args.get('confidence', '', type=str).strip()
-    sort_order = request.args.get('sort', 'recent', type=str)  # recent or oldest
-
-    # Start with base query
-    query = current_user.research_projects.filter_by(
-        status='completed',
-        decision='pass'
-    )
-
-    # Apply search filter
-    if search_query:
-        query = query.join(Company, ResearchProject.company_id == Company.id, isouter=True)\
-            .filter(
-                db.or_(
-                    Company.name.ilike(f'%{search_query}%'),
-                    Company.ticker_symbol.ilike(f'%{search_query}%')
-                )
-            )
-
-    # Apply confidence filter
-    if confidence_filter:
-        if confidence_filter == 'high':
-            query = query.filter(ResearchProject.decision_confidence >= 7)
-        elif confidence_filter == 'medium':
-            query = query.filter(
-                ResearchProject.decision_confidence >= 4,
-                ResearchProject.decision_confidence < 7
-            )
-        elif confidence_filter == 'low':
-            query = query.filter(ResearchProject.decision_confidence < 4)
-
-    # Order by completed time (passed on date)
-    if sort_order == 'oldest':
-        query = query.order_by(ResearchProject.completed_at.asc())
-    else:  # recent
-        query = query.order_by(ResearchProject.completed_at.desc())
-
-    # Paginate
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    too_hard_projects = pagination.items
-
-    return render_template('projects_too_hard.html',
-                          title="Too Hard Basket",
-                          too_hard_projects=too_hard_projects,
-                          pagination=pagination,
-                          current_search=search_query,
-                          current_confidence=confidence_filter,
-                          current_sort=sort_order,
-                          current_per_page=per_page)
+def too_hard_basket_legacy():
+    """Legacy route - redirect to unified Too Hard Basket"""
+    # Redirect to new unified route, preserving query parameters
+    return redirect(url_for('research_workflow.too_hard_basket', **request.args))
 
 
 @research_workflow_bp.route('/my-projects/paused')
@@ -364,47 +313,41 @@ def paused_projects():
 @research_workflow_bp.route('/projects/<int:project_id>/pause', methods=['POST'])
 @login_required
 def pause_project(project_id):
-    """Pause an active research project"""
+    """Pause functionality removed - redirect to mark as too hard"""
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
-    project.status = 'paused'
-    project.last_worked_at = now_utc()
-
-    try:
-        db.session.commit()
-        flash(f'Project "{project.project_name}" paused', 'info')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error pausing project: {str(e)}', 'error')
-
-    return redirect(url_for('research_workflow.my_projects'))
+    flash('Pause functionality has been replaced with "Mark as Too Hard". If you want to stop research on this project, please mark it as too hard instead.', 'info')
+    return redirect(url_for('research_workflow.mark_too_hard', project_id=project_id))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/resume', methods=['POST'])
 @login_required
 def resume_project(project_id):
-    """Resume a paused research project"""
+    """Resume functionality - convert paused projects to active"""
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
-    project.status = 'active'
-    project.last_worked_at = now_utc()
+    # If somehow a paused project still exists, convert it to active
+    if project.status == 'paused':
+        project.status = 'active'
+        project.last_worked_at = now_utc()
 
-    try:
-        db.session.commit()
-        flash(f'Project "{project.project_name}" resumed', 'success')
-        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error resuming project: {str(e)}', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
+        try:
+            db.session.commit()
+            flash(f'Project "{project.project_name}" resumed', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error resuming project: {str(e)}', 'error')
+            return redirect(url_for('research_workflow.my_projects'))
+
+    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])

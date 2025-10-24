@@ -63,10 +63,13 @@ class QuestionBankItem(db.Model):
     # An optional, reusable LLM prompt for this question
     llm_prompt = db.Column(db.Text, nullable=True)
 
-    # The sector tag to categorize the question. Can be null for general questions.
-    sector = db.Column(db.String(100), nullable=True, index=True)
+    # Foreign key to sector - can be null for general questions
+    sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=True, index=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+
+    # Relationship to Sector
+    sector = db.relationship("Sector", backref="question_bank_items")
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"
