@@ -3,17 +3,18 @@ import uuid
 import yfinance as yf
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import ResearchProject, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
+from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
+                        ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
+                        FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
+                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem)
 from app.services.duplicate_detection import DuplicateDetectionService
+from app.services.sector_service import SectorService
 from app.companies import companies_bp
-from app.tasks import fetch_financial_data_task
-
-from itertools import groupby
-
-from app.tasks import fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -318,7 +319,6 @@ def list_companies():
 
     # Apply sector filter
     if sector_filter and sector_filter != 'all':
-        from app.models.sector import Sector
         query = query.join(Sector, Company.sector_id == Sector.id).filter(
             Sector.display_name == sector_filter
         )
@@ -353,7 +353,6 @@ def list_companies():
         companies_data_list.append(data)
 
     # Get all unique sectors for filter dropdown
-    from app.models.sector import Sector
     all_sectors = db.session.query(Sector.display_name).join(
         Company, Company.sector_id == Sector.id
     ).filter(
@@ -442,8 +441,6 @@ def delete_company(company_id):
     try:
         # Two-phase deletion to handle foreign key constraints
         # Phase 1: Delete related records that reference this company
-        from app.models import (ResearchLog, ThesisEvolution, DecisionJournal,
-                              JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem)
 
         # Delete research logs that reference this company
         ResearchLog.query.filter_by(company_id=company_id).delete()
@@ -1199,8 +1196,6 @@ def remove_competitor(company_id, competitor_id):
 @login_required
 def api_search_companies():
     """AJAX endpoint for searching companies - searches both user's companies and Yahoo Finance"""
-    from flask import jsonify
-
     query = request.args.get('q', '').strip()
     if len(query) < 1:
         return jsonify({'user_companies': [], 'yahoo_suggestions': []})
@@ -1221,7 +1216,7 @@ def api_search_companies():
             'name': company.name,
             'ticker_symbol': company.ticker_symbol,
             'industry': company.industry,
-            'sector': company.sector,
+            'sector': company.sector.display_name if company.sector else None,
             'source': 'existing'
         })
 
@@ -1262,15 +1257,13 @@ def api_search_companies():
 @login_required
 def api_create_company():
     """AJAX endpoint for creating new companies"""
-    from flask import jsonify
-
     try:
         data = request.get_json()
 
         name = (data.get('name') or '').strip()
         ticker_symbol = (data.get('ticker_symbol') or '').strip().upper()
         industry = (data.get('industry') or '').strip() or None
-        sector = (data.get('sector') or '').strip() or None
+        sector_name = (data.get('sector') or '').strip() or None
         summary = (data.get('summary') or '').strip() or None
 
         if not ticker_symbol:
@@ -1294,13 +1287,22 @@ def api_create_company():
                 'error': 'Company with this name or ticker already exists'
             })
 
+        # Find or create sector if provided
+        sector_obj = None
+        if sector_name:
+            sector_obj = SectorService.find_or_create_sector(
+                user_id=current_user.id,
+                sector_name=sector_name,
+                auto_create=True
+            )
+
         # Create new company
         company = Company(
             user_id=current_user.id,
             name=name,
             ticker_symbol=ticker_symbol,
             industry=industry,
-            sector=sector,
+            sector_id=sector_obj.id if sector_obj else None,
             summary=summary
         )
 
@@ -1314,7 +1316,7 @@ def api_create_company():
                 'name': company.name,
                 'ticker_symbol': company.ticker_symbol,
                 'industry': company.industry,
-                'sector': company.sector,
+                'sector': company.sector.display_name if company.sector else None,
                 'summary': company.summary
             }
         })
