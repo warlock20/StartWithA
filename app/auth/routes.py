@@ -81,7 +81,7 @@ def login():
                 return redirect(next_page)
             else:
                 # Redirect to dashboard after login
-                return redirect(url_for('dashboard.dashboard')) 
+                return redirect(url_for('dashboard.index')) 
         else:
             flash('Invalid username/email or password. Please try again.', 'error')
             return render_template('login.html', title="Login", identifier=identifier)
