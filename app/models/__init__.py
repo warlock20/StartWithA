@@ -27,7 +27,6 @@ from .checklist import (
     QuestionBankItem,
     DestinationCheckpoint,
     DocumentImport,
-    OnboardingProgress,
 )
 from .idea_pipeline import (
     IdeaPipeline,
@@ -104,7 +103,6 @@ __all__ = [
     'QuestionBankItem',
     'DestinationCheckpoint',
     'DocumentImport',
-    'OnboardingProgress',
     # Idea Pipeline models
     'IdeaPipeline',
     'KillChecklist',

@@ -80,12 +80,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     patterns = db.relationship('PatternRecognition', backref='user',
                               lazy='dynamic', cascade='all, delete-orphan')
 
-    # Onboarding tracking
-    onboarding_completed = db.Column(db.Boolean, default=False)
-    onboarding_step = db.Column(db.Integer, default=0)  # Track current step (0-5)
-    onboarding_started_at = db.Column(db.DateTime)
-    onboarding_completed_at = db.Column(db.DateTime)
-
     # User preferences
     preferred_sprint_duration = db.Column(db.Integer, default=30)  # minutes
     research_experience_level = db.Column(db.String(20), default='intermediate')  # beginner, intermediate, expert

@@ -80,12 +80,8 @@ def login():
             if next_page:
                 return redirect(next_page)
             else:
-                # Check if user needs onboarding
-                if not user.onboarding_completed:
-                    return redirect(url_for('onboarding.welcome'))
-                else:
-                    # Redirect to a sensible default page after login
-                    return redirect(url_for('research_workflow.my_projects')) 
+                # Redirect to dashboard after login
+                return redirect(url_for('dashboard.dashboard')) 
         else:
             flash('Invalid username/email or password. Please try again.', 'error')
             return render_template('login.html', title="Login", identifier=identifier)

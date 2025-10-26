@@ -23,7 +23,7 @@ def index():
     # Get the number of companies in the active portfolio
     portfolio_count = current_user.companies.filter_by(is_in_portfolio=True).count()
 
-    # Calculate Too Hard Basket Rate (Selectivity Metric)
+    # Calculate Too Hard Basket Rate (Filter Rate Metric)
     company_invest_count = current_user.research_projects.filter_by(
         decision='invest'
     ).count()

@@ -1350,57 +1350,12 @@
     border: 1px solid var(--border-light);
 }
 
-/* Recent Actions Timeline */
-.actions-timeline {
-    position: relative;
-}
-
-.action-item {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem 0;
-    position: relative;
-}
-
-.action-item:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    left: 5px;
-    top: 2.5rem;
-    bottom: -1rem;
-    width: 2px;
-    background: var(--border-light);
-}
-
-.action-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--primary-600);
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-}
-
-.action-content {
-    flex: 1;
-}
-
-.action-text {
-    font-size: 0.95rem;
-    color: var(--gray-900);
-    margin: 0 0 0.25rem 0;
-}
-
-.action-time {
-    font-size: 0.8rem;
-    color: var(--gray-500);
-    margin: 0;
-}
-
-.actions-empty {
-    text-align: center;
-    padding: 2rem;
-    color: var(--gray-500);
+/* Priorities Section in Sidebar */
+.priorities-section-sidebar {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-light);
 }
 
 /* Quick Access Grid */

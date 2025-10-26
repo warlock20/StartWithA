@@ -39,6 +39,7 @@ All complex components have been fully modularized.
 @import url('modules/_public-home.css');          /* Public homepage */
 @import url('modules/_quick-capture.css');        /* Quick capture page */
 @import url('modules/_dashboard.css');            /* Dashboard components */
+@import url('modules/_pipeline-flow.css');        /* Investment pipeline flow visualization */
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
 @import url('modules/_sector-research.css');      /* Simplified sector research page */
