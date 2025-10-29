@@ -36,13 +36,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to check if editor is ready
         function checkEditorReady() {
-            const isReady = window.blockNoteEditorInstance &&
-                           typeof window.blockNoteEditorInstance.insertHTML === 'function';
+            // Check for main document editor specifically from the map
+            const editor = window.blockNoteEditors?.['sectorEditor'];
+            const isReady = editor && typeof editor.insertHTML === 'function';
 
-            console.log('Editor ready check:', {
-                instanceExists: !!window.blockNoteEditorInstance,
-                hasInsertHTML: window.blockNoteEditorInstance?.insertHTML !== undefined,
-                isFunction: typeof window.blockNoteEditorInstance?.insertHTML === 'function',
+            console.log('Main document editor ready check:', {
+                editorsMapExists: !!window.blockNoteEditors,
+                availableEditors: window.blockNoteEditors ? Object.keys(window.blockNoteEditors) : [],
+                sectorEditorExists: !!editor,
+                hasInsertHTML: editor?.insertHTML !== undefined,
+                isFunction: typeof editor?.insertHTML === 'function',
                 isReady: isReady
             });
 

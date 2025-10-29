@@ -3,6 +3,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
                        DecisionJournal, ResearchLog, Company)
+from app.models.sector import SectorAnalysis
 from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
                                 get_time_allocation_data, log_research_activity, KillSession)
@@ -163,6 +164,36 @@ def dashboard():
 
     # Extract the list of all sectors from the analytics dictionary
     all_sectors = sector_analytics_dict.get('all', []) if isinstance(sector_analytics_dict, dict) else []
+
+    # Filter to only include sectors with actual research content
+    if all_sectors:
+        filtered_sectors = []
+        for sector in all_sectors:
+            # Get the SectorAnalysis for this sector to check for content
+            analysis = SectorAnalysis.query.filter_by(
+                user_id=current_user.id,
+                sector_id=sector.id
+            ).first()
+
+            if analysis:
+                # Check if sector has meaningful content:
+                # - Documentation/canvas notes (word_count)
+                # - Research sources
+                # - Questions in question bank
+                # - Time spent researching
+                # - Companies analyzed
+                has_content = (
+                    analysis.word_count > 0 or
+                    analysis.sources_count > 0 or
+                    analysis.questions_count > 0 or
+                    analysis.total_time_spent > 0 or
+                    sector.companies_analyzed > 0
+                )
+
+                if has_content:
+                    filtered_sectors.append(sector)
+
+        all_sectors = filtered_sectors
 
     if all_sectors:
         for sector in all_sectors:
