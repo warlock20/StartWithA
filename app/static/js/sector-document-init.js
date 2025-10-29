@@ -137,33 +137,105 @@ window.clearSavedSnippet = function() {
 // ==================== TEMPLATE INSERTION ====================
 
 async function insertTemplate(templateKey) {
+    console.log(`insertTemplate called with key: ${templateKey}`);
+
     try {
+        // Check if editor is ready
+        if (!window.blockNoteEditorInstance) {
+            console.error('blockNoteEditorInstance not found on window');
+            alert('Editor is still loading. Please wait a moment and try again.');
+            return;
+        }
+
+        if (!window.blockNoteEditorInstance.insertHTML) {
+            console.error('insertHTML method not found on blockNoteEditorInstance');
+            alert('Editor is not fully initialized. Please refresh the page and try again.');
+            return;
+        }
+
+        console.log('Editor found, fetching template...');
+
         // Fetch template content from backend
         const response = await fetch(`/sectors/template/${templateKey}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('Template data received:', data);
 
         if (!data.success) {
             alert('Error loading template: ' + (data.error || 'Unknown error'));
             return;
         }
 
-        // Call the editor's insert method (exposed by React component)
-        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.insertHTML) {
-            await window.blockNoteEditorInstance.insertHTML(data.content);
-
-            // Close the modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('templatesModal'));
-            if (modal) modal.hide();
-
-            console.log(`Template "${data.name}" inserted successfully`);
-        } else {
-            alert('Editor not ready. Please wait a moment and try again.');
+        if (!data.content) {
+            alert('Template content is empty');
+            return;
         }
+
+        console.log('Inserting template content...');
+        console.log('HTML content length:', data.content.length);
+        console.log('HTML preview:', data.content.substring(0, 200));
+
+        // Get current document state before insertion
+        const beforeBlocks = window.blockNoteEditorInstance.editor.document.length;
+        console.log('Document blocks before insert:', beforeBlocks);
+
+        // Insert the HTML content
+        try {
+            await window.blockNoteEditorInstance.insertHTML(data.content);
+            console.log('insertHTML call completed');
+        } catch (insertError) {
+            console.error('insertHTML threw an error:', insertError);
+            throw insertError;
+        }
+
+        // Check if blocks were actually added
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const afterBlocks = window.blockNoteEditorInstance.editor.document.length;
+        console.log('Document blocks after insert:', afterBlocks);
+
+        if (afterBlocks === beforeBlocks) {
+            console.warn('⚠️ No blocks were added! InsertHTML may have failed silently.');
+            alert('Template insertion failed. The content could not be added to the editor.');
+            return;
+        }
+
+        console.log('✓ Template inserted successfully -', (afterBlocks - beforeBlocks), 'new blocks added');
+
+        // Scroll to show the inserted content
+        setTimeout(() => {
+            const editor = window.blockNoteEditorInstance.editor;
+            if (editor) {
+                // Scroll to bottom of editor to show new content
+                const editorElement = document.querySelector('.bn-container');
+                if (editorElement) {
+                    editorElement.scrollTop = editorElement.scrollHeight;
+                    console.log('Scrolled to show new content');
+                }
+            }
+        }, 100);
+
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('templatesModal'));
+        if (modal) {
+            modal.hide();
+            console.log('Modal closed');
+        }
+
+        // Show success message
+        console.log(`✓ Template "${data.name}" inserted successfully`);
+
     } catch (err) {
         console.error('Error inserting template:', err);
-        alert('Error loading template. Please try again.');
+        alert('Error loading template: ' + err.message);
     }
 }
 
 // Make insertTemplate globally available
 window.insertTemplate = insertTemplate;
+
+// Log when this script loads
+console.log('sector-document-init.js loaded, insertTemplate function registered');

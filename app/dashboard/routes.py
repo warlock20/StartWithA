@@ -104,6 +104,10 @@ def index():
     mid_research_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'mid_research')
     deep_analysis_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'full_analysis')
 
+    # Get analytics and recommendations
+    analytics_data = TooHardBasketService.get_analytics(current_user.id)
+    recommendations = analytics_data.get('recommendations', [])
+
     return render_template(
         'dashboard.html',
         title='Dashboard',
@@ -126,7 +130,8 @@ def index():
         recent_rejections_count=recent_rejections_count,
         early_kills_count=early_kills_count,
         mid_research_count=mid_research_count,
-        deep_analysis_count=deep_analysis_count
+        deep_analysis_count=deep_analysis_count,
+        recommendations=recommendations
     )
 
 @dashboard_bp.route('/portfolio_timeline')

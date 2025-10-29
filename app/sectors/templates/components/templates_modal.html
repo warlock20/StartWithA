@@ -7,6 +7,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div id="editorNotReady" class="alert alert-warning" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i> Editor is loading... Please wait a moment.
+                </div>
                 <p class="text-muted mb-3">Click a template to insert formatted content at cursor position</p>
                 <div class="template-modal-grid">
                     {% for template in template_list %}
@@ -20,3 +23,48 @@
         </div>
     </div>
 </div>
+
+<script>
+// Check editor status when modal is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('templatesModal');
+    if (!modal) return;
+
+    modal.addEventListener('show.bs.modal', function() {
+        const alert = document.getElementById('editorNotReady');
+        if (!alert) return;
+
+        // Function to check if editor is ready
+        function checkEditorReady() {
+            const isReady = window.blockNoteEditorInstance &&
+                           typeof window.blockNoteEditorInstance.insertHTML === 'function';
+
+            console.log('Editor ready check:', {
+                instanceExists: !!window.blockNoteEditorInstance,
+                hasInsertHTML: window.blockNoteEditorInstance?.insertHTML !== undefined,
+                isFunction: typeof window.blockNoteEditorInstance?.insertHTML === 'function',
+                isReady: isReady
+            });
+
+            return isReady;
+        }
+
+        // Initial check
+        const isReady = checkEditorReady();
+        alert.style.display = isReady ? 'none' : 'block';
+
+        // If not ready, check multiple times with increasing delays
+        if (!isReady) {
+            const delays = [500, 1000, 2000, 3000];
+            delays.forEach(delay => {
+                setTimeout(() => {
+                    if (checkEditorReady()) {
+                        alert.style.display = 'none';
+                        console.log('✓ Editor became ready after', delay, 'ms');
+                    }
+                }, delay);
+            });
+        }
+    });
+});
+</script>

@@ -37,6 +37,11 @@
                 <i class="bi bi-graph-up"></i> Research Patterns
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="coc-tab" data-bs-toggle="tab" data-bs-target="#circle-of-competence" type="button" role="tab">
+                <i class="bi bi-bullseye"></i> Circle of Competence
+            </button>
+        </li>
     </ul>
 
     <!-- Tab Content -->
@@ -607,6 +612,348 @@
             </div>
             {% endif %}
         </div>
+
+        <!-- ========================================
+             CIRCLE OF COMPETENCE TAB
+             ======================================== -->
+        <div class="tab-pane fade" id="circle-of-competence" role="tabpanel" aria-labelledby="coc-tab">
+            <!-- Summary Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon bg-primary">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">{{ coc_total_companies }}</div>
+                            <div class="metric-label">Companies Analyzed</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon bg-success">
+                            <i class="bi bi-bullseye"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">{{ coc_overall_confidence }}%</div>
+                            <div class="metric-label">CoC Confidence</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon bg-info">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">{{ coc_total_within }}</div>
+                            <div class="metric-label">Within Competence</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-icon bg-warning">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value">{{ coc_total_hours }}h</div>
+                            <div class="metric-label">Total Research Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CoC Breakdown & Stats -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Circle of Competence Distribution</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if coc_total_assessed > 0 %}
+                            <canvas id="cocBreakdownChart" height="300"></canvas>
+                            {% else %}
+                            <div class="empty-state text-center py-5">
+                                <i class="bi bi-pie-chart text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No Circle of Competence assessments yet.<br>Start analyzing companies to build your expertise map.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Assessment Breakdown</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="coc-stats-list">
+                                <div class="coc-stat-item">
+                                    <div class="coc-stat-indicator bg-success"></div>
+                                    <div class="coc-stat-content">
+                                        <div class="coc-stat-label">Within Circle of Competence</div>
+                                        <div class="coc-stat-value">{{ coc_total_within }} companies</div>
+                                        <div class="coc-stat-percent">{{ ((coc_total_within / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
+                                    </div>
+                                </div>
+                                <div class="coc-stat-item">
+                                    <div class="coc-stat-indicator bg-danger"></div>
+                                    <div class="coc-stat-content">
+                                        <div class="coc-stat-label">Outside Circle of Competence</div>
+                                        <div class="coc-stat-value">{{ coc_total_outside }} companies</div>
+                                        <div class="coc-stat-percent">{{ ((coc_total_outside / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
+                                    </div>
+                                </div>
+                                <div class="coc-stat-item">
+                                    <div class="coc-stat-indicator bg-secondary"></div>
+                                    <div class="coc-stat-content">
+                                        <div class="coc-stat-label">Unsure / Developing</div>
+                                        <div class="coc-stat-value">{{ coc_total_unsure }} companies</div>
+                                        <div class="coc-stat-percent">{{ ((coc_total_unsure / coc_total_assessed * 100) if coc_total_assessed > 0 else 0)|round(1) }}% of assessments</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            {% if coc_recommendations %}
+            <div class="recommendations-section mb-4">
+                <div class="recommendations-header">
+                    <h2 class="recommendations-title">
+                        <i class="bi bi-lightbulb"></i>
+                        Insights & Recommendations
+                    </h2>
+                </div>
+                <div class="recommendations-list">
+                    {% for rec in coc_recommendations %}
+                    <div class="recommendation-card type-{{ rec.type }}">
+                        <div class="recommendation-indicator"></div>
+                        <div class="recommendation-icon">
+                            {% if rec.type == 'avoid' %}
+                                <i class="bi bi-x-circle-fill"></i>
+                            {% elif rec.type == 'strength' %}
+                                <i class="bi bi-check-circle-fill"></i>
+                            {% elif rec.type == 'efficiency' %}
+                                <i class="bi bi-lightning-charge-fill"></i>
+                            {% else %}
+                                <i class="bi bi-info-circle-fill"></i>
+                            {% endif %}
+                        </div>
+                        <div class="recommendation-content">
+                            <div class="recommendation-sector">{{ rec.sector }}</div>
+                            <p class="recommendation-message">{{ rec.message }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Sectors by Competence Level -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Sectors by Competence Level</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if sectors_by_competence.expert or sectors_by_competence.proficient or sectors_by_competence.developing or sectors_by_competence.novice %}
+
+                            <!-- Expert Sectors -->
+                            {% if sectors_by_competence.expert %}
+                            <div class="competence-section mb-4">
+                                <h4 class="competence-level-title">
+                                    <span class="competence-badge bg-success">Expert</span>
+                                    High confidence and proven success
+                                </h4>
+                                <div class="sectors-grid">
+                                    {% for sector in sectors_by_competence.expert %}
+                                    <div class="sector-card expert-sector">
+                                        <div class="sector-card-header">
+                                            <h5 class="sector-name">{{ sector.name }}</h5>
+                                            <span class="competence-badge-sm bg-success">Expert</span>
+                                        </div>
+                                        <div class="sector-card-body">
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">CoC Confidence:</span>
+                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Success Rate:</span>
+                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Companies:</span>
+                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
+                                            </div>
+                                        </div>
+                                        <div class="sector-card-footer">
+                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
+                                                View Sector
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Proficient Sectors -->
+                            {% if sectors_by_competence.proficient %}
+                            <div class="competence-section mb-4">
+                                <h4 class="competence-level-title">
+                                    <span class="competence-badge bg-info">Proficient</span>
+                                    Good understanding with some experience
+                                </h4>
+                                <div class="sectors-grid">
+                                    {% for sector in sectors_by_competence.proficient %}
+                                    <div class="sector-card proficient-sector">
+                                        <div class="sector-card-header">
+                                            <h5 class="sector-name">{{ sector.name }}</h5>
+                                            <span class="competence-badge-sm bg-info">Proficient</span>
+                                        </div>
+                                        <div class="sector-card-body">
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">CoC Confidence:</span>
+                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Success Rate:</span>
+                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Companies:</span>
+                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
+                                            </div>
+                                        </div>
+                                        <div class="sector-card-footer">
+                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
+                                                View Sector
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Developing Sectors -->
+                            {% if sectors_by_competence.developing %}
+                            <div class="competence-section mb-4">
+                                <h4 class="competence-level-title">
+                                    <span class="competence-badge bg-warning">Developing</span>
+                                    Building knowledge and experience
+                                </h4>
+                                <div class="sectors-grid">
+                                    {% for sector in sectors_by_competence.developing %}
+                                    <div class="sector-card developing-sector">
+                                        <div class="sector-card-header">
+                                            <h5 class="sector-name">{{ sector.name }}</h5>
+                                            <span class="competence-badge-sm bg-warning">Developing</span>
+                                        </div>
+                                        <div class="sector-card-body">
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">CoC Confidence:</span>
+                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Success Rate:</span>
+                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Companies:</span>
+                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
+                                            </div>
+                                        </div>
+                                        <div class="sector-card-footer">
+                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
+                                                View Sector
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Novice Sectors -->
+                            {% if sectors_by_competence.novice %}
+                            <div class="competence-section">
+                                <h4 class="competence-level-title">
+                                    <span class="competence-badge bg-secondary">Novice</span>
+                                    Early exploration or limited experience
+                                </h4>
+                                <div class="sectors-grid">
+                                    {% for sector in sectors_by_competence.novice %}
+                                    <div class="sector-card novice-sector">
+                                        <div class="sector-card-header">
+                                            <h5 class="sector-name">{{ sector.name }}</h5>
+                                            <span class="competence-badge-sm bg-secondary">Novice</span>
+                                        </div>
+                                        <div class="sector-card-body">
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">CoC Confidence:</span>
+                                                <span class="sector-stat-value">{{ sector.coc_confidence }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Success Rate:</span>
+                                                <span class="sector-stat-value">{{ sector.success_rate }}%</span>
+                                            </div>
+                                            <div class="sector-stat">
+                                                <span class="sector-stat-label">Companies:</span>
+                                                <span class="sector-stat-value">{{ sector.companies_analyzed }} analyzed, {{ sector.companies_invested }} invested</span>
+                                            </div>
+                                        </div>
+                                        <div class="sector-card-footer">
+                                            <a href="{{ url_for('sectors.notebook', sector_name=sector.slug) }}" class="btn btn-sm btn-outline-primary">
+                                                View Sector
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% else %}
+                            <div class="empty-state text-center py-5">
+                                <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No sector data available yet.<br>Start researching companies to build your competence map.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sector Performance Chart -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Top Sectors by Activity</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if coc_sector_chart_data != '[]' %}
+                            <canvas id="cocSectorPerformanceChart" height="300"></canvas>
+                            {% else %}
+                            <div class="empty-state text-center py-5">
+                                <i class="bi bi-bar-chart text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No sector activity data yet.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -628,6 +975,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const topKillReasons = {{ top_kill_reasons|tojson|safe if top_kill_reasons is defined else '[]' }};
     const velocityData = {{ velocity_data|safe if velocity_data is defined else '[]' }};
     const confidenceTrend = {{ confidence_trend|safe if confidence_trend is defined else '[]' }};
+    const cocBreakdown = {{ coc_breakdown|tojson|safe if coc_breakdown is defined else '{"yes": 0, "no": 0, "unsure": 0}' }};
+    const cocSectorData = {{ coc_sector_chart_data|safe if coc_sector_chart_data is defined else '[]' }};
 
     function renderChart(canvasId, config) {
         const canvas = document.getElementById(canvasId);
@@ -859,6 +1208,102 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 scales: {
                     y: { beginAtZero: true, max: 10 }
+                }
+            }
+        }),
+        'cocBreakdownChart': () => ({
+            type: 'doughnut',
+            data: {
+                labels: ['Within CoC', 'Outside CoC', 'Unsure'],
+                datasets: [{
+                    data: [cocBreakdown.yes || 0, cocBreakdown.no || 0, cocBreakdown.unsure || 0],
+                    backgroundColor: [
+                        'rgba(22, 163, 74, 0.8)',
+                        'rgba(220, 38, 38, 0.8)',
+                        'rgba(107, 114, 128, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(22, 163, 74, 1)',
+                        'rgba(220, 38, 38, 1)',
+                        'rgba(107, 114, 128, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = cocBreakdown.yes + cocBreakdown.no + cocBreakdown.unsure;
+                                const value = context.parsed;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        }),
+        'cocSectorPerformanceChart': () => ({
+            type: 'bar',
+            data: {
+                labels: cocSectorData.map(s => s.name),
+                datasets: [
+                    {
+                        label: 'Invested',
+                        data: cocSectorData.map(s => s.invested),
+                        backgroundColor: 'rgba(22, 163, 74, 0.8)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Passed',
+                        data: cocSectorData.map(s => s.passed_full + s.abandoned),
+                        backgroundColor: 'rgba(220, 38, 38, 0.8)',
+                        borderColor: 'rgba(220, 38, 38, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Early Kills',
+                        data: cocSectorData.map(s => s.killed),
+                        backgroundColor: 'rgba(107, 114, 128, 0.8)',
+                        borderColor: 'rgba(107, 114, 128, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
                 }
             }
         })

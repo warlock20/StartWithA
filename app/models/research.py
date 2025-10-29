@@ -156,7 +156,7 @@ class ResearchProject(db.Model):
     step_overrides = db.Column(db.JSON, default=dict)  # Override step configs (e.g., if checklist was deleted)
 
     # Status tracking
-    status = db.Column(db.String(50), default='active')  # 'active', 'paused', 'completed', 'abandoned', 'killed'
+    status = db.Column(db.String(50), default='active')  # 'active', 'completed', 'abandoned', 'killed'
     kill_reason = db.Column(db.Text)  # Reason for killing the investment during screening
 
     # Time tracking - crucial for understanding where effort goes

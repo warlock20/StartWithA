@@ -60,7 +60,7 @@
                                 <span class="badge
                                         {% if project.status == 'active' %}badge-success
                                         {% elif project.status == 'completed' %}badge-primary
-                                        {% elif project.status == 'paused' %}badge-warning
+                                        {% elif project.status == 'abandoned' %}badge-secondary
                                         {% else %}badge-secondary{% endif %}">
                                     {{ project.status.title() }}
                                 </span>

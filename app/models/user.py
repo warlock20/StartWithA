@@ -94,6 +94,13 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     last_fomo_alert = db.Column(db.DateTime)
     fomo_protection_level = db.Column(db.String(20), default='medium')  # low, medium, high
 
+    # Onboarding and tour tracking
+    onboarding_completed = db.Column(db.Boolean, default=False)
+    onboarding_path_chosen = db.Column(db.String(20))  # 'company' or 'sector'
+    onboarding_completed_at = db.Column(db.DateTime)
+    page_tours_completed = db.Column(db.JSON, default={})  # {'dashboard': True, 'inbox': False, ...}
+    tour_preferences = db.Column(db.JSON, default={'show_page_tours': True})
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

@@ -1,0 +1,309 @@
+/*
+=============================================================================
+Circle of Competence Analytics Module
+=============================================================================
+Professional styling for the Circle of Competence analytics dashboard.
+*/
+
+/* Metric Cards */
+.metric-card {
+    background: var(--bs-white);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.metric-content {
+    flex: 1;
+}
+
+.metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--bs-gray-900);
+    line-height: 1.2;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: var(--bs-gray-600);
+    margin-top: 0.25rem;
+}
+
+/* CoC Stats List */
+.coc-stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.coc-stat-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+    background: var(--bs-gray-50);
+}
+
+.coc-stat-indicator {
+    width: 4px;
+    height: 60px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.coc-stat-content {
+    flex: 1;
+}
+
+.coc-stat-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--bs-gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.coc-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--bs-gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.coc-stat-percent {
+    font-size: 0.75rem;
+    color: var(--bs-gray-600);
+}
+
+/* Competence Sections */
+.competence-section {
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: 2rem;
+}
+
+.competence-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.competence-level-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--bs-gray-900);
+}
+
+.competence-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: white;
+}
+
+.competence-badge-sm {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+}
+
+/* Sectors Grid */
+.sectors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.sector-card {
+    background: var(--bs-white);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.sector-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.sector-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-gray-50);
+}
+
+.sector-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--bs-gray-900);
+    margin: 0;
+}
+
+.sector-card-body {
+    padding: 1.25rem;
+}
+
+.sector-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--bs-gray-100);
+}
+
+.sector-stat:last-child {
+    border-bottom: none;
+}
+
+.sector-stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-gray-600);
+    font-weight: 500;
+}
+
+.sector-stat-value {
+    font-size: 0.875rem;
+    color: var(--bs-gray-900);
+    font-weight: 600;
+}
+
+.sector-card-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-gray-50);
+}
+
+/* Sector type specific styling */
+.expert-sector .sector-card-header {
+    background: rgba(22, 163, 74, 0.05);
+    border-left: 4px solid #16a34a;
+}
+
+.proficient-sector .sector-card-header {
+    background: rgba(59, 130, 246, 0.05);
+    border-left: 4px solid #3b82f6;
+}
+
+.developing-sector .sector-card-header {
+    background: rgba(245, 158, 11, 0.05);
+    border-left: 4px solid #f59e0b;
+}
+
+.novice-sector .sector-card-header {
+    background: rgba(107, 114, 128, 0.05);
+    border-left: 4px solid #6b7280;
+}
+
+/* Card Styling */
+.card {
+    background: var(--bs-white);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-gray-50);
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--bs-gray-900);
+    margin: 0;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--bs-gray-400);
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: var(--bs-gray-600);
+    margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .sectors-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .metric-card {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+
+    .competence-level-title {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .sectors-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .dashboard-header-actions {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .dashboard-header-actions .btn {
+        width: 100%;
+    }
+}

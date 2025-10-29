@@ -69,13 +69,13 @@
         <div class="sectors-grid">
             {% for analysis in sector_analyses %}
             <div class="sector-notebook-card">
-                <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="sector-card-link">
+                <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector.slug) }}" class="sector-card-link">
                     <div class="sector-card-header">
                         <div class="sector-icon">
                             <i class="bi bi-journal-text"></i>
                         </div>
                         <div class="sector-title-area">
-                            <h3 class="sector-card-title">{{ analysis.sector_name }}</h3>
+                            <h3 class="sector-card-title">{{ analysis.sector.display_name }}</h3>
                             <p class="sector-update-time">
                                 <i class="bi bi-clock"></i> {{ analysis.updated_at.strftime('%b %d, %Y') }}
                             </p>

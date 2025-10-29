@@ -1,11 +1,13 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject, 
+from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
                        DecisionJournal, ResearchLog, Company)
 from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
                                 get_time_allocation_data, log_research_activity, KillSession)
+from app.services.too_hard_service import TooHardBasketService
+from app.services.sector_service import SectorService
 from datetime import datetime, timedelta
 from app.utils.time_utils import now_utc
 import json
@@ -147,6 +149,84 @@ def dashboard():
             'company': decision.company.name if decision.company else 'Unknown'
         })
 
+    # Get Circle of Competence analytics data
+    coc_analytics_data = TooHardBasketService.get_analytics(current_user.id)
+    sector_analytics_dict = SectorService.get_sector_analytics(current_user.id)
+
+    # Categorize sectors by competence level
+    sectors_by_competence = {
+        'expert': [],
+        'proficient': [],
+        'developing': [],
+        'novice': []
+    }
+
+    # Extract the list of all sectors from the analytics dictionary
+    all_sectors = sector_analytics_dict.get('all', []) if isinstance(sector_analytics_dict, dict) else []
+
+    if all_sectors:
+        for sector in all_sectors:
+            competence_dict = sector.competence_level
+            level_name = competence_dict.get('level', 'novice') if isinstance(competence_dict, dict) else 'novice'
+
+            sector_data = {
+                'id': sector.id,
+                'name': sector.display_name,
+                'slug': sector.slug,
+                'coc_confidence': round(sector.coc_confidence, 1),
+                'success_rate': round(sector.success_rate, 1) if sector.success_rate else 0,
+                'companies_analyzed': sector.companies_analyzed,
+                'companies_invested': sector.companies_invested,
+                'total_hours': round(sector.total_research_hours, 1) if sector.total_research_hours else 0,
+                'coc_yes_count': sector.coc_yes_count,
+                'coc_no_count': sector.coc_no_count,
+                'coc_unsure_count': sector.coc_unsure_count,
+                'competence_level': competence_dict.get('label', 'Novice') if isinstance(competence_dict, dict) else 'Novice'
+            }
+
+            if level_name in sectors_by_competence:
+                sectors_by_competence[level_name].append(sector_data)
+            else:
+                sectors_by_competence['novice'].append(sector_data)
+
+    # Prepare CoC breakdown
+    coc_stats = coc_analytics_data.get('coc_stats', {'yes': 0, 'no': 0, 'unsure': 0})
+    coc_breakdown = {
+        'yes': coc_stats.get('yes', 0),
+        'no': coc_stats.get('no', 0),
+        'unsure': coc_stats.get('unsure', 0)
+    }
+
+    # Get CoC recommendations
+    coc_recommendations = coc_analytics_data.get('recommendations', [])
+
+    # Prepare sector chart data
+    sector_stats = coc_analytics_data.get('sector_stats', {})
+    coc_sector_chart_data = []
+    for sector_name, stats in sorted(sector_stats.items(),
+                                     key=lambda x: x[1].get('total_analyzed', 0),
+                                     reverse=True)[:10]:
+        coc_sector_chart_data.append({
+            'name': sector_name,
+            'total_analyzed': stats.get('total_analyzed', 0),
+            'invested': stats.get('invested', 0),
+            'killed': stats.get('killed', 0),
+            'abandoned': stats.get('abandoned', 0),
+            'passed_full': stats.get('passed_full', 0),
+            'total_time': round(stats.get('total_time', 0), 1),
+            'coc_confidence': round(stats.get('coc_confidence', 0), 1),
+            'success_rate': round(stats.get('success_rate', 0), 1)
+        })
+
+    # Calculate CoC summary stats
+    coc_total_companies = sum(s['total_analyzed'] for s in coc_sector_chart_data)
+    coc_total_hours = sum(s['total_time'] for s in coc_sector_chart_data)
+    coc_total_within = coc_breakdown['yes']
+    coc_total_outside = coc_breakdown['no']
+    coc_total_unsure = coc_breakdown['unsure']
+    coc_total_assessed = coc_total_within + coc_total_outside + coc_total_unsure
+    coc_overall_confidence = (coc_total_within / coc_total_assessed * 100) if coc_total_assessed > 0 else 0
+
     return render_template('analytics_dashboard.html',
                           title="Research Analytics",
                           metrics=metrics,
@@ -165,7 +245,18 @@ def dashboard():
                           source_chart_data=json.dumps(source_chart_data),
                           top_kill_reasons=top_kill_reasons,
                           velocity_data=json.dumps(velocity_data),
-                          confidence_trend=json.dumps(confidence_trend))
+                          confidence_trend=json.dumps(confidence_trend),
+                          coc_breakdown=coc_breakdown,
+                          sectors_by_competence=sectors_by_competence,
+                          coc_recommendations=coc_recommendations,
+                          coc_sector_chart_data=json.dumps(coc_sector_chart_data),
+                          coc_total_companies=coc_total_companies,
+                          coc_total_hours=round(coc_total_hours, 1),
+                          coc_total_within=coc_total_within,
+                          coc_total_outside=coc_total_outside,
+                          coc_total_unsure=coc_total_unsure,
+                          coc_total_assessed=coc_total_assessed,
+                          coc_overall_confidence=round(coc_overall_confidence, 1))
 
 @analytics_bp.route('/decision-journal')
 @login_required

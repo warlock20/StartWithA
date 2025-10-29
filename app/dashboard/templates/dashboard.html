@@ -9,6 +9,9 @@
             <p class="dashboard-subtitle">Your investment research command center</p>
         </div>
         <div class="dashboard-header-actions">
+            <button class="btn btn-outline-secondary me-2" onclick="startDashboardTour()">
+                <i class="bi bi-question-circle"></i> Take Tour
+            </button>
             <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
                 <i class="bi bi-lightbulb"></i> Tips
             </button>
@@ -52,6 +55,44 @@
             <div class="discipline-compact-stat-label">Filter Rate</div>
         </div>
     </div>
+
+    <!-- Recommendations Section -->
+    {% if recommendations %}
+    <div class="recommendations-section">
+        <div class="recommendations-header">
+            <h2 class="recommendations-title">
+                <i class="bi bi-lightbulb"></i>
+                Sector Insights
+            </h2>
+            <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="recommendations-view-all">
+                View Analysis <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="recommendations-list">
+            {% for rec in recommendations %}
+            <div class="recommendation-card type-{{ rec.type }}">
+                <div class="recommendation-indicator"></div>
+                <div class="recommendation-icon">
+                    {% if rec.type == 'avoid' %}
+                        <i class="bi bi-x-circle-fill"></i>
+                    {% elif rec.type == 'strength' %}
+                        <i class="bi bi-check-circle-fill"></i>
+                    {% elif rec.type == 'efficiency' %}
+                        <i class="bi bi-lightning-charge-fill"></i>
+                    {% else %}
+                        <i class="bi bi-info-circle-fill"></i>
+                    {% endif %}
+                </div>
+                <div class="recommendation-content">
+                    <div class="recommendation-sector">{{ rec.sector }}</div>
+                    <p class="recommendation-message">{{ rec.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Bottom Grid: Today's Priorities + Quick Access -->
     <div class="dashboard-bottom-grid">
         <!-- Today's Priorities -->
@@ -257,6 +298,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/tours.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Sector Chart (if element exists)

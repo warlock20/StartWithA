@@ -204,8 +204,8 @@ class Sector(db.Model):
 
         # Update last researched
         if projects:
-            latest = max(projects, key=lambda p: p.updated_at or p.created_at)
-            self.last_researched = latest.updated_at or latest.created_at
+            latest = max(projects, key=lambda p: p.last_worked_at or p.created_at)
+            self.last_researched = latest.last_worked_at or latest.created_at
 
     def __repr__(self):
         return f'<Sector "{self.display_name}" ({self.slug})>'

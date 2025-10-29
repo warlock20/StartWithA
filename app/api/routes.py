@@ -2,15 +2,14 @@
 API routes for duplicate detection and other real-time validations
 """
 
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from flask_login import login_required, current_user
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.models import IdeaPipeline
 from app import db
 from datetime import datetime, timezone
 from app.utils.time_utils import now_utc
-
-api_bp = Blueprint('api', __name__, url_prefix='/api')
+from app.api import api_bp
 
 
 @api_bp.route('/server-time')
@@ -106,6 +105,75 @@ def resurrect_idea(idea_id):
         return jsonify({
             'success': True,
             'message': f'Idea "{idea.name}" has been resurrected and moved to inbox'
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/mark-tour-completed', methods=['POST'])
+@login_required
+def mark_tour_completed():
+    """Mark a tour as completed for the current user"""
+    try:
+        data = request.get_json()
+        tour_name = data.get('tour_name')
+
+        if not tour_name:
+            return jsonify({'error': 'tour_name is required'}), 400
+
+        # Get or initialize page_tours_completed dict
+        if current_user.page_tours_completed is None:
+            current_user.page_tours_completed = {}
+
+        # Mark tour as completed
+        tours_completed = current_user.page_tours_completed.copy()
+        tours_completed[tour_name] = True
+        current_user.page_tours_completed = tours_completed
+
+        # Mark flag to trigger JSONB update
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(current_user, 'page_tours_completed')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Tour "{tour_name}" marked as completed'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/should-show-tour', methods=['GET'])
+@login_required
+def should_show_tour():
+    """Check if a tour should be shown to the current user"""
+    try:
+        tour_name = request.args.get('tour_name')
+
+        if not tour_name:
+            return jsonify({'error': 'tour_name is required'}), 400
+
+        # Check user preferences
+        show_tours = True
+        if current_user.tour_preferences:
+            show_tours = current_user.tour_preferences.get('show_page_tours', True)
+
+        # Check if tour was already completed
+        tour_completed = False
+        if current_user.page_tours_completed:
+            tour_completed = current_user.page_tours_completed.get(tour_name, False)
+
+        # Show tour if: preferences allow AND tour not completed
+        should_show = show_tours and not tour_completed
+
+        return jsonify({
+            'should_show': should_show,
+            'tour_completed': tour_completed,
+            'show_tours_enabled': show_tours
         })
 
     except Exception as e:

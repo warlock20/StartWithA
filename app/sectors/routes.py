@@ -5,6 +5,8 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
                        Company, ResearchProject, SectorResearchSource, SectorResearchSnippet,
                        SectorSection, SectorNote)
 from app.models.associations import sector_note_companies, sector_snippet_companies
+from app.services.sector_service import SectorService
+from app.services.too_hard_service import TooHardBasketService
 from sqlalchemy import func
 from datetime import datetime
 import re
@@ -13,21 +15,41 @@ from .research_templates import get_all_templates, get_template_list, get_templa
 from app.ai import SummarizationService
 
 
-def get_sector_by_name_or_slug(sector_name, user_id):
+def get_sector_by_name_or_slug(sector_name, user_id, redirect_to_canonical=False):
     """
     Helper function to look up a Sector object by slug or display name.
-    Returns Sector object or None if not found.
+
+    Args:
+        sector_name: Slug or display name to search for
+        user_id: User ID
+        redirect_to_canonical: If True, returns (sector, should_redirect) tuple
+
+    Returns:
+        Sector object or None if not found
+        OR (Sector, bool) tuple if redirect_to_canonical=True
     """
     from app.models.sector import Sector as SectorModel
 
-    # Try by slug first
-    sector = SectorModel.query.filter_by(user_id=user_id, slug=sector_name).first()
+    # Normalize the input to create a potential slug
+    potential_slug = SectorModel.make_slug(sector_name)
 
-    if not sector:
-        # Try by display_name as fallback
-        sector = SectorModel.query.filter_by(user_id=user_id, display_name=sector_name).first()
+    # Try by slug first (canonical)
+    sector = SectorModel.query.filter_by(user_id=user_id, slug=potential_slug).first()
 
-    return sector
+    if sector:
+        # Found by slug - this is the canonical URL
+        if redirect_to_canonical:
+            return sector, False  # No redirect needed
+        return sector
+
+    # Try by display_name as fallback
+    sector = SectorModel.query.filter_by(user_id=user_id, display_name=sector_name).first()
+
+    if sector and redirect_to_canonical:
+        # Found by display_name - should redirect to slug
+        return sector, True
+
+    return sector if not redirect_to_canonical else (None, False)
 
 
 def initialize_default_sections(sector_analysis):
@@ -158,17 +180,16 @@ def index():
 @sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
 @login_required
 def notebook(sector_name):
-    # Look up the Sector object first
-    from app.models.sector import Sector as SectorModel
-    sector = SectorModel.query.filter_by(user_id=current_user.id, slug=sector_name).first()
-
-    if not sector:
-        # Try by display_name as fallback
-        sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
+    # Look up the Sector object with canonicalization check
+    sector, should_redirect = get_sector_by_name_or_slug(sector_name, current_user.id, redirect_to_canonical=True)
 
     if not sector:
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.list_sectors'))
+
+    # Redirect to canonical slug URL if accessed via display_name
+    if should_redirect:
+        return redirect(url_for('sectors.notebook', sector_name=sector.slug), code=301)
 
     # Fetch the main analysis object for this sector
     analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
@@ -192,22 +213,10 @@ def notebook(sector_name):
     sections = analysis.sections.filter_by(is_visible=True).all()
 
     # Get companies in this sector
-    # Note: This route uses old SectorAnalysis with sector_name (string)
-    # We need to find the corresponding Sector object first
-    from app.models.sector import Sector as SectorModel
-    sector_obj = SectorModel.query.filter_by(
+    sector_companies = Company.query.filter_by(
         user_id=current_user.id,
-        name=sector_name
-    ).first()
-
-    if sector_obj:
-        sector_companies = Company.query.filter_by(
-            user_id=current_user.id,
-            sector_id=sector_obj.id
-        ).all()
-    else:
-        # Fallback: no sector found, show empty list
-        sector_companies = []
+        sector_id=sector.id
+    ).all()
 
     # Enrich with research project status
     companies_data = []
@@ -235,19 +244,13 @@ def notebook(sector_name):
         })
 
     # Get all user companies not in this sector (for adding)
-    if sector_obj:
-        other_companies = Company.query.filter(
-            Company.user_id == current_user.id,
-            db.or_(
-                Company.sector_id != sector_obj.id,
-                Company.sector_id.is_(None)
-            )
-        ).order_by(Company.name).all()
-    else:
-        # If no sector found, show all companies
-        other_companies = Company.query.filter_by(
-            user_id=current_user.id
-        ).order_by(Company.name).all()
+    other_companies = Company.query.filter(
+        Company.user_id == current_user.id,
+        db.or_(
+            Company.sector_id != sector.id,
+            Company.sector_id.is_(None)
+        )
+    ).order_by(Company.name).all()
 
     # Calculate sector metrics
     total_companies = len(sector_companies)
@@ -283,6 +286,32 @@ def notebook(sector_name):
     # Get unorganized notes (collector items)
     collector_notes = analysis.canvas_notes.filter(SectorNote.section_id == None).order_by(SectorNote.created_at.desc()).all()
 
+    # Get sector analytics and passed companies
+    sector_stats = SectorService.get_sector_stats(sector.id, current_user.id) if sector else None
+
+    # Get passed companies for this sector from Too Hard Basket
+    passed_companies_data = []
+    if sector:
+        all_too_hard = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
+        # Filter to only this sector
+        sector_passed = [item for item in all_too_hard if item.sector == sector.display_name]
+
+        for item in sector_passed:
+            passed_companies_data.append({
+                'company_name': item.company_name,
+                'ticker': item.ticker,
+                'rejection_stage': item.rejection_stage,
+                'rejection_date': item.rejection_date,
+                'time_invested_hours': item.time_invested_hours,
+                'reason': item.reason,
+                'within_coc': item.within_coc,
+                'confidence': item.confidence,
+                'notes': item.notes,
+                'source_type': item.source_type,
+                'source_id': item.source_id,
+                'company_id': item.company_id
+            })
+
     return render_template(
         'sector_analysis.html',
         title=f"Research: {analysis.sector.display_name}",
@@ -304,7 +333,9 @@ def notebook(sector_name):
         canvas_sections=canvas_sections,
         collector_notes=collector_notes,
         research_templates=get_all_templates(),
-        template_list=get_template_list()
+        template_list=get_template_list(),
+        sector_stats=sector_stats,
+        passed_companies=passed_companies_data
     )
 
 @sectors_bp.route('/<string:sector_name>/add_question', methods=['POST'])
@@ -475,10 +506,10 @@ def add_company_to_sector(sector_name, company_id):
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
     # Update company sector
-    company.sector = sector_name
+    company.sector_id = sector.id
     db.session.commit()
 
-    flash(f'{company.name} added to {sector_name} sector', 'success')
+    flash(f'{company.name} added to {sector.display_name} sector', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
 
@@ -500,10 +531,10 @@ def remove_company_from_sector(sector_name, company_id):
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
     # Clear company sector
-    company.sector = None
+    company.sector_id = None
     db.session.commit()
 
-    flash(f'{company.name} removed from {sector_name} sector', 'success')
+    flash(f'{company.name} removed from {sector.display_name} sector', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
 

@@ -419,7 +419,14 @@ def add_company_confirmed():
             flash(f"Warning: {match['message']}", 'warning')
 
     if name and ticker_symbol:
-        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
+        # Find or create sector
+        sector_id = None
+        if sector:
+            sector_obj = SectorService.find_or_create_sector(current_user.id, sector, auto_create=True)
+            if sector_obj:
+                sector_id = sector_obj.id
+
+        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector_id=sector_id, industry=industry, creator=current_user)
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
