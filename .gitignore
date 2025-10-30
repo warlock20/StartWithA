@@ -10,6 +10,7 @@ my_research_app.db # From the .env example
 .env
 instance/
 app/static/uploads/
+.env
 
 # Node modules
 node_modules/
