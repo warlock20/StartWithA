@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
 from app.models import QuestionBankItem, SectorAnalysis
+from app.models.sector import Sector
 from . import question_bank_bp
 
 @question_bank_bp.route('/', methods=['GET', 'POST'])
@@ -34,9 +35,10 @@ def index():
     all_questions = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.text).all()
     
     # Fetch distinct sector names from your research notebooks for the datalist
-    existing_sectors_query = db.session.query(SectorAnalysis.sector_name)\
+    existing_sectors_query = db.session.query(Sector.display_name)\
+                                        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
                                         .filter(SectorAnalysis.user_id == current_user.id)\
-                                        .distinct().order_by(SectorAnalysis.sector_name).all()
+                                        .distinct().order_by(Sector.display_name).all()
     existing_sectors = [row[0] for row in existing_sectors_query]
 
     # Process questions into a dictionary grouped by sector (existing logic)

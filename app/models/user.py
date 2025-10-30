@@ -9,9 +9,20 @@ from .associations import favorite_companies
 # The User class needs to inherit from UserMixin
 class User(UserMixin, db.Model):  # Add UserMixin here
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True, nullable=False)
+
+    # Auth0 Integration
+    auth0_id = db.Column(db.String(255), unique=True, nullable=True, index=True)
+    # Auth0 user ID (e.g., "auth0|123456", "google-oauth2|123456")
+
+    # Traditional auth fields (nullable for OAuth-only users)
+    username = db.Column(db.String(64), index=True, unique=True, nullable=True)
     email = db.Column(db.String(120), index=True, unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
+    password_hash = db.Column(db.String(256), nullable=True)
+
+    # Auth0 profile data
+    name = db.Column(db.String(200), nullable=True)  # Full name from Auth0
+    picture = db.Column(db.String(500), nullable=True)  # Profile picture URL from Auth0
+    auth_provider = db.Column(db.String(50), nullable=True)  # 'auth0', 'google', 'github', etc.
     uploaded_documents = db.relationship(
         "CompanyDocument", backref="uploader", lazy="dynamic"
     )

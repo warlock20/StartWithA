@@ -24,10 +24,14 @@ def create_app(config_class=Config):
     cache.init_app(app)
 
     celery.conf.update(app.config)
-    
+
     # (Blueprint registrations remain the same)
-    from app.auth import auth_bp 
-    app.register_blueprint(auth_bp) 
+    from app.auth import auth_bp
+    app.register_blueprint(auth_bp)
+
+    # Initialize Auth0 AFTER blueprint is registered
+    from app.auth.auth0_routes import init_auth0
+    init_auth0(app) 
     from app.checklists import checklists_bp 
     app.register_blueprint(checklists_bp) 
     from app.companies import companies_bp 
