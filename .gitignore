@@ -18,3 +18,4 @@ npm-debug.log*
 
 # Webpack build
 app/static/js/dist/*.map
+.env
