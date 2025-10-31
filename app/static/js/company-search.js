@@ -113,20 +113,40 @@ class CompanySearchComponent {
             });
         }
 
-        // Auto-uppercase ticker field with lookup
+        // Auto-uppercase ticker field with real-time validation
         const tickerField = document.getElementById('newCompanyTicker');
         if (tickerField) {
             tickerField.addEventListener('input', (e) => {
-                e.target.value = e.target.value.toUpperCase();
+                const value = e.target.value.toUpperCase();
+                e.target.value = value;
 
-                // Auto-lookup when ticker looks valid (3-5 chars, all letters)
-                const ticker = e.target.value.trim();
-                if (ticker.length >= 3 && ticker.length <= 5 && ticker.match(/^[A-Z]+$/)) {
-                    clearTimeout(this.lookupDebounceTimer);
-                    this.lookupDebounceTimer = setTimeout(() => {
-                        this.lookupTickerInfo(ticker);
-                    }, 800); // Wait 800ms before lookup
+                // Real-time validation
+                this.validateTickerInput(value);
+
+                // Auto-lookup if valid
+                if (typeof TickerValidator !== 'undefined') {
+                    const validation = TickerValidator.parseAndValidate(value);
+                    if (validation.isValid && value.length >= 2) {
+                        clearTimeout(this.lookupDebounceTimer);
+                        this.lookupDebounceTimer = setTimeout(() => {
+                            this.lookupTickerInfo(validation.normalizedTicker);
+                        }, 800);
+                    }
+                } else {
+                    // Fallback to old logic if TickerValidator not loaded
+                    const ticker = value.trim();
+                    if (ticker.length >= 3 && ticker.length <= 5 && ticker.match(/^[A-Z]+$/)) {
+                        clearTimeout(this.lookupDebounceTimer);
+                        this.lookupDebounceTimer = setTimeout(() => {
+                            this.lookupTickerInfo(ticker);
+                        }, 800);
+                    }
                 }
+            });
+
+            // Also validate on blur
+            tickerField.addEventListener('blur', (e) => {
+                this.validateTickerInput(e.target.value.toUpperCase());
             });
         }
     }
@@ -303,11 +323,16 @@ class CompanySearchComponent {
             if (result.success) {
                 this.selectCompany(result.company);
             } else {
-                alert('Error creating company: ' + result.error);
+                console.error('Error creating company:', result.error);
+                // Show error in UI if possible
+                const tickerError = document.getElementById('tickerError');
+                if (tickerError) {
+                    tickerError.textContent = result.error;
+                    tickerError.style.display = 'block';
+                }
             }
         } catch (error) {
             console.error('Error creating company:', error);
-            alert('Error creating company');
         }
     }
 
@@ -315,19 +340,44 @@ class CompanySearchComponent {
      * Add new company manually
      */
     async addNewCompany() {
-        const ticker = document.getElementById('newCompanyTicker').value.trim();
+        const tickerInput = document.getElementById('newCompanyTicker').value.trim().toUpperCase();
         const name = document.getElementById('newCompanyName').value.trim();
         const industry = document.getElementById('newCompanyIndustry').value.trim();
         const sector = document.getElementById('newCompanySector').value.trim();
         const summary = document.getElementById('newCompanySummary').value.trim();
 
-        if (!ticker) {
-            alert('Ticker symbol is required');
-            return;
+        // Validate ticker
+        let ticker = tickerInput;
+        if (typeof TickerValidator !== 'undefined') {
+            const validation = TickerValidator.parseAndValidate(tickerInput);
+
+            if (!validation.isValid) {
+                this.showError('tickerError', validation.errors.join('; '));
+                const tickerField = document.getElementById('newCompanyTicker');
+                if (tickerField) {
+                    tickerField.classList.add('is-invalid');
+                    tickerField.focus();
+                }
+                return;
+            }
+
+            // Use normalized ticker
+            ticker = validation.normalizedTicker;
+        } else {
+            // Fallback validation
+            if (!ticker) {
+                this.showError('tickerError', 'Ticker symbol is required');
+                return;
+            }
         }
 
         if (!name) {
-            alert('Company name is required');
+            this.showError('nameError', 'Company name is required');
+            const nameField = document.getElementById('newCompanyName');
+            if (nameField) {
+                nameField.classList.add('is-invalid');
+                nameField.focus();
+            }
             return;
         }
 
@@ -351,11 +401,22 @@ class CompanySearchComponent {
                 this.selectCompany(result.company);
                 this.clearQuickAddForm();
             } else {
-                alert('Error creating company: ' + result.error);
+                this.showError('tickerError', result.error);
             }
         } catch (error) {
             console.error('Error creating company:', error);
-            alert('Error creating company');
+            this.showError('tickerError', 'Error creating company. Please try again.');
+        }
+    }
+
+    /**
+     * Show error message in form
+     */
+    showError(errorElementId, message) {
+        const errorElement = document.getElementById(errorElementId);
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
         }
     }
 
@@ -441,6 +502,71 @@ class CompanySearchComponent {
             const field = document.getElementById(fieldId);
             if (field) field.value = '';
         });
+
+        // Clear validation states
+        const tickerInput = document.getElementById('newCompanyTicker');
+        if (tickerInput) {
+            tickerInput.classList.remove('is-valid', 'is-invalid');
+        }
+    }
+
+    /**
+     * Validate ticker input and show feedback
+     */
+    validateTickerInput(ticker) {
+        const tickerInput = document.getElementById('newCompanyTicker');
+        const tickerError = document.getElementById('tickerError');
+        const tickerHint = document.getElementById('tickerHint');
+
+        if (!tickerInput) return false;
+
+        if (!ticker) {
+            // Empty - neutral state
+            tickerInput.classList.remove('is-valid', 'is-invalid');
+            return false;
+        }
+
+        // Check if TickerValidator is loaded
+        if (typeof TickerValidator === 'undefined') {
+            // Fallback validation
+            return true;
+        }
+
+        const validation = TickerValidator.parseAndValidate(ticker);
+
+        // Remove previous states
+        tickerInput.classList.remove('is-valid', 'is-invalid');
+
+        if (!validation.isValid) {
+            // Show error
+            tickerInput.classList.add('is-invalid');
+            if (tickerError) {
+                tickerError.textContent = validation.errors.join('; ');
+            }
+            return false;
+        }
+
+        // Valid - show success
+        tickerInput.classList.add('is-valid');
+
+        // Show normalized format and exchange
+        if (tickerHint) {
+            if (validation.normalizedTicker !== ticker) {
+                tickerHint.innerHTML = `<span class="text-success">Will be saved as: <strong>${validation.normalizedTicker}</strong> (${validation.exchangeName})</span>`;
+            } else if (validation.exchangeCode) {
+                tickerHint.innerHTML = `<span class="text-muted">${validation.exchangeName}</span>`;
+            } else {
+                tickerHint.innerHTML = `<span class="text-muted">Formats: AAPL, NYSE:MSFT, SAP.DE, FRA:SAP</span>`;
+            }
+
+            // Show warnings if any
+            if (validation.warnings.length > 0) {
+                const warningText = validation.warnings.join('; ');
+                tickerHint.innerHTML += `<br><span class="text-warning">${warningText}</span>`;
+            }
+        }
+
+        return true;
     }
 
     /**

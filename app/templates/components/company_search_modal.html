@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="companySearchModalLabel">🏢 Select Company</h5>
+                <h5 class="modal-title" id="companySearchModalLabel">Select Company</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -24,17 +24,23 @@
 
                 <!-- Quick Add Form -->
                 <div id="quickAddForm" class="border-top pt-3" style="display: none;">
-                    <h6>📝 Add New Company</h6>
+                    <h6>Add New Company</h6>
                     <div class="row">
                         <div class="col-md-4">
                             <label for="newCompanyTicker" class="form-label">Ticker Symbol <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="newCompanyTicker" required
-                                   placeholder="e.g., AAPL" style="text-transform: uppercase;">
+                                   placeholder="e.g., AAPL, FRA:SAP" style="text-transform: uppercase;">
+                            <div class="invalid-feedback" id="tickerError"></div>
+                            <div class="valid-feedback">Valid ticker format</div>
+                            <small class="form-text text-muted" id="tickerHint">
+                                Formats: AAPL, NYSE:MSFT, SAP.DE, FRA:SAP
+                            </small>
                         </div>
                         <div class="col-md-8">
                             <label for="newCompanyName" class="form-label">Company Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="newCompanyName" required
                                    placeholder="e.g., Apple Inc.">
+                            <div class="invalid-feedback" id="nameError"></div>
                         </div>
                     </div>
                     <div class="row mt-2">
@@ -56,13 +62,13 @@
                         <div class="form-text">A short summary helps with AI-powered analysis in research workflows</div>
                     </div>
                     <button type="button" class="btn btn-success mt-2" id="addNewCompanyBtn">
-                        ➕ Add Company
+                        Add Company
                     </button>
                 </div>
 
                 <!-- Selected Company Display -->
                 <div id="selectedCompanyDisplay" class="alert alert-success" style="display: none;">
-                    <h6>✅ Selected Company:</h6>
+                    <h6>Selected Company:</h6>
                     <div id="modalSelectedCompanyInfo"></div>
                 </div>
             </div>

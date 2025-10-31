@@ -225,6 +225,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
 function handleCompanyAdded(company) {

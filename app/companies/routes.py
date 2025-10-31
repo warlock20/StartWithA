@@ -15,6 +15,7 @@ from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.companies import companies_bp
 from app.tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.utils.ticker_validator import TickerValidator
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -485,10 +486,6 @@ def delete_company(company_id):
 
     return redirect(url_for('companies.companies_dashboard'))
 
-
-# In app/companies/routes.py
-# Make sure datetime, uuid, secure_filename, os, etc. are imported at the top of the file
-
 @companies_bp.route('/<int:company_id>/add_document', methods=['POST'])
 @login_required
 def add_document(company_id):
@@ -633,8 +630,7 @@ def toggle_favorite(company_id):
     # Redirect back to the page the user was on
     return redirect(request.referrer or url_for('companies.companies_dashboard'))
 
-# Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint
-# For now, placing it under the /companies prefix.
+
 @companies_bp.route('/documents/serve/<path:filepath>') # /companies/documents/serve/<company_id>/<filename>
 @login_required
 def serve_company_document(filepath):
@@ -1207,13 +1203,26 @@ def api_search_companies():
     if len(query) < 1:
         return jsonify({'user_companies': [], 'yahoo_suggestions': []})
 
+    # Try to parse as ticker first
+    normalized_ticker = None
+    validation = TickerValidator.parse_and_validate(query)
+    if validation['is_valid']:
+        normalized_ticker = validation['normalized_ticker']
+
     # Search in user's existing companies by name and ticker
+    # If we have a normalized ticker, search for that too
+    search_conditions = [
+        Company.name.ilike(f'%{query}%'),
+        Company.ticker_symbol.ilike(f'%{query}%')
+    ]
+
+    if normalized_ticker and normalized_ticker != query.upper():
+        # Also search for the normalized ticker
+        search_conditions.append(Company.ticker_symbol.ilike(f'%{normalized_ticker}%'))
+
     user_companies = Company.query.filter(
         Company.user_id == current_user.id,
-        db.or_(
-            Company.name.ilike(f'%{query}%'),
-            Company.ticker_symbol.ilike(f'%{query}%')
-        )
+        db.or_(*search_conditions)
     ).order_by(Company.name).limit(10).all()
 
     user_company_data = []
@@ -1227,24 +1236,23 @@ def api_search_companies():
             'source': 'existing'
         })
 
-    # If query looks like a ticker (short, uppercase), try Yahoo Finance lookup
+    # Try Yahoo Finance lookup if query is a valid ticker
     yahoo_suggestion = None
-    if len(query) <= 6 and query.replace('.', '').isalnum():
+    if normalized_ticker:
         try:
-            ticker_symbol = query.upper()
             # Check if this ticker already exists for the user
             existing = Company.query.filter_by(
-                ticker_symbol=ticker_symbol,
+                ticker_symbol=normalized_ticker,
                 user_id=current_user.id
             ).first()
 
             if not existing:
-                company_ticker = yf.Ticker(ticker_symbol)
+                company_ticker = yf.Ticker(normalized_ticker)
                 info = company_ticker.info
 
                 if info and info.get('longName'):
                     yahoo_suggestion = {
-                        'ticker_symbol': ticker_symbol,
+                        'ticker_symbol': normalized_ticker,
                         'name': info.get('longName'),
                         'industry': info.get('industry', ''),
                         'sector': info.get('sector', ''),
@@ -1252,7 +1260,7 @@ def api_search_companies():
                         'source': 'yahoo_finance'
                     }
         except Exception as e:
-            print(f"Yahoo Finance lookup error for {query}: {e}")
+            print(f"Yahoo Finance lookup error for {normalized_ticker}: {e}")
             pass
 
     return jsonify({
@@ -1267,14 +1275,25 @@ def api_create_company():
     try:
         data = request.get_json()
 
+        ticker_input = (data.get('ticker_symbol') or '').strip()
         name = (data.get('name') or '').strip()
-        ticker_symbol = (data.get('ticker_symbol') or '').strip().upper()
         industry = (data.get('industry') or '').strip() or None
         sector_name = (data.get('sector') or '').strip() or None
         summary = (data.get('summary') or '').strip() or None
 
-        if not ticker_symbol:
-            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
+        # Validate ticker format
+        validation = TickerValidator.parse_and_validate(ticker_input)
+
+        if not validation['is_valid']:
+            return jsonify({
+                'success': False,
+                'error': validation['errors'][0],
+                'validation_errors': validation['errors'],
+                'ticker_input': ticker_input
+            })
+
+        # Use normalized ticker (Yahoo Finance format)
+        ticker_symbol = validation['normalized_ticker']
 
         if not name:
             return jsonify({'success': False, 'error': 'Company name is required'})
@@ -1340,22 +1359,31 @@ def api_lookup_ticker(ticker):
     import yfinance as yf
 
     try:
-        ticker = ticker.upper().strip()
-        if not ticker:
+        ticker_input = ticker.upper().strip()
+        if not ticker_input:
             return jsonify({'success': False, 'error': 'Ticker symbol is required'})
 
+        # Validate and normalize ticker
+        validation = TickerValidator.parse_and_validate(ticker_input)
+        if not validation['is_valid']:
+            return jsonify({'success': False, 'error': validation['errors'][0]})
+
+        # Use normalized ticker for yfinance lookup
+        normalized_ticker = validation['normalized_ticker']
+
         # Try yfinance lookup
-        company_ticker = yf.Ticker(ticker)
+        company_ticker = yf.Ticker(normalized_ticker)
         info = company_ticker.info
 
         if info and info.get('longName'):
             company_info = {
                 'name': info.get('longName'),
-                'ticker_symbol': ticker,
+                'ticker_symbol': normalized_ticker,
                 'summary': info.get('longBusinessSummary', ''),
                 'sector': info.get('sector', ''),
                 'industry': info.get('industry', ''),
-                'source': 'yfinance'
+                'source': 'yfinance',
+                'exchange': validation['exchange_name']
             }
 
             return jsonify({
@@ -1365,7 +1393,7 @@ def api_lookup_ticker(ticker):
         else:
             return jsonify({
                 'success': False,
-                'error': f'Could not find company data for ticker "{ticker}"'
+                'error': f'Could not find company data for ticker "{normalized_ticker}"'
             })
 
     except Exception as e:
