@@ -1,0 +1,150 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Edit Transaction{% endblock %}
+
+{% block content %}
+<div class="container-lg">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">Edit Transaction</h2>
+                <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('portfolio.edit_transaction', transaction_id=transaction.id) }}">
+
+                        <!-- Transaction Info (Read-only) -->
+                        <div class="alert alert-light border">
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Type:</strong>
+                                    <span class="badge
+                                        {% if transaction.type == 'BUY' %}bg-primary
+                                        {% elif transaction.type == 'SELL' %}bg-danger
+                                        {% elif transaction.type == 'DIVIDEND' %}bg-success
+                                        {% endif %}">
+                                        {{ transaction.type }}
+                                    </span>
+                                </div>
+                                <div class="col-6">
+                                    <strong>Company:</strong> {{ transaction.company.ticker_symbol }} - {{ transaction.company.name }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="mb-3">
+                            <label for="date" class="form-label fw-semibold">Transaction Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="date" name="date"
+                                   value="{{ transaction.date.strftime('%Y-%m-%d') }}" required>
+                        </div>
+
+                        <div class="row">
+                            <!-- Quantity -->
+                            <div class="col-md-6 mb-3">
+                                <label for="quantity" class="form-label fw-semibold">Shares <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="quantity" name="quantity"
+                                       value="{{ transaction.quantity }}"
+                                       min="1" step="1" required>
+                                <div class="form-text">Whole shares only</div>
+                            </div>
+
+                            <!-- Price Per Share -->
+                            <div class="col-md-6 mb-3">
+                                <label for="price_per_share" class="form-label fw-semibold">Price Per Share <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="price_per_share" name="price_per_share"
+                                           value="{{ transaction.price_per_share }}"
+                                           min="0.01" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fees -->
+                        <div class="mb-3">
+                            <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="fees" name="fees"
+                                       value="{{ transaction.fees }}"
+                                       min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <!-- Transaction Total (Calculated) -->
+                        <div class="alert alert-light border">
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Transaction Total:</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span id="transaction_total" class="fs-5 fw-bold">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label fw-semibold">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="Optional notes about this transaction...">{{ transaction.notes or '' }}</textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Warning for Sensitive Changes -->
+            <div class="alert alert-warning mt-4">
+                <h6 class="alert-heading">Important</h6>
+                <p class="mb-0">Editing this transaction will recalculate your portfolio position using the FIFO method. Make sure the changes are accurate.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Calculate transaction total dynamically
+    function updateTransactionTotal() {
+        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+        const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
+        const fees = parseFloat(document.getElementById('fees').value) || 0;
+        const transactionType = '{{ transaction.type }}';
+
+        let total = (quantity * pricePerShare);
+
+        if (transactionType === 'BUY') {
+            total += fees;
+        } else if (transactionType === 'SELL') {
+            total -= fees;
+        }
+
+        document.getElementById('transaction_total').textContent = '$' + total.toFixed(2);
+    }
+
+    // Event listeners
+    document.getElementById('quantity').addEventListener('input', updateTransactionTotal);
+    document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
+    document.getElementById('fees').addEventListener('input', updateTransactionTotal);
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateTransactionTotal();
+    });
+</script>
+{% endblock %}

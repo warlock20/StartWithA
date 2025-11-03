@@ -21,7 +21,9 @@ All complex components have been fully modularized.
 @import url('modules/_buttons.css');        /* Base button styles */
 @import url('modules/_button-system.css');  /* Advanced button variants */
 @import url('modules/_forms.css');          /* Form controls */
+@import url('modules/_form-validation.css'); /* Form validation styling */
 @import url('modules/_tables.css');         /* Table styling */
+@import url('modules/_data-table.css');     /* Reusable data table component (Tabulator) */
 @import url('modules/_alerts.css');         /* Alerts & messages */
 @import url('modules/_cards.css');          /* Basic card components */
 @import url('modules/_card-system.css');    /* Professional card system */
@@ -69,5 +71,6 @@ All complex components have been fully modularized.
 @import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
 @import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
 @import url('modules/_company-dashboard.css');    /* Company dashboard page */
+@import url('modules/_portfolio.css');            /* Portfolio & transaction management */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */

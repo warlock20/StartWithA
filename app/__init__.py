@@ -58,6 +58,8 @@ def create_app(config_class=Config):
     app.register_blueprint(journal_enhanced_bp)
     from app.api import api_bp
     app.register_blueprint(api_bp)
+    from app.portfolio import portfolio_bp
+    app.register_blueprint(portfolio_bp)
 
     # Add custom template filters
     @app.template_filter('nl2br')

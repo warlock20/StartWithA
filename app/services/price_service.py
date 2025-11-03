@@ -1,0 +1,352 @@
+# app/services/price_service.py
+
+from datetime import datetime, timedelta
+from decimal import Decimal
+import yfinance as yf
+from app import db
+from app.models import PortfolioPosition
+
+
+class PriceService:
+    """
+    Service for fetching and updating stock prices from Yahoo Finance.
+    Implements 15-minute caching to minimize API calls.
+    """
+
+    @staticmethod
+    def get_current_price(ticker_symbol):
+        """
+        Fetch current price for a single ticker from Yahoo Finance.
+
+        Args:
+            ticker_symbol: Stock ticker (e.g., 'AAPL', 'MSFT')
+
+        Returns:
+            float: Current price, or None if error
+
+        Raises:
+            ValueError: If ticker not found
+            Exception: For other API errors
+        """
+        try:
+            ticker = yf.Ticker(ticker_symbol)
+            info = ticker.info
+
+            # Try multiple price fields (Yahoo Finance API can be inconsistent)
+            price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+
+            if price is None:
+                raise ValueError(f"No price data available for {ticker_symbol}")
+
+            return float(price)
+
+        except Exception as e:
+            print(f"Error fetching price for {ticker_symbol}: {str(e)}")
+            raise
+
+    @staticmethod
+    def should_update_price(position):
+        """
+        Check if position price needs updating based on 15-minute cache policy.
+
+        Args:
+            position: PortfolioPosition object
+
+        Returns:
+            bool: True if price should be updated
+        """
+        if not position.last_price_update:
+            return True
+
+        time_since_update = datetime.utcnow() - position.last_price_update
+        return time_since_update > timedelta(minutes=15)
+
+    @staticmethod
+    def update_position_price(position, force=False):
+        """
+        Update single position with current price from Yahoo Finance.
+        Respects 15-minute cache unless force=True.
+
+        Args:
+            position: PortfolioPosition object
+            force: If True, bypass cache and force update
+
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        # Check cache policy
+        if not force and not PriceService.should_update_price(position):
+            return True  # Already up to date
+
+        try:
+            # Fetch current price
+            current_price = PriceService.get_current_price(position.company.ticker_symbol)
+
+            # Update position market data
+            position.current_price = Decimal(str(current_price))
+            position.current_value = position.total_shares * position.current_price
+
+            # Calculate unrealized gains/losses
+            if position.total_cost > 0:
+                position.unrealized_gain_loss = position.current_value - position.total_cost
+                position.unrealized_gain_loss_pct = (
+                    (position.unrealized_gain_loss / position.total_cost) * 100
+                )
+            else:
+                position.unrealized_gain_loss = Decimal('0.00')
+                position.unrealized_gain_loss_pct = Decimal('0.00')
+
+            position.last_price_update = datetime.utcnow()
+            db.session.commit()
+
+            return True
+
+        except ValueError as e:
+            # Ticker not found or no price data
+            print(f"Price update failed for {position.company.ticker_symbol}: {str(e)}")
+            return False
+
+        except Exception as e:
+            # Other errors (network, API rate limit, etc.)
+            print(f"Unexpected error updating price for {position.company.ticker_symbol}: {str(e)}")
+            db.session.rollback()
+            return False
+
+    @staticmethod
+    def update_all_positions(user_id, force=False):
+        """
+        Update all active positions for a user.
+        Only updates positions that need updating based on cache policy (unless force=True).
+
+        Args:
+            user_id: User ID
+            force: If True, bypass cache and force update all
+
+        Returns:
+            dict: {
+                'updated': int (number of positions updated),
+                'skipped': int (number skipped due to cache),
+                'failed': int (number that failed to update),
+                'errors': list (ticker symbols that failed)
+            }
+        """
+        positions = PortfolioPosition.query.filter_by(
+            user_id=user_id,
+            is_active=True
+        ).all()
+
+        results = {
+            'updated': 0,
+            'skipped': 0,
+            'failed': 0,
+            'errors': []
+        }
+
+        for position in positions:
+            # Check if update needed
+            if not force and not PriceService.should_update_price(position):
+                results['skipped'] += 1
+                continue
+
+            # Attempt update
+            success = PriceService.update_position_price(position, force=True)
+
+            if success:
+                results['updated'] += 1
+            else:
+                results['failed'] += 1
+                results['errors'].append(position.company.ticker_symbol)
+
+        return results
+
+    @staticmethod
+    def get_portfolio_value(user_id):
+        """
+        Calculate total portfolio value for a user.
+        Updates prices if needed before calculating.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            dict: {
+                'total_value': Decimal,
+                'total_cost': Decimal,
+                'total_unrealized_gain_loss': Decimal,
+                'total_unrealized_gain_loss_pct': Decimal,
+                'positions_count': int
+            }
+        """
+        # Get all active positions
+        positions = PortfolioPosition.query.filter_by(
+            user_id=user_id,
+            is_active=True
+        ).all()
+
+        # Update prices if needed
+        for position in positions:
+            if PriceService.should_update_price(position):
+                PriceService.update_position_price(position)
+
+        # Calculate totals
+        total_value = Decimal('0.00')
+        total_cost = Decimal('0.00')
+        total_unrealized_gain_loss = Decimal('0.00')
+
+        for position in positions:
+            if position.current_value:
+                total_value += position.current_value
+            total_cost += position.total_cost
+            if position.unrealized_gain_loss:
+                total_unrealized_gain_loss += position.unrealized_gain_loss
+
+        # Calculate overall percentage
+        total_unrealized_gain_loss_pct = Decimal('0.00')
+        if total_cost > 0:
+            total_unrealized_gain_loss_pct = (total_unrealized_gain_loss / total_cost) * 100
+
+        return {
+            'total_value': total_value,
+            'total_cost': total_cost,
+            'total_unrealized_gain_loss': total_unrealized_gain_loss,
+            'total_unrealized_gain_loss_pct': total_unrealized_gain_loss_pct,
+            'positions_count': len(positions)
+        }
+
+    @staticmethod
+    def get_batch_prices(ticker_symbols):
+        """
+        Fetch prices for multiple tickers in a single batch.
+        More efficient than individual calls for bulk updates.
+
+        Args:
+            ticker_symbols: List of ticker symbols
+
+        Returns:
+            dict: {ticker: price} mapping, None for failed tickers
+        """
+        if not ticker_symbols:
+            return {}
+
+        results = {}
+
+        try:
+            # Fetch data for multiple tickers at once
+            tickers = yf.Tickers(' '.join(ticker_symbols))
+
+            for symbol in ticker_symbols:
+                try:
+                    ticker = tickers.tickers[symbol]
+                    info = ticker.info
+
+                    price = (
+                        info.get('currentPrice') or
+                        info.get('regularMarketPrice') or
+                        info.get('previousClose')
+                    )
+
+                    results[symbol] = float(price) if price else None
+
+                except Exception as e:
+                    print(f"Error fetching price for {symbol}: {str(e)}")
+                    results[symbol] = None
+
+        except Exception as e:
+            print(f"Error in batch price fetch: {str(e)}")
+            # Fallback to individual fetches
+            for symbol in ticker_symbols:
+                try:
+                    results[symbol] = PriceService.get_current_price(symbol)
+                except:
+                    results[symbol] = None
+
+        return results
+
+    @staticmethod
+    def update_all_positions_batch(user_id, force=False):
+        """
+        Update all positions using batch API call for better performance.
+
+        Args:
+            user_id: User ID
+            force: If True, bypass cache and force update all
+
+        Returns:
+            dict: Update results (same format as update_all_positions)
+        """
+        positions = PortfolioPosition.query.filter_by(
+            user_id=user_id,
+            is_active=True
+        ).all()
+
+        # Filter positions that need updates
+        positions_to_update = []
+        if force:
+            positions_to_update = positions
+        else:
+            positions_to_update = [
+                p for p in positions
+                if PriceService.should_update_price(p)
+            ]
+
+        results = {
+            'updated': 0,
+            'skipped': len(positions) - len(positions_to_update),
+            'failed': 0,
+            'errors': []
+        }
+
+        if not positions_to_update:
+            return results
+
+        # Get all tickers
+        ticker_symbols = [p.company.ticker_symbol for p in positions_to_update]
+
+        # Fetch prices in batch
+        prices = PriceService.get_batch_prices(ticker_symbols)
+
+        # Update each position
+        for position in positions_to_update:
+            ticker = position.company.ticker_symbol
+            price = prices.get(ticker)
+
+            if price is None:
+                results['failed'] += 1
+                results['errors'].append(ticker)
+                continue
+
+            try:
+                # Update position market data
+                position.current_price = Decimal(str(price))
+                position.current_value = position.total_shares * position.current_price
+
+                # Calculate unrealized gains/losses
+                if position.total_cost > 0:
+                    position.unrealized_gain_loss = position.current_value - position.total_cost
+                    position.unrealized_gain_loss_pct = (
+                        (position.unrealized_gain_loss / position.total_cost) * 100
+                    )
+                else:
+                    position.unrealized_gain_loss = Decimal('0.00')
+                    position.unrealized_gain_loss_pct = Decimal('0.00')
+
+                position.last_price_update = datetime.utcnow()
+                results['updated'] += 1
+
+            except Exception as e:
+                print(f"Error updating position for {ticker}: {str(e)}")
+                results['failed'] += 1
+                results['errors'].append(ticker)
+
+        # Commit all updates at once
+        try:
+            db.session.commit()
+        except Exception as e:
+            print(f"Error committing price updates: {str(e)}")
+            db.session.rollback()
+
+        return results

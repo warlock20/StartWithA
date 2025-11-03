@@ -1,0 +1,243 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Add Transaction{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <header class="dashboard-header mb-4">
+                <div>
+                    <h1 class="dashboard-title font-poppins">Add Transaction</h1>
+                    <p class="dashboard-subtitle">Record a buy, sell, or dividend transaction</p>
+                </div>
+                <div class="dashboard-header-actions">
+                    <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Portfolio
+                    </a>
+                </div>
+            </header>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('portfolio.add_transaction') }}" id="transactionForm">
+
+                        <!-- Transaction Type -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Transaction Type <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" checked>
+                                <label class="btn btn-outline-primary" for="type_buy">
+                                    <i class="bi bi-arrow-down-circle me-2"></i>Buy
+                                </label>
+
+                                <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL">
+                                <label class="btn btn-outline-danger" for="type_sell">
+                                    <i class="bi bi-arrow-up-circle me-2"></i>Sell
+                                </label>
+
+                                <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND">
+                                <label class="btn btn-outline-success" for="type_dividend">
+                                    <i class="bi bi-cash-coin me-2"></i>Dividend
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Company Selection -->
+                        <div class="mb-3">
+                            <label for="company_id" class="form-label fw-semibold">Company <span class="text-danger">*</span></label>
+                            <select class="form-select" id="company_id" name="company_id" required>
+                                <option value="">Select a company...</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}" {% if form_data and form_data.company_id|int == company.id %}selected{% endif %}>
+                                    {{ company.ticker_symbol }} - {{ company.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Don't see your company? <a href="{{ url_for('companies.new_company') }}" target="_blank">Add a new company</a>
+                            </div>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="mb-3">
+                            <label for="date" class="form-label fw-semibold">Transaction Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="date" name="date"
+                                   value="{% if form_data %}{{ form_data.date }}{% endif %}"
+                                   required>
+                        </div>
+
+                        <div class="row">
+                            <!-- Quantity -->
+                            <div class="col-md-6 mb-3">
+                                <label for="quantity" class="form-label fw-semibold">
+                                    <span id="quantityLabel">Shares</span> <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" id="quantity" name="quantity"
+                                       value="{% if form_data %}{{ form_data.quantity }}{% endif %}"
+                                       min="1" step="1" required>
+                                <div class="form-text">Whole shares only</div>
+                            </div>
+
+                            <!-- Price Per Share -->
+                            <div class="col-md-6 mb-3">
+                                <label for="price_per_share" class="form-label fw-semibold">
+                                    <span id="priceLabel">Price Per Share</span> <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="price_per_share" name="price_per_share"
+                                           value="{% if form_data %}{{ form_data.price_per_share }}{% endif %}"
+                                           min="0.01" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fees -->
+                        <div class="mb-3">
+                            <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="fees" name="fees"
+                                       value="{% if form_data %}{{ form_data.fees }}{% else %}0.00{% endif %}"
+                                       min="0" step="0.01">
+                            </div>
+                            <div class="form-text">Optional - trading fees or commissions</div>
+                        </div>
+
+                        <!-- Transaction Total (Calculated) -->
+                        <div class="alert alert-light border">
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Transaction Total:</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span id="transaction_total" class="fs-5 fw-bold">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label fw-semibold">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="Optional notes about this transaction...">{% if form_data %}{{ form_data.notes }}{% endif %}</textarea>
+                        </div>
+
+                        <!-- Warning Modal Content (shown when buying without research) -->
+                        {% if show_warning %}
+                        <div class="alert alert-warning border-warning">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-exclamation-triangle me-2"></i>No Research Found
+                            </h5>
+                            <p>You're about to buy <strong id="warning_company_name"></strong> without completing research on this platform.</p>
+                            <p class="mb-2">This action will be tracked for pattern analysis. Please provide a reason:</p>
+                            <textarea class="form-control" name="reason_without_research" rows="3"
+                                      placeholder="e.g., Following mentor's recommendation, high conviction from external research, etc."
+                                      required></textarea>
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="acknowledge_risk" required>
+                                <label class="form-check-label" for="acknowledge_risk">
+                                    I acknowledge this is outside my standard process
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>Record Transaction
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Helper Info -->
+            <div class="mt-4">
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <h6 class="card-title">Transaction Types</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Buy:</strong> Record a stock purchase. Links to your research and decision journal.</li>
+                            <li><strong>Sell:</strong> Record a stock sale. Calculates realized gains/losses (FIFO method).</li>
+                            <li><strong>Dividend:</strong> Record dividend income received.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Calculate transaction total dynamically
+    function updateTransactionTotal() {
+        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+        const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
+        const fees = parseFloat(document.getElementById('fees').value) || 0;
+        const transactionType = document.querySelector('input[name="type"]:checked').value;
+
+        let total = (quantity * pricePerShare);
+
+        // Add fees for BUY, subtract fees for SELL
+        if (transactionType === 'BUY') {
+            total += fees;
+        } else if (transactionType === 'SELL') {
+            total -= fees;
+        } else if (transactionType === 'DIVIDEND') {
+            // For dividends, total is just quantity * price (dividend per share)
+            total = quantity * pricePerShare;
+        }
+
+        document.getElementById('transaction_total').textContent = '$' + total.toFixed(2);
+    }
+
+    // Update labels based on transaction type
+    function updateLabels() {
+        const transactionType = document.querySelector('input[name="type"]:checked').value;
+        const quantityLabel = document.getElementById('quantityLabel');
+        const priceLabel = document.getElementById('priceLabel');
+
+        if (transactionType === 'DIVIDEND') {
+            quantityLabel.textContent = 'Shares (Optional)';
+            priceLabel.textContent = 'Dividend Per Share';
+        } else {
+            quantityLabel.textContent = 'Shares';
+            priceLabel.textContent = 'Price Per Share';
+        }
+
+        updateTransactionTotal();
+    }
+
+    // Get today's date in YYYY-MM-DD format
+    function today_date() {
+        const today = new Date();
+        return today.toISOString().split('T')[0];
+    }
+
+    // Event listeners
+    document.getElementById('quantity').addEventListener('input', updateTransactionTotal);
+    document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
+    document.getElementById('fees').addEventListener('input', updateTransactionTotal);
+
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', updateLabels);
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateLabels();
+        updateTransactionTotal();
+    });
+
+    // Set max date to today
+    document.getElementById('date').max = today_date();
+</script>
+{% endblock %}

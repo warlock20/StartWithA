@@ -45,6 +45,10 @@ class DecisionJournal(db.Model):
     mistake_category = db.Column(db.String(100))  # 'valuation', 'thesis_wrong', 'timing', etc.
     success_category = db.Column(db.String(100))  # 'thesis_correct', 'patience', 'contrarian', etc.
 
+    # Portfolio integration fields
+    is_portfolio_decision = db.Column(db.Boolean, default=False, index=True)
+    linked_research_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=True)
+
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 

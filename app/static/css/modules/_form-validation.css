@@ -1,0 +1,92 @@
+/* Form Validation Styles */
+
+/* Enhanced validation border colors for better visibility */
+.form-control.is-valid {
+    border-color: #28a745 !important;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.form-control.is-valid:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545 !important;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.form-control.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Validation feedback messages */
+.valid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Show feedback when validation classes are present */
+.form-control.is-valid ~ .valid-feedback,
+.was-validated .form-control:valid ~ .valid-feedback {
+    display: block;
+}
+
+.form-control.is-invalid ~ .invalid-feedback,
+.was-validated .form-control:invalid ~ .invalid-feedback {
+    display: block;
+}
+
+/* Remove default browser validation styling */
+.form-control:invalid {
+    box-shadow: none;
+}
+
+.form-control:valid {
+    box-shadow: none;
+}
+
+/* Ticker hint styling */
+#tickerHint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+#tickerHint .text-success {
+    color: #28a745 !important;
+    font-weight: 500;
+}
+
+#tickerHint .text-warning {
+    color: #ffc107 !important;
+    font-weight: 500;
+}
+
+#tickerHint .text-muted {
+    color: #6c757d !important;
+}

@@ -38,13 +38,6 @@
                         <li>
                             <hr class="dropdown-divider">
                         </li>
-                        <li>
-                            <h6 class="dropdown-header">Companies & Portfolio </h6>
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('companies.companies_dashboard') }}">🏢 My
-                                Companies</a></li>
-
-                        <hr class="dropdown-divider">
                 </li>
                 <li>
                     <h6 class="dropdown-header">Tools</h6>
@@ -58,6 +51,20 @@
                 <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">❓ Question Bank</a>
                 </li>
             </ul>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarTrackingDropdown" role="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    Companies & Portfolio
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="navbarTrackingDropdown">
+                    <li>
+                        <h6 class="dropdown-header">Companies & Portfolio </h6>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('companies.companies_dashboard') }}">🏢 My
+                            Companies</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.dashboard') }}">Portfolio</a></li>
+                </ul>
             </li>
 
             {# 📈 TRACKING & ANALYTICS #}

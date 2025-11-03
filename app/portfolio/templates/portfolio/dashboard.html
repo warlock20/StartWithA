@@ -1,0 +1,377 @@
+{% extends "main/_base.html" %}
+{% from 'components/data_table.html' import data_table, filter_select %}
+
+{% block title %}Portfolio{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Portfolio</h1>
+            <p class="dashboard-subtitle">{{ positions|length }} position{{ 's' if positions|length != 1 else '' }} • ${{ "%.2f"|format(portfolio_value.total_value) }} total value</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <form method="POST" action="{{ url_for('portfolio.refresh_prices') }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Prices
+                </button>
+            </form>
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> Add Transaction
+            </a>
+        </div>
+    </header>
+
+    <!-- Portfolio Overview Cards -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <!-- Total Value Card -->
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Value</h3>
+                        <span class="priority-card-number priority-number-blue">${{ "%.0f"|format(portfolio_value.total_value) }}</span>
+                    </div>
+                    <p class="priority-card-description">Current market value of all positions.</p>
+                </div>
+            </div>
+
+            <!-- Total Cost Card -->
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Cost</h3>
+                        <span class="priority-card-number priority-number-green">${{ "%.0f"|format(portfolio_value.total_cost) }}</span>
+                    </div>
+                    <p class="priority-card-description">Original investment amount (FIFO).</p>
+                </div>
+            </div>
+
+            <!-- Unrealized Gain/Loss Card -->
+            <div class="priority-card {% if portfolio_value.total_unrealized_gain_loss >= 0 %}priority-card-ideas{% else %}priority-card-archived{% endif %}">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Unrealized P/L</h3>
+                        <span class="priority-card-number {% if portfolio_value.total_unrealized_gain_loss >= 0 %}priority-number-yellow{% else %}priority-number-red{% endif %}">
+                            {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
+                        </span>
+                    </div>
+                    <p class="priority-card-description">
+                        {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.2f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}% gain/loss on open positions.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Positions Count Card -->
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Positions</h3>
+                        <span class="priority-card-number priority-number-yellow">{{ portfolio_value.positions_count }}</span>
+                    </div>
+                    <p class="priority-card-description">Number of active holdings.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Checkpoints -->
+    {% if upcoming_checkpoints %}
+    <div class="portfolio-section">
+        <div class="portfolio-section-header">
+            <h2 class="portfolio-section-title">
+                <i class="bi bi-bullseye"></i>Upcoming Thesis Checkpoints
+                <span class="portfolio-section-badge">{{ upcoming_checkpoints|length }}</span>
+            </h2>
+            <div class="portfolio-section-controls"></div>
+        </div>
+        <div class="portfolio-table-container">
+            <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Metric</th>
+                            <th>Expectation</th>
+                            <th class="text-center">Target Date</th>
+                            <th class="text-center">Days Until</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for checkpoint in upcoming_checkpoints %}
+                        {% set days_until = (checkpoint.target_date - today).days %}
+                        <tr class="{% if days_until < 0 %}table-danger{% elif days_until <= 7 %}table-warning{% endif %}">
+                            <td>
+                                <a href="{{ url_for('portfolio.position_detail', company_id=checkpoint.company_id) }}" class="text-decoration-none">
+                                    <strong>{{ checkpoint.company.ticker_symbol }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ checkpoint.company.name }}</small>
+                                </a>
+                            </td>
+                            <td>
+                                <strong>{{ checkpoint.metric }}</strong>
+                            </td>
+                            <td>
+                                <small>{{ checkpoint.expectation[:80] }}{% if checkpoint.expectation|length > 80 %}...{% endif %}</small>
+                            </td>
+                            <td class="text-center">
+                                {{ checkpoint.target_date.strftime('%b %d, %Y') }}
+                            </td>
+                            <td class="text-center">
+                                {% if days_until < 0 %}
+                                    <span class="badge bg-danger">{{ days_until|abs }} days overdue</span>
+                                {% elif days_until == 0 %}
+                                    <span class="badge bg-warning text-dark">Today</span>
+                                {% elif days_until <= 7 %}
+                                    <span class="badge bg-warning text-dark">{{ days_until }} days</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ days_until }} days</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('portfolio.position_detail', company_id=checkpoint.company_id) }}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="View Position">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Holdings Table -->
+    {% call data_table(
+        id='holdings-table',
+        title='Holdings',
+        icon='bi-briefcase',
+        badge_count=positions|length,
+        show_filters=true,
+        show_export=true,
+        empty_message='Your Portfolio is Empty',
+        empty_icon='bi-briefcase',
+        empty_action_text='Add Your First Transaction',
+        empty_action_url=url_for('portfolio.add_transaction')
+    ) %}
+        {{ filter_select(
+            id='holdings-filter',
+            name='filter_status',
+            options=[
+                {'value': 'all', 'label': 'All Positions'},
+                {'value': 'gains', 'label': 'Gains Only'},
+                {'value': 'losses', 'label': 'Losses Only'}
+            ],
+            selected=filter_status
+        ) }}
+    {% endcall %}
+
+    <!-- Recent Transactions -->
+    {% if recent_transactions %}
+    <div class="portfolio-section">
+        <div class="portfolio-section-header">
+            <h2 class="portfolio-section-title">Recent Transactions</h2>
+            <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-sm btn-outline-primary">
+                View All <i class="bi bi-arrow-right-short"></i>
+            </a>
+        </div>
+        <div class="portfolio-table-container">
+            <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Company</th>
+                            <th class="text-end">Shares</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in recent_transactions %}
+                        <tr>
+                            <td>{{ txn.date.strftime('%b %d, %Y') }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if txn.type == 'BUY' %}bg-primary
+                                    {% elif txn.type == 'SELL' %}bg-danger
+                                    {% elif txn.type == 'DIVIDEND' %}bg-success
+                                    {% endif %}">
+                                    {{ txn.type }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ txn.company.ticker_symbol }}</strong>
+                                <br>
+                                <small class="text-muted">{{ txn.company.name }}</small>
+                            </td>
+                            <td class="text-end">{{ txn.quantity }}</td>
+                            <td class="text-end">${{ "%.2f"|format(txn.price_per_share) }}</td>
+                            <td class="text-end"><strong>${{ "%.2f"|format(txn.total_value) }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script>
+// Initialize Holdings Table with Tabulator
+document.addEventListener('DOMContentLoaded', function() {
+    // Portfolio holdings data
+    const holdingsData = [
+        {% for position in positions %}
+        {
+            ticker: "{{ position.company.ticker_symbol }}",
+            name: "{{ position.company.name }}",
+            shares: {{ position.total_shares }},
+            avgCost: {{ position.average_cost_basis }},
+            currentPrice: {{ position.current_price if position.current_price else 'null' }},
+            currentValue: {{ position.current_value if position.current_value else 'null' }},
+            gainLoss: {{ position.unrealized_gain_loss if position.unrealized_gain_loss else 'null' }},
+            gainLossPct: {{ position.unrealized_gain_loss_pct if position.unrealized_gain_loss_pct else 'null' }},
+            daysHeld: {{ position.days_held }},
+            companyId: {{ position.company_id }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    const holdingsTable = createDataTable('#holdings-table', {
+        data: holdingsData,
+        columns: [
+            {
+                title: "Company",
+                field: "ticker",
+                sorter: "string",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<div>
+                        <strong>${data.ticker}</strong><br>
+                        <small class="text-muted">${data.name}</small>
+                    </div>`;
+                }
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: ColumnFormatters.number(0)
+            },
+            {
+                title: "Avg Cost",
+                field: "avgCost",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: ColumnFormatters.currency()
+            },
+            {
+                title: "Current Price",
+                field: "currentPrice",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: ColumnFormatters.currency()
+            },
+            {
+                title: "Market Value",
+                field: "currentValue",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) {
+                        return '<span class="table-cell-muted">--</span>';
+                    }
+                    return `<strong>$${parseFloat(value).toFixed(2)}</strong>`;
+                }
+            },
+            {
+                title: "Gain/Loss",
+                field: "gainLoss",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: ColumnFormatters.gainLoss()
+            },
+            {
+                title: "%",
+                field: "gainLossPct",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: ColumnFormatters.percentage()
+            },
+            {
+                title: "Days Held",
+                field: "daysHeld",
+                sorter: "number",
+                hozAlign: "center",
+                formatter: function(cell) {
+                    return `<span class="badge bg-secondary">${cell.getValue()}d</span>`;
+                }
+            },
+            {
+                title: "Actions",
+                field: "companyId",
+                hozAlign: "right",
+                headerSort: false,
+                formatter: function(cell) {
+                    const companyId = cell.getValue();
+                    return `<div class="btn-group btn-group-sm">
+                        <a href="/portfolio/position/${companyId}" class="btn btn-outline-primary" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="/portfolio/transaction/add?company_id=${companyId}" class="btn btn-outline-secondary" title="Add Transaction">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>`;
+                }
+            }
+        ],
+        exportButtons: true,
+        exportConfig: {
+            filename: 'portfolio-holdings',
+            csv: true,
+            xlsx: false,
+            json: false
+        },
+        customConfig: {
+            initialSort: [
+                {column: "currentValue", dir: "desc"}
+            ]
+        }
+    });
+
+    // Quick filter functionality
+    const filterSelect = document.getElementById('holdings-filter');
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'all') {
+                holdingsTable.clearFilter();
+            } else if (value === 'gains') {
+                holdingsTable.setFilter("gainLoss", ">", 0);
+            } else if (value === 'losses') {
+                holdingsTable.setFilter("gainLoss", "<", 0);
+            }
+        });
+
+        // Apply initial filter if set
+        const initialFilter = '{{ filter_status }}';
+        if (initialFilter === 'gains') {
+            holdingsTable.setFilter("gainLoss", ">", 0);
+        } else if (initialFilter === 'losses') {
+            holdingsTable.setFilter("gainLoss", "<", 0);
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -5,4 +5,4 @@ companies_bp = Blueprint('companies',
                          template_folder='templates', 
                          url_prefix='/companies')
 
-from app.companies import routes # Import routes after blueprint definition
+from app.companies import (routes, destination_analysis_routes, api_routes)

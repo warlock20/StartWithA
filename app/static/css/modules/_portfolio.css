@@ -1,0 +1,190 @@
+/* Portfolio Module Styles */
+
+/* Transaction Type Button Selection */
+.btn-check:checked + .btn-outline-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+/* Hover states for transaction type buttons */
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-outline-success:hover {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+/* Portfolio Section - Minimalist with dividers (Option 4) */
+.portfolio-section {
+    background: var(--background-white);
+    margin-bottom: var(--space-2xl);
+}
+
+.portfolio-section-header {
+    padding: var(--space-lg) 0;
+    border-bottom: 3px solid var(--gray-800);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.portfolio-section-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.portfolio-section-title i {
+    color: var(--primary-600);
+}
+
+.portfolio-section-badge {
+    background: var(--primary-600);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    margin-left: var(--space-sm);
+}
+
+.portfolio-section-controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+/* Table container - no padding for full-width tables */
+.portfolio-table-container {
+    overflow-x: auto;
+}
+
+.portfolio-table-container table {
+    margin: 0;
+    width: 100%;
+}
+
+.portfolio-table-container thead th {
+    background: transparent;
+    border-top: none;
+    border-bottom: 2px solid var(--gray-300);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 1rem 0.75rem;
+    white-space: nowrap;
+}
+
+.portfolio-table-container tbody td {
+    padding: 1.25rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-light);
+}
+
+.portfolio-table-container tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+.portfolio-table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Portfolio Table Styles */
+.portfolio-holdings-table th a {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.portfolio-holdings-table th a:hover {
+    color: var(--primary-600);
+}
+
+.portfolio-holdings-table .sort-icon {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* Checkpoint Status Badges */
+.checkpoint-overdue {
+    background-color: var(--danger-500);
+    color: white;
+}
+
+.checkpoint-due-soon {
+    background-color: var(--warning-500);
+    color: #000;
+}
+
+.checkpoint-future {
+    background-color: var(--gray-500);
+    color: white;
+}
+
+/* Position Detail Checkpoint Actions */
+.checkpoint-quick-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.checkpoint-quick-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Empty state within portfolio sections */
+.portfolio-empty-state {
+    padding: var(--space-2xl) 0;
+    text-align: center;
+}
+
+.portfolio-empty-state-icon {
+    font-size: 3rem;
+    color: var(--gray-400);
+    margin-bottom: var(--space-md);
+}
+
+.portfolio-empty-state-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: var(--space-sm);
+}
+
+.portfolio-empty-state-description {
+    color: var(--gray-500);
+    margin-bottom: var(--space-lg);
+}

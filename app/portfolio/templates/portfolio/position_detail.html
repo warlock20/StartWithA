@@ -1,0 +1,365 @@
+{% extends "main/_base.html" %}
+
+{% block title %}{{ company.ticker_symbol }} Position{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">{{ company.ticker_symbol }} - {{ company.name }}</h2>
+                    <p class="text-muted mb-0">
+                        {% if company.sector %}{{ company.sector.name }}{% endif %}
+                        {% if company.industry %} / {{ company.industry }}{% endif %}
+                    </p>
+                </div>
+                <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Portfolio
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Position Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Shares Owned</h6>
+                    <h4 class="card-title mb-0">{{ position.total_shares }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Avg Cost Basis</h6>
+                    <h4 class="card-title mb-0">${{ "%.2f"|format(position.average_cost_basis) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Current Price</h6>
+                    <h4 class="card-title mb-0">
+                        {% if position.current_price %}
+                            ${{ "%.2f"|format(position.current_price) }}
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </h4>
+                    {% if position.last_price_update %}
+                    <small class="text-muted">Updated: {{ position.last_price_update.strftime('%H:%M') }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
+                    <h4 class="card-title mb-0">
+                        {% if position.current_value %}
+                            ${{ "%.2f"|format(position.current_value) }}
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </h4>
+                    <small class="text-muted">Cost: ${{ "%.2f"|format(position.total_cost) }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}border-success{% else %}border-danger{% endif %}{% endif %}">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Unrealized Gain/Loss</h6>
+                    <h4 class="card-title mb-0 {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}{% endif %}">
+                        {% if position.unrealized_gain_loss %}
+                            {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.2f"|format(position.unrealized_gain_loss) }}
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </h4>
+                    {% if position.unrealized_gain_loss_pct %}
+                    <small class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.2f"|format(position.unrealized_gain_loss_pct) }}%
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <span>Days Held</span>
+                        <strong>{{ position.days_held }} days</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <span>First Purchase</span>
+                        <strong>{{ position.first_purchase_date.strftime('%Y-%m-%d') if position.first_purchase_date else '--' }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <span>Realized Gain/Loss</span>
+                        <strong class="{% if position.realized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if position.realized_gain_loss >= 0 %}+{% endif %}${{ "%.2f"|format(position.realized_gain_loss) }}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Transactions & Decision Journal -->
+        <div class="col-lg-8">
+            <!-- Transaction History -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Transaction History</h5>
+                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus me-1"></i>Add Transaction
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Shares</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                    <th>Notes</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for txn in transactions %}
+                                <tr>
+                                    <td>{{ txn.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge
+                                            {% if txn.type == 'BUY' %}bg-primary
+                                            {% elif txn.type == 'SELL' %}bg-danger
+                                            {% elif txn.type == 'DIVIDEND' %}bg-success
+                                            {% endif %}">
+                                            {{ txn.type }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">{{ txn.quantity }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(txn.price_per_share) }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(txn.total_value) }}</td>
+                                    <td>
+                                        {% if txn.notes %}
+                                        <small class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ txn.notes }}">
+                                            {{ txn.notes }}
+                                        </small>
+                                        {% else %}
+                                        --
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('portfolio.edit_transaction', transaction_id=txn.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No transactions</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Decision Journal -->
+            {% if decision_journal %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Decision Journal</h5>
+                    <a href="{{ url_for('analytics.edit_decision_journal', id=decision_journal.id) }}" class="btn btn-sm btn-outline-primary">
+                        View Full Journal
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if decision_journal.investment_thesis %}
+                    <h6>Investment Thesis</h6>
+                    <p>{{ decision_journal.investment_thesis }}</p>
+                    {% endif %}
+
+                    {% if decision_journal.confidence_score %}
+                    <div class="mb-3">
+                        <strong>Confidence Score:</strong> {{ decision_journal.confidence_score }}/10
+                    </div>
+                    {% endif %}
+
+                    {% if decision_journal.expected_return %}
+                    <div class="mb-3">
+                        <strong>Expected Return:</strong> {{ decision_journal.expected_return }}%
+                        {% if decision_journal.expected_timeframe %}
+                        over {{ decision_journal.expected_timeframe }} months
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Destination Checkpoints & Research -->
+        <div class="col-lg-4">
+            <!-- Destination Checkpoints -->
+            {% if checkpoints %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Thesis Checkpoints</h5>
+                    <span class="badge bg-primary">{{ checkpoints|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% for checkpoint in checkpoints[:5] %}
+                    {% set days_until = (checkpoint.target_date - today()).days %}
+                    <div class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                <strong class="d-block">{{ checkpoint.metric }}</strong>
+                                <small class="text-muted">{{ checkpoint.expectation[:60] }}{% if checkpoint.expectation|length > 60 %}...{% endif %}</small>
+                            </div>
+                            <span class="badge ms-2
+                                {% if checkpoint.status == 'Met' %}bg-success
+                                {% elif checkpoint.status == 'Not Met' %}bg-danger
+                                {% elif checkpoint.status == 'Active' %}bg-primary
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {{ checkpoint.status }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3"></i> {{ checkpoint.target_date.strftime('%b %d, %Y') }}
+                                {% if checkpoint.status == 'Active' %}
+                                    {% if days_until < 0 %}
+                                        <span class="badge bg-danger ms-1">{{ days_until|abs }} days overdue</span>
+                                    {% elif days_until <= 7 %}
+                                        <span class="badge bg-warning text-dark ms-1">{{ days_until }} days</span>
+                                    {% endif %}
+                                {% endif %}
+                            </small>
+                            {% if checkpoint.status == 'Active' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-success btn-sm"
+                                        onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Met')"
+                                        title="Mark as Met">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Not Met')"
+                                        title="Mark as Not Met">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-eye me-2"></i>View All Checkpoints
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Research Project Link -->
+            {% if research_project %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Research</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Research project created on {{ research_project.created_at.strftime('%Y-%m-%d') }}</p>
+                    <a href="{{ url_for('research_workflow.view_project', project_id=research_project.id) }}" class="btn btn-outline-primary w-100">
+                        View Research Project
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-plus-circle me-2"></i>Add Transaction
+                    </a>
+                    {% if decision_journal %}
+                    <a href="{{ url_for('analytics.edit_decision_journal', id=decision_journal.id) }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-journal-text me-2"></i>Update Journal
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-flag me-2"></i>Manage Checkpoints
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function updateCheckpointStatus(checkpointId, newStatus) {
+    if (!confirm(`Mark this checkpoint as "${newStatus}"?`)) {
+        return;
+    }
+
+    fetch(`/portfolio/checkpoint/${checkpointId}/update-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload the page to show updated status
+            location.reload();
+        } else {
+            alert('Error updating checkpoint: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error updating checkpoint: ' + error);
+    });
+}
+</script>
+{% endblock %}

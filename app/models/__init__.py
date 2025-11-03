@@ -69,6 +69,12 @@ from .journal import (
     LearningPath,
     PatternRecognition,
 )
+from .portfolio import (
+    Transaction,
+    PortfolioPosition,
+    calculate_fifo_cost_basis,
+    update_portfolio_position,
+)
 from .background_task import BackgroundTask
 
 
@@ -140,6 +146,11 @@ __all__ = [
     'InvestmentPostMortem',
     'LearningPath',
     'PatternRecognition',
+    # Portfolio models
+    'Transaction',
+    'PortfolioPosition',
+    'calculate_fifo_cost_basis',
+    'update_portfolio_position',
     # Background task
     'BackgroundTask',
 ]

@@ -1,0 +1,300 @@
+/* =============================================================================
+   REUSABLE DATA TABLE COMPONENT
+   ============================================================================= */
+/*
+   Platform-wide table component using Tabulator.
+   Extends the minimalist design from portfolio module.
+
+   Usage:
+   - Use .data-table-wrapper for consistent section styling
+   - Initialize tables with createDataTable() JavaScript helper
+*/
+
+/* Table Wrapper - Minimalist section container */
+.data-table-wrapper {
+    background: var(--background-white);
+    margin-bottom: var(--space-2xl);
+}
+
+.data-table-header {
+    padding: var(--space-lg) 0;
+    border-bottom: 3px solid var(--gray-800);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.data-table-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.data-table-title i {
+    color: var(--primary-600);
+}
+
+.data-table-badge {
+    background: var(--primary-600);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    margin-left: var(--space-sm);
+}
+
+.data-table-controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Tabulator Override - Match minimalist design */
+.data-table-wrapper .tabulator {
+    background: transparent;
+    border: none;
+    font-size: var(--font-size-base);
+}
+
+/* Header styling */
+.data-table-wrapper .tabulator .tabulator-header {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--gray-300);
+}
+
+.data-table-wrapper .tabulator .tabulator-col {
+    background: transparent;
+    border: none;
+    border-right: none;
+    padding: 1rem 0.75rem;
+}
+
+.data-table-wrapper .tabulator .tabulator-col-content {
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 0;
+}
+
+.data-table-wrapper .tabulator .tabulator-col-title {
+    white-space: nowrap;
+}
+
+/* Sortable columns */
+.data-table-wrapper .tabulator .tabulator-col.tabulator-sortable:hover {
+    background-color: var(--gray-50);
+}
+
+.data-table-wrapper .tabulator .tabulator-col.tabulator-sortable .tabulator-col-content {
+    cursor: pointer;
+}
+
+/* Sort arrows */
+.data-table-wrapper .tabulator .tabulator-col .tabulator-arrow {
+    border-bottom-color: var(--primary-600);
+    border-top-color: var(--primary-600);
+}
+
+/* Table body */
+.data-table-wrapper .tabulator .tabulator-tableholder {
+    background: transparent;
+}
+
+.data-table-wrapper .tabulator .tabulator-table {
+    background: transparent;
+    width: 100%;
+}
+
+/* Row styling */
+.data-table-wrapper .tabulator .tabulator-row {
+    background: transparent;
+    border-bottom: 1px solid var(--border-light);
+    min-height: auto;
+}
+
+.data-table-wrapper .tabulator .tabulator-row:hover {
+    background-color: var(--gray-50) !important;
+}
+
+.data-table-wrapper .tabulator .tabulator-row:last-child {
+    border-bottom: none;
+}
+
+.data-table-wrapper .tabulator .tabulator-row .tabulator-cell {
+    border: none;
+    padding: 1.25rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Selected row */
+.data-table-wrapper .tabulator .tabulator-row.tabulator-selected {
+    background-color: var(--primary-50) !important;
+}
+
+/* Header filters */
+.data-table-wrapper .tabulator .tabulator-header-filter {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.375rem 0.5rem;
+    font-size: var(--font-size-sm);
+    margin-top: 0.5rem;
+}
+
+.data-table-wrapper .tabulator .tabulator-header-filter:focus {
+    outline: none;
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 0.2rem rgba(67, 56, 202, 0.15);
+}
+
+/* Pagination */
+.data-table-wrapper .tabulator .tabulator-footer {
+    background: transparent;
+    border-top: 2px solid var(--gray-300);
+    padding: 1rem 0;
+    margin-top: 1rem;
+}
+
+.data-table-wrapper .tabulator .tabulator-paginator {
+    color: var(--gray-700);
+    font-size: var(--font-size-sm);
+}
+
+.data-table-wrapper .tabulator .tabulator-page {
+    background: transparent;
+    color: var(--gray-700);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.375rem 0.75rem;
+    margin: 0 0.25rem;
+}
+
+.data-table-wrapper .tabulator .tabulator-page:hover {
+    background-color: var(--gray-50);
+    border-color: var(--primary-600);
+}
+
+.data-table-wrapper .tabulator .tabulator-page.active {
+    background-color: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+}
+
+/* Loading overlay */
+.data-table-wrapper .tabulator .tabulator-loader {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.data-table-wrapper .tabulator .tabulator-loader-msg {
+    color: var(--gray-700);
+    font-weight: 600;
+}
+
+/* Empty state */
+.data-table-wrapper .tabulator .tabulator-placeholder {
+    padding: var(--space-2xl) 0;
+    text-align: center;
+}
+
+.data-table-wrapper .tabulator .tabulator-placeholder-contents {
+    color: var(--gray-500);
+    font-size: var(--font-size-base);
+}
+
+/* Export buttons */
+.data-table-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--gray-700);
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.data-table-export-btn:hover {
+    background-color: var(--gray-50);
+    border-color: var(--primary-600);
+    color: var(--primary-600);
+}
+
+.data-table-export-btn i {
+    font-size: 1rem;
+}
+
+/* Quick filter dropdown */
+.data-table-filter-dropdown {
+    min-width: 180px;
+}
+
+.data-table-filter-dropdown .form-select {
+    font-size: var(--font-size-sm);
+    border-color: var(--border-light);
+}
+
+.data-table-filter-dropdown .form-select:focus {
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 0.2rem rgba(67, 56, 202, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .data-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .data-table-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .data-table-wrapper .tabulator .tabulator-col {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .data-table-wrapper .tabulator .tabulator-row .tabulator-cell {
+        padding: 1rem 0.5rem;
+    }
+}
+
+/* Color utilities for table cells */
+.table-cell-success {
+    color: var(--success-500);
+    font-weight: 600;
+}
+
+.table-cell-danger {
+    color: var(--danger-500);
+    font-weight: 600;
+}
+
+.table-cell-warning {
+    color: var(--warning-500);
+    font-weight: 600;
+}
+
+.table-cell-muted {
+    color: var(--gray-500);
+}
+
+.table-cell-strong {
+    font-weight: 600;
+    color: var(--gray-800);
+}

@@ -1,0 +1,345 @@
+# app/models/portfolio.py
+
+from datetime import datetime
+from decimal import Decimal
+from app import db
+from app.utils.time_utils import now_utc
+
+
+class Transaction(db.Model):
+    """
+    Records all portfolio transactions: buys, sells, dividends, splits, spinoffs.
+    This is the source of truth for portfolio position calculations using FIFO method.
+    """
+    __tablename__ = 'transaction'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
+    decision_journal_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'), nullable=True)
+
+    # Transaction details
+    type = db.Column(db.String(20), nullable=False, index=True)
+    # Valid types: 'BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'SPINOFF'
+
+    date = db.Column(db.Date, nullable=False, index=True)
+    quantity = db.Column(db.Integer, nullable=False)  # Whole shares only (no fractional)
+    price_per_share = db.Column(db.Numeric(10, 2), nullable=False)
+    fees = db.Column(db.Numeric(10, 2), default=0.00)
+
+    # Additional context
+    notes = db.Column(db.Text, nullable=True)
+
+    # Pattern tracking: Buying without research
+    bought_without_research = db.Column(db.Boolean, default=False, index=True)
+    reason_without_research = db.Column(db.Text, nullable=True)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('transactions', lazy='dynamic', cascade='all, delete-orphan'))
+    company = db.relationship('Company', backref=db.backref('transactions', lazy='dynamic'))
+    decision_journal = db.relationship('DecisionJournal', backref=db.backref('transactions', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Transaction {self.type} {self.quantity} shares of {self.company_id} on {self.date}>'
+
+    @property
+    def total_value(self):
+        """Calculate total transaction value including fees"""
+        return float(self.quantity * self.price_per_share) + float(self.fees)
+
+    def to_dict(self):
+        """Convert transaction to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'type': self.type,
+            'date': self.date.isoformat() if self.date else None,
+            'quantity': self.quantity,
+            'price_per_share': float(self.price_per_share),
+            'fees': float(self.fees),
+            'total_value': self.total_value,
+            'notes': self.notes,
+            'bought_without_research': self.bought_without_research,
+            'company': {
+                'id': self.company.id,
+                'name': self.company.name,
+                'ticker': self.company.ticker_symbol
+            } if self.company else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class PortfolioPosition(db.Model):
+    """
+    Aggregated view of current portfolio positions.
+    This is a calculated/cached table updated whenever transactions occur.
+    Uses FIFO method for cost basis calculation.
+    """
+    __tablename__ = 'portfolio_position'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
+
+    # Position data (calculated from transactions using FIFO)
+    total_shares = db.Column(db.Integer, default=0, nullable=False)
+    average_cost_basis = db.Column(db.Numeric(10, 2), nullable=True)  # Per share
+    total_cost = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)  # Total invested
+
+    # Current market data (from Yahoo Finance API)
+    current_price = db.Column(db.Numeric(10, 2), nullable=True)
+    current_value = db.Column(db.Numeric(12, 2), nullable=True)
+
+    # Unrealized gains/losses (only for open positions)
+    unrealized_gain_loss = db.Column(db.Numeric(12, 2), nullable=True)
+    unrealized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
+
+    # Realized gains/losses (from sells - cumulative)
+    realized_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
+    realized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
+
+    # Metadata
+    first_purchase_date = db.Column(db.Date, nullable=True, index=True)
+    last_transaction_date = db.Column(db.Date, nullable=True)
+    last_price_update = db.Column(db.DateTime, nullable=True)
+
+    # Position status
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    # False when total_shares = 0 (fully exited)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
+
+    # Ensure one position per user per company
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'company_id', name='uq_user_company_position'),
+    )
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('portfolio_positions', lazy='dynamic', cascade='all, delete-orphan'))
+    company = db.relationship('Company', backref=db.backref('portfolio_positions', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<PortfolioPosition {self.company_id}: {self.total_shares} shares @ ${self.average_cost_basis}>'
+
+    @property
+    def days_held(self):
+        """Calculate number of days position has been held"""
+        if not self.first_purchase_date:
+            return 0
+        return (datetime.now().date() - self.first_purchase_date).days
+
+    @property
+    def allocation_percentage(self):
+        """Calculate position allocation % (requires total portfolio value from user)"""
+        # This will be calculated at the view/controller level
+        return None
+
+    def update_market_data(self, current_price):
+        """
+        Update current market price and recalculate values.
+        Called by PriceService when fetching from Yahoo Finance.
+        """
+        self.current_price = Decimal(str(current_price))
+        self.current_value = self.total_shares * self.current_price
+
+        if self.total_cost > 0:
+            self.unrealized_gain_loss = self.current_value - self.total_cost
+            self.unrealized_gain_loss_pct = (self.unrealized_gain_loss / self.total_cost) * 100
+        else:
+            self.unrealized_gain_loss = Decimal('0.00')
+            self.unrealized_gain_loss_pct = Decimal('0.00')
+
+        self.last_price_update = now_utc()
+
+    def to_dict(self):
+        """Convert position to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'total_shares': self.total_shares,
+            'average_cost_basis': float(self.average_cost_basis) if self.average_cost_basis else None,
+            'total_cost': float(self.total_cost),
+            'current_price': float(self.current_price) if self.current_price else None,
+            'current_value': float(self.current_value) if self.current_value else None,
+            'unrealized_gain_loss': float(self.unrealized_gain_loss) if self.unrealized_gain_loss else None,
+            'unrealized_gain_loss_pct': float(self.unrealized_gain_loss_pct) if self.unrealized_gain_loss_pct else None,
+            'realized_gain_loss': float(self.realized_gain_loss),
+            'realized_gain_loss_pct': float(self.realized_gain_loss_pct) if self.realized_gain_loss_pct else None,
+            'days_held': self.days_held,
+            'first_purchase_date': self.first_purchase_date.isoformat() if self.first_purchase_date else None,
+            'last_price_update': self.last_price_update.isoformat() if self.last_price_update else None,
+            'is_active': self.is_active,
+            'company': {
+                'id': self.company.id,
+                'name': self.company.name,
+                'ticker': self.company.ticker_symbol,
+                'sector': self.company.sector.name if self.company.sector else None,
+                'industry': self.company.industry
+            } if self.company else None
+        }
+
+
+# Helper functions for FIFO cost basis calculation
+
+def calculate_fifo_cost_basis(company_id, user_id):
+    """
+    Calculate cost basis using FIFO (First In, First Out) method.
+
+    This function processes all transactions for a company/user pair
+    and returns the current position state using FIFO accounting.
+
+    Returns:
+        tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date)
+    """
+    transactions = Transaction.query.filter_by(
+        company_id=company_id,
+        user_id=user_id
+    ).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
+
+    # FIFO queue: [(date, quantity, price_per_share), ...]
+    shares_queue = []
+    total_shares = 0
+    total_cost = Decimal('0.00')
+    realized_gain_loss = Decimal('0.00')
+    first_purchase_date = None
+
+    for txn in transactions:
+        if txn.type == 'BUY':
+            # Add to queue
+            shares_queue.append({
+                'date': txn.date,
+                'quantity': txn.quantity,
+                'price_per_share': Decimal(str(txn.price_per_share)),
+                'fees': Decimal(str(txn.fees))
+            })
+
+            total_shares += txn.quantity
+            total_cost += (Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))) + Decimal(str(txn.fees))
+
+            # Track first purchase
+            if first_purchase_date is None:
+                first_purchase_date = txn.date
+
+        elif txn.type == 'SELL':
+            shares_to_sell = txn.quantity
+            sell_proceeds = (Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))) - Decimal(str(txn.fees))
+            sell_cost_basis = Decimal('0.00')
+
+            # Remove shares from front of queue (FIFO)
+            while shares_to_sell > 0 and shares_queue:
+                batch = shares_queue[0]
+                batch_qty = batch['quantity']
+                batch_price = batch['price_per_share']
+                batch_fees_per_share = batch['fees'] / batch['quantity'] if batch['quantity'] > 0 else Decimal('0.00')
+
+                if batch_qty <= shares_to_sell:
+                    # Sell entire batch
+                    shares_queue.pop(0)
+                    shares_to_sell -= batch_qty
+                    total_shares -= batch_qty
+
+                    batch_cost = (batch_qty * batch_price) + batch['fees']
+                    total_cost -= batch_cost
+                    sell_cost_basis += batch_cost
+                else:
+                    # Partial batch sale
+                    shares_queue[0]['quantity'] = batch_qty - shares_to_sell
+                    shares_queue[0]['fees'] = batch_fees_per_share * (batch_qty - shares_to_sell)
+
+                    partial_cost = (shares_to_sell * batch_price) + (batch_fees_per_share * shares_to_sell)
+                    total_shares -= shares_to_sell
+                    total_cost -= partial_cost
+                    sell_cost_basis += partial_cost
+                    shares_to_sell = 0
+
+            # Calculate realized gain/loss for this sell
+            realized_gain_loss += (sell_proceeds - sell_cost_basis)
+
+        elif txn.type == 'DIVIDEND':
+            # Dividends don't affect share count or cost basis
+            # But they do affect realized gains (cash received)
+            dividend_amount = Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))
+            realized_gain_loss += dividend_amount
+
+        elif txn.type == 'SPLIT':
+            # Stock split: adjust all batches in queue
+            split_ratio = Decimal(str(txn.price_per_share))  # e.g., 2.0 for 2-for-1 split
+
+            for batch in shares_queue:
+                new_quantity = int(batch['quantity'] * split_ratio)
+                batch['price_per_share'] = batch['price_per_share'] / split_ratio
+                batch['quantity'] = new_quantity
+
+            total_shares = int(total_shares * split_ratio)
+            # total_cost remains the same (splits don't change total investment)
+
+    # Calculate average cost basis
+    avg_cost_basis = (total_cost / Decimal(str(total_shares))) if total_shares > 0 else Decimal('0.00')
+
+    return (
+        total_shares,
+        avg_cost_basis,
+        total_cost,
+        realized_gain_loss,
+        first_purchase_date
+    )
+
+
+def update_portfolio_position(transaction):
+    """
+    Update or create PortfolioPosition after a new transaction.
+    This should be called after every transaction insert/update/delete.
+
+    Args:
+        transaction: Transaction object that was just created/modified
+    """
+    # Recalculate position from scratch using FIFO
+    total_shares, avg_cost, total_cost, realized_gl, first_date = calculate_fifo_cost_basis(
+        transaction.company_id,
+        transaction.user_id
+    )
+
+    # Find or create position
+    position = PortfolioPosition.query.filter_by(
+        user_id=transaction.user_id,
+        company_id=transaction.company_id
+    ).first()
+
+    if not position:
+        position = PortfolioPosition(
+            user_id=transaction.user_id,
+            company_id=transaction.company_id
+        )
+        db.session.add(position)
+
+    # Update position data
+    position.total_shares = total_shares
+    position.average_cost_basis = avg_cost
+    position.total_cost = total_cost
+    position.realized_gain_loss = realized_gl
+    position.first_purchase_date = first_date
+    position.last_transaction_date = transaction.date
+    position.is_active = (total_shares > 0)
+
+    # Update company's is_in_portfolio flag
+    if total_shares > 0:
+        transaction.company.is_in_portfolio = True
+    else:
+        # Check if user has any other positions in this company
+        other_positions = PortfolioPosition.query.filter(
+            PortfolioPosition.user_id == transaction.user_id,
+            PortfolioPosition.company_id == transaction.company_id,
+            PortfolioPosition.id != position.id if position.id else True,
+            PortfolioPosition.is_active == True
+        ).count()
+
+        if other_positions == 0:
+            transaction.company.is_in_portfolio = False
+
+    db.session.commit()
+
+    return position
