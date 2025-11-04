@@ -59,6 +59,14 @@ def dashboard():
     # Calculate portfolio totals
     portfolio_value = PriceService.get_portfolio_value(current_user.id)
 
+    # Calculate gains and losses counts
+    all_positions = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        is_active=True
+    ).all()
+    gains_count = sum(1 for p in all_positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0)
+    losses_count = sum(1 for p in all_positions if p.unrealized_gain_loss and p.unrealized_gain_loss < 0)
+
     # Get recent transactions
     recent_transactions = Transaction.query.filter_by(
         user_id=current_user.id
@@ -66,7 +74,7 @@ def dashboard():
 
     # Get upcoming checkpoints for portfolio companies
     # Get company IDs from active positions
-    portfolio_company_ids = [pos.company_id for pos in positions]
+    portfolio_company_ids = [pos.company_id for pos in all_positions]
 
     # Query upcoming checkpoints (Active status, future dates or recent past)
     today = date.today()
@@ -82,6 +90,9 @@ def dashboard():
                           recent_transactions=recent_transactions,
                           upcoming_checkpoints=upcoming_checkpoints,
                           today=today,
+                          gains_count=gains_count,
+                          losses_count=losses_count,
+                          updated_time='just now',
                           filter_status=filter_status,
                           sort_by=sort_by,
                           sort_order=sort_order)

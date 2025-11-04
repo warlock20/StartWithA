@@ -269,17 +269,6 @@ def notebook(sector_name):
             sources_by_type[source_type] = []
         sources_by_type[source_type].append(source)
 
-    # Get research snippets
-    snippets = analysis.snippets.order_by(SectorResearchSnippet.created_at.desc()).all()
-
-    # Group snippets by category
-    snippets_by_category = {}
-    for snippet in snippets:
-        category = snippet.category
-        if category not in snippets_by_category:
-            snippets_by_category[category] = []
-        snippets_by_category[category].append(snippet)
-
     # Get canvas sections and notes
     canvas_sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
 
@@ -328,8 +317,6 @@ def notebook(sector_name):
         },
         sources=sources,
         sources_by_type=sources_by_type,
-        snippets=snippets,
-        snippets_by_category=snippets_by_category,
         canvas_sections=canvas_sections,
         collector_notes=collector_notes,
         research_templates=get_all_templates(),
@@ -614,9 +601,13 @@ def mark_source_accessed(source_id):
 @login_required
 def add_snippet(sector_name):
     """Add a research snippet"""
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     data = request.get_json()
@@ -669,9 +660,13 @@ def delete_snippet(snippet_id):
 @login_required
 def create_section(sector_name):
     """Create a new section on the canvas"""
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     data = request.get_json()
@@ -757,9 +752,13 @@ def delete_section(section_id):
 @login_required
 def create_note(sector_name):
     """Create a new note"""
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     data = request.get_json()
@@ -858,9 +857,13 @@ def delete_note(note_id):
 def generate_document_from_canvas(sector_name):
     """Generate a formatted document from canvas sections and notes"""
     try:
+        sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+        if not sector:
+            return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
         analysis = SectorAnalysis.query.filter_by(
             user_id=current_user.id,
-            sector_name=sector_name
+            sector_id=sector.id
         ).first_or_404()
 
         # Get all sections in order
@@ -1276,9 +1279,13 @@ def generate_ai_summary(sector_name):
 
     Returns JSON with generated summary in HTML format.
     """
+    sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    if not sector:
+        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
-        sector_name=sector_name
+        sector_id=sector.id
     ).first_or_404()
 
     try:
@@ -1297,15 +1304,6 @@ def generate_ai_summary(sector_name):
             canvas_notes_data.append({
                 'title': note.title,
                 'content': clean_content[:500]  # Limit length
-            })
-
-        # Prepare snippets data
-        snippets_data = []
-        for snippet in analysis.snippets.all():
-            clean_content = re.sub(r'<[^>]+>', '', snippet.content) if snippet.content else ''
-            snippets_data.append({
-                'content': clean_content[:300],
-                'category': snippet.category
             })
 
         # Prepare sources data
@@ -1329,7 +1327,6 @@ def generate_ai_summary(sector_name):
             sector_name=analysis.sector.display_name,
             documentation=clean_documentation,
             canvas_notes=canvas_notes_data,
-            snippets=snippets_data,
             sources=sources_data,
             bullet_count=bullet_count,
             focus=focus

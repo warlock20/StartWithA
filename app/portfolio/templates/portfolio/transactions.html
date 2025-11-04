@@ -71,118 +71,17 @@
     </div>
 
     <!-- Transactions Table -->
-    <div class="card">
-        <div class="card-body p-4">
-            <h2 class="card-title font-poppins mb-4">Transactions ({{ transactions|length }})</h2>
-            {% if transactions %}
-            <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Company</th>
-                                    <th class="text-end">Shares</th>
-                                    <th class="text-end">Price/Share</th>
-                                    <th class="text-end">Fees</th>
-                                    <th class="text-end">Total</th>
-                                    <th>Notes</th>
-                                    <th class="text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for txn in transactions %}
-                                <tr>
-                                    <td>{{ txn.date.strftime('%Y-%m-%d') }}</td>
-                                    <td>
-                                        <span class="badge
-                                            {% if txn.type == 'BUY' %}bg-primary
-                                            {% elif txn.type == 'SELL' %}bg-danger
-                                            {% elif txn.type == 'DIVIDEND' %}bg-success
-                                            {% elif txn.type == 'SPLIT' %}bg-info
-                                            {% else %}bg-secondary
-                                            {% endif %}">
-                                            {{ txn.type }}
-                                        </span>
-                                        {% if txn.bought_without_research %}
-                                        <i class="bi bi-exclamation-triangle text-warning ms-1"
-                                           title="Bought without research"></i>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('portfolio.position_detail', company_id=txn.company_id) }}" class="text-decoration-none">
-                                            <strong>{{ txn.company.ticker_symbol }}</strong>
-                                        </a>
-                                        <br>
-                                        <small class="text-muted">{{ txn.company.name }}</small>
-                                    </td>
-                                    <td class="text-end">{{ txn.quantity }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(txn.price_per_share) }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(txn.fees) }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(txn.total_value) }}</td>
-                                    <td>
-                                        {% if txn.notes %}
-                                        <span class="text-truncate d-inline-block" style="max-width: 200px;"
-                                              title="{{ txn.notes }}">
-                                            {{ txn.notes }}
-                                        </span>
-                                        {% else %}
-                                        <span class="text-muted">--</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{{ url_for('portfolio.edit_transaction', transaction_id=txn.id) }}"
-                                               class="btn btn-outline-secondary"
-                                               title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-                                            <button type="button"
-                                                    class="btn btn-outline-danger"
-                                                    onclick="confirmDelete({{ txn.id }}, '{{ txn.company.ticker_symbol }}', '{{ txn.type }}', '{{ txn.date.strftime('%Y-%m-%d') }}')"
-                                                    title="Delete">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">Transactions</h2>
+            <div class="portfolio-table-controls">
+                <button class="portfolio-btn-export" onclick="transactionsTable.download('csv', 'transactions.csv')">
+                    <i class="bi bi-download"></i>
+                    Export
+                </button>
             </div>
-            {% else %}
-            <!-- Empty State -->
-            <div class="empty-state-container">
-                <div class="empty-state-icon">
-                    <i class="bi bi-receipt"></i>
-                </div>
-                <h3 class="empty-state-title">
-                    {% if request.args %}
-                    No Transactions Found
-                    {% else %}
-                    No Transactions Yet
-                    {% endif %}
-                </h3>
-                <p class="empty-state-description">
-                    {% if request.args %}
-                    No transactions match your filter criteria. Try adjusting your filters.
-                    {% else %}
-                    Record your first transaction to start tracking your portfolio.
-                    {% endif %}
-                </p>
-                <div class="mt-3">
-                    {% if request.args %}
-                    <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-outline-secondary btn-lg me-2">
-                        <i class="bi bi-x-circle"></i> Clear Filters
-                    </a>
-                    {% endif %}
-                    <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary btn-lg">
-                        <i class="bi bi-plus-circle-fill"></i> Add Transaction
-                    </a>
-                </div>
-            </div>
-            {% endif %}
         </div>
+        <div id="transactions-table"></div>
     </div>
 </div>
 
@@ -215,17 +114,175 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    let deleteModal = null;
+// Initialize Transactions Table
+let transactionsTable;
+let deleteModal = null;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+document.addEventListener('DOMContentLoaded', function() {
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    // Transaction data
+    const transactionsData = [
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            ticker: "{{ txn.company.ticker_symbol }}",
+            companyName: "{{ txn.company.name }}",
+            companyId: {{ txn.company_id }},
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            fees: {{ txn.fees }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes|tojson|safe if txn.notes else 'null' }},
+            boughtWithoutResearch: {{ 'true' if txn.bought_without_research else 'false' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    transactionsTable = new Tabulator("#transactions-table", {
+        data: transactionsData,
+        layout: "fitDataStretch",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                hozAlign: "right",
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    const data = cell.getRow().getData();
+                    let badgeClass = 'bg-secondary';
+                    if (type === 'BUY') badgeClass = 'bg-primary';
+                    else if (type === 'SELL') badgeClass = 'bg-danger';
+                    else if (type === 'DIVIDEND') badgeClass = 'bg-success';
+                    else if (type === 'SPLIT') badgeClass = 'bg-info';
+
+                    let html = `<span class="badge ${badgeClass}">${type}</span>`;
+                    if (data.boughtWithoutResearch) {
+                        html += ' <i class="bi bi-exclamation-triangle text-warning" title="Bought without research"></i>';
+                    }
+                    return html;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Company",
+                field: "ticker",
+                sorter: "string",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<div>
+                        <div class="portfolio-company-ticker">${data.ticker}</div>
+                        <div class="portfolio-company-name">${data.companyName}</div>
+                    </div>`;
+                },
+                minWidth: 180,
+                widthGrow: 2
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return cell.getValue().toLocaleString();
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price/Share",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '$' + cell.getValue().toFixed(2);
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Fees",
+                field: "fees",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '$' + cell.getValue().toFixed(2);
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>$' + cell.getValue().toFixed(2) + '</strong>';
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="text-muted">--</span>';
+                    if (notes.length > 40) {
+                        return `<span title="${notes}">${notes.substring(0, 40)}...</span>`;
+                    }
+                    return notes;
+                },
+                minWidth: 150,
+                widthGrow: 2
+            },
+            {
+                title: "Actions",
+                field: "id",
+                headerSort: false,
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<a href="/portfolio/transaction/${data.id}/edit" class="portfolio-btn-icon" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button onclick="confirmDelete(${data.id}, '${data.ticker}', '${data.type}', '${data.date}')" class="portfolio-btn-icon" title="Delete" style="border: 1px solid var(--border-light); background: white; cursor: pointer;">
+                                <i class="bi bi-trash"></i>
+                            </button>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            }
+        ],
+        initialSort: [
+            {column: "date", dir: "desc"}
+        ]
     });
+});
 
-    function confirmDelete(transactionId, ticker, type, date) {
-        const details = `${type} transaction for ${ticker} on ${date}`;
-        document.getElementById('deleteDetails').textContent = details;
-        document.getElementById('deleteForm').action = `/portfolio/transaction/${transactionId}/delete`;
-        deleteModal.show();
-    }
+function confirmDelete(transactionId, ticker, type, date) {
+    const details = `${type} transaction for ${ticker} on ${date}`;
+    document.getElementById('deleteDetails').textContent = details;
+    document.getElementById('deleteForm').action = `/portfolio/transaction/${transactionId}/delete`;
+    deleteModal.show();
+}
 </script>
 {% endblock %}

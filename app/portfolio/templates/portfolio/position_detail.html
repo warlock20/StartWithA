@@ -133,69 +133,17 @@
         <!-- Left Column: Transactions & Decision Journal -->
         <div class="col-lg-8">
             <!-- Transaction History -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Transaction History</h5>
-                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="btn btn-sm btn-primary">
-                        <i class="bi bi-plus me-1"></i>Add Transaction
-                    </a>
-                </div>
-                <div class="card-body p-0">
-                    {% if transactions %}
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th class="text-end">Shares</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Total</th>
-                                    <th>Notes</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for txn in transactions %}
-                                <tr>
-                                    <td>{{ txn.date.strftime('%Y-%m-%d') }}</td>
-                                    <td>
-                                        <span class="badge
-                                            {% if txn.type == 'BUY' %}bg-primary
-                                            {% elif txn.type == 'SELL' %}bg-danger
-                                            {% elif txn.type == 'DIVIDEND' %}bg-success
-                                            {% endif %}">
-                                            {{ txn.type }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end">{{ txn.quantity }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(txn.price_per_share) }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(txn.total_value) }}</td>
-                                    <td>
-                                        {% if txn.notes %}
-                                        <small class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ txn.notes }}">
-                                            {{ txn.notes }}
-                                        </small>
-                                        {% else %}
-                                        --
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        <a href="{{ url_for('portfolio.edit_transaction', transaction_id=txn.id) }}" class="btn btn-sm btn-outline-secondary">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            <div class="portfolio-table-section mb-4">
+                <div class="portfolio-table-section-header">
+                    <h2 class="portfolio-table-section-title">Transaction History</h2>
+                    <div class="portfolio-table-controls">
+                        <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="btn-portfolio-modern primary">
+                            <i class="bi bi-plus"></i>
+                            Add Transaction
+                        </a>
                     </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <p class="text-muted mb-0">No transactions</p>
-                    </div>
-                    {% endif %}
                 </div>
+                <div id="position-transactions-table"></div>
             </div>
 
             <!-- Decision Journal -->
@@ -336,6 +284,128 @@
 {% block scripts %}
 {{ super() }}
 <script>
+// Initialize Position Transactions Table
+let positionTransactionsTable;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Transaction data
+    const transactionsData = [
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes|tojson|safe if txn.notes else 'null' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    positionTransactionsTable = new Tabulator("#position-transactions-table", {
+        data: transactionsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                hozAlign: "right",
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    let badgeClass = 'bg-secondary';
+                    if (type === 'BUY') badgeClass = 'bg-primary';
+                    else if (type === 'SELL') badgeClass = 'bg-danger';
+                    else if (type === 'DIVIDEND') badgeClass = 'bg-success';
+                    else if (type === 'SPLIT') badgeClass = 'bg-info';
+                    return `<span class="badge ${badgeClass}">${type}</span>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return cell.getValue().toLocaleString();
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '$' + cell.getValue().toFixed(2);
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>$' + cell.getValue().toFixed(2) + '</strong>';
+                },
+                minWidth: 100,
+                widthGrow: 1.5
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="text-muted">--</span>';
+                    if (notes.length > 30) {
+                        return `<span title="${notes}">${notes.substring(0, 30)}...</span>`;
+                    }
+                    return notes;
+                },
+                minWidth: 120,
+                widthGrow: 2
+            },
+            {
+                title: "Actions",
+                field: "id",
+                headerSort: false,
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const id = cell.getValue();
+                    return `<a href="/portfolio/transaction/${id}/edit" class="portfolio-btn-icon" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>`;
+                },
+                minWidth: 80,
+                widthGrow: 1
+            }
+        ],
+        initialSort: [
+            {column: "date", dir: "desc"}
+        ]
+    });
+});
+
 function updateCheckpointStatus(checkpointId, newStatus) {
     if (!confirm(`Mark this checkpoint as "${newStatus}"?`)) {
         return;

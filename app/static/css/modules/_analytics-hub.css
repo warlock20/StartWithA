@@ -140,14 +140,51 @@
 /* Pipeline & Performance Grid */
 .analytics-pipeline-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-auto-flow: column;
     gap: 1.5rem;
     margin-bottom: 2rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
-@media (max-width: 1024px) {
+/* Scrollbar styling */
+.analytics-pipeline-grid::-webkit-scrollbar {
+    height: 6px;
+}
+
+.analytics-pipeline-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.analytics-pipeline-grid::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+/* For very wide screens (1800px+), fit all 7 cards without scrolling */
+@media (min-width: 1800px) {
+    .analytics-pipeline-grid {
+        grid-template-columns: repeat(7, 1fr);
+        overflow-x: visible;
+    }
+}
+
+/* For wide screens (1400px-1799px), fit 6 cards */
+@media (min-width: 1400px) and (max-width: 1799px) {
+    .analytics-pipeline-grid {
+        grid-template-columns: repeat(6, 1fr);
+        overflow-x: auto;
+    }
+}
+
+/* For mobile, stack vertically */
+@media (max-width: 767px) {
     .analytics-pipeline-grid {
         grid-template-columns: 1fr;
+        grid-auto-flow: row;
+        overflow-x: visible;
     }
 }
 

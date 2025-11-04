@@ -50,53 +50,6 @@
              OVERVIEW TAB
              ======================================== -->
         <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
-            <!-- Compact Stats Overview -->
-            <div class="analytics-stats-overview">
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-yellow">
-                        <i class="bi bi-lightbulb"></i>
-                    </div>
-                    <div class="analytics-stat-content">
-                        <div class="analytics-stat-number">{{ metrics.total_ideas_captured if metrics else 0 }}</div>
-                        <div class="analytics-stat-label">Ideas Captured</div>
-                        <div class="analytics-stat-meta">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}% killed</div>
-                    </div>
-                </div>
-
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-blue">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
-                    <div class="analytics-stat-content">
-                        <div class="analytics-stat-number">{{ "%.0f"|format(metrics.total_research_hours) if metrics else 0 }}h</div>
-                        <div class="analytics-stat-label">Research Time</div>
-                        <div class="analytics-stat-meta">{{ "%.1f"|format(metrics.average_hours_per_company) if metrics and metrics.average_hours_per_company else 0 }}h avg</div>
-                    </div>
-                </div>
-
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-green">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                    <div class="analytics-stat-content">
-                        <div class="analytics-stat-number">{{ metrics.total_investment_decisions if metrics else 0 }}</div>
-                        <div class="analytics-stat-label">Decisions Made</div>
-                        <div class="analytics-stat-meta">{{ success_rate }}% invest</div>
-                    </div>
-                </div>
-
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-red">
-                        <i class="bi bi-fire"></i>
-                    </div>
-                    <div class="analytics-stat-content">
-                        <div class="analytics-stat-number">{{ metrics.research_streak_days if metrics else 0 }}d</div>
-                        <div class="analytics-stat-label">Streak</div>
-                        <div class="analytics-stat-meta">{{ metrics.last_research_date.strftime('%b %d') if metrics and metrics.last_research_date else 'Never' }}</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Pipeline & Performance Grid -->
             <div class="analytics-pipeline-grid">
                 <!-- Idea Pipeline Stats -->
@@ -171,6 +124,89 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Graveyard Stats -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">💀 Graveyard</h3>
+                    <div class="analytics-pipeline-stats">
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.ideas_killed if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Total Killed</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}%</span>
+                            <span class="analytics-pipeline-label">Kill Rate</span>
+                        </div>
+                    </div>
+                    {% if metrics and metrics.most_common_kill_reason %}
+                    <div class="analytics-pipeline-insight">
+                        Top Kill: <strong>{{ metrics.most_common_kill_reason|truncate(40) }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Performance Stats -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">📈 Performance</h3>
+                    <div class="analytics-pipeline-stats">
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.winning_investments if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Winners</span>
+                        </div>
+                        <div class="analytics-pipeline-stat">
+                            <span class="analytics-pipeline-value">{{ metrics.losing_investments if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label">Losers</span>
+                        </div>
+                    </div>
+                    {% if metrics and metrics.average_return %}
+                    <div class="analytics-pipeline-insight">
+                        Avg Return: <strong>{{ "%.1f"|format(metrics.average_return) }}%</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Best Source -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">🏆 Best Source</h3>
+                    {% if metrics and metrics.best_idea_source %}
+                    <div style="padding: 1rem 0;">
+                        <div style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
+                            {{ metrics.best_idea_source|truncate(30) }}
+                        </div>
+                        <div style="font-size: 0.875rem; color: #6b7280;">
+                            {{ "%.0f"|format(metrics.best_source_success_rate) if metrics.best_source_success_rate else 0 }}% success rate
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="padding: 1rem 0; text-align: center; color: #9ca3af;">
+                        <div style="font-size: 0.875rem;">No sources yet</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem;">Add ideas with sources to see your top performer</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick Stats Summary -->
+                <div class="analytics-pipeline-card">
+                    <h3 class="analytics-pipeline-title">📊 Quick Stats</h3>
+                    <div class="analytics-pipeline-stats" style="grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div class="analytics-pipeline-stat" style="text-align: center;">
+                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ metrics.total_ideas_captured if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Ideas</span>
+                        </div>
+                        <div class="analytics-pipeline-stat" style="text-align: center;">
+                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ "%.0f"|format(metrics.total_research_hours) if metrics else 0 }}h</span>
+                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Research</span>
+                        </div>
+                        <div class="analytics-pipeline-stat" style="text-align: center;">
+                            <span class="analytics-pipeline-value" style="font-size: 1.5rem;">{{ metrics.total_investment_decisions if metrics else 0 }}</span>
+                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Decisions</span>
+                        </div>
+                        <div class="analytics-pipeline-stat" style="text-align: center;">
+                            <span class="analytics-pipeline-value" style="font-size: 1.5rem; color: #dc2626;">{{ metrics.research_streak_days if metrics else 0 }}d</span>
+                            <span class="analytics-pipeline-label" style="font-size: 0.7rem;">Streak</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Research Activity Chart -->
@@ -187,130 +223,6 @@
                         Daily Avg: {{ "%.1f"|format(time_data.total_minutes / 60 / 30) if time_data else 0 }} hours
                     </div>
                 </div>
-            </div>
-
-            <!-- Two Column: Idea Sources + Stats -->
-            <div class="analytics-two-column-grid">
-                <!-- Idea Source Quality -->
-                <div class="analytics-sources-section">
-                    <div class="analytics-section-header">
-                        <h3 class="analytics-subsection-title">💡 Top Idea Sources</h3>
-                    </div>
-
-                    {% if best_sources %}
-                    <div class="analytics-sources-scroll">
-                        <table class="analytics-sources-table-compact">
-                            <thead>
-                                <tr>
-                                    <th>Source</th>
-                                    <th>Total</th>
-                                    <th>Killed</th>
-                                    <th>Promoted</th>
-                                    <th>Invested</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for source in best_sources %}
-                                <tr>
-                                    <td class="analytics-source-name">{{ source.source_name|truncate(30) }}</td>
-                                    <td>{{ source.total_ideas }}</td>
-                                    <td class="text-danger">{{ source.ideas_killed }}</td>
-                                    <td class="text-success">{{ source.ideas_promoted }}</td>
-                                    <td>
-                                        {% if source.ideas_invested > 0 %}
-                                        <span class="badge bg-success">{{ source.ideas_invested }}</span>
-                                        {% else %}
-                                        <span class="text-muted">0</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="analytics-no-data">No sources yet</p>
-                    {% endif %}
-                </div>
-
-                <!-- Additional Stats Column -->
-                <div class="analytics-extra-stats">
-                    <!-- Graveyard Stats -->
-                    <div class="analytics-mini-card">
-                        <h4 class="analytics-mini-title">💀 Graveyard</h4>
-                        <div class="analytics-mini-stats">
-                            <div class="analytics-mini-stat">
-                                <span class="analytics-mini-number">{{ metrics.ideas_killed if metrics else 0 }}</span>
-                                <span class="analytics-mini-label">Total Killed</span>
-                            </div>
-                            <div class="analytics-mini-stat">
-                                <span class="analytics-mini-number">{{ "%.0f"|format(metrics.kill_rate) if metrics and metrics.kill_rate else 0 }}%</span>
-                                <span class="analytics-mini-label">Kill Rate</span>
-                            </div>
-                        </div>
-                        {% if metrics and metrics.most_common_kill_reason %}
-                        <div class="analytics-mini-insight">
-                            <strong>Top Kill:</strong> {{ metrics.most_common_kill_reason|truncate(30) }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Performance Stats -->
-                    <div class="analytics-mini-card">
-                        <h4 class="analytics-mini-title">📈 Performance</h4>
-                        <div class="analytics-mini-stats">
-                            <div class="analytics-mini-stat">
-                                <span class="analytics-mini-number">{{ metrics.winning_investments if metrics else 0 }}</span>
-                                <span class="analytics-mini-label">Winners</span>
-                            </div>
-                            <div class="analytics-mini-stat">
-                                <span class="analytics-mini-number">{{ metrics.losing_investments if metrics else 0 }}</span>
-                                <span class="analytics-mini-label">Losers</span>
-                            </div>
-                        </div>
-                        {% if metrics and metrics.average_return %}
-                        <div class="analytics-mini-insight">
-                            <strong>Avg Return:</strong> {{ "%.1f"|format(metrics.average_return) }}%
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Best Source -->
-                    {% if metrics and metrics.best_idea_source %}
-                    <div class="analytics-mini-card analytics-mini-card-highlight">
-                        <h4 class="analytics-mini-title">🏆 Best Source</h4>
-                        <div class="analytics-best-source">
-                            <div class="analytics-best-source-name">{{ metrics.best_idea_source|truncate(30) }}</div>
-                            <div class="analytics-best-source-rate">{{ "%.0f"|format(metrics.best_source_success_rate) if metrics.best_source_success_rate else 0 }}% success</div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="analytics-activity-compact">
-                <div class="analytics-section-header">
-                    <h2 class="section-title font-poppins">Recent Activity</h2>
-                    <a href="{{ url_for('research_workflow.my_projects') }}" class="analytics-link-small">View All →</a>
-                </div>
-                {% if recent_logs %}
-                <div class="analytics-compact-list">
-                    {% for log in recent_logs[:5] %}
-                    <div class="analytics-compact-item">
-                        <div>
-                            <strong>{{ log.activity_type|replace('_', ' ')|title }}</strong>
-                            <span class="analytics-compact-meta">
-                                {% if log.company %}{{ log.company.name }}{% elif log.idea %}{{ log.idea.name }}{% endif %}
-                            </span>
-                        </div>
-                        <span class="analytics-compact-time">{{ log.timestamp.strftime('%b %d, %H:%M') }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="analytics-no-data">No activity yet</p>
-                {% endif %}
             </div>
         </div>
 
@@ -455,53 +367,17 @@
             {% endif %}
 
             <!-- Full Source Table -->
-            <div class="analytics-section">
-                <div class="analytics-section-header">
-                    <h5 class="analytics-subsection-title">Source Leaderboard</h5>
+            <div class="portfolio-table-section">
+                <div class="portfolio-table-section-header">
+                    <h2 class="portfolio-table-section-title">Source Leaderboard</h2>
+                    <div class="portfolio-table-controls">
+                        <button class="portfolio-btn-export" onclick="sourcesTable.download('csv', 'idea-sources.csv')">
+                            <i class="bi bi-download"></i>
+                            Export
+                        </button>
+                    </div>
                 </div>
-                {% if source_analyses %}
-                <div class="analytics-sources-scroll">
-                    <table class="analytics-sources-table-compact">
-                        <thead>
-                            <tr>
-                                <th>Source Name</th>
-                                <th>Total</th>
-                                <th>Survival Rate</th>
-                                <th>Investment Rate</th>
-                                <th>Invested</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for source in by_survival %}
-                            <tr>
-                                <td class="analytics-source-name">{{ source.source_name }}</td>
-                                <td>{{ source.total_ideas }}</td>
-                                <td>
-                                    <div class="analytics-progress-bar">
-                                        <div class="analytics-progress-fill analytics-progress-success"
-                                             style="width: {{ source.survival_rate or 0 }}%;"></div>
-                                        <div class="analytics-progress-text">{{ "%.0f"|format(source.survival_rate or 0) }}%</div>
-                                    </div>
-                                </td>
-                                <td>{{ "%.0f"|format(source.investment_rate or 0) }}%</td>
-                                <td>
-                                    {% if source.ideas_invested > 0 %}
-                                        <span class="badge bg-success">{{ source.ideas_invested }}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">0</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="analytics-empty-state">
-                    <i>📭</i>
-                    <p>No idea sources yet. Add ideas with sources to see quality metrics.</p>
-                </div>
-                {% endif %}
+                <div id="sources-table"></div>
             </div>
 
             <!-- Top Performers -->
@@ -1366,6 +1242,95 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Initialize Sources Table (Idea Sources tab)
+    const sourcesData = [
+        {% if by_survival %}
+        {% for source in by_survival %}
+        {
+            source_name: "{{ source.source_name }}",
+            total_ideas: {{ source.total_ideas }},
+            survival_rate: {{ source.survival_rate or 0 }},
+            investment_rate: {{ source.investment_rate or 0 }},
+            ideas_invested: {{ source.ideas_invested }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+        {% endif %}
+    ];
+
+    if (sourcesData.length > 0) {
+        window.sourcesTable = new Tabulator("#sources-table", {
+            data: sourcesData,
+            layout: "fitColumns",
+            responsiveLayout: "collapse",
+            pagination: false,
+            layoutColumnsOnNewData: true,
+            columns: [
+                {
+                    title: "Source Name",
+                    field: "source_name",
+                    sorter: "string",
+                    minWidth: 200,
+                    widthGrow: 3
+                },
+                {
+                    title: "Total",
+                    field: "total_ideas",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 80,
+                    widthGrow: 1
+                },
+                {
+                    title: "Survival Rate",
+                    field: "survival_rate",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function(cell) {
+                        const val = cell.getValue() || 0;
+                        return `<div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="flex: 1; background: #e5e7eb; border-radius: 4px; height: 20px; position: relative; overflow: hidden;">
+                                <div style="background: #10b981; height: 100%; width: ${val}%; transition: width 0.3s;"></div>
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #374151;">
+                                    ${val.toFixed(0)}%
+                                </div>
+                            </div>
+                        </div>`;
+                    },
+                    minWidth: 150,
+                    widthGrow: 2
+                },
+                {
+                    title: "Investment Rate",
+                    field: "investment_rate",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function(cell) {
+                        const val = cell.getValue() || 0;
+                        return val.toFixed(0) + '%';
+                    },
+                    minWidth: 130,
+                    widthGrow: 1
+                },
+                {
+                    title: "Invested",
+                    field: "ideas_invested",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const badgeClass = val > 0 ? 'bg-success' : 'bg-secondary';
+                        return `<span class="badge ${badgeClass}">${val}</span>`;
+                    },
+                    minWidth: 100,
+                    widthGrow: 1
+                }
+            ],
+            initialSort: [
+                {column: "survival_rate", dir: "desc"}
+            ]
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -17,29 +17,27 @@
     // Global URL configuration for JavaScript modules
     window.sectorUrls = {
         // Section endpoints
-        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector_name) }}',
+        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector.slug) }}',
         updateSection: '{{ url_for("sectors.update_section", section_id=0) }}',
         deleteSection: '{{ url_for("sectors.delete_section", section_id=0) }}',
 
         // Note endpoints
-        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector_name) }}',
+        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector.slug) }}',
         updateNote: '{{ url_for("sectors.update_note", note_id=0) }}',
         deleteNote: '{{ url_for("sectors.delete_note", note_id=0) }}',
 
         // Document endpoints
-        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector_name) }}',
-        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector_name) }}',
-        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector_name) }}',
+        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector.slug) }}',
+        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector.slug) }}',
+        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector.slug) }}',
 
-        // Source and snippet endpoints
-        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector_name) }}',
-        addSnippet: '{{ url_for("sectors.add_snippet", sector_name=analysis.sector_name) }}'
+        // Source endpoints
+        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector.slug) }}'
     };
 </script>
 
 <script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
-<script src="{{ url_for('static', filename='js/sector-snippets.js') }}"></script>
 
 <!-- Company Search Component -->
 <script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
@@ -184,12 +182,6 @@
                         <button class="nav-link" id="sources-tab" data-bs-toggle="tab" data-bs-target="#sources-view" type="button" role="tab">
                             <i class="bi bi-link-45deg"></i> Sources
                             <span class="badge bg-secondary ms-1">{{ sources|length }}</span>
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="snippets-tab" data-bs-toggle="tab" data-bs-target="#snippets" type="button" role="tab">
-                            <i class="bi bi-scissors"></i> Snippets
-                            <span class="badge bg-success ms-1" id="snippetsCount">{{ snippets|length }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -351,10 +343,6 @@
                                 </div>
                             </div>
                             <div id="sectorEditor">{# Content will be loaded from backend #}</div>
-                            <!-- Floating Save Snippet Button -->
-                            <button id="saveSnippetBtn" class="save-snippet-btn" style="display: none;" onclick="openSaveSnippetModal()">
-                                <i class="bi bi-scissors"></i> Save as Snippet
-                            </button>
                         </div>
                     </div>
 
@@ -435,108 +423,6 @@
                                     <i class="bi bi-link-45deg" style="font-size: 3rem; color: #d1d5db;"></i>
                                     <p class="text-muted">No sources yet</p>
                                     <p class="text-muted small">Add articles, reports, and references to track your research</p>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Snippets Tab -->
-                    <div class="tab-pane fade" id="snippets" role="tabpanel">
-                        <div class="snippets-container">
-                            <div class="snippets-header">
-                                <p class="text-muted mb-3">Save and categorize key passages from your research</p>
-                                <div class="snippets-instructions">
-                                    <small class="text-muted">
-                                        <i class="bi bi-info-circle"></i>
-                                        <strong>How to save snippets:</strong> In the Research Notes tab, select text and use the "Save Snippet" button that appears
-                                    </small>
-                                </div>
-                            </div>
-
-                            <!-- Category Filter -->
-                            <div class="snippet-category-filter mb-4">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-outline-primary active" data-category="all" onclick="filterSnippets('all')">
-                                        All
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="competitive_advantage" onclick="filterSnippets('competitive_advantage')">
-                                        💪 Competitive Advantage
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="risks" onclick="filterSnippets('risks')">
-                                        ⚠️ Risks
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="valuation" onclick="filterSnippets('valuation')">
-                                        💰 Valuation
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="growth_drivers" onclick="filterSnippets('growth_drivers')">
-                                        📈 Growth Drivers
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="industry_trends" onclick="filterSnippets('industry_trends')">
-                                        🔍 Industry Trends
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-category="management" onclick="filterSnippets('management')">
-                                        👔 Management
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Snippets Grid -->
-                            <div class="snippets-grid" id="snippetsGrid">
-                                {% if snippets %}
-                                {% for snippet in snippets %}
-                                <div class="snippet-card" data-category="{{ snippet.category }}">
-                                    <div class="snippet-card-header">
-                                        <span class="snippet-category-badge snippet-category-{{ snippet.category }}">
-                                            {% if snippet.category == 'competitive_advantage' %}
-                                                💪 Competitive Advantage
-                                            {% elif snippet.category == 'risks' %}
-                                                ⚠️ Risks
-                                            {% elif snippet.category == 'valuation' %}
-                                                💰 Valuation
-                                            {% elif snippet.category == 'growth_drivers' %}
-                                                📈 Growth Drivers
-                                            {% elif snippet.category == 'industry_trends' %}
-                                                🔍 Industry Trends
-                                            {% elif snippet.category == 'management' %}
-                                                👔 Management
-                                            {% else %}
-                                                📌 Other
-                                            {% endif %}
-                                        </span>
-                                        <div class="snippet-card-actions">
-                                            <form method="POST" action="{{ url_for('sectors.delete_snippet', snippet_id=snippet.id) }}" style="display: inline;">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this snippet?');">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div class="snippet-card-body">
-                                        <div class="snippet-content">{{ snippet.content }}</div>
-                                        {% if snippet.notes %}
-                                        <div class="snippet-notes">
-                                            <i class="bi bi-chat-left-text"></i> {{ snippet.notes }}
-                                        </div>
-                                        {% endif %}
-                                        {% if snippet.tags %}
-                                        <div class="snippet-tags">
-                                            {% for tag in snippet.tags.split(',') %}
-                                            <span class="snippet-tag">{{ tag.strip() }}</span>
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="snippet-card-footer">
-                                        <small class="text-muted">Saved {{ snippet.created_at.strftime('%b %d, %Y') }}</small>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                                {% else %}
-                                <div class="empty-state">
-                                    <i class="bi bi-scissors" style="font-size: 3rem; color: #d1d5db;"></i>
-                                    <p class="text-muted">No snippets saved yet</p>
-                                    <p class="text-muted small">Select text in Research Notes and save it as a snippet</p>
                                 </div>
                                 {% endif %}
                             </div>
@@ -772,7 +658,6 @@
 {% include 'components/modals/section_modal.html' %}
 {% include 'components/modals/note_modal.html' %}
 {% include 'components/modals/view_note_modal.html' %}
-{% include 'components/modals/snippet_modal.html' %}
 {% include 'components/modals/company_suggestions_modal.html' %}
 {% include 'components/modals/generate_document_modal.html' %}
 {% endblock %}
