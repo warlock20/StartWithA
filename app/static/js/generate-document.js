@@ -188,17 +188,19 @@ async function insertSelectedSectionsToDocument() {
     const modalInstance = bootstrap.Modal.getInstance(document.getElementById('generateDocumentModal'));
     modalInstance.hide();
 
-    // Check if Document View Quill editor exists
-    if (!window.documentQuill) {
-        // Switch to Document View tab
+    // Check if Document View BlockNote editor exists
+    const editor = window.blockNoteEditors && window.blockNoteEditors['sectorEditor'];
+
+    if (!editor) {
+        // Switch to Documentation tab first
         const notesTab = document.getElementById('notes-tab');
         if (notesTab) {
             notesTab.click();
 
-            // Wait for the editor to initialize with polling
+            // Wait for editor to initialize (it should load automatically on tab activation)
             waitForEditorAndInsert(htmlContent);
         } else {
-            showAlert('Could not find Document View tab', 'error');
+            showAlert('Could not find Documentation tab', 'error');
         }
     } else {
         // Editor already exists, insert immediately
@@ -210,37 +212,51 @@ async function insertSelectedSectionsToDocument() {
  * Poll for editor initialization and insert content when ready
  */
 function waitForEditorAndInsert(htmlContent, attempts = 0) {
-    if (window.documentQuill) {
+    const editor = window.blockNoteEditors && window.blockNoteEditors['sectorEditor'];
+
+    if (editor) {
         // Editor is ready, insert content
+        console.log('Editor found, inserting content');
         insertContentToEditor(htmlContent);
-    } else if (attempts < 20) {
-        // Not ready yet, try again in 200ms (max 4 seconds)
+    } else if (attempts < 50) {
+        // Not ready yet, try again in 300ms (max 15 seconds)
+        console.log(`Waiting for editor... attempt ${attempts + 1}/50`);
         setTimeout(() => {
             waitForEditorAndInsert(htmlContent, attempts + 1);
-        }, 200);
+        }, 300);
     } else {
-        // Timeout after 4 seconds
-        showAlert('Document editor took too long to initialize. Please switch to Document View tab and try again.', 'error');
+        // Timeout after 15 seconds
+        console.error('Editor initialization timeout');
+        showAlert('Document editor took too long to initialize. Please refresh the page and try again.', 'error');
     }
 }
 
 /**
- * Helper function to insert content into the Quill editor
+ * Helper function to insert content into the BlockNote editor
  */
-function insertContentToEditor(htmlContent) {
-    if (window.documentQuill) {
-        const cursorPosition = window.documentQuill.getSelection()?.index || window.documentQuill.getLength();
+async function insertContentToEditor(htmlContent) {
+    const editor = window.blockNoteEditors && window.blockNoteEditors['sectorEditor'];
 
-        // Insert the HTML content
-        window.documentQuill.clipboard.dangerouslyPasteHTML(cursorPosition, htmlContent);
+    if (!editor) {
+        showAlert('Document editor not initialized. Please try again.', 'warning');
+        return;
+    }
 
-        // Move cursor to end of inserted content
-        const newPosition = cursorPosition + htmlContent.length;
-        window.documentQuill.setSelection(newPosition);
+    try {
+        // Use the insertHTML method which is available on the React BlockNote wrapper
+        if (!editor.insertHTML) {
+            console.error('insertHTML method not found on editor');
+            showAlert('Editor is not fully initialized. Please try again.', 'error');
+            return;
+        }
+
+        // Insert the HTML content at the current cursor position
+        await editor.insertHTML(htmlContent);
 
         showAlert('Content inserted successfully', 'success');
-    } else {
-        showAlert('Document editor not initialized. Please try again.', 'warning');
+    } catch (error) {
+        console.error('Error inserting content:', error);
+        showAlert('Error inserting content: ' + error.message, 'error');
     }
 }
 

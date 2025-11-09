@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Driver.js for interactive tours -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" />
 
     <!-- Tabulator for advanced data tables -->
     <link href="https://unpkg.com/tabulator-tables@5.5/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
@@ -31,7 +31,7 @@
 
     {% include 'main/_navigation.html' %} {# We will create this new file #}
 
-    <div class="container-fluid mt-4 pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
+    <div class="container-fluid pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
         {# Flash messages will be styled by Bootstrap if we add alert classes #}
         {% include 'main/_flash_messages.html' %}
 
@@ -70,6 +70,9 @@
 
     <!-- Driver.js for interactive tours -->
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+
+    <!-- Luxon for date handling (required by Tabulator) -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
 
     <!-- Tabulator for advanced data tables -->
     <script src="https://unpkg.com/tabulator-tables@5.5/dist/js/tabulator.min.js"></script>

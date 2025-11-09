@@ -177,91 +177,75 @@ def index():
                            active_count=active_count,
                            archived_count=archived_count)
     
-@sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
-@login_required
-def notebook(sector_name):
-    # Look up the Sector object with canonicalization check
-    sector, should_redirect = get_sector_by_name_or_slug(sector_name, current_user.id, redirect_to_canonical=True)
+def _get_sector_and_analysis(sector_name, user_id):
+    """Get and validate sector and analysis."""
+    sector, should_redirect = get_sector_by_name_or_slug(sector_name, user_id, redirect_to_canonical=True)
 
     if not sector:
-        flash('Sector not found', 'error')
-        return redirect(url_for('sectors.list_sectors'))
+        return None, None, None
 
-    # Redirect to canonical slug URL if accessed via display_name
     if should_redirect:
-        return redirect(url_for('sectors.notebook', sector_name=sector.slug), code=301)
+        return sector, None, True
 
-    # Fetch the main analysis object for this sector
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
+    analysis = SectorAnalysis.query.filter_by(user_id=user_id, sector_id=sector.id).first_or_404()
 
-    # Initialize sections if they don't exist (backward compatibility for existing analyses)
     if analysis.sections.count() == 0:
         initialize_default_sections(analysis)
 
-    if request.method == 'POST':
-        # This shouldn't be used anymore - atomic notes and document view handle saving
-        flash('Please use the Document View or Research Canvas to save your notes.', 'info')
-        return redirect(url_for('sectors.notebook', sector_name=sector.slug))
+    return sector, analysis, False
 
-    # GET Request: Fetch questions from the bank that are tagged with this sector
-    question_bank_items = QuestionBankItem.query.filter_by(
-        user_id=current_user.id,
-        sector_id=sector.id
-    ).order_by(QuestionBankItem.created_at.desc()).all()
 
-    # Get all sections ordered by display_order
-    sections = analysis.sections.filter_by(is_visible=True).all()
+def _enrich_company(company, user_id, user_favorites):
+    """Enrich single company with project and status info."""
+    active_project = ResearchProject.query.filter_by(
+        user_id=user_id,
+        company_id=company.id,
+        status='active'
+    ).first()
 
-    # Get companies in this sector
-    sector_companies = Company.query.filter_by(
-        user_id=current_user.id,
-        sector_id=sector.id
-    ).all()
+    completed_project = ResearchProject.query.filter_by(
+        user_id=user_id,
+        company_id=company.id,
+        status='completed'
+    ).first()
 
-    # Enrich with research project status
-    companies_data = []
-    for company in sector_companies:
-        # Get active research project
-        active_project = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            company_id=company.id,
-            status='active'
-        ).first()
+    return {
+        'company': company,
+        'active_project': active_project,
+        'completed_project': completed_project,
+        'is_in_watchlist': company in user_favorites,
+        'is_in_portfolio': company.is_in_portfolio
+    }
 
-        # Get completed research project
-        completed_project = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            company_id=company.id,
-            status='completed'
-        ).first()
 
-        companies_data.append({
-            'company': company,
-            'active_project': active_project,
-            'completed_project': completed_project,
-            'is_in_watchlist': company in current_user.favorites.all(),
-            'is_in_portfolio': company.is_in_portfolio
-        })
+def _get_companies_data(analysis, user_id, user_favorites):
+    """Get companies in sector with enriched data."""
+    companies = Company.query.filter_by(user_id=user_id, sector_id=analysis.sector_id).all()
+    return [_enrich_company(c, user_id, user_favorites) for c in companies]
 
-    # Get all user companies not in this sector (for adding)
-    other_companies = Company.query.filter(
-        Company.user_id == current_user.id,
-        db.or_(
-            Company.sector_id != sector.id,
-            Company.sector_id.is_(None)
-        )
+
+def _get_other_companies(sector_id, user_id):
+    """Get companies not in this sector."""
+    return Company.query.filter(
+        Company.user_id == user_id,
+        db.or_(Company.sector_id != sector_id, Company.sector_id.is_(None))
     ).order_by(Company.name).all()
 
-    # Calculate sector metrics
-    total_companies = len(sector_companies)
-    researched_companies = sum(1 for c in companies_data if c['completed_project'])
-    watchlist_companies = sum(1 for c in companies_data if c['is_in_watchlist'])
-    portfolio_companies = sum(1 for c in companies_data if c['is_in_portfolio'])
 
-    # Get research sources
+def _calculate_sector_metrics(companies_data):
+    """Calculate sector metrics from companies data."""
+    return {
+        'total': len(companies_data),
+        'researched': sum(1 for c in companies_data if c['completed_project']),
+        'watchlist': sum(1 for c in companies_data if c['is_in_watchlist']),
+        'portfolio': sum(1 for c in companies_data if c['is_in_portfolio'])
+    }
+
+
+def _get_sources_data(analysis):
+    """Get sources and group by type."""
     sources = analysis.sources.order_by(SectorResearchSource.created_at.desc()).all()
 
-    # Group sources by type
     sources_by_type = {}
     for source in sources:
         source_type = source.source_type
@@ -269,37 +253,75 @@ def notebook(sector_name):
             sources_by_type[source_type] = []
         sources_by_type[source_type].append(source)
 
-    # Get canvas sections and notes
+    return sources, sources_by_type
+
+
+def _get_canvas_data(analysis):
+    """Get canvas sections and collector notes."""
     canvas_sections = analysis.canvas_sections.order_by(SectorSection.sort_order).all()
+    collector_notes = analysis.canvas_notes.filter(
+        SectorNote.section_id == None
+    ).order_by(SectorNote.created_at.desc()).all()
 
-    # Get unorganized notes (collector items)
-    collector_notes = analysis.canvas_notes.filter(SectorNote.section_id == None).order_by(SectorNote.created_at.desc()).all()
+    return canvas_sections, collector_notes
 
-    # Get sector analytics and passed companies
-    sector_stats = SectorService.get_sector_stats(sector.id, current_user.id) if sector else None
 
-    # Get passed companies for this sector from Too Hard Basket
-    passed_companies_data = []
-    if sector:
-        all_too_hard = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
-        # Filter to only this sector
-        sector_passed = [item for item in all_too_hard if item.sector == sector.display_name]
+def _get_passed_companies_data(sector, user_id):
+    """Get Too Hard Basket companies for this sector."""
+    if not sector:
+        return []
 
-        for item in sector_passed:
-            passed_companies_data.append({
-                'company_name': item.company_name,
-                'ticker': item.ticker,
-                'rejection_stage': item.rejection_stage,
-                'rejection_date': item.rejection_date,
-                'time_invested_hours': item.time_invested_hours,
-                'reason': item.reason,
-                'within_coc': item.within_coc,
-                'confidence': item.confidence,
-                'notes': item.notes,
-                'source_type': item.source_type,
-                'source_id': item.source_id,
-                'company_id': item.company_id
-            })
+    all_too_hard = TooHardBasketService.get_all_too_hard_companies(user_id, {})
+    sector_passed = [item for item in all_too_hard if item.sector == sector.display_name]
+
+    return [{
+        'company_name': item.company_name,
+        'ticker': item.ticker,
+        'rejection_stage': item.rejection_stage,
+        'rejection_date': item.rejection_date,
+        'time_invested_hours': item.time_invested_hours,
+        'reason': item.reason,
+        'within_coc': item.within_coc,
+        'confidence': item.confidence,
+        'notes': item.notes,
+        'source_type': item.source_type,
+        'source_id': item.source_id,
+        'company_id': item.company_id
+    } for item in sector_passed]
+
+
+@sectors_bp.route('/<string:sector_name>', methods=['GET', 'POST'])
+@login_required
+def notebook(sector_name):
+    """Main sector research page."""
+    sector, analysis, should_redirect = _get_sector_and_analysis(sector_name, current_user.id)
+
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.list_sectors'))
+
+    if should_redirect:
+        return redirect(url_for('sectors.notebook', sector_name=sector.slug), code=301)
+
+    if request.method == 'POST':
+        flash('Please use the Document View or Research Canvas to save your notes.', 'info')
+        return redirect(url_for('sectors.notebook', sector_name=sector.slug))
+
+    # Build page data using helper functions
+    question_bank_items = QuestionBankItem.query.filter_by(
+        user_id=current_user.id,
+        sector_id=sector.id
+    ).order_by(QuestionBankItem.created_at.desc()).all()
+
+    sections = analysis.sections.filter_by(is_visible=True).all()
+    user_favorites = current_user.favorites.all()
+    companies_data = _get_companies_data(analysis, current_user.id, user_favorites)
+    other_companies = _get_other_companies(sector.id, current_user.id)
+    sector_metrics = _calculate_sector_metrics(companies_data)
+    sources, sources_by_type = _get_sources_data(analysis)
+    canvas_sections, collector_notes = _get_canvas_data(analysis)
+    sector_stats = SectorService.get_sector_stats(sector.id, current_user.id)
+    passed_companies = _get_passed_companies_data(sector, current_user.id)
 
     return render_template(
         'sector_analysis.html',
@@ -309,12 +331,7 @@ def notebook(sector_name):
         sections=sections,
         companies_data=companies_data,
         other_companies=other_companies,
-        sector_metrics={
-            'total': total_companies,
-            'researched': researched_companies,
-            'watchlist': watchlist_companies,
-            'portfolio': portfolio_companies
-        },
+        sector_metrics=sector_metrics,
         sources=sources,
         sources_by_type=sources_by_type,
         canvas_sections=canvas_sections,
@@ -322,8 +339,58 @@ def notebook(sector_name):
         research_templates=get_all_templates(),
         template_list=get_template_list(),
         sector_stats=sector_stats,
-        passed_companies=passed_companies_data
+        passed_companies=passed_companies
     )
+
+
+@sectors_bp.route('/<string:sector_name>/focus')
+@login_required
+def sector_analysis_focus(sector_name):
+    """Focus mode - distraction-free sector research interface."""
+    sector, analysis, should_redirect = _get_sector_and_analysis(sector_name, current_user.id)
+
+    if not sector:
+        flash('Sector not found', 'error')
+        return redirect(url_for('sectors.index'))
+
+    if should_redirect:
+        return redirect(url_for('sectors.sector_analysis_focus', sector_name=sector.slug), code=301)
+
+    # Build page data using same helper functions as notebook route
+    question_bank_items = QuestionBankItem.query.filter_by(
+        user_id=current_user.id,
+        sector_id=sector.id
+    ).order_by(QuestionBankItem.created_at.desc()).all()
+
+    sections = analysis.sections.filter_by(is_visible=True).all()
+    user_favorites = current_user.favorites.all()
+    companies_data = _get_companies_data(analysis, current_user.id, user_favorites)
+    other_companies = _get_other_companies(sector.id, current_user.id)
+    sector_metrics = _calculate_sector_metrics(companies_data)
+    sources, sources_by_type = _get_sources_data(analysis)
+    canvas_sections, collector_notes = _get_canvas_data(analysis)
+    sector_stats = SectorService.get_sector_stats(sector.id, current_user.id)
+    passed_companies = _get_passed_companies_data(sector, current_user.id)
+
+    return render_template(
+        'sector_analysis_focus.html',  # Focus mode template
+        title=f"Focus Mode: {analysis.sector.display_name}",
+        analysis=analysis,
+        question_bank_items=question_bank_items,
+        sections=sections,
+        companies_data=companies_data,
+        other_companies=other_companies,
+        sector_metrics=sector_metrics,
+        sources=sources,
+        sources_by_type=sources_by_type,
+        canvas_sections=canvas_sections,
+        collector_notes=collector_notes,
+        research_templates=get_all_templates(),
+        template_list=get_template_list(),
+        sector_stats=sector_stats,
+        passed_companies=passed_companies
+    )
+
 
 @sectors_bp.route('/<string:sector_name>/add_question', methods=['POST'])
 @login_required

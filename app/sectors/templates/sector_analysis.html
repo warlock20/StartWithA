@@ -51,6 +51,10 @@
 
 <!-- AI-Powered Features -->
 <script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
+
+<!-- Data Table Component -->
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-sources-table.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -69,6 +73,9 @@
                 </span>
             </div>
             <div class="sector-snapshot-actions">
+                <a href="{{ url_for('sectors.sector_analysis_focus', sector_name=analysis.sector_name) }}" class="btn btn-primary btn-sm" title="Distraction-free writing mode">
+                    <i class="bi bi-aspect-ratio"></i> Focus Mode
+                </a>
                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
@@ -162,20 +169,13 @@
                 <!-- Tab Navigation -->
                 <ul class="nav nav-tabs research-tabs" id="researchTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="canvas-tab" data-bs-toggle="tab" data-bs-target="#canvas" type="button" role="tab">
-                            <i class="bi bi-kanban"></i> Research Canvas
-                            <span class="badge bg-info ms-1">New</span>
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
                             <i class="bi bi-journal-text"></i> Documentation
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="ai-insights-tab" data-bs-toggle="tab" data-bs-target="#ai-insights" type="button" role="tab">
-                            <i class="bi bi-stars"></i> AI Insights
-                            <span class="badge bg-primary ms-1" id="aiInsightsCount">0</span>
+                        <button class="nav-link active" id="canvas-tab" data-bs-toggle="tab" data-bs-target="#canvas" type="button" role="tab">
+                            <i class="bi bi-kanban"></i> Research Canvas
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -193,6 +193,28 @@
 
                 <!-- Tab Content -->
                 <div class="tab-content research-tab-content" id="researchTabContent">
+                    <!-- Documentation Tab -->
+                    <div class="tab-pane fade" id="notes" role="tabpanel">
+                        <div class="sector-editor-container">
+                            <div class="sector-editor-header">
+                                <div class="editor-header-actions">
+                                    <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                                        <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                                        <i class="bi bi-file-earmark-text"></i> Insert Template
+                                    </button>
+                                    <div class="editor-status saved" id="editorStatus">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span id="statusText">Saved</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="sectorEditor">{# Content will be loaded from backend #}</div>
+                        </div>
+                    </div>
+
+
                     <!-- Atomic Notes Canvas Tab -->
                     <div class="tab-pane fade show active" id="canvas" role="tabpanel">
                         <div class="atomic-canvas-container">
@@ -322,109 +344,45 @@
                         </div>
                     </div>
 
-                    <!-- Documentation Tab -->
-                    <div class="tab-pane fade" id="notes" role="tabpanel">
-                        <div class="sector-editor-container">
-                            <div class="sector-editor-header">
-                                <div class="editor-header-actions">
-                                    <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
-                                        <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
-                                    </button>
-                                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pasteFromAIModal">
-                                        <i class="bi bi-stars"></i> Paste from AI
-                                    </button>
-                                    <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
-                                        <i class="bi bi-file-earmark-text"></i> Insert Template
-                                    </button>
-                                    <div class="editor-status saved" id="editorStatus">
-                                        <i class="bi bi-check-circle-fill"></i>
-                                        <span id="statusText">Saved</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="sectorEditor">{# Content will be loaded from backend #}</div>
-                        </div>
-                    </div>
-
-                    <!-- AI Insights Tab -->
-                    <div class="tab-pane fade" id="ai-insights" role="tabpanel">
-                        <div class="ai-insights-container">
-                            <div class="ai-insights-header">
-                                <p class="text-muted mb-3">AI-generated summaries and insights from Gemini, ChatGPT, and other tools</p>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pasteFromAIModal">
-                                    <i class="bi bi-plus-circle"></i> Add AI Insight
-                                </button>
-                            </div>
-                            <div class="ai-insights-grid" id="aiInsightsGrid">
-                                <div class="empty-state">
-                                    <i class="bi bi-stars" style="font-size: 3rem; color: #d1d5db;"></i>
-                                    <p class="text-muted">No AI insights yet</p>
-                                    <p class="text-muted small">Use "Paste from AI" to add summaries from Gemini or ChatGPT</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Sources Tab -->
                     <div class="tab-pane fade" id="sources-view" role="tabpanel">
                         <div class="sources-tab-container">
-                            <div class="sources-tab-header">
-                                <p class="text-muted mb-3">Track articles, reports, videos, and references</p>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
-                                    <i class="bi bi-plus-circle"></i> Add Source
-                                </button>
-                            </div>
-                            <div class="sources-grid">
-                                {% if sources %}
-                                {% for source in sources %}
-                                <div class="source-card">
-                                    <div class="source-card-header">
-                                        <div class="source-type-badge source-type-{{ source.source_type }}">
-                                            {% if source.source_type == 'article' %}
-                                                <i class="bi bi-newspaper"></i>
-                                            {% elif source.source_type == 'report' %}
-                                                <i class="bi bi-file-earmark-text"></i>
-                                            {% elif source.source_type == 'video' %}
-                                                <i class="bi bi-play-circle"></i>
-                                            {% elif source.source_type == 'podcast' %}
-                                                <i class="bi bi-mic"></i>
-                                            {% elif source.source_type == 'gemini' %}
-                                                <i class="bi bi-stars"></i>
-                                            {% else %}
-                                                <i class="bi bi-bookmark"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="source-card-actions">
-                                            <form method="POST" action="{{ url_for('sectors.delete_source', source_id=source.id) }}" style="display: inline;">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this source?');">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div class="source-card-body">
-                                        <h5 class="source-card-title">{{ source.title }}</h5>
-                                        {% if source.url %}
-                                        <a href="{{ source.url }}" target="_blank" class="source-card-url" onclick="markSourceAccessed({{ source.id }})">
-                                            <i class="bi bi-box-arrow-up-right"></i> {{ source.url|truncate(50) }}
-                                        </a>
-                                        {% endif %}
-                                        {% if source.description %}
-                                        <p class="source-card-description">{{ source.description }}</p>
-                                        {% endif %}
-                                        {% if source.accessed_at %}
-                                        <small class="text-muted">Last accessed: {{ source.accessed_at.strftime('%b %d, %Y') }}</small>
-                                        {% endif %}
+                            {% from 'components/data_table.html' import data_table %}
+
+                            <div class="data-table-wrapper">
+                                {# Table Header #}
+                                <div class="data-table-header">
+                                    <h2 class="data-table-title">
+                                        <i class="bi bi-link-45deg"></i>
+                                        Research Sources
+                                        <span class="data-table-badge">{{ sources|length }}</span>
+                                    </h2>
+
+                                    <div class="data-table-controls">
+                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                            <i class="bi bi-plus-circle"></i> Add Source
+                                        </button>
+                                        <div id="sources-table-export-buttons"></div>
                                     </div>
                                 </div>
-                                {% endfor %}
-                                {% else %}
-                                <div class="empty-state">
-                                    <i class="bi bi-link-45deg" style="font-size: 3rem; color: #d1d5db;"></i>
-                                    <p class="text-muted">No sources yet</p>
-                                    <p class="text-muted small">Add articles, reports, and references to track your research</p>
-                                </div>
-                                {% endif %}
+
+                                {# Table container - Tabulator will be initialized here #}
+                                <div id="sources-table"></div>
+
+                                {# Empty state (shown by Tabulator when no data) #}
+                                <template id="sources-table-empty-template">
+                                    <div class="portfolio-empty-state">
+                                        <div class="portfolio-empty-state-icon">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </div>
+                                        <h3 class="portfolio-empty-state-title">No sources yet</h3>
+                                        <div>
+                                            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                                <i class="bi bi-plus-circle-fill"></i> Add Source
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -451,6 +409,53 @@
                 </div>
             </div>
         </div>
+
+        <!-- Sources Data for JavaScript -->
+        <script>
+            // Pass sources data to JavaScript
+            window.sourcesData = [
+                {% for source in sources %}
+                {
+                    id: {{ source.id }},
+                    title: {{ source.title|tojson|safe }},
+                    url: {{ source.url|tojson|safe }},
+                    source_type: {{ source.source_type|tojson|safe }},
+                    description: {{ source.description|tojson|safe }},
+                    created_at: {{ source.created_at.isoformat()|tojson|safe if source.created_at else 'null' }},
+                    accessed_at: {{ source.accessed_at.isoformat()|tojson|safe if source.accessed_at else 'null' }}
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+        </script>
+
+        <!-- Tab Persistence Script -->
+        <script>
+            // Save active tab to URL hash when user clicks a tab
+            document.addEventListener('DOMContentLoaded', function() {
+                const tabButtons = document.querySelectorAll('#researchTabs button[data-bs-toggle="tab"]');
+
+                // Add click listeners to save hash
+                tabButtons.forEach(button => {
+                    button.addEventListener('shown.bs.tab', function(event) {
+                        const targetId = event.target.getAttribute('data-bs-target');
+                        if (targetId) {
+                            // Remove '#' from target and set as hash
+                            window.location.hash = targetId.substring(1);
+                        }
+                    });
+                });
+
+                // Restore active tab from URL hash on page load
+                const hash = window.location.hash;
+                if (hash) {
+                    const tabButton = document.querySelector(`#researchTabs button[data-bs-target="${hash}"]`);
+                    if (tabButton) {
+                        const tab = new bootstrap.Tab(tabButton);
+                        tab.show();
+                    }
+                }
+            });
+        </script>
 
         <!-- Quick Tools Sidebar -->
         <div class="col-lg-2">

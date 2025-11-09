@@ -16,18 +16,39 @@ window.documentBlockNote = null;
 // ==================== BLOCKNOTE EDITOR INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // Wait for BlockNote to load from CDN
-    await initializeBlockNote();
-
-    // Initialize other editors (Quill-based)
+    // Initialize other editors (Quill-based) immediately
     initializeOtherEditors();
 
-    // Load content after editor is initialized
-    setTimeout(loadContent, 100);
+    // Check if Documentation tab is active
+    const notesTab = document.getElementById('notes');
+    if (notesTab && notesTab.classList.contains('active')) {
+        // Tab is active, initialize immediately
+        await initializeBlockNote();
+        setTimeout(loadContent, 100);
+    } else {
+        // Tab is not active, wait for it to be shown
+        const notesTabButton = document.getElementById('notes-tab');
+        if (notesTabButton) {
+            notesTabButton.addEventListener('shown.bs.tab', async function(event) {
+                if (!window.documentBlockNote) {
+                    await initializeBlockNote();
+                    setTimeout(loadContent, 100);
+                }
+            }, { once: true });
+        }
+    }
 });
 
-async function initializeBlockNote() {
+// Make function globally accessible
+window.initializeBlockNote = async function initializeBlockNote() {
+    // Check if already initialized
+    if (window.documentBlockNote) {
+        console.log('BlockNote already initialized');
+        return window.documentBlockNote;
+    }
+
     try {
+        console.log('Starting BlockNote initialization...');
         // Import BlockNote modules from CDN
         const BlockNoteCore = await import('https://cdn.jsdelivr.net/npm/@blocknote/core@latest/dist/browser/index.js');
         const BlockNoteMantine = await import('https://cdn.jsdelivr.net/npm/@blocknote/mantine@latest/dist/browser/index.js');
@@ -68,12 +89,14 @@ async function initializeBlockNote() {
         });
 
         console.log('BlockNote editor initialized successfully');
+        return blockNoteEditor;
 
     } catch (error) {
         console.error('Failed to initialize BlockNote:', error);
         alert('Failed to initialize editor. Please refresh the page.');
+        throw error;
     }
-}
+};
 
 // Initialize other Quill editors (AI Insights, Takeaways, Note Modal)
 function initializeOtherEditors() {

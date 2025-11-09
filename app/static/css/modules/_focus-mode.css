@@ -1,0 +1,107 @@
+/* =============================================================================
+   FOCUS MODE - Distraction-Free Research Interface
+   ============================================================================= */
+
+/* Container for focus mode */
+.focus-mode-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px); /* Full viewport minus navbar */
+    overflow: hidden;
+    background: white;
+}
+
+/* Minimal top bar */
+.focus-top-bar {
+    height: 52px;
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.focus-top-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.focus-top-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Main content area */
+.focus-mode-container .main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: white;
+    position: relative;
+}
+
+/* Notion-like page container */
+.notion-page {
+    /* No max-width - use full available space in focus mode */
+    margin: 0 auto;
+    padding: 3rem 4rem 6rem 4rem;
+    min-height: 100%;
+    width: 100%;
+}
+
+/* Page subtitle (metadata line) */
+.page-subtitle {
+    color: var(--gray-500);
+    font-size: 0.9375rem;
+    margin-bottom: 2rem;
+    font-weight: 400;
+}
+
+/* View containers */
+.view-container {
+    width: 100%;
+    height: 100%;
+}
+
+/* Custom scrollbar */
+.focus-mode-container .main-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.focus-mode-container .main-content::-webkit-scrollbar-track {
+    background: var(--gray-50);
+}
+
+.focus-mode-container .main-content::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 4px;
+}
+
+.focus-mode-container .main-content::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .focus-top-bar {
+        padding: 0 1rem;
+        height: auto;
+        min-height: 52px;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .focus-top-left,
+    .focus-top-right {
+        flex-wrap: wrap;
+    }
+
+    .notion-page {
+        padding: 2rem 1.5rem 4rem 1.5rem;
+    }
+}
