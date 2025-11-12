@@ -316,41 +316,6 @@
              IDEA SOURCES TAB
              ======================================== -->
         <div class="tab-pane fade" id="idea-sources" role="tabpanel" aria-labelledby="idea-sources-tab">
-            <!-- Stats Overview for Sources -->
-            <div class="analytics-stats-overview">
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-blue">📊</div>
-                    <div class="analytics-stat-content">
-                        <div class="analytics-stat-number">{{ source_analyses|length if source_analyses else 0 }}</div>
-                        <div class="analytics-stat-label">Total Sources</div>
-                    </div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-green">✅</div>
-                    <div class="analytics-stat-content">
-                        {% set total_ideas = source_analyses|map(attribute='total_ideas')|sum if source_analyses else 0 %}
-                        <div class="analytics-stat-number">{{ total_ideas }}</div>
-                        <div class="analytics-stat-label">Total Ideas</div>
-                    </div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-yellow">💎</div>
-                    <div class="analytics-stat-content">
-                        {% set total_invested = source_analyses|map(attribute='ideas_invested')|sum if source_analyses else 0 %}
-                        <div class="analytics-stat-number">{{ total_invested }}</div>
-                        <div class="analytics-stat-label">Ideas Invested</div>
-                    </div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon analytics-stat-icon-red">⚰️</div>
-                    <div class="analytics-stat-content">
-                        {% set total_killed = source_analyses|map(attribute='ideas_killed')|sum if source_analyses else 0 %}
-                        <div class="analytics-stat-number">{{ total_killed }}</div>
-                        <div class="analytics-stat-label">Ideas Killed</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Idea Funnel Chart -->
             {% if source_chart_data and source_chart_data|length > 0 %}
             <div class="analytics-chart-card mb-4">
@@ -1024,6 +989,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: { stacked: true },
                     y: { stacked: true, beginAtZero: true }
@@ -1044,6 +1010,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 indexAxis: 'y',
                 scales: { x: { beginAtZero: true } }
             }
@@ -1069,7 +1037,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 ]
             },
-            options: { scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
         }),
         'confidenceChart': () => ({
             type: 'scatter',
@@ -1082,6 +1054,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     y: { beginAtZero: true, max: 10 }
                 }
