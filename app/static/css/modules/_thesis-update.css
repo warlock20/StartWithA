@@ -1,0 +1,208 @@
+/* Thesis Update Form Styles - Option 3: Compact Sticky Sidebar */
+/* Matches mockup design exactly with minimal, clean styling */
+
+.update-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.layout-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+}
+
+.sidebar {
+    position: sticky;
+    top: 24px;
+    height: fit-content;
+}
+
+.reference-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+}
+
+.reference-card-header {
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 12px;
+}
+
+.version-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #6c757d;
+    color: white;
+}
+
+.quick-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.quick-stat:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.stat-value {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.thesis-preview {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    border-left: 3px solid #6c757d;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.case-compact {
+    margin-top: 12px;
+}
+
+.case-compact:first-child {
+    margin-top: 0;
+}
+
+.case-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.case-header.bull {
+    color: #28a745;
+}
+
+.case-header.bear {
+    color: #dc3545;
+}
+
+.case-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.case-list li {
+    margin-bottom: 3px;
+}
+
+/* Custom expand button - NOT Bootstrap button */
+.expand-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: inherit;
+    text-align: center;
+}
+
+.expand-btn:hover {
+    background-color: #e9ecef;
+}
+
+/* Copy button - styled like expand-btn for consistency */
+.copy-thesis-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: inherit;
+    text-align: center;
+}
+
+.copy-thesis-btn:hover {
+    background-color: #e9ecef;
+}
+
+.form-section {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.conviction-bar {
+    height: 4px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.conviction-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #ffc107, #fd7e14);
+}
+
+.detail-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.detail-modal.show {
+    display: flex;
+    justify-content: center;
+    align-items: start;
+}
+
+.modal-content-custom {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 992px) {
+    .layout-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: relative;
+        top: 0;
+    }
+}

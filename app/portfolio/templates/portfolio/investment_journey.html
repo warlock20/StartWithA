@@ -1,0 +1,321 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Investment Journey - {{ company.ticker_symbol }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-1">{{ company.ticker_symbol }} - {{ company.name }}</h2>
+                    <p class="text-muted mb-0">Investment Journey Timeline</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Update Thesis
+                    </a>
+                    <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <!-- Journey Statistics -->
+            <div class="journey-stats">
+                <div class="stat-box">
+                    <div class="stat-value {% if journey_stats.total_return > 0 %}text-success{% elif journey_stats.total_return < 0 %}text-danger{% endif %}">
+                        {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                    </div>
+                    <div class="stat-label">Total Return</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">{{ journey_stats.thesis_updates }}</div>
+                    <div class="stat-label">Thesis Updates</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value {% if journey_stats.checkpoints_met == journey_stats.total_checkpoints and journey_stats.total_checkpoints > 0 %}text-success{% endif %}">
+                        {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+                    </div>
+                    <div class="stat-label">Checkpoints Met</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">{{ journey_stats.days_held }}</div>
+                    <div class="stat-label">Days Held</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">{{ journey_stats.current_conviction }}/10</div>
+                    <div class="stat-label">Current Conviction</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="journey-filter-tabs">
+        <button class="journey-filter-tab active" data-filter="all">
+            <i class="bi bi-list-ul me-2"></i>All Events
+            <span class="badge bg-light text-dark">{{ timeline_events|length }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="thesis">
+            <i class="bi bi-lightbulb me-2"></i>Thesis Updates
+            <span class="badge bg-light text-dark">{{ thesis_count }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="checkpoint">
+            <i class="bi bi-flag me-2"></i>Checkpoints
+            <span class="badge bg-light text-dark">{{ checkpoint_count }}</span>
+        </button>
+        <button class="journey-filter-tab" data-filter="transaction">
+            <i class="bi bi-calendar-event me-2"></i>Transactions
+            <span class="badge bg-light text-dark">{{ event_count }}</span>
+        </button>
+    </div>
+
+    <!-- Unified Timeline -->
+    <div class="journey-timeline">
+        {% for event in timeline_events %}
+            {% set is_current = (event.type == 'thesis' and current_thesis and event.data.id == current_thesis.id) %}
+
+            <div class="journey-item" data-type="{{ event.type }}">
+                <!-- Timeline Dot -->
+                <div class="journey-dot
+                    {% if event.type == 'checkpoint' %}checkpoint
+                        {% if event.data.status == 'Met' %}met
+                        {% elif event.data.status == 'Not Met' %}not-met
+                        {% endif %}
+                    {% elif event.type == 'transaction' %}event
+                    {% elif is_current %}current
+                    {% endif %}">
+                </div>
+
+                <!-- Timeline Content -->
+                <div class="journey-content
+                    {% if event.type == 'checkpoint' %}checkpoint-content
+                        {% if event.data.status == 'Met' %}met
+                        {% elif event.data.status == 'Not Met' %}not-met
+                        {% endif %}
+                    {% endif %}">
+
+                    <!-- THESIS VERSION -->
+                    {% if event.type == 'thesis' %}
+                        <span class="journey-badge {% if is_current %}current{% else %}thesis{% endif %}">
+                            {% if is_current %}Current Thesis - {% endif %}Version {{ event.data.version }}
+                        </span>
+
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="mb-0">{{ event.data.change_summary or 'Thesis Update' }}</h5>
+                            {% if event.data.position_sizing %}
+                                <span class="position-sizing-badge {{ event.data.position_sizing }}">
+                                    {{ event.data.position_sizing|replace('_', ' ')|title }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                        </p>
+
+                        {% if event.data.thesis %}
+                            <p class="mb-3">{{ event.data.thesis }}</p>
+                        {% endif %}
+
+                        {% if event.data.change_trigger %}
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-lightning-charge me-2"></i>
+                                <strong>Trigger:</strong> {{ event.data.change_trigger }}
+                            </div>
+                        {% endif %}
+
+                        <!-- Metrics -->
+                        <div class="journey-metrics">
+                            {% if event.data.conviction_level %}
+                                <div class="journey-metric">
+                                    <div class="journey-metric-label">Conviction</div>
+                                    <div class="journey-metric-value">{{ event.data.conviction_level }}/10</div>
+                                    <div class="conviction-meter">
+                                        {% set conviction_pct = event.data.conviction_level * 10 %}
+                                        {% set conviction_class = 'high' if event.data.conviction_level >= 8 else ('medium' if event.data.conviction_level >= 5 else 'low') %}
+                                        <div class="conviction-fill {{ conviction_class }}" style="width: {{ conviction_pct }}%"></div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if event.data.key_metrics and event.data.key_metrics.get('target_price') %}
+                                <div class="journey-metric">
+                                    <div class="journey-metric-label">Target Price</div>
+                                    <div class="journey-metric-value">${{ "%.2f"|format(event.data.key_metrics.target_price) }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Bull/Bear Cases -->
+                        {% if event.data.bull_case or event.data.bear_case %}
+                            <div class="bull-bear-section">
+                                {% if event.data.bull_case %}
+                                    <div class="bull-case">
+                                        <h6><i class="bi bi-graph-up"></i> Bull Case</h6>
+                                        <ul>
+                                            {% for point in event.data.bull_case %}
+                                                <li>{{ point }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+
+                                {% if event.data.bear_case %}
+                                    <div class="bear-case">
+                                        <h6><i class="bi bi-graph-down"></i> Bear Case</h6>
+                                        <ul>
+                                            {% for point in event.data.bear_case %}
+                                                <li>{{ point }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                    <!-- CHECKPOINT -->
+                    {% elif event.type == 'checkpoint' %}
+                        <span class="journey-badge checkpoint">Destination Checkpoint</span>
+                        <span class="checkpoint-status {{ event.data.status|lower|replace(' ', '-') }}">
+                            {% if event.data.status == 'Met' %}
+                                <i class="bi bi-check-circle-fill"></i> Met
+                            {% elif event.data.status == 'Not Met' %}
+                                <i class="bi bi-x-circle-fill"></i> Not Met
+                            {% else %}
+                                <i class="bi bi-clock"></i> Pending
+                            {% endif %}
+                        </span>
+
+                        <h5 class="mb-2 mt-2">{{ event.data.metric }}</h5>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-calendar3"></i> Target: {{ event.date.strftime('%B %d, %Y') }}
+                        </p>
+
+                        <div class="mb-3">
+                            <strong>Expected Outcome:</strong>
+                            <p class="mb-2">{{ event.data.expectation }}</p>
+
+                            {% if event.data.actual_outcome %}
+                                <strong class="{% if event.data.status == 'Met' %}text-success{% else %}text-danger{% endif %}">
+                                    Actual Outcome:
+                                </strong>
+                                <p class="mb-0">
+                                    {% if event.data.status == 'Met' %}
+                                        <i class="bi bi-check"></i>
+                                    {% elif event.data.status == 'Not Met' %}
+                                        <i class="bi bi-x"></i>
+                                    {% endif %}
+                                    {{ event.data.actual_outcome }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        {% if event.data.status == 'Met' %}
+                            <div class="alert alert-success mb-0">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Thesis Validated:</strong> This checkpoint supports your investment thesis.
+                            </div>
+                        {% elif event.data.status == 'Not Met' %}
+                            <div class="alert alert-danger mb-0">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Thesis Challenge:</strong> This checkpoint indicates a deviation from expectations.
+                            </div>
+                        {% endif %}
+
+                    <!-- TRANSACTION EVENT -->
+                    {% elif event.type == 'transaction' %}
+                        <span class="journey-badge event">
+                            {% if event.data.type == 'BUY' %}Purchase Transaction
+                            {% elif event.data.type == 'SELL' %}Sale Transaction
+                            {% endif %}
+                        </span>
+
+                        <div class="event-content">
+                            <div class="event-icon {% if event.data.type == 'BUY' %}news{% else %}market{% endif %}">
+                                <i class="bi bi-{% if event.data.type == 'BUY' %}cart-plus{% else %}cart-dash{% endif %}"></i>
+                            </div>
+
+                            <h5 class="mb-2">
+                                {{ event.data.type }} {{ event.data.quantity }} shares at ${{ "%.2f"|format(event.data.price_per_share) }}
+                            </h5>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                            </p>
+
+                            <p class="mb-2">
+                                <strong>Total Value:</strong> ${{ "%.2f"|format(event.data.total_value) }}
+                            </p>
+
+                            {% if event.data.notes %}
+                                <p class="mb-0 small text-muted">
+                                    <i class="bi bi-arrow-right"></i> {{ event.data.notes }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+
+        {% if not timeline_events %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">No Journey Events Yet</h5>
+                    <p class="text-muted">
+                        Thesis updates, checkpoints, and transactions will appear here as your investment evolves.
+                    </p>
+                    <div class="mt-3">
+                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="btn btn-primary me-2">
+                            <i class="bi bi-flag"></i> Add Checkpoints
+                        </a>
+                        <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Add Transaction
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Filter functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterTabs = document.querySelectorAll('.journey-filter-tab');
+        const timelineItems = document.querySelectorAll('.journey-item');
+
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                filterTabs.forEach(t => t.classList.remove('active'));
+
+                // Add active class to clicked tab
+                this.classList.add('active');
+
+                // Get filter type
+                const filterType = this.getAttribute('data-filter');
+
+                // Show/hide items based on filter
+                timelineItems.forEach(item => {
+                    const itemType = item.getAttribute('data-type');
+
+                    if (filterType === 'all') {
+                        item.style.display = 'block';
+                    } else if (itemType === filterType) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

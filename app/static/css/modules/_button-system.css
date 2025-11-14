@@ -435,3 +435,56 @@
     color: white !important;
     transform: translateY(-1px) !important;
 }
+
+/* =============================================================================
+   BUTTON CHECK (Radio Button Toggle Styles)
+   ============================================================================= */
+
+.btn-check {
+    position: absolute;
+    clip: rect(0,0,0,0);
+    pointer-events: none;
+}
+
+.btn-check:checked + .btn-outline-primary {
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn-outline-danger {
+    background-color: var(--danger-500) !important;
+    border-color: var(--danger-500) !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: var(--success-500) !important;
+    border-color: var(--success-500) !important;
+    color: white !important;
+}
+
+.btn-check:focus + .btn {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.25) !important;
+}
+
+/* Active state for all button-check labels */
+.btn-check + .btn.active,
+.btn.active {
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+    color: white !important;
+}
+
+.btn-check + .btn-outline-danger.active {
+    background-color: var(--danger-500) !important;
+    border-color: var(--danger-500) !important;
+    color: white !important;
+}
+
+.btn-check + .btn-outline-success.active {
+    background-color: var(--success-500) !important;
+    border-color: var(--success-500) !important;
+    color: white !important;
+}

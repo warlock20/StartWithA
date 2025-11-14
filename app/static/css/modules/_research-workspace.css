@@ -11,8 +11,8 @@
    Reusable for: Sector Research, Company Research, Project Analysis
    ============================================================================= */
 
-/* Main workspace container */
-.dashboard-container {
+/* Main workspace container - Only apply to research workspace pages */
+.dashboard-container:has(.research-tabs-container) {
     height: calc(100vh - 60px); /* Full viewport minus navbar */
     display: flex;
     flex-direction: column;

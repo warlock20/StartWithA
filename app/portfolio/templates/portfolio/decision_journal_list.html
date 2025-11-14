@@ -1,0 +1,194 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Decision Journal{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header mb-4">
+        <div>
+            <h1 class="dashboard-title font-poppins">Decision Journal</h1>
+            <p class="dashboard-subtitle">Track your investment decisions and learn from outcomes</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Portfolio
+            </a>
+        </div>
+    </header>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="priority-card">
+                <div class="card-header">
+                    <i class="bi bi-journal-check"></i>
+                    <span class="card-label">Total Decisions</span>
+                </div>
+                <div class="card-value">{{ total_decisions }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="priority-card">
+                <div class="card-header">
+                    <i class="bi bi-cart-plus"></i>
+                    <span class="card-label">Buy Decisions</span>
+                </div>
+                <div class="card-value">{{ buy_decisions }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="priority-card">
+                <div class="card-header">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span class="card-label">Without Research</span>
+                </div>
+                <div class="card-value">{{ non_research_purchases }}</div>
+                <div class="card-footer">
+                    {% if total_decisions > 0 %}
+                        {{ (non_research_purchases / total_decisions * 100)|round(1) }}% of total
+                    {% else %}
+                        0% of total
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="priority-card">
+                <div class="card-header">
+                    <i class="bi bi-trophy"></i>
+                    <span class="card-label">Win Rate</span>
+                </div>
+                <div class="card-value">{{ win_rate }}%</div>
+                <div class="card-footer">Completed positions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decision Journal Table -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title mb-3">All Investment Decisions</h5>
+
+            {% if journals %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Company</th>
+                            <th>Decision</th>
+                            <th>Source</th>
+                            <th>Confidence</th>
+                            <th>Thesis Depth</th>
+                            <th>Outcome</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for journal in journals %}
+                        <tr>
+                            <td>{{ journal.decision_date.strftime('%Y-%m-%d') if journal.decision_date else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('portfolio.position_detail', company_id=journal.company_id) }}" class="text-decoration-none">
+                                    <strong>{{ journal.company.ticker_symbol }}</strong>
+                                </a>
+                                <div class="small text-muted">{{ journal.company.name }}</div>
+                            </td>
+                            <td>
+                                {% if journal.decision_type == 'BUY' %}
+                                    <span class="badge bg-primary">Buy</span>
+                                {% elif journal.decision_type == 'SELL' %}
+                                    <span class="badge bg-danger">Sell</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ journal.decision_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if journal.non_research_source %}
+                                    <span class="badge bg-warning text-dark">{{ journal.non_research_source.replace('_', ' ').title() }}</span>
+                                {% elif journal.linked_research_id %}
+                                    <span class="badge bg-success">Platform Research</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if journal.confidence_score %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 me-2" style="height: 8px; width: 60px;">
+                                            <div class="progress-bar" role="progressbar"
+                                                 style="width: {{ journal.confidence_score * 10 }}%"
+                                                 aria-valuenow="{{ journal.confidence_score }}"
+                                                 aria-valuemin="0" aria-valuemax="10"></div>
+                                        </div>
+                                        <span class="small">{{ journal.confidence_score }}/10</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if journal.thesis_depth %}
+                                    {% if journal.thesis_depth == 'comprehensive' %}
+                                        <span class="badge bg-success">Comprehensive</span>
+                                    {% elif journal.thesis_depth == 'brief' %}
+                                        <span class="badge bg-info">Brief</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Minimal</span>
+                                    {% endif %}
+                                    <div class="small text-muted">{{ journal.thesis_word_count or 0 }} words</div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if journal.actual_return is not none %}
+                                    <span class="{% if journal.actual_return > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ journal.actual_return|round(1) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">Open</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('portfolio.view_decision_journal', journal_id=journal.id) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-journal-x" style="font-size: 3rem; color: #ccc;"></i>
+                <p class="mt-3 text-muted">No decision journals yet</p>
+                <p class="text-muted">Decision journals are automatically created when you add BUY transactions</p>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary mt-2">
+                    Add First Transaction
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pattern Insights (if applicable) -->
+    {% if non_research_purchases > 0 and total_decisions > 0 %}
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Pattern Insights</h5>
+            <div class="alert alert-info border-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Non-Research Purchase Pattern:</strong>
+                You've made {{ non_research_purchases }} purchase{{ 's' if non_research_purchases != 1 else '' }} without completing research on this platform
+                ({{ (non_research_purchases / total_decisions * 100)|round(1) }}% of total decisions).
+                Consider tracking the performance of these decisions compared to research-backed purchases.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

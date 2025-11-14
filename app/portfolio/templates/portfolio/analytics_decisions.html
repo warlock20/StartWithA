@@ -1,0 +1,316 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Decision Intelligence{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <!-- Header -->
+    <div class="analytics-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="analytics-title">Decision Intelligence Dashboard</h1>
+                <p class="analytics-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
+            </div>
+            <a href="{{ url_for('portfolio.analytics') }}" class="analytics-nav-link">
+                <i class="bi bi-arrow-left"></i>
+                Performance Overview
+            </a>
+        </div>
+    </div>
+
+    <!-- Research vs Non-Research Comparison -->
+    <div class="analytics-chart-container">
+        <h3 class="analytics-chart-title">
+            <i class="bi bi-clipboard-data"></i>
+            Research-Backed vs Non-Research Decisions
+        </h3>
+        <div class="decision-comparison-grid">
+            <div class="decision-comparison-item {% if research_avg_return > non_research_avg_return %}winner{% endif %}">
+                <div class="decision-comparison-label">
+                    <i class="bi bi-check-circle-fill" style="color: var(--success-600);"></i>
+                    With Research
+                </div>
+                <div class="decision-comparison-value">
+                    {% if research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(research_avg_return) }}%
+                </div>
+                <div class="decision-comparison-detail">Avg return across {{ research_backed_count }} positions</div>
+                <div class="decision-comparison-detail mt-2">
+                    <strong>Win Rate:</strong> {{ "%.0f"|format(research_win_rate) }}%
+                </div>
+                <div class="decision-comparison-detail">
+                    <strong>Avg Hold:</strong> {{ "%.0f"|format(research_avg_hold) }} days
+                </div>
+            </div>
+            <div class="decision-comparison-item {% if non_research_avg_return > research_avg_return %}winner{% endif %}">
+                <div class="decision-comparison-label">
+                    <i class="bi bi-x-circle-fill" style="color: var(--danger-600);"></i>
+                    Without Research
+                </div>
+                <div class="decision-comparison-value">
+                    {% if non_research_avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(non_research_avg_return) }}%
+                </div>
+                <div class="decision-comparison-detail">Avg return across {{ non_research_count }} positions</div>
+                <div class="decision-comparison-detail mt-2">
+                    <strong>Win Rate:</strong> {{ "%.0f"|format(non_research_win_rate) }}%
+                </div>
+                <div class="decision-comparison-detail">
+                    <strong>Avg Hold:</strong> {{ "%.0f"|format(non_research_avg_hold) }} days
+                </div>
+            </div>
+        </div>
+        {% if research_backed_count > 0 and non_research_count > 0 %}
+        <div class="analytics-learning-card">
+            <div class="analytics-learning-title">
+                <i class="bi bi-lightbulb-fill"></i>
+                Key Learning
+            </div>
+            <div class="analytics-learning-text">
+                {% set diff = research_avg_return - non_research_avg_return %}
+                Research-backed positions {% if diff > 0 %}outperform{% else %}underperform{% endif %} impulse buys by
+                <span class="analytics-stat-highlight">{{ "%.1f"|format(diff|abs) }} percentage points</span>.
+                {% if research_win_rate > non_research_win_rate %}
+                They also have {{ "%.1fx"|format(research_win_rate / non_research_win_rate if non_research_win_rate > 0 else 1) }} better win rate.
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Decision Quality Matrix -->
+    <div class="analytics-chart-container">
+        <div class="analytics-chart-header">
+            <h3 class="analytics-chart-title mb-0">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+                Decision Quality Matrix
+            </h3>
+            <span class="analytics-insight-badge info">Process Check</span>
+        </div>
+        <div class="decision-matrix">
+            <div class="decision-matrix-cell quadrant-1">
+                <div class="decision-matrix-label">Good Process • Good Outcome</div>
+                <div class="decision-matrix-value">{{ good_process_good_outcome }}</div>
+                <div class="decision-matrix-description">Positions with research that won</div>
+            </div>
+            <div class="decision-matrix-cell quadrant-2">
+                <div class="decision-matrix-label">Good Process • Bad Outcome</div>
+                <div class="decision-matrix-value">{{ good_process_bad_outcome }}</div>
+                <div class="decision-matrix-description">Researched but lost (unlucky)</div>
+            </div>
+            <div class="decision-matrix-cell quadrant-4">
+                <div class="decision-matrix-label">Bad Process • Good Outcome</div>
+                <div class="decision-matrix-value">{{ bad_process_good_outcome }}</div>
+                <div class="decision-matrix-description">No research but won (lucky)</div>
+            </div>
+            <div class="decision-matrix-cell quadrant-3">
+                <div class="decision-matrix-label">Bad Process • Bad Outcome</div>
+                <div class="decision-matrix-value">{{ bad_process_bad_outcome }}</div>
+                <div class="decision-matrix-description">No research and lost (expected)</div>
+            </div>
+        </div>
+        <div class="analytics-learning-card">
+            <div class="analytics-learning-title">
+                <i class="bi bi-lightbulb-fill"></i>
+                Process Insight
+            </div>
+            <div class="analytics-learning-text">
+                Focus on process, not outcomes. You have <span class="analytics-stat-highlight">{{ good_process_good_outcome }} "deserved wins"</span>
+                (good process + good outcome) vs {{ bad_process_good_outcome }} "lucky wins" (bad process + good outcome).
+                {% if good_process_good_outcome + good_process_bad_outcome > 0 %}
+                Even good process has {{ good_process_bad_outcome }} losses due to bad luck, but the
+                <span class="analytics-stat-highlight">{{ "%.0f"|format((good_process_good_outcome / (good_process_good_outcome + good_process_bad_outcome) * 100) if (good_process_good_outcome + good_process_bad_outcome) > 0 else 0) }}% win rate</span>
+                with research proves the process works.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance by Holding Period -->
+    <div class="analytics-chart-container">
+        <h3 class="analytics-chart-title">
+            <i class="bi bi-hourglass-split"></i>
+            Performance by Holding Period
+        </h3>
+        <canvas id="holdingPeriodChart" height="100"></canvas>
+        <div class="analytics-learning-card mt-3">
+            <div class="analytics-learning-title">
+                <i class="bi bi-lightbulb-fill"></i>
+                Patience Pays Off
+            </div>
+            <div class="analytics-learning-text">
+                {% set longest_period_return = hold_period_stats.get('365+', 0) %}
+                {% if longest_period_return > 0 %}
+                Your best returns come from positions held 6+ months ({{ "%.1f"|format(longest_period_return) }}% average).
+                Consider implementing a <span class="analytics-stat-highlight">minimum 180-day hold rule</span> for all research-backed positions to avoid premature exits.
+                {% else %}
+                Track your holding periods to identify patterns in your best-performing investments.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Decision History -->
+    {% if recent_decisions %}
+    <div class="analytics-chart-container">
+        <h3 class="analytics-chart-title">
+            <i class="bi bi-clock-history"></i>
+            Recent Decision History
+        </h3>
+        <div>
+            {% for txn in recent_decisions %}
+            <div class="analytics-timeline-item">
+                <div class="analytics-timeline-date">{{ txn.date.strftime('%b %d, %Y') }}</div>
+                <div class="analytics-timeline-content">
+                    <div class="analytics-timeline-title">
+                        {{ txn.type }} {{ txn.company.ticker_symbol }} - ${{ "%.2f"|format(txn.price_per_share) }}
+                        {% if txn.bought_without_research and txn.type == 'BUY' %}
+                        <span class="analytics-insight-badge warning">No Research</span>
+                        {% elif txn.type == 'BUY' %}
+                        <span class="analytics-insight-badge success">With Research</span>
+                        {% endif %}
+                    </div>
+                    <div class="analytics-timeline-description">
+                        {{ txn.quantity }} shares - {{ txn.company.name }}
+                        {% if txn.notes %}
+                        <br>{{ txn.notes }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Winning Patterns (Placeholder for future enhancement) -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="analytics-chart-container">
+                <div class="analytics-chart-header">
+                    <h3 class="analytics-chart-title mb-0">
+                        <i class="bi bi-trophy-fill"></i>
+                        Winning Patterns
+                    </h3>
+                    <span class="analytics-insight-badge success">Replicate</span>
+                </div>
+                <ul class="analytics-pattern-list">
+                    <li class="analytics-pattern-item">
+                        <div class="analytics-pattern-icon success">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="analytics-pattern-content">
+                            <div class="analytics-pattern-title">Research-Backed Decisions</div>
+                            <div class="analytics-pattern-description">
+                                Positions with proper research analysis significantly outperform
+                            </div>
+                            <div class="analytics-pattern-stat">{{ research_backed_count }} positions tracked</div>
+                        </div>
+                    </li>
+                    <li class="analytics-pattern-item">
+                        <div class="analytics-pattern-icon success">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="analytics-pattern-content">
+                            <div class="analytics-pattern-title">Long-Term Holdings</div>
+                            <div class="analytics-pattern-description">
+                                Positions held longer tend to perform better than short-term trades
+                            </div>
+                            <div class="analytics-pattern-stat">Track holding periods for insights</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="analytics-chart-container">
+                <div class="analytics-chart-header">
+                    <h3 class="analytics-chart-title mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Losing Patterns
+                    </h3>
+                    <span class="analytics-insight-badge warning">Avoid</span>
+                </div>
+                <ul class="analytics-pattern-list">
+                    <li class="analytics-pattern-item">
+                        <div class="analytics-pattern-icon danger">
+                            <i class="bi bi-lightning-fill"></i>
+                        </div>
+                        <div class="analytics-pattern-content">
+                            <div class="analytics-pattern-title">Impulsive Entry Without Research</div>
+                            <div class="analytics-pattern-description">
+                                Buying without proper research leads to lower win rates and returns
+                            </div>
+                            <div class="analytics-pattern-stat">{{ non_research_count }} positions tracked</div>
+                        </div>
+                    </li>
+                    <li class="analytics-pattern-item">
+                        <div class="analytics-pattern-icon warning">
+                            <i class="bi bi-arrow-down-up"></i>
+                        </div>
+                        <div class="analytics-pattern-content">
+                            <div class="analytics-pattern-title">Early Exits</div>
+                            <div class="analytics-pattern-description">
+                                Selling positions too quickly may prevent gains from materializing
+                            </div>
+                            <div class="analytics-pattern-stat">Monitor hold periods vs returns</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Holding Period Performance Chart
+    const holdingCtx = document.getElementById('holdingPeriodChart').getContext('2d');
+
+    const holdPeriodData = {{ hold_period_stats|tojson }};
+
+    new Chart(holdingCtx, {
+        type: 'bar',
+        data: {
+            labels: ['0-30 days', '31-90 days', '91-180 days', '181-365 days', '365+ days'],
+            datasets: [{
+                label: 'Average Return %',
+                data: [
+                    holdPeriodData['0-30'] || 0,
+                    holdPeriodData['31-90'] || 0,
+                    holdPeriodData['91-180'] || 0,
+                    holdPeriodData['181-365'] || 0,
+                    holdPeriodData['365+'] || 0
+                ],
+                backgroundColor: function(context) {
+                    const value = context.raw;
+                    return value >= 0 ? '#059669' : '#dc2626';
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

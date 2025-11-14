@@ -292,144 +292,21 @@ def dashboard():
 @analytics_bp.route('/decision-journal')
 @login_required
 def decision_journal_list():
-    """List all investment decisions"""
-    decisions = current_user.decision_journals.order_by(
-        DecisionJournal.decision_date.desc()
-    ).all()
-    
-    # Calculate statistics
-    total_decisions = len(decisions)
-    invest_decisions = sum(1 for d in decisions if d.decision_type == 'invest')
-    pass_decisions = sum(1 for d in decisions if d.decision_type == 'pass')
-    
-    # Success tracking
-    decisions_with_outcomes = [d for d in decisions if d.actual_return is not None]
-    if decisions_with_outcomes:
-        avg_return = sum(d.actual_return for d in decisions_with_outcomes) / len(decisions_with_outcomes)
-        winning_trades = sum(1 for d in decisions_with_outcomes if d.actual_return > 0)
-        win_rate = (winning_trades / len(decisions_with_outcomes)) * 100
-    else:
-        avg_return = 0
-        win_rate = 0
-    
-    return render_template('decision_journal.html',
-                          title="Decision Journal",
-                          decisions=decisions,
-                          total_decisions=total_decisions,
-                          invest_decisions=invest_decisions,
-                          pass_decisions=pass_decisions,
-                          avg_return=round(avg_return, 1),
-                          win_rate=round(win_rate, 1))
+    """Redirect to new portfolio decision journal"""
+    return redirect(url_for('portfolio.decision_journal_list'))
 
 @analytics_bp.route('/decision-journal/new', methods=['GET', 'POST'])
 @login_required
 def new_decision():
-    """Record a new investment decision"""
-    if request.method == 'POST':
-        company_id = request.form.get('company_id', type=int)
-        decision_type = request.form.get('decision_type')
-        confidence = request.form.get('confidence', type=int)
-        thesis = request.form.get('investment_thesis')
-        expected_return = request.form.get('expected_return', type=float)
-        expected_timeframe = request.form.get('expected_timeframe', type=int)
-        
-        # Parse assumptions and risks
-        assumptions = request.form.get('key_assumptions', '').split('\n')
-        risks = request.form.get('biggest_risks', '').split('\n')
-        
-        decision = DecisionJournal(
-            user=current_user,
-            company_id=company_id,
-            decision_type=decision_type,
-            decision_date=now_utc().date(),
-            confidence_score=confidence,
-            investment_thesis=thesis,
-            expected_return=expected_return,
-            expected_timeframe=expected_timeframe,
-            key_assumptions=[a.strip() for a in assumptions if a.strip()],
-            biggest_risks=[r.strip() for r in risks if r.strip()],
-            exit_criteria=request.form.get('exit_criteria')
-        )
-        
-        # Link to project if exists
-        project = ResearchProject.query.filter_by(
-            user_id=current_user.id,
-            company_id=company_id,
-            status='completed'
-        ).order_by(ResearchProject.completed_at.desc()).first()
-        
-        if project:
-            decision.project_id = project.id
-            # Update project decision if not set
-            if not project.decision:
-                project.decision = decision_type
-                project.decision_confidence = confidence
-                project.decision_date = now_utc()
-        
-        db.session.add(decision)
-        
-        # Log the activity
-        log_research_activity(
-            current_user.id,
-            'decision_made',
-            company_id=company_id,
-            details={'decision': decision_type, 'confidence': confidence}
-        )
-        
-        try:
-            db.session.commit()
-            flash('Investment decision recorded!', 'success')
-            return redirect(url_for('analytics.decision_journal_list'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error recording decision: {str(e)}', 'error')
-    
-    # Get companies for dropdown
-    companies = current_user.companies.order_by(Company.name).all()
-    return render_template('new_decision.html',
-                         title="Record Investment Decision",
-                         companies=companies)
+    """Redirect to portfolio add transaction (where decision journals are created)"""
+    flash('Decision journals are now created automatically when you add BUY transactions', 'info')
+    return redirect(url_for('portfolio.add_transaction'))
 
 @analytics_bp.route('/decision-journal/<int:decision_id>/update', methods=['GET', 'POST'])
 @login_required
 def update_decision_outcome(decision_id):
-   """Update the outcome of an investment decision"""
-   decision = DecisionJournal.query.get_or_404(decision_id)
-   
-   if decision.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('analytics.decision_journal_list'))
-   
-   if request.method == 'POST':
-       decision.actual_return = request.form.get('actual_return', type=float)
-       decision.actual_timeframe = request.form.get('actual_timeframe', type=int)
-       decision.outcome_date = datetime.strptime(request.form.get('outcome_date'), '%Y-%m-%d').date()
-       decision.outcome_notes = request.form.get('outcome_notes')
-       decision.what_went_right = request.form.get('what_went_right')
-       decision.what_went_wrong = request.form.get('what_went_wrong')
-       decision.lessons_learned = request.form.get('lessons_learned')
-       decision.would_repeat = request.form.get('would_repeat') == 'true'
-       decision.mistake_category = request.form.get('mistake_category')
-       decision.success_category = request.form.get('success_category')
-       decision.updated_at = now_utc()
-       
-       try:
-           db.session.commit()
-           if decision.actual_return is not None and not decision.postmortem:
-               flash('Consider creating a postmortem for this investment to capture learnings', 'info')
-               
-           # Update user metrics
-           update_user_metrics(current_user.id)
-           
-           flash('Decision outcome updated!', 'success')
-           return redirect(url_for('analytics.decision_journal_list'))
-       except Exception as e:
-           db.session.rollback()
-           flash(f'Error updating outcome: {str(e)}', 'error')
-   
-   return render_template('update_decision.html',
-                         title="Update Decision Outcome",
-                         decision=decision)
+   """Redirect to new portfolio decision journal view"""
+   return redirect(url_for('portfolio.view_decision_journal', journal_id=decision_id))
 
 @analytics_bp.route('/export-data')
 @login_required

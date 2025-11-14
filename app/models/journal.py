@@ -49,6 +49,11 @@ class DecisionJournal(db.Model):
     is_portfolio_decision = db.Column(db.Boolean, default=False, index=True)
     linked_research_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=True)
 
+    # Thesis quality tracking (for non-research purchases)
+    thesis_depth = db.Column(db.String(50))  # 'comprehensive', 'brief', 'minimal'
+    thesis_word_count = db.Column(db.Integer, default=0)  # Track thesis length
+    non_research_source = db.Column(db.String(100))  # 'external_research', 'tip', 'gut_feeling', 'other'
+
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 

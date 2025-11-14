@@ -134,20 +134,3 @@ def index():
         recommendations=recommendations
     )
 
-@dashboard_bp.route('/portfolio_timeline')
-@login_required
-def portfolio_timeline():
-    # This route remains the same
-    portfolio_company_ids = [
-        c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()
-    ]
-    checkpoints = []
-    if portfolio_company_ids:
-        checkpoints = DestinationCheckpoint.query.filter(
-            DestinationCheckpoint.company_id.in_(portfolio_company_ids)
-        ).order_by(DestinationCheckpoint.target_date.asc()).all()
-    return render_template(
-        'portfolio_timeline.html',
-        title="Portfolio Checkpoints Timeline",
-        checkpoints=checkpoints
-    )

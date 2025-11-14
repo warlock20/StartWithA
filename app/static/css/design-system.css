@@ -57,6 +57,8 @@ All complex components have been fully modularized.
 @import url('modules/_research-projects.css');    /* Research projects pages */
 @import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
 @import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */
+@import url('modules/_investment-journey.css');   /* Investment journey timeline (thesis + checkpoints) */
+@import url('modules/_thesis-update.css');        /* Thesis update form with sidebar reference */
 @import url('modules/_companies-list.css');       /* Companies list page */
 @import url('modules/_project-dashboard.css');    /* Project dashboard page */
 @import url('modules/_project-summary.css');      /* Project summary page */
@@ -75,5 +77,6 @@ All complex components have been fully modularized.
 @import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
 @import url('modules/_company-dashboard.css');    /* Company dashboard page */
 @import url('modules/_portfolio.css');            /* Portfolio & transaction management */
+@import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */

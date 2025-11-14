@@ -127,19 +127,81 @@
 
                         <!-- Warning Modal Content (shown when buying without research) -->
                         {% if show_warning %}
-                        <div class="alert alert-warning border-warning">
+                        <div class="alert alert-warning border-warning mb-4">
                             <h5 class="alert-heading">
-                                <i class="bi bi-exclamation-triangle me-2"></i>No Research Found
+                                <i class="bi bi-exclamation-triangle me-2"></i>Decision Journal Required
                             </h5>
                             <p>You're about to buy <strong id="warning_company_name"></strong> without completing research on this platform.</p>
-                            <p class="mb-2">This action will be tracked for pattern analysis. Please provide a reason:</p>
-                            <textarea class="form-control" name="reason_without_research" rows="3"
-                                      placeholder="e.g., Following mentor's recommendation, high conviction from external research, etc."
-                                      required></textarea>
+                            <p class="mb-3"><strong>Please document your investment decision below (minimum 20 words):</strong></p>
+
+                            <!-- Investment Thesis -->
+                            <div class="mb-3">
+                                <label for="investment_thesis" class="form-label fw-semibold">
+                                    Investment Thesis <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="investment_thesis" name="investment_thesis" rows="4"
+                                          placeholder="Why are you buying this stock? What's your investment case? (Minimum 20 words)"
+                                          required></textarea>
+                                <div class="form-text">
+                                    <span id="thesis_word_count">0</span> words
+                                    <span class="text-danger ms-2" id="thesis_warning" style="display:none;">Minimum 20 words required</span>
+                                </div>
+                            </div>
+
+                            <!-- Research Source -->
+                            <div class="mb-3">
+                                <label for="non_research_source" class="form-label fw-semibold">
+                                    Where did this idea come from? <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="non_research_source" name="non_research_source" required>
+                                    <option value="">Select source...</option>
+                                    <option value="external_research">External Research (Newsletter, Report, etc.)</option>
+                                    <option value="professional_tip">Professional/Mentor Recommendation</option>
+                                    <option value="friend_family">Friend or Family Tip</option>
+                                    <option value="social_media">Social Media / Forum</option>
+                                    <option value="news_article">News Article</option>
+                                    <option value="gut_feeling">Gut Feeling / Intuition</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <!-- Confidence Level -->
+                            <div class="mb-3">
+                                <label for="confidence_score" class="form-label fw-semibold">
+                                    Confidence Level <span class="text-danger">*</span>
+                                </label>
+                                <div class="d-flex align-items-center">
+                                    <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score"
+                                           name="confidence_score" min="1" max="10" value="5" required>
+                                    <span class="badge bg-primary" id="confidence_display">5</span>
+                                </div>
+                                <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
+                            </div>
+
+                            <!-- Expected Return -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="expected_return" class="form-label fw-semibold">
+                                        Expected Return (%)
+                                    </label>
+                                    <input type="number" class="form-control" id="expected_return"
+                                           name="expected_return" step="0.1" placeholder="e.g., 15">
+                                    <div class="form-text">Optional</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="expected_timeframe" class="form-label fw-semibold">
+                                        Expected Timeframe (months)
+                                    </label>
+                                    <input type="number" class="form-control" id="expected_timeframe"
+                                           name="expected_timeframe" min="1" placeholder="e.g., 12">
+                                    <div class="form-text">Optional</div>
+                                </div>
+                            </div>
+
                             <div class="form-check mt-3">
                                 <input class="form-check-input" type="checkbox" id="acknowledge_risk" required>
                                 <label class="form-check-label" for="acknowledge_risk">
-                                    I acknowledge this is outside my standard process
+                                    I acknowledge this purchase is outside my standard research process and will be tracked for pattern analysis
                                 </label>
                             </div>
                         </div>
@@ -239,5 +301,72 @@
 
     // Set max date to today
     document.getElementById('date').max = today_date();
+
+    // Fix for transaction type button visualization
+    // Ensure the active button is properly styled
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove active class from all labels
+            document.querySelectorAll('label[for^="type_"]').forEach(label => {
+                label.classList.remove('active');
+            });
+            // Add active class to selected label
+            if (this.checked) {
+                const label = document.querySelector(`label[for="${this.id}"]`);
+                if (label) {
+                    label.classList.add('active');
+                }
+            }
+        });
+    });
+
+    // Initialize on page load - set the checked radio's label as active
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkedRadio = document.querySelector('input[name="type"]:checked');
+        if (checkedRadio) {
+            const label = document.querySelector(`label[for="${checkedRadio.id}"]`);
+            if (label) {
+                label.classList.add('active');
+            }
+        }
+    });
+
+    // Word count for investment thesis
+    const thesisTextarea = document.getElementById('investment_thesis');
+    if (thesisTextarea) {
+        thesisTextarea.addEventListener('input', function() {
+            const text = this.value.trim();
+            const words = text.length > 0 ? text.split(/\s+/).length : 0;
+            document.getElementById('thesis_word_count').textContent = words;
+
+            const warning = document.getElementById('thesis_warning');
+            if (words < 20 && text.length > 0) {
+                warning.style.display = 'inline';
+            } else {
+                warning.style.display = 'none';
+            }
+        });
+
+        // Validate on form submit
+        document.getElementById('transactionForm').addEventListener('submit', function(e) {
+            const text = thesisTextarea.value.trim();
+            const words = text.length > 0 ? text.split(/\s+/).length : 0;
+
+            if (words < 20) {
+                e.preventDefault();
+                alert('Please provide at least 20 words for your investment thesis.');
+                thesisTextarea.focus();
+                return false;
+            }
+        });
+    }
+
+    // Confidence slider display
+    const confidenceSlider = document.getElementById('confidence_score');
+    if (confidenceSlider) {
+        confidenceSlider.addEventListener('input', function() {
+            document.getElementById('confidence_display').textContent = this.value;
+        });
+    }
 </script>
 {% endblock %}
