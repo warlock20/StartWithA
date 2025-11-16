@@ -76,6 +76,153 @@
         {% endif %}
     </div>
 
+    <!-- Confidence Calibration Analysis -->
+    {% if confidence_stats.high.count > 0 or confidence_stats.medium.count > 0 or confidence_stats.low.count > 0 %}
+    <div class="analytics-chart-container">
+        <div class="analytics-chart-header">
+            <h3 class="analytics-chart-title mb-0">
+                <i class="bi bi-speedometer2"></i>
+                Confidence Calibration
+            </h3>
+            <span class="analytics-insight-badge info">Self-Awareness</span>
+        </div>
+        <p class="text-muted mb-3">Are your high-confidence picks actually performing better?</p>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="decision-comparison-item {% if confidence_stats.high.avg_return > confidence_stats.medium.avg_return %}winner{% endif %}">
+                    <div class="decision-comparison-label">
+                        <i class="bi bi-star-fill" style="color: var(--success-600);"></i>
+                        High Confidence (8-10)
+                    </div>
+                    <div class="decision-comparison-value">
+                        {% if confidence_stats.high.avg_return >= 0 %}+{% endif %}{{ confidence_stats.high.avg_return }}%
+                    </div>
+                    <div class="decision-comparison-detail">{{ confidence_stats.high.count }} positions</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="decision-comparison-item">
+                    <div class="decision-comparison-label">
+                        <i class="bi bi-star-half" style="color: var(--warning-600);"></i>
+                        Medium Confidence (5-7)
+                    </div>
+                    <div class="decision-comparison-value">
+                        {% if confidence_stats.medium.avg_return >= 0 %}+{% endif %}{{ confidence_stats.medium.avg_return }}%
+                    </div>
+                    <div class="decision-comparison-detail">{{ confidence_stats.medium.count }} positions</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="decision-comparison-item">
+                    <div class="decision-comparison-label">
+                        <i class="bi bi-star" style="color: var(--gray-600);"></i>
+                        Low Confidence (1-4)
+                    </div>
+                    <div class="decision-comparison-value">
+                        {% if confidence_stats.low.avg_return >= 0 %}+{% endif %}{{ confidence_stats.low.avg_return }}%
+                    </div>
+                    <div class="decision-comparison-detail">{{ confidence_stats.low.count }} positions</div>
+                </div>
+            </div>
+        </div>
+
+        {% if confidence_stats.high.count > 0 and confidence_stats.medium.count > 0 %}
+        <div class="analytics-learning-card">
+            <div class="analytics-learning-title">
+                <i class="bi bi-lightbulb-fill"></i>
+                Calibration Insight
+            </div>
+            <div class="analytics-learning-text">
+                {% set diff = confidence_stats.high.avg_return - confidence_stats.medium.avg_return %}
+                {% if diff > 5 %}
+                Your confidence is well-calibrated. High confidence picks outperform medium confidence by
+                <span class="analytics-stat-highlight">{{ "%.1f"|format(diff) }} percentage points</span>.
+                Trust your conviction when you have strong conviction.
+                {% elif diff > 0 %}
+                Your confidence shows slight calibration. High confidence picks perform slightly better
+                ({{ "%.1f"|format(diff) }}pp ahead).
+                {% else %}
+                Your confidence may need recalibration. High confidence picks are underperforming medium confidence by
+                <span class="analytics-stat-highlight">{{ "%.1f"|format(diff|abs) }} percentage points</span>.
+                Consider being more selective with high-confidence ratings.
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Performance vs Expectations -->
+    {% if expectations_total_count > 0 %}
+    <div class="analytics-chart-container">
+        <div class="analytics-chart-header">
+            <h3 class="analytics-chart-title mb-0">
+                <i class="bi bi-bullseye"></i>
+                Performance vs Expectations
+            </h3>
+            <span class="analytics-insight-badge {% if expectations_met_pct >= 50 %}success{% else %}warning{% endif %}">
+                {{ "%.0f"|format(expectations_met_pct) }}% Met
+            </span>
+        </div>
+        <p class="text-muted mb-3">How do your actual returns compare to your initial expectations?</p>
+
+        <div class="analytics-table-container mt-3">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th style="text-align: right;">Expected</th>
+                        <th style="text-align: right;">Actual</th>
+                        <th style="text-align: right;">Difference</th>
+                        <th style="text-align: center;">Met?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in expectations_analysis|sort(attribute='diff', reverse=true) %}
+                    <tr>
+                        <td><strong>{{ item.company.ticker_symbol }}</strong> - {{ item.company.name }}</td>
+                        <td style="text-align: right;">{{ "%.1f"|format(item.expected) }}%</td>
+                        <td style="text-align: right;" class="{% if item.actual >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
+                        </td>
+                        <td style="text-align: right;" class="{% if item.diff >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if item.diff >= 0 %}+{% endif %}{{ "%.1f"|format(item.diff) }}pp
+                        </td>
+                        <td style="text-align: center;">
+                            {% if item.met %}
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            {% else %}
+                            <i class="bi bi-x-circle-fill text-danger"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="analytics-learning-card">
+            <div class="analytics-learning-title">
+                <i class="bi bi-lightbulb-fill"></i>
+                Expectations Insight
+            </div>
+            <div class="analytics-learning-text">
+                You've met or exceeded your expectations in
+                <span class="analytics-stat-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} positions</span>
+                ({{ "%.0f"|format(expectations_met_pct) }}%).
+                {% if expectations_met_pct >= 60 %}
+                Strong performance! You're consistently meeting your targets.
+                {% elif expectations_met_pct >= 40 %}
+                Decent performance, but there's room for improvement. Review positions that missed expectations to identify patterns.
+                {% else %}
+                Your expectations may be too optimistic. Consider being more conservative in your return projections, or analyze why positions are underperforming.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Decision Quality Matrix -->
     <div class="analytics-chart-container">
         <div class="analytics-chart-header">

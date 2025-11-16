@@ -24,6 +24,35 @@
 
     </div>
 
+    <!-- Expected vs Actual Alert (if expectations were set) -->
+    {% if decision_journal and decision_journal.expected_return and position.unrealized_gain_loss_pct %}
+    <div class="alert {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}alert-success{% else %}alert-warning{% endif %} border mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><i class="bi bi-bullseye me-2"></i>Performance vs Expectations</strong>
+                <div class="mt-2">
+                    <span class="me-3">Expected: <strong>{{ "%.1f"|format(decision_journal.expected_return) }}%</strong></span>
+                    <span class="me-3">Actual: <strong class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    </strong></span>
+                    <span>Difference: <strong class="{% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}text-success{% else %}text-danger{% endif %}">
+                        {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
+                    </strong></span>
+                </div>
+            </div>
+            <div class="text-end">
+                {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                <div class="small">Met Target</div>
+                {% else %}
+                <i class="bi bi-x-circle-fill text-warning" style="font-size: 2rem;"></i>
+                <div class="small">Below Target</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Position Overview Cards -->
     <div class="row mb-4">
         <div class="col-md-2">

@@ -282,6 +282,7 @@ def add_checklist_item(checklist_id):
         return redirect(url_for('checklists.list_checklists'))
 
     item_text = request.form.get('item_text')
+    item_description = request.form.get('description')
     parent_id_str = request.form.get('parent_id')
     llm_prompt_text = request.form.get('llm_prompt')
     parent_id = None
@@ -302,14 +303,15 @@ def add_checklist_item(checklist_id):
             checklist_id=checklist.id,
             parent_id=parent_id
         ).scalar()
-        
+
         # The new order is one greater than the current max, or 0 if no siblings exist.
         new_order = (max_order or -1) + 1
-        
+
         new_item = ChecklistItem(
-            text=item_text.strip(), 
-            checklist_id=checklist.id, 
-            parent_id=parent_id, 
+            text=item_text.strip(),
+            description=item_description.strip() if item_description and item_description.strip() else None,
+            checklist_id=checklist.id,
+            parent_id=parent_id,
             order=new_order,
             llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None
         )
@@ -394,6 +396,7 @@ def edit_checklist_item(item_id):
 
     if request.method == 'POST':
         new_text = request.form.get('item_text')
+        new_description = request.form.get('description')
         new_llm_prompt = request.form.get('llm_prompt')
 
         # Basic validation (you can add more)
@@ -403,6 +406,7 @@ def edit_checklist_item(item_id):
             return render_template('edit_checklist_item.html', title=f"Edit Item: {item_to_edit.text[:30]}...", item=item_to_edit)
 
         item_to_edit.text = new_text.strip()
+        item_to_edit.description = new_description.strip() if new_description and new_description.strip() else None
         item_to_edit.llm_prompt = new_llm_prompt.strip() if new_llm_prompt and new_llm_prompt.strip() else None
 
         try:

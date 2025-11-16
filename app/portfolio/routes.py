@@ -307,12 +307,20 @@ def add_transaction():
                         ).first()
 
                         if research_project:
+                            # Get expectations from form (optional for research-backed purchases)
+                            confidence_score = request.form.get('confidence_score', type=int)
+                            expected_return = request.form.get('expected_return', type=float)
+                            expected_timeframe = request.form.get('expected_timeframe', type=int)
+
                             decision_journal = DecisionJournal(
                                 user_id=current_user.id,
                                 company_id=company_id,
                                 decision_type='BUY',
                                 decision_date=transaction_date,
                                 investment_thesis=research_project.summary or 'Investment thesis from research',
+                                confidence_score=confidence_score,
+                                expected_return=expected_return,
+                                expected_timeframe=expected_timeframe,
                                 is_portfolio_decision=True,
                                 linked_research_id=research_project.id,
                                 thesis_depth='comprehensive'
@@ -1206,6 +1214,69 @@ def analytics_decisions():
         Transaction.type.in_(['BUY', 'SELL'])
     ).order_by(Transaction.date.desc()).limit(10).all()
 
+    # Confidence Calibration Analysis
+    # Get all BUY journals with confidence scores and actual returns
+    journals_with_confidence = []
+    for journal in all_journals:
+        if journal.confidence_score and journal.decision_type == 'BUY':
+            position = next((p for p in all_positions if p.company_id == journal.company_id), None)
+            if position and position.unrealized_gain_loss_pct:
+                journals_with_confidence.append({
+                    'confidence': journal.confidence_score,
+                    'return': float(position.unrealized_gain_loss_pct)
+                })
+
+    # Bucket by confidence level
+    confidence_buckets = {
+        'low': [],      # 1-4
+        'medium': [],   # 5-7
+        'high': []      # 8-10
+    }
+
+    for item in journals_with_confidence:
+        conf = item['confidence']
+        ret = item['return']
+        if conf <= 4:
+            confidence_buckets['low'].append(ret)
+        elif conf <= 7:
+            confidence_buckets['medium'].append(ret)
+        else:
+            confidence_buckets['high'].append(ret)
+
+    # Calculate averages
+    confidence_stats = {}
+    for level, returns in confidence_buckets.items():
+        avg = sum(returns) / len(returns) if returns else 0
+        confidence_stats[level] = {
+            'avg_return': round(avg, 1),
+            'count': len(returns)
+        }
+
+    # Performance vs Expectations Analysis
+    # Get all journals with expected returns and compare to actual
+    expectations_analysis = []
+    for journal in all_journals:
+        if journal.expected_return and journal.decision_type == 'BUY':
+            position = next((p for p in all_positions if p.company_id == journal.company_id), None)
+            if position and position.unrealized_gain_loss_pct:
+                expected = journal.expected_return
+                actual = float(position.unrealized_gain_loss_pct)
+                diff = actual - expected
+                met_expectation = actual >= expected
+
+                expectations_analysis.append({
+                    'company': position.company,
+                    'expected': expected,
+                    'actual': actual,
+                    'diff': diff,
+                    'met': met_expectation
+                })
+
+    # Calculate summary stats
+    expectations_met_count = sum(1 for item in expectations_analysis if item['met'])
+    expectations_total_count = len(expectations_analysis)
+    expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
+
     return render_template('portfolio/analytics_decisions.html',
                           research_backed_count=len(research_positions),
                           non_research_count=len(non_research_positions),
@@ -1220,4 +1291,9 @@ def analytics_decisions():
                           good_process_bad_outcome=good_process_bad_outcome,
                           bad_process_good_outcome=bad_process_good_outcome,
                           bad_process_bad_outcome=bad_process_bad_outcome,
-                          recent_decisions=recent_decisions)
+                          recent_decisions=recent_decisions,
+                          confidence_stats=confidence_stats,
+                          expectations_analysis=expectations_analysis,
+                          expectations_met_count=expectations_met_count,
+                          expectations_total_count=expectations_total_count,
+                          expectations_met_pct=expectations_met_pct)

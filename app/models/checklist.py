@@ -29,6 +29,7 @@ class Checklist(db.Model):
 class ChecklistItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text, nullable=True)  # Detailed description for the item
     checklist_id = db.Column(
         db.Integer, db.ForeignKey("checklist.id"), nullable=False
     )  # Link to Checklist

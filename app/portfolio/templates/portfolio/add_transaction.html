@@ -125,6 +125,44 @@
                                       placeholder="Optional notes about this transaction...">{% if form_data %}{{ form_data.notes }}{% endif %}</textarea>
                         </div>
 
+                        <!-- Investment Expectations (for BUY transactions only) -->
+                        <div id="buy_expectations_section" style="display: none;">
+                            <hr class="my-4">
+                            <h5 class="mb-3">Investment Expectations</h5>
+                            <p class="text-muted small mb-3">Track your expectations to measure decision quality over time</p>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="expected_return_main" class="form-label fw-semibold">
+                                        Expected Return (%)
+                                    </label>
+                                    <input type="number" class="form-control" id="expected_return_main"
+                                           name="expected_return" step="0.1" placeholder="e.g., 25">
+                                    <div class="form-text">Optional - your target return</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="expected_timeframe_main" class="form-label fw-semibold">
+                                        Expected Timeframe (months)
+                                    </label>
+                                    <input type="number" class="form-control" id="expected_timeframe_main"
+                                           name="expected_timeframe" min="1" placeholder="e.g., 12">
+                                    <div class="form-text">Optional - your investment horizon</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="confidence_score_main" class="form-label fw-semibold">
+                                    Confidence Level
+                                </label>
+                                <div class="d-flex align-items-center">
+                                    <input type="range" class="form-range flex-grow-1 me-3" id="confidence_score_main"
+                                           name="confidence_score" min="1" max="10" value="5">
+                                    <span class="badge bg-primary" id="confidence_display_main">5</span>
+                                </div>
+                                <div class="form-text">1 = Low confidence, 10 = Very high confidence</div>
+                            </div>
+                        </div>
+
                         <!-- Warning Modal Content (shown when buying without research) -->
                         {% if show_warning %}
                         <div class="alert alert-warning border-warning mb-4">
@@ -266,6 +304,7 @@
         const transactionType = document.querySelector('input[name="type"]:checked').value;
         const quantityLabel = document.getElementById('quantityLabel');
         const priceLabel = document.getElementById('priceLabel');
+        const expectationsSection = document.getElementById('buy_expectations_section');
 
         if (transactionType === 'DIVIDEND') {
             quantityLabel.textContent = 'Shares (Optional)';
@@ -273,6 +312,13 @@
         } else {
             quantityLabel.textContent = 'Shares';
             priceLabel.textContent = 'Price Per Share';
+        }
+
+        // Show expectations section only for BUY transactions
+        if (transactionType === 'BUY') {
+            expectationsSection.style.display = 'block';
+        } else {
+            expectationsSection.style.display = 'none';
         }
 
         updateTransactionTotal();
@@ -361,11 +407,19 @@
         });
     }
 
-    // Confidence slider display
+    // Confidence slider display (for non-research warning section)
     const confidenceSlider = document.getElementById('confidence_score');
     if (confidenceSlider) {
         confidenceSlider.addEventListener('input', function() {
             document.getElementById('confidence_display').textContent = this.value;
+        });
+    }
+
+    // Confidence slider display (for main BUY section)
+    const confidenceSliderMain = document.getElementById('confidence_score_main');
+    if (confidenceSliderMain) {
+        confidenceSliderMain.addEventListener('input', function() {
+            document.getElementById('confidence_display_main').textContent = this.value;
         });
     }
 </script>
