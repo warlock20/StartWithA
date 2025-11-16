@@ -1,5 +1,5 @@
 # In app/__init__.py
-from flask import Flask
+from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -92,12 +92,26 @@ def create_app(config_class=Config):
 
     # This makes the get_review_queue function available in all templates.
     from app.journal_enhanced.utils import get_review_queue
+    from app.utils.quotes import get_session_quote
 
     @app.context_processor
     def inject_review_queue():
         # The key in the returned dictionary is the name the template will use.
         # The value is the Python function itself.
         return dict(get_review_queue=get_review_queue)
+
+    @app.context_processor
+    def inject_investor_quote():
+        """Inject the current session's investor quote into all templates"""
+        quote_data = get_session_quote()
+
+        # Check if user has dismissed the banner in this session
+        show_banner = not session.get('quote_banner_dismissed', False)
+
+        return dict(
+            investor_quote=quote_data,
+            show_quote_banner=show_banner
+        )
 
     # Custom error handlers
     @app.errorhandler(404)

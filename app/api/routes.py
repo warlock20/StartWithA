@@ -2,14 +2,15 @@
 API routes for duplicate detection and other real-time validations
 """
 
-from flask import request, jsonify
-from flask_login import login_required, current_user
-from app.services.duplicate_detection import DuplicateDetectionService
-from app.models import IdeaPipeline
-from app import db
 from datetime import datetime, timezone
-from app.utils.time_utils import now_utc
+from flask import request, jsonify, session
+from flask_login import login_required, current_user
+from sqlalchemy.orm.attributes import flag_modified
+from app import db
 from app.api import api_bp
+from app.models import IdeaPipeline
+from app.services.duplicate_detection import DuplicateDetectionService
+from app.utils.time_utils import now_utc
 
 
 @api_bp.route('/server-time')
@@ -174,6 +175,21 @@ def should_show_tour():
             'should_show': should_show,
             'tour_completed': tour_completed,
             'show_tours_enabled': show_tours
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/dismiss-quote-banner', methods=['POST'])
+def dismiss_quote_banner():
+    """Dismiss the quote banner for the current session"""
+    try:
+        session['quote_banner_dismissed'] = True
+
+        return jsonify({
+            'success': True,
+            'message': 'Quote banner dismissed for this session'
         })
 
     except Exception as e:

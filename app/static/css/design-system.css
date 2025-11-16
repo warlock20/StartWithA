@@ -28,12 +28,14 @@ All complex components have been fully modularized.
 @import url('modules/_cards.css');          /* Basic card components */
 @import url('modules/_card-system.css');    /* Professional card system */
 @import url('modules/_navigation.css');     /* Navbar & dropdowns */
+@import url('modules/_quote-banner.css');   /* Investor quote banner */
 
 /* =============================================================================
    UTILITY & HELPER MODULES
    ============================================================================= */
 @import url('modules/_utilities.css');      /* Utility classes, loader, timeline */
 @import url('modules/_sort-controls.css');  /* Sort and filter controls */
+@import url('modules/_drag-and-drop.css');  /* Drag-and-drop reordering functionality */
 
 /* =============================================================================
    PAGE-SPECIFIC MODULES

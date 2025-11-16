@@ -36,6 +36,8 @@
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .checklist-edit-header {
@@ -45,19 +47,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
 }
 
 .checklist-edit-body {
     padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Checklist Tree Container */
 .checklist-tree-container {
-    max-height: 500px;
+    flex: 1;
     overflow-y: auto;
     padding: 0.5rem;
     background: #f8f9fa;
     border-radius: 8px;
+    min-height: 0;
 }
 
 /* Edit Mode Tree Styles */
