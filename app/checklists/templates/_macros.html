@@ -1,17 +1,23 @@
 {% macro display_items_for_edit_tree(items_list, ChecklistItem_model_ref, current_level=0) %}
-  <ul class="list-unstyled {% if current_level > 0 %}ps-4{% endif %}">
+  <ul class="list-unstyled sortable-list {% if current_level > 0 %}ps-4{% endif %}"
+      data-parent-id="{{ items_list[0].parent_id if items_list and items_list[0].parent_id else 'null' }}"
+      data-checklist-id="{{ items_list[0].checklist_id if items_list else '' }}">
     {% for item in items_list %}
-      <li class="checklist-tree-item">
-        <a href="#" 
-           id="tree-item-{{ item.id }}"
-           class="p-2 d-block text-decoration-none rounded"
-           data-item-id="{{ item.id }}"
-           data-item-text="{{ item.text }}"
-           data-llm-prompt="{{ item.llm_prompt if item.llm_prompt else '' }}"
-           data-is-first="{{ loop.first }}"
-           data-is-last="{{ loop.last }}">
-            {{ loop.index }}. {{ item.text }}
-        </a>
+      <li class="checklist-tree-item" data-item-id="{{ item.id }}">
+        <div class="drag-handle">
+          <a href="#"
+             id="tree-item-{{ item.id }}"
+             class="p-2 d-block text-decoration-none rounded item-link"
+             data-item-id="{{ item.id }}"
+             data-item-text="{{ item.text }}"
+             data-item-description="{{ item.description if item.description else '' }}"
+             data-llm-prompt="{{ item.llm_prompt if item.llm_prompt else '' }}"
+             data-is-first="{{ loop.first }}"
+             data-is-last="{{ loop.last }}">
+              <i class="bi bi-grip-vertical me-2 text-muted"></i>
+              <span class="item-number">{{ loop.index }}.</span> {{ item.text }}
+          </a>
+        </div>
 
         {% if item.children.all() %}
           {{ display_items_for_edit_tree(item.children.order_by(ChecklistItem_model_ref.order).all(), ChecklistItem_model_ref, current_level + 1) }}

@@ -383,6 +383,40 @@ def move_checklist_item(item_id, direction):
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
 
+@checklists_bp.route('/checklist/<int:checklist_id>/reorder', methods=['POST'])
+@login_required
+def reorder_checklist_items(checklist_id):
+    """
+    Handle bulk reordering of checklist items via drag-and-drop.
+    Expects JSON payload with item IDs in new order.
+    """
+    checklist = Checklist.query.get_or_404(checklist_id)
+
+    # Authorization check
+    if checklist.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        data = request.get_json()
+        items_order = data.get('items', [])
+        parent_id = data.get('parent_id', None)  # None for top-level, item_id for sub-items
+
+        # Update order for each item
+        for index, item_id in enumerate(items_order):
+            item = ChecklistItem.query.get(item_id)
+            if item and item.checklist_id == checklist_id:
+                # Verify the item belongs to the correct parent
+                if item.parent_id == parent_id:
+                    item.order = index
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Items reordered successfully'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @checklists_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_checklist_item(item_id):

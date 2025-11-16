@@ -388,6 +388,69 @@
             }
         }, 3000);
     }
+
+    // Initialize drag-and-drop functionality with SortableJS
+    document.addEventListener('DOMContentLoaded', function() {
+        const sortableLists = document.querySelectorAll('.sortable-list');
+
+        sortableLists.forEach(function(list) {
+            new Sortable(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                fallbackOnBody: true,
+                swapThreshold: 0.65,
+
+                onEnd: function(evt) {
+                    // Get the checklist ID and parent ID
+                    const checklistId = list.dataset.checklistId;
+                    const parentId = list.dataset.parentId === 'null' ? null : parseInt(list.dataset.parentId);
+
+                    // Get new order of items
+                    const items = Array.from(list.children).map(li => {
+                        return parseInt(li.dataset.itemId);
+                    });
+
+                    // Send to server
+                    fetch(`/checklists/checklist/${checklistId}/reorder`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            items: items,
+                            parent_id: parentId
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update numbering
+                            updateItemNumbering(list);
+                            showTemporaryMessage('Order saved successfully!', 'success');
+                        } else {
+                            showTemporaryMessage('Failed to save order: ' + data.error, 'danger');
+                            // Optionally reload the page to restore original order
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showTemporaryMessage('Network error while saving order', 'danger');
+                    });
+                }
+            });
+        });
+
+        // Function to update item numbering after reorder
+        function updateItemNumbering(list) {
+            const items = list.querySelectorAll(':scope > .checklist-tree-item > .drag-handle > .item-link > .item-number');
+            items.forEach((numberSpan, index) => {
+                numberSpan.textContent = (index + 1) + '.';
+            });
+        }
+    });
     </script>
 
 <style>
