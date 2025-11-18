@@ -60,9 +60,9 @@
                 <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-8">
-                            <label for="value" class="form-label fw-semibold">Your Calculated Intrinsic Value (as Market Cap)</label>
+                            <label for="value" class="form-label fw-semibold">Your Calculated Intrinsic Value (as Market Cap) in {{ user_currency }}</label>
                             <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                <span class="input-group-text">{{ currency_symbol }}</span>
                                 <input type="text" class="form-control" id="value" name="value"
                                     value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
                                     placeholder="e.g., 1.5">
@@ -527,6 +527,9 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 <script>
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
+
 document.addEventListener('DOMContentLoaded', function() {
     // Ticker Testing Tool
     const testTickerBtn = document.getElementById('testTickerBtn');
@@ -573,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                             <div class="text-end">
-                                ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">$' + data.current_price.toFixed(2) + '</div>' : ''}
+                                ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' + currencySymbol + data.current_price.toFixed(2) + '</div>' : ''}
                             </div>
                         </div>
                     `;

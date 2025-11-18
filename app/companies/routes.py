@@ -567,15 +567,22 @@ def company_dashboard(company_id):
         else:
             intrinsic_display_value = str(val)
 
+    # Get user currency settings for display
+    from app.services.currency_service import CurrencyService
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template(
-        'company_documents.html', 
-        company=company, 
+        'company_documents.html',
+        company=company,
         grouped_documents=grouped_documents,
         distinct_group_names=distinct_group_names,
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
         current_competitors=current_competitors,
         potential_competitors=potential_competitors,
+        user_currency=user_currency,
+        currency_symbol=currency_symbol,
         title=f"Dashboard for {company.name}"
     )
 

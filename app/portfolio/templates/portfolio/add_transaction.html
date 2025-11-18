@@ -55,13 +55,39 @@
                                         {% if form_data and form_data.company_id|int == company.id %}selected{% endif %}
                                         data-has-position="{% if company.id in existing_positions %}true{% else %}false{% endif %}"
                                         data-position-shares="{% if company.id in existing_positions %}{{ existing_positions[company.id].shares }}{% endif %}"
-                                        data-position-cost="{% if company.id in existing_positions %}{{ existing_positions[company.id].avg_cost }}{% endif %}">
+                                        data-position-cost="{% if company.id in existing_positions %}{{ existing_positions[company.id].avg_cost }}{% endif %}"
+                                        data-ticker="{{ company.ticker_symbol }}">
                                     {{ company.ticker_symbol }} - {{ company.name }}{% if company.id in existing_positions %} ({{ existing_positions[company.id].shares }} shares){% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
                             <div class="form-text">
                                 Don't see your company? <a href="{{ url_for('companies.new_company') }}" target="_blank">Add a new company</a>
+                            </div>
+                        </div>
+
+                        <!-- Currency Selection (Auto-detected from ticker) -->
+                        <div class="mb-3">
+                            <label for="currency" class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>
+                            <select class="form-select" id="currency" name="currency" required>
+                                <option value="USD" selected>USD - US Dollar ($)</option>
+                                <option value="EUR">EUR - Euro (€)</option>
+                                <option value="GBP">GBP - British Pound (£)</option>
+                                <option value="JPY">JPY - Japanese Yen (¥)</option>
+                                <option value="CAD">CAD - Canadian Dollar (C$)</option>
+                                <option value="AUD">AUD - Australian Dollar (A$)</option>
+                                <option value="CHF">CHF - Swiss Franc</option>
+                                <option value="CNY">CNY - Chinese Yuan (¥)</option>
+                                <option value="HKD">HKD - Hong Kong Dollar (HK$)</option>
+                                <option value="INR">INR - Indian Rupee (₹)</option>
+                                <option value="KRW">KRW - South Korean Won (₩)</option>
+                                <option value="SEK">SEK - Swedish Krona (kr)</option>
+                                <option value="NOK">NOK - Norwegian Krone (kr)</option>
+                                <option value="DKK">DKK - Danish Krone (kr)</option>
+                            </select>
+                            <div class="form-text" id="currencyHint">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <span id="currencyDetection">Currency will be auto-detected based on the company ticker</span>
                             </div>
                         </div>
 
@@ -133,7 +159,7 @@
                                     <span id="priceLabel">Price Per Share</span> <span class="text-danger">*</span>
                                 </label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text" id="currencySymbolPrice">$</span>
                                     <input type="number" class="form-control" id="price_per_share" name="price_per_share"
                                            value="{% if form_data %}{{ form_data.price_per_share }}{% endif %}"
                                            min="0.01" step="0.01" required>
@@ -145,7 +171,7 @@
                         <div class="mb-3">
                             <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
                             <div class="input-group">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text" id="currencySymbolFees">$</span>
                                 <input type="number" class="form-control" id="fees" name="fees"
                                        value="{% if form_data %}{{ form_data.fees }}{% else %}0.00{% endif %}"
                                        min="0" step="0.01">
@@ -160,7 +186,7 @@
                                     <strong>Transaction Total:</strong>
                                 </div>
                                 <div class="col-6 text-end">
-                                    <span id="transaction_total" class="fs-5 fw-bold">$0.00</span>
+                                    <span id="currencySymbolTotal">$</span><span id="transaction_total" class="fs-5 fw-bold">0.00</span>
                                 </div>
                             </div>
                         </div>
@@ -324,12 +350,44 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Currency symbol mapping
+    const CURRENCY_SYMBOLS = {
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'JPY': '¥',
+        'CAD': 'C$',
+        'AUD': 'A$',
+        'CHF': 'CHF',
+        'CNY': '¥',
+        'HKD': 'HK$',
+        'INR': '₹',
+        'KRW': '₩',
+        'SEK': 'kr',
+        'NOK': 'kr',
+        'DKK': 'kr',
+    };
+
+    // Update currency symbols in UI
+    function updateCurrencySymbols() {
+        const currency = document.getElementById('currency').value;
+        const symbol = CURRENCY_SYMBOLS[currency] || currency;
+
+        document.getElementById('currencySymbolPrice').textContent = symbol;
+        document.getElementById('currencySymbolFees').textContent = symbol;
+        document.getElementById('currencySymbolTotal').textContent = symbol;
+
+        updateTransactionTotal();
+    }
+
     // Calculate transaction total dynamically
     function updateTransactionTotal() {
         const quantity = parseFloat(document.getElementById('quantity').value) || 0;
         const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
         const fees = parseFloat(document.getElementById('fees').value) || 0;
         const transactionType = document.querySelector('input[name="type"]:checked').value;
+        const currency = document.getElementById('currency').value;
+        const symbol = CURRENCY_SYMBOLS[currency] || currency;
 
         let total = (quantity * pricePerShare);
 
@@ -343,7 +401,57 @@
             total = quantity * pricePerShare;
         }
 
-        document.getElementById('transaction_total').textContent = '$' + total.toFixed(2);
+        document.getElementById('transaction_total').textContent = total.toFixed(2);
+    }
+
+    // Detect currency from ticker symbol
+    function detectCurrencyFromTicker(ticker) {
+        if (!ticker) return 'USD';
+
+        const TICKER_CURRENCY_MAP = {
+            '.DE': 'EUR', '.PA': 'EUR', '.AS': 'EUR', '.BR': 'EUR', '.MC': 'EUR', '.MI': 'EUR', '.HE': 'EUR',
+            '.L': 'GBP',
+            '.SW': 'CHF',
+            '.T': 'JPY',
+            '.TO': 'CAD', '.V': 'CAD',
+            '.HK': 'HKD',
+            '.AX': 'AUD',
+            '.NS': 'INR', '.BO': 'INR',
+            '.KS': 'KRW',
+            '.SZ': 'CNY', '.SS': 'CNY',
+            '.ST': 'SEK',
+            '.CO': 'DKK',
+            '.OL': 'NOK',
+        };
+
+        // Check for exchange suffix
+        for (const [suffix, currency] of Object.entries(TICKER_CURRENCY_MAP)) {
+            if (ticker.toUpperCase().endsWith(suffix)) {
+                return currency;
+            }
+        }
+
+        // Default to USD
+        return 'USD';
+    }
+
+    // Update currency when company is selected
+    function updateCurrencyFromCompany() {
+        const companySelect = document.getElementById('company_id');
+        const selectedOption = companySelect.options[companySelect.selectedIndex];
+        const ticker = selectedOption.getAttribute('data-ticker');
+
+        if (ticker) {
+            const detectedCurrency = detectCurrencyFromTicker(ticker);
+            document.getElementById('currency').value = detectedCurrency;
+
+            // Update hint
+            const currencyName = document.getElementById('currency').options[document.getElementById('currency').selectedIndex].text;
+            document.getElementById('currencyDetection').innerHTML =
+                `Auto-detected from ticker <strong>${ticker}</strong>: <strong>${currencyName}</strong>`;
+
+            updateCurrencySymbols();
+        }
     }
 
     // Update labels based on transaction type
@@ -382,6 +490,10 @@
     document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
     document.getElementById('fees').addEventListener('input', updateTransactionTotal);
 
+    // Currency-related event listeners
+    document.getElementById('currency').addEventListener('change', updateCurrencySymbols);
+    document.getElementById('company_id').addEventListener('change', updateCurrencyFromCompany);
+
     document.querySelectorAll('input[name="type"]').forEach(radio => {
         radio.addEventListener('change', updateLabels);
     });
@@ -390,6 +502,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         updateLabels();
         updateTransactionTotal();
+        updateCurrencyFromCompany(); // Auto-detect currency if company pre-selected
     });
 
     // Set max date to today

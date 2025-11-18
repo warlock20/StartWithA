@@ -6,6 +6,31 @@ from app import db
 from app.utils.time_utils import now_utc
 
 
+class ExchangeRate(db.Model):
+    """
+    Cache for exchange rates to minimize API calls and provide historical rates.
+    Stores daily exchange rates for currency conversions.
+    """
+    __tablename__ = 'exchange_rate'
+
+    id = db.Column(db.Integer, primary_key=True)
+    from_currency = db.Column(db.String(3), nullable=False, index=True)  # EUR, GBP, JPY
+    to_currency = db.Column(db.String(3), nullable=False, index=True)    # Usually user's base currency
+    rate = db.Column(db.Numeric(10, 6), nullable=False)  # Conversion rate (6 decimals for JPY, etc.)
+    date = db.Column(db.Date, nullable=False, index=True)  # Rate for this date
+    source = db.Column(db.String(50), nullable=True)  # API source (e.g., 'yahoo', 'exchangerate-api')
+    fetched_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+
+    # Ensure one rate per currency pair per date
+    __table_args__ = (
+        db.UniqueConstraint('from_currency', 'to_currency', 'date', name='uq_currency_pair_date'),
+        db.Index('idx_exchange_rate_lookup', 'from_currency', 'to_currency', 'date'),
+    )
+
+    def __repr__(self):
+        return f'<ExchangeRate {self.from_currency}/{self.to_currency} @ {self.rate} on {self.date}>'
+
+
 class Transaction(db.Model):
     """
     Records all portfolio transactions: buys, sells, dividends, splits, spinoffs.
@@ -24,8 +49,20 @@ class Transaction(db.Model):
 
     date = db.Column(db.Date, nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)  # Whole shares only (no fractional)
+
+    # MULTI-CURRENCY SUPPORT
+    # Primary currency (detected from ticker or user-specified)
+    currency = db.Column(db.String(3), nullable=False, default='USD', index=True)  # ISO 4217: USD, EUR, GBP, JPY
+
+    # Legacy fields (kept for backward compatibility, will be same as currency fields for old data)
     price_per_share = db.Column(db.Numeric(10, 2), nullable=False)
     fees = db.Column(db.Numeric(10, 2), default=0.00)
+
+    # Base currency values (converted for portfolio calculations)
+    price_per_share_base = db.Column(db.Numeric(10, 2), nullable=True)
+    fees_base = db.Column(db.Numeric(10, 2), nullable=True)
+    exchange_rate = db.Column(db.Numeric(10, 6), nullable=True)  # Rate used for conversion
+    exchange_rate_date = db.Column(db.Date, nullable=True)  # Date of exchange rate used
 
     # Additional context
     notes = db.Column(db.Text, nullable=True)
@@ -93,18 +130,35 @@ class PortfolioPosition(db.Model):
 
     # Position data (calculated from transactions using FIFO)
     total_shares = db.Column(db.Integer, default=0, nullable=False)
-    average_cost_basis = db.Column(db.Numeric(10, 2), nullable=True)  # Per share
-    total_cost = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)  # Total invested
 
-    # Current market data (from Yahoo Finance API)
-    current_price = db.Column(db.Numeric(10, 2), nullable=True)
-    current_value = db.Column(db.Numeric(12, 2), nullable=True)
+    # MULTI-CURRENCY SUPPORT
+    currency = db.Column(db.String(3), nullable=False, default='USD', index=True)  # Position's native currency
 
-    # Unrealized gains/losses (only for open positions)
+    # Legacy fields (in original currency for backward compatibility)
+    average_cost_basis = db.Column(db.Numeric(10, 2), nullable=True)  # Per share in original currency
+    total_cost = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)  # Total invested in original currency
+    current_price = db.Column(db.Numeric(10, 2), nullable=True)  # Current price in original currency
+    current_value = db.Column(db.Numeric(12, 2), nullable=True)  # Current value in original currency
+
+    # Base currency values (converted to user's base currency)
+    average_cost_basis_base = db.Column(db.Numeric(10, 2), nullable=True)
+    total_cost_base = db.Column(db.Numeric(12, 2), nullable=True)
+    current_price_base = db.Column(db.Numeric(10, 2), nullable=True)
+    current_value_base = db.Column(db.Numeric(12, 2), nullable=True)
+
+    # Exchange rate info
+    current_exchange_rate = db.Column(db.Numeric(10, 6), nullable=True)
+    last_exchange_rate_update = db.Column(db.DateTime, nullable=True)
+
+    # Unrealized gains/losses (in base currency)
     unrealized_gain_loss = db.Column(db.Numeric(12, 2), nullable=True)
     unrealized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
 
-    # Realized gains/losses (from sells - cumulative)
+    # Currency-specific gains/losses (separate from stock performance)
+    currency_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
+    currency_gain_loss_pct = db.Column(db.Numeric(6, 2), default=0.00, nullable=False)
+
+    # Realized gains/losses (from sells - cumulative, in base currency)
     realized_gain_loss = db.Column(db.Numeric(12, 2), default=0.00, nullable=False)
     realized_gain_loss_pct = db.Column(db.Numeric(6, 2), nullable=True)
 

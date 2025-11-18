@@ -15,7 +15,7 @@
                         <span>{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }}</span>
                     </div>
                     <div class="portfolio-meta-item">
-                        <span class="portfolio-meta-value">${{ "%.2f"|format(portfolio_value.total_value) }}</span>
+                        <span class="portfolio-meta-value">{{ currency_symbol }}{{ "%.2f"|format(portfolio_value.total_value) }}</span>
                         <span>Total Value</span>
                     </div>
                     <div class="portfolio-meta-item">
@@ -50,10 +50,10 @@
                 <i class="bi bi-cash-stack"></i>
             </div>
             <div class="portfolio-stat-label">Total Value</div>
-            <div class="portfolio-stat-value">${{ "%.0f"|format(portfolio_value.total_value) }}</div>
+            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_value) }}</div>
             <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
                 <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
-                ${{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss|abs) }} ({{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct|abs) }}%)
+                {{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss|abs) }} ({{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct|abs) }}%)
             </div>
         </div>
 
@@ -63,7 +63,7 @@
                 <i class="bi bi-wallet2"></i>
             </div>
             <div class="portfolio-stat-label">Cost Basis</div>
-            <div class="portfolio-stat-value">${{ "%.0f"|format(portfolio_value.total_cost) }}</div>
+            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_cost) }}</div>
             <div class="portfolio-stat-trend">Original investment</div>
         </div>
 
@@ -74,7 +74,7 @@
             </div>
             <div class="portfolio-stat-label">Unrealized P/L</div>
             <div class="portfolio-stat-value">
-                {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
+                {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
             </div>
             <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
                 <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
@@ -119,6 +119,9 @@
 <script>
 // Initialize Holdings Table with Tabulator
 let holdingsTable;
+
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
 
 document.addEventListener('DOMContentLoaded', function() {
     // Portfolio holdings data
@@ -180,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 formatter: function(cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
-                    return '$' + value.toFixed(2);
+                    return currencySymbol + value.toFixed(2);
                 },
                 minWidth: 100,
                 widthGrow: 1
@@ -193,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 formatter: function(cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
-                    return '$' + value.toFixed(2);
+                    return currencySymbol + value.toFixed(2);
                 },
                 minWidth: 110,
                 widthGrow: 1
@@ -206,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 formatter: function(cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
-                    return '<strong>$' + value.toLocaleString() + '</strong>';
+                    return '<strong>' + currencySymbol + value.toLocaleString() + '</strong>';
                 },
                 minWidth: 120,
                 widthGrow: 1.5
@@ -221,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (value === null || value === undefined) return '--';
                     const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
                     const sign = value >= 0 ? '+' : '';
-                    return `<span class="${className}">${sign}$${Math.abs(value).toLocaleString()}</span>`;
+                    return `<span class="${className}">${sign}${currencySymbol}${Math.abs(value).toLocaleString()}</span>`;
                 },
                 minWidth: 110,
                 widthGrow: 1

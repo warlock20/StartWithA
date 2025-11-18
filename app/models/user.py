@@ -96,6 +96,10 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     research_experience_level = db.Column(db.String(20), default='intermediate')  # beginner, intermediate, expert
     notification_preferences = db.Column(db.JSON, default={'pattern_alerts': True, 'weekly_review': True, 'fomo_alerts': True})
 
+    # MULTI-CURRENCY SUPPORT
+    base_currency = db.Column(db.String(3), nullable=False, default='USD')  # User's preferred reporting currency
+    show_original_currency = db.Column(db.Boolean, default=True)  # Show both original and base currency
+
     # Community features
     buddy_system_enabled = db.Column(db.Boolean, default=False)
     peer_feedback_count = db.Column(db.Integer, default=0)

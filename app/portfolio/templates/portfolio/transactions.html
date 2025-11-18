@@ -114,6 +114,9 @@
 {% block scripts %}
 {{ super() }}
 <script>
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
+
 // Initialize Transactions Table
 let transactionsTable;
 let deleteModal = null;
@@ -211,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sorter: "number",
                 hozAlign: "right",
                 formatter: function(cell) {
-                    return '$' + cell.getValue().toFixed(2);
+                    return currencySymbol + cell.getValue().toFixed(2);
                 },
                 minWidth: 100,
                 widthGrow: 1
@@ -222,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sorter: "number",
                 hozAlign: "right",
                 formatter: function(cell) {
-                    return '$' + cell.getValue().toFixed(2);
+                    return currencySymbol + cell.getValue().toFixed(2);
                 },
                 minWidth: 80,
                 widthGrow: 1
@@ -233,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sorter: "number",
                 hozAlign: "right",
                 formatter: function(cell) {
-                    return '<strong>$' + cell.getValue().toFixed(2) + '</strong>';
+                    return '<strong>' + currencySymbol + cell.getValue().toFixed(2) + '</strong>';
                 },
                 minWidth: 100,
                 widthGrow: 1

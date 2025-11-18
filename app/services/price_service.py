@@ -11,6 +11,7 @@ class PriceService:
     """
     Service for fetching and updating stock prices from Yahoo Finance.
     Implements 15-minute caching to minimize API calls.
+    Supports multi-currency with automatic currency detection.
     """
 
     @staticmethod
@@ -46,6 +47,59 @@ class PriceService:
 
         except Exception as e:
             print(f"Error fetching price for {ticker_symbol}: {str(e)}")
+            raise
+
+    @staticmethod
+    def get_current_price_with_currency(ticker_symbol):
+        """
+        Fetch current price AND currency for a ticker from Yahoo Finance.
+
+        Args:
+            ticker_symbol: Stock ticker (e.g., 'AAPL', 'SAP.DE', 'BP.L')
+
+        Returns:
+            dict: {
+                'price': float,
+                'currency': str (ISO code like 'USD', 'EUR', 'GBP')
+            }
+
+        Raises:
+            ValueError: If ticker not found
+            Exception: For other API errors
+        """
+        from app.services.currency_service import CurrencyService
+
+        try:
+            ticker = yf.Ticker(ticker_symbol)
+            info = ticker.info
+
+            # Get price
+            price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+
+            if price is None:
+                raise ValueError(f"No price data available for {ticker_symbol}")
+
+            # Get currency from Yahoo Finance
+            # Yahoo provides currency in the 'currency' field
+            yahoo_currency = info.get('currency', '').upper()
+
+            # If Yahoo didn't provide currency, detect from ticker
+            if not yahoo_currency or yahoo_currency == 'NONE':
+                currency = CurrencyService.detect_currency_from_ticker(ticker_symbol)
+            else:
+                currency = yahoo_currency
+
+            return {
+                'price': float(price),
+                'currency': currency
+            }
+
+        except Exception as e:
+            print(f"Error fetching price/currency for {ticker_symbol}: {str(e)}")
             raise
 
     @staticmethod

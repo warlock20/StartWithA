@@ -85,6 +85,11 @@ def dashboard():
         DestinationCheckpoint.status == 'Active'
     ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all() if portfolio_company_ids else []
 
+    # Get user currency settings
+    from app.services.currency_service import CurrencyService
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template('portfolio/dashboard.html',
                           positions=positions,
                           portfolio_value=portfolio_value,
@@ -96,7 +101,9 @@ def dashboard():
                           updated_time='just now',
                           filter_status=filter_status,
                           sort_by=sort_by,
-                          sort_order=sort_order)
+                          sort_order=sort_order,
+                          user_currency=user_currency,
+                          currency_symbol=currency_symbol)
 
 
 @portfolio_bp.route('/transactions')
@@ -138,9 +145,16 @@ def transactions():
     # Get all companies for filter dropdown
     companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
 
+    # Get user currency settings
+    from app.services.currency_service import CurrencyService
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template('portfolio/transactions.html',
                           transactions=transactions,
-                          companies=companies)
+                          companies=companies,
+                          user_currency=user_currency,
+                          currency_symbol=currency_symbol)
 
 
 @portfolio_bp.route('/transaction/new', methods=['GET', 'POST'])
@@ -158,6 +172,7 @@ def add_transaction():
             price_per_share = request.form.get('price_per_share')
             fees = request.form.get('fees', '0')
             notes = request.form.get('notes', '').strip()
+            currency = request.form.get('currency', 'USD').strip().upper()  # Get currency from form
 
             # Validation
             if not all([company_id, transaction_type, date_str, quantity, price_per_share]):
@@ -199,6 +214,29 @@ def add_transaction():
             if price_per_share <= 0:
                 flash('Price per share must be greater than zero', 'error')
                 return redirect(url_for('portfolio.add_transaction'))
+
+            # MULTI-CURRENCY: Convert to base currency
+            from app.services.currency_service import CurrencyService
+
+            # Get user's base currency
+            user_base_currency = current_user.base_currency
+
+            # Get exchange rate for transaction date
+            exchange_rate = CurrencyService.get_exchange_rate(
+                from_currency=currency,
+                to_currency=user_base_currency,
+                rate_date=transaction_date
+            )
+
+            # Convert prices to base currency
+            price_per_share_base = price_per_share * exchange_rate
+            fees_base = fees * exchange_rate
+
+            # Log currency conversion for debugging
+            if currency != user_base_currency:
+                print(f"Currency conversion: {currency} → {user_base_currency}")
+                print(f"Exchange rate: {exchange_rate}")
+                print(f"Price: {currency} {price_per_share} → {user_base_currency} {price_per_share_base}")
 
             # Additional validation for SELL transactions
             if transaction_type == 'SELL':
@@ -262,15 +300,23 @@ def add_transaction():
                                                  show_warning=True,
                                                  form_data=request.form)
 
-            # Create transaction
+            # Create transaction with multi-currency support
             transaction = Transaction(
                 user_id=current_user.id,
                 company_id=company_id,
                 type=transaction_type,
                 date=transaction_date,
                 quantity=quantity,
+                # Original currency values
+                currency=currency,
                 price_per_share=price_per_share,
                 fees=fees,
+                # Base currency values (converted)
+                price_per_share_base=price_per_share_base,
+                fees_base=fees_base,
+                exchange_rate=exchange_rate,
+                exchange_rate_date=transaction_date,
+                # Other fields
                 notes=notes,
                 bought_without_research=bought_without_research,
                 is_add_to_position=is_add_to_position,
@@ -583,6 +629,11 @@ def position_detail(company_id):
         user_id=current_user.id
     ).first()
 
+    # Get user currency settings
+    from app.services.currency_service import CurrencyService
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template('portfolio/position_detail.html',
                           company=company,
                           position=position,
@@ -590,6 +641,8 @@ def position_detail(company_id):
                           decision_journal=decision_journal,
                           checkpoints=checkpoints,
                           research_project=research_project,
+                          user_currency=user_currency,
+                          currency_symbol=currency_symbol,
                           today=date.today)
 
 

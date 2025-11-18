@@ -128,3 +128,43 @@ def profile():
                          title="My Profile",
                          user=current_user,
                          stats=stats)
+
+
+@auth_bp.route('/update-settings', methods=['POST'])
+@login_required
+def update_settings():
+    """Update user settings including base currency"""
+    try:
+        # Get form data
+        base_currency = request.form.get('base_currency', 'USD').strip().upper()
+        show_original_currency = request.form.get('show_original_currency') == 'on'
+
+        # Validate currency code
+        from app.services.currency_service import CurrencyService
+        supported_currencies = [c['code'] for c in CurrencyService.get_supported_currencies()]
+
+        if base_currency not in supported_currencies:
+            flash(f'Invalid currency code: {base_currency}', 'error')
+            return redirect(url_for('auth.profile'))
+
+        # Check if currency is changing
+        old_currency = current_user.base_currency
+        currency_changed = (old_currency != base_currency)
+
+        # Update user settings
+        current_user.base_currency = base_currency
+        current_user.show_original_currency = show_original_currency
+
+        db.session.commit()
+
+        # Show success message
+        if currency_changed:
+            flash(f'Base currency changed from {old_currency} to {base_currency}. Portfolio values will be recalculated.', 'success')
+        else:
+            flash('Settings updated successfully!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating settings: {str(e)}', 'error')
+
+    return redirect(url_for('auth.profile'))
