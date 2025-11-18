@@ -37,6 +37,12 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane"
+                type="button" role="tab">
+                <i class="bi bi-pencil-square me-2"></i>Edit Details
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="competitors-tab" data-bs-toggle="tab" data-bs-target="#competitors-pane"
                 type="button" role="tab">
                 <i class="bi bi-building me-2"></i>Competitors
@@ -283,6 +289,175 @@
             </div>
         </div>
 
+        <!-- Edit Company Details Tab -->
+        <div class="tab-pane fade" id="edit-pane" role="tabpanel">
+
+            <!-- Warning Banner for Portfolio Companies -->
+            {% if company.is_in_portfolio %}
+            <div class="warning-banner mb-4">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>This company is in your portfolio.</strong>
+                    Changing the ticker symbol will affect price updates for your positions.
+                    Make sure the new ticker is correct before saving.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Info Banner -->
+            <div class="info-banner mb-4">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>
+                    <strong>Ticker Symbol Validation:</strong>
+                    The system will automatically verify ticker symbols against Yahoo Finance when you update them.
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('companies.edit_company', company_id=company.id) }}" id="editCompanyForm">
+
+                <!-- Basic Information Section -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-building me-2"></i>Basic Information</h5>
+                    </div>
+                    <div class="company-section-card-body">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="companyName" class="form-label fw-semibold">
+                                    Company Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="companyName" name="name"
+                                       value="{{ company.name }}" required>
+                                <div class="form-text">Full legal or common name of the company</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="tickerSymbol" class="form-label fw-semibold">
+                                    Ticker Symbol <span class="text-danger">*</span>
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control" id="tickerSymbol" name="ticker_symbol"
+                                           value="{{ company.ticker_symbol }}" required style="text-transform: uppercase;">
+                                    <div class="ticker-validation-status" id="tickerValidationStatus"></div>
+                                </div>
+                                <div class="form-text">Stock ticker (will be validated)</div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <label for="companySummary" class="form-label fw-semibold">Company Summary</label>
+                                <textarea class="form-control" id="companySummary" name="summary" rows="3"
+                                          placeholder="Brief description of the company's business...">{{ company.summary if company.summary else '' }}</textarea>
+                                <div class="form-text">A brief description to help you remember what this company does</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sector & Industry Section -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-layers me-2"></i>Sector & Industry Classification</h5>
+                    </div>
+                    <div class="company-section-card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="sector" class="form-label fw-semibold">Sector</label>
+                                <input type="text" class="form-control" id="sector" name="sector"
+                                       value="{{ company.sector.name if company.sector else '' }}"
+                                       list="sectorList" placeholder="e.g., Technology, Healthcare">
+                                <datalist id="sectorList">
+                                    <option value="Technology">
+                                    <option value="Healthcare">
+                                    <option value="Financials">
+                                    <option value="Consumer Discretionary">
+                                    <option value="Consumer Staples">
+                                    <option value="Industrials">
+                                    <option value="Energy">
+                                    <option value="Materials">
+                                    <option value="Utilities">
+                                    <option value="Real Estate">
+                                    <option value="Communication Services">
+                                </datalist>
+                                <div class="form-text">Broad sector classification</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="industry" class="form-label fw-semibold">Industry</label>
+                                <input type="text" class="form-control" id="industry" name="industry"
+                                       value="{{ company.industry if company.industry else '' }}"
+                                       placeholder="e.g., Consumer Electronics">
+                                <div class="form-text">Specific industry within the sector</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticker Testing Tool -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-search me-2"></i>Ticker Symbol Testing Tool</h5>
+                    </div>
+                    <div class="company-section-card-body">
+                        <div class="ticker-tester">
+                            <p class="mb-3">
+                                <strong>Not sure if your ticker is correct?</strong>
+                                Test it here before saving. This tool will verify the ticker against Yahoo Finance.
+                            </p>
+
+                            <div class="row g-2">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control" id="testTicker"
+                                           placeholder="Enter ticker to test (e.g., AAPL, MSFT, MBB.DE)">
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-info w-100" id="testTickerBtn">
+                                        <i class="bi bi-play-fill me-2"></i>Test Ticker
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Test Results -->
+                            <div id="testResult" class="d-none mt-3"></div>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6 class="mb-2">Common Exchange Formats:</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <strong>USA:</strong> AAPL, MSFT, GOOGL<br>
+                                        <strong>Germany:</strong> MBB.DE, SAP.DE<br>
+                                        <strong>UK:</strong> BP.L, SHEL.L
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <strong>Japan:</strong> 7203.T (Toyota)<br>
+                                        <strong>Canada:</strong> SHOP.TO<br>
+                                        <strong>India:</strong> RELIANCE.NS
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="saveChangesBtn">
+                        <i class="bi bi-check-circle me-2"></i>Save Changes
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
         <!-- Competitors Tab -->
         <div class="tab-pane fade" id="competitors-pane" role="tabpanel">
             <div class="company-section-card">
@@ -353,6 +528,87 @@
 <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Ticker Testing Tool
+    const testTickerBtn = document.getElementById('testTickerBtn');
+    const testTickerInput = document.getElementById('testTicker');
+    const testResult = document.getElementById('testResult');
+
+    if (testTickerBtn && testTickerInput) {
+        testTickerBtn.addEventListener('click', function() {
+            const ticker = testTickerInput.value.trim().toUpperCase();
+
+            if (!ticker) {
+                testResult.className = 'alert alert-warning mt-3';
+                testResult.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Please enter a ticker symbol to test.';
+                testResult.classList.remove('d-none');
+                return;
+            }
+
+            // Show loading state
+            testTickerBtn.disabled = true;
+            testTickerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testing...';
+            testResult.className = 'alert alert-info mt-3';
+            testResult.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Validating ticker symbol...';
+            testResult.classList.remove('d-none');
+
+            // Call validation API
+            fetch('/companies/validate_ticker', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ticker: ticker })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    testResult.className = 'alert alert-success mt-3';
+                    testResult.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><i class="bi bi-check-circle-fill me-2"></i>Ticker Found!</strong>
+                                <div class="mt-2">
+                                    <strong>${data.ticker}</strong> - ${data.company_name || 'N/A'}
+                                    ${data.exchange ? '<br><small class="text-muted">Exchange: ' + data.exchange + '</small>' : ''}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">$' + data.current_price.toFixed(2) + '</div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    testResult.className = 'alert alert-danger mt-3';
+                    testResult.innerHTML = `
+                        <strong><i class="bi bi-x-circle-fill me-2"></i>Ticker Not Found</strong>
+                        <div class="mt-2">${data.error || 'Could not validate this ticker symbol.'}</div>
+                        <div class="mt-2"><small>Make sure you're using the correct format (e.g., AAPL for US stocks, MBB.DE for German stocks).</small></div>
+                    `;
+                }
+            })
+            .catch(error => {
+                testResult.className = 'alert alert-danger mt-3';
+                testResult.innerHTML = `
+                    <strong><i class="bi bi-x-circle-fill me-2"></i>Error</strong>
+                    <div class="mt-2">Failed to validate ticker. Please try again.</div>
+                `;
+            })
+            .finally(() => {
+                testTickerBtn.disabled = false;
+                testTickerBtn.innerHTML = '<i class="bi bi-play-fill me-2"></i>Test Ticker';
+            });
+        });
+
+        // Allow Enter key to trigger test
+        testTickerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                testTickerBtn.click();
+            }
+        });
+    }
+
+    // Financial fetch functionality
     const fetchBtn = document.getElementById('fetch-financials-btn');
     const statusDiv = document.getElementById('financial-fetch-status');
 

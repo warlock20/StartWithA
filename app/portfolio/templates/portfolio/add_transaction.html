@@ -50,13 +50,60 @@
                             <select class="form-select" id="company_id" name="company_id" required>
                                 <option value="">Select a company...</option>
                                 {% for company in companies %}
-                                <option value="{{ company.id }}" {% if form_data and form_data.company_id|int == company.id %}selected{% endif %}>
-                                    {{ company.ticker_symbol }} - {{ company.name }}
+                                <option value="{{ company.id }}"
+                                        {% if preselected_company_id == company.id %}selected{% endif %}
+                                        {% if form_data and form_data.company_id|int == company.id %}selected{% endif %}
+                                        data-has-position="{% if company.id in existing_positions %}true{% else %}false{% endif %}"
+                                        data-position-shares="{% if company.id in existing_positions %}{{ existing_positions[company.id].shares }}{% endif %}"
+                                        data-position-cost="{% if company.id in existing_positions %}{{ existing_positions[company.id].avg_cost }}{% endif %}">
+                                    {{ company.ticker_symbol }} - {{ company.name }}{% if company.id in existing_positions %} ({{ existing_positions[company.id].shares }} shares){% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
                             <div class="form-text">
                                 Don't see your company? <a href="{{ url_for('companies.new_company') }}" target="_blank">Add a new company</a>
+                            </div>
+                        </div>
+
+                        <!-- Add to Position Section (shown when buying existing position) -->
+                        <div id="add_position_section" style="display: none;">
+                            <div class="alert alert-info border-info">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-info-circle me-2"></i>Adding to Existing Position
+                                </h6>
+                                <p class="mb-2">You currently own <strong id="current_shares">0</strong> shares at an average cost of <strong>$<span id="current_avg_cost">0.00</span></strong> per share.</p>
+                                <hr>
+
+                                <div class="mb-3">
+                                    <label for="add_position_reason" class="form-label fw-semibold">
+                                        Why are you adding to this position? <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="add_position_reason" name="add_position_reason">
+                                        <option value="">Select reason...</option>
+                                        <option value="price_drop">Attractive price drop / Buying the dip</option>
+                                        <option value="extra_cash">Extra cash available for deployment</option>
+                                        <option value="increased_confidence">Increased confidence in thesis</option>
+                                        <option value="averaging_down">Averaging down on losing position</option>
+                                        <option value="rebalancing">Portfolio rebalancing</option>
+                                        <option value="other">Other reason</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="add_position_notes" class="form-label fw-semibold">
+                                        Additional context
+                                    </label>
+                                    <textarea class="form-control" id="add_position_notes" name="add_position_notes" rows="2"
+                                              placeholder="Any additional thoughts about adding to this position..."></textarea>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="thesis_updated" name="thesis_updated" value="true">
+                                    <label class="form-check-label" for="thesis_updated">
+                                        <strong>I want to update my investment thesis</strong>
+                                        <div class="form-text">Check this if your thesis has evolved or you want to document new insights</div>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -422,5 +469,50 @@
             document.getElementById('confidence_display_main').textContent = this.value;
         });
     }
+
+    // Handle add-to-position section
+    const companySelect = document.getElementById('company_id');
+    const addPositionSection = document.getElementById('add_position_section');
+    const addPositionReasonSelect = document.getElementById('add_position_reason');
+
+    function checkExistingPosition() {
+        const selectedOption = companySelect.options[companySelect.selectedIndex];
+        const transactionType = document.querySelector('input[name="type"]:checked').value;
+
+        // Only show for BUY transactions
+        if (transactionType !== 'BUY') {
+            addPositionSection.style.display = 'none';
+            addPositionReasonSelect.removeAttribute('required');
+            return;
+        }
+
+        const hasPosition = selectedOption.getAttribute('data-has-position') === 'true';
+
+        if (hasPosition && selectedOption.value) {
+            // Show add-to-position section
+            const shares = selectedOption.getAttribute('data-position-shares');
+            const avgCost = parseFloat(selectedOption.getAttribute('data-position-cost')).toFixed(2);
+
+            document.getElementById('current_shares').textContent = shares;
+            document.getElementById('current_avg_cost').textContent = avgCost;
+
+            addPositionSection.style.display = 'block';
+            addPositionReasonSelect.setAttribute('required', 'required');
+        } else {
+            addPositionSection.style.display = 'none';
+            addPositionReasonSelect.removeAttribute('required');
+        }
+    }
+
+    companySelect.addEventListener('change', checkExistingPosition);
+
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', checkExistingPosition);
+    });
+
+    // Check on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        checkExistingPosition();
+    });
 </script>
 {% endblock %}

@@ -1,21 +1,6 @@
 """
-Utility modules for the investment checklist platform.
-
-This package contains shared utilities used across the application.
+Utility functions for the application
 """
+from .quotes import get_session_quote, clear_session_quote
 
-from .time_utils import (
-    now_utc,
-    ensure_timezone_aware,
-    calculate_duration_minutes,
-    format_for_javascript,
-    hours_from_minutes,
-)
-
-__all__ = [
-    'now_utc',
-    'ensure_timezone_aware',
-    'calculate_duration_minutes',
-    'format_for_javascript',
-    'hours_from_minutes',
-]
+__all__ = ['get_session_quote', 'clear_session_quote']

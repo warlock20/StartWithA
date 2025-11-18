@@ -144,6 +144,7 @@ def transactions():
 
 
 @portfolio_bp.route('/transaction/new', methods=['GET', 'POST'])
+@portfolio_bp.route('/transaction/add', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
     """Add a new transaction"""
@@ -212,36 +213,54 @@ def add_transaction():
                     flash(f'Cannot sell {quantity} shares. You only own {owned_shares} shares of {company.ticker_symbol}', 'error')
                     return redirect(url_for('portfolio.add_transaction'))
 
-            # Check for research (for BUY transactions)
+            # Check for existing position and research (for BUY transactions)
             bought_without_research = False
+            is_add_to_position = False
+            add_position_reason = None
+            add_position_notes = None
+            thesis_updated = False
 
             if transaction_type == 'BUY':
-                research_project = ResearchProject.query.filter_by(
-                    company_id=company_id,
-                    user_id=current_user.id
+                # Check if user already has a position
+                existing_position = PortfolioPosition.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_id
                 ).first()
 
-                if not research_project:
-                    # No research found - require Decision Journal
-                    bought_without_research = True
-                    investment_thesis = request.form.get('investment_thesis', '').strip()
+                if existing_position and existing_position.total_shares > 0:
+                    is_add_to_position = True
+                    add_position_reason = request.form.get('add_position_reason')
+                    add_position_notes = request.form.get('add_position_notes', '').strip()
+                    thesis_updated = request.form.get('thesis_updated') == 'true'
 
-                    # Validate thesis is provided and meets minimum word count
-                    if not investment_thesis:
-                        flash('Please provide your investment thesis for buying without research', 'warning')
-                        return render_template('portfolio/add_transaction.html',
-                                             companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
-                                             show_warning=True,
-                                             form_data=request.form)
+                # Only check for research if this is NOT adding to an existing position
+                if not is_add_to_position:
+                    research_project = ResearchProject.query.filter_by(
+                        company_id=company_id,
+                        user_id=current_user.id
+                    ).first()
 
-                    # Check word count (minimum 20 words)
-                    word_count = len(investment_thesis.split())
-                    if word_count < 20:
-                        flash(f'Investment thesis must be at least 20 words (you provided {word_count})', 'warning')
-                        return render_template('portfolio/add_transaction.html',
-                                             companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
-                                             show_warning=True,
-                                             form_data=request.form)
+                    if not research_project:
+                        # No research found - require Decision Journal
+                        bought_without_research = True
+                        investment_thesis = request.form.get('investment_thesis', '').strip()
+
+                        # Validate thesis is provided and meets minimum word count
+                        if not investment_thesis:
+                            flash('Please provide your investment thesis for buying without research', 'warning')
+                            return render_template('portfolio/add_transaction.html',
+                                                 companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
+                                                 show_warning=True,
+                                                 form_data=request.form)
+
+                        # Check word count (minimum 20 words)
+                        word_count = len(investment_thesis.split())
+                        if word_count < 20:
+                            flash(f'Investment thesis must be at least 20 words (you provided {word_count})', 'warning')
+                            return render_template('portfolio/add_transaction.html',
+                                                 companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
+                                                 show_warning=True,
+                                                 form_data=request.form)
 
             # Create transaction
             transaction = Transaction(
@@ -253,7 +272,11 @@ def add_transaction():
                 price_per_share=price_per_share,
                 fees=fees,
                 notes=notes,
-                bought_without_research=bought_without_research
+                bought_without_research=bought_without_research,
+                is_add_to_position=is_add_to_position,
+                add_position_reason=add_position_reason,
+                add_position_notes=add_position_notes,
+                thesis_updated=thesis_updated
             )
 
             db.session.add(transaction)
@@ -273,7 +296,12 @@ def add_transaction():
                     is_portfolio_decision=True
                 ).first()
 
-                if not existing_journal:
+                # Only create new decision journal for initial purchases (not add-to-position)
+                # For add-to-position, we link to the existing journal
+                if existing_journal and is_add_to_position:
+                    # Link transaction to existing decision journal
+                    transaction.decision_journal_id = existing_journal.id
+                elif not existing_journal:
                     if bought_without_research:
                         # Create Decision Journal from form data
                         investment_thesis = request.form.get('investment_thesis', '').strip()
@@ -377,10 +405,34 @@ def add_transaction():
 
     # GET request - show form
     companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+
+    # Get existing positions for the user
+    existing_positions = {}
+    positions = PortfolioPosition.query.filter_by(user_id=current_user.id).all()
+    for pos in positions:
+        if pos.total_shares > 0:
+            existing_positions[pos.company_id] = {
+                'shares': pos.total_shares,
+                'avg_cost': float(pos.average_cost_basis) if pos.average_cost_basis else 0,
+                'ticker': pos.company.ticker_symbol
+            }
+
+    # Check which companies have research
+    companies_with_research = set()
+    research_projects = ResearchProject.query.filter_by(user_id=current_user.id).all()
+    for rp in research_projects:
+        companies_with_research.add(rp.company_id)
+
+    # Get company_id from query params if provided
+    preselected_company_id = request.args.get('company_id', type=int)
+
     return render_template('portfolio/add_transaction.html',
                           companies=companies,
                           show_warning=False,
-                          form_data=None)
+                          form_data=None,
+                          existing_positions=existing_positions,
+                          companies_with_research=companies_with_research,
+                          preselected_company_id=preselected_company_id)
 
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])

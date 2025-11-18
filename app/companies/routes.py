@@ -1033,3 +1033,118 @@ def remove_competitor(company_id, competitor_id):
 
     return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
+@companies_bp.route('/<int:company_id>/edit', methods=['POST'])
+@login_required
+def edit_company(company_id):
+    """Update company details including ticker symbol, name, sector, and industry"""
+    company = Company.query.get_or_404(company_id)
+
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to edit this company.", "error")
+        return redirect(url_for('companies.companies_dashboard'))
+
+    # Get form data
+    name = request.form.get('name', '').strip()
+    ticker_symbol = request.form.get('ticker_symbol', '').strip().upper()
+    summary = request.form.get('summary', '').strip()
+    sector_name = request.form.get('sector', '').strip()
+    industry = request.form.get('industry', '').strip()
+
+    # Validate required fields
+    if not name or not ticker_symbol:
+        flash('Company name and ticker symbol are required.', 'error')
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    # Check if ticker is changing and validate it
+    ticker_changed = (ticker_symbol != company.ticker_symbol)
+    if ticker_changed:
+        # Validate ticker with Yahoo Finance
+        validator = TickerValidator()
+        validation_result = validator.validate_ticker(ticker_symbol)
+
+        if not validation_result['valid']:
+            flash(f'Invalid ticker symbol: {validation_result.get("error", "Could not validate ticker")}', 'error')
+            return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+        # Check for duplicate ticker in user's companies
+        existing_company = Company.query.filter_by(
+            user_id=current_user.id,
+            ticker_symbol=ticker_symbol
+        ).filter(Company.id != company_id).first()
+
+        if existing_company:
+            flash(f'You already have a company with ticker "{ticker_symbol}": {existing_company.name}', 'error')
+            return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    # Update company fields
+    old_name = company.name
+    old_ticker = company.ticker_symbol
+
+    company.name = name
+    company.ticker_symbol = ticker_symbol
+    company.summary = summary if summary else None
+    company.industry = industry if industry else None
+
+    # Handle sector
+    if sector_name:
+        sector_obj = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=True)
+        if sector_obj:
+            company.sector_id = sector_obj.id
+    else:
+        company.sector_id = None
+
+    try:
+        db.session.commit()
+
+        # Build success message with changes summary
+        changes = []
+        if old_name != name:
+            changes.append(f'name updated to "{name}"')
+        if old_ticker != ticker_symbol:
+            changes.append(f'ticker updated to "{ticker_symbol}"')
+            # If ticker changed and company is in portfolio, force price update
+            if company.is_in_portfolio:
+                from app.services.price_service import PriceService
+                from app.models import PortfolioPosition
+
+                positions = PortfolioPosition.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_id,
+                    is_active=True
+                ).all()
+
+                for position in positions:
+                    PriceService.update_position_price(position, force=True)
+
+                flash('Portfolio positions updated with new ticker symbol.', 'info')
+
+        if changes:
+            flash(f'Company updated successfully: {", ".join(changes)}', 'success')
+        else:
+            flash('Company details saved.', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating company: {str(e)}', 'error')
+
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+@companies_bp.route('/validate_ticker', methods=['POST'])
+@login_required
+def validate_ticker_api():
+    """API endpoint for real-time ticker validation"""
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+
+    if not ticker:
+        return jsonify({
+            'valid': False,
+            'error': 'Ticker symbol is required'
+        }), 400
+
+    validator = TickerValidator()
+    result = validator.validate_ticker(ticker)
+
+    return jsonify(result)
+

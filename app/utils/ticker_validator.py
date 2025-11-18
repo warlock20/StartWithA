@@ -369,6 +369,85 @@ class TickerValidator:
 
         return result['normalized_ticker']
 
+    @staticmethod
+    def validate_ticker(ticker_symbol: str) -> Dict:
+        """
+        Validate ticker symbol against Yahoo Finance API
+
+        Args:
+            ticker_symbol: Stock ticker to validate
+
+        Returns:
+            Dict with validation results including price data if valid
+        """
+        import yfinance as yf
+
+        result = {
+            'valid': False,
+            'ticker': ticker_symbol.upper(),
+            'error': None,
+            'company_name': None,
+            'current_price': None,
+            'exchange': None
+        }
+
+        if not ticker_symbol or not ticker_symbol.strip():
+            result['error'] = 'Ticker symbol is required'
+            return result
+
+        ticker = ticker_symbol.strip().upper()
+        result['ticker'] = ticker
+
+        # Basic format validation
+        if len(ticker) > 20:
+            result['error'] = 'Ticker too long (max 20 characters)'
+            return result
+
+        try:
+            # Fetch data from Yahoo Finance
+            ticker_obj = yf.Ticker(ticker)
+            info = ticker_obj.info
+
+            # Check if ticker exists (Yahoo returns minimal info for invalid tickers)
+            if not info or 'symbol' not in info:
+                result['error'] = f'Ticker "{ticker}" not found on Yahoo Finance'
+                return result
+
+            # Get company name
+            company_name = (
+                info.get('longName') or
+                info.get('shortName') or
+                info.get('symbol')
+            )
+
+            # Get current price
+            current_price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+
+            # Get exchange
+            exchange = info.get('exchange') or info.get('market')
+
+            # If we have at least a company name, consider it valid
+            if company_name:
+                result['valid'] = True
+                result['company_name'] = company_name
+                result['current_price'] = float(current_price) if current_price else None
+                result['exchange'] = exchange
+            else:
+                result['error'] = f'Unable to retrieve information for "{ticker}"'
+
+        except Exception as e:
+            error_msg = str(e)
+            if '404' in error_msg or 'not found' in error_msg.lower():
+                result['error'] = f'Ticker "{ticker}" not found'
+            else:
+                result['error'] = f'Error validating ticker: {error_msg}'
+
+        return result
+
 
 # Convenience functions for quick validation
 def validate_ticker(ticker: str) -> Tuple[bool, Optional[str], Optional[str]]:

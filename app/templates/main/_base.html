@@ -31,6 +31,8 @@
 
     {% include 'main/_navigation.html' %} {# We will create this new file #}
 
+    {% include 'main/_quote_banner.html' %}
+
     <div class="container-fluid pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
         {# Flash messages will be styled by Bootstrap if we add alert classes #}
         {% include 'main/_flash_messages.html' %}
@@ -76,6 +78,9 @@
 
     <!-- Tabulator for advanced data tables -->
     <script src="https://unpkg.com/tabulator-tables@5.5/dist/js/tabulator.min.js"></script>
+
+    <!-- SortableJS for drag-and-drop reordering -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
     {% block scripts %}
     <script src="{{ url_for('static', filename='js/my_script.js') }}"></script>

@@ -324,6 +324,190 @@
     border-color: var(--danger-500);
 }
 
+/* =============================================================================
+   COMPANY EDIT INTERFACE - TICKER VALIDATION & TESTING TOOL
+   ============================================================================= */
+
+/* Ticker validation styles */
+.ticker-validation-status {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.ticker-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.ticker-status-badge.valid {
+    background: var(--success-50);
+    color: var(--success-700);
+}
+
+.ticker-status-badge.invalid {
+    background: var(--danger-50);
+    color: var(--danger-700);
+}
+
+.ticker-status-badge.checking {
+    background: var(--warning-50);
+    color: var(--warning-700);
+}
+
+/* Ticker Testing Tool */
+.ticker-tester {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 2px dashed var(--primary-500);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.ticker-tester p {
+    color: var(--gray-700);
+    line-height: 1.6;
+}
+
+/* Warning and Info Banners - Enhanced */
+.warning-banner {
+    background: var(--warning-50);
+    border: 1px solid var(--warning-300);
+    border-left: 4px solid var(--warning-500);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.warning-banner i {
+    color: var(--warning-600);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.warning-banner strong {
+    color: var(--warning-800);
+}
+
+.info-banner {
+    background: var(--info-50);
+    border: 1px solid var(--info-300);
+    border-left: 4px solid var(--info-500);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.info-banner i {
+    color: var(--info-600);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.info-banner strong {
+    color: var(--info-800);
+}
+
+/* Price Preview Card */
+.price-preview-card {
+    background: var(--gray-50);
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.price-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.price-preview-item {
+    text-align: center;
+}
+
+.price-preview-label {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.price-preview-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-top: 0.25rem;
+}
+
+/* Exchange Badge */
+.exchange-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--teal-50);
+    color: var(--teal-700);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Form Enhancements */
+.form-text {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-top: 0.375rem;
+}
+
+.form-label .text-danger {
+    color: var(--danger-500);
+}
+
+/* Test Result Alerts */
+.alert {
+    border-radius: 8px;
+    border-width: 1px;
+}
+
+.alert-success {
+    background: var(--success-50);
+    border-color: var(--success-300);
+    color: var(--success-800);
+}
+
+.alert-danger {
+    background: var(--danger-50);
+    border-color: var(--danger-300);
+    color: var(--danger-800);
+}
+
+.alert-warning {
+    background: var(--warning-50);
+    border-color: var(--warning-300);
+    color: var(--warning-800);
+}
+
+.alert-info {
+    background: var(--info-50);
+    border-color: var(--info-300);
+    color: var(--info-800);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .company-dashboard-header {
@@ -362,5 +546,14 @@
     .document-item-actions {
         width: 100%;
         justify-content: flex-start;
+    }
+
+    .price-preview-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .ticker-tester {
+        padding: 1rem;
     }
 }

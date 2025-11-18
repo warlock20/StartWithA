@@ -34,6 +34,13 @@ class Transaction(db.Model):
     bought_without_research = db.Column(db.Boolean, default=False, index=True)
     reason_without_research = db.Column(db.Text, nullable=True)
 
+    # Adding to existing position tracking
+    is_add_to_position = db.Column(db.Boolean, default=False, index=True)
+    add_position_reason = db.Column(db.String(50), nullable=True)
+    # Valid reasons: 'price_drop', 'extra_cash', 'increased_confidence', 'averaging_down', 'other'
+    add_position_notes = db.Column(db.Text, nullable=True)
+    thesis_updated = db.Column(db.Boolean, default=False)
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
