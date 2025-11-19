@@ -724,6 +724,7 @@ def update_step_checklist(project_id, step_index):
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
+@research_workflow_bp.route('/projects/<int:project_id>/steps/<int:step_index>/return-from-checklist')
 @login_required
 def return_from_checklist(project_id, step_index):
     """Handle return from legacy checklist execution to research workflow"""

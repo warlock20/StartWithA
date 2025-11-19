@@ -40,8 +40,7 @@
         <h3 class="quick-entry-title">Quick Entry</h3>
         <div class="quick-entry-grid">
             {% for company in active_companies[:6] %}
-            <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id) }}"
-               class="quick-entry-button">
+            <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id) }}" class="quick-entry-button">
                 <span class="quick-entry-ticker">{{ company.ticker_symbol or company.name[:10] }}</span>
                 <i class="bi bi-pencil-square"></i>
             </a>
@@ -49,51 +48,6 @@
         </div>
     </div>
     {% endif %}
-
-    <!-- Statistics Overview -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Entries</h3>
-                        <span class="priority-card-number priority-number-blue">{{ stats.total_entries }}</span>
-                    </div>
-                    <p class="priority-card-description">All journal entries</p>
-                </div>
-            </div>
-
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Last 7 Days</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ stats.recent_entries }}</span>
-                    </div>
-                    <p class="priority-card-description">Recent activity</p>
-                </div>
-            </div>
-
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Learning Notes</h3>
-                        <span class="priority-card-number priority-number-green">{{ stats.total_lessons }}</span>
-                    </div>
-                    <p class="priority-card-description">Captured lessons</p>
-                </div>
-            </div>
-
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Pending Reviews</h3>
-                        <span class="priority-card-number priority-number-blue">{{ stats.pending_reviews }}</span>
-                    </div>
-                    <p class="priority-card-description">Items to review</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Content Grid -->
     <div class="journal-content-grid">
@@ -108,7 +62,7 @@
                     <div class="journal-entries-list">
                         {% for entry in recent_entries %}
                         <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
-                           class="journal-entry-item">
+                            class="journal-entry-item">
                             <div class="entry-main">
                                 <div class="entry-header">
                                     <h6 class="entry-title">
@@ -124,7 +78,8 @@
                                 </div>
                                 <p class="entry-preview">{{ entry.content|truncate(150) }}</p>
                                 <div class="entry-badges">
-                                    <span class="entry-badge badge-type">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+                                    <span class="entry-badge badge-type">{{ entry.entry_type|replace('_', ' ')|title
+                                        }}</span>
                                     {% if entry.company %}
                                     <span class="entry-badge badge-company">{{ entry.company.name }}</span>
                                     {% endif %}
@@ -165,7 +120,7 @@
                     <div class="starred-entries-list">
                         {% for entry in starred_entries %}
                         <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
-                           class="starred-entry-item">
+                            class="starred-entry-item">
                             <strong class="starred-entry-title">{{ entry.title or "Untitled" }}</strong>
                             <small class="starred-entry-date">{{ entry.created_at.strftime('%b %d, %Y') }}</small>
                         </a>
@@ -188,8 +143,7 @@
                 <div class="sidebar-card-body">
                     <div class="tags-cloud">
                         {% for tag, count in stats.top_tags %}
-                        <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}"
-                           class="tag-item">
+                        <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}" class="tag-item">
                             #{{ tag }} <span class="tag-count">{{ count }}</span>
                         </a>
                         {% endfor %}
@@ -205,18 +159,15 @@
                 </div>
                 <div class="sidebar-card-body">
                     <div class="quick-links-list">
-                        <a href="{{ url_for('journal_enhanced.learning_notes') }}"
-                           class="quick-link-item">
+                        <a href="{{ url_for('journal_enhanced.learning_notes') }}" class="quick-link-item">
                             <i class="bi bi-journal-bookmark"></i>
                             <span>Learning Notes</span>
                         </a>
-                        <a href="{{ url_for('journal_enhanced.manage_templates') }}"
-                           class="quick-link-item">
+                        <a href="{{ url_for('journal_enhanced.manage_templates') }}" class="quick-link-item">
                             <i class="bi bi-file-earmark-text"></i>
                             <span>Templates</span>
                         </a>
-                        <a href="{{ url_for('journal_enhanced.export_journal') }}"
-                           class="quick-link-item">
+                        <a href="{{ url_for('journal_enhanced.export_journal') }}" class="quick-link-item">
                             <i class="bi bi-download"></i>
                             <span>Export Journal</span>
                         </a>
@@ -231,6 +182,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-// Add any journal-specific JavaScript here
+    // Add any journal-specific JavaScript here
 </script>
 {% endblock %}

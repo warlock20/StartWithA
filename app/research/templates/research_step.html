@@ -11,7 +11,8 @@
             </div>
             <div class="d-flex align-items-center">
                 {% if research_context and research_context.get('project_id') %}
-                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="btn btn-secondary me-2">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}"
+                    class="btn btn-secondary me-2">
                     <i class="bi bi-arrow-left"></i> Back to Research Workflow
                 </a>
                 {% else %}
@@ -181,45 +182,32 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <h6><i class="bi bi-journal-text"></i> Research Notes</h6>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        <a href="#" class="list-group-item list-group-item-action" onclick="openNotesModal()">
-                            <i class="bi bi-sticky"></i> Question-Specific Notes
-                            <small class="text-muted d-block">Notes for current question</small>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" onclick="showSavedItems()">
-                            <i class="bi bi-bookmarks"></i> Saved Questions
-                            <small class="text-muted d-block">Questions marked for review</small>
-                        </a>
-                        <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
-                            class="list-group-item list-group-item-action">
-                            <i class="bi bi-clipboard-data"></i> Session Summary
-                            <small class="text-muted d-block">Overall research progress</small>
-                        </a>
-                    </ul>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
                         <h6><i class="bi bi-lightning-charge"></i> Quick Actions</h6>
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
+                            <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
+                                class="btn btn-primary btn-sm">
+                                <i class="bi bi-clipboard-data"></i> Session Summary
+                            </a>
                             <button class="btn btn-outline-primary btn-sm" onclick="performSearch()"
                                 title="Smart Search (Ctrl+S)">
                                 <i class="bi bi-search"></i> Smart Search
                             </button>
-                            <button class="btn btn-outline-success btn-sm" onclick="searchFinancials()">
+                            <button class="btn btn-outline-primary btn-sm" onclick="searchFinancials()">
                                 <i class="bi bi-graph-up"></i> Financial Data
                             </button>
-                            <button class="btn btn-outline-warning btn-sm" onclick="searchNews()">
+                            <button class="btn btn-outline-primary btn-sm" onclick="searchNews()">
                                 <i class="bi bi-newspaper"></i> Latest News
                             </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="openNotesModal()"
-                                title="Research Notes (Ctrl+R)">
-                                <i class="bi bi-journal-text"></i> Research Notes
-                            </button>
+                            <a href="{{ url_for('journal_enhanced.search', company_id=session.company.id) }}"
+                                class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-journal-text"></i> View Journal Entries
+                            </a>
+                            <a href="{{ url_for('journal_enhanced.new_entry', company_id=session.company.id) }}"
+                                class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-journal-plus"></i> New Journal Entry
+                            </a>
                         </div>
                     </div>
                 </div>
