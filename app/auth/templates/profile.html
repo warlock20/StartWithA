@@ -1,24 +1,27 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>👤 My Profile</h1>
-        <p class="text-muted mb-0">Manage your account settings and view your activity</p>
+<div class="container-fluid mt-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>My Profile</h1>
+                <p class="text-muted mb-0">Manage your account settings and view your activity</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" disabled>
+                    Edit Profile (Coming Soon)
+                </button>
+            </div>
+        </div>
     </div>
-    <div>
-        <button class="btn btn-outline-primary" disabled>
-            🔧 Edit Profile (Coming Soon)
-        </button>
-    </div>
-</div>
 
 <div class="row">
     <!-- Profile Information -->
     <div class="col-lg-4 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">📋 Account Information</h5>
+                <h5 class="mb-0">Account Information</h5>
             </div>
             <div class="card-body">
                 <div class="text-center mb-4">
@@ -115,18 +118,18 @@
         <!-- Quick Actions -->
         <div class="card mt-4">
             <div class="card-header">
-                <h6 class="mb-0">⚡ Quick Actions</h6>
+                <h6 class="mb-0">Quick Actions</h6>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <button class="btn btn-outline-secondary" disabled>
-                        🔐 Change Password
+                        Change Password
                     </button>
                     <button class="btn btn-outline-secondary" disabled>
-                        ✉️ Update Email
+                        Update Email
                     </button>
                     <button class="btn btn-outline-secondary" disabled>
-                        🗑️ Delete Account
+                        Delete Account
                     </button>
                 </div>
                 <small class="text-muted mt-2 d-block">
@@ -140,7 +143,7 @@
     <div class="col-lg-8 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">📊 Your Activity</h5>
+                <h5 class="mb-0">Your Activity</h5>
             </div>
             <div class="card-body">
                 <div class="row g-3">
@@ -278,4 +281,5 @@
     background-color: #f8f9fa !important;
 }
 </style>
+</div>
 {% endblock %}

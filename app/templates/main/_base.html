@@ -31,8 +31,6 @@
 
     {% include 'main/_navigation.html' %} {# We will create this new file #}
 
-    {% include 'main/_quote_banner.html' %}
-
     <div class="container-fluid pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
         {# Flash messages will be styled by Bootstrap if we add alert classes #}
         {% include 'main/_flash_messages.html' %}
@@ -69,6 +67,56 @@
         integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Auto-dismiss flash messages after 10 seconds -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 10000); // 10 seconds
+            });
+
+            // Navbar quote scrolling effect
+            const quoteText = document.querySelector('.navbar-quote-text');
+            if (quoteText) {
+                const quoteWrapper = quoteText.closest('.navbar-quote-wrapper');
+
+                // Measure if text is longer than container
+                const textWidth = quoteText.scrollWidth;
+                const containerWidth = quoteWrapper.clientWidth;
+
+                if (textWidth > containerWidth) {
+                    // Enable continuous marquee scrolling for long quotes
+                    quoteText.classList.add('scrolling');
+                } else {
+                    // Static display for short quotes
+                    quoteText.classList.add('static');
+                }
+            }
+
+            // Handle quote banner dismiss
+            const quoteDismissBtn = document.querySelector('[data-action="dismiss-quote-banner"]');
+            if (quoteDismissBtn) {
+                quoteDismissBtn.addEventListener('click', function() {
+                    const quoteContainer = this.closest('.navbar-quote-container');
+                    if (quoteContainer) {
+                        quoteContainer.style.display = 'none';
+                    }
+
+                    // Send AJAX request to mark as dismissed
+                    fetch('/dismiss-quote-banner', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                });
+            }
+        });
+    </script>
 
     <!-- Driver.js for interactive tours -->
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>

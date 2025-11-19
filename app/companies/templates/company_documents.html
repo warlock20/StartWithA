@@ -749,6 +749,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }, 2000);
     }
+
+    // Handle URL fragment to show the correct tab on page load
+    if (window.location.hash) {
+        const hash = window.location.hash.substring(1); // Remove the '#'
+        const tabButton = document.getElementById(hash + '-tab');
+        if (tabButton) {
+            const tab = new bootstrap.Tab(tabButton);
+            tab.show();
+        }
+    }
 });
 </script>
 {% endblock %}

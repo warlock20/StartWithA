@@ -124,6 +124,20 @@
             </ul>
             </li>
             </ul>
+
+            {# --- Investor Quote in Navbar --- #}
+            {% if show_quote_banner and investor_quote %}
+            <div class="navbar-quote-container">
+                <div class="navbar-quote-wrapper">
+                    <i class="bi bi-quote me-2"></i>
+                    <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
+                </div>
+                <button type="button" class="navbar-quote-close" aria-label="Dismiss quote" data-action="dismiss-quote-banner">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            {% endif %}
+
             {% endif %}
 
             {# --- Links for ALL USERS (Login/Logout, Profile) --- #}

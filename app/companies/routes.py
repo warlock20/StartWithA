@@ -467,12 +467,12 @@ def add_document(company_id):
     # --- Basic File Checks ---
     if 'document_file' not in request.files:
         flash('No file part in request.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
-    
+        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
+
     file = request.files['document_file']
     if file.filename == '':
         flash('No file selected for upload.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
 
     # --- Get all form data ---
     doc_group = request.form.get('document_group')
@@ -505,7 +505,7 @@ def add_document(company_id):
                     except ValueError:
                         flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
                         # It might be better to return and not save if date is invalid
-                        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+                        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
                 
                 new_doc = CompanyDocument(
                     company_id=company.id, 
@@ -525,8 +525,8 @@ def add_document(company_id):
                 db.session.rollback()
                 flash(f"An error occurred during upload: {e}", "error")
                 print(f"ERROR: Document upload failed: {e}")
-    
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
 @login_required
