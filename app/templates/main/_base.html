@@ -79,21 +79,25 @@
                 }, 10000); // 10 seconds
             });
 
-            // Navbar quote scrolling effect
+            // Navbar quote scrolling effect - continuous marquee
+            const quoteInner = document.querySelector('.navbar-quote-inner');
             const quoteText = document.querySelector('.navbar-quote-text');
-            if (quoteText) {
-                const quoteWrapper = quoteText.closest('.navbar-quote-wrapper');
+            const quoteDuplicate = document.querySelector('.navbar-quote-duplicate');
 
-                // Measure if text is longer than container
-                const textWidth = quoteText.scrollWidth;
-                const containerWidth = quoteWrapper.clientWidth;
+            if (quoteInner && quoteText) {
+                const quoteWrapper = quoteText.closest('.navbar-quote-wrapper');
+                const textWidth = quoteText.offsetWidth;
+                const containerWidth = quoteWrapper.offsetWidth;
 
                 if (textWidth > containerWidth) {
                     // Enable continuous marquee scrolling for long quotes
-                    quoteText.classList.add('scrolling');
+                    quoteInner.classList.add('scrolling');
                 } else {
-                    // Static display for short quotes
-                    quoteText.classList.add('static');
+                    // Static display for short quotes - hide duplicate
+                    quoteInner.classList.add('static');
+                    if (quoteDuplicate) {
+                        quoteDuplicate.style.display = 'none';
+                    }
                 }
             }
 

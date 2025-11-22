@@ -151,19 +151,15 @@
 }
 
 .navbar-quote-wrapper {
-    display: flex;
-    align-items: center;
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
     position: relative;
-    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
 }
 
-.navbar-quote-wrapper i {
-    color: rgba(255, 255, 255, 0.9);
-    flex-shrink: 0;
-    margin-right: 0.5rem;
+.navbar-quote-inner {
+    display: inline-block;
+    white-space: nowrap;
 }
 
 .navbar-quote-text {
@@ -172,26 +168,26 @@
     font-style: italic;
     font-weight: 500;
     display: inline-block;
+    padding-right: 4rem; /* Gap between repeated text */
 }
 
-/* Continuous scrolling marquee animation for long quotes */
+/* Continuous scrolling marquee animation */
 @keyframes marquee-scroll {
     0% {
-        transform: translateX(100%);
+        transform: translateX(0);
     }
     100% {
-        transform: translateX(-100%);
+        transform: translateX(-50%);
     }
 }
 
-.navbar-quote-text.scrolling {
-    animation: marquee-scroll 25s linear infinite;
-    padding-left: 100%; /* Start from right edge */
+.navbar-quote-inner.scrolling {
+    animation: marquee-scroll 20s linear infinite;
 }
 
 /* Static display for short quotes */
-.navbar-quote-text.static {
-    padding: 0;
+.navbar-quote-inner.static .navbar-quote-text {
+    padding-right: 0;
 }
 
 .navbar-quote-close {

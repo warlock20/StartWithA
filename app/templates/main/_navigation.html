@@ -129,8 +129,10 @@
             {% if show_quote_banner and investor_quote %}
             <div class="navbar-quote-container">
                 <div class="navbar-quote-wrapper">
-                    <i class="bi bi-quote me-2"></i>
-                    <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
+                    <div class="navbar-quote-inner">
+                        <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
+                        <span class="navbar-quote-text navbar-quote-duplicate">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
+                    </div>
                 </div>
                 <button type="button" class="navbar-quote-close" aria-label="Dismiss quote" data-action="dismiss-quote-banner">
                     <i class="bi bi-x-lg"></i>
