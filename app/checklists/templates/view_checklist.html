@@ -453,45 +453,4 @@
     });
     </script>
 
-<style>
-    /* CSS for empty state tip pointer */
-    .tip-pointer-right {
-        position: relative;
-    }
-
-    .tip-pointer-right::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        right: -10px;
-        transform: translateY(-50%);
-        width: 0;
-        height: 0;
-        border-left: 8px solid var(--bs-primary-bg);
-        border-top: 8px solid transparent;
-        border-bottom: 8px solid transparent;
-    }
-
-    /* Subtle pulse animation for the arrow */
-    .pulse-arrow {
-        animation: pulse-arrow 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-arrow {
-        0%, 100% {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        50% {
-            transform: translateX(4px);
-            opacity: 0.7;
-        }
-    }
-
-    /* Add a subtle glow to item editor when checklist is empty */
-    .empty-state:has(+ *) + * #inspector-overview {
-        box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.1);
-        transition: box-shadow 0.3s ease;
-    }
-</style>
 {% endblock %}

@@ -48,6 +48,7 @@ All complex components have been fully modularized.
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
 @import url('modules/_sector-research.css');      /* Simplified sector research page */
 @import url('modules/_research-sources.css');     /* Research sources component */
+@import url('modules/_research-checklist.css');   /* Research checklist/step pages */
 @import url('modules/_research-tabs.css');        /* Research tabbed interface */
 @import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
 @import url('modules/_research-workspace.css');   /* Research workspace layout */
@@ -82,3 +83,4 @@ All complex components have been fully modularized.
 @import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
+@import url('modules/_profile.css');              /* User profile page */

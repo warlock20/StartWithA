@@ -1,6 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div class="checklist-edit-item-page">
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1>✏️ Edit Checklist Item</h1>
@@ -60,28 +61,11 @@
         </div>
     </div>
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<style>
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .d-flex.justify-content-between {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .d-flex.justify-content-between > div {
-        width: 100%;
-    }
-
-    .d-flex.justify-content-between > div > .btn {
-        width: 100%;
-    }
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the text field for better UX

@@ -38,7 +38,7 @@ class Config:
     
     UPLOAD_FOLDER = os.path.join(basedir, 'instance', 'uploads', 'company_documents')
     ALLOWED_EXTENSIONS = {'pdf', 'txt'} # Allow PDFs and text files for now
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024 # Limit upload size to 16 MB
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024 # Limit upload size to 100 MB
     
     CACHE_TYPE = "SimpleCache"  # Use a simple in-memory cache
     CACHE_DEFAULT_TIMEOUT = 300 # Default timeout in seconds (e.g., 5 minutes)

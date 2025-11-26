@@ -109,13 +109,17 @@ function createNewNote() {
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
 
-    // Clear Quill content after modal is shown (when Quill is initialized)
-    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearQuill() {
-        if (window.noteQuill) {
-            window.noteQuill.setText('');
+    // Clear BlockNote content after modal is shown (when editor is initialized)
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearEditor() {
+        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
+            // Clear BlockNote by replacing all blocks with an empty paragraph
+            window.noteEditorInstance.editor.replaceBlocks(
+                window.noteEditorInstance.editor.document,
+                [{ type: "paragraph", content: [] }]
+            );
         }
         // Remove this listener after first execution
-        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearQuill);
+        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearEditor);
     });
 }
 
@@ -134,13 +138,17 @@ function addNoteToSection(sectionId) {
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
 
-    // Clear Quill content after modal is shown (when Quill is initialized)
-    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearQuill() {
-        if (window.noteQuill) {
-            window.noteQuill.setText('');
+    // Clear BlockNote content after modal is shown (when editor is initialized)
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearEditor() {
+        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
+            // Clear BlockNote by replacing all blocks with an empty paragraph
+            window.noteEditorInstance.editor.replaceBlocks(
+                window.noteEditorInstance.editor.document,
+                [{ type: "paragraph", content: [] }]
+            );
         }
         // Remove this listener after first execution
-        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearQuill);
+        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearEditor);
     });
 }
 
@@ -178,13 +186,27 @@ function saveNote() {
     const noteId = document.getElementById('noteId').value;
     const sectionId = document.getElementById('noteSectionId').value || null;
     const title = document.getElementById('noteTitle').value.trim();
-    const content = window.noteQuill.root.innerHTML;
+
+    // Get content from BlockNote editor
+    let content = '';
+    let textContent = '';
+    if (window.noteEditorInstance && window.noteEditorInstance.editor) {
+        const blocks = window.noteEditorInstance.editor.document;
+        content = JSON.stringify(blocks);
+        // Get plain text for validation
+        textContent = blocks.map(block => {
+            if (block.content && Array.isArray(block.content)) {
+                return block.content.map(item => item.text || '').join('');
+            }
+            return '';
+        }).join(' ').trim();
+    }
+
     const sourceUrl = document.getElementById('noteSourceUrl').value.trim();
     const sourceTitle = document.getElementById('noteSourceTitle').value.trim();
     const tags = document.getElementById('noteTags').value.trim();
 
-    // Check if content is empty (Quill has just <p><br></p> when empty)
-    const textContent = window.noteQuill.getText().trim();
+    // Check if content is empty
     if (!title || !textContent) {
         alert('Please enter both title and content');
         return;
@@ -371,13 +393,35 @@ function editNote(noteId) {
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
 
-    // Set Quill content after modal is shown (when Quill is initialized)
+    // Set BlockNote content after modal is shown (when editor is initialized)
     document.getElementById('noteModal').addEventListener('shown.bs.modal', function setContent() {
-        if (window.noteQuill) {
+        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
             // Decode HTML entities first
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = noteContent;
-            window.noteQuill.root.innerHTML = tempDiv.innerHTML;
+            const decodedContent = tempDiv.innerHTML;
+
+            // Try to parse as JSON (BlockNote format) first
+            try {
+                const blocks = JSON.parse(decodedContent);
+                if (Array.isArray(blocks)) {
+                    window.noteEditorInstance.editor.replaceBlocks(
+                        window.noteEditorInstance.editor.document,
+                        blocks
+                    );
+                }
+            } catch (e) {
+                // Not JSON - it's HTML, use insertHTML method
+                if (window.noteEditorInstance.insertHTML) {
+                    // Clear first
+                    window.noteEditorInstance.editor.replaceBlocks(
+                        window.noteEditorInstance.editor.document,
+                        [{ type: "paragraph", content: [] }]
+                    );
+                    // Then insert HTML
+                    window.noteEditorInstance.insertHTML(decodedContent);
+                }
+            }
         }
         // Remove this listener after first execution
         document.getElementById('noteModal').removeEventListener('shown.bs.modal', setContent);
@@ -651,8 +695,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const pathParts = window.location.pathname.split('/');
                     const sectorName = pathParts[pathParts.indexOf('sectors') + 1];
 
-                    // Redirect to add company to sector
-                    window.location.href = `/sectors/${sectorName}/add_company/${company.id}`;
+                    // Submit POST request to add company to sector
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/sectors/${sectorName}/add_company/${company.id}`;
+                    document.body.appendChild(form);
+                    form.submit();
                 });
             } else {
                 console.error('Company search component not loaded');

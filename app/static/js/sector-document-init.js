@@ -94,18 +94,16 @@ function initializeDocumentEditor() {
 
 function initializeOtherEditors() {
     return new Promise((resolve, reject) => {
-        // AI Insights Editor (Quill - keep for now)
-        if (document.getElementById('aiContentEditor')) {
-            window.aiQuill = new Quill('#aiContentEditor', {
-                theme: 'snow',
-                placeholder: 'Paste AI-generated content here...',
-                modules: {
-                    toolbar: [
-                        [{ 'header': [2, 3, false] }],
-                        ['bold', 'italic'],
-                        [{ 'list': 'bullet' }],
-                        ['clean']
-                    ]
+        // AI Insights Editor (BlockNote)
+        const pasteAIModal = document.getElementById('pasteFromAIModal');
+        if (pasteAIModal && document.getElementById('aiContentEditor')) {
+            pasteAIModal.addEventListener('shown.bs.modal', function initAIEditor() {
+                if (!window.aiBlockNoteEditor) {
+                    window.aiBlockNoteEditor = window.initBlockNoteEditor('aiContentEditor', {
+                        placeholder: 'Paste AI-generated content here... Type "/" for commands',
+                        onSave: null // Manual save via Insert button
+                    });
+                    window.aiEditorInstance = window.blockNoteEditorInstance;
                 }
             });
         }
@@ -152,26 +150,18 @@ function initializeOtherEditors() {
             resolve(); // No takeaways editor, resolve immediately
         }
 
-        // Note Content Quill Editor (initialized when modal is shown)
+        // Note Content BlockNote Editor (initialized when modal is shown)
         const noteModal = document.getElementById('noteModal');
         if (noteModal) {
             noteModal.addEventListener('shown.bs.modal', function() {
-                if (!window.noteQuill) {
-                    window.noteQuill = new Quill('#noteContentEditor', {
-                        theme: 'snow',
-                        placeholder: 'Write your note here...',
-                        modules: {
-                            toolbar: [
-                                [{ 'header': [3, 4, false] }],
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                                [{ 'color': [] }, { 'background': [] }],
-                                ['blockquote', 'code-block'],
-                                ['link', 'image'],
-                                ['clean']
-                            ]
-                        }
+                if (!window.noteBlockNoteEditor) {
+                    // Initialize BlockNote for note modal
+                    window.noteBlockNoteEditor = window.initBlockNoteEditor('noteContentEditor', {
+                        placeholder: 'Write your note here... Type "/" for commands',
+                        onSave: null // We handle save manually
                     });
+                    // Store reference to the editor instance
+                    window.noteEditorInstance = window.blockNoteEditorInstance;
                 }
             });
         }
@@ -275,3 +265,86 @@ async function insertTemplate(templateKey) {
 
 // Make insertTemplate globally available
 window.insertTemplate = insertTemplate;
+
+// ==================== AI CONTENT INSERTION ====================
+
+async function insertAIContent() {
+    // Get the main sector editor
+    const sectorEditor = window.blockNoteEditors['sectorEditor'];
+    if (!sectorEditor) {
+        alert('Main editor not ready');
+        return;
+    }
+
+    // Get content from AI BlockNote editor
+    let aiContent = '';
+    let hasContent = false;
+
+    if (window.aiEditorInstance && window.aiEditorInstance.editor) {
+        const blocks = window.aiEditorInstance.editor.document;
+        // Check if there's actual content
+        hasContent = blocks.some(block => {
+            if (block.content && Array.isArray(block.content)) {
+                return block.content.some(item => item.text && item.text.trim().length > 0);
+            }
+            return false;
+        });
+        aiContent = blocks;
+    }
+
+    if (!hasContent) {
+        alert('Please paste some content first');
+        return;
+    }
+
+    const sourceUrl = document.getElementById('aiSourceUrl').value;
+    const aiType = document.getElementById('aiSourceType').value;
+    const prompt = document.getElementById('aiPrompt').value;
+    const addToSources = document.getElementById('addToSources').checked;
+
+    // Insert blocks at current cursor position in main editor
+    try {
+        const currentBlock = sectorEditor.editor.getTextCursorPosition().block;
+        await sectorEditor.editor.insertBlocks(aiContent, currentBlock, "after");
+    } catch (e) {
+        // If no cursor, append to end
+        const lastBlock = sectorEditor.editor.document[sectorEditor.editor.document.length - 1];
+        await sectorEditor.editor.insertBlocks(aiContent, lastBlock, "after");
+    }
+
+    // Save to sources if requested
+    if (addToSources && sourceUrl) {
+        fetch(window.sectorUrls.addSource, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: sourceUrl,
+                source_type: aiType,
+                notes: prompt || 'AI-generated content'
+            })
+        })
+        .then(response => response.json())
+        .catch(err => console.error('Error saving source:', err));
+    }
+
+    // Clear AI editor
+    if (window.aiEditorInstance && window.aiEditorInstance.editor) {
+        window.aiEditorInstance.editor.replaceBlocks(
+            window.aiEditorInstance.editor.document,
+            [{ type: "paragraph", content: [] }]
+        );
+    }
+    document.getElementById('aiSourceUrl').value = '';
+    document.getElementById('aiPrompt').value = '';
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('pasteFromAIModal'));
+    if (modal) {
+        modal.hide();
+    }
+
+    alert('Content inserted!');
+}
+
+// Make insertAIContent globally available
+window.insertAIContent = insertAIContent;

@@ -1,0 +1,160 @@
+/* =============================================================================
+   RESEARCH CHECKLIST STYLES
+   Styles for the research step/checklist pages
+   ============================================================================= */
+
+/* Context Sidebar */
+.context-sidebar .card {
+    margin-bottom: 1.5rem;
+}
+
+.context-sidebar .sticky-top {
+    top: 1rem;
+}
+
+/* Alert pre-wrap for research notes */
+.research-step-page .alert {
+    white-space: pre-wrap;
+}
+
+/* Hide the save status for form-based BlockNote editors */
+#answerEditor .editor-status,
+#notesEditor .editor-status {
+    display: none !important;
+}
+
+/* =============================================================================
+   SOURCE MANAGER (Modal)
+   Used in research notes modal for managing sources/references
+   ============================================================================= */
+
+.source-manager {
+    border-top: 1px solid var(--border-color, #e5e5e5);
+    background: var(--bg-secondary, #f8f9fa);
+    padding: 12px;
+    border-radius: 0 0 8px 8px;
+}
+
+.source-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.source-input {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.source-input:focus {
+    outline: none;
+    border-color: var(--primary, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.source-btn {
+    padding: 6px 12px;
+    background: var(--primary, #007bff);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.source-btn:hover {
+    background: var(--primary-dark, #0056b3);
+}
+
+/* Source list in modal */
+.source-manager .sources-list {
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.source-manager .source-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.source-manager .source-link {
+    color: var(--primary, #007bff);
+    text-decoration: none;
+    flex: 1;
+    margin-right: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.source-manager .source-link:hover {
+    text-decoration: underline;
+}
+
+.source-remove {
+    background: var(--danger, #dc3545);
+    color: #fff;
+    border: none;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.source-remove:hover {
+    background: var(--danger-dark, #c82333);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .source-input-group {
+        flex-direction: column;
+    }
+
+    .source-input {
+        width: 100%;
+    }
+}
+
+/* =============================================================================
+   RESEARCH NOTES DISPLAY
+   Typography styles for rendered research notes content
+   ============================================================================= */
+
+.research-notes {
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.research-notes h1,
+.research-notes h2,
+.research-notes h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.research-notes ul,
+.research-notes ol {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.research-notes blockquote {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: #6c757d;
+}
