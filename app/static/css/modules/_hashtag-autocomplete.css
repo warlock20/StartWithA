@@ -1,0 +1,71 @@
+/**
+ * Hashtag Autocomplete Styles
+ * Professional dropdown for hashtag suggestions
+ */
+
+.hashtag-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 4px;
+}
+
+.hashtag-suggestion-item {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    font-size: 0.875rem;
+    color: #495057;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.hashtag-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.hashtag-suggestion-item:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.hashtag-suggestion-item.selected {
+    background-color: #e7f3ff;
+    color: #0066cc;
+}
+
+/* Scrollbar styling */
+.hashtag-suggestions::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hashtag-suggestions::-webkit-scrollbar-track {
+    background: #f1f3f5;
+    border-radius: 0.375rem;
+}
+
+.hashtag-suggestions::-webkit-scrollbar-thumb {
+    background: #ced4da;
+    border-radius: 0.375rem;
+}
+
+.hashtag-suggestions::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+/* Empty state */
+.hashtag-suggestions:empty::before {
+    content: 'No matching hashtags';
+    display: block;
+    padding: 0.75rem;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+}

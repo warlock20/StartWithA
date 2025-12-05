@@ -90,6 +90,12 @@ def create_app(config_class=Config):
         from app.utils.blocknote_utils import blocknote_preview
         return blocknote_preview(content, max_length)
 
+    @app.template_filter('blocknote_to_html')
+    def blocknote_to_html_filter(content):
+        """Convert BlockNote JSON content to HTML"""
+        from app.utils.blocknote_utils import blocknote_to_html
+        return blocknote_to_html(content)
+
     # This makes the get_review_queue function available in all templates.
     from app.journal_enhanced.utils import get_review_queue
     from app.utils.quotes import get_session_quote

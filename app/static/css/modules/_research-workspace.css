@@ -180,7 +180,6 @@
 #sectorEditor {
     flex: 1;
     overflow-y: auto;
-    min-height: 0;
 }
 
 /* Snippets, Sources, AI Insights, Takeaways tabs */

@@ -218,7 +218,7 @@ class LearningNote(db.Model):
     lesson = db.Column(db.Text, nullable=False)
 
     # Categorization
-    category = db.Column(db.String(100))  # 'mistake', 'success', 'process', 'market_wisdom'
+    category = db.Column(db.String(100))  # 'mistake', 'success', 'process', 'market_wisdom', 'insight'
     subcategory = db.Column(db.String(100))  # More specific classification
 
     # Context
@@ -231,9 +231,17 @@ class LearningNote(db.Model):
     examples = db.Column(db.JSON)  # Specific examples of this lesson
     anti_examples = db.Column(db.JSON)  # Counter-examples
 
-    # Source
-    source_type = db.Column(db.String(50))  # 'experience', 'book', 'mentor', 'article'
-    source_detail = db.Column(db.String(200))
+    # Enhanced Source Attribution (for insights from legendary investors)
+    source_type = db.Column(db.String(50))  # 'experience', 'book', 'mentor', 'article', 'podcast', 'video', 'letter', 'conference'
+    source_detail = db.Column(db.String(200))  # Title or description
+    source_url = db.Column(db.String(500))  # URL to source material
+    source_author = db.Column(db.String(200))  # Investor/Author name (e.g., "Warren Buffett", "Howard Marks")
+    source_date = db.Column(db.Date)  # Date of source material
+
+    # Knowledge base metadata
+    knowledge_type = db.Column(db.String(50))  # 'insight', 'lesson_learned', 'framework', 'mental_model', 'quote'
+    topic_tags = db.Column(db.JSON)  # Specific topics: ['valuation', 'moat', 'management', 'psychology']
+    investor_tags = db.Column(db.JSON)  # Investor names for filtering insights by source
 
     # Related entities
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
@@ -243,6 +251,7 @@ class LearningNote(db.Model):
     times_reviewed = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime)
     importance = db.Column(db.Integer, default=5)  # 1-10 scale
+    is_favorite = db.Column(db.Boolean, default=False)  # Star/favorite insights
 
     # Spaced repetition
     next_review_date = db.Column(db.Date)

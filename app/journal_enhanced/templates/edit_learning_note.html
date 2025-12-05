@@ -1,0 +1,143 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h2>Edit Curated Insight</h2>
+                <p class="text-muted mb-0">Update wisdom from legendary investors, books, podcasts, and your own experience.</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('journal_enhanced.edit_learning_note', note_id=note.id) }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Lesson Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title"
+                               value="{{ note.title }}"
+                               placeholder="e.g., Avoid Cyclical Businesses at the Peak" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lesson" class="form-label">The Core Lesson <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="lesson" name="lesson" rows="4"
+                                  placeholder="What is the key takeaway or mental model?" required>{{ note.lesson }}</textarea>
+                    </div>
+
+                    <!-- Source Information -->
+                    <div class="mb-3">
+                        <label class="form-label">Source Information</label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="source_author" class="form-label">Author/Investor Name</label>
+                                <input type="text" class="form-control" id="source_author" name="source_author"
+                                       value="{{ note.source_author or '' }}"
+                                       placeholder="e.g., Warren Buffett, Howard Marks">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="source_type" class="form-label">Source Type</label>
+                                <select class="form-select" id="source_type" name="source_type">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="podcast" {{ 'selected' if note.source_type == 'podcast' }}>Podcast</option>
+                                    <option value="book" {{ 'selected' if note.source_type == 'book' }}>Book</option>
+                                    <option value="letter" {{ 'selected' if note.source_type == 'letter' }}>Letter</option>
+                                    <option value="article" {{ 'selected' if note.source_type == 'article' }}>Article</option>
+                                    <option value="video" {{ 'selected' if note.source_type == 'video' }}>Video</option>
+                                    <option value="conference" {{ 'selected' if note.source_type == 'conference' }}>Conference</option>
+                                    <option value="experience" {{ 'selected' if note.source_type == 'experience' }}>Personal Experience</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="source_detail" class="form-label">Source Details</label>
+                                <input type="text" class="form-control" id="source_detail" name="source_detail"
+                                       value="{{ note.source_detail or '' }}"
+                                       placeholder="e.g., 'The Intelligent Investor', '2023 Annual Letter', 'Acquired Podcast Ep. 142'">
+                            </div>
+                            <div class="col-12">
+                                <label for="source_url" class="form-label">Source Link (Optional)</label>
+                                <input type="url" class="form-control" id="source_url" name="source_url"
+                                       value="{{ note.source_url or '' }}"
+                                       placeholder="https://...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="knowledge_type" class="form-label">Knowledge Type</label>
+                            <select class="form-select" id="knowledge_type" name="knowledge_type">
+                                <option value="">-- Select Type --</option>
+                                <option value="insight" {{ 'selected' if note.knowledge_type == 'insight' }}>Insight</option>
+                                <option value="framework" {{ 'selected' if note.knowledge_type == 'framework' }}>Framework</option>
+                                <option value="mental_model" {{ 'selected' if note.knowledge_type == 'mental_model' }}>Mental Model</option>
+                                <option value="quote" {{ 'selected' if note.knowledge_type == 'quote' }}>Quote</option>
+                                <option value="lesson_learned" {{ 'selected' if note.knowledge_type == 'lesson_learned' }}>Lesson Learned</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="mistake" {{ 'selected' if note.category == 'mistake' }}>Mistake</option>
+                                <option value="success" {{ 'selected' if note.category == 'success' }}>Success</option>
+                                <option value="process" {{ 'selected' if note.category == 'process' }}>Process Improvement</option>
+                                <option value="market_wisdom" {{ 'selected' if note.category == 'market_wisdom' }}>Market Wisdom</option>
+                                <option value="valuation" {{ 'selected' if note.category == 'valuation' }}>Valuation</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="importance" class="form-label">Importance (1-10)</label>
+                            <input type="range" class="form-range" id="importance" name="importance"
+                                   min="1" max="10" value="{{ note.importance or 5 }}">
+                            <div class="text-center"><span id="importanceValue">{{ note.importance or 5 }}</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Topics Tags -->
+                    <div class="mb-3">
+                        <label for="topic_tags" class="form-label">Topics</label>
+                        <input type="text" class="form-control" id="topic_tags" name="topic_tags"
+                               value="{{ note.topic_tags|join(', ') if note.topic_tags else '' }}"
+                               placeholder="e.g., valuation, moat, management (comma-separated)">
+                        <small class="form-text text-muted">Enter topics separated by commas</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="context" class="form-label">Context</label>
+                        <textarea class="form-control" id="context" name="context" rows="2"
+                                  placeholder="What situation or event prompted this lesson?">{{ note.context or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="how_to_apply" class="form-label">How to Apply This Lesson</label>
+                        <textarea class="form-control" id="how_to_apply" name="how_to_apply" rows="2"
+                                  placeholder="How will you use this in the future? e.g., 'Add to my pre-investment checklist'">{{ note.how_to_apply or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">Related Company (Optional)</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">-- None --</option>
+                            {% for company in companies %}
+                                <option value="{{ company.id }}" {{ 'selected' if note.company_id == company.id }}>{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='wisdom') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Update Insight</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.getElementById('importance').addEventListener('input', function (e) {
+        document.getElementById('importanceValue').textContent = e.target.value;
+    });
+</script>
+{% endblock %}

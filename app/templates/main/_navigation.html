@@ -96,16 +96,10 @@
                     Knowledge & Learning
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="navbarKnowledgeDropdown">
-                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.journal_home') }}">Journal
-                            Entries</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub') }}">
+                        <i class="bi bi-search me-2"></i>Knowledge Hub
+                    </a></li>
             </li>
-            <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.review_queue') }}">Review
-                    Queue
-                    {% set queue = get_review_queue(current_user.id) %}
-                    {% if queue and queue.total_items > 0 %}
-                    <span class="badge bg-danger">{{ queue.total_items }}</span>
-                    {% endif %}
-                </a></li>
             <li>
                 <hr class="dropdown-divider">
             </li>

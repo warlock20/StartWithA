@@ -69,6 +69,15 @@
                 </span>
             </div>
             <div class="sector-snapshot-actions">
+                <div class="form-check form-switch d-inline-flex align-items-center me-3">
+                    <input class="form-check-input me-2" type="checkbox" role="switch"
+                           id="continuousLearningToggle"
+                           {% if analysis.continuous_learning_enabled %}checked{% endif %}
+                           data-analysis-id="{{ analysis.id }}">
+                    <label class="form-check-label small text-muted" for="continuousLearningToggle">
+                        Track in Learning Center
+                    </label>
+                </div>
                 <a href="{{ url_for('sectors.sector_analysis_focus', sector_name=analysis.sector_name) }}" class="btn btn-primary btn-sm" title="Distraction-free writing mode">
                     <i class="bi bi-aspect-ratio"></i> Focus Mode
                 </a>
@@ -276,6 +285,7 @@
                                              data-note-id="{{ note.id }}"
                                              data-note-title="{{ note.title }}"
                                              data-note-content="{{ note.content | escape }}"
+                                             data-note-content-html="{{ note.content | blocknote_to_html | escape }}"
                                              data-note-source-url="{{ note.source_reference or '' }}"
                                              data-note-source-title="{{ note.source_title or '' }}"
                                              data-note-tags="{{ note.tags or '' }}"
@@ -299,7 +309,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="note-card-content">{{ note.content | safe }}</div>
+                                            <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
                                             <div class="note-card-footer">
                                                 <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
                                                     {% if note.note_type == 'ai_insight' %}
@@ -661,4 +671,40 @@
 {% include 'components/modals/view_note_modal.html' %}
 {% include 'components/modals/company_suggestions_modal.html' %}
 {% include 'components/modals/generate_document_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Continuous Learning Toggle Handler
+document.getElementById('continuousLearningToggle').addEventListener('change', function() {
+    const analysisId = this.dataset.analysisId;
+    const enabled = this.checked;
+
+    fetch(`/sectors/analysis/${analysisId}/toggle-learning`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const message = enabled ? 'Sector added to Learning Center tracking' : 'Sector removed from Learning Center tracking';
+            // Optional: Show success feedback
+            console.log(message);
+        } else {
+            console.error('Failed to update learning tracking');
+            // Revert toggle on error
+            this.checked = !enabled;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Revert toggle on error
+        this.checked = !enabled;
+    });
+});
+</script>
 {% endblock %}

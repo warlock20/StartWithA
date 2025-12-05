@@ -20,6 +20,8 @@
     background: var(--bg-light);
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(62, 34, 34, 0.05);
+    width: 100%; /* Ensure container doesn't exceed viewport */
+    max-width: 100%; /* Prevent overflow */
 }
 
 /* Ensure dashboard content extends properly */
@@ -36,6 +38,7 @@
 .dashboard-container > * {
     padding-left: 2rem;
     padding-right: 2rem;
+    max-width: 100%; /* Ensure children don't overflow */
 }
 
 .dashboard-container > *:first-child {
@@ -44,6 +47,16 @@
 
 .dashboard-container > *:last-child {
     padding-bottom: 1.5rem;
+}
+
+/* Ensure grid layouts within dashboard respect boundaries */
+.dashboard-container .knowledge-stats-bar,
+.dashboard-container .knowledge-insights-grid,
+.dashboard-container .knowledge-filter-grid,
+.dashboard-container .dashboard-bottom-grid,
+.dashboard-container .quick-access-grid {
+    max-width: 100%;
+    width: 100%;
 }
 
 /* Page Header */

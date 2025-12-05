@@ -105,22 +105,9 @@ function createNewNote() {
     document.getElementById('noteModalTitle').textContent = 'Create Note (will go to Collector)';
     document.getElementById('noteSaveBtn').textContent = 'Create Note';
 
-    // Open modal first
+    // Open modal - editor will be initialized fresh in sector-document-init.js
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
-
-    // Clear BlockNote content after modal is shown (when editor is initialized)
-    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearEditor() {
-        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
-            // Clear BlockNote by replacing all blocks with an empty paragraph
-            window.noteEditorInstance.editor.replaceBlocks(
-                window.noteEditorInstance.editor.document,
-                [{ type: "paragraph", content: [] }]
-            );
-        }
-        // Remove this listener after first execution
-        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearEditor);
-    });
 }
 
 function addNoteToSection(sectionId) {
@@ -134,22 +121,9 @@ function addNoteToSection(sectionId) {
     document.getElementById('noteModalTitle').textContent = 'Add Note to Section';
     document.getElementById('noteSaveBtn').textContent = 'Create Note';
 
-    // Open modal first
+    // Open modal - editor will be initialized fresh in sector-document-init.js
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
-
-    // Clear BlockNote content after modal is shown (when editor is initialized)
-    document.getElementById('noteModal').addEventListener('shown.bs.modal', function clearEditor() {
-        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
-            // Clear BlockNote by replacing all blocks with an empty paragraph
-            window.noteEditorInstance.editor.replaceBlocks(
-                window.noteEditorInstance.editor.document,
-                [{ type: "paragraph", content: [] }]
-            );
-        }
-        // Remove this listener after first execution
-        document.getElementById('noteModal').removeEventListener('shown.bs.modal', clearEditor);
-    });
 }
 
 function createQuickNote() {
@@ -187,16 +161,26 @@ function saveNote() {
     const sectionId = document.getElementById('noteSectionId').value || null;
     const title = document.getElementById('noteTitle').value.trim();
 
+    // Check if editor is initialized
+    if (!window.noteEditorInstance || !window.noteEditorInstance.editor) {
+        alert('Editor is not ready. Please wait a moment and try again.');
+        console.error('BlockNote editor not initialized');
+        return;
+    }
+
     // Get content from BlockNote editor
     let content = '';
     let textContent = '';
     if (window.noteEditorInstance && window.noteEditorInstance.editor) {
         const blocks = window.noteEditorInstance.editor.document;
         content = JSON.stringify(blocks);
-        // Get plain text for validation
+        // Get plain text for validation - filter for text-type items only
         textContent = blocks.map(block => {
             if (block.content && Array.isArray(block.content)) {
-                return block.content.map(item => item.text || '').join('');
+                return block.content
+                    .filter(item => item && item.type === 'text')
+                    .map(item => item.text || '')
+                    .join('');
             }
             return '';
         }).join(' ').trim();
@@ -208,7 +192,26 @@ function saveNote() {
 
     // Check if content is empty
     if (!title || !textContent) {
-        alert('Please enter both title and content');
+        // Debug logging to help diagnose issues
+        console.log('=== Validation Failed ===');
+        console.log('Title:', title);
+        console.log('Has title:', !!title);
+        console.log('TextContent:', textContent);
+        console.log('TextContent length:', textContent.length);
+        console.log('Has editor:', !!window.noteEditorInstance);
+        console.log('Has editor.document:', !!(window.noteEditorInstance && window.noteEditorInstance.editor && window.noteEditorInstance.editor.document));
+
+        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
+            const blocks = window.noteEditorInstance.editor.document;
+            console.log('Blocks length:', blocks.length);
+            console.log('Raw blocks:', JSON.stringify(blocks, null, 2));
+        }
+
+        if (!title) {
+            alert('Please enter a title for the note');
+        } else {
+            alert('Please enter content for the note');
+        }
         return;
     }
 
@@ -304,6 +307,7 @@ function viewNote(noteId) {
     // Get note data from data attributes
     const noteTitle = noteCard.dataset.noteTitle;
     const noteContent = noteCard.dataset.noteContent;
+    const noteContentHtml = noteCard.dataset.noteContentHtml; // HTML version for display
     const noteSourceUrl = noteCard.dataset.noteSourceUrl;
     const noteSourceTitle = noteCard.dataset.noteSourceTitle;
     const noteTags = noteCard.dataset.noteTags;
@@ -311,9 +315,9 @@ function viewNote(noteId) {
     // Set title
     document.getElementById('viewNoteTitle').textContent = noteTitle;
 
-    // Decode and set content
+    // Decode and set content (use HTML version if available)
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = noteContent;
+    tempDiv.innerHTML = noteContentHtml || noteContent;
     document.getElementById('viewNoteContent').innerHTML = tempDiv.innerHTML;
 
     // Show/hide source
@@ -377,7 +381,7 @@ function editNote(noteId) {
     const noteTags = noteCard.dataset.noteTags;
     const sectionId = noteCard.dataset.sectionId;
 
-    // Populate form fields (except Quill editor)
+    // Populate form fields
     document.getElementById('noteId').value = noteId;
     document.getElementById('noteSectionId').value = sectionId;
     document.getElementById('noteTitle').value = noteTitle;
@@ -389,43 +393,50 @@ function editNote(noteId) {
     document.getElementById('noteModalTitle').textContent = 'Edit Note';
     document.getElementById('noteSaveBtn').textContent = 'Update Note';
 
-    // Open modal first
+    // Open modal
     const modal = new bootstrap.Modal(document.getElementById('noteModal'));
     modal.show();
 
-    // Set BlockNote content after modal is shown (when editor is initialized)
-    document.getElementById('noteModal').addEventListener('shown.bs.modal', function setContent() {
-        if (window.noteEditorInstance && window.noteEditorInstance.editor) {
-            // Decode HTML entities first
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = noteContent;
-            const decodedContent = tempDiv.innerHTML;
+    // Set BlockNote content after modal is shown and editor is initialized
+    // Wait for editor to be ready (it's initialized in sector-document-init.js)
+    const setContentWhenReady = () => {
+        setTimeout(() => {
+            if (window.noteEditorInstance && window.noteEditorInstance.editor) {
+                // Decode HTML entities first
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = noteContent;
+                const decodedContent = tempDiv.innerHTML;
 
-            // Try to parse as JSON (BlockNote format) first
-            try {
-                const blocks = JSON.parse(decodedContent);
-                if (Array.isArray(blocks)) {
-                    window.noteEditorInstance.editor.replaceBlocks(
-                        window.noteEditorInstance.editor.document,
-                        blocks
-                    );
+                // Try to parse as JSON (BlockNote format) first
+                try {
+                    const blocks = JSON.parse(decodedContent);
+                    if (Array.isArray(blocks)) {
+                        window.noteEditorInstance.editor.replaceBlocks(
+                            window.noteEditorInstance.editor.document,
+                            blocks
+                        );
+                    }
+                } catch (e) {
+                    // Not JSON - it's HTML, use insertHTML method
+                    if (window.noteEditorInstance.insertHTML) {
+                        // Clear first
+                        window.noteEditorInstance.editor.replaceBlocks(
+                            window.noteEditorInstance.editor.document,
+                            [{ type: "paragraph", content: [] }]
+                        );
+                        // Then insert HTML
+                        window.noteEditorInstance.insertHTML(decodedContent);
+                    }
                 }
-            } catch (e) {
-                // Not JSON - it's HTML, use insertHTML method
-                if (window.noteEditorInstance.insertHTML) {
-                    // Clear first
-                    window.noteEditorInstance.editor.replaceBlocks(
-                        window.noteEditorInstance.editor.document,
-                        [{ type: "paragraph", content: [] }]
-                    );
-                    // Then insert HTML
-                    window.noteEditorInstance.insertHTML(decodedContent);
-                }
+            } else {
+                // Editor not ready yet, try again
+                console.warn('Editor not ready, retrying...');
+                setContentWhenReady();
             }
-        }
-        // Remove this listener after first execution
-        document.getElementById('noteModal').removeEventListener('shown.bs.modal', setContent);
-    });
+        }, 200);
+    };
+
+    document.getElementById('noteModal').addEventListener('shown.bs.modal', setContentWhenReady, { once: true });
 
     // Close dropdown menu
     document.querySelectorAll('.note-card-dropdown').forEach(menu => {

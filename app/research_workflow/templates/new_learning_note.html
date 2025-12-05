@@ -1,12 +1,20 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{{ super() }}
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<!-- Hashtag Autocomplete -->
+<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h2>{{ title }}</h2>
-                <p class="text-muted mb-0">Distill an experience or idea into a reusable lesson.</p>
+                <h2>Add Curated Insight</h2>
+                <p class="text-muted mb-0">Capture wisdom from legendary investors, books, podcasts, and your own experience.</p>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('journal_enhanced.new_learning_note') }}">
@@ -17,27 +25,98 @@
 
                     <div class="mb-3">
                         <label for="lesson" class="form-label">The Core Lesson <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="lesson" name="lesson" rows="4" placeholder="What is the key takeaway or mental model?" required></textarea>
+                        <div id="lessonContentEditor" style="min-height: 200px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: white;"></div>
+                        <input type="hidden" id="lesson" name="lesson" required>
+                    </div>
+
+                    <!-- Source Information -->
+                    <div class="mb-3">
+                        <label class="form-label">Source Information</label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="source_author" class="form-label">Author/Investor Name</label>
+                                <input type="text" class="form-control" id="source_author" name="source_author"
+                                       placeholder="e.g., Warren Buffett, Howard Marks">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="source_type" class="form-label">Source Type</label>
+                                <select class="form-select" id="source_type" name="source_type">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="podcast">Podcast</option>
+                                    <option value="book">Book</option>
+                                    <option value="letter">Letter</option>
+                                    <option value="article">Article</option>
+                                    <option value="video">Video</option>
+                                    <option value="conference">Conference</option>
+                                    <option value="experience">Personal Experience</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="source_detail" class="form-label">Source Details</label>
+                                <input type="text" class="form-control" id="source_detail" name="source_detail"
+                                       placeholder="e.g., 'The Intelligent Investor', '2023 Annual Letter', 'Acquired Podcast Ep. 142'">
+                            </div>
+                            <div class="col-12">
+                                <label for="source_url" class="form-label">Source Link (Optional)</label>
+                                <input type="url" class="form-control" id="source_url" name="source_url"
+                                       placeholder="https://...">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label for="knowledge_type" class="form-label">Knowledge Type</label>
+                            <select class="form-select" id="knowledge_type" name="knowledge_type">
+                                <option value="">-- Select Type --</option>
+                                <option value="insight">Insight</option>
+                                <option value="framework">Framework</option>
+                                <option value="mental_model">Mental Model</option>
+                                <option value="quote">Quote</option>
+                                <option value="lesson_learned">Lesson Learned</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
                             <label for="category" class="form-label">Category</label>
-                            <select class="form-select" id="category" name="category">
+                            <select class="form-select" id="category" name="category" onchange="toggleCustomCategory()">
                                 <option value="mistake">Mistake</option>
                                 <option value="success">Success</option>
                                 <option value="process">Process Improvement</option>
                                 <option value="market_wisdom" selected>Market Wisdom</option>
                                 <option value="valuation">Valuation</option>
+                                <option value="accounting">Accounting Tips</option>
+                                <option value="finance">Finance Tips</option>
+                                <option value="psychology">Behavioral Psychology</option>
+                                <option value="strategy">Strategy</option>
+                                <option value="risk_management">Risk Management</option>
+                                <option value="custom">Custom (Enter Below)</option>
                             </select>
+                            <input type="text" class="form-control mt-2" id="custom_category" name="custom_category"
+                                   placeholder="Enter custom category" style="display: none;">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="importance" class="form-label">Importance (1-10)</label>
                             <input type="range" class="form-range" id="importance" name="importance" min="1" max="10" value="5">
                             <div class="text-center"><span id="importanceValue">5</span></div>
                         </div>
                     </div>
-                    
+
+                    <!-- Topics Tags -->
+                    <div class="mb-3">
+                        <label for="topic_tags" class="form-label">Topics</label>
+                        <input type="text" class="form-control" id="topic_tags" name="topic_tags"
+                               placeholder="e.g., valuation, moat, management (comma-separated)">
+                        <small class="form-text text-muted">Enter topics separated by commas</small>
+                    </div>
+
+                    <!-- Hashtags -->
+                    <div class="mb-3">
+                        <label for="hashtags" class="form-label">Hashtags</label>
+                        <input type="text" class="form-control" id="hashtags" name="hashtags"
+                               placeholder="e.g., #accountingtips #cfaprep #financialratios">
+                        <small class="form-text text-muted">Enter hashtags with # (e.g., #accounting #cfa)</small>
+                    </div>
+
                     <div class="mb-3">
                         <label for="context" class="form-label">Context</label>
                         <textarea class="form-control" id="context" name="context" rows="2" placeholder="What situation or event prompted this lesson?"></textarea>
@@ -72,8 +151,58 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Initialize BlockNote Editor
+    let lessonEditorInstance = null;
+
+    // Wait for BlockNote to load
+    const initLessonEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(initLessonEditor);
+
+            // Initialize BlockNote for lesson content
+            lessonEditorInstance = window.initBlockNoteEditor('lessonContentEditor', {
+                placeholder: 'Write your core lesson here... Type "/" for commands',
+                onSave: null // Manual save via form submission
+            });
+
+            console.log('Lesson BlockNote editor initialized');
+        }
+    }, 100);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+        clearInterval(initLessonEditor);
+        if (!window.initBlockNoteEditor) {
+            console.error('BlockNote failed to load');
+        }
+    }, 10000);
+
+    // Capture BlockNote content before form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            const blocks = window.blockNoteEditorInstance.editor.document;
+            const content = JSON.stringify(blocks);
+            document.getElementById('lesson').value = content;
+        }
+        // Don't prevent default - allow form submission to continue
+    });
+
     document.getElementById('importance').addEventListener('input', function (e) {
         document.getElementById('importanceValue').textContent = e.target.value;
     });
+
+    function toggleCustomCategory() {
+        const categorySelect = document.getElementById('category');
+        const customCategoryInput = document.getElementById('custom_category');
+
+        if (categorySelect.value === 'custom') {
+            customCategoryInput.style.display = 'block';
+            customCategoryInput.required = true;
+        } else {
+            customCategoryInput.style.display = 'none';
+            customCategoryInput.required = false;
+            customCategoryInput.value = '';
+        }
+    }
 </script>
 {% endblock %}

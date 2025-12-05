@@ -75,6 +75,8 @@ All complex components have been fully modularized.
 @import url('modules/_learning-dashboard.css');   /* Learning - Dashboard page */
 @import url('modules/_learning-paths.css');       /* Learning - Learning paths page */
 @import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
+@import url('modules/_knowledge-library.css');    /* Knowledge Library - Insights & wisdom capture */
+@import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Unified research & wisdom */
 @import url('modules/_learning-weekly-review.css'); /* Learning - Weekly review page */
 @import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
 @import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
@@ -84,3 +86,4 @@ All complex components have been fully modularized.
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
 @import url('modules/_profile.css');              /* User profile page */
+@import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */

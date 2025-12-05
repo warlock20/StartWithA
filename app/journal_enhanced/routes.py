@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, abort, session
 from flask_login import current_user, login_required
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
@@ -10,6 +10,7 @@ from app.journal_enhanced.utils import (extract_tags_from_content, get_related_e
                                        calculate_next_review_date, search_journal,
                                       get_all_user_tags,
                                        get_journal_statistics, create_default_templates)
+from app.utils.time_utils import now_utc
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -33,36 +34,8 @@ def allowed_file(filename):
 @journal_enhanced_bp.route('/')
 @login_required
 def journal_home():
-    """Main journal dashboard"""
-    # Get recent entries
-    recent_entries = current_user.journal_entries.filter_by(is_archived=False)\
-                                                 .order_by(JournalEntry.created_at.desc())\
-                                                 .limit(10).all()
-    
-    # Get review queue
-    review_queue = get_review_queue(current_user.id)
-    
-    # Get statistics
-    stats = get_journal_statistics(current_user.id)
-    
-    # Get starred entries
-    starred_entries = current_user.journal_entries.filter_by(is_starred=True, is_archived=False)\
-                                                  .order_by(JournalEntry.created_at.desc())\
-                                                  .limit(5).all()
-    
-    # Get active companies for quick entry
-    active_companies = Company.query.join(ResearchProject).filter(
-        ResearchProject.user_id == current_user.id,
-        ResearchProject.status == 'active'
-    ).distinct().all()
-    
-    return render_template('journal_home.html',
-                          title="Research Journal",
-                          recent_entries=recent_entries,
-                          review_queue=review_queue,
-                          stats=stats,
-                          starred_entries=starred_entries,
-                          active_companies=active_companies)
+    """Redirect to Knowledge Hub - Research Notes view (replaces old journal home)"""
+    return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
 
 @journal_enhanced_bp.route('/entry/new', methods=['GET', 'POST'])
 @login_required
@@ -457,25 +430,58 @@ def new_learning_note():
    if request.method == 'POST':
        title = request.form.get('title')
        lesson = request.form.get('lesson')
+
+       # Handle custom category
        category = request.form.get('category')
+       if category == 'custom':
+           custom_category = request.form.get('custom_category', '').strip()
+           category = custom_category if custom_category else 'other'
+
+       knowledge_type = request.form.get('knowledge_type')
        context = request.form.get('context')
        how_to_apply = request.form.get('how_to_apply')
        importance = request.form.get('importance', type=int)
        company_id = request.form.get('company_id', type=int)
-       
+
        if not title or not lesson:
            flash('Title and lesson are required', 'error')
            return redirect(url_for('journal_enhanced.new_learning_note'))
-       
+
        # Parse examples
        examples = request.form.get('examples', '').split('\n')
        examples = [ex.strip() for ex in examples if ex.strip()]
-       
+
+       # Parse topic tags
+       topic_tags_str = request.form.get('topic_tags', '')
+       topic_tags = [tag.strip() for tag in topic_tags_str.split(',') if tag.strip()] if topic_tags_str else None
+
+       # Parse hashtags
+       hashtags_str = request.form.get('hashtags', '').strip()
+       hashtags = []
+       if hashtags_str:
+           # Split by spaces and commas, remove # if present, add it back consistently
+           raw_tags = hashtags_str.replace(',', ' ').split()
+           hashtags = ['#' + tag.lstrip('#') for tag in raw_tags if tag.strip()]
+
+       # Parse investor tags - automatically use source_author if provided
+       source_author = request.form.get('source_author')
+       investor_tags = [source_author] if source_author else None
+
+       # Parse source date
+       source_date = None
+       source_date_str = request.form.get('source_date')
+       if source_date_str:
+           try:
+               source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
+           except ValueError:
+               pass
+
        note = LearningNote(
            author=current_user,
            title=title,
            lesson=lesson,
            category=category,
+           knowledge_type=knowledge_type,
            context=context,
            how_to_apply=how_to_apply,
            importance=importance or 5,
@@ -483,41 +489,70 @@ def new_learning_note():
            company_id=company_id if company_id else None,
            source_type=request.form.get('source_type'),
            source_detail=request.form.get('source_detail'),
+           source_url=request.form.get('source_url'),
+           source_author=request.form.get('source_author'),
+           source_date=source_date,
+           topic_tags=topic_tags,
+           investor_tags=investor_tags,
            next_review_date=datetime.utcnow().date() + timedelta(days=1)
        )
-       
+
        # Extract tags
        note.tags = extract_tags_from_content(lesson)
-       
+
        db.session.add(note)
-       
+
        try:
            db.session.commit()
            flash('Learning note created!', 'success')
-           return redirect(url_for('journal_enhanced.learning_notes'))
+           return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
        except Exception as e:
            db.session.rollback()
            flash(f'Error creating note: {str(e)}', 'error')
-   
+
    companies = current_user.companies.order_by(Company.name).all()
-   
+
    return render_template('new_learning_note.html',
                          title="New Learning Note",
                          companies=companies)
+
+@journal_enhanced_bp.route('/learning-notes/<int:note_id>')
+@login_required
+def learning_note_detail(note_id):
+   """View learning note detail"""
+   note = LearningNote.query.get_or_404(note_id)
+
+   if note.user_id != current_user.id:
+       flash('Access denied', 'error')
+       return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+
+   # Auto-track review: Update last_reviewed when user views the insight
+   note.last_reviewed = now_utc()
+   note.times_reviewed = (note.times_reviewed or 0) + 1
+
+   try:
+       db.session.commit()
+   except Exception as e:
+       db.session.rollback()
+       logger.error(f"Error tracking review for learning note {note_id}: {str(e)}")
+
+   return render_template('learning_note_detail.html',
+                         title=note.title,
+                         note=note)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/review', methods=['POST'])
 @login_required
 def review_learning_note(note_id):
    """Mark a learning note as reviewed"""
    note = LearningNote.query.get_or_404(note_id)
-   
+
    if note.user_id != current_user.id:
        return jsonify({'error': 'Access denied'}), 403
-   
+
    note.times_reviewed += 1
    note.last_reviewed = datetime.utcnow()
    note.next_review_date = calculate_next_review_date(note)
-   
+
    try:
        db.session.commit()
        return jsonify({
@@ -528,6 +563,267 @@ def review_learning_note(note_id):
    except Exception as e:
        db.session.rollback()
        return jsonify({'error': str(e)}), 500
+
+@journal_enhanced_bp.route('/learning-notes/<int:note_id>/toggle-favorite', methods=['POST'])
+@login_required
+def toggle_favorite_note(note_id):
+   """Toggle favorite status of a learning note"""
+   note = LearningNote.query.get_or_404(note_id)
+
+   if note.user_id != current_user.id:
+       return jsonify({'error': 'Access denied'}), 403
+
+   note.is_favorite = not note.is_favorite
+
+   try:
+       db.session.commit()
+       return jsonify({'success': True, 'is_favorite': note.is_favorite})
+   except Exception as e:
+       db.session.rollback()
+       return jsonify({'error': str(e)}), 500
+
+@journal_enhanced_bp.route('/learning-notes/<int:note_id>/delete', methods=['POST'])
+@login_required
+def delete_learning_note(note_id):
+   """Delete a learning note"""
+   note = LearningNote.query.get_or_404(note_id)
+
+   if note.user_id != current_user.id:
+       return jsonify({'error': 'Access denied'}), 403
+
+   try:
+       db.session.delete(note)
+       db.session.commit()
+       return jsonify({'success': True})
+   except Exception as e:
+       db.session.rollback()
+       return jsonify({'error': str(e)}), 500
+
+@journal_enhanced_bp.route('/learning-notes/<int:note_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_learning_note(note_id):
+   """Edit a learning note"""
+   note = LearningNote.query.get_or_404(note_id)
+
+   if note.user_id != current_user.id:
+       flash('Access denied', 'error')
+       return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+
+   if request.method == 'POST':
+       note.title = request.form.get('title')
+       note.lesson = request.form.get('lesson')
+       note.category = request.form.get('category')
+       note.knowledge_type = request.form.get('knowledge_type')
+       note.context = request.form.get('context')
+       note.how_to_apply = request.form.get('how_to_apply')
+       note.importance = request.form.get('importance', type=int)
+       note.source_type = request.form.get('source_type')
+       note.source_detail = request.form.get('source_detail')
+       note.source_url = request.form.get('source_url')
+       note.source_author = request.form.get('source_author')
+
+       # Parse source date
+       source_date_str = request.form.get('source_date')
+       if source_date_str:
+           try:
+               note.source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
+           except ValueError:
+               pass
+
+       # Parse topic tags
+       topic_tags_str = request.form.get('topic_tags', '')
+       if topic_tags_str:
+           note.topic_tags = [tag.strip() for tag in topic_tags_str.split(',') if tag.strip()]
+       else:
+           note.topic_tags = None
+
+       # Parse investor tags - automatically use source_author if provided
+       if note.source_author:
+           note.investor_tags = [note.source_author]
+       else:
+           note.investor_tags = None
+
+       # Parse examples
+       examples = request.form.get('examples', '').split('\n')
+       note.examples = [ex.strip() for ex in examples if ex.strip()]
+
+       try:
+           db.session.commit()
+           flash('Learning note updated!', 'success')
+           return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+       except Exception as e:
+           db.session.rollback()
+           flash(f'Error updating note: {str(e)}', 'error')
+
+   companies = current_user.companies.order_by(Company.name).all()
+
+   return render_template('edit_learning_note.html',
+                         title="Edit Learning Note",
+                         note=note,
+                         companies=companies)
+
+@journal_enhanced_bp.route('/knowledge-library')
+@login_required
+def knowledge_library():
+   """Redirect to Knowledge Hub - Curated Wisdom view"""
+   return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+
+@journal_enhanced_bp.route('/knowledge-hub')
+@login_required
+def knowledge_hub():
+    """Unified Knowledge Hub - combines search, curated wisdom, and research notes"""
+    # Get view mode with preference fallback
+    view_mode = request.args.get('view')
+
+    if not view_mode:
+        # Check if user has a saved preference
+        view_mode = session.get('knowledge_hub_view', 'all')
+
+    # Save the current view as preference
+    session['knowledge_hub_view'] = view_mode
+
+    # Get search query
+    search_query = request.args.get('q', '')
+
+    # Initialize results
+    wisdom_results = []
+    research_results = []
+
+    # Query LearningNote (Curated Wisdom)
+    if view_mode in ['all', 'wisdom']:
+        wisdom_query = LearningNote.query.filter_by(user_id=current_user.id)
+
+        # Apply wisdom-specific filters
+        investor = request.args.get('investor')
+        source_type = request.args.get('source_type')
+        knowledge_type = request.args.get('knowledge_type')
+        topic = request.args.get('topic')
+        favorites_only = request.args.get('favorites_only') == '1'
+
+        # Search filter
+        if search_query:
+            search_pattern = f'%{search_query}%'
+            wisdom_query = wisdom_query.filter(
+                db.or_(
+                    LearningNote.title.ilike(search_pattern),
+                    LearningNote.lesson.ilike(search_pattern),
+                    LearningNote.source_author.ilike(search_pattern)
+                )
+            )
+
+        # Other filters
+        if investor:
+            wisdom_query = wisdom_query.filter(LearningNote.investor_tags.contains([investor]))
+        if source_type:
+            wisdom_query = wisdom_query.filter_by(source_type=source_type)
+        if knowledge_type:
+            wisdom_query = wisdom_query.filter_by(knowledge_type=knowledge_type)
+        if topic:
+            wisdom_query = wisdom_query.filter(LearningNote.topic_tags.contains([topic]))
+        if favorites_only:
+            wisdom_query = wisdom_query.filter_by(is_favorite=True)
+
+        wisdom_results = wisdom_query.order_by(
+            LearningNote.importance.desc(),
+            LearningNote.created_at.desc()
+        ).all()
+
+    # Query JournalEntry (Research Notes)
+    if view_mode in ['all', 'research']:
+        research_query = JournalEntry.query.filter_by(
+            user_id=current_user.id,
+            is_archived=False
+        )
+
+        # Apply research-specific filters
+        company_id = request.args.get('company_id', type=int)
+        entry_type = request.args.get('entry_type')
+        sentiment = request.args.get('sentiment')
+        starred_only = request.args.get('starred_only') == '1'
+        date_range = request.args.get('date_range', type=int)
+
+        # Search filter
+        if search_query:
+            search_pattern = f'%{search_query}%'
+            research_query = research_query.filter(
+                db.or_(
+                    JournalEntry.title.ilike(search_pattern),
+                    JournalEntry.content.ilike(search_pattern),
+                    JournalEntry.key_insight.ilike(search_pattern)
+                )
+            )
+
+        # Other filters
+        if company_id:
+            research_query = research_query.filter_by(company_id=company_id)
+        if entry_type:
+            research_query = research_query.filter_by(entry_type=entry_type)
+        if sentiment:
+            research_query = research_query.filter_by(sentiment=sentiment)
+        if starred_only:
+            research_query = research_query.filter_by(is_starred=True)
+        if date_range:
+            cutoff_date = datetime.utcnow() - timedelta(days=date_range)
+            research_query = research_query.filter(JournalEntry.created_at >= cutoff_date)
+
+        research_results = research_query.order_by(
+            JournalEntry.created_at.desc()
+        ).all()
+
+    # Get all unique investors for filter dropdown
+    all_investors = set()
+    for note in current_user.learning_notes.all():
+        if note.investor_tags:
+            all_investors.update(note.investor_tags)
+    all_investors = sorted(list(all_investors))
+
+    # Get all unique topics for filter dropdown
+    all_topics = set()
+    for note in current_user.learning_notes.all():
+        if note.topic_tags:
+            all_topics.update(note.topic_tags)
+    all_topics = sorted(list(all_topics))
+
+    # Get companies for filter dropdown
+    companies = current_user.companies.order_by(Company.name).all()
+
+    # Calculate stats based on view mode
+    stats = {}
+    if view_mode == 'wisdom':
+        stats = {
+            'total_insights': len(current_user.learning_notes.all()),
+            'total_investors': len(all_investors),
+            'favorites': sum(1 for note in current_user.learning_notes.all() if note.is_favorite),
+            'topics': len(all_topics)
+        }
+    elif view_mode == 'research':
+        all_research = current_user.journal_entries.filter_by(is_archived=False).all()
+        stats = {
+            'total_entries': len(all_research),
+            'companies': len(set(e.company_id for e in all_research if e.company_id)),
+            'starred': sum(1 for e in all_research if e.is_starred),
+            'this_month': sum(1 for e in all_research if e.created_at >= datetime.utcnow() - timedelta(days=30))
+        }
+    else:  # all
+        all_research = current_user.journal_entries.filter_by(is_archived=False).all()
+        all_wisdom = current_user.learning_notes.all()
+        stats = {
+            'total_items': len(all_research) + len(all_wisdom),
+            'research_notes': len(all_research),
+            'curated_insights': len(all_wisdom),
+            'starred': sum(1 for e in all_research if e.is_starred) + sum(1 for n in all_wisdom if n.is_favorite)
+        }
+
+    return render_template('knowledge_hub.html',
+                         title="Knowledge Hub",
+                         view_mode=view_mode,
+                         wisdom_results=wisdom_results,
+                         research_results=research_results,
+                         stats=stats,
+                         all_investors=all_investors,
+                         all_topics=all_topics,
+                         companies=companies,
+                         search_query=search_query)
 
 @journal_enhanced_bp.route('/review-queue')
 @login_required

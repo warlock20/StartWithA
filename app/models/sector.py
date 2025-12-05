@@ -78,7 +78,7 @@ class Sector(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc, nullable=False)
-    last_researched = db.Column(db.DateTime, nullable=True)
+    last_researched = db.Column(db.DateTime, nullable=True)  # Tracks both active research AND passive review/learning
 
     # Relationships
     user = db.relationship('User', backref='sectors')
@@ -226,6 +226,7 @@ class SectorAnalysis(db.Model):
 
     # Research status and tracking
     status = db.Column(db.String(20), nullable=False, default='active')  # active, archived
+    continuous_learning_enabled = db.Column(db.Boolean, default=False, nullable=False)  # Track in Learning Center
     total_time_spent = db.Column(db.Integer, nullable=False, default=0)  # in seconds
     archived_at = db.Column(db.DateTime, nullable=True)
 

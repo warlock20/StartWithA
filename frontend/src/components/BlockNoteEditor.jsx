@@ -145,7 +145,7 @@ export function BlockNoteEditor({
 }
 
 /**
- * Parse initial content (HTML or JSON)
+ * Parse initial content (HTML, JSON, or plain text)
  */
 function parseInitialContent(content) {
   if (!content || content.trim() === "") {
@@ -159,10 +159,26 @@ function parseInitialContent(content) {
       return blocks;
     }
   } catch (e) {
-    // Not JSON - it's HTML from Quill editor
-    // Just return undefined, editor will start empty
-    // TODO: Convert HTML to BlockNote blocks in future
-    return undefined;
+    // Not JSON - check if it's HTML or plain text
+    const trimmed = content.trim();
+
+    // Check if it looks like HTML (contains tags)
+    if (trimmed.includes('<') && trimmed.includes('>')) {
+      // Convert HTML to BlockNote blocks
+      const blocks = convertHTMLToBlocks(trimmed);
+      if (blocks && blocks.length > 0) {
+        return blocks;
+      }
+    } else {
+      // Plain text - convert to paragraph blocks
+      const lines = trimmed.split('\n').filter(line => line.trim());
+      if (lines.length > 0) {
+        return lines.map(line => ({
+          type: "paragraph",
+          content: [{ type: "text", text: line.trim(), styles: {} }]
+        }));
+      }
+    }
   }
 
   return undefined;

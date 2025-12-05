@@ -7,6 +7,7 @@ from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
 from app.models.associations import sector_note_companies, sector_snippet_companies
 from app.services.sector_service import SectorService
 from app.services.too_hard_service import TooHardBasketService
+from app.utils.time_utils import now_utc
 from sqlalchemy import func
 from datetime import datetime
 import re
@@ -303,6 +304,15 @@ def notebook(sector_name):
     if should_redirect:
         return redirect(url_for('sectors.notebook', sector_name=sector.slug), code=301)
 
+    # Auto-track sector review: Update last_researched when user views sector
+    sector.last_researched = now_utc()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # Don't fail the request if tracking fails
+        pass
+
     if request.method == 'POST':
         flash('Please use the Document View or Research Canvas to save your notes.', 'info')
         return redirect(url_for('sectors.notebook', sector_name=sector.slug))
@@ -355,6 +365,15 @@ def sector_analysis_focus(sector_name):
 
     if should_redirect:
         return redirect(url_for('sectors.sector_analysis_focus', sector_name=sector.slug), code=301)
+
+    # Auto-track sector review: Update last_researched when user views sector
+    sector.last_researched = now_utc()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # Don't fail the request if tracking fails
+        pass
 
     # Build page data using same helper functions as notebook route
     question_bank_items = QuestionBankItem.query.filter_by(
@@ -1135,6 +1154,28 @@ def unarchive_sector(sector_name):
 
     flash(f'{sector_name} sector research unarchived', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))
+
+
+@sectors_bp.route('/analysis/<int:analysis_id>/toggle-learning', methods=['POST'])
+@login_required
+def toggle_continuous_learning(analysis_id):
+    """Toggle continuous learning tracking for a sector analysis"""
+    analysis = SectorAnalysis.query.get_or_404(analysis_id)
+
+    if analysis.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    enabled = data.get('enabled', False)
+
+    analysis.continuous_learning_enabled = enabled
+
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'enabled': enabled})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================================

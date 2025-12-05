@@ -1,0 +1,50 @@
+<!-- All View Filters (Unified Search) -->
+<div class="knowledge-filter-card">
+    <div class="card-body">
+        <form method="GET" id="allFilters">
+            <input type="hidden" name="view" value="all">
+
+            <div class="knowledge-filter-grid">
+                <div class="col-span-2">
+                    <label class="form-label">Search Everything</label>
+                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search research notes and insights...">
+                </div>
+
+                <div>
+                    <label class="form-label">Company</label>
+                    <select class="form-select filter-select" name="company_id">
+                        <option value="">All Companies</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id')|int == company.id }}>{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Investor</label>
+                    <select class="form-select filter-select" name="investor">
+                        <option value="">All Investors</option>
+                        {% for investor in all_investors %}
+                        <option value="{{ investor }}" {{ 'selected' if request.args.get('investor') == investor }}>{{ investor }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select filter-select" name="date_range">
+                        <option value="">All Time</option>
+                        <option value="7" {{ 'selected' if request.args.get('date_range') == '7' }}>Last 7 days</option>
+                        <option value="30" {{ 'selected' if request.args.get('date_range') == '30' }}>Last 30 days</option>
+                        <option value="90" {{ 'selected' if request.args.get('date_range') == '90' }}>Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="knowledge-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                <a href="?view=all" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
+            </div>
+        </form>
+    </div>
+</div>

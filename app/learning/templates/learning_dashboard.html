@@ -41,25 +41,7 @@
         </div>
     </header>
 
-    <!-- Learning Score Card -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid single-column">
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Your Learning Score</h3>
-                        <span class="priority-card-number priority-number-blue">{{ learning_score.total_score }} / {{ learning_score.max_score }}</span>
-                    </div>
-                    <div class="learning-progress-bar">
-                        <div class="learning-progress-fill" style="width: {{ (learning_score.total_score / learning_score.max_score * 100)|round }}%"></div>
-                    </div>
-                    <p class="priority-card-description">Grade: {{ learning_score.grade }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Review Schedule Alert -->
+      <!-- Review Schedule Alert -->
     {% if review_schedule %}
     <div class="learning-alert">
         <div class="learning-alert-icon">
@@ -81,60 +63,97 @@
     </div>
     {% endif %}
 
-    <!-- Metrics Grid -->
+    
+
+    <!-- Knowledge Review Center -->
     <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <div class="priority-card priority-card-monitoring">
+        <h2 class="section-title font-poppins mb-3">Knowledge Review Center</h2>
+        <div class="priority-lane-grid">
+            <!-- Curated Wisdom Card -->
+            <div class="priority-card" style="border-left: 4px solid #14b8a6;">
                 <div class="priority-card-content">
                     <div class="priority-card-header">
-                        <h3 class="priority-card-title">Recent Mistakes</h3>
-                        <span class="priority-card-number priority-number-blue">{{ recent_mistakes|length }}</span>
+                        <div>
+                            <h3 class="priority-card-title">
+                                <i class="bi bi-lightbulb me-2" style="color: #14b8a6;"></i>
+                                Curated Wisdom
+                            </h3>
+                            <p class="priority-card-description mb-0">
+                                {{ curated_wisdom_stats.total }} insight{{ 's' if curated_wisdom_stats.total != 1 }}
+                                {% if curated_wisdom_stats.stale_count > 0 %}
+                                • <span class="text-warning">{{ curated_wisdom_stats.stale_count }} need review</span>
+                                {% endif %}
+                            </p>
+                        </div>
                     </div>
-                    <p class="priority-card-description">Logged for learning</p>
+                    <div class="mt-3">
+                        {% if curated_wisdom_stats.last_reviewed %}
+                            <small class="text-muted">
+                                <i class="bi bi-clock-history"></i>
+                                Last reviewed: {{ curated_wisdom_stats.last_reviewed.strftime('%b %d, %Y') }}
+                                ({{ ((now - curated_wisdom_stats.last_reviewed).days) }} days ago)
+                            </small>
+                        {% else %}
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                Never reviewed
+                            </small>
+                        {% endif %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='wisdom') }}"
+                           class="btn btn-sm"
+                           style="background-color: #14b8a6; color: white; border: none;">
+                            Browse & Review <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <div class="priority-card priority-card-ideas">
+            <!-- Sector Knowledge Card -->
+            <div class="priority-card" style="border-left: 4px solid #8b5cf6;">
                 <div class="priority-card-content">
                     <div class="priority-card-header">
-                        <h3 class="priority-card-title">Patterns Found</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ recent_patterns|length }}</span>
+                        <div>
+                            <h3 class="priority-card-title">
+                                <i class="bi bi-layers me-2" style="color: #8b5cf6;"></i>
+                                Sector Knowledge
+                            </h3>
+                            <p class="priority-card-description mb-0">
+                                {{ sector_knowledge_stats.total }} sector{{ 's' if sector_knowledge_stats.total != 1 }}
+                                {% if sector_knowledge_stats.stale_count > 0 %}
+                                • <span class="text-warning">{{ sector_knowledge_stats.stale_count }} need review</span>
+                                {% endif %}
+                            </p>
+                        </div>
                     </div>
-                    <p class="priority-card-description">Behavioral insights</p>
-                </div>
-            </div>
-
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Confidence Level</h3>
-                        <span class="priority-card-number priority-number-green">
-                            {{ improvement_data.recent_confidence }}
-                            {% if improvement_data.confidence_trend == 'improving' %}
-                            <span class="trend-arrow trend-up">↑</span>
-                            {% elif improvement_data.confidence_trend == 'declining' %}
-                            <span class="trend-arrow trend-down">↓</span>
-                            {% else %}
-                            <span class="trend-arrow trend-stable">→</span>
-                            {% endif %}
-                        </span>
+                    <div class="mt-3">
+                        {% if sector_knowledge_stats.last_researched %}
+                            <small class="text-muted">
+                                <i class="bi bi-clock-history"></i>
+                                Last researched: {{ sector_knowledge_stats.last_researched.strftime('%b %d, %Y') }}
+                                ({{ ((now - sector_knowledge_stats.last_researched).days) }} days ago)
+                            </small>
+                        {% else %}
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                Never researched
+                            </small>
+                        {% endif %}
                     </div>
-                    <p class="priority-card-description">Recent average</p>
-                </div>
-            </div>
-
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Active Paths</h3>
-                        <span class="priority-card-number priority-number-blue">{{ active_paths|length }}</span>
+                    <div class="mt-3">
+                        <a href="{{ url_for('sectors.index') }}"
+                           class="btn btn-sm"
+                           style="background-color: #8b5cf6; color: white; border: none;">
+                            Review & Learn <i class="bi bi-arrow-right"></i>
+                        </a>
                     </div>
-                    <p class="priority-card-description">Learning in progress</p>
                 </div>
             </div>
         </div>
     </div>
 
+  
     <!-- Main Content Grid -->
     <div class="learning-content-grid">
         <!-- Recommendations Column -->

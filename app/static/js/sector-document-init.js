@@ -154,14 +154,25 @@ function initializeOtherEditors() {
         const noteModal = document.getElementById('noteModal');
         if (noteModal) {
             noteModal.addEventListener('shown.bs.modal', function() {
-                if (!window.noteBlockNoteEditor) {
+                // Always reinitialize to ensure editor is fresh and working
+                // This prevents stale editor references after modal close/reopen
+                const editorContainer = document.getElementById('noteContentEditor');
+                if (editorContainer) {
+                    // Clear the container first
+                    editorContainer.innerHTML = '';
+
                     // Initialize BlockNote for note modal
                     window.noteBlockNoteEditor = window.initBlockNoteEditor('noteContentEditor', {
                         placeholder: 'Write your note here... Type "/" for commands',
                         onSave: null // We handle save manually
                     });
+
                     // Store reference to the editor instance
-                    window.noteEditorInstance = window.blockNoteEditorInstance;
+                    // Use setTimeout to ensure React has finished mounting
+                    setTimeout(() => {
+                        window.noteEditorInstance = window.blockNoteEditorInstance;
+                        console.log('Note editor initialized:', !!window.noteEditorInstance);
+                    }, 100);
                 }
             });
         }
