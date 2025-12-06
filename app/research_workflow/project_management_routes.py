@@ -18,6 +18,7 @@ from app.models import (ResearchTemplate, ResearchProject, Company,
                        ResearchLog, JournalEntry, IdeaPipeline)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.services.too_hard_service import TooHardBasketService
 
 
 @research_workflow_bp.route('/my-projects')
@@ -29,11 +30,9 @@ def my_projects():
     paused_count = current_user.research_projects.filter_by(status='paused').count()
     completed_count = current_user.research_projects.filter_by(status='completed').count()
 
-    # Get Too Hard Basket count (completed projects with 'pass' decision)
-    too_hard_count = current_user.research_projects.filter_by(
-        status='completed',
-        decision='pass'
-    ).count()
+    # Get Too Hard Basket count (includes: killed ideas, abandoned projects, and completed+pass)
+    all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
+    too_hard_count = len(all_too_hard_items)
 
     # Calculate total time invested
     total_time_invested = sum(p.total_hours_spent for p in current_user.research_projects.all())
@@ -72,10 +71,8 @@ def my_projects():
     completed_preview = current_user.research_projects.filter_by(status='completed')\
         .order_by(ResearchProject.completed_at.desc()).limit(3).all()
 
-    too_hard_preview = current_user.research_projects.filter_by(
-        status='completed',
-        decision='pass'
-    ).order_by(ResearchProject.completed_at.desc()).limit(3).all()
+    # Get top 3 too hard items for preview (includes all sources from service)
+    too_hard_preview = all_too_hard_items[:3] if all_too_hard_items else []
 
     dashboard_data = {
         'active_count': active_count,

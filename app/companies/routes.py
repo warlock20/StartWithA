@@ -10,7 +10,7 @@ from app import db, cache
 from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
                         ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
                         FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
-                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem)
+                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline)
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.companies import companies_bp
@@ -112,6 +112,11 @@ def companies_dashboard():
                        else url_for('research_workflow.project_summary', project_id=project.id)
             })
 
+    # Get inbox count (ideas waiting or being evaluated)
+    inbox_count = current_user.idea_pipeline.filter(
+        IdeaPipeline.status.in_(['inbox', 'killing'])
+    ).count()
+
     return render_template(
         'companies_dashboard.html',
         dashboard_data=dashboard_data,
@@ -119,6 +124,7 @@ def companies_dashboard():
         favorite_companies_data=favorite_companies_data[:3],    # Show top 3 for preview
         portfolio_ids=portfolio_ids,
         favorite_ids=favorite_ids,
+        inbox_count=inbox_count,
         title="Companies Overview"
     )
 

@@ -152,9 +152,12 @@
                 </div>
 
                 <div class="research-recent-list mt-3">
-                    {% for project in dashboard_data.too_hard_preview[:2] %}
+                    {% for item in dashboard_data.too_hard_preview[:2] %}
                     <div class="research-recent-item">
-                        <span class="research-recent-name">{{ project.subject_display_name }}</span>
+                        <span class="research-recent-name">{{ item.company_name }}</span>
+                        <span class="research-recent-meta text-muted" style="font-size: 0.75rem;">
+                            {{ item.rejection_stage.replace('_', ' ').title() }}
+                        </span>
                     </div>
                     {% endfor %}
                 </div>

@@ -354,8 +354,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardViewBtn = document.getElementById('view-cards');
     const tableViewBtn = document.getElementById('view-table');
 
-    // Get saved view preference or default to 'cards'
-    let currentView = localStorage.getItem('companiesViewPreference') || 'cards';
+    // Get saved view preference or default to 'table'
+    // Version check: reset to table if version changed (forces new default)
+    const viewVersion = localStorage.getItem('companiesViewVersion');
+    if (viewVersion !== '2.0') {
+        localStorage.setItem('companiesViewPreference', 'table');
+        localStorage.setItem('companiesViewVersion', '2.0');
+    }
+    let currentView = localStorage.getItem('companiesViewPreference') || 'table';
 
     // Initialize view
     function setView(view) {
@@ -500,8 +506,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: "Actions",
                     field: "companyId",
                     hozAlign: "center",
-                    minWidth: 150,
-                    widthGrow: 1,
+                    minWidth: 220,
+                    widthGrow: 2,
                     headerSort: false,
                     formatter: function(cell) {
                         const data = cell.getData();
@@ -521,12 +527,64 @@ document.addEventListener('DOMContentLoaded', function() {
                             `;
                         }
 
+                        // Add Watchlist button
+                        if (data.status !== 'Watchlist' && data.status !== 'Portfolio') {
+                            buttons += `
+                                <button class="btn btn-sm btn-outline-warning" title="Add to Watchlist" onclick="addToWatchlist(${companyId}, event)">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                            `;
+                        }
+
+                        // Add Portfolio button
+                        if (data.status !== 'Portfolio') {
+                            buttons += `
+                                <button class="btn btn-sm btn-outline-success" title="Add to Portfolio" onclick="addToPortfolio(${companyId}, event)">
+                                    <i class="bi bi-briefcase"></i>
+                                </button>
+                            `;
+                        }
+
                         return `<div style="display: flex; gap: 4px; justify-content: center;">${buttons}</div>`;
                     }
                 }
             ]
         });
     }
+
+    // Function to add company to watchlist
+    window.addToWatchlist = function(companyId, event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        fetch(`/companies/${companyId}/toggle_favorite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Reload the page to reflect changes
+                window.location.reload();
+            } else {
+                alert('Failed to add to watchlist');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    };
+
+    // Function to add company to portfolio
+    window.addToPortfolio = function(companyId, event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Redirect to add transaction page
+        window.location.href = `/portfolio/transactions/add?company_id=${companyId}`;
+    };
 });
 </script>
 {% endblock %}

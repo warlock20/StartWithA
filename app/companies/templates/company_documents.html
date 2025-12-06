@@ -4,16 +4,13 @@
 <div class="dashboard-container">
     <!-- Header -->
     <header class="dashboard-header">
-        <div>
+        <div class="dashboard-header-content">
             <h1 class="dashboard-title font-poppins">
                 {{ company.name }}
                 {% if company.ticker_symbol %}
                 <span class="company-ticker-badge">{{ company.ticker_symbol }}</span>
                 {% endif %}
             </h1>
-            {% if company.summary and company.summary != 'No summary available.' %}
-            <div class="company-summary-text">{{ company.summary }}</div>
-            {% endif %}
         </div>
         <div class="dashboard-header-actions">
             <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary">
@@ -55,6 +52,15 @@
 
         <!-- Overview Tab -->
         <div class="tab-pane fade show active" id="overview-pane" role="tabpanel">
+
+            <!-- Company Summary -->
+            {% if company.summary and company.summary != 'No summary available.' %}
+            <div class="company-summary-section mb-4">
+                <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i>Company Summary</h5>
+                <div class="company-summary-text">{{ company.summary }}</div>
+            </div>
+            {% endif %}
+
             <div class="valuation-form-section">
                 <h5 class="mb-3"><i class="bi bi-calculator me-2"></i>Valuation</h5>
                 <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">

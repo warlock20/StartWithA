@@ -704,7 +704,7 @@
             company: {% if entry.company %}{{ entry.company.name|tojson|safe }}{% else %}null{% endif %},
             sentiment: {% if entry.sentiment %}{{ (entry.sentiment|title)|tojson|safe }}{% else %}null{% endif %},
             created_at: {{ entry.created_at.strftime('%b %d, %Y')|tojson|safe }},
-            content: {{ entry.content|tojson|safe }},
+            content: {{ (entry.content|blocknote_to_html|striptags)|tojson|safe }},
             key_insight: {% if entry.key_insight %}{{ entry.key_insight|tojson|safe }}{% else %}null{% endif %},
             tags: {% if entry.tags %}{{ entry.tags|tojson|safe }}{% else %}[]{% endif %}
         };

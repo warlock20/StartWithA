@@ -1,78 +1,64 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <!-- Back Button -->
-        <div class="mb-3 text-end">
-            <a href="{{ url_for('journal_enhanced.knowledge_hub', view='wisdom') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Back to Knowledge Hub
-            </a>
-        </div>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>
+            {% if note.is_favorite %}
+            <i class="bi bi-star-fill text-warning me-2"></i>
+            {% endif %}
+            {{ note.title }}
+        </h1>
+        <p class="text-muted mb-0">
+            {{ note.created_at.strftime('%B %d, %Y at %H:%M') }}
+            {% if note.source_author %}
+            | {{ note.source_author }}
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('journal_enhanced.knowledge_hub', type='wisdom') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Knowledge Hub
+        </a>
+    </div>
+</div>
 
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
         <!-- Main Card -->
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-start">
-                <div class="flex-grow-1">
-                    <h2 class="mb-2">
-                        {% if note.is_favorite %}
-                        <i class="bi bi-star-fill text-warning me-2"></i>
-                        {% endif %}
-                        {{ note.title }}
-                    </h2>
-                    {% if note.source_author %}
-                    <p class="text-muted mb-0">
-                        <strong class="text-primary">{{ note.source_author }}</strong>
-                        {% if note.source_detail %} - <em>{{ note.source_detail }}</em>{% endif %}
-                    </p>
-                    {% endif %}
-                </div>
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.edit_learning_note', note_id=note.id) }}">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="#" onclick="toggleFavorite(); return false;">
-                                <i class="bi bi-star"></i>
-                                {% if note.is_favorite %}Remove from{% else %}Add to{% endif %} Favorites
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item text-danger" href="#" onclick="deleteNote(); return false;">
-                                <i class="bi bi-trash"></i> Delete
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+            <div class="card-header">
+                <h5 class="mb-0">Curated Wisdom</h5>
             </div>
 
             <div class="card-body">
+                <!-- Source Attribution -->
+                {% if note.source_author %}
+                <div class="mb-4">
+                    <strong class="text-primary fs-5">{{ note.source_author }}</strong>
+                    {% if note.source_detail %}<span class="text-muted"> - <em>{{ note.source_detail }}</em></span>{% endif %}
+                </div>
+                {% endif %}
+
                 <!-- Lesson Content -->
                 <div class="mb-4">
-                    <h5 class="text-muted mb-2">Core Lesson</h5>
+                    <h6 class="text-muted mb-2">Core Lesson</h6>
                     <div class="lead">{{ note.lesson|blocknote_to_html|safe }}</div>
                 </div>
 
                 <!-- Context -->
                 {% if note.context %}
                 <div class="mb-4">
-                    <h5 class="text-muted mb-2">Context</h5>
+                    <h6 class="text-muted mb-2">Context</h6>
                     <p>{{ note.context }}</p>
                 </div>
                 {% endif %}
 
                 <!-- How to Apply -->
                 {% if note.how_to_apply %}
-                <div class="mb-4 p-3 bg-light border-start border-4 border-info">
-                    <h5 class="text-info mb-2"><i class="bi bi-lightbulb"></i> How to Apply</h5>
+                <div class="alert alert-success mb-4">
+                    <h6><i class="bi bi-lightbulb"></i> How to Apply</h6>
                     <p class="mb-0">{{ note.how_to_apply }}</p>
                 </div>
                 {% endif %}
@@ -80,7 +66,7 @@
                 <!-- Examples -->
                 {% if note.examples %}
                 <div class="mb-4">
-                    <h5 class="text-muted mb-2">Examples</h5>
+                    <h6 class="text-muted mb-2">Examples</h6>
                     <ul>
                         {% for example in note.examples %}
                         <li>{{ example }}</li>
@@ -92,13 +78,13 @@
                 <!-- Source Link -->
                 {% if note.source_url %}
                 <div class="mb-4">
-                    <a href="{{ note.source_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">
+                    <a href="{{ note.source_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-link-45deg"></i> View Source
                     </a>
                 </div>
                 {% endif %}
 
-                <!-- Tags/Badges -->
+                <!-- Badges -->
                 <div class="mb-3">
                     {% if note.source_type %}
                     <span class="badge bg-primary">{{ note.source_type|replace('_', ' ')|title }}</span>
@@ -108,11 +94,6 @@
                     {% endif %}
                     {% if note.category %}
                     <span class="badge bg-secondary">{{ note.category|replace('_', ' ')|title }}</span>
-                    {% endif %}
-                    {% if note.topic_tags %}
-                    {% for topic in note.topic_tags %}
-                    <span class="badge bg-info">#{{ topic }}</span>
-                    {% endfor %}
                     {% endif %}
                     {% if note.importance %}
                     <span class="badge bg-warning text-dark">Importance: {{ note.importance }}/10</span>
@@ -129,28 +110,113 @@
                 </div>
                 {% endif %}
             </div>
+        </div>
 
-            <!-- Footer with metadata -->
-            <div class="card-footer text-muted">
-                <div class="row">
-                    <div class="col-md-6">
-                        <small>
-                            <i class="bi bi-calendar-plus"></i> Created: {{ note.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                        </small>
-                    </div>
-                    <div class="col-md-6 text-md-end">
-                        <small>
-                            {% if note.times_reviewed > 0 %}
-                            <i class="bi bi-eye"></i> Reviewed {{ note.times_reviewed }} time{{ 's' if note.times_reviewed != 1 }}
-                            {% if note.last_reviewed %}
-                            (Last: {{ note.last_reviewed.strftime('%b %d, %Y') }})
-                            {% endif %}
+        <!-- Action Buttons -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6 col-md-4">
+                        <button class="btn btn-outline-warning w-100" onclick="toggleFavorite()">
+                            {% if note.is_favorite %}
+                            <i class="bi bi-star-fill"></i> Starred
                             {% else %}
-                            <i class="bi bi-eye-slash"></i> Not yet reviewed
+                            <i class="bi bi-star"></i> Star
                             {% endif %}
-                        </small>
+                        </button>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('journal_enhanced.edit_learning_note', note_id=note.id) }}"
+                            class="btn btn-outline-primary w-100">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <button class="btn btn-outline-danger w-100" onclick="deleteNote()">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Tags -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Tags</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="editTagsBtn" onclick="toggleTagsEdit()">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- Display mode -->
+                <div id="tagsDisplay">
+                    {% if note.topic_tags %}
+                        {% for tag in note.topic_tags %}
+                        {% set clean_tag = tag.lstrip('#') %}
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', type='wisdom', topic=clean_tag) }}"
+                            class="badge bg-primary text-decoration-none me-1 mb-1">
+                            #{{ clean_tag }}
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">No tags yet</span>
+                    {% endif %}
+                </div>
+
+                <!-- Edit mode -->
+                <div id="tagsEdit" style="display: none;">
+                    <div class="mb-2" style="position: relative;">
+                        <input type="text" class="form-control" id="tagsInput" name="topic_tags"
+                               value="{% if note.topic_tags %}{% for tag in note.topic_tags %}#{{ tag.lstrip('#') }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}"
+                               placeholder="e.g., #valuation #moat #earnings">
+                        <small class="text-muted">Space or comma separated</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="saveTags()">
+                            <i class="bi bi-check"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelTagsEdit()">
+                            <i class="bi bi-x"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Note Stats -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">Stats</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Created:</dt>
+                    <dd class="col-sm-6">{{ note.created_at.strftime('%b %d, %Y') }}</dd>
+
+                    {% if note.updated_at != note.created_at %}
+                    <dt class="col-sm-6">Updated:</dt>
+                    <dd class="col-sm-6">{{ note.updated_at.strftime('%b %d, %Y') }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-6">Reviews:</dt>
+                    <dd class="col-sm-6">{{ note.times_reviewed }}</dd>
+
+                    <dt class="col-sm-6">Last Reviewed:</dt>
+                    <dd class="col-sm-6">
+                        {% if note.last_reviewed %}
+                        {{ note.last_reviewed.strftime('%b %d') }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </dd>
+                </dl>
             </div>
         </div>
     </div>
@@ -159,6 +225,8 @@
 
 {% block scripts %}
 {{ super() }}
+<!-- Hashtag Autocomplete -->
+<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}"></script>
 <script>
 function toggleFavorite() {
     fetch('/journal/learning-notes/{{ note.id }}/toggle-favorite', {
@@ -188,7 +256,7 @@ function deleteNote() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.href = '{{ url_for("journal_enhanced.knowledge_hub", view="wisdom") }}';
+                window.location.href = '{{ url_for("journal_enhanced.knowledge_hub", type="wisdom") }}';
             } else {
                 alert('Error deleting insight');
             }
@@ -197,6 +265,63 @@ function deleteNote() {
             console.error('Error:', error);
             alert('Error deleting insight');
         });
+    }
+}
+
+// Tags editing functions
+let tagsEditorInstance = null;
+
+function toggleTagsEdit() {
+    document.getElementById('tagsDisplay').style.display = 'none';
+    document.getElementById('tagsEdit').style.display = 'block';
+    document.getElementById('editTagsBtn').style.display = 'none';
+
+    // Initialize hashtag autocomplete on the input
+    const tagsInput = document.getElementById('tagsInput');
+    if (!tagsEditorInstance && window.HashtagAutocomplete) {
+        tagsEditorInstance = new HashtagAutocomplete(tagsInput);
+    }
+
+    tagsInput.focus();
+}
+
+function cancelTagsEdit() {
+    document.getElementById('tagsDisplay').style.display = 'block';
+    document.getElementById('tagsEdit').style.display = 'none';
+    document.getElementById('editTagsBtn').style.display = 'block';
+}
+
+async function saveTags() {
+    const tagsInput = document.getElementById('tagsInput');
+    const tagsString = tagsInput.value.trim();
+
+    // Parse tags (space or comma separated)
+    const tags = tagsString
+        .replace(/,/g, ' ')
+        .split(/\s+/)
+        .filter(tag => tag.length > 0)
+        .map(tag => tag.startsWith('#') ? tag.substring(1) : tag);  // Remove # prefix
+
+    try {
+        const response = await fetch('/journal/learning-notes/{{ note.id }}/update-tags', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ topic_tags: tags })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload page to show updated tags
+            location.reload();
+        } else {
+            alert('Error updating tags: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to update tags');
     }
 }
 </script>

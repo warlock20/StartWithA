@@ -6,7 +6,7 @@
     <header class="dashboard-header">
         <div>
             <h1 class="dashboard-title font-poppins">🏢 {{ title }}</h1>
-            <p class="dashboard-subtitle">Your investment research command center</p>
+            <p class="dashboard-subtitle">List of Companies</p>
         </div>
         <div class="dashboard-header-actions">
             <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
@@ -14,7 +14,6 @@
             </button>
             <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-primary me-2">
                 <i class="bi bi-lightbulb-fill"></i> Idea Inbox
-                {% set inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count() %}
                 {% if inbox_count > 0 %}
                 <span class="badge bg-danger">{{ inbox_count }}</span>
                 {% endif %}

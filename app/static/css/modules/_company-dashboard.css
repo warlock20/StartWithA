@@ -49,6 +49,19 @@
     color: var(--gray-700);
 }
 
+/* Dashboard header content width control */
+.dashboard-header-content {
+    flex: 1;
+    min-width: 0; /* Allows flex item to shrink below content size */
+    max-width: calc(100% - 200px); /* Leave space for the button */
+}
+
+/* Ensure actions stay on the right */
+.dashboard-header .dashboard-header-actions {
+    flex-shrink: 0; /* Prevent shrinking */
+    margin-left: auto; /* Push to the right */
+}
+
 /* Tabs styling */
 .company-nav-tabs {
     border-bottom: 2px solid var(--border-light);
