@@ -206,6 +206,7 @@
                                      data-note-id="{{ note.id }}"
                                      data-note-title="{{ note.title }}"
                                      data-note-content="{{ note.content | escape }}"
+                                     data-note-content-html="{{ note.content | blocknote_to_html | escape }}"
                                      data-note-source-url="{{ note.source_reference or '' }}"
                                      data-note-source-title="{{ note.source_title or '' }}"
                                      data-note-tags="{{ note.tags or '' }}"
@@ -229,7 +230,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="note-card-content">{{ note.content | safe }}</div>
+                                    <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
                                     <div class="note-card-footer">
                                         <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
                                             {% if note.note_type == 'ai_insight' %}

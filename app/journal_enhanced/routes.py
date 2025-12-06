@@ -43,19 +43,38 @@ def new_entry():
     """Create a new journal entry"""
     if request.method == 'POST':
         title = request.form.get('title')
+
+        # Handle custom entry type
         entry_type = request.form.get('entry_type', 'observation')
+        if entry_type == 'custom':
+            custom_entry_type = request.form.get('custom_entry_type', '').strip()
+            entry_type = custom_entry_type if custom_entry_type else 'other'
+
         content = request.form.get('content')
         key_insight = request.form.get('key_insight')
         sentiment = request.form.get('sentiment')
         conviction = request.form.get('conviction', type=int)
         company_id = request.form.get('company_id', type=int)
-        
+
         if not content:
             flash('Content is required', 'error')
             return redirect(url_for('journal_enhanced.new_entry'))
-        
+
         # Extract tags from content
-        tags = extract_tags_from_content(content)
+        auto_tags = extract_tags_from_content(content)
+
+        # Parse hashtags
+        hashtags_str = request.form.get('hashtags', '').strip()
+        hashtags = []
+        if hashtags_str:
+            # Split by spaces and commas, remove # prefix (store without #)
+            raw_tags = hashtags_str.replace(',', ' ').split()
+            hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
+
+        # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
+        all_tags = auto_tags + hashtags if hashtags else auto_tags
+        # Remove # from auto_tags too and deduplicate
+        tags = list(set(tag.lstrip('#') for tag in all_tags))
         
         # Parse action items and questions
         action_items = request.form.get('action_items', '').split('\n')
@@ -459,9 +478,9 @@ def new_learning_note():
        hashtags_str = request.form.get('hashtags', '').strip()
        hashtags = []
        if hashtags_str:
-           # Split by spaces and commas, remove # if present, add it back consistently
+           # Split by spaces and commas, remove # prefix (store without #)
            raw_tags = hashtags_str.replace(',', ' ').split()
-           hashtags = ['#' + tag.lstrip('#') for tag in raw_tags if tag.strip()]
+           hashtags = [tag.lstrip('#') for tag in raw_tags if tag.strip()]
 
        # Parse investor tags - automatically use source_author if provided
        source_author = request.form.get('source_author')
@@ -497,8 +516,12 @@ def new_learning_note():
            next_review_date=datetime.utcnow().date() + timedelta(days=1)
        )
 
-       # Extract tags
-       note.tags = extract_tags_from_content(lesson)
+       # Extract and combine tags
+       auto_tags = extract_tags_from_content(lesson)
+       # Merge auto-extracted tags with user-provided hashtags (all without # prefix)
+       all_tags = auto_tags + hashtags if hashtags else auto_tags
+       # Remove # from all tags and deduplicate
+       note.tags = list(set(tag.lstrip('#') for tag in all_tags))
 
        db.session.add(note)
 
@@ -1414,3 +1437,108 @@ def mark_entry_reviewed(entry_id):
         flash('Error updating entry status', 'error')
 
     return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
+@journal_enhanced_bp.route('/api/hashtags', methods=['GET'])
+@login_required
+def get_hashtags():
+    """Get all unique hashtags used by the current user"""
+    try:
+        # Get all tags from journal entries
+        journal_tags = db.session.query(JournalEntry.tags).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.tags.isnot(None)
+        ).all()
+        
+        # Get all tags from learning notes
+        learning_tags = db.session.query(LearningNote.tags).filter(
+            LearningNote.user_id == current_user.id,
+            LearningNote.tags.isnot(None)
+        ).all()
+        
+        # Combine and extract unique hashtags
+        all_tags = set()
+        for (tags,) in journal_tags + learning_tags:
+            if tags and isinstance(tags, list):
+                for tag in tags:
+                    if tag and tag.startswith('#'):
+                        all_tags.add(tag)
+        
+        # Sort alphabetically
+        hashtags_list = sorted(list(all_tags))
+        
+        return jsonify({
+            'success': True,
+            'hashtags': hashtags_list
+        })
+    except Exception as e:
+        logger.error(f"Error fetching hashtags: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch hashtags'
+        }), 500
+
+@journal_enhanced_bp.route('/entry/<int:entry_id>/update-tags', methods=['POST'])
+@login_required
+def update_entry_tags(entry_id):
+    """Update tags for a journal entry"""
+    entry = JournalEntry.query.get_or_404(entry_id)
+    
+    # Check ownership
+    if entry.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.get_json()
+        tags = data.get('tags', [])
+
+        # Strip # from all tags before saving (store without #)
+        normalized_tags = [tag.lstrip('#') for tag in tags]
+
+        # Update tags
+        entry.tags = normalized_tags
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'tags': tags
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating tags: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@journal_enhanced_bp.route('/learning-notes/<int:note_id>/update-tags', methods=['POST'])
+@login_required
+def update_learning_note_tags(note_id):
+    """Update tags for a learning note"""
+    note = LearningNote.query.get_or_404(note_id)
+
+    # Check ownership
+    if note.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        data = request.get_json()
+        tags = data.get('tags', [])
+
+        # Strip # from all tags before saving (store without #)
+        normalized_tags = [tag.lstrip('#') for tag in tags]
+
+        # Update tags
+        note.tags = normalized_tags
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'tags': tags
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating learning note tags: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
