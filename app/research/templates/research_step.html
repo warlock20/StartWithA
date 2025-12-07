@@ -147,15 +147,15 @@
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">{{ session.company.name }} ({{ session.company.ticker_symbol }})</h5>
-                        <p class="card-text text-muted">{{ session.company.sector|default('Technology', true) }} • {{
-                            session.company.market_cap_category|default('Large Cap', true) }}</p>
-                        <p><strong>Market Cap:</strong> {{ session.company.market_cap|default('$250.0B', true) }}</p>
+                        {% if session.company.sector %}
+                        <p class="card-text text-muted">{{ session.company.sector.display_name }}</p>
+                        {% endif %}
                         <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" role="progressbar"
                                 style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}"
                                 aria-valuemin="0" aria-valuemax="100">
-                                Progress: {{ progress_percent }}%
+                                Progress: {{ progress_percent|round(2) }}%
                             </div>
                         </div>
                     </div>
@@ -279,10 +279,15 @@
             answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
                 initialContent: existingContent,
                 placeholder: 'Start writing your analysis... Type "/" for commands',
-                onSave: null // We handle save via form submission
+                saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", session_id=session.id, item_id=current_item.id) }}',
+                onSave: (data) => {
+                    // Update save indicator when auto-save succeeds
+                    showSaveIndicator('saved');
+                    console.log('Auto-save successful');
+                }
             });
 
-            console.log('BlockNote editor initialized successfully');
+            console.log('BlockNote editor initialized with auto-save');
 
         } catch (error) {
             console.error('Error initializing BlockNote editor:', error);
@@ -294,6 +299,43 @@
                 editorElement.style.display = 'none';
                 textareaElement.classList.remove('d-none');
             }
+        }
+    }
+
+    // Save indicator function
+    function showSaveIndicator(status) {
+        // Remove existing indicator if any
+        let indicator = document.getElementById('autoSaveIndicator');
+        if (!indicator) {
+            // Create indicator element
+            indicator = document.createElement('div');
+            indicator.id = 'autoSaveIndicator';
+            document.body.appendChild(indicator);
+        }
+
+        // Update indicator based on status
+        if (status === 'saving') {
+            indicator.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
+            indicator.className = 'auto-save-indicator saving';
+            indicator.style.opacity = '1';
+        } else if (status === 'saved') {
+            indicator.innerHTML = '<i class="bi bi-check-circle-fill"></i> Saved';
+            indicator.className = 'auto-save-indicator saved';
+            indicator.style.opacity = '1';
+
+            // Fade out after 2 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 2000);
+        } else if (status === 'error') {
+            indicator.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Save failed';
+            indicator.className = 'auto-save-indicator error';
+            indicator.style.opacity = '1';
+
+            // Fade out after 3 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 3000);
         }
     }
 

@@ -1,3 +1,4 @@
+import logging
 import yfinance as yf
 from flask import request, jsonify
 from flask_login import current_user, login_required
@@ -48,8 +49,13 @@ def api_search_companies():
             'source': 'existing'
         })
 
-    # Try Yahoo Finance lookup if query is a valid ticker
-    yahoo_suggestion = None
+    # Suppress yfinance HTTP errors
+    logging.getLogger('yfinance').setLevel(logging.CRITICAL)
+
+    # Try Yahoo Finance lookup - both by ticker AND by company name
+    yahoo_suggestions = []
+
+    # 1. If query is a valid ticker, look it up directly
     if normalized_ticker:
         try:
             # Check if this ticker already exists for the user
@@ -59,29 +65,58 @@ def api_search_companies():
             ).first()
 
             if not existing:
-                # Suppress yfinance HTTP errors (expected for invalid/partial tickers)
-                import logging
-                logging.getLogger('yfinance').setLevel(logging.CRITICAL)
-
                 company_ticker = yf.Ticker(normalized_ticker)
                 info = company_ticker.info
 
                 if info and info.get('longName'):
-                    yahoo_suggestion = {
+                    yahoo_suggestions.append({
                         'ticker_symbol': normalized_ticker,
                         'name': info.get('longName'),
                         'industry': info.get('industry', ''),
                         'sector': info.get('sector', ''),
                         'summary': info.get('longBusinessSummary', ''),
                         'source': 'yahoo_finance'
-                    }
+                    })
         except Exception:
             # Silently fail - expected for partial/invalid tickers during typing
             pass
 
+    # 2. Search by company name (if not a ticker or no results from ticker search)
+    if len(query) >= 3 and len(yahoo_suggestions) == 0:
+        try:
+            # Use yfinance search functionality
+            search_results = yf.Search(query, max_results=5, news_count=0)
+
+            if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
+                for result in search_results.quotes[:3]:
+                    ticker_symbol = result.get('symbol')
+
+                    if not ticker_symbol:
+                        continue
+
+                    # Skip if user already has this company
+                    existing = Company.query.filter_by(
+                        ticker_symbol=ticker_symbol,
+                        user_id=current_user.id
+                    ).first()
+
+                    if not existing:
+                        yahoo_suggestions.append({
+                            'ticker_symbol': ticker_symbol,
+                            'name': result.get('longname') or result.get('shortname') or result.get('name'),
+                            'industry': result.get('industry', ''),
+                            'sector': result.get('sector', ''),
+                            'summary': '',
+                            'source': 'yahoo_finance'
+                        })
+        except Exception as e:
+            # Silently fail - expected for searches that don't return results
+            logging.debug(f'Yahoo Finance name search failed: {e}')
+            pass
+
     return jsonify({
         'user_companies': user_company_data,
-        'yahoo_suggestions': [yahoo_suggestion] if yahoo_suggestion else []
+        'yahoo_suggestions': yahoo_suggestions
     })
 
 @companies_bp.route('/api/companies/create', methods=['POST'])

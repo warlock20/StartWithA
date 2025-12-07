@@ -212,7 +212,65 @@ def research_step(session_id, item_id):
         company_documents=company_documents_for_llm,
         research_context=research_context  # Pass research workflow context
     )
-    
+
+@research_bp.route('/session/<int:session_id>/item/<int:item_id>/autosave', methods=['POST'])
+@login_required
+def autosave_research_answer(session_id, item_id):
+    """
+    Auto-save endpoint for research answers - returns JSON for AJAX requests
+    """
+    try:
+        session = ResearchSession.query.get_or_404(session_id)
+        current_item = ChecklistItem.query.get_or_404(item_id)
+
+        # Authorization check
+        if session.researcher != current_user:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        # Security check: ensure the item belongs to the session's checklist
+        if current_item.checklist_id != session.checklist_id:
+            return jsonify({'success': False, 'error': 'Invalid item for this session'}), 400
+
+        # Get data from request (supports both JSON and form data)
+        if request.is_json:
+            data = request.get_json()
+            answer_text = data.get('content', '')
+            satisfaction_status = data.get('satisfaction_status', 'neutral')
+        else:
+            answer_text = request.form.get('answer_text', '')
+            satisfaction_status = request.form.get('satisfaction_status', 'neutral')
+
+        # Find or create research answer
+        research_answer = ResearchAnswer.query.filter_by(
+            research_session_id=session.id,
+            checklist_item_id=current_item.id
+        ).first()
+
+        if research_answer:
+            research_answer.answer_text = answer_text
+            research_answer.answered_at = now_utc()
+            research_answer.satisfaction_status = satisfaction_status
+        else:
+            research_answer = ResearchAnswer(
+                answer_text=answer_text,
+                research_session_id=session.id,
+                checklist_item_id=current_item.id,
+                satisfaction_status=satisfaction_status
+            )
+            db.session.add(research_answer)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Answer saved',
+            'timestamp': research_answer.answered_at.isoformat() if research_answer.answered_at else None
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required
 def ai_analyze_item(session_id, item_id):

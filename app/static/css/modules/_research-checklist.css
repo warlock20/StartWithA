@@ -158,3 +158,51 @@
     font-style: italic;
     color: #6c757d;
 }
+
+/* =============================================================================
+   AUTO-SAVE INDICATOR
+   Visual feedback for auto-save functionality on research steps
+   ============================================================================= */
+
+.auto-save-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    font-size: 14px;
+    transition: opacity 0.3s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-weight: 500;
+}
+
+.auto-save-indicator.saving {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.auto-save-indicator.saved {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.auto-save-indicator.error {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* Spinning animation for save in progress */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}

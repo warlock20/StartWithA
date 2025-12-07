@@ -124,6 +124,10 @@ def project_dashboard(project_id):
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
+    # Update last worked timestamp when viewing project
+    project.last_worked_at = now_utc()
+    db.session.commit()
+
     # Get recent work sessions
     recent_sessions = project.work_sessions.order_by(
         WorkSession.start_time.desc()

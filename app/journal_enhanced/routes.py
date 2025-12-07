@@ -689,21 +689,24 @@ def edit_learning_note(note_id):
 @login_required
 def knowledge_library():
    """Redirect to Knowledge Hub - Curated Wisdom view"""
-   return redirect(url_for('journal_enhanced.knowledge_hub', view='wisdom'))
+   return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
 
 @journal_enhanced_bp.route('/knowledge-hub')
 @login_required
 def knowledge_hub():
     """Unified Knowledge Hub - combines search, curated wisdom, and research notes"""
-    # Get view mode with preference fallback
-    view_mode = request.args.get('view')
+    # Get content type filter with preference fallback
+    content_type = request.args.get('type')
 
-    if not view_mode:
+    if not content_type:
         # Check if user has a saved preference
-        view_mode = session.get('knowledge_hub_view', 'all')
+        content_type = session.get('knowledge_hub_type', 'all')
 
-    # Save the current view as preference
-    session['knowledge_hub_view'] = view_mode
+    # Save the current type as preference
+    session['knowledge_hub_type'] = content_type
+
+    # Get grouping preference
+    group_by = request.args.get('group_by', 'company')  # Default: group by company
 
     # Get search query
     search_query = request.args.get('q', '')
@@ -713,7 +716,7 @@ def knowledge_hub():
     research_results = []
 
     # Query LearningNote (Curated Wisdom)
-    if view_mode in ['all', 'wisdom']:
+    if content_type in ['all', 'wisdom']:
         wisdom_query = LearningNote.query.filter_by(user_id=current_user.id)
 
         # Apply wisdom-specific filters
@@ -752,7 +755,7 @@ def knowledge_hub():
         ).all()
 
     # Query JournalEntry (Research Notes)
-    if view_mode in ['all', 'research']:
+    if content_type in ['all', 'research']:
         research_query = JournalEntry.query.filter_by(
             user_id=current_user.id,
             is_archived=False
@@ -793,6 +796,85 @@ def knowledge_hub():
             JournalEntry.created_at.desc()
         ).all()
 
+    # Build unified results list with type indicators
+    unified_results = []
+    for entry in research_results:
+        unified_results.append({
+            'type': 'research',
+            'item': entry,
+            'date': entry.created_at,
+            'company': entry.company.name if entry.company else None,
+            'company_id': entry.company_id,
+            'topics': entry.tags or []
+        })
+
+    for note in wisdom_results:
+        unified_results.append({
+            'type': 'wisdom',
+            'item': note,
+            'date': note.created_at,
+            'company': None,
+            'company_id': None,
+            'topics': note.topic_tags or []
+        })
+
+    # Sort unified results by date (most recent first)
+    unified_results.sort(key=lambda x: x['date'], reverse=True)
+
+    # Group results if requested
+    grouped_results = {}
+    if group_by == 'company':
+        # Group by company
+        for result in unified_results:
+            company_name = result['company'] or 'General Knowledge'
+            if company_name not in grouped_results:
+                grouped_results[company_name] = []
+            grouped_results[company_name].append(result)
+    elif group_by == 'topic':
+        # Group by topic
+        for result in unified_results:
+            topics = result['topics']
+            if topics:
+                for topic in topics:
+                    topic_clean = topic.lstrip('#')
+                    if topic_clean not in grouped_results:
+                        grouped_results[topic_clean] = []
+                    grouped_results[topic_clean].append(result)
+            else:
+                if 'Uncategorized' not in grouped_results:
+                    grouped_results['Uncategorized'] = []
+                grouped_results['Uncategorized'].append(result)
+    elif group_by == 'type':
+        # Group by content type
+        for result in unified_results:
+            type_label = 'Curated Wisdom' if result['type'] == 'wisdom' else 'Research Notes'
+            if type_label not in grouped_results:
+                grouped_results[type_label] = []
+            grouped_results[type_label].append(result)
+    elif group_by == 'date':
+        # Group by date ranges
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        for result in unified_results:
+            item_date = result['date']
+            if item_date >= now - timedelta(days=1):
+                date_label = 'Today'
+            elif item_date >= now - timedelta(days=7):
+                date_label = 'This Week'
+            elif item_date >= now - timedelta(days=30):
+                date_label = 'This Month'
+            elif item_date >= now - timedelta(days=90):
+                date_label = 'Last 3 Months'
+            else:
+                date_label = 'Older'
+
+            if date_label not in grouped_results:
+                grouped_results[date_label] = []
+            grouped_results[date_label].append(result)
+    else:
+        # No grouping - single group
+        grouped_results['All Items'] = unified_results
+
     # Get all unique investors for filter dropdown
     all_investors = set()
     for note in current_user.learning_notes.all():
@@ -810,36 +892,22 @@ def knowledge_hub():
     # Get companies for filter dropdown
     companies = current_user.companies.order_by(Company.name).all()
 
-    # Calculate stats based on view mode
-    stats = {}
-    if view_mode == 'wisdom':
-        stats = {
-            'total_insights': len(current_user.learning_notes.all()),
-            'total_investors': len(all_investors),
-            'favorites': sum(1 for note in current_user.learning_notes.all() if note.is_favorite),
-            'topics': len(all_topics)
-        }
-    elif view_mode == 'research':
-        all_research = current_user.journal_entries.filter_by(is_archived=False).all()
-        stats = {
-            'total_entries': len(all_research),
-            'companies': len(set(e.company_id for e in all_research if e.company_id)),
-            'starred': sum(1 for e in all_research if e.is_starred),
-            'this_month': sum(1 for e in all_research if e.created_at >= datetime.utcnow() - timedelta(days=30))
-        }
-    else:  # all
-        all_research = current_user.journal_entries.filter_by(is_archived=False).all()
-        all_wisdom = current_user.learning_notes.all()
-        stats = {
-            'total_items': len(all_research) + len(all_wisdom),
-            'research_notes': len(all_research),
-            'curated_insights': len(all_wisdom),
-            'starred': sum(1 for e in all_research if e.is_starred) + sum(1 for n in all_wisdom if n.is_favorite)
-        }
+    # Calculate stats
+    all_research = current_user.journal_entries.filter_by(is_archived=False).all()
+    all_wisdom = current_user.learning_notes.all()
+    stats = {
+        'total_items': len(all_research) + len(all_wisdom),
+        'research_notes': len(all_research),
+        'curated_insights': len(all_wisdom),
+        'starred': sum(1 for e in all_research if e.is_starred) + sum(1 for n in all_wisdom if n.is_favorite)
+    }
 
     return render_template('knowledge_hub.html',
                          title="Knowledge Hub",
-                         view_mode=view_mode,
+                         content_type=content_type,
+                         group_by=group_by,
+                         unified_results=unified_results,
+                         grouped_results=grouped_results,
                          wisdom_results=wisdom_results,
                          research_results=research_results,
                          stats=stats,
@@ -1521,18 +1589,18 @@ def update_learning_note_tags(note_id):
 
     try:
         data = request.get_json()
-        tags = data.get('tags', [])
+        tags = data.get('topic_tags', [])
 
         # Strip # from all tags before saving (store without #)
         normalized_tags = [tag.lstrip('#') for tag in tags]
 
-        # Update tags
-        note.tags = normalized_tags
+        # Update topic_tags
+        note.topic_tags = normalized_tags if normalized_tags else None
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
-            'tags': tags
+            'topic_tags': normalized_tags
         })
     except Exception as e:
         db.session.rollback()

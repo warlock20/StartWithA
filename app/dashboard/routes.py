@@ -12,8 +12,10 @@ from app.utils.time_utils import now_utc, ensure_timezone_aware
 def index():
     # --- Fetch Actionable Data ---
 
-    # Get the count of ideas waiting for review
-    inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count()
+    # Get the count of ideas waiting for review (includes inbox and ideas being evaluated)
+    inbox_count = current_user.idea_pipeline.filter(
+        IdeaPipeline.status.in_(['inbox', 'killing'])
+    ).count()
 
     # Get the top 5 active research projects
     active_projects = current_user.research_projects.filter_by(status='active')\

@@ -19,3 +19,10 @@ npm-debug.log*
 # Webpack build
 app/static/js/dist/*.map
 .env
+
+
+mockups/
+migrations/
+app/static/uploads/ 
+app/static/js/dist/*.map
+app/static/js/dist
