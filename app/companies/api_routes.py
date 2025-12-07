@@ -86,6 +86,7 @@ def api_search_companies():
         try:
             # Use yfinance search functionality
             search_results = yf.Search(query, max_results=5, news_count=0)
+            logging.debug(f'Yahoo Finance search for "{query}": {len(search_results.quotes) if search_results and hasattr(search_results, "quotes") else 0} results')
 
             if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
                 for result in search_results.quotes[:3]:
@@ -101,12 +102,22 @@ def api_search_companies():
                     ).first()
 
                     if not existing:
+                        # Extract name from various possible fields
+                        company_name = (
+                            result.get('longname') or
+                            result.get('shortname') or
+                            result.get('name') or
+                            result.get('longName') or
+                            result.get('shortName') or
+                            ticker_symbol
+                        )
+
                         yahoo_suggestions.append({
                             'ticker_symbol': ticker_symbol,
-                            'name': result.get('longname') or result.get('shortname') or result.get('name'),
-                            'industry': result.get('industry', ''),
-                            'sector': result.get('sector', ''),
-                            'summary': '',
+                            'name': company_name,
+                            'industry': result.get('industry') or result.get('industryDisp') or '',
+                            'sector': result.get('sector') or result.get('sectorDisp') or '',
+                            'summary': result.get('longBusinessSummary') or '',
                             'source': 'yahoo_finance'
                         })
         except Exception as e:
