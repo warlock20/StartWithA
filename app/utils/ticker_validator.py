@@ -25,8 +25,8 @@ class TickerValidator:
         'OTCMKTS': '',
 
         # International Markets
-        'FRA': '.DE',      # Frankfurt → Germany
-        'ETR': '.DE',      # XETRA → Germany
+        'FRA': '.F',       # Frankfurt → Germany (Frankfurt)
+        'ETR': '.DE',      # XETRA → Germany (XETRA)
         'BER': '.BE',      # Berlin → Germany
         'MUN': '.MU',      # Munich → Germany
         'STU': '.SG',      # Stuttgart → Germany
@@ -84,6 +84,13 @@ class TickerValidator:
     EXCHANGE_NAMES = {
         '': 'United States',
         '.DE': 'Germany (XETRA)',
+        '.F': 'Germany (Frankfurt)',
+        '.BE': 'Germany (Berlin)',
+        '.MU': 'Germany (Munich)',
+        '.SG': 'Germany (Stuttgart)',
+        '.DU': 'Germany (Dusseldorf)',
+        '.HM': 'Germany (Hamburg)',
+        '.HA': 'Germany (Hanover)',
         '.L': 'United Kingdom (LSE)',
         '.PA': 'France (Euronext Paris)',
         '.T': 'Japan (Tokyo)',
@@ -109,6 +116,19 @@ class TickerValidator:
         '.TA': 'Israel',
         '.IS': 'Turkey',
         '.SA': 'Saudi Arabia',
+        '.NZ': 'New Zealand',
+        '.TW': 'Taiwan',
+        '.VI': 'Austria (Vienna)',
+        '.PR': 'Czech Republic (Prague)',
+        '.WA': 'Poland (Warsaw)',
+        '.BD': 'Hungary (Budapest)',
+        '.IC': 'Iceland',
+        '.IR': 'Ireland',
+        '.LS': 'Portugal (Lisbon)',
+        '.AT': 'Greece (Athens)',
+        '.RG': 'Latvia (Riga)',
+        '.TL': 'Estonia (Tallinn)',
+        '.VS': 'Lithuania (Vilnius)',
     }
 
     @classmethod
