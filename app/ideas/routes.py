@@ -273,7 +273,7 @@ def kill_room(idea_id):
             details={'reason': current_criterion.question}
         )
             flash(f'"{idea.name}" has been killed. Reason: {current_criterion.question}', 'info')
-            return redirect(url_for('ideas.graveyard'))
+            return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
 
         db.session.commit()
 
@@ -308,23 +308,8 @@ def kill_room(idea_id):
 @ideas_bp.route('/graveyard')
 @login_required
 def graveyard():
-    from app.utils.time_utils import ensure_timezone_aware
-    killed_ideas = current_user.idea_pipeline.filter_by(status='killed').order_by(IdeaPipeline.killed_at.desc()).all()
-    thirty_days_ago = now_utc() - timedelta(days=30)
-    recent_kill_count = sum(1 for idea in killed_ideas if idea.killed_at and ensure_timezone_aware(idea.killed_at) > thirty_days_ago)
-    kill_reasons = {}
-    for idea in killed_ideas:
-        reason = idea.kill_reason or "Unknown"
-        if reason not in kill_reasons:
-            kill_reasons[reason] = []
-        kill_reasons[reason].append(idea)
-
-    # Calculate most common kill reason count
-    most_common_count = max((len(ideas) for ideas in kill_reasons.values()), default=0)
-
-    return render_template('graveyard.html', title="Idea Graveyard", killed_ideas=killed_ideas,
-                           kill_reasons=kill_reasons, recent_kill_count=recent_kill_count,
-                           most_common_count=most_common_count)
+    """Deprecated: Redirect to unified Too Hard Basket - Early Kills tab"""
+    return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
 
 @ideas_bp.route('/kill-checklists')
 @login_required
@@ -653,7 +638,7 @@ def edit_idea(idea_id):
             flash('Idea updated successfully', 'success')
             # Route back to the appropriate page
             if return_to == 'graveyard':
-                return redirect(url_for('ideas.graveyard'))
+                return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
             else:
                 return redirect(url_for('ideas.inbox'))
         except Exception as e:

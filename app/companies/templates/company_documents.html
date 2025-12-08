@@ -1,447 +1,770 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <h1>{{ title }}</h1>
-    <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-secondary">Back to Companies Dashboard</a>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="dashboard-header-content">
+            <h1 class="dashboard-title font-poppins">
+                {{ company.name }}
+                {% if company.ticker_symbol %}
+                <span class="company-ticker-badge">{{ company.ticker_symbol }}</span>
+                {% endif %}
+            </h1>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Companies
+            </a>
+        </div>
+    </header>
 
-<ul class="nav nav-tabs mt-4" id="companyDashboardTab" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane"
-            type="button" role="tab">Overview</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-pane" type="button"
-            role="tab">Documents</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="competitors-tab" data-bs-toggle="tab" data-bs-target="#competitors-pane"
-            type="button" role="tab">Competitors</button>
-    </li>
-</ul>
+    <!-- Navigation Tabs -->
+    <ul class="nav company-nav-tabs" id="companyDashboardTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane"
+                type="button" role="tab">
+                <i class="bi bi-info-circle me-2"></i>Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-pane"
+                type="button" role="tab">
+                <i class="bi bi-file-earmark-text me-2"></i>Documents
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane"
+                type="button" role="tab">
+                <i class="bi bi-pencil-square me-2"></i>Edit Details
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="competitors-tab" data-bs-toggle="tab" data-bs-target="#competitors-pane"
+                type="button" role="tab">
+                <i class="bi bi-building me-2"></i>Competitors
+            </button>
+        </li>
+    </ul>
 
-<div class="tab-content" id="companyDashboardTabContent">
+    <!-- Tab Content -->
+    <div class="tab-content company-tab-content" id="companyDashboardTabContent">
 
-    <div class="tab-pane fade show active p-3 border border-top-0 rounded-bottom" id="overview-pane" role="tabpanel">
-        {% if company.summary and company.summary != 'No summary available.' %}
-        <h5>Business Summary</h5>
-        <p class="card-text mb-4" style="max-height: 150px; overflow-y: auto;">{{ company.summary }}</p>
-        {% endif %}
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview-pane" role="tabpanel">
 
-        <h5>Valuation</h5>
-        <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
-            <div class="row align-items-end">
-                <div class="col-md-8">
-                    <label for="value" class="form-label">Your Calculated Intrinsic Value (as Market Cap)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input type="text" class="form-control" id="value" name="value"
-                            value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
-                            placeholder="e.g., 1.5">
-                        <select class="form-select" name="unit_multiplier" style="max-width: 120px;">
-                            <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
-                            <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million</option>
-                            <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>Billion
-                            </option>
-                            <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>
-                                Trillion</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-primary w-100">Save Intrinsic Value</button>
-                </div>
+            <!-- Company Summary -->
+            {% if company.summary and company.summary != 'No summary available.' %}
+            <div class="company-summary-section mb-4">
+                <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i>Company Summary</h5>
+                <div class="company-summary-text">{{ company.summary }}</div>
             </div>
-        </form>
-    </div>
+            {% endif %}
 
-    <div class="tab-pane fade p-3 border border-top-0 rounded-bottom" id="documents-pane" role="tabpanel">
-        {% if '.' not in company.ticker_symbol %}
-        {# This company is likely US-listed, so show the fetch feature #}
-        <div class="card mb-4">
-            <div class="card-header">
-                Automated Document Fetching (US Companies)
-            </div>
-            <div class="card-body">
-                <p class="card-text text-muted">You can attempt to automatically download recent annual reports (10-K
-                    filings)
-                    from the SEC EDGAR database.</p>
-                <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
-                    <div class="row align-items-end">
-                        <div class="col-md-4">
-                            <label for="filing_type" class="form-label">Filing Type:</label>
-                            <select id="filing_type" name="filing_type" class="form-select">
-                                <option value="10-K" selected>10-K (Annual)</option>
-                                <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
-                            </select>
+            <div class="valuation-form-section">
+                <h5 class="mb-3"><i class="bi bi-calculator me-2"></i>Valuation</h5>
+                <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label for="value" class="form-label fw-semibold">Your Calculated Intrinsic Value (as Market Cap) in {{ user_currency }}</label>
+                            <div class="input-group">
+                                <span class="input-group-text">{{ currency_symbol }}</span>
+                                <input type="text" class="form-control" id="value" name="value"
+                                    value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
+                                    placeholder="e.g., 1.5">
+                                <select class="form-select" name="unit_multiplier" style="max-width: 130px;">
+                                    <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
+                                    <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million</option>
+                                    <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>Billion</option>
+                                    <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>Trillion</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-4">
-                            <label for="years" class="form-label">No. of Recent Years:</label>
-                            <select id="years" name="years" class="form-select">
-                                <option value="3">3 Years</option>
-                                <option value="5" selected>5 Years</option>
-                                <option value="10">10 Years</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-info w-100">Fetch Filings</button>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-save me-2"></i>Save Intrinsic Value
+                            </button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
-        {% else %}
-        {# This company is likely non-US, so show a warning instead #}
-        <div class="card mb-4">
-            <div class="card-header">
-                Automated Document Fetching
-            </div>
-            <div class="card-body">
-                <div class="alert alert-secondary" role="alert">
-                    This feature is currently available for US-listed companies only. The ticker symbol <strong>{{
-                        company.ticker_symbol }}</strong> appears to be for a non-US exchange.
+
+        <!-- Documents Tab -->
+        <div class="tab-pane fade" id="documents-pane" role="tabpanel">
+
+            <!-- SEC Filings Fetch Section -->
+            {% if '.' not in company.ticker_symbol %}
+            <div class="company-section-card mb-4">
+                <div class="company-section-card-header">
+                    <h5><i class="bi bi-cloud-download me-2"></i>Automated Document Fetching</h5>
                 </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="card mb-4">
-            <div class="card-header">
-                Quantitative Analysis
-            </div>
-            <div class="card-body">
-                <p class="card-text text-muted">Fetch and store historical financial data (Revenue, Net Income, etc.) to
-                    analyze trends.</p>
-
-                <!-- Financial Fetch Status -->
-                <div id="financial-fetch-status" class="alert alert-info d-none" role="alert">
-                    <div class="d-flex align-items-center">
-                        <div class="spinner-border spinner-border-sm me-2" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <div>
-                            <strong>Fetching financial data...</strong>
-                            <div class="small">This may take a few minutes. You can continue using the dashboard while this runs in the background.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="button" id="fetch-financials-btn" class="btn btn-primary"
-                        data-company-id="{{ company.id }}">
-                    Fetch Financial History
-                </button>
-                <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-secondary">View
-                    Financials</a>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-lg-4 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        Upload New Document
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data"
-                            action="{{ url_for('companies.add_document', company_id=company.id) }}">
-                            <div class="mb-3">
-                                <label for="document_file" class="form-label">Select File (PDF, TXT):</label>
-                                <input type="file" class="form-control" id="document_file" name="document_file"
-                                    required>
+                <div class="company-section-card-body">
+                    <p class="company-section-description">
+                        Automatically download recent annual reports (10-K filings) from the SEC EDGAR database for US-listed companies.
+                    </p>
+                    <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label for="filing_type" class="form-label fw-semibold">Filing Type</label>
+                                <select id="filing_type" name="filing_type" class="form-select">
+                                    <option value="10-K" selected>10-K (Annual)</option>
+                                    <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
+                                </select>
                             </div>
-                            <div class="mb-3">
-                                <label for="document_group" class="form-label">Document Group:</label>
-                                <input type="text" class="form-control" id="document_group" name="document_group"
-                                    list="existing_document_groups" placeholder="e.g., Annual Reports" required>
-                                <datalist id="existing_document_groups">
-                                    {% for group_name in distinct_group_names %}
-                                    <option value="{{ group_name }}">
+                            <div class="col-md-4">
+                                <label for="years" class="form-label fw-semibold">Number of Recent Years</label>
+                                <select id="years" name="years" class="form-select">
+                                    <option value="3">3 Years</option>
+                                    <option value="5" selected>5 Years</option>
+                                    <option value="10">10 Years</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-info w-100">
+                                    <i class="bi bi-download me-2"></i>Fetch Filings
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="warning-banner">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Automated Document Fetching:</strong> This feature is currently available for US-listed companies only.
+                The ticker symbol <strong>{{ company.ticker_symbol }}</strong> appears to be for a non-US exchange.
+            </div>
+            {% endif %}
+
+            <!-- Quantitative Analysis Section -->
+            <div class="company-section-card mb-4">
+                <div class="company-section-card-header">
+                    <h5><i class="bi bi-graph-up me-2"></i>Quantitative Analysis</h5>
+                </div>
+                <div class="company-section-card-body">
+                    <p class="company-section-description">
+                        Fetch and store historical financial data (Revenue, Net Income, etc.) to analyze trends over time.
+                    </p>
+
+                    <!-- Financial Fetch Status -->
+                    <div id="financial-fetch-status" class="d-none fetch-status-container">
+                        <div class="status-indicator">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div>
+                                <strong>Fetching financial data...</strong>
+                                <div class="small">This may take a few minutes. You can continue using the dashboard while this runs in the background.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" id="fetch-financials-btn" class="btn btn-primary" data-company-id="{{ company.id }}">
+                            <i class="bi bi-download me-2"></i>Fetch Financial History
+                        </button>
+                        <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-table me-2"></i>View Financials
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Management Section -->
+            <div class="row g-4">
+                <!-- Upload Form -->
+                <div class="col-lg-4">
+                    <div class="company-section-card">
+                        <div class="company-section-card-header">
+                            <h5><i class="bi bi-cloud-upload me-2"></i>Upload Document</h5>
+                        </div>
+                        <div class="company-section-card-body">
+                            <form method="POST" enctype="multipart/form-data"
+                                action="{{ url_for('companies.add_document', company_id=company.id) }}">
+                                <div class="mb-3">
+                                    <label for="document_file" class="form-label fw-semibold">Select File</label>
+                                    <input type="file" class="form-control" id="document_file" name="document_file" required>
+                                    <div class="form-text">PDF, TXT files supported</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="document_group" class="form-label fw-semibold">Document Group</label>
+                                    <input type="text" class="form-control" id="document_group" name="document_group"
+                                        list="existing_document_groups" placeholder="e.g., Annual Reports" required>
+                                    <datalist id="existing_document_groups">
+                                        {% for group_name in distinct_group_names %}
+                                        <option value="{{ group_name }}">
                                         {% endfor %}
-                                </datalist>
-                            </div>
-                            <div class="mb-3">
-                                <label for="document_title" class="form-label">Document Title:</label>
-                                <input type="text" class="form-control" id="document_title" name="document_title"
-                                    placeholder="e.g., 2023 Annual Report" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="document_date" class="form-label">Document Date (Optional):</label>
-                                <input type="date" class="form-control" id="document_date" name="document_date">
-                            </div>
-                            <div class="mb-3">
-                                <label for="description" class="form-label">Description (Optional):</label>
-                                <textarea id="description" name="description" class="form-control" rows="3"></textarea>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary">Upload Document</button>
-                            </div>
-                        </form>
+                                    </datalist>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="document_title" class="form-label fw-semibold">Document Title</label>
+                                    <input type="text" class="form-control" id="document_title" name="document_title"
+                                        placeholder="e.g., 2023 Annual Report" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="document_date" class="form-label fw-semibold">Document Date</label>
+                                    <input type="date" class="form-control" id="document_date" name="document_date">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="description" class="form-label fw-semibold">Description</label>
+                                    <textarea id="description" name="description" class="form-control" rows="3"
+                                        placeholder="Optional notes about this document"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-upload me-2"></i>Upload Document
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        Existing Documents
-                    </div>
-                    <div class="card-body">
-                        {% if grouped_documents %}
-                        <div class="accordion" id="documentsAccordion">
-                            {% for group_name, docs_in_group in grouped_documents.items() %}
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="heading-{{ loop.index }}">
-                                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
-                                        type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#collapse-{{ loop.index }}"
-                                        aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
-                                        aria-controls="collapse-{{ loop.index }}">
-                                        {{ group_name }}&nbsp;<span class="badge bg-secondary rounded-pill">{{
-                                            docs_in_group|length }}</span>
-                                    </button>
-                                </h2>
-                                <div id="collapse-{{ loop.index }}"
-                                    class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
-                                    aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
-                                    <div class="accordion-body">
-                                        <ul class="list-group list-group-flush">
+                <!-- Existing Documents -->
+                <div class="col-lg-8">
+                    <div class="company-section-card">
+                        <div class="company-section-card-header">
+                            <h5><i class="bi bi-folder2-open me-2"></i>Existing Documents</h5>
+                        </div>
+                        <div class="company-section-card-body">
+                            {% if grouped_documents %}
+                            <div class="accordion documents-accordion" id="documentsAccordion">
+                                {% for group_name, docs_in_group in grouped_documents.items() %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                                            type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapse-{{ loop.index }}"
+                                            aria-expanded="{% if loop.first %}true{% else %}false{% endif %}">
+                                            {{ group_name }}
+                                            <span class="group-badge">{{ docs_in_group|length }}</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-{{ loop.index }}"
+                                        class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                                        aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#documentsAccordion">
+                                        <div class="accordion-body">
                                             {% for doc in docs_in_group %}
-                                            <li class="list-group-item">
-                                                <div class="d-flex w-100 justify-content-between align-items-center">
-
-                                                    {# Document Title and Details #}
-                                                    <div>
-                                                        <h6 class="mb-1">{{ doc.document_title }}</h6>
-                                                        <small class="text-muted">{{ doc.original_filename }}{% if
-                                                            doc.document_date %} | {{
-                                                            doc.document_date.strftime('%Y-%m-%d')
-                                                            }}{% endif %}</small>
+                                            <div class="document-list-item">
+                                                <div class="document-item-header">
+                                                    <div class="document-item-info">
+                                                        <h6>{{ doc.document_title }}</h6>
+                                                        <div class="document-item-meta">
+                                                            <i class="bi bi-file-earmark-text me-1"></i>{{ doc.original_filename }}
+                                                            {% if doc.document_date %}
+                                                            <span class="mx-2">|</span>
+                                                            <i class="bi bi-calendar-event me-1"></i>{{ doc.document_date.strftime('%Y-%m-%d') }}
+                                                            {% endif %}
+                                                        </div>
                                                     </div>
-
-                                                    {# Action Buttons #}
-                                                    <div class="text-nowrap">
+                                                    <div class="document-item-actions">
                                                         <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
-                                                            target="_blank"
-                                                            class="btn btn-outline-primary btn-sm">View</a>
-
+                                                            target="_blank" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-eye me-1"></i>View
+                                                        </a>
                                                         <form method="POST"
                                                             action="{{ url_for('companies.delete_document', doc_id=doc.id) }}"
                                                             style="display: inline;">
                                                             <button type="submit" class="btn btn-outline-danger btn-sm"
-                                                                onclick="return confirm('Are you sure you want to permanently delete this document?');"
-                                                                title="Delete Document">Delete</button>
+                                                                onclick="return confirm('Are you sure you want to permanently delete this document?');">
+                                                                <i class="bi bi-trash me-1"></i>Delete
+                                                            </button>
                                                         </form>
                                                     </div>
-
                                                 </div>
-                                                {% if doc.description %}<p class="mb-1 mt-2"><small>{{ doc.description
-                                                        }}</small></p>{% endif %}
-                                            </li>
+                                                {% if doc.description %}
+                                                <div class="document-item-description">
+                                                    {{ doc.description }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
                                             {% endfor %}
-                                        </ul>
+                                        </div>
                                     </div>
                                 </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
+                            {% else %}
+                            <div class="company-empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p>No documents uploaded for this company yet.</p>
+                            </div>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <p>No documents uploaded for this company yet.</p>
-                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="tab-pane fade p-3 border border-top-0 rounded-bottom" id="competitors-pane" role="tabpanel">
-        <div class="card mb-4">
-            <div class="card-header">
-                Competitor Analysis
+
+        <!-- Edit Company Details Tab -->
+        <div class="tab-pane fade" id="edit-pane" role="tabpanel">
+
+            <!-- Warning Banner for Portfolio Companies -->
+            {% if company.is_in_portfolio %}
+            <div class="warning-banner mb-4">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>This company is in your portfolio.</strong>
+                    Changing the ticker symbol will affect price updates for your positions.
+                    Make sure the new ticker is correct before saving.
+                </div>
             </div>
-            <div class="card-body">
-                <h5 class="card-title">Add a Competitor</h5>
-                <p class="card-text text-muted">Link this company to its competitors from your existing company
-                    list.</p>
+            {% endif %}
 
-                <form method="POST" action="{{ url_for('companies.add_competitor', company_id=company.id) }}">
-                    <div class="input-group">
-                        <select name="competitor_id" class="form-select" required>
-                            <option value="" disabled selected>-- Select a company to add as a competitor --
-                            </option>
-                            {% for p_comp in potential_competitors %}
-                            <option value="{{ p_comp.id }}">{{ p_comp.name }} ({{ p_comp.ticker_symbol }})</option>
-                            {% endfor %}
-                        </select>
-                        <button type="submit" class="btn btn-primary">Add</button>
+            <!-- Info Banner -->
+            <div class="info-banner mb-4">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>
+                    <strong>Ticker Symbol Validation:</strong>
+                    The system will automatically verify ticker symbols against Yahoo Finance when you update them.
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('companies.edit_company', company_id=company.id) }}" id="editCompanyForm">
+
+                <!-- Basic Information Section -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-building me-2"></i>Basic Information</h5>
                     </div>
-                </form>
+                    <div class="company-section-card-body">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="companyName" class="form-label fw-semibold">
+                                    Company Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="companyName" name="name"
+                                       value="{{ company.name }}" required>
+                                <div class="form-text">Full legal or common name of the company</div>
+                            </div>
 
-                <hr>
+                            <div class="col-md-4">
+                                <label for="tickerSymbol" class="form-label fw-semibold">
+                                    Ticker Symbol <span class="text-danger">*</span>
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control" id="tickerSymbol" name="ticker_symbol"
+                                           value="{{ company.ticker_symbol }}" required style="text-transform: uppercase;">
+                                    <div class="ticker-validation-status" id="tickerValidationStatus"></div>
+                                </div>
+                                <div class="form-text">Stock ticker (will be validated)</div>
+                            </div>
+                        </div>
 
-                <h5 class="card-title mt-4">Current Competitors</h5>
-                {% if current_competitors %}
-                <ul class="list-group">
-                    {% for comp in current_competitors %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('companies.company_dashboard', company_id=comp.id) }}">{{
-                            comp.name
-                            }}</a>
-                        <form method="POST"
-                            action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}">
-                            <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
-                        </form>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p>No competitors have been linked yet.</p>
-                {% endif %}
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-12">
+                                <label for="companySummary" class="form-label fw-semibold">Company Summary</label>
+                                <textarea class="form-control" id="companySummary" name="summary" rows="3"
+                                          placeholder="Brief description of the company's business...">{{ company.summary if company.summary else '' }}</textarea>
+                                <div class="form-text">A brief description to help you remember what this company does</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sector & Industry Section -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-layers me-2"></i>Sector & Industry Classification</h5>
+                    </div>
+                    <div class="company-section-card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="sector" class="form-label fw-semibold">Sector</label>
+                                <input type="text" class="form-control" id="sector" name="sector"
+                                       value="{{ company.sector.name if company.sector else '' }}"
+                                       list="sectorList" placeholder="e.g., Technology, Healthcare">
+                                <datalist id="sectorList">
+                                    <option value="Technology">
+                                    <option value="Healthcare">
+                                    <option value="Financials">
+                                    <option value="Consumer Discretionary">
+                                    <option value="Consumer Staples">
+                                    <option value="Industrials">
+                                    <option value="Energy">
+                                    <option value="Materials">
+                                    <option value="Utilities">
+                                    <option value="Real Estate">
+                                    <option value="Communication Services">
+                                </datalist>
+                                <div class="form-text">Broad sector classification</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="industry" class="form-label fw-semibold">Industry</label>
+                                <input type="text" class="form-control" id="industry" name="industry"
+                                       value="{{ company.industry if company.industry else '' }}"
+                                       placeholder="e.g., Consumer Electronics">
+                                <div class="form-text">Specific industry within the sector</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticker Testing Tool -->
+                <div class="company-section-card mb-4">
+                    <div class="company-section-card-header">
+                        <h5><i class="bi bi-search me-2"></i>Ticker Symbol Testing Tool</h5>
+                    </div>
+                    <div class="company-section-card-body">
+                        <div class="ticker-tester">
+                            <p class="mb-3">
+                                <strong>Not sure if your ticker is correct?</strong>
+                                Test it here before saving. This tool will verify the ticker against Yahoo Finance.
+                            </p>
+
+                            <div class="row g-2">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control" id="testTicker"
+                                           placeholder="Enter ticker to test (e.g., AAPL, MSFT, MBB.DE)">
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-info w-100" id="testTickerBtn">
+                                        <i class="bi bi-play-fill me-2"></i>Test Ticker
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Test Results -->
+                            <div id="testResult" class="d-none mt-3"></div>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6 class="mb-2">Common Exchange Formats:</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <strong>USA:</strong> AAPL, MSFT, GOOGL<br>
+                                        <strong>Germany:</strong> MBB.DE, SAP.DE<br>
+                                        <strong>UK:</strong> BP.L, SHEL.L
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <strong>Japan:</strong> 7203.T (Toyota)<br>
+                                        <strong>Canada:</strong> SHOP.TO<br>
+                                        <strong>India:</strong> RELIANCE.NS
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="saveChangesBtn">
+                        <i class="bi bi-check-circle me-2"></i>Save Changes
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- Competitors Tab -->
+        <div class="tab-pane fade" id="competitors-pane" role="tabpanel">
+            <div class="company-section-card">
+                <div class="company-section-card-header">
+                    <h5><i class="bi bi-diagram-3 me-2"></i>Competitor Analysis</h5>
+                </div>
+                <div class="company-section-card-body">
+                    <h6 class="mb-3">Add a Competitor</h6>
+                    <p class="company-section-description">
+                        Link this company to its competitors from your existing company list for comparative analysis.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('companies.add_competitor', company_id=company.id) }}" class="mb-4">
+                        <div class="row g-2">
+                            <div class="col-md-9">
+                                <select name="competitor_id" class="form-select" required>
+                                    <option value="" disabled selected>Select a company to add as competitor</option>
+                                    {% for p_comp in potential_competitors %}
+                                    <option value="{{ p_comp.id }}">{{ p_comp.name }} ({{ p_comp.ticker_symbol }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-plus-circle me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-3">Current Competitors</h6>
+                    {% if current_competitors %}
+                    <div>
+                        {% for comp in current_competitors %}
+                        <div class="competitor-list-item">
+                            <a href="{{ url_for('companies.company_dashboard', company_id=comp.id) }}" class="competitor-link">
+                                <i class="bi bi-building me-2"></i>{{ comp.name }}
+                                {% if comp.ticker_symbol %}<span class="text-muted">({{ comp.ticker_symbol }})</span>{% endif %}
+                            </a>
+                            <form method="POST"
+                                action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-x-circle me-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="company-empty-state">
+                        <i class="bi bi-building"></i>
+                        <p>No competitors have been linked yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
+
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const fetchBtn = document.getElementById('fetch-financials-btn');
-            const statusDiv = document.getElementById('financial-fetch-status');
+{{ super() }}
+<script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
+<script>
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
 
-            if (fetchBtn) {
-                fetchBtn.addEventListener('click', function() {
-                    const companyId = this.getAttribute('data-company-id');
+document.addEventListener('DOMContentLoaded', function() {
+    // Ticker Testing Tool
+    const testTickerBtn = document.getElementById('testTickerBtn');
+    const testTickerInput = document.getElementById('testTicker');
+    const testResult = document.getElementById('testResult');
 
-                    // Disable button and show loading state
+    if (testTickerBtn && testTickerInput) {
+        testTickerBtn.addEventListener('click', function() {
+            const ticker = testTickerInput.value.trim().toUpperCase();
+
+            if (!ticker) {
+                testResult.className = 'alert alert-warning mt-3';
+                testResult.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Please enter a ticker symbol to test.';
+                testResult.classList.remove('d-none');
+                return;
+            }
+
+            // Show loading state
+            testTickerBtn.disabled = true;
+            testTickerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testing...';
+            testResult.className = 'alert alert-info mt-3';
+            testResult.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Validating ticker symbol...';
+            testResult.classList.remove('d-none');
+
+            // Call validation API
+            fetch('/companies/validate_ticker', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ticker: ticker })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    testResult.className = 'alert alert-success mt-3';
+                    testResult.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><i class="bi bi-check-circle-fill me-2"></i>Ticker Found!</strong>
+                                <div class="mt-2">
+                                    <strong>${data.ticker}</strong> - ${data.company_name || 'N/A'}
+                                    ${data.exchange ? '<br><small class="text-muted">Exchange: ' + data.exchange + '</small>' : ''}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' + currencySymbol + data.current_price.toFixed(2) + '</div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    testResult.className = 'alert alert-danger mt-3';
+                    testResult.innerHTML = `
+                        <strong><i class="bi bi-x-circle-fill me-2"></i>Ticker Not Found</strong>
+                        <div class="mt-2">${data.error || 'Could not validate this ticker symbol.'}</div>
+                        <div class="mt-2"><small>Make sure you're using the correct format (e.g., AAPL for US stocks, MBB.DE for German stocks).</small></div>
+                    `;
+                }
+            })
+            .catch(error => {
+                testResult.className = 'alert alert-danger mt-3';
+                testResult.innerHTML = `
+                    <strong><i class="bi bi-x-circle-fill me-2"></i>Error</strong>
+                    <div class="mt-2">Failed to validate ticker. Please try again.</div>
+                `;
+            })
+            .finally(() => {
+                testTickerBtn.disabled = false;
+                testTickerBtn.innerHTML = '<i class="bi bi-play-fill me-2"></i>Test Ticker';
+            });
+        });
+
+        // Allow Enter key to trigger test
+        testTickerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                testTickerBtn.click();
+            }
+        });
+    }
+
+    // Financial fetch functionality
+    const fetchBtn = document.getElementById('fetch-financials-btn');
+    const statusDiv = document.getElementById('financial-fetch-status');
+
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', function() {
+            const companyId = this.getAttribute('data-company-id');
+
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+
+            statusDiv.classList.remove('d-none');
+
+            fetch(`/companies/${companyId}/fetch_financials`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div>
+                                <strong>Financial data fetch in progress...</strong>
+                                <div class="small">Task ID: ${data.task_id}. Monitoring progress...</div>
+                            </div>
+                        </div>
+                    `;
+
+                    fetchBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Fetch Started';
                     fetchBtn.disabled = true;
-                    fetchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+                    pollTaskStatus(data.task_id, statusDiv, fetchBtn);
 
-                    // Show status indicator
-                    statusDiv.classList.remove('d-none');
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator error">
+                            <i class="bi bi-exclamation-circle"></i>
+                            <div>
+                                <strong>Error:</strong> ${data.error || 'Failed to start financial data fetch'}
+                            </div>
+                        </div>
+                    `;
+                    fetchBtn.disabled = false;
+                    fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `
+                    <div class="status-indicator error">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <div>
+                            <strong>Error:</strong> Failed to start financial data fetch. Please try again.
+                        </div>
+                    </div>
+                `;
+                fetchBtn.disabled = false;
+                fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+            });
+        });
+    }
 
-                    // Make AJAX request
-                    fetch(`/companies/${companyId}/fetch_financials`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        console.log('Response status:', response.status);
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Response data:', data);
-                        if (data.success) {
-                            // Update status to show it's running in background
-                            statusDiv.innerHTML = `
-                                <div class="d-flex align-items-center">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <div>
-                                        <strong>Financial data fetch in progress...</strong>
-                                        <div class="small">Task ID: ${data.task_id}. Monitoring progress...</div>
-                                    </div>
-                                </div>
-                            `;
-
-                            // Start polling task status
-                            fetchBtn.innerHTML = 'Fetch Started';
-                            fetchBtn.disabled = true;
-                            pollTaskStatus(data.task_id, statusDiv, fetchBtn);
-
-                        } else {
-                            // Handle error
-                            statusDiv.innerHTML = `
-                                <div class="alert alert-danger">
-                                    <strong>Error:</strong> ${data.error || 'Failed to start financial data fetch'}
-                                </div>
-                            `;
-                            fetchBtn.disabled = false;
-                            fetchBtn.innerHTML = 'Fetch Financial History';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
+    function pollTaskStatus(taskId, statusDiv, fetchBtn) {
+        const pollInterval = setInterval(() => {
+            fetch(`/research/task_status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state === 'SUCCESS') {
                         statusDiv.innerHTML = `
-                            <div class="alert alert-danger">
-                                <strong>Error:</strong> Failed to start financial data fetch. Please try again.
-                                <div class="small">Check browser console for details.</div>
+                            <div class="status-indicator success">
+                                <i class="bi bi-check-circle"></i>
+                                <div>
+                                    <strong>Financial data fetch completed!</strong>
+                                    <div class="small">Financial data has been updated. You can now view the financials page.</div>
+                                </div>
                             </div>
                         `;
                         fetchBtn.disabled = false;
-                        fetchBtn.innerHTML = 'Fetch Financial History';
-                    });
-                });
-            }
+                        fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                        clearInterval(pollInterval);
 
-            // Function to poll task status
-            function pollTaskStatus(taskId, statusDiv, fetchBtn) {
-                const pollInterval = setInterval(() => {
-                    fetch(`/research/task_status/${taskId}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.state === 'SUCCESS') {
-                                // Task completed successfully
-                                statusDiv.innerHTML = `
-                                    <div class="alert alert-success">
-                                        <strong>✅ Financial data fetch completed!</strong>
-                                        <div class="small">Financial data has been updated. You can now view the financials page.</div>
-                                    </div>
-                                `;
-                                fetchBtn.disabled = false;
-                                fetchBtn.innerHTML = 'Fetch Financial History';
-                                clearInterval(pollInterval);
+                        setTimeout(() => {
+                            statusDiv.classList.add('d-none');
+                        }, 5000);
 
-                                // Hide after 5 seconds
-                                setTimeout(() => {
-                                    statusDiv.classList.add('d-none');
-                                }, 5000);
-
-                            } else if (data.state === 'FAILURE') {
-                                // Task failed
-                                statusDiv.innerHTML = `
-                                    <div class="alert alert-danger">
-                                        <strong>❌ Financial data fetch failed!</strong>
-                                        <div class="small">${data.status_message || 'Unknown error occurred'}</div>
-                                    </div>
-                                `;
-                                fetchBtn.disabled = false;
-                                fetchBtn.innerHTML = 'Fetch Financial History';
-                                clearInterval(pollInterval);
-
-                            } else if (data.state === 'PENDING') {
-                                // Task is still pending/running
-                                statusDiv.innerHTML = `
-                                    <div class="d-flex align-items-center">
-                                        <div class="spinner-border spinner-border-sm me-2" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <div>
-                                            <strong>Financial data fetch in progress...</strong>
-                                            <div class="small">${data.status_message || 'Task is running in background...'}</div>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Polling error:', error);
-                            statusDiv.innerHTML = `
-                                <div class="alert alert-warning">
-                                    <strong>Cannot check task status</strong>
-                                    <div class="small">Will continue running in background</div>
+                    } else if (data.state === 'FAILURE') {
+                        statusDiv.innerHTML = `
+                            <div class="status-indicator error">
+                                <i class="bi bi-x-circle"></i>
+                                <div>
+                                    <strong>Financial data fetch failed!</strong>
+                                    <div class="small">${data.status_message || 'Unknown error occurred'}</div>
                                 </div>
-                            `;
-                            clearInterval(pollInterval);
-                        });
-                }, 2000); // Poll every 2 seconds
-            }
-        });
-    </script>
+                            </div>
+                        `;
+                        fetchBtn.disabled = false;
+                        fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                        clearInterval(pollInterval);
+
+                    } else if (data.state === 'PENDING') {
+                        statusDiv.innerHTML = `
+                            <div class="status-indicator">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <div>
+                                    <strong>Financial data fetch in progress...</strong>
+                                    <div class="small">${data.status_message || 'Task is running in background...'}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Polling error:', error);
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <div>
+                                <strong>Cannot check task status</strong>
+                                <div class="small">Will continue running in background</div>
+                            </div>
+                        </div>
+                    `;
+                    clearInterval(pollInterval);
+                });
+        }, 2000);
+    }
+
+    // Handle URL fragment to show the correct tab on page load
+    if (window.location.hash) {
+        const hash = window.location.hash.substring(1); // Remove the '#'
+        const tabButton = document.getElementById(hash + '-tab');
+        if (tabButton) {
+            const tab = new bootstrap.Tab(tabButton);
+            tab.show();
+        }
+    }
+});
+</script>
 {% endblock %}

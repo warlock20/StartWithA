@@ -3,79 +3,151 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
                        PatternRecognition, LearningPath, DecisionJournal,
-                       Company, LearningNote)
+                       Company, LearningNote, Sector, SectorAnalysis)
 from app.learning import learning_bp
 from app.learning.utils import (get_weekly_metrics, identify_patterns,
                                calculate_learning_score, get_review_schedule,
                                generate_learning_recommendations)
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from datetime import datetime, timedelta, date
-import json
 
 @learning_bp.route('/dashboard')
 @login_required
 def learning_dashboard():
     """Main learning dashboard"""
-    # Calculate learning score
+    # Calculate learning score (internal use - not displayed)
     learning_score = calculate_learning_score(current_user.id)
-    
+
+    # Get curated wisdom stats
+    total_insights = LearningNote.query.filter_by(user_id=current_user.id).count()
+
+    # Get last reviewed date (most recent)
+    last_reviewed_insight = LearningNote.query.filter_by(user_id=current_user.id)\
+        .filter(LearningNote.last_reviewed.isnot(None))\
+        .order_by(LearningNote.last_reviewed.desc())\
+        .first()
+
+    last_reviewed_date = ensure_timezone_aware(last_reviewed_insight.last_reviewed) if last_reviewed_insight else None
+
+    # Count stale insights (not reviewed in 30+ days or never reviewed)
+    thirty_days_ago = now_utc() - timedelta(days=30)
+    stale_insights = LearningNote.query.filter_by(user_id=current_user.id).filter(
+        db.or_(
+            LearningNote.last_reviewed.is_(None),
+            LearningNote.last_reviewed < thirty_days_ago
+        )
+    ).count()
+
+    curated_wisdom_stats = {
+        'total': total_insights,
+        'last_reviewed': last_reviewed_date,
+        'stale_count': stale_insights
+    }
+
+    # Get sector knowledge stats (count active research notebooks with continuous learning enabled)
+    total_sectors = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        status='active',
+        continuous_learning_enabled=True
+    ).count()
+
+    # Get last researched from sector with active analysis and continuous learning enabled
+    last_researched_sector = db.session.query(Sector)\
+        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
+        .filter(
+            SectorAnalysis.user_id == current_user.id,
+            SectorAnalysis.status == 'active',
+            SectorAnalysis.continuous_learning_enabled == True
+        )\
+        .filter(Sector.last_researched.isnot(None))\
+        .order_by(Sector.last_researched.desc())\
+        .first()
+
+    last_researched_date = ensure_timezone_aware(last_researched_sector.last_researched) if last_researched_sector else None
+
+    # Count stale sectors (with active analysis and continuous learning enabled)
+    stale_sectors = db.session.query(Sector)\
+        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
+        .filter(
+            SectorAnalysis.user_id == current_user.id,
+            SectorAnalysis.status == 'active',
+            SectorAnalysis.continuous_learning_enabled == True
+        )\
+        .filter(
+            db.or_(
+                Sector.last_researched.is_(None),
+                Sector.last_researched < thirty_days_ago
+            )
+        ).count()
+
+    sector_knowledge_stats = {
+        'total': total_sectors,
+        'last_researched': last_researched_date,
+        'stale_count': stale_sectors
+    }
+
     # Get review schedule
     review_schedule = get_review_schedule(current_user.id)
-    
+
     # Get recent mistakes
     recent_mistakes = current_user.mistake_logs.order_by(
         MistakeLog.created_at.desc()
     ).limit(5).all()
-    
+
     # Get learning recommendations
     recommendations = generate_learning_recommendations(current_user.id)
-    
+
     # Get active learning paths
     active_paths = current_user.learning_paths.filter_by(status='active').all()
-    
+
     # Get recent patterns
     recent_patterns = current_user.patterns.order_by(
         PatternRecognition.identified_date.desc()
     ).limit(5).all()
-    
+
     # Calculate improvement metrics
+    today = now_utc().date()
     recent_decisions = current_user.decision_journals.filter(
-        DecisionJournal.decision_date >= datetime.utcnow().date() - timedelta(days=90)
+        DecisionJournal.decision_date >= today - timedelta(days=90)
     ).all()
-    
+
     older_decisions = current_user.decision_journals.filter(
-        DecisionJournal.decision_date < datetime.utcnow().date() - timedelta(days=90),
-        DecisionJournal.decision_date >= datetime.utcnow().date() - timedelta(days=180)
+        DecisionJournal.decision_date < today - timedelta(days=90),
+        DecisionJournal.decision_date >= today - timedelta(days=180)
     ).all()
-    
+
     improvement_data = {
         'recent_confidence': 0,
         'older_confidence': 0,
         'confidence_trend': 'stable'
     }
-    
+
     if recent_decisions:
         recent_confidence = sum(d.confidence_score or 0 for d in recent_decisions) / len(recent_decisions)
         improvement_data['recent_confidence'] = round(recent_confidence, 1)
-    
+
     if older_decisions:
         older_confidence = sum(d.confidence_score or 0 for d in older_decisions) / len(older_decisions)
         improvement_data['older_confidence'] = round(older_confidence, 1)
-    
+
     if improvement_data['recent_confidence'] and improvement_data['older_confidence']:
         if improvement_data['recent_confidence'] > improvement_data['older_confidence']:
             improvement_data['confidence_trend'] = 'improving'
         elif improvement_data['recent_confidence'] < improvement_data['older_confidence']:
             improvement_data['confidence_trend'] = 'declining'
-    
+
     return render_template('learning_dashboard.html',
                           title="Learning Center",
                           learning_score=learning_score,
+                          curated_wisdom_stats=curated_wisdom_stats,
+                          sector_knowledge_stats=sector_knowledge_stats,
                           review_schedule=review_schedule,
                           recent_mistakes=recent_mistakes,
                           recommendations=recommendations,
                           active_paths=active_paths,
                           recent_patterns=recent_patterns,
-                          improvement_data=improvement_data)
+                          improvement_data=improvement_data,
+                          now=now_utc())
 
 @learning_bp.route('/mistakes')
 @login_required
@@ -193,7 +265,7 @@ def review_mistake(mistake_id):
        return jsonify({'error': 'Access denied'}), 403
    
    mistake.times_reviewed += 1
-   mistake.last_reviewed = datetime.utcnow()
+   mistake.last_reviewed = now_utc()
    
    # Check if similar mistake was prevented
    prevented = request.json.get('prevented_similar', False)
@@ -292,9 +364,9 @@ def save_weekly_review():
    
    priorities = request.form.get('next_week_priorities', '').split('\n')
    review.next_week_priorities = [p.strip() for p in priorities if p.strip()]
-   
-   review.completed_at = datetime.utcnow()
-   
+
+   review.completed_at = now_utc()
+
    if not existing:
        db.session.add(review)
    
@@ -567,7 +639,7 @@ def create_learning_path():
        total_steps=len(milestones),
        current_step=1,
        milestones=milestones,
-       started_at=datetime.utcnow()
+       started_at=now_utc()
    )
    
    if target_completion:

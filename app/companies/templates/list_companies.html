@@ -18,9 +18,22 @@
         </div>
     </header>
 
-    <!-- Search and Filter Bar -->
+    <!-- View Toggle and Search Bar -->
     <div class="card mb-4">
         <div class="card-body p-4">
+            <!-- View Toggle -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 text-muted">View Options</h6>
+                <div class="btn-group" role="group" aria-label="View toggle">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-cards" data-view="cards">
+                        <i class="bi bi-grid-3x2"></i> Cards
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-table" data-view="table">
+                        <i class="bi bi-table"></i> Table
+                    </button>
+                </div>
+            </div>
+
             <form method="GET" action="{{ url_for('companies.list_companies') }}">
                 <div class="row g-3">
                     <!-- Search Box -->
@@ -101,9 +114,11 @@
         </div>
     </div>
 
-    <!-- Companies Grid -->
+    <!-- Companies Grid/Table Views -->
     {% if companies_data_list %}
-    <div class="completed-projects-grid">
+
+    <!-- Card View -->
+    <div id="companies-card-view" class="completed-projects-grid">
         {% for data in companies_data_list %}
         {% set company = data.company_obj %}
         {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
@@ -134,7 +149,7 @@
                     <span class="project-type-badge">{{ company.ticker_symbol }}</span>
                     {% if company.sector %}
                     <span class="text-muted">•</span>
-                    <span class="text-muted">{{ company.sector }}</span>
+                    <span class="text-muted">{{ company.sector.display_name }}</span>
                     {% endif %}
                 </p>
 
@@ -247,6 +262,11 @@
         {% endfor %}
     </div>
 
+    <!-- Table View -->
+    <div id="companies-table-view" class="portfolio-table-section" style="display: none; max-height: 800px; overflow-y: auto;">
+        <div id="companies-table"></div>
+    </div>
+
     <!-- Pagination Controls -->
     {% if pagination.pages > 1 %}
     <nav aria-label="Page navigation" class="mt-4">
@@ -322,4 +342,249 @@
     {% endif %}
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View toggle functionality
+    const cardView = document.getElementById('companies-card-view');
+    const tableView = document.getElementById('companies-table-view');
+    const cardViewBtn = document.getElementById('view-cards');
+    const tableViewBtn = document.getElementById('view-table');
+
+    // Get saved view preference or default to 'table'
+    // Version check: reset to table if version changed (forces new default)
+    const viewVersion = localStorage.getItem('companiesViewVersion');
+    if (viewVersion !== '2.0') {
+        localStorage.setItem('companiesViewPreference', 'table');
+        localStorage.setItem('companiesViewVersion', '2.0');
+    }
+    let currentView = localStorage.getItem('companiesViewPreference') || 'table';
+
+    // Initialize view
+    function setView(view) {
+        currentView = view;
+        localStorage.setItem('companiesViewPreference', view);
+
+        if (view === 'cards') {
+            cardView.style.display = 'grid';
+            tableView.style.display = 'none';
+            cardViewBtn.classList.add('active');
+            tableViewBtn.classList.remove('active');
+        } else {
+            cardView.style.display = 'none';
+            tableView.style.display = 'block';
+            cardViewBtn.classList.remove('active');
+            tableViewBtn.classList.add('active');
+
+            // Initialize table if not already done
+            if (!window.companiesTable) {
+                initializeTable();
+            }
+        }
+    }
+
+    // Set initial view
+    setView(currentView);
+
+    // View toggle event listeners
+    cardViewBtn.addEventListener('click', () => setView('cards'));
+    tableViewBtn.addEventListener('click', () => setView('table'));
+
+    // Initialize Tabulator table
+    function initializeTable() {
+        const companiesData = [
+            {% for data in companies_data_list %}
+            {% set company = data.company_obj %}
+            {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
+            {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
+            {% set doc_count = company.documents.count() %}
+            {
+                name: "{{ company.name }}",
+                ticker: "{{ company.ticker_symbol }}",
+                sector: "{{ company.sector.display_name if company.sector else '' }}",
+                status: "{% if company.id in portfolio_ids %}Portfolio{% elif company.id in favorite_ids %}Watchlist{% else %}Tracked{% endif %}",
+                projects: {{ project_count }},
+                documents: {{ doc_count }},
+                progress: {{ active_project.progress_percentage if active_project else 0 }},
+                hasDestination: {{ 'true' if data.has_destination_analysis else 'false' }},
+                hasSwot: {{ 'true' if data.has_swot else 'false' }},
+                companyId: {{ company.id }},
+                inPortfolio: {{ 'true' if company.id in portfolio_ids else 'false' }},
+                inWatchlist: {{ 'true' if company.id in favorite_ids else 'false' }}
+            }{{ ',' if not loop.last else '' }}
+            {% endfor %}
+        ];
+
+        window.companiesTable = new Tabulator("#companies-table", {
+            data: companiesData,
+            layout: "fitColumns",
+            responsiveLayout: "collapse",
+            pagination: false,
+            layoutColumnsOnNewData: true,
+            height: "700px",
+            initialSort: [
+                {column: "name", dir: "asc"}
+            ],
+            columns: [
+                {
+                    title: "Company",
+                    field: "name",
+                    sorter: "string",
+                    minWidth: 200,
+                    widthGrow: 3,
+                    formatter: function(cell) {
+                        const data = cell.getData();
+                        return `<div style="font-weight: 600;">${data.name}</div>
+                                <div style="font-size: 0.875rem; color: #6b7280;">${data.ticker}</div>`;
+                    }
+                },
+                {
+                    title: "Sector",
+                    field: "sector",
+                    sorter: "string",
+                    minWidth: 120,
+                    widthGrow: 2
+                },
+                {
+                    title: "Status",
+                    field: "status",
+                    sorter: "string",
+                    hozAlign: "center",
+                    minWidth: 100,
+                    widthGrow: 1,
+                    formatter: function(cell) {
+                        const value = cell.getValue();
+                        let badgeClass = 'bg-secondary';
+                        let icon = 'bi-building';
+
+                        if (value === 'Portfolio') {
+                            badgeClass = 'bg-success';
+                            icon = 'bi-briefcase-fill';
+                        } else if (value === 'Watchlist') {
+                            badgeClass = 'bg-warning';
+                            icon = 'bi-star-fill';
+                        }
+
+                        return `<span class="badge ${badgeClass}"><i class="bi ${icon}"></i> ${value}</span>`;
+                    }
+                },
+                {
+                    title: "Projects",
+                    field: "projects",
+                    sorter: "number",
+                    hozAlign: "center",
+                    minWidth: 80,
+                    widthGrow: 1
+                },
+                {
+                    title: "Documents",
+                    field: "documents",
+                    sorter: "number",
+                    hozAlign: "center",
+                    minWidth: 100,
+                    widthGrow: 1
+                },
+                {
+                    title: "Progress",
+                    field: "progress",
+                    sorter: "number",
+                    hozAlign: "center",
+                    minWidth: 100,
+                    widthGrow: 1,
+                    formatter: function(cell) {
+                        const value = cell.getValue();
+                        if (value > 0) {
+                            return `<span class="badge bg-info">${value}%</span>`;
+                        }
+                        return '<span class="text-muted">—</span>';
+                    }
+                },
+                {
+                    title: "Actions",
+                    field: "companyId",
+                    hozAlign: "center",
+                    minWidth: 220,
+                    widthGrow: 2,
+                    headerSort: false,
+                    formatter: function(cell) {
+                        const data = cell.getData();
+                        const companyId = cell.getValue();
+
+                        let buttons = `
+                            <a href="/companies/${companyId}/documents" class="btn btn-sm btn-outline-primary" title="Dashboard">
+                                <i class="bi bi-speedometer2"></i>
+                            </a>
+                        `;
+
+                        if (data.hasDestination) {
+                            buttons += `
+                                <a href="/companies/${companyId}/destination-analysis" class="btn btn-sm btn-outline-success" title="Destination">
+                                    <i class="bi bi-bullseye"></i>
+                                </a>
+                            `;
+                        }
+
+                        // Add Watchlist button
+                        if (data.status !== 'Watchlist' && data.status !== 'Portfolio') {
+                            buttons += `
+                                <button class="btn btn-sm btn-outline-warning" title="Add to Watchlist" onclick="addToWatchlist(${companyId}, event)">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                            `;
+                        }
+
+                        // Add Portfolio button
+                        if (data.status !== 'Portfolio') {
+                            buttons += `
+                                <button class="btn btn-sm btn-outline-success" title="Add to Portfolio" onclick="addToPortfolio(${companyId}, event)">
+                                    <i class="bi bi-briefcase"></i>
+                                </button>
+                            `;
+                        }
+
+                        return `<div style="display: flex; gap: 4px; justify-content: center;">${buttons}</div>`;
+                    }
+                }
+            ]
+        });
+    }
+
+    // Function to add company to watchlist
+    window.addToWatchlist = function(companyId, event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        fetch(`/companies/${companyId}/toggle_favorite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Reload the page to reflect changes
+                window.location.reload();
+            } else {
+                alert('Failed to add to watchlist');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    };
+
+    // Function to add company to portfolio
+    window.addToPortfolio = function(companyId, event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Redirect to add transaction page
+        window.location.href = `/portfolio/transactions/add?company_id=${companyId}`;
+    };
+});
+</script>
 {% endblock %}

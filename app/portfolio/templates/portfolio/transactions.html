@@ -1,0 +1,291 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Transaction History</h1>
+            <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Back to Portfolio
+            </a>
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> Add Transaction
+            </a>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body p-4">
+            <form method="GET" action="{{ url_for('portfolio.transactions') }}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="company_id" class="form-label">Company</label>
+                            <select class="form-select" name="company_id" id="company_id">
+                                <option value="">All Companies</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}" {% if request.args.get('company_id')|int == company.id %}selected{% endif %}>
+                                    {{ company.ticker_symbol }} - {{ company.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="type" class="form-label">Type</label>
+                            <select class="form-select" name="type" id="type">
+                                <option value="">All Types</option>
+                                <option value="BUY" {% if request.args.get('type') == 'BUY' %}selected{% endif %}>Buy</option>
+                                <option value="SELL" {% if request.args.get('type') == 'SELL' %}selected{% endif %}>Sell</option>
+                                <option value="DIVIDEND" {% if request.args.get('type') == 'DIVIDEND' %}selected{% endif %}>Dividend</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" name="start_date" id="start_date"
+                                   value="{{ request.args.get('start_date', '') }}">
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" name="end_date" id="end_date"
+                                   value="{{ request.args.get('end_date', '') }}">
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-funnel me-2"></i>Filter
+                            </button>
+                            <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-outline-secondary">
+                                Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">Transactions</h2>
+            <div class="portfolio-table-controls">
+                <button class="portfolio-btn-export" onclick="transactionsTable.download('csv', 'transactions.csv')">
+                    <i class="bi bi-download"></i>
+                    Export
+                </button>
+            </div>
+        </div>
+        <div id="transactions-table"></div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this transaction?</p>
+                <div class="alert alert-warning">
+                    <strong id="deleteDetails"></strong>
+                    <p class="mb-0 mt-2">This will recalculate your portfolio position using FIFO method.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Delete Transaction</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
+
+// Initialize Transactions Table
+let transactionsTable;
+let deleteModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    // Transaction data
+    const transactionsData = [
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            ticker: "{{ txn.company.ticker_symbol }}",
+            companyName: "{{ txn.company.name }}",
+            companyId: {{ txn.company_id }},
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            fees: {{ txn.fees }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes|tojson|safe if txn.notes else 'null' }},
+            boughtWithoutResearch: {{ 'true' if txn.bought_without_research else 'false' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    transactionsTable = new Tabulator("#transactions-table", {
+        data: transactionsData,
+        layout: "fitDataStretch",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                hozAlign: "right",
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    const data = cell.getRow().getData();
+                    let badgeClass = 'bg-secondary';
+                    if (type === 'BUY') badgeClass = 'bg-primary';
+                    else if (type === 'SELL') badgeClass = 'bg-danger';
+                    else if (type === 'DIVIDEND') badgeClass = 'bg-success';
+                    else if (type === 'SPLIT') badgeClass = 'bg-info';
+
+                    let html = `<span class="badge ${badgeClass}">${type}</span>`;
+                    if (data.boughtWithoutResearch) {
+                        html += ' <i class="bi bi-exclamation-triangle text-warning" title="Bought without research"></i>';
+                    }
+                    return html;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Company",
+                field: "ticker",
+                sorter: "string",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<div>
+                        <div class="portfolio-company-ticker">${data.ticker}</div>
+                        <div class="portfolio-company-name">${data.companyName}</div>
+                    </div>`;
+                },
+                minWidth: 180,
+                widthGrow: 2
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return cell.getValue().toLocaleString();
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price/Share",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return currencySymbol + cell.getValue().toFixed(2);
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Fees",
+                field: "fees",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return currencySymbol + cell.getValue().toFixed(2);
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>' + currencySymbol + cell.getValue().toFixed(2) + '</strong>';
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="text-muted">--</span>';
+                    if (notes.length > 40) {
+                        return `<span title="${notes}">${notes.substring(0, 40)}...</span>`;
+                    }
+                    return notes;
+                },
+                minWidth: 150,
+                widthGrow: 2
+            },
+            {
+                title: "Actions",
+                field: "id",
+                headerSort: false,
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<a href="/portfolio/transaction/${data.id}/edit" class="portfolio-btn-icon" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button onclick="confirmDelete(${data.id}, '${data.ticker}', '${data.type}', '${data.date}')" class="portfolio-btn-icon" title="Delete" style="border: 1px solid var(--border-light); background: white; cursor: pointer;">
+                                <i class="bi bi-trash"></i>
+                            </button>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            }
+        ],
+        initialSort: [
+            {column: "date", dir: "desc"}
+        ]
+    });
+});
+
+function confirmDelete(transactionId, ticker, type, date) {
+    const details = `${type} transaction for ${ticker} on ${date}`;
+    document.getElementById('deleteDetails').textContent = details;
+    document.getElementById('deleteForm').action = `/portfolio/transaction/${transactionId}/delete`;
+    deleteModal.show();
+}
+</script>
+{% endblock %}

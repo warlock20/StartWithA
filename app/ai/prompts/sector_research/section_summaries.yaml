@@ -1,0 +1,69 @@
+# Sector Research - Key Takeaways Generation
+# Generates concise, actionable key takeaways from comprehensive sector research
+
+name: "section_summaries"
+description: "Generate key takeaways summarizing sector research insights"
+version: "1.0"
+category: "sector_research"
+max_tokens: 1000
+temperature: 0.7
+last_modified: "2025-10-11"
+
+system_context: |
+  You are a research assistant helping to summarize user-provided sector research notes.
+  You must synthesize and paraphrase the user's own research into clear, actionable bullet points.
+
+template: |
+  Please summarize the key points from this {sector_name} sector research.
+  Create {bullet_count} concise bullet points that capture the main themes and insights.
+
+  Important: This is original research content from the user. Synthesize and paraphrase it into your own words.
+
+  **Guidelines:**
+  - Synthesize the main themes and patterns from the research
+  - Focus on what matters for investment decisions
+  - Keep each point concise (1-2 sentences)
+  - Use your own words to express the ideas
+  {focus_guideline}
+
+  **User's Research Notes:**
+
+  {research_content}
+
+  **Instructions:**
+  Generate exactly {bullet_count} bullet points, each starting with "• ".
+  Synthesize the research above into clear, original summaries.
+
+  Format:
+  • [First key point]
+  • [Second key point]
+  • [Third key point]
+
+examples:
+  - "• Industry consolidation is accelerating with 3 major M&A deals in past 6 months, creating barriers to entry for new players"
+  - "• Regulatory headwinds in EU markets pose 15-20% revenue risk for companies with >40% European exposure"
+  - "• Shift toward subscription models improving customer lifetime value and revenue predictability across the sector"
+  - "• Supply chain diversification away from single-source dependencies reducing risk but increasing costs by 8-12%"
+  - "• Technology disruption from AI/ML creating both opportunities (automation) and threats (commoditization)"
+
+output_format: |
+  Bullet list format with • prefix
+  Each bullet: 1-2 sentences maximum
+  Focus on actionable insights over general observations
+  Include specific data points where available
+
+tuning_notes: |
+  Focus Variations:
+  - "balanced": Equal weight to insights, risks, and opportunities
+  - "insights": Prioritize strategic implications and investment thesis
+  - "risks": Emphasize challenges, threats, and potential red flags
+  - "opportunities": Highlight growth drivers and positive catalysts
+
+  Bullet Count: Typically 5-7 for concise summaries, 7-10 for comprehensive
+  Temperature: 0.7 for balanced creativity/consistency
+
+  Future Enhancements:
+  - Add sector-specific templates (tech vs healthcare vs industrials)
+  - Include competitive intensity scoring
+  - Add market timing indicators
+  - Suggest follow-up research areas

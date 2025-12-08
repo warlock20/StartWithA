@@ -1,66 +1,138 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-secondary">Back to Select Model</a>
-    </div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="mental-models-header">
+        <div class="mental-models-header-content">
+            <h1 class="font-poppins">SWOT Analysis: {{ company.name }}</h1>
+            <p class="mental-models-header-subtitle">
+                {% if company.ticker_symbol %}{{ company.ticker_symbol }} • {% endif %}
+                Strategic framework for analyzing internal strengths, weaknesses, and external opportunities and threats
+            </p>
+        </div>
+        <div class="mental-models-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            {% if request.args.get('project_id') %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=request.args.get('project_id')) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Research
+                </a>
+            {% else %}
+                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Company
+                </a>
+            {% endif %}
+        </div>
+    </header>
 
-    <p class="lead">Use the quadrants below to document the company's Strengths, Weaknesses, Opportunities, and Threats.</p>
-
+    <!-- SWOT Analysis Form -->
     <form method="POST" action="{{ url_for('companies.swot_analysis', company_id=company.id) }}">
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Strengths</h5>
+        <div class="swot-analysis-grid">
+            <!-- Strengths Quadrant -->
+            <div class="swot-quadrant-card">
+                <div class="swot-quadrant-header strengths">
+                    <div class="swot-quadrant-icon">
+                        <i class="bi bi-plus-circle-fill"></i>
                     </div>
-                    <div class="card-body">
-                        <p class="card-text text-muted small">Internal factors that give the company an advantage.</p>
-                        <textarea class="form-control" name="strengths" rows="8">{{ analysis_content.get('strengths', '') }}</textarea>
-                    </div>
+                    <h3>Strengths</h3>
+                </div>
+                <div class="swot-quadrant-body">
+                    <p class="swot-quadrant-description">
+                        Internal factors that give the company a competitive advantage
+                    </p>
+                    <textarea
+                        class="swot-quadrant-textarea"
+                        name="strengths"
+                        placeholder="• Strong brand recognition&#10;• Proprietary technology&#10;• High profit margins&#10;• Experienced management team"
+                        aria-label="Strengths"
+                    >{{ analysis_content.get('strengths', '') }}</textarea>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-danger text-white">
-                         <h5 class="mb-0">Weaknesses</h5>
+            <!-- Weaknesses Quadrant -->
+            <div class="swot-quadrant-card">
+                <div class="swot-quadrant-header weaknesses">
+                    <div class="swot-quadrant-icon">
+                        <i class="bi bi-dash-circle-fill"></i>
                     </div>
-                    <div class="card-body">
-                        <p class="card-text text-muted small">Internal factors that are a disadvantage to the company.</p>
-                        <textarea class="form-control" name="weaknesses" rows="8">{{ analysis_content.get('weaknesses', '') }}</textarea>
-                    </div>
+                    <h3>Weaknesses</h3>
+                </div>
+                <div class="swot-quadrant-body">
+                    <p class="swot-quadrant-description">
+                        Internal factors that are a disadvantage to the company
+                    </p>
+                    <textarea
+                        class="swot-quadrant-textarea"
+                        name="weaknesses"
+                        placeholder="• High debt levels&#10;• Limited geographic diversification&#10;• Dependent on few key customers&#10;• Aging product portfolio"
+                        aria-label="Weaknesses"
+                    >{{ analysis_content.get('weaknesses', '') }}</textarea>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-info text-white">
-                         <h5 class="mb-0">Opportunities</h5>
+            <!-- Opportunities Quadrant -->
+            <div class="swot-quadrant-card">
+                <div class="swot-quadrant-header opportunities">
+                    <div class="swot-quadrant-icon">
+                        <i class="bi bi-lightning-fill"></i>
                     </div>
-                    <div class="card-body">
-                        <p class="card-text text-muted small">External factors the company could exploit to its advantage.</p>
-                        <textarea class="form-control" name="opportunities" rows="8">{{ analysis_content.get('opportunities', '') }}</textarea>
-                    </div>
+                    <h3>Opportunities</h3>
+                </div>
+                <div class="swot-quadrant-body">
+                    <p class="swot-quadrant-description">
+                        External factors the company could exploit to its advantage
+                    </p>
+                    <textarea
+                        class="swot-quadrant-textarea"
+                        name="opportunities"
+                        placeholder="• Expanding into emerging markets&#10;• Growing industry demand&#10;• Strategic partnerships or acquisitions&#10;• New technological innovations"
+                        aria-label="Opportunities"
+                    >{{ analysis_content.get('opportunities', '') }}</textarea>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-warning text-dark">
-                         <h5 class="mb-0">Threats</h5>
+            <!-- Threats Quadrant -->
+            <div class="swot-quadrant-card">
+                <div class="swot-quadrant-header threats">
+                    <div class="swot-quadrant-icon">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
                     </div>
-                    <div class="card-body">
-                        <p class="card-text text-muted small">External factors that could cause trouble for the company.</p>
-                        <textarea class="form-control" name="threats" rows="8">{{ analysis_content.get('threats', '') }}</textarea>
-                    </div>
+                    <h3>Threats</h3>
+                </div>
+                <div class="swot-quadrant-body">
+                    <p class="swot-quadrant-description">
+                        External factors that could cause trouble for the company
+                    </p>
+                    <textarea
+                        class="swot-quadrant-textarea"
+                        name="threats"
+                        placeholder="• Intense competitive pressure&#10;• Regulatory changes&#10;• Economic downturn&#10;• Disruptive technologies"
+                        aria-label="Threats"
+                    >{{ analysis_content.get('threats', '') }}</textarea>
                 </div>
             </div>
         </div>
 
-        <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Save SWOT Analysis</button>
+        <!-- Save Section -->
+        <div class="mental-models-save-section">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-save"></i> Save SWOT Analysis
+            </button>
         </div>
     </form>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "SWOT Analysis Framework" %}
+{% set tips_intro = "SWOT Analysis is a strategic planning tool that helps you evaluate a company from four key perspectives:" %}
+{% set tips = [
+    "<strong>Strengths:</strong> Internal advantages and competitive edges<br>Examples: Strong brand recognition, proprietary technology, high profit margins, experienced management team, efficient operations, loyal customer base",
+    "<strong>Weaknesses:</strong> Internal limitations and vulnerabilities<br>Examples: High debt levels, limited geographic diversification, dependence on few key customers, aging product portfolio, weak R&D, management issues",
+    "<strong>Opportunities:</strong> External factors the company can capitalize on<br>Examples: Expanding into emerging markets, growing industry demand, strategic partnerships or acquisitions, new technological innovations, regulatory changes favoring the company",
+    "<strong>Threats:</strong> External risks and challenges<br>Examples: Intense competitive pressure, regulatory changes, economic downturn, disruptive technologies, changing consumer preferences, supply chain disruptions",
+    "<strong>How to Use:</strong> Start by identifying internal strengths and weaknesses, then analyze external opportunities and threats. Look for strategic insights by combining factors (e.g., using strengths to capitalize on opportunities, or addressing weaknesses that make you vulnerable to threats)."
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}

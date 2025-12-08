@@ -1,30 +1,46 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{{ super() }}
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<!-- Hashtag Autocomplete -->
+<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card">
-            <div class="card-header">
-                <h2>New Journal Entry</h2>
-                <p class="text-muted mb-0">Capture your investment thinking</p>
-            </div>
-            <div class="card-body">
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">New Journal Entry</h1>
+            <p class="dashboard-subtitle">Capture your investment thinking</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </header>
+
+    <!-- Entry Form -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data">
                 <!-- Template Selector -->
                 {% if templates %}
-                <div class="mb-3">
-                    <label class="form-label">Use Template:</label>
-                    <div class="btn-group" role="group">
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Use Template (Optional):</label>
+                    <div class="d-flex flex-wrap gap-2">
                         {% for template in templates[:4] %}
                         <button type="button" class="btn btn-outline-primary btn-sm"
-                            onclick="loadTemplate({{ template.id }}, {{ template.prompts|tojson }})">
-                            {{ template.name }}
+                            onclick="loadTemplate({{ template.id }}, {{ template.entry_type|tojson }}, {{ template.prompts|tojson }}, {{ template.example_content|tojson }})">
+                            <i class="bi bi-file-text"></i> {{ template.name }}
                         </button>
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
-
-                <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data">
                     <!-- Basic Info -->
                     <div class="row mb-3">
                         <div class="col-md-8">
@@ -34,7 +50,7 @@
                         </div>
                         <div class="col-md-4">
                             <label for="entry_type" class="form-label">Entry Type</label>
-                            <select class="form-select" id="entry_type" name="entry_type">
+                            <select class="form-select" id="entry_type" name="entry_type" onchange="toggleCustomEntryType()">
                                 <option value="observation">Observation</option>
                                 <option value="thesis_update">Thesis Update</option>
                                 <option value="question">Question</option>
@@ -44,7 +60,13 @@
                                 <option value="meeting_notes">Meeting Notes</option>
                                 <option value="earnings_reaction">Earnings Reaction</option>
                                 <option value="news_analysis">News Analysis</option>
+                                <option value="accounting_note">Accounting Note</option>
+                                <option value="finance_tip">Finance Tip</option>
+                                <option value="industry_analysis">Industry Analysis</option>
+                                <option value="custom">Custom</option>
                             </select>
+                            <input type="text" class="form-control mt-2" id="custom_entry_type" name="custom_entry_type"
+                                   placeholder="Enter custom type" style="display: none;">
                         </div>
                     </div>
 
@@ -54,10 +76,10 @@
                             <label class="form-label">Company (Optional)</label>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-outline-primary" onclick="openCompanyModal(handleCompanySelection)">
-                                    🏢 Select Company
+                                    <i class="bi bi-building"></i> Select Company
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary" id="clearCompanyBtn" onclick="clearSelectedCompany()" style="display: none;">
-                                    ❌ Clear
+                                    <i class="bi bi-x-circle"></i> Clear
                                 </button>
                             </div>
                             <input type="hidden" id="company_id" name="company_id" value="">
@@ -78,10 +100,17 @@
                     <div class="mb-3">
                         <label for="content" class="form-label">
                             Content <span class="text-danger">*</span>
-                            <small class="text-muted">(Use #hashtags for easy searching)</small>
                         </label>
-                        <textarea class="form-control" id="content" name="content" rows="8" required
-                            placeholder="What's on your mind?"></textarea>
+                        <div id="journalContentEditor" style="min-height: 300px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: white;"></div>
+                        <input type="hidden" id="content" name="content" required>
+                    </div>
+
+                    <!-- Hashtags -->
+                    <div class="mb-3">
+                        <label for="hashtags" class="form-label">Hashtags</label>
+                        <input type="text" class="form-control" id="hashtags" name="hashtags"
+                               placeholder="e.g., #accountingtips #cfaprep #financialratios">
+                        <small class="text-muted">Enter hashtags with # for easy searching</small>
                     </div>
 
                     <!-- Template Prompts (shown when template selected) -->
@@ -128,10 +157,9 @@
                     <!-- Submit -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary btn-lg">Save Entry</button>
+                        <button type="submit" class="btn btn-primary">Save Entry</button>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
 </div>
@@ -144,6 +172,42 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Initialize BlockNote Editor
+    let journalEditorInstance = null;
+
+    // Wait for BlockNote to load
+    const initJournalEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(initJournalEditor);
+
+            // Initialize BlockNote for journal content
+            journalEditorInstance = window.initBlockNoteEditor('journalContentEditor', {
+                placeholder: 'Write your journal entry here... Type "/" for commands',
+                onSave: null // Manual save via form submission
+            });
+
+            console.log('Journal BlockNote editor initialized');
+        }
+    }, 100);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+        clearInterval(initJournalEditor);
+        if (!window.initBlockNoteEditor) {
+            console.error('BlockNote failed to load');
+        }
+    }, 10000);
+
+    // Capture BlockNote content before form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            const blocks = window.blockNoteEditorInstance.editor.document;
+            const content = JSON.stringify(blocks);
+            document.getElementById('content').value = content;
+        }
+        // Don't prevent default - allow form submission to continue
+    });
+
     // Handle entry type changes
     document.getElementById('entry_type').addEventListener('change', function(e) {
         const entryType = e.target.value;
@@ -290,7 +354,7 @@
                     <div class="flex-grow-1">
                         <h6 class="mb-1">
                             ${yahooSuggestion.name}
-                            <span class="badge bg-success ms-2">📊 Yahoo Finance</span>
+                            <span class="badge bg-success ms-2">Yahoo Finance</span>
                         </h6>
                         <p class="mb-1 fw-bold">${yahooSuggestion.ticker_symbol}</p>
                         <small class="text-muted">
@@ -299,7 +363,7 @@
                         </small>
                     </div>
                     <div class="text-end">
-                        <small class="text-success">🆕 Add to Portfolio</small>
+                        <small class="text-success">Add to Portfolio</small>
                     </div>
                 </div>
             `;
@@ -326,7 +390,7 @@
                         <small class="text-muted">${company.industry || 'Industry not specified'}</small>
                     </div>
                     <div class="text-end">
-                        <small class="text-primary">📁 Your Portfolio</small>
+                        <small class="text-primary">Your Portfolio</small>
                     </div>
                 </div>
             `;
@@ -540,7 +604,16 @@
     }
 
     // Load template prompts
-    function loadTemplate(templateId, prompts) {
+    function loadTemplate(templateId, entryType, prompts, exampleContent) {
+        // Set entry type if provided
+        if (entryType) {
+            const entryTypeSelect = document.getElementById('entry_type');
+            entryTypeSelect.value = entryType;
+            // Trigger change event to show/hide fields
+            entryTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Show prompts if available
         if (prompts && prompts.length > 0) {
             const promptsList = document.getElementById('promptsList');
             promptsList.innerHTML = '';
@@ -550,7 +623,32 @@
                 promptsList.appendChild(li);
             });
             document.getElementById('templatePrompts').style.display = 'block';
+        } else {
+            document.getElementById('templatePrompts').style.display = 'none';
         }
+
+        // Populate content field with example if available
+        if (exampleContent) {
+            const contentField = document.getElementById('content');
+            // Build template text
+            let templateText = '';
+
+            if (prompts && prompts.length > 0) {
+                // Add prompts as structure
+                prompts.forEach(prompt => {
+                    templateText += `${prompt}\n\n\n`;
+                });
+            } else if (exampleContent) {
+                // Use example content as guide
+                templateText = exampleContent;
+            }
+
+            contentField.value = templateText;
+            contentField.focus();
+        }
+
+        // Scroll to content field
+        document.getElementById('content').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // Auto-save draft (optional)
@@ -592,5 +690,20 @@
     document.querySelector('form').addEventListener('submit', function () {
         localStorage.removeItem('journal_draft');
     });
+
+    // Handle custom entry type toggle
+    function toggleCustomEntryType() {
+        const entryTypeSelect = document.getElementById('entry_type');
+        const customEntryTypeInput = document.getElementById('custom_entry_type');
+
+        if (entryTypeSelect.value === 'custom') {
+            customEntryTypeInput.style.display = 'block';
+            customEntryTypeInput.required = true;
+        } else {
+            customEntryTypeInput.style.display = 'none';
+            customEntryTypeInput.required = false;
+            customEntryTypeInput.value = '';
+        }
+    }
 </script>
 {% endblock %}

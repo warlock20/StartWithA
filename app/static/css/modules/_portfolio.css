@@ -1,0 +1,649 @@
+/* =============================================================================
+   PORTFOLIO MODULE STYLES - Design Option 5 (Hybrid)
+   ============================================================================= */
+
+/* Transaction Type Button Selection */
+.btn-check:checked + .btn-outline-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+/* Hover states for transaction type buttons */
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-outline-success:hover {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+/* =============================================================================
+   PORTFOLIO CONTAINER
+   ============================================================================= */
+.portfolio-container {
+    width: 100%;
+    padding: var(--space-xl);
+}
+
+@media (max-width: 768px) {
+    .portfolio-container {
+        padding: var(--space-md);
+    }
+}
+
+/* =============================================================================
+   PAGE HEADER - Clean Structure
+   ============================================================================= */
+.portfolio-page-header {
+    padding: var(--space-xl) 0 var(--space-2xl) 0;
+    margin-bottom: 2.5rem;
+}
+
+.portfolio-page-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+}
+
+.portfolio-page-meta {
+    color: var(--gray-600);
+    font-size: 1rem;
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.portfolio-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.portfolio-meta-value {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.portfolio-header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .portfolio-page-title {
+        font-size: 2rem;
+    }
+
+    .portfolio-page-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* =============================================================================
+   MODERN BUTTONS - Option 5 Style
+   ============================================================================= */
+.btn-portfolio-modern {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--gray-900);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn-portfolio-modern:hover {
+    background: var(--gray-100);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+    color: var(--gray-900);
+    text-decoration: none;
+}
+
+.btn-portfolio-modern.primary {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+}
+
+.btn-portfolio-modern.primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
+    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3);
+    color: white;
+}
+
+/* =============================================================================
+   STATS CARDS - Modern Card Grid
+   ============================================================================= */
+.portfolio-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.portfolio-stat-card {
+    background: var(--background-white);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--border-light);
+    transition: all 0.3s ease;
+}
+
+.portfolio-stat-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-4px);
+}
+
+.portfolio-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.portfolio-stat-icon.blue {
+    background: var(--primary-100);
+    color: var(--primary-600);
+}
+
+.portfolio-stat-icon.green {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+.portfolio-stat-icon.purple {
+    background: #ede9fe;
+    color: #8b5cf6;
+}
+
+.portfolio-stat-icon.gray {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+.portfolio-stat-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--gray-600);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.portfolio-stat-value {
+    font-family: 'Poppins', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.portfolio-stat-trend {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.portfolio-stat-trend.up {
+    color: var(--success-600);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.portfolio-stat-trend.down {
+    color: var(--danger-600);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .portfolio-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   TABLE SECTION - Clean Wrapper
+   ============================================================================= */
+.portfolio-table-section {
+    background: var(--background-white);
+    border-radius: 16px;
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.portfolio-table-section-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.portfolio-table-section-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.portfolio-table-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.portfolio-filter-select {
+    padding: 0.625rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--gray-900);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.portfolio-filter-select:focus {
+    outline: none;
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+}
+
+.portfolio-filter-select:hover {
+    border-color: var(--primary-600);
+}
+
+@media (max-width: 768px) {
+    .portfolio-table-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .portfolio-table-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* =============================================================================
+   TABULATOR OVERRIDES - Modern Clean Style
+   ============================================================================= */
+#holdings-table {
+    width: 100%;
+}
+
+.portfolio-table-section .tabulator {
+    background: transparent;
+    border: none;
+    font-size: 0.9375rem;
+    width: 100%;
+}
+
+.portfolio-table-section .tabulator .tabulator-tableholder {
+    width: 100%;
+}
+
+.portfolio-table-section .tabulator .tabulator-table {
+    width: 100%;
+}
+
+.portfolio-table-section .tabulator .tabulator-header {
+    background: #f3f4f6;
+    background: var(--gray-100);
+    border: none;
+    border-bottom: 2px solid var(--gray-300);
+}
+
+.portfolio-table-section .tabulator .tabulator-col {
+    background: transparent;
+    border: none;
+    border-right: none;
+    padding: 1rem 1.5rem;
+    vertical-align: middle;
+}
+
+.portfolio-table-section .tabulator .tabulator-col-content {
+    color: #4b5563;
+    color: var(--gray-600);
+    font-weight: 600;
+    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.portfolio-table-section .tabulator .tabulator-col-title {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.portfolio-table-section .tabulator .tabulator-col.tabulator-sortable:hover {
+    background: #e5e7eb;
+}
+
+.portfolio-table-section .tabulator .tabulator-col .tabulator-arrow {
+    border-bottom-color: var(--primary-600);
+    border-top-color: var(--primary-600);
+}
+
+.portfolio-table-section .tabulator .tabulator-row {
+    background: transparent;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.portfolio-table-section .tabulator .tabulator-row:hover {
+    background-color: var(--gray-100) !important;
+}
+
+.portfolio-table-section .tabulator .tabulator-row:last-child {
+    border-bottom: none;
+}
+
+.portfolio-table-section .tabulator .tabulator-row .tabulator-cell {
+    border: none;
+    padding: 1.25rem 1.5rem;
+    vertical-align: middle;
+}
+
+/* Ensure header alignment matches cell alignment */
+.portfolio-table-section .tabulator .tabulator-col .tabulator-col-content {
+    justify-content: flex-start;
+}
+
+.portfolio-table-section .tabulator .tabulator-col[tabulator-align="right"] .tabulator-col-content,
+.portfolio-table-section .tabulator .tabulator-col.tabulator-col-align-right .tabulator-col-content {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.portfolio-table-section .tabulator .tabulator-col[tabulator-align="center"] .tabulator-col-content,
+.portfolio-table-section .tabulator .tabulator-col.tabulator-col-align-center .tabulator-col-content {
+    justify-content: center;
+    text-align: center;
+}
+
+/* =============================================================================
+   TABLE CELL STYLES
+   ============================================================================= */
+.portfolio-company-ticker {
+    font-weight: 600;
+    color: var(--gray-900);
+    font-size: 1rem;
+}
+
+.portfolio-company-name {
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+    margin-top: 0.25rem;
+}
+
+.portfolio-value-positive {
+    color: var(--success-600);
+    font-weight: 600;
+}
+
+.portfolio-value-negative {
+    color: var(--danger-600);
+    font-weight: 600;
+}
+
+.portfolio-badge-modern {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.portfolio-btn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    background: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin: 0 0.25rem;
+    color: var(--gray-700);
+    text-decoration: none;
+}
+
+.portfolio-btn-icon:hover {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+    transform: translateY(-2px);
+    text-decoration: none;
+}
+
+.portfolio-btn-export {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--gray-900);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.portfolio-btn-export:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-600);
+}
+
+/* =============================================================================
+   LEGACY STYLES - For Backward Compatibility
+   ============================================================================= */
+/* Portfolio Section - Minimalist with dividers */
+.portfolio-section {
+    background: var(--background-white);
+    margin-bottom: var(--space-2xl);
+}
+
+.portfolio-section-header {
+    padding: var(--space-lg) 0;
+    border-bottom: 3px solid var(--gray-800);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.portfolio-section-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.portfolio-section-title i {
+    color: var(--primary-600);
+}
+
+.portfolio-section-badge {
+    background: var(--primary-600);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    margin-left: var(--space-sm);
+}
+
+.portfolio-section-controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+/* Table container - no padding for full-width tables */
+.portfolio-table-container {
+    overflow-x: auto;
+}
+
+.portfolio-table-container table {
+    margin: 0;
+    width: 100%;
+}
+
+.portfolio-table-container thead th {
+    background: transparent;
+    border-top: none;
+    border-bottom: 2px solid var(--gray-300);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 1rem 0.75rem;
+    white-space: nowrap;
+}
+
+.portfolio-table-container tbody td {
+    padding: 1.25rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-light);
+}
+
+.portfolio-table-container tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+.portfolio-table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Portfolio Table Styles */
+.portfolio-holdings-table th a {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.portfolio-holdings-table th a:hover {
+    color: var(--primary-600);
+}
+
+.portfolio-holdings-table .sort-icon {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* Checkpoint Status Badges */
+.checkpoint-overdue {
+    background-color: var(--danger-500);
+    color: white;
+}
+
+.checkpoint-due-soon {
+    background-color: var(--warning-500);
+    color: #000;
+}
+
+.checkpoint-future {
+    background-color: var(--gray-500);
+    color: white;
+}
+
+/* Position Detail Checkpoint Actions */
+.checkpoint-quick-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.checkpoint-quick-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Empty state within portfolio sections */
+.portfolio-empty-state {
+    padding: var(--space-2xl) 0;
+    text-align: center;
+}
+
+.portfolio-empty-state-icon {
+    font-size: 3rem;
+    color: var(--gray-400);
+    margin-bottom: var(--space-md);
+}
+
+.portfolio-empty-state-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: var(--space-sm);
+}
+
+.portfolio-empty-state-description {
+    color: var(--gray-500);
+    margin-bottom: var(--space-lg);
+}

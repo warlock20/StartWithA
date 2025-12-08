@@ -3,17 +3,19 @@ import uuid
 import yfinance as yf
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import ResearchProject, Company, CompanyDocument, DestinationCheckpoint, ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis, FinancialData
+from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
+                        ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
+                        FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
+                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline)
 from app.services.duplicate_detection import DuplicateDetectionService
+from app.services.sector_service import SectorService
 from app.companies import companies_bp
-from app.tasks import fetch_financial_data_task
-
-from itertools import groupby
-
-from app.tasks import fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.utils.ticker_validator import TickerValidator
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -110,6 +112,11 @@ def companies_dashboard():
                        else url_for('research_workflow.project_summary', project_id=project.id)
             })
 
+    # Get inbox count (ideas waiting or being evaluated)
+    inbox_count = current_user.idea_pipeline.filter(
+        IdeaPipeline.status.in_(['inbox', 'killing'])
+    ).count()
+
     return render_template(
         'companies_dashboard.html',
         dashboard_data=dashboard_data,
@@ -117,49 +124,21 @@ def companies_dashboard():
         favorite_companies_data=favorite_companies_data[:3],    # Show top 3 for preview
         portfolio_ids=portfolio_ids,
         favorite_ids=favorite_ids,
+        inbox_count=inbox_count,
         title="Companies Overview"
     )
 
 @companies_bp.route('/portfolio')
 @login_required
 def portfolio():
-    """Portfolio companies dedicated page"""
-    # Get all user companies
-    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
-    portfolio_companies = [c for c in all_user_companies if c.is_in_portfolio]
+    """
+    Legacy portfolio route - redirects to new comprehensive portfolio module.
 
-    # Get additional data for enrichment
-    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
-    swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
-    dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
-
-    # Build enriched portfolio data
-    portfolio_companies_data = []
-    for company in portfolio_companies:
-        portfolio_companies_data.append({
-            'company_obj': company,
-            'has_completed_checklist': company.id in completed_checklist_ids,
-            'has_swot': company.id in swot_analysis_ids,
-            'has_destination_analysis': company.id in dest_analysis_ids,
-        })
-
-    portfolio_companies_data.sort(key=lambda x: x['company_obj'].name)
-
-    # Calculate portfolio metrics
-    active_research_count = current_user.research_projects.filter_by(status='active').count()
-    completed_analysis_count = len([d for d in portfolio_companies_data if d['has_completed_checklist'] or d['has_swot'] or d['has_destination_analysis']])
-
-    # Sector allocation
-    sectors = {}
-    for company in portfolio_companies:
-        sector = company.sector if company.sector else 'Unclassified'
-        sectors[sector] = sectors.get(sector, 0) + 1
-
-    return render_template('portfolio.html',
-                         portfolio_companies_data=portfolio_companies_data,
-                         active_research_count=active_research_count,
-                         completed_analysis_count=completed_analysis_count,
-                         sectors=sectors)
+    The old system only tracked which companies were "in portfolio" (boolean flag).
+    The new system tracks actual transactions, positions, prices, and gains/losses.
+    """
+    flash('Redirected to new Portfolio module with transaction tracking', 'info')
+    return redirect(url_for('portfolio.dashboard'))
 
 @companies_bp.route('/watchlist')
 @login_required
@@ -207,7 +186,7 @@ def watchlist():
 
         # Apply sector filter
         if sector_filter:
-            company_sector = company.sector if company.sector else 'Unclassified'
+            company_sector = company.sector.display_name if company.sector else 'Unclassified'
             if company_sector != sector_filter:
                 continue
 
@@ -261,7 +240,7 @@ def watchlist():
     # Get all sectors for filter dropdown (from unfiltered watchlist)
     all_sectors = set()
     for company in watchlist_companies:
-        sector = company.sector if company.sector else 'Unclassified'
+        sector = company.sector.display_name if company.sector else 'Unclassified'
         all_sectors.add(sector)
 
     sectors_list = sorted(list(all_sectors))
@@ -269,7 +248,7 @@ def watchlist():
     # Sector allocation (for metrics display)
     sectors = {}
     for company in watchlist_companies:
-        sector = company.sector if company.sector else 'Unclassified'
+        sector = company.sector.display_name if company.sector else 'Unclassified'
         sectors[sector] = sectors.get(sector, 0) + 1
 
     return render_template('watchlist.html',
@@ -318,7 +297,9 @@ def list_companies():
 
     # Apply sector filter
     if sector_filter and sector_filter != 'all':
-        query = query.filter(Company.sector == sector_filter)
+        query = query.join(Sector, Company.sector_id == Sector.id).filter(
+            Sector.display_name == sector_filter
+        )
 
     # Order by name
     query = query.order_by(Company.name)
@@ -350,11 +331,11 @@ def list_companies():
         companies_data_list.append(data)
 
     # Get all unique sectors for filter dropdown
-    all_sectors = db.session.query(Company.sector).filter(
-        Company.user_id == current_user.id,
-        Company.sector.isnot(None),
-        Company.sector != ''
-    ).distinct().order_by(Company.sector).all()
+    all_sectors = db.session.query(Sector.display_name).join(
+        Company, Company.sector_id == Sector.id
+    ).filter(
+        Company.user_id == current_user.id
+    ).distinct().order_by(Sector.display_name).all()
     sectors = [s[0] for s in all_sectors]
 
     return render_template('list_companies.html',
@@ -416,7 +397,14 @@ def add_company_confirmed():
             flash(f"Warning: {match['message']}", 'warning')
 
     if name and ticker_symbol:
-        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector=sector, industry=industry, creator=current_user)
+        # Find or create sector
+        sector_id = None
+        if sector:
+            sector_obj = SectorService.find_or_create_sector(current_user.id, sector, auto_create=True)
+            if sector_obj:
+                sector_id = sector_obj.id
+
+        company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector_id=sector_id, industry=industry, creator=current_user)
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')
@@ -438,8 +426,6 @@ def delete_company(company_id):
     try:
         # Two-phase deletion to handle foreign key constraints
         # Phase 1: Delete related records that reference this company
-        from app.models import (ResearchLog, ThesisEvolution, DecisionJournal,
-                              JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem)
 
         # Delete research logs that reference this company
         ResearchLog.query.filter_by(company_id=company_id).delete()
@@ -477,10 +463,6 @@ def delete_company(company_id):
 
     return redirect(url_for('companies.companies_dashboard'))
 
-
-# In app/companies/routes.py
-# Make sure datetime, uuid, secure_filename, os, etc. are imported at the top of the file
-
 @companies_bp.route('/<int:company_id>/add_document', methods=['POST'])
 @login_required
 def add_document(company_id):
@@ -491,12 +473,12 @@ def add_document(company_id):
     # --- Basic File Checks ---
     if 'document_file' not in request.files:
         flash('No file part in request.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
-    
+        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
+
     file = request.files['document_file']
     if file.filename == '':
         flash('No file selected for upload.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
 
     # --- Get all form data ---
     doc_group = request.form.get('document_group')
@@ -529,7 +511,7 @@ def add_document(company_id):
                     except ValueError:
                         flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
                         # It might be better to return and not save if date is invalid
-                        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+                        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
                 
                 new_doc = CompanyDocument(
                     company_id=company.id, 
@@ -549,8 +531,8 @@ def add_document(company_id):
                 db.session.rollback()
                 flash(f"An error occurred during upload: {e}", "error")
                 print(f"ERROR: Document upload failed: {e}")
-    
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
 
 @companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
 @login_required
@@ -591,15 +573,22 @@ def company_dashboard(company_id):
         else:
             intrinsic_display_value = str(val)
 
+    # Get user currency settings for display
+    from app.services.currency_service import CurrencyService
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template(
-        'company_documents.html', 
-        company=company, 
+        'company_documents.html',
+        company=company,
         grouped_documents=grouped_documents,
         distinct_group_names=distinct_group_names,
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
         current_competitors=current_competitors,
         potential_competitors=potential_competitors,
+        user_currency=user_currency,
+        currency_symbol=currency_symbol,
         title=f"Dashboard for {company.name}"
     )
 
@@ -624,36 +613,6 @@ def toggle_favorite(company_id):
     db.session.commit()
     # Redirect back to the page the user was on
     return redirect(request.referrer or url_for('companies.companies_dashboard'))
-
-# Note: The path for serving files might be better as absolute or handled by a dedicated 'uploads' blueprint
-# For now, placing it under the /companies prefix.
-@companies_bp.route('/documents/serve/<path:filepath>') # /companies/documents/serve/<company_id>/<filename>
-@login_required
-def serve_company_document(filepath):
-    # filepath is expected to be "<company_id>/<stored_filename>"
-    try:
-        # Basic security: Ensure the filepath is not attempting to traverse upwards (../../)
-        # secure_filename can be used on parts of path if constructing from user input, but here it's from DB.
-        # However, direct use of send_from_directory with a subdirectory (UPLOAD_FOLDER) is generally safe.
-
-        # Authorization: Check if the current user owns the company whose document is being requested
-        company_id_str = filepath.split(os.sep, 1)[0]
-        if not company_id_str.isdigit():
-            flash("Invalid file path.", "error")
-            return redirect(url_for('companies.companies_dashboard')) # Or abort(400)
-
-        company_id = int(company_id_str)
-        doc_company = Company.query.get_or_404(company_id)
-        if doc_company.user_id != current_user.id:
-            flash("You are not authorized to access this file.", "error")
-            return redirect(url_for('companies.companies_dashboard')) # Or abort(403)
-    except Exception as e: # Broad exception for path splitting or int conversion
-        print(f"Error in serve_company_document path processing: {e}") # Log this
-        flash("Invalid file path.", "error")
-        return redirect(url_for('companies.companies_dashboard')) # Or abort(404)
-
-    # send_from_directory needs the base directory and then the relative path from that directory
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
 
 @companies_bp.route('/<int:company_id>/set_intrinsic_value', methods=['POST'])
 @login_required
@@ -686,7 +645,34 @@ def set_intrinsic_value(company_id):
 
     return redirect(request.referrer or url_for('companies.company_dashboard', company_id=company.id))
 
-# In app/companies/routes.py
+@companies_bp.route('/documents/serve/<path:filepath>') # /companies/documents/serve/<company_id>/<filename>
+@login_required
+def serve_company_document(filepath):
+    # filepath is expected to be "<company_id>/<stored_filename>"
+    try:
+        # Basic security: Ensure the filepath is not attempting to traverse upwards (../../)
+        # secure_filename can be used on parts of path if constructing from user input, but here it's from DB.
+        # However, direct use of send_from_directory with a subdirectory (UPLOAD_FOLDER) is generally safe.
+
+        # Authorization: Check if the current user owns the company whose document is being requested
+        company_id_str = filepath.split(os.sep, 1)[0]
+        if not company_id_str.isdigit():
+            flash("Invalid file path.", "error")
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(400)
+
+        company_id = int(company_id_str)
+        doc_company = Company.query.get_or_404(company_id)
+        if doc_company.user_id != current_user.id:
+            flash("You are not authorized to access this file.", "error")
+            return redirect(url_for('companies.companies_dashboard')) # Or abort(403)
+    except Exception as e: # Broad exception for path splitting or int conversion
+        print(f"Error in serve_company_document path processing: {e}") # Log this
+        flash("Invalid file path.", "error")
+        return redirect(url_for('companies.companies_dashboard')) # Or abort(404)
+
+    # send_from_directory needs the base directory and then the relative path from that directory
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
+
 @companies_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
 @login_required
 def delete_document(doc_id):
@@ -761,169 +747,39 @@ def fetch_sec_filings(company_id):
                             company_id=company.id,
                             task_id=task.id))
     
-    
-@companies_bp.route('/<int:company_id>/add_checkpoint', methods=['POST'])
-@login_required
-def add_checkpoint(company_id):
-    company = Company.query.get_or_404(company_id)
-    # Authorization check
-    if company.user_id != current_user.id:
-        flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
-
-    metric = request.form.get('metric')
-    expectation = request.form.get('expectation')
-    target_date_str = request.form.get('target_date')
-
-    if not metric or not expectation or not target_date_str:
-        flash("All fields are required to add a checkpoint.", "error")
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
-
-    try:
-        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-
-        new_checkpoint = DestinationCheckpoint(
-            company_id=company.id,
-            user_id=current_user.id,
-            metric=metric,
-            expectation=expectation,
-            target_date=target_date
-            # Status defaults to 'Active' as defined in the model
-        )
-        db.session.add(new_checkpoint)
-        db.session.commit()
-        flash("New destination analysis checkpoint added successfully.", "success")
-
-    except ValueError:
-        flash("Invalid date format. Please use YYYY-MM-DD.", "error")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"An error occurred: {e}", "error")
-
-    return redirect(url_for('companies.destination_analysis', company_id=company.id))
-
-@companies_bp.route('/<int:company_id>/destination_analysis')
-@login_required
-def destination_analysis(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
-
-    checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
-
-    return render_template('destination_analysis.html', 
-                           company=company, 
-                           checkpoints=checkpoints,
-                           title=f"Destination Analysis for {company.name}")
-    
-@companies_bp.route('/checkpoint/<int:checkpoint_id>/update', methods=['POST'])
-@login_required
-def update_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to update this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
-
-    # Get data from the form
-    new_status = request.form.get('status')
-    outcome_notes = request.form.get('outcome_notes')
-
-    # Update the checkpoint object
-    checkpoint.status = new_status
-    checkpoint.outcome_notes = outcome_notes
-
-    try:
-        db.session.commit()
-        print(f"  - COMMIT SUCCEEDED. New status in DB should be: '{checkpoint.status}'")
-        flash("Checkpoint updated successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error updating checkpoint: {e}", "error")
-
-    return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id)) 
-
-@companies_bp.route('/checkpoint/<int:checkpoint_id>/delete', methods=['POST'])
-@login_required
-def delete_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to delete this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
-
-    company_id = checkpoint.company_id # Store for redirect before deleting
-    try:
-        db.session.delete(checkpoint)
-        db.session.commit()
-        flash("Checkpoint deleted successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting checkpoint: {e}", "error")
-
-    return redirect(url_for('companies.destination_analysis', company_id=company_id))
-
-@companies_bp.route('/checkpoint/<int:checkpoint_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_checkpoint(checkpoint_id):
-    checkpoint = DestinationCheckpoint.query.get_or_404(checkpoint_id)
-
-    # Authorization check
-    if checkpoint.user_id != current_user.id:
-        flash("You are not authorized to edit this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
-
-    if request.method == 'POST':
-        # Handle the form submission for updating
-        metric = request.form.get('metric')
-        expectation = request.form.get('expectation')
-        target_date_str = request.form.get('target_date')
-
-        if not metric or not expectation or not target_date_str:
-            flash("Metric, Expectation, and Target Date are required.", "error")
-            # Re-render the edit form with an error
-            return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
-
-        try:
-            checkpoint.metric = metric
-            checkpoint.expectation = expectation
-            checkpoint.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-            db.session.commit()
-            flash("Checkpoint updated successfully.", "success")
-            return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id))
-        except ValueError:
-            flash("Invalid date format. Please use YYYY-MM-DD.", "error")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error updating checkpoint: {e}", "error")
-
-    # GET request: Show the edit form, pre-filled with existing data
-    return render_template('edit_checkpoint.html', 
-                           title="Edit Checkpoint", 
-                           checkpoint=checkpoint)
-
 @companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
 @login_required
 def toggle_portfolio(company_id):
+    """
+    DEPRECATED: Old portfolio toggle route.
+    Now redirects to transaction system for proper tracking.
+
+    The new portfolio system requires actual transactions (BUY/SELL)
+    to track shares, cost basis, and gains/losses properly.
+    """
     company = Company.query.get_or_404(company_id)
+
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
         return redirect(url_for('companies.companies_dashboard'))
 
-    # Flip the boolean status
-    company.is_in_portfolio = not company.is_in_portfolio
+    # Check if already in portfolio (has active position)
+    from app.models import PortfolioPosition
+    position = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id,
+        is_active=True
+    ).first()
 
-    try:
-        db.session.commit()
-        status = "added to" if company.is_in_portfolio else "removed from"
-        flash(f'"{company.name}" has been {status} your active portfolio.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f"An error occurred: {e}", "error")
+    if position:
+        # Already in portfolio - suggest selling
+        flash(f'"{company.name}" is already in your portfolio with {position.total_shares} shares. To remove, add a SELL transaction.', 'info')
+        return redirect(url_for('portfolio.position_detail', company_id=company_id))
+    else:
+        # Not in portfolio - redirect to add transaction
+        flash(f'To add "{company.name}" to your portfolio, please record a BUY transaction.', 'info')
+        return redirect(url_for('portfolio.add_transaction') + f'?company_id={company_id}')
 
     return redirect(request.referrer or url_for('companies.companies_dashboard'))  
 
@@ -1014,7 +870,16 @@ def swot_analysis(company_id):
             db.session.rollback()
             flash(f'An error occurred while saving: {e}', 'error')
 
-        return redirect(url_for('companies.swot_analysis', company_id=company.id))
+        # Preserve research workflow context if present
+        project_id = request.args.get('project_id')
+        step_index = request.args.get('step_index')
+        if project_id and step_index:
+            return redirect(url_for('companies.swot_analysis',
+                                  company_id=company.id,
+                                  project_id=project_id,
+                                  step_index=step_index))
+        else:
+            return redirect(url_for('companies.swot_analysis', company_id=company.id))
 
     # For a GET request, prepare the existing data for the form
     existing_content = analysis.content if analysis and analysis.content else {}
@@ -1068,7 +933,16 @@ def porters_five_forces_analysis(company_id):
             db.session.rollback()
             flash(f'An error occurred while saving: {e}', 'error')
 
-        return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
+        # Preserve research workflow context if present
+        project_id = request.args.get('project_id')
+        step_index = request.args.get('step_index')
+        if project_id and step_index:
+            return redirect(url_for('companies.porters_five_forces_analysis',
+                                  company_id=company.id,
+                                  project_id=project_id,
+                                  step_index=step_index))
+        else:
+            return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
 
     existing_content = analysis.content if analysis and analysis.content else {}
 
@@ -1172,173 +1046,118 @@ def remove_competitor(company_id, competitor_id):
 
     return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-# API endpoints for company search modal
-@companies_bp.route('/api/companies/search')
+@companies_bp.route('/<int:company_id>/edit', methods=['POST'])
 @login_required
-def api_search_companies():
-    """AJAX endpoint for searching companies - searches both user's companies and Yahoo Finance"""
-    from flask import jsonify
+def edit_company(company_id):
+    """Update company details including ticker symbol, name, sector, and industry"""
+    company = Company.query.get_or_404(company_id)
 
-    query = request.args.get('q', '').strip()
-    if len(query) < 1:
-        return jsonify({'user_companies': [], 'yahoo_suggestions': []})
+    # Authorization check
+    if company.user_id != current_user.id:
+        flash("You are not authorized to edit this company.", "error")
+        return redirect(url_for('companies.companies_dashboard'))
 
-    # Search in user's existing companies by name and ticker
-    user_companies = Company.query.filter(
-        Company.user_id == current_user.id,
-        db.or_(
-            Company.name.ilike(f'%{query}%'),
-            Company.ticker_symbol.ilike(f'%{query}%')
-        )
-    ).order_by(Company.name).limit(10).all()
+    # Get form data
+    name = request.form.get('name', '').strip()
+    ticker_symbol = request.form.get('ticker_symbol', '').strip().upper()
+    summary = request.form.get('summary', '').strip()
+    sector_name = request.form.get('sector', '').strip()
+    industry = request.form.get('industry', '').strip()
 
-    user_company_data = []
-    for company in user_companies:
-        user_company_data.append({
-            'id': company.id,
-            'name': company.name,
-            'ticker_symbol': company.ticker_symbol,
-            'industry': company.industry,
-            'sector': company.sector,
-            'source': 'existing'
-        })
+    # Validate required fields
+    if not name or not ticker_symbol:
+        flash('Company name and ticker symbol are required.', 'error')
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-    # If query looks like a ticker (short, uppercase), try Yahoo Finance lookup
-    yahoo_suggestion = None
-    if len(query) <= 6 and query.replace('.', '').isalnum():
-        try:
-            ticker_symbol = query.upper()
-            # Check if this ticker already exists for the user
-            existing = Company.query.filter_by(
-                ticker_symbol=ticker_symbol,
-                user_id=current_user.id
-            ).first()
+    # Check if ticker is changing and validate it
+    ticker_changed = (ticker_symbol != company.ticker_symbol)
+    if ticker_changed:
+        # Validate ticker with Yahoo Finance
+        validator = TickerValidator()
+        validation_result = validator.validate_ticker(ticker_symbol)
 
-            if not existing:
-                company_ticker = yf.Ticker(ticker_symbol)
-                info = company_ticker.info
+        if not validation_result['valid']:
+            flash(f'Invalid ticker symbol: {validation_result.get("error", "Could not validate ticker")}', 'error')
+            return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-                if info and info.get('longName'):
-                    yahoo_suggestion = {
-                        'ticker_symbol': ticker_symbol,
-                        'name': info.get('longName'),
-                        'industry': info.get('industry', ''),
-                        'sector': info.get('sector', ''),
-                        'summary': info.get('longBusinessSummary', ''),
-                        'source': 'yahoo_finance'
-                    }
-        except Exception as e:
-            print(f"Yahoo Finance lookup error for {query}: {e}")
-            pass
+        # Check for duplicate ticker in user's companies
+        existing_company = Company.query.filter_by(
+            user_id=current_user.id,
+            ticker_symbol=ticker_symbol
+        ).filter(Company.id != company_id).first()
 
-    return jsonify({
-        'user_companies': user_company_data,
-        'yahoo_suggestions': [yahoo_suggestion] if yahoo_suggestion else []
-    })
+        if existing_company:
+            flash(f'You already have a company with ticker "{ticker_symbol}": {existing_company.name}', 'error')
+            return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-@companies_bp.route('/api/companies/create', methods=['POST'])
-@login_required
-def api_create_company():
-    """AJAX endpoint for creating new companies"""
-    from flask import jsonify
+    # Update company fields
+    old_name = company.name
+    old_ticker = company.ticker_symbol
+
+    company.name = name
+    company.ticker_symbol = ticker_symbol
+    company.summary = summary if summary else None
+    company.industry = industry if industry else None
+
+    # Handle sector
+    if sector_name:
+        sector_obj = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=True)
+        if sector_obj:
+            company.sector_id = sector_obj.id
+    else:
+        company.sector_id = None
 
     try:
-        data = request.get_json()
-
-        name = (data.get('name') or '').strip()
-        ticker_symbol = (data.get('ticker_symbol') or '').strip().upper()
-        industry = (data.get('industry') or '').strip() or None
-        sector = (data.get('sector') or '').strip() or None
-        summary = (data.get('summary') or '').strip() or None
-
-        if not ticker_symbol:
-            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
-
-        if not name:
-            return jsonify({'success': False, 'error': 'Company name is required'})
-
-        # Check if company with same name or ticker already exists for this user
-        existing = Company.query.filter(
-            Company.user_id == current_user.id,
-            db.or_(
-                Company.name.ilike(name),
-                Company.ticker_symbol == ticker_symbol
-            )
-        ).first()
-
-        if existing:
-            return jsonify({
-                'success': False,
-                'error': 'Company with this name or ticker already exists'
-            })
-
-        # Create new company
-        company = Company(
-            user_id=current_user.id,
-            name=name,
-            ticker_symbol=ticker_symbol,
-            industry=industry,
-            sector=sector,
-            summary=summary
-        )
-
-        db.session.add(company)
         db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'company': {
-                'id': company.id,
-                'name': company.name,
-                'ticker_symbol': company.ticker_symbol,
-                'industry': company.industry,
-                'sector': company.sector,
-                'summary': company.summary
-            }
-        })
+        # Build success message with changes summary
+        changes = []
+        if old_name != name:
+            changes.append(f'name updated to "{name}"')
+        if old_ticker != ticker_symbol:
+            changes.append(f'ticker updated to "{ticker_symbol}"')
+            # If ticker changed and company is in portfolio, force price update
+            if company.is_in_portfolio:
+                from app.services.price_service import PriceService
+                from app.models import PortfolioPosition
+
+                positions = PortfolioPosition.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_id,
+                    is_active=True
+                ).all()
+
+                for position in positions:
+                    PriceService.update_position_price(position, force=True)
+
+                flash('Portfolio positions updated with new ticker symbol.', 'info')
+
+        if changes:
+            flash(f'Company updated successfully: {", ".join(changes)}', 'success')
+        else:
+            flash('Company details saved.', 'success')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        flash(f'Error updating company: {str(e)}', 'error')
 
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-@companies_bp.route('/api/lookup/<ticker>')
+@companies_bp.route('/validate_ticker', methods=['POST'])
 @login_required
-def api_lookup_ticker(ticker):
-    """AJAX endpoint for looking up company info via yfinance"""
-    import yfinance as yf
+def validate_ticker_api():
+    """API endpoint for real-time ticker validation"""
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
 
-    try:
-        ticker = ticker.upper().strip()
-        if not ticker:
-            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
-
-        # Try yfinance lookup
-        company_ticker = yf.Ticker(ticker)
-        info = company_ticker.info
-
-        if info and info.get('longName'):
-            company_info = {
-                'name': info.get('longName'),
-                'ticker_symbol': ticker,
-                'summary': info.get('longBusinessSummary', ''),
-                'sector': info.get('sector', ''),
-                'industry': info.get('industry', ''),
-                'source': 'yfinance'
-            }
-
-            return jsonify({
-                'success': True,
-                'company_info': company_info
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': f'Could not find company data for ticker "{ticker}"'
-            })
-
-    except Exception as e:
+    if not ticker:
         return jsonify({
-            'success': False,
-            'error': f'Error looking up ticker: {str(e)}'
-        })            
+            'valid': False,
+            'error': 'Ticker symbol is required'
+        }), 400
+
+    validator = TickerValidator()
+    result = validator.validate_ticker(ticker)
+
+    return jsonify(result)
+

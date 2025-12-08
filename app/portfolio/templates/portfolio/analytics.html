@@ -1,0 +1,229 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Portfolio Analytics{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <!-- Header -->
+    <div class="analytics-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="analytics-title">Portfolio Analytics</h1>
+                <p class="analytics-subtitle">Comprehensive performance metrics and return analysis</p>
+            </div>
+            <a href="{{ url_for('portfolio.analytics_decisions') }}" class="analytics-nav-link">
+                View Decision Intelligence
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="analytics-metric-card">
+                <div class="analytics-metric-label">Total Return</div>
+                <div class="analytics-metric-value">
+                    {% if total_return >= 0 %}+{% endif %}${{ "%.0f"|format(total_return|abs) }}
+                </div>
+                <div class="analytics-metric-change {% if total_return >= 0 %}positive{% else %}negative{% endif %}">
+                    <i class="bi bi-arrow-{% if total_return >= 0 %}up{% else %}down{% endif %}"></i>
+                    <span>{% if total_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(total_return_pct|abs) }}%</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="analytics-metric-card">
+                <div class="analytics-metric-label">Annualized Return</div>
+                <div class="analytics-metric-value">
+                    {% if annualized_return >= 0 %}+{% endif %}{{ "%.1f"|format(annualized_return|abs) }}%
+                </div>
+                <div class="analytics-metric-change positive">
+                    <span>Since inception</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="analytics-metric-card">
+                <div class="analytics-metric-label">Win Rate</div>
+                <div class="analytics-metric-value">{{ "%.0f"|format(win_rate) }}%</div>
+                <div class="analytics-metric-change neutral">
+                    <span>{{ winning_positions }} of {{ total_positions }} positions</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="analytics-metric-card">
+                <div class="analytics-metric-label">Avg Hold Period</div>
+                <div class="analytics-metric-value">{{ "%.0f"|format(avg_hold_days) }}d</div>
+                <div class="analytics-metric-change neutral">
+                    <span>~{{ "%.1f"|format(avg_hold_days / 30) }} months</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Chart -->
+    <div class="analytics-chart-container">
+        <div class="analytics-chart-header">
+            <h3 class="analytics-chart-title mb-0">Portfolio Value Over Time</h3>
+            <div class="analytics-period-selector">
+                <button class="analytics-period-btn">1M</button>
+                <button class="analytics-period-btn">3M</button>
+                <button class="analytics-period-btn">6M</button>
+                <button class="analytics-period-btn active">1Y</button>
+                <button class="analytics-period-btn">ALL</button>
+            </div>
+        </div>
+        <canvas id="performanceChart" height="80"></canvas>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="row g-3">
+        <!-- Top Performers -->
+        <div class="col-md-6">
+            <div class="analytics-table-container">
+                <h3 class="analytics-chart-title">Top Performers</h3>
+                {% if top_performers %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th style="text-align: right;">Return</th>
+                            <th style="text-align: right;">Gain/Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for position in top_performers %}
+                        <tr>
+                            <td>
+                                <strong>{{ position.company.ticker_symbol }}</strong> - {{ position.company.name }}
+                            </td>
+                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss_pct >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                            </td>
+                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(position.unrealized_gain_loss|abs) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No positions with returns data yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Bottom Performers -->
+        <div class="col-md-6">
+            <div class="analytics-table-container">
+                <h3 class="analytics-chart-title">Bottom Performers</h3>
+                {% if bottom_performers %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th style="text-align: right;">Return</th>
+                            <th style="text-align: right;">Gain/Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for position in bottom_performers %}
+                        <tr>
+                            <td>
+                                <strong>{{ position.company.ticker_symbol }}</strong> - {{ position.company.name }}
+                            </td>
+                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss_pct >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                            </td>
+                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss >= 0 %}positive{% else %}negative{% endif %}">
+                                {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(position.unrealized_gain_loss|abs) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No positions with returns data yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Performance Table -->
+    <div class="analytics-table-container">
+        <h3 class="analytics-chart-title">Trading Activity by Month</h3>
+        <table class="analytics-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th style="text-align: right;">Trades</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month_data in monthly_performance|reverse %}
+                <tr>
+                    <td><strong>{{ month_data.month }}</strong></td>
+                    <td style="text-align: right;">{{ month_data.trades }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Performance Chart
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|tojson }},
+            datasets: [{
+                label: 'Portfolio Value',
+                data: {{ chart_values|tojson }},
+                borderColor: '#4338ca',
+                backgroundColor: 'rgba(67, 56, 202, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3
+            }, {
+                label: 'Cost Basis',
+                data: Array({{ chart_labels|length }}).fill({{ cost_basis }}),
+                borderColor: '#9ca3af',
+                borderDash: [5, 5],
+                fill: false,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + (value / 1000).toFixed(0) + 'K';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

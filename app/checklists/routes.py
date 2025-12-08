@@ -245,12 +245,15 @@ def view_checklist(checklist_id):
     research_context = flask_session.get('research_context')
 
     # Get Question Bank items for integration
-    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.sector, QuestionBankItem.text).all()
+    from app.models.sector import Sector
+    question_bank_items = QuestionBankItem.query.filter_by(user_id=current_user.id)\
+        .outerjoin(Sector, QuestionBankItem.sector_id == Sector.id)\
+        .order_by(Sector.display_name, QuestionBankItem.text).all()
 
     # Group questions by sector for better organization
     questions_by_sector = {}
     for item in question_bank_items:
-        sector = item.sector if item.sector else "General"
+        sector = item.sector.display_name if item.sector else "General"
         if sector not in questions_by_sector:
             questions_by_sector[sector] = []
         questions_by_sector[sector].append(item)
@@ -279,6 +282,7 @@ def add_checklist_item(checklist_id):
         return redirect(url_for('checklists.list_checklists'))
 
     item_text = request.form.get('item_text')
+    item_description = request.form.get('description')
     parent_id_str = request.form.get('parent_id')
     llm_prompt_text = request.form.get('llm_prompt')
     parent_id = None
@@ -299,14 +303,15 @@ def add_checklist_item(checklist_id):
             checklist_id=checklist.id,
             parent_id=parent_id
         ).scalar()
-        
+
         # The new order is one greater than the current max, or 0 if no siblings exist.
         new_order = (max_order or -1) + 1
-        
+
         new_item = ChecklistItem(
-            text=item_text.strip(), 
-            checklist_id=checklist.id, 
-            parent_id=parent_id, 
+            text=item_text.strip(),
+            description=item_description.strip() if item_description and item_description.strip() else None,
+            checklist_id=checklist.id,
+            parent_id=parent_id,
             order=new_order,
             llm_prompt=llm_prompt_text.strip() if llm_prompt_text and llm_prompt_text.strip() else None
         )
@@ -378,6 +383,40 @@ def move_checklist_item(item_id, direction):
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
 
+@checklists_bp.route('/checklist/<int:checklist_id>/reorder', methods=['POST'])
+@login_required
+def reorder_checklist_items(checklist_id):
+    """
+    Handle bulk reordering of checklist items via drag-and-drop.
+    Expects JSON payload with item IDs in new order.
+    """
+    checklist = Checklist.query.get_or_404(checklist_id)
+
+    # Authorization check
+    if checklist.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        data = request.get_json()
+        items_order = data.get('items', [])
+        parent_id = data.get('parent_id', None)  # None for top-level, item_id for sub-items
+
+        # Update order for each item
+        for index, item_id in enumerate(items_order):
+            item = ChecklistItem.query.get(item_id)
+            if item and item.checklist_id == checklist_id:
+                # Verify the item belongs to the correct parent
+                if item.parent_id == parent_id:
+                    item.order = index
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Items reordered successfully'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @checklists_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_checklist_item(item_id):
@@ -391,6 +430,7 @@ def edit_checklist_item(item_id):
 
     if request.method == 'POST':
         new_text = request.form.get('item_text')
+        new_description = request.form.get('description')
         new_llm_prompt = request.form.get('llm_prompt')
 
         # Basic validation (you can add more)
@@ -400,6 +440,7 @@ def edit_checklist_item(item_id):
             return render_template('edit_checklist_item.html', title=f"Edit Item: {item_to_edit.text[:30]}...", item=item_to_edit)
 
         item_to_edit.text = new_text.strip()
+        item_to_edit.description = new_description.strip() if new_description and new_description.strip() else None
         item_to_edit.llm_prompt = new_llm_prompt.strip() if new_llm_prompt and new_llm_prompt.strip() else None
 
         try:

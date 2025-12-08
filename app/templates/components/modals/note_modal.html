@@ -1,0 +1,49 @@
+<!-- Create/Edit Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteModalTitle">Create Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="noteId">
+                <input type="hidden" id="noteSectionId">
+
+                <div class="mb-3">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="noteTitle" class="form-control" placeholder="Note title" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Content *</label>
+                    <div id="noteContentEditor" style="min-height: 200px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: white;"></div>
+                    <input type="hidden" id="noteContent">
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Source URL (optional)</label>
+                        <input type="url" id="noteSourceUrl" class="form-control" placeholder="https://...">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Source Title (optional)</label>
+                        <input type="text" id="noteSourceTitle" class="form-control" placeholder="Article title, etc.">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tags (optional)</label>
+                    <input type="text" id="noteTags" class="form-control" placeholder="e.g., competitive advantage, pricing">
+                    <small class="text-muted">Separate multiple tags with commas</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNote()">
+                    <i class="bi bi-check-circle"></i> <span id="noteSaveBtn">Create Note</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

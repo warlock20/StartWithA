@@ -1,0 +1,305 @@
+{% extends "main/_base.html" %}
+{% from 'components/data_table.html' import data_table, filter_select %}
+
+{% block title %}Portfolio{% endblock %}
+
+{% block content %}
+<div class="portfolio-container">
+    <!-- Header -->
+    <div class="portfolio-page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="portfolio-page-title">Portfolio</h1>
+                <div class="portfolio-page-meta">
+                    <div class="portfolio-meta-item">
+                        <span>{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }}</span>
+                    </div>
+                    <div class="portfolio-meta-item">
+                        <span class="portfolio-meta-value">{{ currency_symbol }}{{ "%.2f"|format(portfolio_value.total_value) }}</span>
+                        <span>Total Value</span>
+                    </div>
+                    <div class="portfolio-meta-item">
+                        <span>Updated {{ updated_time if updated_time else 'recently' }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="portfolio-header-actions">
+                <a href="{{ url_for('portfolio.transactions') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-list-ul"></i>
+                    Transactions
+                </a>
+                <form method="POST" action="{{ url_for('portfolio.refresh_prices') }}" class="d-inline">
+                    <button type="submit" class="btn-portfolio-modern">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        Refresh
+                    </button>
+                </form>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
+                    <i class="bi bi-plus"></i>
+                    Add Transaction
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="portfolio-stats-grid">
+        <!-- Total Value Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon blue">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="portfolio-stat-label">Total Value</div>
+            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_value) }}</div>
+            <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
+                <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss|abs) }} ({{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct|abs) }}%)
+            </div>
+        </div>
+
+        <!-- Cost Basis Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon purple">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <div class="portfolio-stat-label">Cost Basis</div>
+            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_cost) }}</div>
+            <div class="portfolio-stat-trend">Original investment</div>
+        </div>
+
+        <!-- Unrealized P/L Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon green">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="portfolio-stat-label">Unrealized P/L</div>
+            <div class="portfolio-stat-value">
+                {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
+            </div>
+            <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
+                <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
+                {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.2f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}%
+            </div>
+        </div>
+
+        <!-- Positions Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon gray">
+                <i class="bi bi-pie-chart-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">Positions</div>
+            <div class="portfolio-stat-value">{{ portfolio_value.positions_count }}</div>
+            <div class="portfolio-stat-trend">{{ gains_count }} gaining • {{ losses_count }} losing</div>
+        </div>
+    </div>
+
+    <!-- Holdings Table -->
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">Holdings</h2>
+            <div class="portfolio-table-controls">
+                <select id="holdings-filter" class="portfolio-filter-select">
+                    <option value="all" {% if filter_status == 'all' %}selected{% endif %}>All Positions</option>
+                    <option value="gains" {% if filter_status == 'gains' %}selected{% endif %}>Gains Only</option>
+                    <option value="losses" {% if filter_status == 'losses' %}selected{% endif %}>Losses Only</option>
+                </select>
+                <button class="portfolio-btn-export" onclick="holdingsTable.download('csv', 'portfolio-holdings.csv')">
+                    <i class="bi bi-download"></i>
+                    Export
+                </button>
+            </div>
+        </div>
+        <div id="holdings-table"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Initialize Holdings Table with Tabulator
+let holdingsTable;
+
+// User's currency symbol from backend
+const currencySymbol = "{{ currency_symbol }}";
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Portfolio holdings data
+    const holdingsData = [
+        {% for position in positions %}
+        {
+            ticker: "{{ position.company.ticker_symbol }}",
+            name: "{{ position.company.name }}",
+            shares: {{ position.total_shares }},
+            avgCost: {{ position.average_cost_basis }},
+            currentPrice: {{ position.current_price if position.current_price else 'null' }},
+            currentValue: {{ position.current_value if position.current_value else 'null' }},
+            gainLoss: {{ position.unrealized_gain_loss if position.unrealized_gain_loss else 'null' }},
+            gainLossPct: {{ position.unrealized_gain_loss_pct if position.unrealized_gain_loss_pct else 'null' }},
+            daysHeld: {{ position.days_held }},
+            companyId: {{ position.company_id }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    holdingsTable = new Tabulator("#holdings-table", {
+        data: holdingsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Company",
+                field: "ticker",
+                sorter: "string",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    return `<div>
+                        <div class="portfolio-company-ticker">${data.ticker}</div>
+                        <div class="portfolio-company-name">${data.name}</div>
+                    </div>`;
+                },
+                minWidth: 200,
+                widthGrow: 2
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return cell.getValue().toLocaleString();
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Avg Cost",
+                field: "avgCost",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return '--';
+                    return currencySymbol + value.toFixed(2);
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Current Price",
+                field: "currentPrice",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return '--';
+                    return currencySymbol + value.toFixed(2);
+                },
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Market Value",
+                field: "currentValue",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return '--';
+                    return '<strong>' + currencySymbol + value.toLocaleString() + '</strong>';
+                },
+                minWidth: 120,
+                widthGrow: 1.5
+            },
+            {
+                title: "Gain/Loss",
+                field: "gainLoss",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return '--';
+                    const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
+                    const sign = value >= 0 ? '+' : '';
+                    return `<span class="${className}">${sign}${currencySymbol}${Math.abs(value).toLocaleString()}</span>`;
+                },
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Return %",
+                field: "gainLossPct",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return '--';
+                    const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
+                    const sign = value >= 0 ? '+' : '';
+                    return `<span class="${className}">${sign}${value.toFixed(1)}%</span>`;
+                },
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Days Held",
+                field: "daysHeld",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return `<span class="portfolio-badge-modern">${cell.getValue()}d</span>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Actions",
+                field: "companyId",
+                headerSort: false,
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const companyId = cell.getValue();
+                    return `<a href="/portfolio/position/${companyId}" class="portfolio-btn-icon" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/portfolio/transaction/add?company_id=${companyId}" class="portfolio-btn-icon" title="Add Transaction">
+                                <i class="bi bi-plus"></i>
+                            </a>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            }
+        ],
+        initialSort: [
+            {column: "currentValue", dir: "desc"}
+        ]
+    });
+
+    // Filter functionality
+    const filterSelect = document.getElementById('holdings-filter');
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'all') {
+                holdingsTable.clearFilter();
+            } else if (value === 'gains') {
+                holdingsTable.setFilter('gainLoss', '>', 0);
+            } else if (value === 'losses') {
+                holdingsTable.setFilter('gainLoss', '<', 0);
+            }
+        });
+
+        // Apply initial filter if set
+        const initialFilter = '{{ filter_status }}';
+        if (initialFilter === 'gains') {
+            holdingsTable.setFilter('gainLoss', '>', 0);
+        } else if (initialFilter === 'losses') {
+            holdingsTable.setFilter('gainLoss', '<', 0);
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -8,6 +8,26 @@
                 <h1 class="card-title text-center">{{ title }}</h1>
             </div>
             <div class="card-body">
+                <!-- Auth0 Social Login Options -->
+                <div class="mb-4">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.auth0_login') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-shield-lock"></i> Continue with Auth0
+                        </a>
+                    </div>
+                    <p class="text-center text-muted mt-3 mb-3">
+                        <small>Supports Google, GitHub, Microsoft, and more</small>
+                    </p>
+                </div>
+
+                <!-- Divider -->
+                <div class="d-flex align-items-center mb-4">
+                    <hr class="flex-grow-1">
+                    <span class="px-3 text-muted">OR</span>
+                    <hr class="flex-grow-1">
+                </div>
+
+                <!-- Traditional Login Form -->
                 <form method="POST" action="{{ url_for('auth.login') }}">
                     <div class="mb-3">
                         <label for="identifier" class="form-label">Username or Email:</label>
@@ -25,12 +45,16 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="submit" class="btn btn-primary">Login with Password</button>
                     </div>
                 </form>
             </div>
             <div class="card-footer text-center">
-                <p class="mb-0">Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a>.</p>
+                <p class="mb-0">
+                    Don't have an account?
+                    <a href="{{ url_for('auth.auth0_login') }}">Sign up with Auth0</a> or
+                    <a href="{{ url_for('auth.register') }}">Register with password</a>
+                </p>
             </div>
         </div>
     </div>

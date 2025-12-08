@@ -1,44 +1,150 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>{{ title }}</h1>
-        {# This link could go back to the research list or the model selection page #}
-        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary">Back to My Projects</a>
-    </div>
-    <p class="lead">Analyze the competitive landscape and profitability potential of the company's industry.</p>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="mental-models-header">
+        <div class="mental-models-header-content">
+            <h1 class="font-poppins">Porter's Five Forces: {{ company.name }}</h1>
+            <p class="mental-models-header-subtitle">
+                {% if company.ticker_symbol %}{{ company.ticker_symbol }} • {% endif %}
+                Strategic framework for analyzing competitive intensity and industry profitability
+            </p>
+        </div>
+        <div class="mental-models-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
+            {% if request.args.get('project_id') %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=request.args.get('project_id')) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Research
+                </a>
+            {% else %}
+                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Company
+                </a>
+            {% endif %}
+        </div>
+    </header>
 
+    <!-- Porter's Five Forces Form -->
     <form method="POST" action="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}">
-        <div class="list-group">
-            <div class="list-group-item">
-                <label for="threat_of_new_entrants" class="form-label h5">1. Threat of New Entrants</label>
-                <p class="text-muted small">How easy is it for new competitors to enter the market? (e.g., barriers to entry, economies of scale)</p>
-                <textarea class="form-control" name="threat_of_new_entrants" rows="4">{{ analysis_content.get('threat_of_new_entrants', '') }}</textarea>
+        <div class="porters-forces-list">
+            <!-- Force 1: Threat of New Entrants -->
+            <div class="porters-force-card">
+                <div class="porters-force-header">
+                    <div class="porters-force-number">1</div>
+                    <div class="porters-force-title-group">
+                        <h3>Threat of New Entrants</h3>
+                        <p class="porters-force-description">How easy is it for new competitors to enter the market?</p>
+                    </div>
+                </div>
+                <div class="porters-force-body">
+                    <textarea
+                        class="porters-force-textarea"
+                        name="threat_of_new_entrants"
+                        placeholder="Consider: Barriers to entry, economies of scale, capital requirements, regulatory hurdles, brand loyalty, access to distribution channels..."
+                        aria-label="Threat of New Entrants"
+                    >{{ analysis_content.get('threat_of_new_entrants', '') }}</textarea>
+                </div>
             </div>
-            <div class="list-group-item">
-                <label for="bargaining_power_of_buyers" class="form-label h5">2. Bargaining Power of Buyers</label>
-                <p class="text-muted small">How much power do customers have to drive down prices? (e.g., number of customers, sensitivity to price)</p>
-                <textarea class="form-control" name="bargaining_power_of_buyers" rows="4">{{ analysis_content.get('bargaining_power_of_buyers', '') }}</textarea>
+
+            <!-- Force 2: Bargaining Power of Buyers -->
+            <div class="porters-force-card">
+                <div class="porters-force-header">
+                    <div class="porters-force-number">2</div>
+                    <div class="porters-force-title-group">
+                        <h3>Bargaining Power of Buyers</h3>
+                        <p class="porters-force-description">How much power do customers have to drive down prices?</p>
+                    </div>
+                </div>
+                <div class="porters-force-body">
+                    <textarea
+                        class="porters-force-textarea"
+                        name="bargaining_power_of_buyers"
+                        placeholder="Consider: Number of customers, buyer concentration, price sensitivity, switching costs, availability of alternatives, buyer information..."
+                        aria-label="Bargaining Power of Buyers"
+                    >{{ analysis_content.get('bargaining_power_of_buyers', '') }}</textarea>
+                </div>
             </div>
-            <div class="list-group-item">
-                <label for="bargaining_power_of_suppliers" class="form-label h5">3. Bargaining Power of Suppliers</label>
-                <p class="text-muted small">How much power do suppliers have to increase input costs? (e.g., number of suppliers, uniqueness of service)</p>
-                <textarea class="form-control" name="bargaining_power_of_suppliers" rows="4">{{ analysis_content.get('bargaining_power_of_suppliers', '') }}</textarea>
+
+            <!-- Force 3: Bargaining Power of Suppliers -->
+            <div class="porters-force-card">
+                <div class="porters-force-header">
+                    <div class="porters-force-number">3</div>
+                    <div class="porters-force-title-group">
+                        <h3>Bargaining Power of Suppliers</h3>
+                        <p class="porters-force-description">How much power do suppliers have to increase input costs?</p>
+                    </div>
+                </div>
+                <div class="porters-force-body">
+                    <textarea
+                        class="porters-force-textarea"
+                        name="bargaining_power_of_suppliers"
+                        placeholder="Consider: Number of suppliers, supplier concentration, uniqueness of inputs, switching costs, forward integration potential, importance to supplier..."
+                        aria-label="Bargaining Power of Suppliers"
+                    >{{ analysis_content.get('bargaining_power_of_suppliers', '') }}</textarea>
+                </div>
             </div>
-            <div class="list-group-item">
-                <label for="threat_of_substitutes" class="form-label h5">4. Threat of Substitute Products or Services</label>
-                <p class="text-muted small">How likely are customers to switch to a different type of product or service? (e.g., video calls as a substitute for air travel)</p>
-                <textarea class="form-control" name="threat_of_substitutes" rows="4">{{ analysis_content.get('threat_of_substitutes', '') }}</textarea>
+
+            <!-- Force 4: Threat of Substitutes -->
+            <div class="porters-force-card">
+                <div class="porters-force-header">
+                    <div class="porters-force-number">4</div>
+                    <div class="porters-force-title-group">
+                        <h3>Threat of Substitute Products or Services</h3>
+                        <p class="porters-force-description">How likely are customers to switch to alternative solutions?</p>
+                    </div>
+                </div>
+                <div class="porters-force-body">
+                    <textarea
+                        class="porters-force-textarea"
+                        name="threat_of_substitutes"
+                        placeholder="Consider: Price-performance trade-off, switching costs, customer propensity to substitute, relative price of substitutes, perceived level of differentiation..."
+                        aria-label="Threat of Substitutes"
+                    >{{ analysis_content.get('threat_of_substitutes', '') }}</textarea>
+                </div>
             </div>
-            <div class="list-group-item">
-                <label for="industry_rivalry" class="form-label h5">5. Intensity of Rivalry Among Existing Competitors</label>
-                <p class="text-muted small">How many competitors are there and how strong are they? (e.g., industry growth rate, product differentiation)</p>
-                <textarea class="form-control" name="industry_rivalry" rows="4">{{ analysis_content.get('industry_rivalry', '') }}</textarea>
+
+            <!-- Force 5: Competitive Rivalry -->
+            <div class="porters-force-card">
+                <div class="porters-force-header">
+                    <div class="porters-force-number">5</div>
+                    <div class="porters-force-title-group">
+                        <h3>Intensity of Competitive Rivalry</h3>
+                        <p class="porters-force-description">How fierce is the competition among existing players?</p>
+                    </div>
+                </div>
+                <div class="porters-force-body">
+                    <textarea
+                        class="porters-force-textarea"
+                        name="industry_rivalry"
+                        placeholder="Consider: Number of competitors, industry growth rate, product differentiation, exit barriers, fixed costs, brand identity, diversity of rivals..."
+                        aria-label="Competitive Rivalry"
+                    >{{ analysis_content.get('industry_rivalry', '') }}</textarea>
+                </div>
             </div>
         </div>
 
-        <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Save Analysis</button>
+        <!-- Save Section -->
+        <div class="mental-models-save-section">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-save"></i> Save Five Forces Analysis
+            </button>
         </div>
     </form>
+</div>
+
+<!-- Tips Modal -->
+{% set tips_title = "Porter's Five Forces Framework" %}
+{% set tips_intro = "This framework helps you understand the competitive dynamics and profitability potential of an industry by analyzing five key forces:" %}
+{% set tips = [
+    "<strong>Threat of New Entrants:</strong> Barriers preventing new competitors from entering the market<br>Consider: Barriers to entry, economies of scale, capital requirements, regulatory hurdles, brand loyalty, access to distribution channels",
+    "<strong>Bargaining Power of Buyers:</strong> Customer influence on pricing and terms<br>Consider: Number of customers, buyer concentration, price sensitivity, switching costs, availability of alternatives, buyer information",
+    "<strong>Bargaining Power of Suppliers:</strong> Supplier influence on costs and quality<br>Consider: Number of suppliers, supplier concentration, uniqueness of inputs, switching costs, forward integration potential, importance to supplier",
+    "<strong>Threat of Substitutes:</strong> Alternative products or services that meet similar needs<br>Consider: Price-performance trade-off, switching costs, customer propensity to substitute, relative price of substitutes, perceived level of differentiation",
+    "<strong>Competitive Rivalry:</strong> Intensity of competition among existing players<br>Consider: Number of competitors, industry growth rate, product differentiation, exit barriers, fixed costs, brand identity, diversity of rivals",
+    "<strong>How to Use:</strong> Analyze each force thoroughly to understand the overall competitive intensity. Industries with weak forces (low threat of entry, substitutes, and rivalry; low supplier and buyer power) tend to be more profitable."
+] %}
+{% include 'main/_tips_modal.html' %}
 {% endblock %}

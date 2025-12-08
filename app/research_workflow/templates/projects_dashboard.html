@@ -21,74 +21,6 @@
         </div>
     </header>
 
-    <!-- Stats Priority Cards -->
-    <!-- TODO: Remove this or redesign -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <!-- Active Projects -->
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Active</h3>
-                        <span class="priority-card-number priority-number-blue">{{ dashboard_data.active_count }}</span>
-                    </div>
-                    <p class="priority-card-description">Projects in progress</p>
-                    {% if dashboard_data.active_preview %}
-                    <div class="priority-card-mini-stat">
-                        Avg {{ (dashboard_data.active_preview|sum(attribute='progress_percentage') / dashboard_data.active_preview|length)|round(0) }}% complete
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Completed -->
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Completed</h3>
-                        <span class="priority-card-number priority-number-green">{{ dashboard_data.completed_count }}</span>
-                    </div>
-                    <p class="priority-card-description">Finished research</p>
-                    {% if dashboard_data.invest_decisions + dashboard_data.pass_decisions > 0 %}
-                    <div class="priority-card-mini-stat">
-                        {{ ((dashboard_data.invest_decisions / (dashboard_data.invest_decisions + dashboard_data.pass_decisions)) * 100)|round(0) }}% invest rate
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Invested -->
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Invested</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ dashboard_data.invest_decisions }}</span>
-                    </div>
-                    <p class="priority-card-description">Investment decisions</p>
-                    {% if dashboard_data.too_hard_rate %}
-                    <div class="priority-card-mini-stat">
-                        {{ dashboard_data.too_hard_rate|round(0) }}% selectivity
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Too Hard Basket -->
-            <div class="priority-card priority-card-warning">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Passed</h3>
-                        <span class="priority-card-number priority-number-red">{{ dashboard_data.too_hard_count }}</span>
-                    </div>
-                    <p class="priority-card-description">Too hard basket</p>
-                    <div class="priority-card-mini-stat">
-                        Quality filter
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Project Status Navigation Cards -->
     <div class="research-status-grid">
 
@@ -206,7 +138,7 @@
             <div class="research-status-body">
                 {% if dashboard_data.too_hard_preview %}
                 <div class="too-hard-insight">
-                    <div class="insight-label">Selectivity Rate</div>
+                    <div class="insight-label">Filter Rate</div>
                     <div class="insight-value-large">{{ dashboard_data.too_hard_rate|round(0) }}%</div>
                     <div class="insight-subtext">
                         {% if dashboard_data.too_hard_rate >= 70 %}
@@ -220,9 +152,12 @@
                 </div>
 
                 <div class="research-recent-list mt-3">
-                    {% for project in dashboard_data.too_hard_preview[:2] %}
+                    {% for item in dashboard_data.too_hard_preview[:2] %}
                     <div class="research-recent-item">
-                        <span class="research-recent-name">{{ project.subject_display_name }}</span>
+                        <span class="research-recent-name">{{ item.company_name }}</span>
+                        <span class="research-recent-meta text-muted" style="font-size: 0.75rem;">
+                            {{ item.rejection_stage.replace('_', ' ').title() }}
+                        </span>
                     </div>
                     {% endfor %}
                 </div>

@@ -1,0 +1,114 @@
+/* Drag-and-drop reordering styles */
+
+.sortable-list {
+    min-height: 20px;
+    transition: background-color 0.2s ease;
+}
+
+.checklist-tree-item {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+/* Drag handle styling */
+.drag-handle {
+    cursor: move;
+    cursor: grab;
+    position: relative;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-handle .bi-grip-vertical {
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.checklist-tree-item:hover .bi-grip-vertical {
+    opacity: 0.7;
+}
+
+/* Sortable ghost (placeholder while dragging) */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: var(--bs-gray-100);
+    border: 2px dashed var(--bs-primary);
+    border-radius: 4px;
+}
+
+.sortable-ghost .item-link {
+    opacity: 0.5;
+}
+
+/* Sortable chosen (item being dragged) */
+.sortable-chosen {
+    background-color: var(--bs-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+.sortable-chosen .item-link {
+    background-color: transparent;
+}
+
+/* Sortable drag (while actively dragging) */
+.sortable-drag {
+    opacity: 0.9;
+    transform: rotate(1deg);
+    z-index: 1000;
+}
+
+/* Item link styling for drag states */
+.item-link {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.item-link:hover {
+    background-color: var(--bs-gray-100);
+}
+
+.item-link:focus {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.checklist-tree-item.sortable-chosen .item-link {
+    background-color: var(--bs-primary-bg-subtle);
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
+}
+
+/* Item number styling */
+.item-number {
+    font-weight: 500;
+    color: var(--bs-secondary);
+    min-width: 2rem;
+}
+
+/* Nested list indentation */
+.sortable-list.ps-4 {
+    padding-left: 1.5rem !important;
+    border-left: 2px solid var(--bs-gray-200);
+    margin-left: 0.5rem;
+}
+
+/* Hover state for nested lists */
+.sortable-list.ps-4:hover {
+    border-left-color: var(--bs-primary);
+}
+
+/* Smooth transitions for reordering */
+.checklist-tree-item {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Focus visible for accessibility */
+.drag-handle:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}

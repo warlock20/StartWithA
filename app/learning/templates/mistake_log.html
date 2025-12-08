@@ -1,218 +1,232 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>❌ Mistake Log</h1>
-        <p class="text-muted mb-0">Learn from failures to improve your investment process</p>
-    </div>
-    <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-success">
-        + Log New Mistake
-    </a>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Mistake Log</h1>
+            <p class="dashboard-subtitle">Learn from failures to improve your investment process</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle-fill"></i> Log New Mistake
+            </a>
+        </div>
+    </header>
 
-<!-- Summary Stats -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ mistakes|length }}</h3>
-                <small class="text-muted">Total Mistakes Logged</small>
+    <!-- Summary Stats -->
+    <div class="priority-lane-section">
+        <div class="priority-lane-grid four-column">
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Total Mistakes</h3>
+                        <span class="priority-card-number priority-number-blue">{{ mistakes|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Logged for learning</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-ideas">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Estimated Cost</h3>
+                        <span class="priority-card-number priority-number-yellow">${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</span>
+                    </div>
+                    <p class="priority-card-description">Total financial impact</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-research">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Most Common</h3>
+                        <span class="priority-card-number priority-number-green">{{ most_common_count }}</span>
+                    </div>
+                    <p class="priority-card-description">{{ most_common_type|replace('_', ' ')|title if most_common_type else 'N/A' }}</p>
+                </div>
+            </div>
+            <div class="priority-card priority-card-monitoring">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <h3 class="priority-card-title">Prevented</h3>
+                        <span class="priority-card-number priority-number-blue">{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</span>
+                    </div>
+                    <p class="priority-card-description">Lessons applied successfully</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</h3>
-                <small class="text-muted">Estimated Cost</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ most_common_count }}</h3>
-                <small class="text-muted">{{ most_common_type|replace('_', ' ')|title if most_common_type else 'N/A'
-                    }}</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</h3>
-                <small class="text-muted">Mistakes That Prevented Others</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Mistakes by Category -->
-<div class="card mb-4">
-    <div class="card-header">
-        <ul class="nav nav-tabs card-header-tabs">
-            <li class="nav-item">
-                <a class="nav-link active" data-bs-toggle="tab" href="#all">All Mistakes</a>
-            </li>
-            {% for type_name, type_mistakes in by_type.items() %}
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#{{ type_name }}">
-                    {{ type_name|replace('_', ' ')|title }} ({{ type_mistakes|length }})
-                </a>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    <div class="card-body">
-        <div class="tab-content">
-            <!-- All Mistakes Tab -->
-            <div class="tab-pane fade show active" id="all">
-                {% if mistakes %}
-                <div class="accordion" id="mistakesAccordion">
-                    {% for mistake in mistakes %}
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#mistake-{{ mistake.id }}">
-                                <div class="d-flex justify-content-between w-100 me-3">
-                                    <span>
-                                        <strong>{{ mistake.title }}</strong>
-                                        <span class="badge bg-danger ms-2">Severity: {{ mistake.severity }}/10</span>
-                                        {% if mistake.cost_estimate %}
-                                        <span class="badge bg-warning ms-1">${{ "{:,.0f}".format(mistake.cost_estimate)
-                                            }}</span>
-                                        {% endif %}
-                                    </span>
-                                    <span class="text-muted">
-                                        {{ mistake.occurred_date.strftime('%b %d, %Y') if mistake.occurred_date else
-                                        'Date unknown' }}
-                                    </span>
-                                </div>
-                            </button>
-                        </h2>
-                        <div id="mistake-{{ mistake.id }}" class="accordion-collapse collapse"
-                            data-bs-parent="#mistakesAccordion">
-                            <div class="accordion-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6>Description:</h6>
-                                        <p>{{ mistake.description }}</p>
-
-                                        {% if mistake.root_cause %}
-                                        <h6>Root Cause:</h6>
-                                        <p>{{ mistake.root_cause }}</p>
-                                        {% endif %}
-
-                                        {% if mistake.contributing_factors %}
-                                        <h6>Contributing Factors:</h6>
-                                        <ul>
-                                            {% for factor in mistake.contributing_factors %}
-                                            <li>{{ factor }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                        {% endif %}
+    <!-- Mistakes by Category -->
+    <div class="mistakes-content-card">
+        <div class="mistakes-tabs-header">
+            <ul class="nav mistakes-nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#all">All Mistakes</a>
+                </li>
+                {% for type_name, type_mistakes in by_type.items() %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#{{ type_name }}">
+                        {{ type_name|replace('_', ' ')|title }} ({{ type_mistakes|length }})
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="mistakes-tab-content">
+            <div class="tab-content">
+                <!-- All Mistakes Tab -->
+                <div class="tab-pane fade show active" id="all">
+                    {% if mistakes %}
+                    <div class="mistakes-accordion">
+                        {% for mistake in mistakes %}
+                        <div class="mistake-accordion-item">
+                            <h2 class="mistake-accordion-header">
+                                <button class="mistake-accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#mistake-{{ mistake.id }}">
+                                    <div class="mistake-title-section">
+                                        <div class="mistake-title-row">
+                                            <h3 class="mistake-title-text">{{ mistake.title }}</h3>
+                                            <div class="mistake-badges">
+                                                <span class="mistake-severity-badge">
+                                                    Severity: {{ mistake.severity }}/10
+                                                </span>
+                                                {% if mistake.cost_estimate %}
+                                                <span class="mistake-cost-badge">
+                                                    ${{ "{:,.0f}".format(mistake.cost_estimate) }}
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <small class="mistake-date">
+                                            {{ mistake.occurred_date.strftime('%b %d, %Y') if mistake.occurred_date else 'Date unknown' }}
+                                        </small>
                                     </div>
-                                    <div class="col-md-6">
-                                        <h6>🎓 Lesson Learned:</h6>
-                                        <p class="text-primary">{{ mistake.lesson_learned }}</p>
+                                </button>
+                            </h2>
+                            <div id="mistake-{{ mistake.id }}" class="accordion-collapse collapse mistake-collapse"
+                                data-bs-parent=".mistakes-accordion">
+                                <div class="mistake-accordion-body">
+                                    <div class="mistake-details-grid">
+                                        <div class="mistake-detail-section">
+                                            <h6 class="mistake-detail-heading">Description</h6>
+                                            <p class="mistake-detail-content">{{ mistake.description }}</p>
 
-                                        {% if mistake.prevention_steps %}
-                                        <h6>Prevention Steps:</h6>
-                                        <ul>
-                                            {% for step in mistake.prevention_steps %}
-                                            <li>{{ step }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                        {% endif %}
+                                            {% if mistake.root_cause %}
+                                            <h6 class="mistake-detail-heading">Root Cause</h6>
+                                            <p class="mistake-detail-content">{{ mistake.root_cause }}</p>
+                                            {% endif %}
 
-                                        {% if mistake.process_changes %}
-                                        <h6>Process Changes:</h6>
-                                        <p>{{ mistake.process_changes }}</p>
-                                        {% endif %}
+                                            {% if mistake.contributing_factors %}
+                                            <h6 class="mistake-detail-heading">Contributing Factors</h6>
+                                            <ul class="mistake-factors-list">
+                                                {% for factor in mistake.contributing_factors %}
+                                                <li>{{ factor }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mistake-detail-section">
+                                            <div class="mistake-lesson-highlight">
+                                                <h6 class="mistake-detail-heading">Lesson Learned</h6>
+                                                <p class="mistake-detail-content">{{ mistake.lesson_learned }}</p>
+                                            </div>
+
+                                            {% if mistake.prevention_steps %}
+                                            <h6 class="mistake-detail-heading">Prevention Steps</h6>
+                                            <ul class="mistake-prevention-list">
+                                                {% for step in mistake.prevention_steps %}
+                                                <li>{{ step }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+
+                                            {% if mistake.process_changes %}
+                                            <h6 class="mistake-detail-heading">Process Changes</h6>
+                                            <p class="mistake-detail-content">{{ mistake.process_changes }}</p>
+                                            {% endif %}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <hr>
-
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <small class="text-muted">
+                                    <div class="mistake-footer">
+                                        <div class="mistake-meta-info">
                                             Reviewed {{ mistake.times_reviewed }} times
                                             {% if mistake.last_reviewed %}
                                             | Last: {{ mistake.last_reviewed.strftime('%b %d') }}
                                             {% endif %}
                                             {% if mistake.prevented_similar > 0 %}
-                                            | <span class="text-success">Prevented {{ mistake.prevented_similar }}
-                                                similar mistakes</span>
+                                            | <span class="text-success">Prevented {{ mistake.prevented_similar }} similar mistakes</span>
                                             {% endif %}
-                                        </small>
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-sm btn-outline-primary"
-                                            onclick="reviewMistake({{ mistake.id }}, false)">
-                                            Mark Reviewed
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-success"
-                                            onclick="reviewMistake({{ mistake.id }}, true)">
-                                            Prevented Similar
-                                        </button>
+                                        </div>
+                                        <div class="mistake-actions">
+                                            <button class="btn btn-review"
+                                                onclick="reviewMistake({{ mistake.id }}, false)">
+                                                <i class="bi bi-eye"></i> Mark Reviewed
+                                            </button>
+                                            <button class="btn btn-prevented"
+                                                onclick="reviewMistake({{ mistake.id }}, true)">
+                                                <i class="bi bi-shield-check"></i> Prevented Similar
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    {% else %}
+                    <div class="mistakes-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <h3>No mistakes logged yet</h3>
+                        <p>Start logging mistakes to learn and improve your process</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-center text-muted py-4">No mistakes logged yet</p>
-                {% endif %}
-            </div>
 
-            <!-- Category-specific tabs -->
-            {% for type_name, type_mistakes in by_type.items() %}
-            <div class="tab-pane fade" id="{{ type_name }}">
-                <!-- Similar structure as above but filtered for specific type -->
+                <!-- Category-specific tabs -->
+                {% for type_name, type_mistakes in by_type.items() %}
+                <div class="tab-pane fade" id="{{ type_name }}">
+                    <!-- Similar structure as above but filtered for specific type -->
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </div>
-</div>
 
-<!-- Learning Insights -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">💡 Key Insights from Your Mistakes</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Most Expensive Mistakes:</h6>
-                <ol>
-                    {# Wrap the sort filter in parentheses before slicing #}
-                    {% for mistake in (mistakes|sort(attribute='cost_estimate', reverse=true))[:3] %}
-                    {% if mistake.cost_estimate %}
-                    <li>
-                        {{ mistake.title }} - ${{ "{:,.0f}".format(mistake.cost_estimate) }}
-                        <br><small class="text-muted">Lesson: {{ mistake.lesson_learned|truncate(100) }}</small>
-                    </li>
-                    {% endif %}
-                    {% endfor %}
-                </ol>
-            </div>
-            <div class="col-md-6">
-                <h6>Most Reviewed Mistakes:</h6>
-                <ol>
-                    {# Also wrap this sort filter in parentheses #}
-                    {% for mistake in (mistakes|sort(attribute='times_reviewed', reverse=true))[:3] %}
-                    {% if mistake.times_reviewed > 0 %}
-                    <li>
-                        {{ mistake.title }} - Reviewed {{ mistake.times_reviewed }}x
-                        <br><small class="text-muted">Type: {{ mistake.mistake_type|replace('_', ' ')|title }}</small>
-                    </li>
-                    {% endif %}
-                    {% endfor %}
-                </ol>
+    <!-- Learning Insights -->
+    <div class="learning-insights-card">
+        <div class="insights-card-header">
+            <h5 class="insights-card-title">Key Insights from Your Mistakes</h5>
+        </div>
+        <div class="insights-card-body">
+            <div class="insights-grid">
+                <div class="insight-section">
+                    <h6 class="insight-section-title">Most Expensive Mistakes</h6>
+                    <ul class="insight-list">
+                        {% for mistake in (mistakes|sort(attribute='cost_estimate', reverse=true))[:3] %}
+                        {% if mistake.cost_estimate %}
+                        <li class="insight-list-item">
+                            <div class="insight-item-title">{{ mistake.title }}</div>
+                            <div class="insight-item-meta">Cost: ${{ "{:,.0f}".format(mistake.cost_estimate) }}</div>
+                            <p class="insight-item-lesson">Lesson: {{ mistake.lesson_learned|truncate(100) }}</p>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="insight-section">
+                    <h6 class="insight-section-title">Most Reviewed Mistakes</h6>
+                    <ul class="insight-list">
+                        {% for mistake in (mistakes|sort(attribute='times_reviewed', reverse=true))[:3] %}
+                        {% if mistake.times_reviewed > 0 %}
+                        <li class="insight-list-item">
+                            <div class="insight-item-title">{{ mistake.title }}</div>
+                            <div class="insight-item-meta">Reviewed {{ mistake.times_reviewed }}x | Type: {{ mistake.mistake_type|replace('_', ' ')|title }}</div>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

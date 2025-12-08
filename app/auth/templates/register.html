@@ -8,6 +8,26 @@
                 <h1 class="card-title text-center">{{ title }}</h1>
             </div>
             <div class="card-body">
+                <!-- Auth0 Signup Option -->
+                <div class="mb-4">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.auth0_login') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-shield-lock"></i> Sign up with Auth0
+                        </a>
+                    </div>
+                    <p class="text-center text-muted mt-3 mb-3">
+                        <small>Quick signup with Google, GitHub, or email</small>
+                    </p>
+                </div>
+
+                <!-- Divider -->
+                <div class="d-flex align-items-center mb-4">
+                    <hr class="flex-grow-1">
+                    <span class="px-3 text-muted">OR</span>
+                    <hr class="flex-grow-1">
+                </div>
+
+                <!-- Traditional Registration Form -->
                 <form method="POST" action="{{ url_for('auth.register') }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username:</label>
@@ -30,7 +50,7 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Register</button>
+                        <button type="submit" class="btn btn-primary">Register with Password</button>
                     </div>
                 </form>
             </div>

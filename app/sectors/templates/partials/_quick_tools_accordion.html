@@ -1,0 +1,169 @@
+{# Quick Tools Accordion Content - Reusable Partial #}
+<div class="accordion accordion-flush" id="quickToolsAccordion">
+    <!-- Questions Tool -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#questionsCollapse">
+                <i class="bi bi-question-circle me-2"></i>
+                Questions
+                <span class="badge bg-secondary ms-auto me-2">{{ question_bank_items|length }}</span>
+            </button>
+        </h2>
+        <div id="questionsCollapse" class="accordion-collapse collapse" data-bs-parent="#quickToolsAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('sectors.add_question_to_bank', sector_name=analysis.sector_name) }}" class="mb-2">
+                    <textarea name="text" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a question..." required></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                </form>
+
+                <div class="tool-items-list">
+                    {% if question_bank_items %}
+                    {% for q in question_bank_items %}
+                    <div class="tool-item">
+                        <div class="tool-item-text">{{ q.text }}</div>
+                        <div class="tool-item-actions">
+                            <a href="{{ url_for('question_bank.edit_question', item_id=q.id) }}" class="btn btn-sm btn-link p-0">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('sectors.delete_question_from_bank', item_id=q.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Delete?');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted small text-center mb-0">No questions yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Companies Tool -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#companiesCollapse">
+                <i class="bi bi-building me-2"></i>
+                Companies
+                <span class="badge bg-secondary ms-auto me-2">{{ companies_data|length }}</span>
+            </button>
+        </h2>
+        <div id="companiesCollapse" class="accordion-collapse collapse" data-bs-parent="#quickToolsAccordion">
+            <div class="accordion-body">
+                {% if other_companies %}
+                <form method="POST" action="#" class="mb-2" id="addCompanyForm">
+                    <div class="input-group input-group-sm">
+                        <select class="form-select form-select-sm" id="companySelect" name="company_id" required onchange="updateAddCompanyAction(this)">
+                            <option value="">Select...</option>
+                            {% for company in other_companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <div class="tool-items-list">
+                    {% if companies_data %}
+                    {% for data in companies_data %}
+                    {% set company = data.company %}
+                    <div class="tool-item">
+                        <div class="tool-item-text">
+                            <strong>{{ company.name }}</strong>
+                            <small class="d-block text-muted">{{ company.ticker_symbol }}</small>
+                            {% if data.is_in_portfolio %}
+                            <span class="badge bg-info">Portfolio</span>
+                            {% elif data.is_in_watchlist %}
+                            <span class="badge bg-warning">Watchlist</span>
+                            {% endif %}
+                        </div>
+                        <div class="tool-item-actions">
+                            <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-sm btn-link p-0" title="View company">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('sectors.remove_company_from_sector', sector_name=analysis.sector_name, company_id=company.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove {{ company.name }} from this sector?');" title="Remove from sector">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted small text-center mb-0">No companies tracked</p>
+                    {% endif %}
+                </div>
+
+                <button class="btn btn-outline-primary btn-sm w-100 mt-2" id="newCompanyBtn">
+                    <i class="bi bi-plus-circle"></i> New Company
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passed Companies Tool -->
+    {% if passed_companies %}
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#passedCompaniesCollapse">
+                <i class="bi bi-x-octagon me-2"></i>
+                Passed Companies
+                <span class="badge bg-secondary ms-auto me-2">{{ passed_companies|length }}</span>
+            </button>
+        </h2>
+        <div id="passedCompaniesCollapse" class="accordion-collapse collapse" data-bs-parent="#quickToolsAccordion">
+            <div class="accordion-body">
+                <div class="alert alert-info alert-sm mb-3">
+                    Companies analyzed but passed on. Useful for learning patterns in this sector.
+                </div>
+
+                <div class="tool-items-list">
+                    {% for item in passed_companies %}
+                    <div class="tool-item">
+                        <div class="tool-item-text">
+                            <strong>{{ item.company_name }}</strong>
+                            {% if item.ticker %}
+                            <small class="d-block text-muted">{{ item.ticker }}</small>
+                            {% endif %}
+                            {% if item.rejection_stage == 'kill_checklist' %}
+                            <span class="badge bg-secondary">Early Kill</span>
+                            {% elif item.rejection_stage == 'mid_research' %}
+                            <span class="badge bg-warning">Abandoned</span>
+                            {% else %}
+                            <span class="badge bg-danger">Full Analysis Pass</span>
+                            {% endif %}
+                            {% if item.within_coc == 'yes' %}
+                            <span class="badge bg-success">Within CoC</span>
+                            {% elif item.within_coc == 'no' %}
+                            <span class="badge bg-danger">Outside CoC</span>
+                            {% endif %}
+                            {% if item.time_invested_hours %}
+                            <small class="d-block text-muted mt-1">{{ item.time_invested_hours|round(1) }} hours</small>
+                            {% endif %}
+                        </div>
+                        <div class="tool-item-actions">
+                            {% if item.company_id %}
+                            <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}" class="btn btn-sm btn-link p-0" title="View details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-outline-secondary btn-sm w-100 mt-2">
+                    <i class="bi bi-box-arrow-up-right"></i> View All Passes
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

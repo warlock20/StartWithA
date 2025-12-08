@@ -47,7 +47,7 @@
         <div class="card mb-4">
             <div class="card-body">
                 <div class="entry-content">
-                    {{ entry.content|markdown|safe }}
+                    {{ entry.content|blocknote_to_html|safe }}
                 </div>
 
                 {% if entry.key_insight %}
@@ -234,21 +234,48 @@
     <!-- Sidebar -->
     <div class="col-lg-4">
         <!-- Tags -->
-        {% if entry.tags %}
         <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0">🏷️ Tags</h6>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Tags</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="editTagsBtn" onclick="toggleTagsEdit()">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
             </div>
             <div class="card-body">
-                {% for tag in entry.tags %}
-                <a href="{{ url_for('journal_enhanced.search', q='#' + tag) }}"
-                    class="badge bg-primary text-decoration-none me-1 mb-1">
-                    #{{ tag }}
-                </a>
-                {% endfor %}
+                <!-- Display mode -->
+                <div id="tagsDisplay">
+                    {% if entry.tags %}
+                        {% for tag in entry.tags %}
+                        {% set clean_tag = tag.lstrip('#') %}
+                        <a href="{{ url_for('journal_enhanced.search', q='#' + clean_tag) }}"
+                            class="badge bg-primary text-decoration-none me-1 mb-1">
+                            #{{ clean_tag }}
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">No tags yet</span>
+                    {% endif %}
+                </div>
+
+                <!-- Edit mode -->
+                <div id="tagsEdit" style="display: none;">
+                    <div class="mb-2" style="position: relative;">
+                        <input type="text" class="form-control" id="tagsInput" name="hashtags"
+                               value="{% if entry.tags %}{% for tag in entry.tags %}#{{ tag.lstrip('#') }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}"
+                               placeholder="e.g., #valuation #moat #earnings">
+                        <small class="text-muted">Space or comma separated</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="saveTags()">
+                            <i class="bi bi-check"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelTagsEdit()">
+                            <i class="bi bi-x"></i> Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-        {% endif %}
 
         <!-- Entry Stats -->
         <div class="card mb-3">
@@ -400,6 +427,8 @@
 
 {% block scripts %}
 {{ super() }}
+<!-- Hashtag Autocomplete -->
+<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}"></script>
 <style>
     .attachment-card {
         transition: all 0.2s ease;
@@ -675,7 +704,7 @@
             company: {% if entry.company %}{{ entry.company.name|tojson|safe }}{% else %}null{% endif %},
             sentiment: {% if entry.sentiment %}{{ (entry.sentiment|title)|tojson|safe }}{% else %}null{% endif %},
             created_at: {{ entry.created_at.strftime('%b %d, %Y')|tojson|safe }},
-            content: {{ entry.content|tojson|safe }},
+            content: {{ (entry.content|blocknote_to_html|striptags)|tojson|safe }},
             key_insight: {% if entry.key_insight %}{{ entry.key_insight|tojson|safe }}{% else %}null{% endif %},
             tags: {% if entry.tags %}{{ entry.tags|tojson|safe }}{% else %}[]{% endif %}
         };
@@ -691,6 +720,63 @@
             form.action = `/journal/entry/${entryId}/mark_reviewed`;
             document.body.appendChild(form);
             form.submit();
+        }
+    }
+
+    // Tags editing functions
+    let tagsEditorInstance = null;
+
+    function toggleTagsEdit() {
+        document.getElementById('tagsDisplay').style.display = 'none';
+        document.getElementById('tagsEdit').style.display = 'block';
+        document.getElementById('editTagsBtn').style.display = 'none';
+
+        // Initialize hashtag autocomplete on the input
+        const tagsInput = document.getElementById('tagsInput');
+        if (!tagsEditorInstance && window.HashtagAutocomplete) {
+            tagsEditorInstance = new HashtagAutocomplete(tagsInput);
+        }
+
+        tagsInput.focus();
+    }
+
+    function cancelTagsEdit() {
+        document.getElementById('tagsDisplay').style.display = 'block';
+        document.getElementById('tagsEdit').style.display = 'none';
+        document.getElementById('editTagsBtn').style.display = 'block';
+    }
+
+    async function saveTags() {
+        const tagsInput = document.getElementById('tagsInput');
+        const tagsString = tagsInput.value.trim();
+
+        // Parse tags (space or comma separated)
+        const tags = tagsString
+            .replace(/,/g, ' ')
+            .split(/\s+/)
+            .filter(tag => tag.length > 0)
+            .map(tag => tag.startsWith('#') ? tag : '#' + tag);
+
+        try {
+            const response = await fetch(`/journal/entry/{{ entry.id }}/update-tags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ tags: tags })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Reload page to show updated tags
+                location.reload();
+            } else {
+                alert('Error updating tags: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to update tags');
         }
     }
 </script>

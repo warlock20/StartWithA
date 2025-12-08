@@ -1,0 +1,518 @@
+/* =============================================================================
+   RESEARCH WORKSPACE LAYOUT
+   Professional fixed-height layout inspired by Notion, Obsidian, Roam Research
+
+   This is a reusable template for research pages:
+   - Main research area (tabs/content) takes ~83% width
+   - Quick tools sidebar takes ~17% width
+   - Both containers aligned horizontally at same height
+   - Independent scrolling in each area
+
+   Reusable for: Sector Research, Company Research, Project Analysis
+   ============================================================================= */
+
+/* Main workspace container - Only apply to research workspace pages */
+.dashboard-container:has(.research-tabs-container) {
+    height: calc(100vh - 60px); /* Full viewport minus navbar */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f8f9fa;
+    padding: 1.5rem;
+}
+
+/* Sector snapshot bar - fixed at top */
+.sector-snapshot-bar {
+    flex-shrink: 0;
+    margin-bottom: 1.5rem;
+}
+
+/* Main research row - FORCE flexbox horizontal layout WITHOUT outer container border */
+.dashboard-container > .row {
+    flex: 1; /* Take all remaining vertical space */
+    display: flex !important; /* Override Bootstrap */
+    flex-direction: row !important; /* Horizontal layout */
+    flex-wrap: nowrap !important; /* No wrapping */
+    margin: 0;
+    min-height: 0;
+    gap: 1rem; /* Gap between research area and sidebar */
+    background: transparent; /* No background */
+    overflow: visible; /* Allow shadows */
+}
+
+/* Remove default Bootstrap column behavior that might stack */
+.dashboard-container > .row > .col-lg-10,
+.dashboard-container > .row > .col-lg-2 {
+    float: none !important; /* Override any float */
+    display: flex !important;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0 !important;
+}
+
+/* Main research area - takes remaining space */
+.dashboard-container > .row > .col-lg-10 {
+    flex: 1;
+    min-width: 0; /* Allow flexbox shrinking */
+}
+
+/* Sidebar - fixed width like MS Paint tool panel */
+.dashboard-container > .row > .col-lg-2 {
+    flex: 0 0 280px;
+    max-width: 280px;
+    min-width: 250px;
+}
+
+/* Research tabs container - main content area (like MS Paint canvas) */
+.research-tabs-container {
+    flex: 1; /* Fill parent height */
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    min-height: 0;
+    transition: all 0.2s ease;
+}
+
+.research-tabs-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Tab navigation - stays fixed at top */
+.research-tabs {
+    flex-shrink: 0;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+    padding: 0.5rem 1rem 0 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* Tab content area - no outer scroll, let content determine scrolling */
+.research-tab-content {
+    flex: 1;
+    overflow-y: auto; /* Keep for tabs that need it (Canvas, Sources, etc) */
+    overflow-x: hidden;
+    position: relative;
+    min-height: 0;
+}
+
+/* Individual tab panes - no scroll by default, BlockNote handles its own */
+.research-tab-content > .tab-pane {
+    height: 100%;
+    overflow-y: visible; /* Changed from auto to visible - BlockNote grows naturally */
+}
+
+/* Sticky sidebar - quick tools area */
+.sticky-sidebar {
+    flex: 1; /* Fill parent height */
+    overflow-y: auto; /* Enable scrolling */
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+}
+
+/* Sidebar cards */
+.sticky-sidebar > .sector-sidebar-card {
+    flex-shrink: 0;
+    margin-bottom: 0 !important; /* Use gap instead */
+}
+
+/* Custom scrollbars for professional look */
+.research-tab-content::-webkit-scrollbar,
+.sticky-sidebar::-webkit-scrollbar,
+.notes-canvas::-webkit-scrollbar {
+    width: 8px;
+}
+
+.research-tab-content::-webkit-scrollbar-track,
+.sticky-sidebar::-webkit-scrollbar-track,
+.notes-canvas::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+}
+
+.research-tab-content::-webkit-scrollbar-thumb,
+.sticky-sidebar::-webkit-scrollbar-thumb,
+.notes-canvas::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.research-tab-content::-webkit-scrollbar-thumb:hover,
+.sticky-sidebar::-webkit-scrollbar-thumb:hover,
+.notes-canvas::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Canvas specific adjustments */
+.atomic-canvas-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.canvas-toolbar {
+    flex-shrink: 0;
+}
+
+.notes-canvas {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Document view adjustments */
+.sector-editor-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.sector-editor-header {
+    flex-shrink: 0;
+}
+
+#sectorEditor {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Snippets, Sources, AI Insights, Takeaways tabs */
+.snippets-container,
+.sources-tab-container,
+.ai-insights-container,
+.takeaways-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+}
+
+.snippets-header,
+.sources-tab-header,
+.ai-insights-header,
+.takeaways-header {
+    flex-shrink: 0;
+    margin-bottom: 1rem;
+}
+
+.snippet-category-filter {
+    flex-shrink: 0;
+}
+
+.snippets-grid,
+.sources-grid,
+.ai-insights-grid {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.takeaways-editor-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Scroll fade effects for visual polish */
+.research-tab-content::before {
+    content: '';
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(255,255,255,0));
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.research-tab-content.scrolled::before {
+    opacity: 1;
+}
+
+.research-tab-content::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0));
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.research-tab-content.scrolled-bottom::after {
+    opacity: 1;
+}
+
+.sticky-sidebar::before {
+    content: '';
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 15px;
+    background: linear-gradient(to bottom, rgba(248,250,252,1), rgba(248,250,252,0));
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sticky-sidebar.scrolled::before {
+    opacity: 1;
+}
+
+/* Enhanced shadows on focus */
+.research-tabs-container:focus-within {
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.12),
+        0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Collector items scrolling */
+.collector-items {
+    max-height: 300px !important;
+    overflow-y: auto;
+}
+
+.collector-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.collector-items::-webkit-scrollbar-track {
+    background: #f9fafb;
+}
+
+.collector-items::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+/* Question bank and company list scrolling */
+.sector-sidebar-card .card-body > div[style*="max-height"] {
+    overflow-y: auto;
+}
+
+.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar-track {
+    background: #f9fafb;
+}
+
+.sector-sidebar-card .card-body > div[style*="max-height"]::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+/* =============================================================================
+   ACCORDION-STYLE TOOLS SIDEBAR (MS Paint-style framed panel)
+   ============================================================================= */
+
+.research-tools-sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+    overflow-y: auto;
+    min-height: 0;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+}
+
+.research-tools-sidebar:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.sidebar-header {
+    padding: 1rem 1rem 0.75rem 1rem;
+    background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+    border-bottom: 2px solid #e5e7eb;
+    flex-shrink: 0;
+    border-radius: 12px 12px 0 0;
+}
+
+.sidebar-header h6 {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Accordion overrides for compact sidebar */
+.research-tools-sidebar .accordion {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+
+.research-tools-sidebar .accordion-item {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 0.125rem;
+}
+
+.research-tools-sidebar .accordion-item:last-child {
+    border-bottom: none;
+}
+
+.research-tools-sidebar .accordion-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4b5563;
+    background: rgba(255, 255, 255, 0.5);
+    border: none;
+    box-shadow: none !important;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.research-tools-sidebar .accordion-button:not(.collapsed) {
+    background: #ffffff;
+    color: #1f2937;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.research-tools-sidebar .accordion-button:hover {
+    background: #ffffff;
+    color: #1f2937;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.research-tools-sidebar .accordion-button::after {
+    margin-left: 0;
+    width: 1rem;
+    height: 1rem;
+    background-size: 1rem;
+}
+
+.research-tools-sidebar .accordion-body {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+}
+
+/* Tool items list */
+.tool-items-list {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 0.5rem;
+}
+
+.tool-items-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.tool-items-list::-webkit-scrollbar-track {
+    background: #f9fafb;
+}
+
+.tool-items-list::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 2px;
+}
+
+.tool-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    transition: all 0.15s ease;
+}
+
+.tool-item:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tool-item-text {
+    flex: 1;
+    padding-right: 0.5rem;
+    color: #374151;
+    line-height: 1.4;
+}
+
+.tool-item-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.tool-item-actions .btn-link {
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.tool-item-actions .btn-link:hover {
+    color: #111827;
+}
+
+.tool-item-actions .btn-link.text-danger:hover {
+    color: #dc2626 !important;
+}
+
+/* Badge in accordion header */
+.research-tools-sidebar .accordion-button .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border: none;
+    font-weight: 600;
+}
+
+/* Responsive - stack vertically on mobile */
+@media (max-width: 992px) {
+    .dashboard-container > .row {
+        flex-direction: column !important;
+        border-radius: 8px;
+    }
+
+    .dashboard-container > .row > .col-lg-10,
+    .dashboard-container > .row > .col-lg-2 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+
+    .research-tabs-container {
+        border-right: none;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .research-tabs-container,
+    .research-tools-sidebar {
+        height: auto;
+        min-height: 400px;
+    }
+
+    .dashboard-container {
+        height: auto;
+    }
+}

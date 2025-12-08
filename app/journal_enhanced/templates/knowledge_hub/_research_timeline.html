@@ -1,0 +1,75 @@
+<!-- Research Notes Timeline View -->
+{% if research_results %}
+<div class="research-timeline">
+    {% for entry in research_results %}
+    <div class="research-entry-card" onclick="window.location.href='{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}'" style="cursor: pointer;">
+        <div class="research-entry-header">
+            <div class="research-entry-meta">
+                <span class="research-entry-date">{{ entry.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                {% if entry.company %}
+                <span class="research-entry-company">{{ entry.company.name }}</span>
+                {% endif %}
+            </div>
+            <div class="research-entry-actions" onclick="event.stopPropagation();">
+                {% if entry.is_starred %}
+                <i class="bi bi-star-fill text-warning"></i>
+                {% endif %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link text-secondary" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.edit_entry', entry_id=entry.id) }}">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="research-entry-content">
+            {% if entry.title %}
+            <h5 class="research-entry-title">{{ entry.title }}</h5>
+            {% endif %}
+
+            <div class="research-entry-text">
+                {{ entry.content|blocknote_to_html|striptags|truncate(300)|safe }}
+            </div>
+
+            {% if entry.key_insight %}
+            <div class="research-key-insight">
+                <strong>Key Insight:</strong> {{ entry.key_insight }}
+            </div>
+            {% endif %}
+
+            <div class="research-entry-badges">
+                <span class="badge bg-secondary">{{ entry.entry_type|replace('_', ' ')|title }}</span>
+                {% if entry.sentiment %}
+                <span class="badge {% if entry.sentiment == 'bullish' %}bg-success{% elif entry.sentiment == 'bearish' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ entry.sentiment|title }}
+                </span>
+                {% endif %}
+                {% for tag in (entry.tags or [])[:3] %}
+                <span class="badge bg-light text-dark">#{{ tag.lstrip('#') }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="knowledge-empty-state">
+    <div class="knowledge-empty-icon">
+        <i class="bi bi-journal-text"></i>
+    </div>
+    <h3 class="knowledge-empty-title">No data to show</h3>
+</div>
+{% endif %}

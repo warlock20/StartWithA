@@ -136,6 +136,79 @@
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
 }
 
+/* Navbar Quote Container */
+.navbar-quote-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 600px;
+    margin: 0 2rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.navbar-quote-wrapper {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.navbar-quote-inner {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.navbar-quote-text {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.875rem;
+    font-style: italic;
+    font-weight: 500;
+    display: inline-block;
+    padding-right: 4rem; /* Gap between repeated text */
+}
+
+/* Continuous scrolling marquee animation */
+@keyframes marquee-scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+.navbar-quote-inner.scrolling {
+    animation: marquee-scroll 20s linear infinite;
+}
+
+/* Static display for short quotes */
+.navbar-quote-inner.static .navbar-quote-text {
+    padding-right: 0;
+}
+
+.navbar-quote-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    z-index: 1;
+}
+
+.navbar-quote-close:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
 @media (max-width: 991.98px) {
     .navbar-nav .nav-link {
         margin: 0.25rem 0 !important;
@@ -146,5 +219,10 @@
         margin-top: 0 !important;
         border-radius: 8px !important;
         min-width: 100% !important;
+    }
+
+    .navbar-quote-container {
+        max-width: 100%;
+        margin: 0.5rem 0;
     }
 }

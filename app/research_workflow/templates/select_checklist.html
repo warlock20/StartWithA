@@ -1,0 +1,79 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Select Investment Checklist</h1>
+            <p class="dashboard-subtitle">
+                Step: {{ step.name }} • {{ project.project_name }}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Project
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            {% if user_checklists %}
+            <div class="alert alert-info border-0 mb-4">
+                <i class="bi bi-info-circle me-2"></i>
+                Select an investment checklist to use for this research step. The checklist will guide you through systematic analysis of the company.
+            </div>
+
+            <form method="POST" action="{{ url_for('research_workflow.update_step_checklist', project_id=project.id, step_index=step_index) }}">
+                <div class="checklist-selection-grid">
+                    {% for checklist in user_checklists %}
+                    <div class="checklist-selection-card">
+                        <input type="radio" name="checklist_id" value="{{ checklist.id }}" id="checklist_{{ checklist.id }}" required>
+                        <label for="checklist_{{ checklist.id }}" class="checklist-selection-label">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-clipboard-check text-primary me-3" style="font-size: 1.5rem;"></i>
+                                <div class="flex-grow-1">
+                                    <h4 class="fw-bold mb-2">{{ checklist.name }}</h4>
+                                    {% if checklist.description %}
+                                    <p class="text-muted small mb-2">{{ checklist.description }}</p>
+                                    {% endif %}
+                                    <div class="d-flex gap-3 text-muted small">
+                                        <span><i class="bi bi-list-check"></i> {{ checklist.items.count() }} items</span>
+                                        {% if checklist.category %}
+                                        <span><i class="bi bi-tag"></i> {{ checklist.category }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <i class="bi bi-check-circle-fill text-success checklist-check-icon" style="font-size: 1.5rem; display: none;"></i>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-right-circle"></i> Continue with Selected Checklist
+                    </button>
+                </div>
+            </form>
+
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-clipboard-x"></i>
+                <h3>No Investment Checklists Available</h3>
+                <p>You need to create an investment checklist before you can use it in your research workflow.</p>
+                <div class="mt-4">
+                    <a href="{{ url_for('research.checklists') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle-fill"></i> Create Investment Checklist
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -39,16 +39,20 @@ class AdaptiveTemplateService:
             List of question objects with text, llm_prompt, and metadata
         """
         try:
+            from app.models.sector import Sector
+
             # Get questions that match the sector (case-insensitive)
-            sector_questions = QuestionBankItem.query.filter(
+            sector_questions = QuestionBankItem.query.join(
+                Sector, QuestionBankItem.sector_id == Sector.id
+            ).filter(
                 QuestionBankItem.user_id == user_id,
-                QuestionBankItem.sector.ilike(f'%{sector}%')
+                Sector.display_name.ilike(f'%{sector}%')
             ).all()
 
             # Also get general questions (no sector) as fallback
             general_questions = QuestionBankItem.query.filter(
                 QuestionBankItem.user_id == user_id,
-                QuestionBankItem.sector.is_(None)
+                QuestionBankItem.sector_id.is_(None)
             ).limit(3).all()
 
             questions = []
@@ -59,7 +63,7 @@ class AdaptiveTemplateService:
                     'id': q.id,
                     'text': q.text,
                     'llm_prompt': q.llm_prompt,
-                    'sector_tag': q.sector,
+                    'sector_tag': q.sector.display_name if q.sector else None,
                     'question_type': 'sector_specific',
                     'relevance_score': 1.0
                 })
@@ -72,7 +76,7 @@ class AdaptiveTemplateService:
                             'id': q.id,
                             'text': q.text,
                             'llm_prompt': q.llm_prompt,
-                            'sector_tag': q.sector,
+                            'sector_tag': None,
                             'question_type': 'general',
                             'relevance_score': 0.7
                         })

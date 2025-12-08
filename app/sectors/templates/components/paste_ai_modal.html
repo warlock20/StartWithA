@@ -1,0 +1,58 @@
+<div class="modal fade" id="pasteFromAIModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-stars"></i> Paste from AI (Gemini, ChatGPT, etc.)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Tip:</strong> Copy your AI-generated summary and paste it below. We'll clean up the formatting and add it to your notes with a source citation.
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">AI Content</label>
+                    <div id="aiContentEditor" style="min-height: 200px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: white;"></div>
+                    <small class="text-muted">Paste your Gemini/ChatGPT summary here. Formatting will be preserved.</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label">Source URL (optional)</label>
+                        <input type="url" id="aiSourceUrl" class="form-control" placeholder="https://gemini.google.com/...">
+                        <small class="text-muted">Link to the AI conversation</small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">AI Tool</label>
+                        <select id="aiSourceType" class="form-select">
+                            <option value="gemini">Gemini</option>
+                            <option value="chatgpt">ChatGPT</option>
+                            <option value="claude">Claude</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Prompt / Context (optional)</label>
+                    <input type="text" id="aiPrompt" class="form-control" placeholder="What question did you ask the AI?">
+                    <small class="text-muted">Helps you remember what this content is about</small>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="addToSources" checked>
+                    <label class="form-check-label" for="addToSources">
+                        Also add to Research Sources sidebar
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="insertAIContent()">
+                    <i class="bi bi-plus-circle"></i> Insert into Notes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

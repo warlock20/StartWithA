@@ -2,17 +2,20 @@
 from flask import render_template
 from flask_login import current_user, login_required
 from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, Checklist, KillChecklist, ResearchTemplate
+from app.services.too_hard_service import TooHardBasketService
 from . import dashboard_bp
 from datetime import datetime, timedelta
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 
 @dashboard_bp.route('/')
 @login_required
 def index():
     # --- Fetch Actionable Data ---
 
-    # Get the count of ideas waiting for review
-    inbox_count = current_user.idea_pipeline.filter_by(status='inbox').count()
+    # Get the count of ideas waiting for review (includes inbox and ideas being evaluated)
+    inbox_count = current_user.idea_pipeline.filter(
+        IdeaPipeline.status.in_(['inbox', 'killing'])
+    ).count()
 
     # Get the top 5 active research projects
     active_projects = current_user.research_projects.filter_by(status='active')\
@@ -22,7 +25,7 @@ def index():
     # Get the number of companies in the active portfolio
     portfolio_count = current_user.companies.filter_by(is_in_portfolio=True).count()
 
-    # Calculate Too Hard Basket Rate (Selectivity Metric)
+    # Calculate Too Hard Basket Rate (Filter Rate Metric)
     company_invest_count = current_user.research_projects.filter_by(
         decision='invest'
     ).count()
@@ -86,6 +89,26 @@ def index():
     else:
         print("DEBUG: No portfolio companies found")
 
+    # Get Too Hard Basket statistics
+    all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
+    too_hard_total_count = len(all_too_hard_items)
+
+    # Calculate recent rejections (last 30 days)
+    thirty_days_ago = now_utc() - timedelta(days=30)
+    recent_rejections = [
+        item for item in all_too_hard_items
+        if item.rejection_date and ensure_timezone_aware(item.rejection_date) >= thirty_days_ago
+    ]
+    recent_rejections_count = len(recent_rejections)
+
+    # Count by stage
+    early_kills_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'kill_checklist')
+    mid_research_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'mid_research')
+    deep_analysis_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'full_analysis')
+
+    # Get analytics and recommendations
+    analytics_data = TooHardBasketService.get_analytics(current_user.id)
+    recommendations = analytics_data.get('recommendations', [])
 
     return render_template(
         'dashboard.html',
@@ -104,23 +127,12 @@ def index():
         too_hard_rate=round(too_hard_rate, 1),
         total_decided_companies=total_decided_companies,
         company_invest_count=company_invest_count,
-        company_pass_count=company_pass_count
+        company_pass_count=company_pass_count,
+        too_hard_total_count=too_hard_total_count,
+        recent_rejections_count=recent_rejections_count,
+        early_kills_count=early_kills_count,
+        mid_research_count=mid_research_count,
+        deep_analysis_count=deep_analysis_count,
+        recommendations=recommendations
     )
 
-@dashboard_bp.route('/portfolio_timeline')
-@login_required
-def portfolio_timeline():
-    # This route remains the same
-    portfolio_company_ids = [
-        c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()
-    ]
-    checkpoints = []
-    if portfolio_company_ids:
-        checkpoints = DestinationCheckpoint.query.filter(
-            DestinationCheckpoint.company_id.in_(portfolio_company_ids)
-        ).order_by(DestinationCheckpoint.target_date.asc()).all()
-    return render_template(
-        'portfolio_timeline.html',
-        title="Portfolio Checkpoints Timeline",
-        checkpoints=checkpoints
-    )

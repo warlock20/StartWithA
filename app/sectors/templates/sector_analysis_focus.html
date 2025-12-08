@@ -1,0 +1,527 @@
+{% extends "main/_base.html" %}
+
+{% block head %}
+<!-- BlockNote Editor (React) -->
+<script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>
+
+<!-- Highlight.js for code syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<!-- Sector Research Modules -->
+<script>
+    // Global URL configuration for JavaScript modules
+    window.sectorUrls = {
+        // Section endpoints
+        createSection: '{{ url_for("sectors.create_section", sector_name=analysis.sector.slug) }}',
+        updateSection: '{{ url_for("sectors.update_section", section_id=0) }}',
+        deleteSection: '{{ url_for("sectors.delete_section", section_id=0) }}',
+
+        // Note endpoints
+        createNote: '{{ url_for("sectors.create_note", sector_name=analysis.sector.slug) }}',
+        updateNote: '{{ url_for("sectors.update_note", note_id=0) }}',
+        deleteNote: '{{ url_for("sectors.delete_note", note_id=0) }}',
+
+        // Document endpoints
+        getResearchNotes: '{{ url_for("sectors.get_research_notes", sector_name=analysis.sector.slug) }}',
+        saveResearchNotes: '{{ url_for("sectors.save_research_notes", sector_name=analysis.sector.slug) }}',
+        generateDocument: '{{ url_for("sectors.generate_document_from_canvas", sector_name=analysis.sector.slug) }}',
+
+        // Source endpoints
+        addSource: '{{ url_for("sectors.add_source", sector_name=analysis.sector.slug) }}'
+    };
+</script>
+
+<script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
+
+<!-- Company Search Component -->
+<script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+
+<!-- Company Tagging Module -->
+<script src="{{ url_for('static', filename='js/company-tagging.js') }}"></script>
+
+<!-- Generate Document Module -->
+<script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
+
+<!-- AI-Powered Features -->
+<script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
+
+<!-- Data Table Component -->
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sector-sources-table.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Focus Mode Container -->
+<div class="focus-mode-container">
+    <!-- Minimal Top Bar -->
+    <div class="focus-top-bar">
+        <div class="focus-top-left">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb-nav">
+                <a href="{{ url_for('dashboard.index') }}"><i class="bi bi-house-door"></i></a>
+                <i class="bi bi-chevron-right"></i>
+                <a href="{{ url_for('sectors.index') }}">Sectors</a>
+                <i class="bi bi-chevron-right"></i>
+                <span class="active">{{ analysis.sector_name }}</span>
+            </nav>
+
+            <!-- Page Selector Dropdown -->
+            <div class="page-selector">
+                <button class="page-selector-btn" onclick="togglePageDropdown()" id="pageSelectorBtn">
+                    <i class="bi bi-journal-text" id="currentPageIcon"></i>
+                    <span id="currentPageName">Documentation</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+
+                <div class="page-dropdown" id="pageDropdown">
+                    <div class="page-dropdown-header">Switch View</div>
+                    <a href="#" class="page-dropdown-item active" data-view="documentation" onclick="switchView('documentation', event)">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Documentation</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="canvas" onclick="switchView('canvas', event)">
+                        <i class="bi bi-kanban"></i>
+                        <span>Research Canvas</span>
+                        <span class="badge bg-info">New</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="sources" onclick="switchView('sources', event)">
+                        <i class="bi bi-link-45deg"></i>
+                        <span>Sources</span>
+                        <span class="badge bg-secondary">{{ sources|length }}</span>
+                    </a>
+                    <a href="#" class="page-dropdown-item" data-view="takeaways" onclick="switchView('takeaways', event)">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Key Takeaways</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="focus-top-right">
+            <!-- Context-specific actions (change based on current view) -->
+            <div id="viewActions">
+                <!-- Documentation actions (default) -->
+                <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                    <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+                </button>
+                <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                    <i class="bi bi-file-earmark-text"></i> Template
+                </button>
+            </div>
+
+            <!-- Editor status -->
+            <div id="editorStatus" class="editor-status saved">
+                <span class="badge bg-success" id="editorStatusBadge" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    <i class="bi bi-check-circle-fill"></i> <span id="statusText">Saved</span>
+                </span>
+            </div>
+
+            <!-- Exit Focus Mode -->
+            <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector_name) }}" class="btn btn-outline-secondary btn-sm" title="Exit Focus Mode">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content Area (switches between views) -->
+    <div class="main-content">
+        <!-- Documentation View -->
+        <div id="documentationView" class="view-container" style="display: block;">
+            <div class="notion-page">
+                <div class="page-subtitle">
+                    Last edited {{ analysis.updated_at.strftime('%B %d, %Y at %I:%M %p') if analysis.updated_at else 'Never' }} •
+                    {{ analysis.time_spent_formatted }} research time •
+                    {{ sector_metrics.total }} companies tracked
+                </div>
+                <div id="sectorEditor">{# BlockNote editor will be initialized here #}</div>
+            </div>
+        </div>
+
+        <!-- Canvas View -->
+        <div id="canvasView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div class="atomic-canvas-container">
+                    <!-- Canvas Toolbar -->
+                    <div class="canvas-toolbar">
+                        <button class="btn btn-primary btn-sm" onclick="createNewNote()">
+                            <i class="bi bi-plus-lg"></i> New Note
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="createNewSection()">
+                            <i class="bi bi-layout-wtf"></i> New Section
+                        </button>
+                        <div class="canvas-toolbar-spacer"></div>
+                        <div class="canvas-view-options">
+                            <small class="text-muted">Notes are auto-saved</small>
+                        </div>
+                    </div>
+
+                    <!-- Notes Canvas Area -->
+                    <div class="notes-canvas" id="notesCanvas">
+                        {% if canvas_sections|length == 0 %}
+                        <!-- Empty State -->
+                        <div class="canvas-empty-state" id="canvasEmptyState">
+                            <i class="bi bi-kanban" style="font-size: 3rem; color: #d1d5db;"></i>
+                            <h3 class="text-muted">Your Research Canvas</h3>
+                            <p class="text-muted">Start by creating a section to organize your notes</p>
+                            <button class="btn btn-primary mt-3" onclick="createNewSection()">
+                                <i class="bi bi-plus-circle"></i> Create First Section
+                            </button>
+                        </div>
+                        {% else %}
+                        <!-- Render Sections -->
+                        {% for section in canvas_sections %}
+                        <div class="canvas-section" data-section-id="{{ section.id }}">
+                            <div class="canvas-section-header">
+                                <div class="canvas-section-title">
+                                    {% if section.icon %}
+                                    <span class="canvas-section-icon">{{ section.icon }}</span>
+                                    {% endif %}
+                                    <h2>{{ section.title }}</h2>
+                                </div>
+                                <div class="canvas-section-actions">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="addNoteToSection({{ section.id }})">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="editSection({{ section.id }}, '{{ section.title }}', '{{ section.description or '' }}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSection({{ section.id }})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% if section.description %}
+                            <div class="canvas-section-description">{{ section.description }}</div>
+                            {% endif %}
+
+                            <!-- Notes in this section -->
+                            <div class="note-cards-grid" data-section-id="{{ section.id }}">
+                                {% set section_notes = section.section_notes.order_by('sort_order').all() %}
+                                {% if section_notes %}
+                                {% for note in section_notes %}
+                                <div class="note-card" draggable="true"
+                                     data-note-id="{{ note.id }}"
+                                     data-note-title="{{ note.title }}"
+                                     data-note-content="{{ note.content | escape }}"
+                                     data-note-content-html="{{ note.content | blocknote_to_html | escape }}"
+                                     data-note-source-url="{{ note.source_reference or '' }}"
+                                     data-note-source-title="{{ note.source_title or '' }}"
+                                     data-note-tags="{{ note.tags or '' }}"
+                                     data-section-id="{{ note.section_id or '' }}">
+                                    <div class="note-card-header">
+                                        <h3 class="note-card-title">{{ note.title }}</h3>
+                                        <div class="note-card-menu-wrapper">
+                                            <button class="note-card-menu-btn" onclick="toggleNoteMenu({{ note.id }})">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <div class="note-card-dropdown" id="noteMenu{{ note.id }}" style="display: none;">
+                                                <button onclick="viewNote({{ note.id }})">
+                                                    <i class="bi bi-eye"></i> View Full Note
+                                                </button>
+                                                <button onclick="editNote({{ note.id }})">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button onclick="deleteNote({{ note.id }})" class="text-danger">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
+                                    <div class="note-card-footer">
+                                        <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
+                                            {% if note.note_type == 'ai_insight' %}
+                                                <i class="bi bi-sparkles"></i> AI Insight
+                                            {% elif note.note_type == 'web_clip' %}
+                                                <i class="bi bi-scissors"></i> Web Clip
+                                            {% elif note.note_type == 'snippet' %}
+                                                <i class="bi bi-bookmark"></i> Snippet
+                                            {% else %}
+                                                <i class="bi bi-pencil"></i> Note
+                                            {% endif %}
+                                        </div>
+                                        {% if note.source_reference %}
+                                        <a href="{{ note.source_reference }}" target="_blank" class="note-card-source">
+                                            <i class="bi bi-box-arrow-up-right"></i> Source
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    {% if note.tags %}
+                                    <div class="note-card-tags">
+                                        {% for tag in note.tags.split(',') %}
+                                        <span class="note-card-tag">{{ tag.strip() }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <button class="add-note-btn" onclick="addNoteToSection({{ section.id }})">
+                                    <i class="bi bi-plus-circle"></i> Add First Note
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources View -->
+        <div id="sourcesView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div class="sources-tab-container">
+                    {% from 'components/data_table.html' import data_table %}
+
+                    <div class="data-table-wrapper">
+                        {# Table Header #}
+                        <div class="data-table-header">
+                            <h2 class="data-table-title">
+                                <i class="bi bi-link-45deg"></i>
+                                Research Sources
+                                <span class="data-table-badge">{{ sources|length }}</span>
+                            </h2>
+
+                            <div class="data-table-controls">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                    <i class="bi bi-plus-circle"></i> Add Source
+                                </button>
+                                <div id="sources-table-export-buttons"></div>
+                            </div>
+                        </div>
+
+                        {# Table container - Tabulator will be initialized here #}
+                        <div id="sources-table"></div>
+
+                        {# Empty state (shown by Tabulator when no data) #}
+                        <template id="sources-table-empty-template">
+                            <div class="portfolio-empty-state">
+                                <div class="portfolio-empty-state-icon">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                                <h3 class="portfolio-empty-state-title">No sources yet</h3>
+                                <div>
+                                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                                        <i class="bi bi-plus-circle-fill"></i> Add Source
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Takeaways View -->
+        <div id="takeawaysView" class="view-container" style="display: none;">
+            <div class="notion-page">
+                <div class="takeaways-container">
+                    <div class="takeaways-header">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <p class="text-muted mb-2">Summarize your most important findings in bullet points</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-lightbulb"></i> Use AI to generate a summary, or write your own takeaways
+                                </small>
+                            </div>
+                            <button class="btn btn-primary" id="generateAISummaryBtn" onclick="generateAISummary()">
+                                <i class="bi bi-stars"></i> Generate AI Summary
+                            </button>
+                        </div>
+                    </div>
+                    <div id="takeawaysEditor">{# BlockNote editor will be initialized here #}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Quick Tools Button -->
+    <div class="floating-quick-tools">
+        <button class="quick-tools-pill" onclick="toggleQuickTools()">
+            <i class="bi bi-tools"></i>
+            <span>Quick Tools</span>
+        </button>
+    </div>
+
+    <!-- Quick Tools Panel -->
+    <div class="quick-tools-panel" id="quickToolsPanel">
+        <div class="quick-tools-panel-header">
+            <h3>
+                <i class="bi bi-tools"></i>
+                Quick Tools
+            </h3>
+            <button class="close-panel-btn" onclick="toggleQuickTools()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="quick-tools-panel-content">
+            {% include 'partials/_quick_tools_accordion.html' %}
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div class="focus-overlay" id="focusOverlay" onclick="closeAllPanels()"></div>
+</div>
+
+<!-- Sources Data for JavaScript -->
+<script>
+    // Pass sources data to JavaScript
+    window.sourcesData = [
+        {% for source in sources %}
+        {
+            id: {{ source.id }},
+            title: {{ source.title|tojson|safe }},
+            url: {{ source.url|tojson|safe }},
+            source_type: {{ source.source_type|tojson|safe }},
+            description: {{ source.description|tojson|safe }},
+            created_at: {{ source.created_at.isoformat()|tojson|safe if source.created_at else 'null' }},
+            accessed_at: {{ source.accessed_at.isoformat()|tojson|safe if source.accessed_at else 'null' }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+</script>
+
+<!-- Focus Mode JavaScript -->
+<script>
+// View switching logic
+function switchView(viewName, event) {
+    event.preventDefault();
+
+    // Hide all views
+    document.querySelectorAll('.view-container').forEach(v => v.style.display = 'none');
+
+    // Show selected view
+    document.getElementById(viewName + 'View').style.display = 'block';
+
+    // Update page selector button
+    const viewData = {
+        documentation: { icon: 'journal-text', name: 'Documentation' },
+        canvas: { icon: 'kanban', name: 'Research Canvas' },
+        sources: { icon: 'link-45deg', name: 'Sources' },
+        takeaways: { icon: 'lightbulb', name: 'Key Takeaways' }
+    };
+
+    document.getElementById('currentPageIcon').className = `bi bi-${viewData[viewName].icon}`;
+    document.getElementById('currentPageName').textContent = viewData[viewName].name;
+
+    // Update active state in dropdown
+    document.querySelectorAll('.page-dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.page-dropdown-item').classList.add('active');
+
+    // Close dropdown
+    togglePageDropdown();
+
+    // Update actions bar based on view
+    updateViewActions(viewName);
+
+    // Save current view to URL hash (so it persists on refresh)
+    window.location.hash = viewName;
+}
+
+function updateViewActions(viewName) {
+    const actionsContainer = document.getElementById('viewActions');
+
+    const actionsByView = {
+        documentation: `
+            <button class="btn btn-outline-success btn-sm" onclick="openGenerateDocumentModal()">
+                <i class="bi bi-arrow-down-circle"></i> Generate from Canvas
+            </button>
+            <button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#templatesModal">
+                <i class="bi bi-file-earmark-text"></i> Template
+            </button>
+        `,
+        canvas: `
+            <button class="btn btn-primary btn-sm" onclick="createNewNote()">
+                <i class="bi bi-plus-lg"></i> New Note
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="createNewSection()">
+                <i class="bi bi-layout-wtf"></i> New Section
+            </button>
+        `,
+        sources: `
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+                <i class="bi bi-plus-circle"></i> Add Source
+            </button>
+        `,
+        takeaways: `
+            <button class="btn btn-primary btn-sm" onclick="generateAISummary()">
+                <i class="bi bi-stars"></i> Generate AI Summary
+            </button>
+        `
+    };
+
+    actionsContainer.innerHTML = actionsByView[viewName] || '';
+}
+
+function togglePageDropdown() {
+    const dropdown = document.getElementById('pageDropdown');
+    const btn = document.getElementById('pageSelectorBtn');
+    dropdown.classList.toggle('show');
+    btn.classList.toggle('open');
+}
+
+function toggleQuickTools() {
+    const panel = document.getElementById('quickToolsPanel');
+    const overlay = document.getElementById('focusOverlay');
+    panel.classList.toggle('show');
+    overlay.classList.toggle('show');
+}
+
+function closeAllPanels() {
+    document.getElementById('pageDropdown').classList.remove('show');
+    document.getElementById('pageSelectorBtn').classList.remove('open');
+    document.getElementById('quickToolsPanel').classList.remove('show');
+    document.getElementById('focusOverlay').classList.remove('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const pageSelector = document.querySelector('.page-selector');
+    if (pageSelector && !pageSelector.contains(event.target)) {
+        document.getElementById('pageDropdown').classList.remove('show');
+        document.getElementById('pageSelectorBtn').classList.remove('open');
+    }
+});
+
+// Restore view from URL hash on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash.substring(1); // Remove the '#'
+
+    if (hash && ['documentation', 'canvas', 'sources', 'takeaways'].includes(hash)) {
+        // Wait a bit for DOM to be ready
+        setTimeout(() => {
+            // Find the dropdown item for this view
+            const dropdownItem = document.querySelector(`[data-view="${hash}"]`);
+            if (dropdownItem) {
+                // Simulate click to switch to that view
+                const fakeEvent = {
+                    preventDefault: () => {},
+                    target: dropdownItem
+                };
+                switchView(hash, fakeEvent);
+            }
+        }, 100);
+    }
+});
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Keep all existing modals -->
+{% include 'components/templates_modal.html' %}
+{% include 'components/add_source_modal.html' %}
+
+<!-- Reusable modals (shared across platform) -->
+{% include 'components/modals/section_modal.html' %}
+{% include 'components/modals/note_modal.html' %}
+{% include 'components/modals/view_note_modal.html' %}
+{% include 'components/modals/company_suggestions_modal.html' %}
+{% include 'components/modals/generate_document_modal.html' %}
+{% endblock %}

@@ -1,152 +1,169 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📚 Review Queue</h1>
-        <p class="text-muted mb-0">Items that need your attention</p>
-    </div>
-    <div>
-        <span class="badge bg-primary">{{ total_items }} items</span>
-    </div>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Review Queue</h1>
+            <p class="dashboard-subtitle">Items that need your attention</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <span class="review-queue-count">{{ total_items }} items</span>
+        </div>
+    </header>
 
-{% if total_items == 0 %}
-<div class="alert alert-success">
-    <h5>🎉 All caught up!</h5>
-    <p class="mb-0">You have no items pending review. Great job staying on top of your learning!</p>
-</div>
-{% else %}
-
-<!-- Pending Entries (Never Reviewed) -->
-{% if pending_entries %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">🆕 Pending Review ({{ pending_entries|length }})</h5>
-        <small class="text-muted">New entries waiting for first review</small>
+    {% if total_items == 0 %}
+    <!-- All Caught Up State -->
+    <div class="empty-state-onboarding">
+        <i class="bi bi-check-circle"></i>
+        <h3>All Caught Up!</h3>
+        <p>You have no items pending review. Great job staying on top of your learning!</p>
+        <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plus-circle-fill"></i> Create New Entry
+        </a>
     </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
+    {% else %}
+
+    <!-- Pending Entries (Never Reviewed) -->
+    {% if pending_entries %}
+    <div class="review-section">
+        <div class="review-section-header">
+            <h2 class="review-section-title">Pending Review</h2>
+            <div class="review-section-meta">
+                <span class="review-count-badge badge-pending">{{ pending_entries|length }}</span>
+                <span class="review-section-description">New entries waiting for first review</span>
+            </div>
+        </div>
+
+        <div class="review-items-list">
             {% for entry in pending_entries %}
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">
-                            <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
-                               class="text-decoration-none">
-                                {{ entry.title or "Untitled Entry" }}
-                            </a>
-                        </h6>
-                        <p class="mb-1 text-muted">{{ entry.content[:150] }}{% if entry.content|length > 150 %}...{% endif %}</p>
-                        <small class="text-muted">
+            <div class="review-item">
+                <div class="review-item-badge badge-pending">New</div>
+                <div class="review-item-content">
+                    <h6 class="review-item-title">
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">
+                            {{ entry.title or "Untitled Entry" }}
+                        </a>
+                    </h6>
+                    <p class="review-item-preview">
+                        {{ entry.content[:150] }}{% if entry.content|length > 150 %}...{% endif %}
+                    </p>
+                    <div class="review-item-meta">
+                        <span class="meta-item">
+                            <i class="bi bi-calendar3"></i>
                             {{ entry.created_at.strftime('%b %d, %Y') }}
-                            {% if entry.company %} • {{ entry.company.name }}{% endif %}
-                            • {{ entry.entry_type|replace('_', ' ')|title }}
-                        </small>
+                        </span>
+                        {% if entry.company %}
+                        <span class="meta-item">
+                            <i class="bi bi-building"></i>
+                            {{ entry.company.name }}
+                        </span>
+                        {% endif %}
+                        <span class="meta-item">
+                            <i class="bi bi-tag"></i>
+                            {{ entry.entry_type|replace('_', ' ')|title }}
+                        </span>
                     </div>
-                    <span class="badge bg-warning">New</span>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Learning Notes Due for Review -->
-{% if learning_notes %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">📖 Learning Notes ({{ learning_notes|length }})</h5>
-        <small class="text-muted">Due for spaced repetition review</small>
-    </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
+    <!-- Learning Notes Due for Review -->
+    {% if learning_notes %}
+    <div class="review-section">
+        <div class="review-section-header">
+            <h2 class="review-section-title">Learning Notes</h2>
+            <div class="review-section-meta">
+                <span class="review-count-badge badge-info">{{ learning_notes|length }}</span>
+                <span class="review-section-description">Due for spaced repetition review</span>
+            </div>
+        </div>
+
+        <div class="review-items-list">
             {% for note in learning_notes %}
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">
-                            <a href="{{ url_for('research_workflow.learning_note_detail', note_id=note.id) }}"
-                               class="text-decoration-none">
-                                {{ note.title }}
-                            </a>
-                        </h6>
-                        <p class="mb-1 text-muted">{{ note.lesson[:150] }}{% if note.lesson|length > 150 %}...{% endif %}</p>
-                        <small class="text-muted">
+            <div class="review-item">
+                <div class="review-item-badge badge-info">Review</div>
+                <div class="review-item-content">
+                    <h6 class="review-item-title">
+                        {{ note.title }}
+                    </h6>
+                    <p class="review-item-preview">
+                        {{ note.lesson[:150] }}{% if note.lesson|length > 150 %}...{% endif %}
+                    </p>
+                    <div class="review-item-meta">
+                        <span class="meta-item">
+                            <i class="bi bi-calendar-check"></i>
                             Due: {{ note.next_review_date.strftime('%b %d') }}
-                            • Importance: {{ note.importance }}/10
-                            • Reviewed {{ note.times_reviewed }} times
-                        </small>
+                        </span>
+                        <span class="meta-item">
+                            <i class="bi bi-star-fill"></i>
+                            Importance: {{ note.importance }}/10
+                        </span>
+                        <span class="meta-item">
+                            <i class="bi bi-arrow-repeat"></i>
+                            Reviewed {{ note.times_reviewed }} times
+                        </span>
                     </div>
-                    <span class="badge bg-info">Review</span>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Starred Entries Due for Review -->
-{% if starred_entries %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">⭐ Starred Entries ({{ starred_entries|length }})</h5>
-        <small class="text-muted">Not reviewed in 30+ days</small>
-    </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush">
+    <!-- Starred Entries Due for Review -->
+    {% if starred_entries %}
+    <div class="review-section">
+        <div class="review-section-header">
+            <h2 class="review-section-title">Starred Entries</h2>
+            <div class="review-section-meta">
+                <span class="review-count-badge badge-starred">{{ starred_entries|length }}</span>
+                <span class="review-section-description">Not reviewed in 30+ days</span>
+            </div>
+        </div>
+
+        <div class="review-items-list">
             {% for entry in starred_entries %}
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">
-                            <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}"
-                               class="text-decoration-none">
-                                {{ entry.title or "Untitled Entry" }}
-                            </a>
-                        </h6>
-                        <p class="mb-1 text-muted">{{ entry.content[:150] }}{% if entry.content|length > 150 %}...{% endif %}</p>
-                        <small class="text-muted">
+            <div class="review-item">
+                <div class="review-item-badge badge-starred">⭐</div>
+                <div class="review-item-content">
+                    <h6 class="review-item-title">
+                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}">
+                            {{ entry.title or "Untitled Entry" }}
+                        </a>
+                    </h6>
+                    <p class="review-item-preview">
+                        {{ entry.content[:150] }}{% if entry.content|length > 150 %}...{% endif %}
+                    </p>
+                    <div class="review-item-meta">
+                        <span class="meta-item">
+                            <i class="bi bi-calendar3"></i>
                             Created: {{ entry.created_at.strftime('%b %d, %Y') }}
-                            {% if entry.last_reviewed %}
-                                • Last reviewed: {{ entry.last_reviewed.strftime('%b %d, %Y') }}
-                            {% endif %}
-                            {% if entry.company %} • {{ entry.company.name }}{% endif %}
-                        </small>
+                        </span>
+                        {% if entry.last_reviewed %}
+                        <span class="meta-item">
+                            <i class="bi bi-clock-history"></i>
+                            Last reviewed: {{ entry.last_reviewed.strftime('%b %d, %Y') }}
+                        </span>
+                        {% endif %}
+                        {% if entry.company %}
+                        <span class="meta-item">
+                            <i class="bi bi-building"></i>
+                            {{ entry.company.name }}
+                        </span>
+                        {% endif %}
                     </div>
-                    <span class="badge bg-secondary">⭐</span>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
+    {% endif %}
+
+    {% endif %}
 </div>
-{% endif %}
-
-{% endif %}
-
-<!-- Quick Actions -->
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6>📝 Add New Entry</h6>
-                <p class="text-muted small">Continue building your knowledge base</p>
-                <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-primary">New Entry</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6>📚 Learning Notes</h6>
-                <p class="text-muted small">Create structured lessons</p>
-                <a href="{{ url_for('research_workflow.new_learning_note') }}" class="btn btn-outline-primary">New Lesson</a>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}

@@ -1,0 +1,292 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Too Hard Basket</h1>
+            <p class="dashboard-subtitle">
+                {{ pagination.total }} compan{{ 'ies' if pagination.total != 1 else 'y' }} you've decided not to pursue
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </header>
+
+    <!-- Filters and Search -->
+    <div class="card mb-4">
+        <div class="card-body p-4">
+            <form method="GET" action="{{ url_for('research_workflow.too_hard_basket') }}">
+                <!-- Stage Tabs -->
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('research_workflow.too_hard_basket', search=search_query, sector=current_sector, coc=current_coc, sort=sort_by, per_page=current_per_page) }}"
+                               class="btn {% if not current_stage %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                All ({{ total_count }})
+                            </a>
+                            <a href="{{ url_for('research_workflow.too_hard_basket', stage='kill_checklist', search=search_query, sector=current_sector, coc=current_coc, sort=sort_by, per_page=current_per_page) }}"
+                               class="btn {% if current_stage == 'kill_checklist' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                Early Kills ({{ kill_count }})
+                            </a>
+                            <a href="{{ url_for('research_workflow.too_hard_basket', stage='mid_research', search=search_query, sector=current_sector, coc=current_coc, sort=sort_by, per_page=current_per_page) }}"
+                               class="btn {% if current_stage == 'mid_research' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                Mid-Research ({{ mid_research_count }})
+                            </a>
+                            <a href="{{ url_for('research_workflow.too_hard_basket', stage='full_analysis', search=search_query, sector=current_sector, coc=current_coc, sort=sort_by, per_page=current_per_page) }}"
+                               class="btn {% if current_stage == 'full_analysis' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                Full Analysis ({{ full_analysis_count }})
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filters -->
+                    <div class="col-md-4">
+                        <input type="text" name="search" class="form-control" placeholder="Search company name or ticker..." value="{{ search_query }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <select name="sector" class="form-select">
+                            <option value="">All Sectors</option>
+                            {% for sector in sectors_list %}
+                            <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <select name="coc" class="form-select">
+                            <option value="">All CoC</option>
+                            <option value="yes" {% if current_coc == 'yes' %}selected{% endif %}>Within CoC</option>
+                            <option value="no" {% if current_coc == 'no' %}selected{% endif %}>Outside CoC</option>
+                            <option value="unsure" {% if current_coc == 'unsure' %}selected{% endif %}>Unsure</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <select name="sort" class="form-select">
+                            <option value="recent" {% if sort_by == 'recent' %}selected{% endif %}>Most Recent</option>
+                            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                            <option value="time" {% if sort_by == 'time' %}selected{% endif %}>Most Time</option>
+                            {% if full_analysis_count > 0 %}
+                            <option value="confidence" {% if sort_by == 'confidence' %}selected{% endif %}>Confidence</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-1">
+                        <select name="per_page" class="form-select">
+                            <option value="12" {% if current_per_page == 12 %}selected{% endif %}>12</option>
+                            <option value="20" {% if current_per_page == 20 %}selected{% endif %}>20</option>
+                            <option value="48" {% if current_per_page == 48 %}selected{% endif %}>48</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                {% if search_query or current_sector or current_coc or current_stage %}
+                <div class="mt-3">
+                    <small class="text-muted me-2">Active filters:</small>
+                    {% if search_query %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-search"></i> "{{ search_query }}"
+                    </span>
+                    {% endif %}
+                    {% if current_stage %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-tag"></i> {{ current_stage|replace('_', ' ')|title }}
+                    </span>
+                    {% endif %}
+                    {% if current_sector %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-building"></i> {{ current_sector }}
+                    </span>
+                    {% endif %}
+                    {% if current_coc %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-bullseye"></i> {{ current_coc|title }} CoC
+                    </span>
+                    {% endif %}
+                    <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="badge bg-secondary text-decoration-none">
+                        <i class="bi bi-x-circle"></i> Clear All
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Companies Grid -->
+    {% if too_hard_items %}
+    <div class="completed-projects-grid">
+        {% for item in too_hard_items %}
+        <div class="completed-project-card {% if item.rejection_stage == 'kill_checklist' %}decision-pass{% elif item.rejection_stage == 'mid_research' %}decision-watchlist{% else %}decision-pending{% endif %}">
+            <!-- Stage Badge Header -->
+            <div class="decision-header">
+                {% if item.rejection_stage == 'kill_checklist' %}
+                <div class="decision-badge decision-pass">
+                    <i class="bi bi-x-circle-fill"></i> Early Kill
+                </div>
+                {% elif item.rejection_stage == 'mid_research' %}
+                <div class="decision-badge decision-watchlist">
+                    <i class="bi bi-pause-circle-fill"></i> Mid-Research
+                </div>
+                {% else %}
+                <div class="decision-badge decision-pending">
+                    <i class="bi bi-clipboard-check-fill"></i> Full Analysis
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Card Content -->
+            <div class="completed-project-content">
+                <h3 class="completed-project-title font-poppins">
+                    {{ item.company_name }}
+                    {% if item.ticker %}
+                    <span class="badge bg-secondary ms-2 small">{{ item.ticker }}</span>
+                    {% endif %}
+                </h3>
+                <p class="completed-project-meta">
+                    {% if item.sector %}
+                    <span class="text-muted"><i class="bi bi-tag"></i> {{ item.sector }}</span>
+                    {% endif %}
+                </p>
+
+                <!-- Stats Row -->
+                <div class="completed-stats-row">
+                    <div class="stat-item">
+                        <i class="bi bi-clock text-muted"></i>
+                        <span class="stat-value">{{ "%.1f"|format(item.time_invested_hours) }}h</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="bi bi-calendar-check text-muted"></i>
+                        <span class="stat-value">
+                            {% if item.rejection_date %}
+                                {{ item.rejection_date.strftime('%b %d') }}
+                            {% else %}-{% endif %}
+                        </span>
+                    </div>
+                    {% if item.within_coc %}
+                    <div class="stat-item">
+                        <i class="bi bi-bullseye {% if item.within_coc == 'yes' %}text-success{% elif item.within_coc == 'no' %}text-danger{% else %}text-warning{% endif %}"></i>
+                        <span class="stat-value">{{ item.within_coc|title }}</span>
+                    </div>
+                    {% endif %}
+                    {% if item.confidence %}
+                    <div class="stat-item">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <span class="stat-value">{{ item.confidence }}/10</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Reason -->
+                {% if item.reason %}
+                <div class="mt-2">
+                    <p class="text-muted small mb-0">{{ item.reason[:150] }}{% if item.reason|length > 150 %}...{% endif %}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="completed-project-actions">
+                {% if item.company_id %}
+                <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}"
+                   class="btn btn-outline-primary btn-sm flex-grow-1">
+                    <i class="bi bi-building"></i> Dashboard
+                </a>
+                {% endif %}
+
+                {% if item.source_type == 'ResearchProject' and item.source_id %}
+                <a href="{{ url_for('research_workflow.project_summary', project_id=item.source_id) }}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-file-text"></i> Research
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Previous Button -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.prev_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </a>
+            </li>
+
+            <!-- Page Numbers -->
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=page_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next Button -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.next_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
+                    Next <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Page Info -->
+        <div class="text-center text-muted small mt-2">
+            {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
+            {% set end = pagination.page * pagination.per_page %}
+            {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
+            Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
+        </div>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state-container">
+        <div class="empty-state-icon">
+            <i class="bi bi-archive"></i>
+        </div>
+        <h3 class="empty-state-title">
+            {% if search_query or current_stage or current_sector or current_coc %}
+            No Companies Found
+            {% else %}
+            No Companies in Too Hard Basket
+            {% endif %}
+        </h3>
+        <p class="empty-state-description">
+            {% if search_query or current_stage or current_sector or current_coc %}
+            No companies match your current filters. Try adjusting your filter criteria.
+            {% else %}
+            You haven't passed on any companies yet. Companies you decide not to pursue will appear here.
+            {% endif %}
+        </p>
+        {% if search_query or current_stage or current_sector or current_coc %}
+        <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Clear Filters
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

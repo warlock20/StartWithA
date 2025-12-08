@@ -295,7 +295,7 @@ class LLMChecklistProcessor(UnifiedLLMService):
 
     def _create_prompt(self, document_text: str, approach: ProcessingApproach) -> str:
         """Create LLM prompt based on processing approach using centralized prompt service"""
-        from app.services.prompt_service import prompt_service
+        from app.ai.services.prompt_service import prompt_service
 
         if approach == ProcessingApproach.IMMEDIATE:
             return prompt_service.get_prompt(

@@ -10,10 +10,21 @@
       {% elif category == 'warning' %}
         {% set alert_class = 'alert-warning' %}
       {% endif %}
-      <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
+      <div class="alert {{ alert_class }} alert-dismissible fade show py-2 flash-auto-dismiss" role="alert">
         {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     {% endfor %}
+    <script>
+      // Auto-dismiss flash messages after 5 seconds
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          document.querySelectorAll('.flash-auto-dismiss').forEach(function(alert) {
+            var bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+            bsAlert.close();
+          });
+        }, 5000);
+      });
+    </script>
   {% endif %}
 {% endwith %}

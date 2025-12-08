@@ -160,11 +160,9 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
-                            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}">
-                                <button type="submit" class="dropdown-item">
-                                    <i class="bi bi-pause-circle"></i> Pause Project
-                                </button>
-                            </form>
+                            <a class="dropdown-item" href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}">
+                                <i class="bi bi-archive"></i> Mark as Too Hard
+                            </a>
                         </li>
                         <li>
                             <a class="dropdown-item" href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}">

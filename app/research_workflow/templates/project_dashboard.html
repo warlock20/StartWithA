@@ -46,12 +46,13 @@
             </p>
         </div>
         <div class="dashboard-header-actions">
+            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <i class="bi bi-lightbulb"></i> Tips
+            </button>
             {% if project.status == 'active' %}
-            <form method="POST" action="{{ url_for('research_workflow.pause_project', project_id=project.id) }}" style="display: inline;">
-                <button type="submit" class="btn btn-outline-secondary">
-                    <i class="bi bi-pause-circle"></i> Pause Project
-                </button>
-            </form>
+            <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
+                <i class="bi bi-archive"></i> Mark as Too Hard
+            </a>
             {% endif %}
             <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Back to Projects
@@ -180,10 +181,10 @@
                         <span class="project-vitals-value">
                             {% if project.status == 'active' %}
                             <span class="badge bg-primary">In Progress</span>
-                            {% elif project.status == 'paused' %}
-                            <span class="badge bg-warning">Paused</span>
                             {% elif project.status == 'completed' %}
                             <span class="badge bg-success">Completed</span>
+                            {% elif project.status == 'abandoned' %}
+                            <span class="badge bg-secondary">Abandoned</span>
                             {% endif %}
                         </span>
                     </div>
@@ -274,13 +275,16 @@
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-building"></i> Company Dashboard
                     </a>
+                    <a href="{{ url_for('journal_enhanced.search', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-journal-text"></i> View Journal Entries
+                    </a>
+                    <a href="{{ url_for('journal_enhanced.new_entry', company_id=project.company.id) }}" class="quick-action-link">
+                        <i class="bi bi-journal-plus"></i> New Journal Entry
+                    </a>
                     {% endif %}
                     <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-action-link">
                         <i class="bi bi-folder"></i> All Projects
                     </a>
-                    <button class="quick-action-link" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                        <i class="bi bi-lightbulb"></i> Research Tips
-                    </button>
                 </div>
             </div>
 
@@ -336,36 +340,17 @@
 </div>
 
 <!-- Tips Modal -->
-<div class="modal fade" id="tipsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="bi bi-lightbulb-fill me-2"></i>Research Tips & Best Practices</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <h6 class="fw-bold">Effective Research Workflow</h6>
-                <ul>
-                    <li>Take detailed notes during each step - they'll be invaluable for your final decision</li>
-                    <li>Document green and red flags as you discover them</li>
-                    <li>Update your investment thesis regularly as your understanding evolves</li>
-                    <li>Don't rush - quality research takes time</li>
-                </ul>
-
-                <h6 class="fw-bold mt-4">Using the Dashboard</h6>
-                <ul>
-                    <li>The timeline shows your progress through the research workflow</li>
-                    <li>Current step is highlighted - click "Continue Step" to work on it</li>
-                    <li>View notes from completed steps anytime by clicking "View Notes"</li>
-                    <li>Track key findings in the sidebar to maintain a clear decision framework</li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
-            </div>
-        </div>
-    </div>
-</div>
+{% set tips_title = "Research Project Best Practices" %}
+{% set tips_intro = "Follow these best practices to conduct thorough and systematic investment research." %}
+{% set tips = [
+    "<strong>Take Detailed Notes:</strong> Document your findings during each step - they'll be invaluable for your final investment decision",
+    "<strong>Document Findings:</strong> Record green and red flags as you discover them to build a clear decision framework",
+    "<strong>Evolve Your Thesis:</strong> Update your investment thesis regularly as your understanding of the company deepens",
+    "<strong>Don't Rush:</strong> Quality research takes time - thorough analysis leads to better investment decisions",
+    "<strong>Use the Timeline:</strong> Track your progress through the workflow - the current step is highlighted for easy navigation",
+    "<strong>Review Past Work:</strong> Access notes from completed steps anytime by clicking 'View Notes' to revisit your analysis"
+] %}
+{% include 'main/_tips_modal.html' %}
 
 {% endblock %}
 

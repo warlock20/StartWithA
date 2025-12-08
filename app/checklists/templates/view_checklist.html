@@ -210,13 +210,18 @@
 
                         <form method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
                             <div class="mb-3">
-                                <label for="item_text_top" class="form-label fw-bold">Item Text:</label>
+                                <label for="item_text_top" class="form-label fw-bold">Item Text <span class="text-danger">*</span></label>
                                 <input type="text" id="item_text_top" name="item_text" class="form-control"
                                        placeholder="Enter checklist item text" required>
                             </div>
                             <div class="mb-3">
-                                <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt:</label>
-                                <textarea id="llm_prompt_top" name="llm_prompt" rows="3" class="form-control"
+                                <label for="description_top" class="form-label fw-bold">Description</label>
+                                <textarea id="description_top" name="description" rows="2" class="form-control"
+                                          placeholder="Add detailed context or guidance for this item (optional)"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="llm_prompt_top" class="form-label fw-bold">Optional LLM Prompt</label>
+                                <textarea id="llm_prompt_top" name="llm_prompt" rows="2" class="form-control"
                                           placeholder="E.g., What are the key revenue drivers?"></textarea>
                             </div>
                             <div class="action-grid">
@@ -295,12 +300,17 @@
                             <form id="inspector-add-subitem-form" method="POST" action="{{ url_for('checklists.add_checklist_item', checklist_id=checklist.id) }}" class="form-pro">
                                 <input type="hidden" id="inspector-parent-id" name="parent_id" value="">
                                 <div class="mb-3">
-                                    <label for="inspector-subitem-text" class="form-label fw-bold">Sub-item Text:</label>
+                                    <label for="inspector-subitem-text" class="form-label fw-bold">Sub-item Text <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" name="item_text" id="inspector-subitem-text"
                                            placeholder="Enter sub-item text" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="inspector-subitem-llm" class="form-label fw-bold">Optional LLM Prompt:</label>
+                                    <label for="inspector-subitem-description" class="form-label fw-bold">Description</label>
+                                    <textarea name="description" class="form-control" id="inspector-subitem-description" rows="2"
+                                              placeholder="Add detailed context or guidance (optional)"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="inspector-subitem-llm" class="form-label fw-bold">Optional LLM Prompt</label>
                                     <textarea name="llm_prompt" class="form-control" id="inspector-subitem-llm" rows="2"
                                               placeholder="Optional AI prompt for this sub-item"></textarea>
                                 </div>
@@ -378,47 +388,69 @@
             }
         }, 3000);
     }
+
+    // Initialize drag-and-drop functionality with SortableJS
+    document.addEventListener('DOMContentLoaded', function() {
+        const sortableLists = document.querySelectorAll('.sortable-list');
+
+        sortableLists.forEach(function(list) {
+            new Sortable(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                fallbackOnBody: true,
+                swapThreshold: 0.65,
+
+                onEnd: function(evt) {
+                    // Get the checklist ID and parent ID
+                    const checklistId = list.dataset.checklistId;
+                    const parentId = list.dataset.parentId === 'null' ? null : parseInt(list.dataset.parentId);
+
+                    // Get new order of items
+                    const items = Array.from(list.children).map(li => {
+                        return parseInt(li.dataset.itemId);
+                    });
+
+                    // Send to server
+                    fetch(`/checklists/checklist/${checklistId}/reorder`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            items: items,
+                            parent_id: parentId
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update numbering
+                            updateItemNumbering(list);
+                            showTemporaryMessage('Order saved successfully!', 'success');
+                        } else {
+                            showTemporaryMessage('Failed to save order: ' + data.error, 'danger');
+                            // Optionally reload the page to restore original order
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showTemporaryMessage('Network error while saving order', 'danger');
+                    });
+                }
+            });
+        });
+
+        // Function to update item numbering after reorder
+        function updateItemNumbering(list) {
+            const items = list.querySelectorAll(':scope > .checklist-tree-item > .drag-handle > .item-link > .item-number');
+            items.forEach((numberSpan, index) => {
+                numberSpan.textContent = (index + 1) + '.';
+            });
+        }
+    });
     </script>
 
-<style>
-    /* CSS for empty state tip pointer */
-    .tip-pointer-right {
-        position: relative;
-    }
-
-    .tip-pointer-right::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        right: -10px;
-        transform: translateY(-50%);
-        width: 0;
-        height: 0;
-        border-left: 8px solid var(--bs-primary-bg);
-        border-top: 8px solid transparent;
-        border-bottom: 8px solid transparent;
-    }
-
-    /* Subtle pulse animation for the arrow */
-    .pulse-arrow {
-        animation: pulse-arrow 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-arrow {
-        0%, 100% {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        50% {
-            transform: translateX(4px);
-            opacity: 0.7;
-        }
-    }
-
-    /* Add a subtle glow to item editor when checklist is empty */
-    .empty-state:has(+ *) + * #inspector-overview {
-        box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.1);
-        transition: box-shadow 0.3s ease;
-    }
-</style>
 {% endblock %}

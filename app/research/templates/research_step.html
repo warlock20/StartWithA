@@ -10,8 +10,16 @@
                     current_item_number }} of {{ total_items }}</p>
             </div>
             <div class="d-flex align-items-center">
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary me-2">← Back to
-                    Projects</a>
+                {% if research_context and research_context.get('project_id') %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}"
+                    class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> Back to Research Workflow
+                </a>
+                {% else %}
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> Back to Projects
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -19,25 +27,27 @@
     <div class="row">
         <main class="col-lg-8">
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-start">
                     <h4 class="mb-0">Question {{ current_item_number }}: {{ current_item.text }}</h4>
-                </div>
-                <div class="card-body">
-                    {% if current_item.parent %}
-                    <p class="text-muted">Sub-item of: {{ current_item.parent.text }}</p>
+                    {% if current_item.description %}
+                    <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#descriptionCollapse" aria-expanded="false" aria-controls="descriptionCollapse">
+                        <i class="bi bi-info-circle"></i> <span class="desc-toggle-text">Show Details</span>
+                    </button>
                     {% endif %}
-
-                    <div class="d-flex gap-2 mt-3">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="readQuestionAloud()"
-                            title="Read Question Aloud">
-                            <i class="bi bi-volume-up"></i> Read Aloud
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleFocusMode()"
-                            title="Toggle Focus Mode">
-                            <i class="bi bi-eye"></i> Focus
-                        </button>
+                </div>
+                {% if current_item.description %}
+                <div class="collapse" id="descriptionCollapse">
+                    <div class="card-body py-2 bg-light border-top">
+                        <p class="mb-0">{{ current_item.description }}</p>
                     </div>
                 </div>
+                {% endif %}
+                {% if current_item.parent %}
+                <div class="card-body py-2">
+                    <p class="text-muted mb-0">Sub-item of: {{ current_item.parent.text }}</p>
+                </div>
+                {% endif %}
             </div>
 
 
@@ -91,12 +101,15 @@
                     <h5 class="mb-0">Your Answer & Synthesis</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST"
+                    <form method="POST" id="answerForm"
                         action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
                         <div class="mb-3">
                             <label for="answer_text" class="form-label">Synthesize your findings, incorporating your
                                 research and insights.</label>
-                            <textarea class="form-control" id="answer_text" name="answer_text" rows="12"
+                            <!-- BlockNote Editor Container -->
+                            <div id="answerEditor" class="blocknote-editor-wrapper border rounded"></div>
+                            <!-- Hidden textarea for form submission -->
+                            <textarea class="form-control d-none" id="answer_text" name="answer_text" rows="12"
                                 placeholder="Start writing your analysis...">{{ answer.answer_text if answer else '' }}</textarea>
                         </div>
                         <div class="row align-items-center">
@@ -134,15 +147,15 @@
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">{{ session.company.name }} ({{ session.company.ticker_symbol }})</h5>
-                        <p class="card-text text-muted">{{ session.company.sector|default('Technology', true) }} • {{
-                            session.company.market_cap_category|default('Large Cap', true) }}</p>
-                        <p><strong>Market Cap:</strong> {{ session.company.market_cap|default('$250.0B', true) }}</p>
+                        {% if session.company.sector %}
+                        <p class="card-text text-muted">{{ session.company.sector.display_name }}</p>
+                        {% endif %}
                         <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" role="progressbar"
                                 style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}"
                                 aria-valuemin="0" aria-valuemax="100">
-                                Progress: {{ progress_percent }}%
+                                Progress: {{ progress_percent|round(2) }}%
                             </div>
                         </div>
                     </div>
@@ -174,45 +187,32 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <h6><i class="bi bi-journal-text"></i> Research Notes</h6>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        <a href="#" class="list-group-item list-group-item-action" onclick="openNotesModal()">
-                            <i class="bi bi-sticky"></i> Question-Specific Notes
-                            <small class="text-muted d-block">Notes for current question</small>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" onclick="showSavedItems()">
-                            <i class="bi bi-bookmarks"></i> Saved Questions
-                            <small class="text-muted d-block">Questions marked for review</small>
-                        </a>
-                        <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
-                            class="list-group-item list-group-item-action">
-                            <i class="bi bi-clipboard-data"></i> Session Summary
-                            <small class="text-muted d-block">Overall research progress</small>
-                        </a>
-                    </ul>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
                         <h6><i class="bi bi-lightning-charge"></i> Quick Actions</h6>
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
+                            <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
+                                class="btn btn-primary btn-sm">
+                                <i class="bi bi-clipboard-data"></i> Session Summary
+                            </a>
                             <button class="btn btn-outline-primary btn-sm" onclick="performSearch()"
                                 title="Smart Search (Ctrl+S)">
                                 <i class="bi bi-search"></i> Smart Search
                             </button>
-                            <button class="btn btn-outline-success btn-sm" onclick="searchFinancials()">
+                            <button class="btn btn-outline-primary btn-sm" onclick="searchFinancials()">
                                 <i class="bi bi-graph-up"></i> Financial Data
                             </button>
-                            <button class="btn btn-outline-warning btn-sm" onclick="searchNews()">
+                            <button class="btn btn-outline-primary btn-sm" onclick="searchNews()">
                                 <i class="bi bi-newspaper"></i> Latest News
                             </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="openNotesModal()"
-                                title="Research Notes (Ctrl+R)">
-                                <i class="bi bi-journal-text"></i> Research Notes
-                            </button>
+                            <a href="{{ url_for('journal_enhanced.search', company_id=session.company.id) }}"
+                                class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-journal-text"></i> View Journal Entries
+                            </a>
+                            <a href="{{ url_for('journal_enhanced.new_entry', company_id=session.company.id) }}"
+                                class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-journal-plus"></i> New Journal Entry
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -226,57 +226,116 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
 
-<!-- Quill Rich Text Editor (more reliable than Tiptap) -->
-<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
 <script>
-    // Set progress bar width from data attribute
+    // Main answer editor instance
+    let answerEditorRoot = null;
+
     document.addEventListener('DOMContentLoaded', function () {
+        // Set progress bar width from data attribute
         const progressFill = document.querySelector('.progress-fill');
         if (progressFill) {
             const progress = progressFill.getAttribute('data-progress');
             progressFill.style.width = progress + '%';
         }
+
+        // Toggle description button text
+        const descCollapse = document.getElementById('descriptionCollapse');
+        if (descCollapse) {
+            descCollapse.addEventListener('shown.bs.collapse', function () {
+                document.querySelector('.desc-toggle-text').textContent = 'Hide Details';
+            });
+            descCollapse.addEventListener('hidden.bs.collapse', function () {
+                document.querySelector('.desc-toggle-text').textContent = 'Show Details';
+            });
+        }
+
+        // Initialize BlockNote editor
+        initializeAnswerEditor();
+
+        // Handle form submission to sync BlockNote content to hidden textarea
+        const answerForm = document.getElementById('answerForm');
+        if (answerForm) {
+            answerForm.addEventListener('submit', function(e) {
+                if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                    const blocks = window.blockNoteEditorInstance.editor.document;
+                    document.getElementById('answer_text').value = JSON.stringify(blocks);
+                }
+            });
+        }
     });
 
-    // Focus mode toggle
-    function toggleFocusMode() {
-        const questionCard = document.querySelector('.card');
-        const focusBtn = document.querySelector('.btn[onclick="toggleFocusMode()"]');
-        questionCard.classList.toggle('focus-mode');
-        focusBtn.classList.toggle('active');
-    }
-
-    // Read question aloud functionality
-    function readQuestionAloud() {
-        const questionText = document.querySelector('.card-header h4').textContent;
-        const readBtn = document.querySelector('.btn[onclick="readQuestionAloud()"]');
-
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-
-            if (readBtn.classList.contains('speaking')) {
-                readBtn.classList.remove('speaking');
-                readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
-                return;
+    function initializeAnswerEditor() {
+        try {
+            // Check if BlockNote is loaded
+            if (!window.initBlockNoteEditor) {
+                throw new Error('BlockNote library not loaded');
             }
 
-            const utterance = new SpeechSynthesisUtterance(questionText);
-            utterance.rate = 0.8;
+            // Get existing content from the hidden textarea
+            const existingContent = document.getElementById('answer_text').value || '';
 
-            utterance.onstart = function () {
-                readBtn.classList.add('speaking');
-                readBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Stop Reading';
-            };
+            answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
+                initialContent: existingContent,
+                placeholder: 'Start writing your analysis... Type "/" for commands',
+                saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", session_id=session.id, item_id=current_item.id) }}',
+                onSave: (data) => {
+                    // Update save indicator when auto-save succeeds
+                    showSaveIndicator('saved');
+                    console.log('Auto-save successful');
+                }
+            });
 
-            utterance.onend = function () {
-                readBtn.classList.remove('speaking');
-                readBtn.innerHTML = '<i class="bi bi-volume-up"></i> Read Aloud';
-            };
+            console.log('BlockNote editor initialized with auto-save');
 
-            window.speechSynthesis.speak(utterance);
-        } else {
-            alert('Speech synthesis not supported in this browser');
+        } catch (error) {
+            console.error('Error initializing BlockNote editor:', error);
+
+            // Show the fallback textarea if BlockNote fails
+            const editorElement = document.getElementById('answerEditor');
+            const textareaElement = document.getElementById('answer_text');
+            if (editorElement && textareaElement) {
+                editorElement.style.display = 'none';
+                textareaElement.classList.remove('d-none');
+            }
+        }
+    }
+
+    // Save indicator function
+    function showSaveIndicator(status) {
+        // Remove existing indicator if any
+        let indicator = document.getElementById('autoSaveIndicator');
+        if (!indicator) {
+            // Create indicator element
+            indicator = document.createElement('div');
+            indicator.id = 'autoSaveIndicator';
+            document.body.appendChild(indicator);
+        }
+
+        // Update indicator based on status
+        if (status === 'saving') {
+            indicator.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
+            indicator.className = 'auto-save-indicator saving';
+            indicator.style.opacity = '1';
+        } else if (status === 'saved') {
+            indicator.innerHTML = '<i class="bi bi-check-circle-fill"></i> Saved';
+            indicator.className = 'auto-save-indicator saved';
+            indicator.style.opacity = '1';
+
+            // Fade out after 2 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 2000);
+        } else if (status === 'error') {
+            indicator.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Save failed';
+            indicator.className = 'auto-save-indicator error';
+            indicator.style.opacity = '1';
+
+            // Fade out after 3 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 3000);
         }
     }
 
@@ -286,11 +345,11 @@
         notes: JSON.parse(localStorage.getItem('research_notes_{{ session.id }}') || '{}'),
         session: {
             id: {{ session.id }},
-    companyName: '{{ session.company.name }}',
-        ticker: '{{ session.company.ticker_symbol }}',
-            currentItemId: { { current_item.id } }
-    }
-};
+            companyName: '{{ session.company.name }}',
+            ticker: '{{ session.company.ticker_symbol }}',
+            currentItemId: {{ current_item.id }}
+        }
+    };
 
     function performSearch() {
         const questionText = document.querySelector('.card-header h4').textContent.trim();
@@ -339,7 +398,7 @@
         console.log(`Research: Searched news for ${companyName}`);
     }
 
-    // Global variables for Tiptap editor
+    // Global variables for BlockNote editor
     let researchEditor = null;
     let currentSources = [];
 
@@ -368,45 +427,8 @@
                     </div>
                     <div class="modal-body p-0">
                         <div class="research-editor">
-                            <!-- Toolbar -->
-                            <div class="research-toolbar">
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" onclick="toggleBold()" title="Bold (Ctrl+B)">
-                                        <i class="bi bi-type-bold"></i>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="toggleItalic()" title="Italic (Ctrl+I)">
-                                        <i class="bi bi-type-italic"></i>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="toggleHighlight()" title="Highlight">
-                                        <i class="bi bi-highlighter"></i>
-                                    </button>
-                                </div>
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" onclick="toggleBulletList()" title="Bullet List">
-                                        <i class="bi bi-list-ul"></i>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="toggleOrderedList()" title="Numbered List">
-                                        <i class="bi bi-list-ol"></i>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="toggleBlockquote()" title="Quote">
-                                        <i class="bi bi-quote"></i>
-                                    </button>
-                                </div>
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" onclick="addLink()" title="Add Link">
-                                        <i class="bi bi-link-45deg"></i>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="addFinding()" title="Key Finding">
-                                        <i class="bi bi-lightbulb"></i> Finding
-                                    </button>
-                                    <button type="button" class="toolbar-btn" onclick="addRisk()" title="Risk Factor">
-                                        <i class="bi bi-exclamation-triangle"></i> Risk
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Editor Content -->
-                            <div id="researchEditorContent" class="research-content"></div>
+                            <!-- BlockNote Editor Container -->
+                            <div id="researchEditorContent" class="blocknote-editor-wrapper border rounded" style="min-height: 350px;"></div>
 
                             <!-- Source Manager -->
                             <div class="source-manager">
@@ -438,7 +460,7 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-            // Initialize Tiptap editor
+            // Initialize BlockNote editor
             initializeResearchEditor(existingNotes);
 
             // Render existing sources
@@ -453,65 +475,30 @@
         }
     }
 
-    // Initialize Quill rich text editor
+    // Initialize BlockNote editor for research notes modal
     function initializeResearchEditor(existingContent) {
         try {
-            console.log('Initializing Quill editor...');
+            console.log('Initializing BlockNote editor...');
 
-            // Check if Quill is loaded
-            if (!window.Quill) {
-                throw new Error('Quill library not loaded');
+            // Check if BlockNote is loaded
+            if (!window.initBlockNoteEditor) {
+                throw new Error('BlockNote library not loaded');
             }
 
-            // Create Quill editor with research-focused toolbar
-            const toolbarOptions = [
-                ['bold', 'italic', 'underline', 'strike'],
-                ['blockquote', 'code-block'],
-                [{ 'header': 1 }, { 'header': 2 }],
-                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                [{ 'script': 'sub' }, { 'script': 'super' }],
-                ['link'],
-                ['clean']
-            ];
-
-            researchEditor = new Quill('#researchEditorContent', {
-                theme: 'snow',
-                modules: {
-                    toolbar: {
-                        container: toolbarOptions,
-                        handlers: {
-                            'link': function () {
-                                const range = this.quill.getSelection();
-                                if (range) {
-                                    const url = prompt('Enter URL:');
-                                    if (url) {
-                                        this.quill.format('link', url);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                placeholder: 'Start your research notes here...'
+            // Store editor root reference for cleanup
+            researchEditor = window.initBlockNoteEditor('researchEditorContent', {
+                initialContent: existingContent || '',
+                placeholder: 'Start your research notes here... Type "/" for commands',
+                onSave: null // We handle save manually via the Save button
             });
 
-            // Set existing content
-            if (existingContent) {
-                // If existingContent is HTML, use pasteHTML, otherwise use setText
-                if (existingContent.includes('<') && existingContent.includes('>')) {
-                    researchEditor.root.innerHTML = existingContent;
-                } else {
-                    researchEditor.setText(existingContent);
-                }
-            }
+            // Store reference to get content later
+            window.researchEditorRoot = researchEditor;
 
-            // Add custom toolbar buttons for research-specific templates
-            addCustomQuillButtons();
-
-            console.log('Quill editor initialized successfully');
+            console.log('BlockNote editor initialized successfully');
 
         } catch (error) {
-            console.error('Error initializing Quill editor:', error);
+            console.error('Error initializing BlockNote editor:', error);
 
             // Fallback to simple textarea
             const editorElement = document.getElementById('researchEditorContent');
@@ -523,96 +510,6 @@
             }
 
             showToast('Rich editor failed to load, using simple text editor', 'warning');
-        }
-    }
-
-    // Add custom Quill buttons for research templates
-    function addCustomQuillButtons() {
-        // Add custom buttons to Quill toolbar
-        const toolbar = researchEditor.getModule('toolbar');
-        if (toolbar && toolbar.container) {
-            const customGroup = document.createElement('span');
-            customGroup.className = 'ql-formats';
-            customGroup.innerHTML = `
-            <button type="button" class="ql-finding" title="Add Key Finding">💡</button>
-            <button type="button" class="ql-risk" title="Add Risk Factor">⚠️</button>
-        `;
-
-            toolbar.container.appendChild(customGroup);
-
-            // Add event listeners for custom buttons
-            customGroup.querySelector('.ql-finding').addEventListener('click', addFinding);
-            customGroup.querySelector('.ql-risk').addEventListener('click', addRisk);
-        }
-    }
-
-    // Research template functions for Quill
-    function addFinding() {
-        if (researchEditor) {
-            const range = researchEditor.getSelection();
-            if (range) {
-                researchEditor.insertText(range.index, '\n💡 Key Finding: ', 'bold', true);
-                researchEditor.setSelection(range.index + 18, 0);
-            }
-        }
-    }
-
-    function addRisk() {
-        if (researchEditor) {
-            const range = researchEditor.getSelection();
-            if (range) {
-                researchEditor.insertText(range.index, '\n⚠️ Risk Factor: ', 'bold', true);
-                researchEditor.setSelection(range.index + 17, 0);
-            }
-        }
-    }
-
-    // Simplified toolbar functions (Quill handles most formatting automatically)
-    function toggleBold() {
-        if (researchEditor) {
-            researchEditor.format('bold', !researchEditor.getFormat()['bold']);
-        }
-    }
-
-    function toggleItalic() {
-        if (researchEditor) {
-            researchEditor.format('italic', !researchEditor.getFormat()['italic']);
-        }
-    }
-
-    function toggleHighlight() {
-        if (researchEditor) {
-            researchEditor.format('background', researchEditor.getFormat()['background'] ? false : '#ffff00');
-        }
-    }
-
-    function toggleBulletList() {
-        if (researchEditor) {
-            researchEditor.format('list', 'bullet');
-        }
-    }
-
-    function toggleOrderedList() {
-        if (researchEditor) {
-            researchEditor.format('list', 'ordered');
-        }
-    }
-
-    function toggleBlockquote() {
-        if (researchEditor) {
-            researchEditor.format('blockquote', !researchEditor.getFormat()['blockquote']);
-        }
-    }
-
-    function addLink() {
-        if (researchEditor) {
-            const range = researchEditor.getSelection();
-            if (range) {
-                const url = prompt('Enter URL:');
-                if (url) {
-                    researchEditor.format('link', url);
-                }
-            }
         }
     }
 
@@ -677,12 +574,13 @@
         const itemId = researchTools.session.currentItemId;
         let editorContent = '';
 
-        // Try to get content from Quill editor first
-        if (researchEditor && researchEditor.getContents) {
-            // Get HTML content from Quill
-            editorContent = researchEditor.root.innerHTML;
+        // Try to get content from BlockNote editor first
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            // Get JSON content from BlockNote
+            const blocks = window.blockNoteEditorInstance.editor.document;
+            editorContent = JSON.stringify(blocks);
         } else {
-            // Fallback to textarea if Quill failed
+            // Fallback to textarea if BlockNote failed
             const fallbackTextarea = document.getElementById('fallbackTextarea');
             if (fallbackTextarea) {
                 editorContent = fallbackTextarea.value;
@@ -703,11 +601,13 @@
 
         showToast('Research notes and sources saved successfully!', 'success');
 
-        // Cleanup
-        if (researchEditor && researchEditor.destroy) {
-            researchEditor.destroy();
-            researchEditor = null;
+        // Cleanup BlockNote editor instance
+        if (window.researchEditorRoot && window.researchEditorRoot.unmount) {
+            window.researchEditorRoot.unmount();
         }
+        window.researchEditorRoot = null;
+        window.blockNoteEditorInstance = null;
+        researchEditor = null;
     }
 
     function saveLater() {
@@ -883,7 +783,7 @@
     // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
         // Global shortcuts (when not in editor)
-        if (e.ctrlKey && !e.target.matches('input, textarea, select, .research-content *')) {
+        if (e.ctrlKey && !e.target.matches('input, textarea, select, .bn-editor *, .research-content *')) {
             switch (e.key.toLowerCase()) {
                 case 's':
                     e.preventDefault();
@@ -900,27 +800,12 @@
             }
         }
 
-        // Editor-specific shortcuts
-        if (researchEditor && document.getElementById('researchNotesModal')) {
-            if (e.ctrlKey) {
-                switch (e.key.toLowerCase()) {
-                    case 'b':
-                        e.preventDefault();
-                        toggleBold();
-                        break;
-                    case 'i':
-                        e.preventDefault();
-                        toggleItalic();
-                        break;
-                    case 'l':
-                        e.preventDefault();
-                        addLink();
-                        break;
-                    case 'enter':
-                        e.preventDefault();
-                        addSource();
-                        break;
-                }
+        // Source input shortcut - Ctrl+Enter to add source
+        if (e.ctrlKey && e.key === 'Enter' && document.getElementById('researchNotesModal')) {
+            const sourceUrlInput = document.getElementById('sourceUrlInput');
+            if (document.activeElement === sourceUrlInput || document.activeElement === document.getElementById('sourceTitleInput')) {
+                e.preventDefault();
+                addSource();
             }
         }
     });
@@ -932,167 +817,4 @@
     });
 </script>
 
-<style>
-    .context-sidebar .card {
-        margin-bottom: 1.5rem;
-    }
-
-    .sticky-top {
-        top: 1rem;
-    }
-
-    .alert {
-        white-space: pre-wrap;
-    }
-
-    /* Tiptap Research Editor Styles */
-    .research-editor {
-        border: 1px solid #e5e5e5;
-        border-radius: 8px;
-        background: white;
-    }
-
-    .research-toolbar {
-        border-bottom: 1px solid #e5e5e5;
-        padding: 8px 12px;
-        background: #f8f9fa;
-        border-radius: 8px 8px 0 0;
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
-    }
-
-    .toolbar-group {
-        display: flex;
-        gap: 2px;
-        padding-right: 8px;
-        border-right: 1px solid #ddd;
-        margin-right: 8px;
-    }
-
-    .toolbar-group:last-child {
-        border-right: none;
-        margin-right: 0;
-    }
-
-    .toolbar-btn {
-        background: none;
-        border: 1px solid transparent;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #495057;
-    }
-
-    .toolbar-btn:hover {
-        background: #e9ecef;
-        border-color: #adb5bd;
-    }
-
-    .toolbar-btn.active {
-        background: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
-
-    .research-content {
-        padding: 12px;
-        min-height: 300px;
-        outline: none;
-    }
-
-    .research-content p {
-        margin-bottom: 8px;
-    }
-
-    .research-content ul,
-    .research-content ol {
-        padding-left: 20px;
-        margin-bottom: 8px;
-    }
-
-    .research-content blockquote {
-        border-left: 4px solid #007bff;
-        margin: 12px 0;
-        padding: 8px 16px;
-        background: #f8f9fa;
-        font-style: italic;
-    }
-
-    .research-content mark {
-        background: #fff3cd;
-        padding: 2px 4px;
-        border-radius: 3px;
-    }
-
-    .source-manager {
-        border-top: 1px solid #e5e5e5;
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 0 0 8px 8px;
-    }
-
-    .source-input-group {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-
-    .source-input {
-        flex: 1;
-        padding: 6px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-
-    .source-btn {
-        padding: 6px 12px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
-    .source-btn:hover {
-        background: #0056b3;
-    }
-
-    .sources-list {
-        max-height: 120px;
-        overflow-y: auto;
-    }
-
-    .source-item {
-        display: flex;
-        justify-content: between;
-        align-items: center;
-        padding: 6px 8px;
-        background: white;
-        border: 1px solid #e5e5e5;
-        border-radius: 4px;
-        margin-bottom: 4px;
-        font-size: 12px;
-    }
-
-    .source-link {
-        color: #007bff;
-        text-decoration: none;
-        flex: 1;
-        margin-right: 8px;
-    }
-
-    .source-remove {
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 2px 6px;
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 11px;
-    }
-</style>
 {% endblock %}

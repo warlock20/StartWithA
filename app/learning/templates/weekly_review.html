@@ -1,46 +1,36 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <h1>📝 Weekly Review</h1>
-    <p class="text-muted">Week of {{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}</p>
-</div>
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">📝 Weekly Review</h1>
+            <p class="dashboard-subtitle">Week of {{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}</p>
+        </div>
+    </header>
 
-<!-- Week Metrics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ metrics.ideas_captured }}</h3>
-                <small class="text-muted">Ideas Captured</small>
+    <!-- Week Metrics -->
+    <div class="week-metrics-section">
+        <div class="week-metrics-grid">
+            <div class="week-metric-card metric-ideas">
+                <div class="week-metric-value">{{ metrics.ideas_captured }}</div>
+                <div class="week-metric-label">Ideas Captured</div>
+            </div>
+            <div class="week-metric-card metric-killed">
+                <div class="week-metric-value">{{ metrics.ideas_killed }}</div>
+                <div class="week-metric-label">Ideas Killed</div>
+            </div>
+            <div class="week-metric-card metric-hours">
+                <div class="week-metric-value">{{ metrics.research_hours }}h</div>
+                <div class="week-metric-label">Research Hours</div>
+            </div>
+            <div class="week-metric-card metric-decisions">
+                <div class="week-metric-value">{{ metrics.decisions_made }}</div>
+                <div class="week-metric-label">Decisions Made</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ metrics.ideas_killed }}</h3>
-                <small class="text-muted">Ideas Killed</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ metrics.research_hours }}h</h3>
-                <small class="text-muted">Research Hours</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h3>{{ metrics.decisions_made }}</h3>
-                <small class="text-muted">Decisions Made</small>
-            </div>
-        </div>
-    </div>
-</div>
 
 <form method="POST" action="{{ url_for('learning.save_weekly_review') }}">
     <input type="hidden" name="week_start" value="{{ week_start }}">

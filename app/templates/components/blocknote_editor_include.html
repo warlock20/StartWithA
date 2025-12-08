@@ -1,0 +1,24 @@
+{#
+  Reusable BlockNote Editor Include
+
+  Usage:
+    1. Include this file in your template's {% block head %}:
+       {% include 'components/blocknote_editor_include.html' %}
+
+    2. Add a container div in your template:
+       <div id="myEditor"></div>
+
+    3. Initialize the editor with JavaScript:
+       <script>
+         window.initBlockNoteEditor('myEditor', {
+           getResearchNotesUrl: '{{ url_for("your_blueprint.get_notes") }}',
+           saveResearchNotesUrl: '{{ url_for("your_blueprint.save_notes") }}',
+           placeholder: 'Start writing...',
+           onSave: (data) => console.log('Saved!'),
+           onSelectionChange: (text, selection) => console.log('Selected:', text)
+         });
+       </script>
+#}
+
+<!-- BlockNote Editor (React) -->
+<script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>

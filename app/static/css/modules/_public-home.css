@@ -882,9 +882,7 @@ body {
     min-height: 100vh;
 }
 
-.content-wrapper {
-    flex: 1 0 auto;
-}
+/* Removed duplicate .content-wrapper - already defined in _base.css */
 
 .footer {
     flex-shrink: 0;

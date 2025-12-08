@@ -1,0 +1,300 @@
+/* =============================================================================
+   INVESTMENT PIPELINE FLOW - Simplified Design
+   Branching flow visualization showing Inbox → Research → Portfolio
+   with Too Hard Basket as rejection bucket
+   ============================================================================= */
+
+/* Pipeline Section Container */
+.investment-pipeline-section {
+    margin-bottom: 2.5rem;
+}
+
+/* Compact Discipline Header */
+.discipline-compact-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 1.25rem 2rem;
+    color: white;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.discipline-compact-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.discipline-compact-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.discipline-compact-icon i {
+    font-size: 1.5rem;
+}
+
+.discipline-compact-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.discipline-compact-stat {
+    text-align: right;
+}
+
+.discipline-compact-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.discipline-compact-stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+}
+
+/* Flow Wrapper - Contains main flow and rejection bucket */
+.pipeline-flow-wrapper {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid var(--border-light);
+}
+
+/* Main Pipeline Flow - Horizontal */
+.pipeline-flow-main {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+/* Individual Flow Stage */
+.flow-stage {
+    text-align: center;
+    position: relative;
+}
+
+/* Flow Node - Circular icon container */
+.flow-stage-node {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.flow-stage-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.flow-stage-node-inbox {
+    background: #fbbf24;
+}
+
+.flow-stage-node-research {
+    background: #3b82f6;
+}
+
+.flow-stage-node-portfolio {
+    background: #10b981;
+}
+
+.flow-stage-node i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+/* Flow Stage Labels and Values */
+.flow-stage-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.flow-stage-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+    line-height: 1;
+}
+
+.flow-stage-meta {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+}
+
+.flow-stage-link {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-600);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.flow-stage-link:hover {
+    color: var(--primary-700);
+    text-decoration: underline;
+}
+
+/* Forward Arrow Between Stages */
+.flow-forward-arrow {
+    position: absolute;
+    top: 50px;
+    right: -1.5rem;
+    font-size: 2rem;
+    color: var(--gray-300);
+}
+
+.flow-stage:last-child .flow-forward-arrow {
+    display: none;
+}
+
+/* Too Hard Basket - Collection Box */
+.too-hard-basket {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 3px solid #ef4444;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);
+    transition: all 0.3s ease;
+    margin-top: 2rem;
+    border-top: 6px solid #ef4444;
+}
+
+.too-hard-basket:hover {
+    box-shadow: 0 12px 32px rgba(239, 68, 68, 0.25);
+    transform: translateY(-2px);
+}
+
+.basket-icon {
+    width: 60px;
+    height: 60px;
+    background: #ef4444;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.basket-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.basket-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #991b1b;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.basket-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #991b1b;
+    margin-bottom: 0.25rem;
+    line-height: 1;
+}
+
+.basket-meta {
+    font-size: 0.85rem;
+    color: #b91c1c;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.basket-description {
+    font-size: 0.875rem;
+    color: #991b1b;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.basket-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #ef4444;
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.basket-link:hover {
+    background: #dc2626;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .pipeline-flow-main {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .flow-forward-arrow {
+        top: auto;
+        bottom: -1.5rem;
+        right: 50%;
+        transform: translateX(50%) rotate(90deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .flow-stage-node {
+        width: 80px;
+        height: 80px;
+    }
+
+    .flow-stage-node i {
+        font-size: 2rem;
+    }
+
+    .flow-stage-value {
+        font-size: 2rem;
+    }
+
+    .basket-value {
+        font-size: 2rem;
+    }
+
+    .pipeline-flow-wrapper {
+        padding: 1.5rem;
+    }
+}

@@ -21,17 +21,21 @@ All complex components have been fully modularized.
 @import url('modules/_buttons.css');        /* Base button styles */
 @import url('modules/_button-system.css');  /* Advanced button variants */
 @import url('modules/_forms.css');          /* Form controls */
+@import url('modules/_form-validation.css'); /* Form validation styling */
 @import url('modules/_tables.css');         /* Table styling */
+@import url('modules/_data-table.css');     /* Reusable data table component (Tabulator) */
 @import url('modules/_alerts.css');         /* Alerts & messages */
 @import url('modules/_cards.css');          /* Basic card components */
 @import url('modules/_card-system.css');    /* Professional card system */
 @import url('modules/_navigation.css');     /* Navbar & dropdowns */
+@import url('modules/_quote-banner.css');   /* Investor quote banner */
 
 /* =============================================================================
    UTILITY & HELPER MODULES
    ============================================================================= */
 @import url('modules/_utilities.css');      /* Utility classes, loader, timeline */
 @import url('modules/_sort-controls.css');  /* Sort and filter controls */
+@import url('modules/_drag-and-drop.css');  /* Drag-and-drop reordering functionality */
 
 /* =============================================================================
    PAGE-SPECIFIC MODULES
@@ -39,12 +43,25 @@ All complex components have been fully modularized.
 @import url('modules/_public-home.css');          /* Public homepage */
 @import url('modules/_quick-capture.css');        /* Quick capture page */
 @import url('modules/_dashboard.css');            /* Dashboard components */
+@import url('modules/_pipeline-flow.css');        /* Investment pipeline flow visualization */
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
 @import url('modules/_sector-research.css');      /* Simplified sector research page */
+@import url('modules/_research-sources.css');     /* Research sources component */
+@import url('modules/_research-checklist.css');   /* Research checklist/step pages */
+@import url('modules/_research-tabs.css');        /* Research tabbed interface */
+@import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
+@import url('modules/_research-workspace.css');   /* Research workspace layout */
+@import url('modules/_focus-mode.css');           /* Focus mode - distraction-free interface */
+@import url('modules/_page-selector.css');        /* Page selector dropdown */
+@import url('modules/_floating-quick-tools.css'); /* Floating quick tools panel */
+@import url('modules/_company-tags.css');         /* Company tagging feature */
+@import url('modules/_generate-document.css');    /* Generate document from canvas */
 @import url('modules/_research-projects.css');    /* Research projects pages */
 @import url('modules/_destination-analysis.css'); /* Destination analysis timeline */
 @import url('modules/_checkpoint-edit.css');      /* Checkpoint edit page */
+@import url('modules/_investment-journey.css');   /* Investment journey timeline (thesis + checkpoints) */
+@import url('modules/_thesis-update.css');        /* Thesis update form with sidebar reference */
 @import url('modules/_companies-list.css');       /* Companies list page */
 @import url('modules/_project-dashboard.css');    /* Project dashboard page */
 @import url('modules/_project-summary.css');      /* Project summary page */
@@ -52,3 +69,21 @@ All complex components have been fully modularized.
 @import url('modules/_start-research.css');       /* Start new research page */
 @import url('modules/_kill-room.css');            /* Kill room page */
 @import url('modules/_checklist-view.css');       /* Checklist view pages */
+@import url('modules/_analytics-hub.css');        /* Analytics dashboard */
+@import url('modules/_journal-home.css');         /* Journal - Home & review queue pages */
+@import url('modules/_journal-search.css');       /* Journal - Knowledge hub search page */
+@import url('modules/_learning-dashboard.css');   /* Learning - Dashboard page */
+@import url('modules/_learning-paths.css');       /* Learning - Learning paths page */
+@import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
+@import url('modules/_knowledge-library.css');    /* Knowledge Library - Insights & wisdom capture */
+@import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Unified research & wisdom */
+@import url('modules/_learning-weekly-review.css'); /* Learning - Weekly review page */
+@import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
+@import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
+@import url('modules/_company-dashboard.css');    /* Company dashboard page */
+@import url('modules/_portfolio.css');            /* Portfolio & transaction management */
+@import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
+@import url('modules/_recommendations.css');      /* Sector recommendations & insights */
+@import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
+@import url('modules/_profile.css');              /* User profile page */
+@import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */

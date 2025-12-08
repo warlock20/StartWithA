@@ -16,7 +16,13 @@
         integrity="...">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <!-- Driver.js for interactive tours -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" />
+
+    <!-- Tabulator for advanced data tables -->
+    <link href="https://unpkg.com/tabulator-tables@5.5/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251014-2">
 
     {% block head %}{% endblock %}
 </head>
@@ -25,7 +31,7 @@
 
     {% include 'main/_navigation.html' %} {# We will create this new file #}
 
-    <div class="container-fluid mt-4 pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
+    <div class="container-fluid pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
         {# Flash messages will be styled by Bootstrap if we add alert classes #}
         {% include 'main/_flash_messages.html' %}
 
@@ -53,10 +59,81 @@
         </div>
     </footer>
 
+    <!-- Modal Block - Modals should be direct children of body for proper Bootstrap positioning -->
+    {% block modals %}
+    {% endblock %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Auto-dismiss flash messages after 10 seconds -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 10000); // 10 seconds
+            });
+
+            // Navbar quote scrolling effect - continuous marquee
+            const quoteInner = document.querySelector('.navbar-quote-inner');
+            const quoteText = document.querySelector('.navbar-quote-text');
+            const quoteDuplicate = document.querySelector('.navbar-quote-duplicate');
+
+            if (quoteInner && quoteText) {
+                const quoteWrapper = quoteText.closest('.navbar-quote-wrapper');
+                const textWidth = quoteText.offsetWidth;
+                const containerWidth = quoteWrapper.offsetWidth;
+
+                if (textWidth > containerWidth) {
+                    // Enable continuous marquee scrolling for long quotes
+                    quoteInner.classList.add('scrolling');
+                } else {
+                    // Static display for short quotes - hide duplicate
+                    quoteInner.classList.add('static');
+                    if (quoteDuplicate) {
+                        quoteDuplicate.style.display = 'none';
+                    }
+                }
+            }
+
+            // Handle quote banner dismiss
+            const quoteDismissBtn = document.querySelector('[data-action="dismiss-quote-banner"]');
+            if (quoteDismissBtn) {
+                quoteDismissBtn.addEventListener('click', function() {
+                    const quoteContainer = this.closest('.navbar-quote-container');
+                    if (quoteContainer) {
+                        quoteContainer.style.display = 'none';
+                    }
+
+                    // Send AJAX request to mark as dismissed
+                    fetch('/dismiss-quote-banner', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+
+    <!-- Driver.js for interactive tours -->
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+
+    <!-- Luxon for date handling (required by Tabulator) -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+
+    <!-- Tabulator for advanced data tables -->
+    <script src="https://unpkg.com/tabulator-tables@5.5/dist/js/tabulator.min.js"></script>
+
+    <!-- SortableJS for drag-and-drop reordering -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     {% block scripts %}
     <script src="{{ url_for('static', filename='js/my_script.js') }}"></script>
     {% endblock %}

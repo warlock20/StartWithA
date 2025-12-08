@@ -1,0 +1,171 @@
+<!-- Progress Breakdown Modal -->
+<div class="modal fade" id="progressBreakdownModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-graph-up"></i> Research Progress Breakdown
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="progress-breakdown-container">
+                    <!-- Overall Score -->
+                    <div class="overall-score-card mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Overall Progress</h6>
+                            <span class="badge bg-{{ analysis.progress_stage.label|lower|replace(' ', '-') }} fs-6">
+                                {{ analysis.progress_stage.emoji }} {{ analysis.progress_stage.label }}
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar progress-bar-{{ analysis.progress_stage.label|lower|replace(' ', '-') }}"
+                                 role="progressbar"
+                                 style="width: {{ analysis.research_progress_score }}%;"
+                                 aria-valuenow="{{ analysis.research_progress_score }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                <strong>{{ analysis.research_progress_score }}%</strong>
+                            </div>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">
+                            This score is calculated from 5 weighted metrics below
+                        </p>
+                    </div>
+
+                    <!-- Individual Metrics -->
+                    {% set breakdown = analysis.progress_breakdown %}
+
+                    {% for key, metric in breakdown.items() %}
+                    <div class="metric-breakdown-card mb-3">
+                        <div class="metric-header">
+                            <div class="d-flex align-items-center">
+                                <span class="metric-icon me-2">{{ metric.icon }}</span>
+                                <div>
+                                    <h6 class="mb-0">{{ metric.label }}</h6>
+                                    <small class="text-muted">Weight: {{ metric.weight }}%</small>
+                                </div>
+                            </div>
+                            <div class="metric-score">
+                                <span class="score-badge {% if metric.score >= 80 %}bg-success{% elif metric.score >= 60 %}bg-primary{% elif metric.score >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ metric.score }}/100
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="metric-body">
+                            <!-- Current Status -->
+                            <div class="metric-current mb-2">
+                                <strong>Current:</strong>
+                                {% if key == 'word_count' %}
+                                    {{ metric.current }} words
+                                {% elif key == 'time_spent' %}
+                                    {{ metric.current_formatted }}
+                                {% elif key == 'companies' %}
+                                    {{ metric.current }} companies researched
+                                {% elif key == 'sources' %}
+                                    {{ metric.current }} sources added
+                                {% elif key == 'questions' %}
+                                    {{ metric.current }} questions in bank
+                                {% endif %}
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="progress mb-2" style="height: 20px;">
+                                <div class="progress-bar {% if metric.score >= 80 %}bg-success{% elif metric.score >= 60 %}bg-primary{% elif metric.score >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ metric.score }}%;"
+                                     aria-valuenow="{{ metric.score }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ metric.score }}%
+                                </div>
+                            </div>
+
+                            <!-- Next Target -->
+                            {% if metric.next_target %}
+                            <div class="metric-target">
+                                <i class="bi bi-bullseye text-primary"></i>
+                                <small class="text-muted">
+                                    <strong>Next Target:</strong>
+                                    {% if key == 'word_count' %}
+                                        Reach {{ metric.next_target }} words for {{ metric.target_score }}% score
+                                        <span class="text-success">(+{{ metric.next_target - metric.current }} words needed)</span>
+                                    {% elif key == 'time_spent' %}
+                                        Spend {{ metric.next_target }} hours for {{ metric.target_score }}% score
+                                        <span class="text-success">(+{{ "%.1f"|format(metric.next_target - metric.current) }} hours needed)</span>
+                                    {% elif key == 'companies' %}
+                                        Research {{ metric.next_target }} companies for {{ metric.target_score }}% score
+                                        <span class="text-success">(+{{ metric.next_target - metric.current }} companies needed)</span>
+                                    {% elif key == 'sources' %}
+                                        Add {{ metric.next_target }} sources for {{ metric.target_score }}% score
+                                        <span class="text-success">(+{{ metric.next_target - metric.current }} sources needed)</span>
+                                    {% elif key == 'questions' %}
+                                        Create {{ metric.next_target }} questions for {{ metric.target_score }}% score
+                                        <span class="text-success">(+{{ metric.next_target - metric.current }} questions needed)</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% else %}
+                            <div class="metric-target">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <small class="text-success"><strong>Maximum score achieved!</strong> Great work!</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Scoring Guide -->
+                    <div class="scoring-guide mt-4">
+                        <h6 class="mb-3"><i class="bi bi-info-circle"></i> How Scoring Works</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Weight</th>
+                                        <th>Targets</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>📝 Word Count</td>
+                                        <td>30%</td>
+                                        <td><small>500 (40%) → 1,500 (60%) → 3,000 (80%) → 5,000+ (100%)</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td>⏱️ Time Spent</td>
+                                        <td>20%</td>
+                                        <td><small>1h (40%) → 3h (60%) → 6h (80%) → 10h+ (100%)</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td>🏢 Companies Researched</td>
+                                        <td>25%</td>
+                                        <td><small>2 (40%) → 5 (60%) → 10 (80%) → 15+ (100%)</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td>🔗 Research Sources</td>
+                                        <td>15%</td>
+                                        <td><small>2 (40%) → 5 (60%) → 10 (80%) → 15+ (100%)</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td>❓ Questions Bank</td>
+                                        <td>10%</td>
+                                        <td><small>3 (40%) → 8 (60%) → 15 (80%) → 25+ (100%)</small></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Focus on metrics with lower scores to improve your overall progress fastest.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

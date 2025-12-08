@@ -1,0 +1,259 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Mark Company as Too Hard</h1>
+            <p class="dashboard-subtitle">
+                {{ project.company.name if project.company else project.project_name }}
+                {% if project.company and project.company.ticker_symbol %}
+                ({{ project.company.ticker_symbol }})
+                {% endif %}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Project
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="alert alert-warning border-0 mb-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Research Time Invested:</strong> {{ "%.1f"|format(project.total_hours_spent) }} hours
+            </div>
+
+            <form method="POST" action="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" id="tooHardForm" class="too-hard-form">
+                <!-- Reason Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Why are you passing on this company?</h5>
+
+                        <div class="reason-selection-grid">
+                            <div class="reason-option">
+                                <input type="radio" name="too_hard_reason" value="too_complex" id="reason_complex" required>
+                                <label for="reason_complex" class="reason-label">
+                                    <i class="bi bi-puzzle"></i>
+                                    <div>
+                                        <strong>Too complex to analyze</strong>
+                                        <p class="text-muted small mb-0">Business model or operations are too complicated</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="reason-option">
+                                <input type="radio" name="too_hard_reason" value="insufficient_info" id="reason_info">
+                                <label for="reason_info" class="reason-label">
+                                    <i class="bi bi-file-earmark-x"></i>
+                                    <div>
+                                        <strong>Insufficient public information</strong>
+                                        <p class="text-muted small mb-0">Not enough data available to make confident decision</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="reason-option">
+                                <input type="radio" name="too_hard_reason" value="outside_competence" id="reason_competence">
+                                <label for="reason_competence" class="reason-label">
+                                    <i class="bi bi-shield-x"></i>
+                                    <div>
+                                        <strong>Outside my circle of competence</strong>
+                                        <p class="text-muted small mb-0">Sector or business model I don't understand well</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="reason-option">
+                                <input type="radio" name="too_hard_reason" value="better_opportunities" id="reason_opportunities">
+                                <label for="reason_opportunities" class="reason-label">
+                                    <i class="bi bi-bar-chart"></i>
+                                    <div>
+                                        <strong>Better opportunities available</strong>
+                                        <p class="text-muted small mb-0">Other companies offer better risk/reward</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="reason-option">
+                                <input type="radio" name="too_hard_reason" value="other" id="reason_other">
+                                <label for="reason_other" class="reason-label">
+                                    <i class="bi bi-three-dots"></i>
+                                    <div>
+                                        <strong>Other reason</strong>
+                                        <p class="text-muted small mb-0">Specify in notes below</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circle of Competence Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">Circle of Competence Assessment</h5>
+                        <p class="text-muted small mb-3">Is this company/sector within your circle of competence?</p>
+
+                        <div class="coc-selection-grid">
+                            <div class="coc-option">
+                                <input type="radio" name="within_circle_of_competence" value="yes" id="coc_yes" required>
+                                <label for="coc_yes" class="coc-label">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <div>
+                                        <strong>Yes</strong>
+                                        <p class="text-muted small mb-0">I understand it, but passing anyway</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="coc-option">
+                                <input type="radio" name="within_circle_of_competence" value="no" id="coc_no">
+                                <label for="coc_no" class="coc-label">
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                    <div>
+                                        <strong>No</strong>
+                                        <p class="text-muted small mb-0">Outside my expertise</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="coc-option">
+                                <input type="radio" name="within_circle_of_competence" value="unsure" id="coc_unsure">
+                                <label for="coc_unsure" class="coc-label">
+                                    <i class="bi bi-question-circle text-warning"></i>
+                                    <div>
+                                        <strong>Unsure</strong>
+                                        <p class="text-muted small mb-0">Need more sector knowledge</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sector Research Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">Add to Sector Research?</h5>
+                        <p class="text-muted small mb-3">This helps build sector knowledge even from companies you pass on</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">Current Sector:</label>
+                            <div class="current-sector-display">
+                                {% if project.sector %}
+                                    {{ project.sector.display_name }}
+                                {% elif project.company and project.company.sector %}
+                                    {{ project.company.sector.display_name }}
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="sector-action-options">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="sector_action" value="existing" id="sector_existing" checked>
+                                <label class="form-check-label" for="sector_existing">
+                                    Add to existing sector notebook
+                                </label>
+                                <div class="sector-select-container mt-2 ms-4" id="existingSectorContainer">
+                                    <select name="sector_id" class="form-select" id="sectorSelect">
+                                        <option value="">Select sector...</option>
+                                        {% for sector in user_sectors %}
+                                        <option value="{{ sector.id }}"
+                                                {% if (project.sector_id and project.sector_id == sector.id) or (project.company and project.company.sector_id == sector.id) %}selected{% endif %}>
+                                            {{ sector.display_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="sector_action" value="new" id="sector_new">
+                                <label class="form-check-label" for="sector_new">
+                                    Create new sector notebook
+                                </label>
+                                <div class="sector-input-container mt-2 ms-4" id="newSectorContainer" style="display: none;">
+                                    <input type="text" name="new_sector_name" class="form-control" placeholder="Enter sector name..." id="newSectorInput">
+                                </div>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sector_action" value="none" id="sector_none">
+                                <label class="form-check-label" for="sector_none">
+                                    Don't add to sector research
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">Brief notes</h5>
+                        <p class="text-muted small mb-3">What did you learn from this research?</p>
+                        <textarea name="too_hard_notes" class="form-control" rows="4" placeholder="Key insights, lessons learned, what you discovered about this company or sector..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-3 justify-content-end">
+                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-archive"></i> Mark as Too Hard & Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const existingRadio = document.getElementById('sector_existing');
+    const newRadio = document.getElementById('sector_new');
+    const noneRadio = document.getElementById('sector_none');
+    const existingContainer = document.getElementById('existingSectorContainer');
+    const newContainer = document.getElementById('newSectorContainer');
+    const sectorSelect = document.getElementById('sectorSelect');
+    const newSectorInput = document.getElementById('newSectorInput');
+
+    function updateSectorInputs() {
+        if (existingRadio.checked) {
+            existingContainer.style.display = 'block';
+            newContainer.style.display = 'none';
+            sectorSelect.required = true;
+            newSectorInput.required = false;
+        } else if (newRadio.checked) {
+            existingContainer.style.display = 'none';
+            newContainer.style.display = 'block';
+            sectorSelect.required = false;
+            newSectorInput.required = true;
+        } else {
+            existingContainer.style.display = 'none';
+            newContainer.style.display = 'none';
+            sectorSelect.required = false;
+            newSectorInput.required = false;
+        }
+    }
+
+    existingRadio.addEventListener('change', updateSectorInputs);
+    newRadio.addEventListener('change', updateSectorInputs);
+    noneRadio.addEventListener('change', updateSectorInputs);
+
+    updateSectorInputs();
+});
+</script>
+{% endblock %}

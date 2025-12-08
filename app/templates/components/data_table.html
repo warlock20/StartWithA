@@ -1,0 +1,179 @@
+{# =============================================================================
+   REUSABLE DATA TABLE COMPONENT - JINJA MACROS
+   =============================================================================
+
+   Platform-wide table component using Tabulator.
+   Provides consistent markup for tables across the application.
+
+   Usage:
+   ------
+   {% from 'components/data_table.html' import data_table %}
+
+   {{ data_table(
+       id='holdings-table',
+       title='Holdings',
+       badge_count=positions|length,
+       show_filters=true,
+       show_export=true
+   ) }}
+#}
+
+{# Main data table macro #}
+{% macro data_table(
+    id,
+    title,
+    icon=none,
+    badge_count=none,
+    show_filters=false,
+    show_export=false,
+    filter_options=none,
+    custom_controls=none,
+    empty_message='No data available',
+    empty_icon='bi-inbox',
+    empty_action_text=none,
+    empty_action_url=none
+) %}
+
+<div class="data-table-wrapper">
+    {# Table Header #}
+    <div class="data-table-header">
+        <h2 class="data-table-title">
+            {% if icon %}
+                <i class="bi {{ icon }}"></i>
+            {% endif %}
+            {{ title }}
+            {% if badge_count is not none %}
+                <span class="data-table-badge">{{ badge_count }}</span>
+            {% endif %}
+        </h2>
+
+        <div class="data-table-controls">
+            {# Quick filter dropdown if options provided #}
+            {% if show_filters and filter_options %}
+                <div class="data-table-filter-dropdown">
+                    {{ caller() if caller else '' }}
+                </div>
+            {% endif %}
+
+            {# Custom controls slot #}
+            {% if custom_controls %}
+                {{ custom_controls }}
+            {% endif %}
+
+            {# Export buttons container (populated by JS) #}
+            {% if show_export %}
+                <div id="{{ id }}-export-buttons"></div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Table container - Tabulator will be initialized here #}
+    <div id="{{ id }}"></div>
+
+    {# Empty state (shown by Tabulator when no data) #}
+    <template id="{{ id }}-empty-template">
+        <div class="portfolio-empty-state">
+            <div class="portfolio-empty-state-icon">
+                <i class="bi {{ empty_icon }}"></i>
+            </div>
+            <h3 class="portfolio-empty-state-title">{{ empty_message }}</h3>
+            {% if empty_action_text and empty_action_url %}
+                <div>
+                    <a href="{{ empty_action_url }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle-fill"></i> {{ empty_action_text }}
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </template>
+</div>
+
+{% endmacro %}
+
+
+{# Quick filter select macro #}
+{% macro filter_select(id, name, options, selected='all', onchange='') %}
+<select
+    id="{{ id }}"
+    name="{{ name }}"
+    class="form-select form-select-sm"
+    {% if onchange %}onchange="{{ onchange }}"{% endif %}
+    style="width: auto;">
+    {% for option in options %}
+        <option value="{{ option.value }}" {% if selected == option.value %}selected{% endif %}>
+            {{ option.label }}
+        </option>
+    {% endfor %}
+</select>
+{% endmacro %}
+
+
+{# =============================================================================
+   USAGE EXAMPLES
+   =============================================================================
+
+   Example 1: Basic table with title and badge
+   --------------------------------------------
+   {% from 'components/data_table.html' import data_table %}
+
+   {{ data_table(
+       id='my-table',
+       title='My Data',
+       badge_count=10
+   ) }}
+
+   <script>
+       const table = createDataTable('#my-table', {
+           data: [...],
+           columns: [...]
+       });
+   </script>
+
+
+   Example 2: Table with icon and filter dropdown
+   -----------------------------------------------
+   {% from 'components/data_table.html' import data_table, filter_select %}
+
+   {% call data_table(
+       id='holdings-table',
+       title='Holdings',
+       icon='bi-briefcase',
+       badge_count=positions|length,
+       show_filters=true,
+       show_export=true
+   ) %}
+       {{ filter_select(
+           id='holdings-filter',
+           name='filter_status',
+           options=[
+               {'value': 'all', 'label': 'All Positions'},
+               {'value': 'gains', 'label': 'Gains Only'},
+               {'value': 'losses', 'label': 'Losses Only'}
+           ],
+           selected=filter_status,
+           onchange='filterTable(this.value)'
+       ) }}
+   {% endcall %}
+
+
+   Example 3: Table with empty state action
+   -----------------------------------------
+   {{ data_table(
+       id='transactions-table',
+       title='Transactions',
+       empty_message='No transactions yet',
+       empty_icon='bi-receipt',
+       empty_action_text='Add First Transaction',
+       empty_action_url=url_for('portfolio.add_transaction')
+   ) }}
+
+
+   Example 4: Table with custom controls
+   --------------------------------------
+   {{ data_table(
+       id='analytics-table',
+       title='Analytics',
+       custom_controls='<button class="btn btn-sm btn-primary">Refresh</button>'
+   ) }}
+
+#}

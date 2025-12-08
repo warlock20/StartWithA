@@ -1,6 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
+<div class="checklist-edit-item-page">
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1>✏️ Edit Checklist Item</h1>
@@ -22,13 +23,21 @@
             <div class="card-body">
                 <form method="POST" action="{{ url_for('checklists.edit_checklist_item', item_id=item.id) }}">
                     <div class="mb-3">
-                        <label for="item_text" class="form-label">Item Text:</label>
-                        <textarea id="item_text" name="item_text" class="form-control" rows="4" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+                        <label for="item_text" class="form-label">Item Text <span class="text-danger">*</span></label>
+                        <textarea id="item_text" name="item_text" class="form-control" rows="2" required>{{ request.form.item_text if request.form else item.text }}</textarea>
+                        <small class="text-muted">Short, clear title for the checklist item</small>
                     </div>
 
                     <div class="mb-3">
-                        <label for="llm_prompt" class="form-label">Optional LLM Prompt for this item:</label>
-                        <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="4" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="Provide detailed context, guidance, or explanation for this item...">{{ request.form.description if request.form else (item.description if item.description else '') }}</textarea>
+                        <small class="text-muted">Optional: Add context, examples, or detailed instructions for this item</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="llm_prompt" class="form-label">Optional LLM Prompt</label>
+                        <textarea id="llm_prompt" name="llm_prompt" class="form-control" rows="3" placeholder="E.g., What are the key revenue drivers mentioned in the latest annual report?">{{ request.form.llm_prompt if request.form else (item.llm_prompt if item.llm_prompt else '') }}</textarea>
+                        <small class="text-muted">Optional: AI analysis prompt to help answer this question automatically</small>
                     </div>
 
                     <div class="d-flex justify-content-between">
@@ -52,28 +61,11 @@
         </div>
     </div>
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<style>
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .d-flex.justify-content-between {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .d-flex.justify-content-between > div {
-        width: 100%;
-    }
-
-    .d-flex.justify-content-between > div > .btn {
-        width: 100%;
-    }
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the text field for better UX

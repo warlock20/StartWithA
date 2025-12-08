@@ -1,0 +1,50 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-question-circle text-warning" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3 font-poppins">Update Template Too?</h3>
+                    </div>
+
+                    <div class="alert alert-info border-0">
+                        <p class="mb-2"><strong>You've selected:</strong> {{ checklist.name }}</p>
+                        <p class="mb-0">This will update the checklist for the current project.</p>
+                    </div>
+
+                    <div class="bg-light p-3 rounded mb-4">
+                        <p class="mb-2"><strong>Do you want to update the template "{{ project.template.name }}" as well?</strong></p>
+                        <p class="text-muted small mb-0">
+                            Updating the template will use this checklist for all future projects created from this template.
+                            This won't affect other active projects.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('research_workflow.update_step_checklist', project_id=project.id, step_index=step_index) }}">
+                        <input type="hidden" name="checklist_id" value="{{ checklist_id }}">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" name="update_template" value="yes" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Yes, Update Template & Project
+                            </button>
+                            <button type="submit" name="update_template" value="no" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-circle"></i> No, Update This Project Only
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}" class="btn btn-link text-muted">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

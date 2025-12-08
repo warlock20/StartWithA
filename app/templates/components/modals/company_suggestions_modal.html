@@ -1,0 +1,128 @@
+<!-- Company Suggestions Modal -->
+<div class="modal fade" id="companySuggestionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-building"></i> Link Companies
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Hidden fields to track context -->
+                <input type="hidden" id="linkTargetType"> <!-- 'note' or 'snippet' -->
+                <input type="hidden" id="linkTargetId">
+
+                <!-- Loading state -->
+                <div id="companySuggestionsLoading" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Analyzing...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Detecting company mentions...</p>
+                </div>
+
+                <!-- No suggestions -->
+                <div id="companySuggestionsEmpty" class="text-center py-4" style="display: none;">
+                    <i class="bi bi-search" style="font-size: 2rem; color: #9ca3af;"></i>
+                    <p class="mt-2 text-muted">No company mentions detected in this content.</p>
+                    <p class="small text-muted">Make sure the companies are tracked in your system.</p>
+                </div>
+
+                <!-- Suggestions container -->
+                <div id="companySuggestionsContent" style="display: none;">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        We found mentions of the following companies. Select which ones to link:
+                    </p>
+
+                    <!-- High confidence suggestions -->
+                    <div id="highConfidenceSuggestions" style="display: none;">
+                        <h6 class="fw-bold mb-2">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            High Confidence
+                        </h6>
+                        <div id="highConfidenceList" class="mb-3"></div>
+                    </div>
+
+                    <!-- Medium confidence suggestions -->
+                    <div id="mediumConfidenceSuggestions" style="display: none;">
+                        <h6 class="fw-bold mb-2">
+                            <i class="bi bi-exclamation-circle-fill text-warning"></i>
+                            Possible Matches
+                        </h6>
+                        <div id="mediumConfidenceList" class="mb-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="skipCompanyLinking()">
+                    <i class="bi bi-skip-forward"></i> Skip
+                </button>
+                <button type="button" class="btn btn-primary" id="linkSelectedCompaniesBtn" onclick="linkSelectedCompanies()">
+                    <i class="bi bi-link-45deg"></i> Link Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Company suggestion checkbox styles */
+.company-suggestion-item {
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.company-suggestion-item:hover {
+    background-color: #f9fafb;
+    border-color: #3b82f6;
+}
+
+.company-suggestion-item.selected {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.company-suggestion-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.company-suggestion-item .form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+
+.company-ticker {
+    display: inline-block;
+    background-color: #e0e7ff;
+    color: #4338ca;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+.company-sector-badge {
+    display: inline-block;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+}
+
+.match-type-badge {
+    display: inline-block;
+    background-color: #fef3c7;
+    color: #92400e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+</style>

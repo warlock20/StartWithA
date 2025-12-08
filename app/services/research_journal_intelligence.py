@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timedelta
 from app import db
 from app.models import JournalEntry, ThesisEvolution, Company, User
-from app.services.prompt_service import get_research_journal_prompt
+from app.ai.services.prompt_service import get_research_journal_prompt
 from app.utils.time_utils import now_utc
 import logging
 import google.generativeai as genai
@@ -393,5 +393,5 @@ def find_related_entries(entry: JournalEntry, limit: int = 5) -> Dict[str, Any]:
 # Helper function for prompt service integration
 def get_research_journal_prompt(prompt_name: str, **kwargs) -> str:
     """Get a research journal prompt with variables"""
-    from app.services.prompt_service import prompt_service
+    from app.ai.services.prompt_service import prompt_service
     return prompt_service.get_prompt('research_journal', prompt_name, **kwargs)

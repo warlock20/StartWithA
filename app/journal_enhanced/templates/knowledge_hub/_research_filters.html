@@ -1,0 +1,73 @@
+<!-- Research Notes Filters -->
+<div class="knowledge-filter-card">
+    <div class="card-body">
+        <form method="GET" id="researchFilters">
+            <input type="hidden" name="view" value="research">
+
+            <div class="knowledge-filter-grid">
+                <div>
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search research notes...">
+                </div>
+
+                <div>
+                    <label class="form-label">Company</label>
+                    <select class="form-select filter-select" name="company_id">
+                        <option value="">All Companies</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id')|int == company.id }}>{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Entry Type</label>
+                    <select class="form-select filter-select" name="entry_type">
+                        <option value="">All Types</option>
+                        <option value="observation" {{ 'selected' if request.args.get('entry_type') == 'observation' }}>Observation</option>
+                        <option value="thesis_update" {{ 'selected' if request.args.get('entry_type') == 'thesis_update' }}>Thesis Update</option>
+                        <option value="question" {{ 'selected' if request.args.get('entry_type') == 'question' }}>Question</option>
+                        <option value="meeting_notes" {{ 'selected' if request.args.get('entry_type') == 'meeting_notes' }}>Meeting Notes</option>
+                        <option value="earnings_reaction" {{ 'selected' if request.args.get('entry_type') == 'earnings_reaction' }}>Earnings Reaction</option>
+                        <option value="market_thought" {{ 'selected' if request.args.get('entry_type') == 'market_thought' }}>Market Thought</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Sentiment</label>
+                    <select class="form-select filter-select" name="sentiment">
+                        <option value="">All Sentiments</option>
+                        <option value="bullish" {{ 'selected' if request.args.get('sentiment') == 'bullish' }}>Bullish</option>
+                        <option value="bearish" {{ 'selected' if request.args.get('sentiment') == 'bearish' }}>Bearish</option>
+                        <option value="neutral" {{ 'selected' if request.args.get('sentiment') == 'neutral' }}>Neutral</option>
+                        <option value="uncertain" {{ 'selected' if request.args.get('sentiment') == 'uncertain' }}>Uncertain</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select filter-select" name="date_range">
+                        <option value="">All Time</option>
+                        <option value="7" {{ 'selected' if request.args.get('date_range') == '7' }}>Last 7 days</option>
+                        <option value="30" {{ 'selected' if request.args.get('date_range') == '30' }}>Last 30 days</option>
+                        <option value="90" {{ 'selected' if request.args.get('date_range') == '90' }}>Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="knowledge-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                <a href="?view=research" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
+
+                <div class="filter-checkbox-wrapper ms-auto">
+                    <input class="form-check-input" type="checkbox" name="starred_only" id="starredOnly"
+                           value="1" {{ 'checked' if request.args.get('starred_only') }}
+                           onchange="document.getElementById('researchFilters').submit()">
+                    <label class="form-check-label" for="starredOnly">
+                        Starred Only
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

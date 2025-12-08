@@ -1,0 +1,170 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Post-Mortem Analysis - {{ journal.company.ticker_symbol }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <header class="dashboard-header mb-4">
+                <div>
+                    <h1 class="dashboard-title font-poppins">Post-Mortem Analysis</h1>
+                    <p class="dashboard-subtitle">{{ journal.company.ticker_symbol }} - {{ journal.company.name }}</p>
+                </div>
+                <div class="dashboard-header-actions">
+                    <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x"></i> Skip for Now
+                    </a>
+                </div>
+            </header>
+
+            <!-- Info Alert -->
+            <div class="alert alert-info border-info mb-4">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Why Post-Mortem Analysis?</strong> Reflecting on your investment decisions helps you learn from both successes and mistakes. This data will help identify patterns in your decision-making over time.
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('portfolio.sell_postmortem', journal_id=journal.id) }}">
+
+                        <!-- Original Investment Context (if available) -->
+                        {% if buy_journal %}
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h6 class="fw-semibold mb-3">Original Investment Thesis</h6>
+                            <p class="mb-2">{{ buy_journal.investment_thesis }}</p>
+                            {% if buy_journal.expected_return %}
+                            <div class="small text-muted">
+                                <strong>Expected Return:</strong> {{ buy_journal.expected_return }}%
+                                {% if buy_journal.expected_timeframe %}over {{ buy_journal.expected_timeframe }} months{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Why Did You Sell? -->
+                        <div class="mb-4">
+                            <label for="sell_reason" class="form-label fw-semibold">
+                                Why did you sell? <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="sell_reason" name="sell_reason" rows="4"
+                                      placeholder="What triggered this exit decision? Was it thesis-based, price target, stop loss, portfolio rebalancing, or something else?"
+                                      required></textarea>
+                            <div class="form-text">Be specific about the reasoning behind your exit</div>
+                        </div>
+
+                        <!-- Actual Return -->
+                        <div class="mb-4">
+                            <label for="actual_return" class="form-label fw-semibold">
+                                Actual Return (%)
+                            </label>
+                            <input type="number" class="form-control" id="actual_return" name="actual_return"
+                                   step="0.01" placeholder="e.g., 15.5 or -8.3">
+                            <div class="form-text">Positive for gain, negative for loss</div>
+                        </div>
+
+                        <!-- What Went Right -->
+                        <div class="mb-4">
+                            <label for="what_went_right" class="form-label fw-semibold">
+                                What Went Right?
+                            </label>
+                            <textarea class="form-control" id="what_went_right" name="what_went_right" rows="3"
+                                      placeholder="What parts of your thesis played out as expected? What did you get right?"></textarea>
+                        </div>
+
+                        <!-- What Went Wrong -->
+                        <div class="mb-4">
+                            <label for="what_went_wrong" class="form-label fw-semibold">
+                                What Went Wrong?
+                            </label>
+                            <textarea class="form-control" id="what_went_wrong" name="what_went_wrong" rows="3"
+                                      placeholder="What parts of your thesis didn't play out? What did you miss or get wrong?"></textarea>
+                        </div>
+
+                        <!-- Lessons Learned -->
+                        <div class="mb-4">
+                            <label for="lessons_learned" class="form-label fw-semibold">
+                                Key Lessons Learned <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="lessons_learned" name="lessons_learned" rows="4"
+                                      placeholder="What will you do differently next time? What patterns did you notice? What did this investment teach you?"
+                                      required></textarea>
+                            <div class="form-text">This is the most important field - capture your learnings</div>
+                        </div>
+
+                        <!-- Would You Repeat This Decision? -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Would you make this same decision again?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="would_repeat" id="would_repeat_yes" value="true">
+                                <label class="form-check-label" for="would_repeat_yes">
+                                    Yes - The process was sound, even if the outcome wasn't perfect
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="would_repeat" id="would_repeat_no" value="false">
+                                <label class="form-check-label" for="would_repeat_no">
+                                    No - I would approach this differently
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Categorization -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="success_category" class="form-label fw-semibold">Success Category (if profitable)</label>
+                                <select class="form-select" id="success_category" name="success_category">
+                                    <option value="">Select...</option>
+                                    <option value="thesis_correct">Thesis Played Out Correctly</option>
+                                    <option value="patience">Patience Paid Off</option>
+                                    <option value="contrarian">Contrarian Bet Won</option>
+                                    <option value="momentum">Rode Momentum Successfully</option>
+                                    <option value="lucky">Got Lucky</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="mistake_category" class="form-label fw-semibold">Mistake Category (if loss)</label>
+                                <select class="form-select" id="mistake_category" name="mistake_category">
+                                    <option value="">Select...</option>
+                                    <option value="valuation">Overpaid / Valuation Error</option>
+                                    <option value="thesis_wrong">Thesis Was Wrong</option>
+                                    <option value="timing">Bad Timing</option>
+                                    <option value="ignored_risks">Ignored Red Flags</option>
+                                    <option value="emotional">Emotional Decision</option>
+                                    <option value="macro">Macro/External Factors</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-secondary">Skip for Now</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>Save Post-Mortem
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Helper Info -->
+            <div class="mt-4">
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <h6 class="card-title">Post-Mortem Best Practices</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Be Honest:</strong> Focus on learning, not defending your decisions</li>
+                            <li><strong>Separate Process from Outcome:</strong> A good process can have bad outcomes and vice versa</li>
+                            <li><strong>Look for Patterns:</strong> Over time, these will reveal your strengths and weaknesses</li>
+                            <li><strong>Action-Oriented:</strong> What specific behaviors will you change based on this?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

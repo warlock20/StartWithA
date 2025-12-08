@@ -48,123 +48,22 @@
 </div>
 
 <!-- Decision List -->
-<div class="card">
-    <div class="card-header">
-        <ul class="nav nav-tabs card-header-tabs">
-            <li class="nav-item">
-                <a class="nav-link active" data-bs-toggle="tab" href="#all">All Decisions</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#pending">Pending Outcomes</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#completed">With Outcomes</a>
-            </li>
-        </ul>
-    </div>
-    <div class="card-body">
-        <div class="tab-content">
-            <!-- All Decisions -->
-            <div class="tab-pane fade show active" id="all">
-                {% if decisions %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Company</th>
-                                <th>Decision</th>
-                                <th>Confidence</th>
-                                <th>Expected Return</th>
-                                <th>Actual Return</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for decision in decisions %}
-                            <tr>
-                                <td>{{ decision.decision_date.strftime('%Y-%m-%d') }}</td>
-                                <td>
-                                    <strong>{{ decision.company.name if decision.company else 'Unknown' }}</strong>
-                                </td>
-                                <td>
-                                    {% if decision.decision_type == 'invest' %}
-                                        <span class="badge bg-success">Invest</span>
-                                    {% elif decision.decision_type == 'pass' %}
-                                        <span class="badge bg-danger">Pass</span>
-                                    {% else %}
-                                        <span class="badge bg-warning">{{ decision.decision_type|title }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if decision.confidence_score %}
-                                        {{ decision.confidence_score }}/10
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if decision.expected_return %}
-                                        {{ decision.expected_return }}%
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if decision.actual_return is not none %}
-                                        <span class="{% if decision.actual_return > 0 %}text-success{% else %}text-danger{% endif %}">
-                                            {{ decision.actual_return }}%
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted">Pending</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" 
-                                                onclick="viewDecision({{ decision.id }})">View</button>
-                                        {% if decision.actual_return is none %}
-                                        <a href="{{ url_for('analytics.update_decision_outcome', decision_id=decision.id) }}" 
-                                           class="btn btn-outline-success">Update Outcome</a>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <p class="text-muted">No decisions recorded yet</p>
-                    <a href="{{ url_for('analytics.new_decision') }}" class="btn btn-primary">
-                        Record Your First Decision
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-            
-            <!-- Pending Outcomes Tab -->
-            <div class="tab-pane fade" id="pending">
-                {% set pending = decisions|selectattr('actual_return', 'none')|list %}
-                {% if pending %}
-                    <!-- Similar table structure, filtered for pending -->
-                {% else %}
-                    <p class="text-center text-muted py-4">No decisions pending outcomes</p>
-                {% endif %}
-            </div>
-            
-            <!-- Completed Outcomes Tab -->
-            <div class="tab-pane fade" id="completed">
-                {% set completed = decisions|selectattr('actual_return', 'defined')|list %}
-                {% if completed %}
-                    <!-- Similar table structure, filtered for completed -->
-                {% else %}
-                    <p class="text-center text-muted py-4">No decisions with recorded outcomes</p>
-                {% endif %}
-            </div>
+<div class="portfolio-table-section">
+    <div class="portfolio-table-section-header">
+        <h2 class="portfolio-table-section-title">Decision Journal</h2>
+        <div class="portfolio-table-controls">
+            <select id="decisions-filter" class="portfolio-filter-select">
+                <option value="all">All Decisions</option>
+                <option value="pending">Pending Outcomes</option>
+                <option value="completed">With Outcomes</option>
+            </select>
+            <button class="portfolio-btn-export" onclick="decisionsTable.download('csv', 'decision-journal.csv')">
+                <i class="bi bi-download"></i>
+                Export
+            </button>
         </div>
     </div>
+    <div id="decisions-table"></div>
 </div>
 
 <!-- Decision Detail Modal -->
@@ -186,6 +85,148 @@
 {% block scripts %}
 {{ super() }}
 <script>
+// Initialize Decisions Table
+let decisionsTable;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Decisions data
+    const decisionsData = [
+        {% for decision in decisions %}
+        {
+            id: {{ decision.id }},
+            date: "{{ decision.decision_date.strftime('%Y-%m-%d') }}",
+            company: "{{ decision.company.name if decision.company else 'Unknown' }}",
+            decisionType: "{{ decision.decision_type }}",
+            confidence: {{ decision.confidence_score if decision.confidence_score else 'null' }},
+            expectedReturn: {{ decision.expected_return if decision.expected_return else 'null' }},
+            actualReturn: {{ decision.actual_return if decision.actual_return is not none else 'null' }},
+            hasOutcome: {{ 'true' if decision.actual_return is not none else 'false' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    // Create the table
+    decisionsTable = new Tabulator("#decisions-table", {
+        data: decisionsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                hozAlign: "right",
+                minWidth: 110,
+                widthGrow: 1
+            },
+            {
+                title: "Company",
+                field: "company",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>' + cell.getValue() + '</strong>';
+                },
+                minWidth: 150,
+                widthGrow: 2
+            },
+            {
+                title: "Decision",
+                field: "decisionType",
+                sorter: "string",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    let badgeClass = 'bg-warning';
+                    if (type === 'invest') badgeClass = 'bg-success';
+                    else if (type === 'pass') badgeClass = 'bg-danger';
+                    return `<span class="badge ${badgeClass}">${type.charAt(0).toUpperCase() + type.slice(1)}</span>`;
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Confidence",
+                field: "confidence",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return val !== null ? val + '/10' : '-';
+                },
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Expected Return",
+                field: "expectedReturn",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return val !== null ? val + '%' : '-';
+                },
+                minWidth: 130,
+                widthGrow: 1
+            },
+            {
+                title: "Actual Return",
+                field: "actualReturn",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    if (val === null) return '<span class="text-muted">Pending</span>';
+                    const className = val > 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
+                    return `<span class="${className}">${val}%</span>`;
+                },
+                minWidth: 120,
+                widthGrow: 1
+            },
+            {
+                title: "Actions",
+                field: "id",
+                headerSort: false,
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const data = cell.getRow().getData();
+                    let html = `<button onclick="viewDecision(${data.id})" class="portfolio-btn-icon" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </button>`;
+                    if (!data.hasOutcome) {
+                        html += ` <a href="/analytics/decision/${data.id}/update-outcome" class="portfolio-btn-icon" title="Update Outcome" style="background: #10b981; color: white; border-color: #10b981;">
+                                    <i class="bi bi-check-circle"></i>
+                                </a>`;
+                    }
+                    return html;
+                },
+                minWidth: 120,
+                widthGrow: 1
+            }
+        ],
+        initialSort: [
+            {column: "date", dir: "desc"}
+        ]
+    });
+
+    // Filter functionality
+    const filterSelect = document.getElementById('decisions-filter');
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'all') {
+                decisionsTable.clearFilter();
+            } else if (value === 'pending') {
+                decisionsTable.setFilter('hasOutcome', '=', false);
+            } else if (value === 'completed') {
+                decisionsTable.setFilter('hasOutcome', '=', true);
+            }
+        });
+    }
+});
+
 function viewDecision(decisionId) {
     // This would load decision details via AJAX
     // For now, just show a placeholder

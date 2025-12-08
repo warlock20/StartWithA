@@ -46,6 +46,7 @@ small {
 /* Layout */
 .content-wrapper {
     flex: 1 0 auto;
+    padding-top: 1rem;
 }
 
 .footer {

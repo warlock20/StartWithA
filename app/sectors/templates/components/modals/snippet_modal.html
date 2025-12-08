@@ -1,0 +1,49 @@
+<!-- Save Snippet Modal -->
+<div class="modal fade" id="saveSnippetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-scissors"></i> Save Research Snippet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Selected Text</label>
+                    <div id="snippetPreview" class="snippet-preview"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Category *</label>
+                    <select id="snippetCategory" class="form-select" required>
+                        <option value="">Choose category...</option>
+                        <option value="competitive_advantage">💪 Competitive Advantage</option>
+                        <option value="risks">⚠️ Risks</option>
+                        <option value="valuation">💰 Valuation</option>
+                        <option value="growth_drivers">📈 Growth Drivers</option>
+                        <option value="industry_trends">🔍 Industry Trends</option>
+                        <option value="management">👔 Management</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tags (optional)</label>
+                    <input type="text" id="snippetTags" class="form-control" placeholder="e.g., margins, pricing power, moat">
+                    <small class="text-muted">Separate multiple tags with commas</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea id="snippetNotes" class="form-control" rows="2" placeholder="Add context or your thoughts..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveSnippet()">
+                    <i class="bi bi-check-circle"></i> Save Snippet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
