@@ -1,5 +1,13 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{{ super() }}
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<!-- Hashtag Autocomplete -->
+<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-10">
@@ -73,10 +81,9 @@
                     <div class="mb-3">
                         <label for="content" class="form-label">
                             Content <span class="text-danger">*</span>
-                            <small class="text-muted">(Use #hashtags for easy searching)</small>
                         </label>
-                        <textarea class="form-control" id="content" name="content" rows="8" required
-                            placeholder="What's on your mind?">{{ entry.content or '' }}</textarea>
+                        <div id="journalContentEditor" style="min-height: 300px; border: 1px solid #dee2e6; border-radius: 0.375rem; background: white;"></div>
+                        <input type="hidden" id="content" name="content" required>
                     </div>
 
                     <!-- Advanced Fields (for Observation type) -->
@@ -193,6 +200,50 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Initialize BlockNote Editor with existing content
+    let journalEditorInstance = null;
+
+    // Wait for BlockNote to load
+    const initJournalEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(initJournalEditor);
+
+            // Get the existing content as a string (BlockNote will handle parsing)
+            const existingContent = {{ entry.content | tojson | safe }};
+            console.log('Loading existing content:', existingContent ? existingContent.substring(0, 100) : 'empty');
+
+            // Initialize BlockNote for journal content
+            journalEditorInstance = window.initBlockNoteEditor('journalContentEditor', {
+                placeholder: 'Write your journal entry here... Type "/" for commands',
+                onSave: null, // Manual save via form submission
+                initialContent: existingContent
+            });
+
+            console.log('Journal BlockNote editor initialized with existing content');
+        }
+    }, 100);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+        clearInterval(initJournalEditor);
+        if (!window.initBlockNoteEditor) {
+            console.error('BlockNote failed to load');
+        }
+    }, 10000);
+
+    // Capture BlockNote content before form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            const blocks = window.blockNoteEditorInstance.editor.document;
+            const content = JSON.stringify(blocks);
+            document.getElementById('content').value = content;
+            console.log('Captured content for submission:', content.substring(0, 100));
+        } else {
+            console.error('Editor instance not available for content capture');
+        }
+        // Don't prevent default - allow form submission to continue
+    });
+
     // Handle entry type changes
     document.getElementById('entry_type').addEventListener('change', function(e) {
         const entryType = e.target.value;

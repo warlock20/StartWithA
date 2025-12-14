@@ -932,64 +932,9 @@ def review_queue():
 @journal_enhanced_bp.route('/search')
 @login_required
 def search():
-    """Enhanced search for knowledge hub with advanced filtering"""
-    query = request.args.get('q', '')
-    company_id = request.args.get('company_id', type=int)
-    entry_type = request.args.get('entry_type')
-    sentiment = request.args.get('sentiment')
-    starred_only = request.args.get('starred_only') == 'true'
-    reviewed_only = request.args.get('reviewed_only') == 'true'
-    date_from = request.args.get('date_from')
-    date_to = request.args.get('date_to')
-    review_date_from = request.args.get('review_date_from')
-    review_date_to = request.args.get('review_date_to')
-    selected_tags = request.args.getlist('tags')
-
-    filters = {}
-    if company_id:
-        filters['company_id'] = company_id
-    if entry_type:
-        filters['entry_type'] = entry_type
-    if sentiment:
-        filters['sentiment'] = sentiment
-    if starred_only:
-        filters['starred_only'] = True
-    if reviewed_only:
-        filters['reviewed_only'] = True
-    if date_from:
-        filters['date_from'] = datetime.strptime(date_from, '%Y-%m-%d')
-    if date_to:
-        filters['date_to'] = datetime.strptime(date_to, '%Y-%m-%d')
-    if review_date_from:
-        filters['review_date_from'] = datetime.strptime(review_date_from, '%Y-%m-%d')
-    if review_date_to:
-        filters['review_date_to'] = datetime.strptime(review_date_to, '%Y-%m-%d')
-    if selected_tags:
-        filters['tags'] = selected_tags
-
-    results = search_journal(current_user.id, query, filters)
-
-    # Get all available tags for the filter UI
-    all_tags = get_all_user_tags(current_user.id)
-
-    # Get companies for filter dropdown
-    companies = current_user.companies.order_by(Company.name).all()
-
-    # Get entry types
-    entry_types = db.session.query(JournalEntry.entry_type.distinct()).filter_by(
-        user_id=current_user.id
-    ).all()
-    entry_types = [t[0] for t in entry_types]
-
-    return render_template('search_results.html',
-                          title="Knowledge Hub Search",
-                          query=query,
-                          results=results,
-                          filters=request.args.to_dict(flat=False),
-                          selected_tags=selected_tags,
-                          all_tags=all_tags,
-                          companies=companies,
-                          entry_types=entry_types)
+    """Redirect to Knowledge Hub - search functionality has been integrated"""
+    # Preserve query parameters for backward compatibility
+    return redirect(url_for('journal_enhanced.knowledge_hub', **request.args))
 
 @journal_enhanced_bp.route('/templates')
 @login_required
