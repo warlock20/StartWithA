@@ -18,7 +18,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
-                       ResearchSession, ResearchAnswer)
+                       ChecklistAnalysis, ChecklistAnswer)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
@@ -152,11 +152,11 @@ def project_dashboard(project_id):
     # Get latest research session for the company (for checklist analysis button)
     latest_research_session = None
     if project.company_id:
-        latest_research_session = ResearchSession.query.filter_by(
+        latest_research_session = ChecklistAnalysis.query.filter_by(
             company_id=project.company_id,
             user_id=current_user.id,
             status='completed'
-        ).order_by(ResearchSession.start_date.desc()).first()
+        ).order_by(ChecklistAnalysis.start_date.desc()).first()
 
     # Calculate days since last work using proper timezone handling
     days_since_last_work = None
@@ -240,7 +240,7 @@ def execute_step(project_id, step_index):
                     return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
                 # Check if a research session already exists for this checklist and company
-                existing_research_session = ResearchSession.query.filter_by(
+                existing_research_session = ChecklistAnalysis.query.filter_by(
                     user_id=current_user.id,
                     checklist_id=checklist_id,
                     company_id=project.company_id
@@ -255,8 +255,8 @@ def execute_step(project_id, step_index):
                             # Find first unanswered item
                             redirect_to_item_id = all_items[0].id  # Default to first item
                             for item in all_items:
-                                answer_exists = ResearchAnswer.query.filter_by(
-                                    research_session_id=existing_research_session.id,
+                                answer_exists = ChecklistAnswer.query.filter_by(
+                                    checklist_analysis_id=existing_research_session.id,
                                     checklist_item_id=item.id
                                 ).first()
                                 if not answer_exists:
@@ -283,7 +283,7 @@ def execute_step(project_id, step_index):
                                               session_id=existing_research_session.id))
                 else:
                     # Create new research session
-                    new_research_session = ResearchSession(
+                    new_research_session = ChecklistAnalysis(
                         user_id=current_user.id,
                         checklist_id=checklist_id,
                         company_id=project.company_id,

@@ -17,7 +17,7 @@ matplotlib
 redis
 celery
 secedgar
-requests
-pandas
 openai
 PyYAML
+authlib>=1.2.0
+python-jose[cryptography]>=3.3.0

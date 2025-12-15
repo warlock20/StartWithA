@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
+from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
 
 # Utility imports needed for document handling
@@ -76,7 +76,7 @@ def select_checklist_for_company(company_id):
 
     checklists_data = []
     for chk in user_checklists:
-        existing_session = ResearchSession.query.filter_by(
+        existing_session = ChecklistAnalysis.query.filter_by(
             user_id=current_user.id,
             company_id=company.id,
             checklist_id=chk.id
@@ -99,8 +99,8 @@ def select_checklist_for_company(company_id):
                 if all_items:
                     resume_id_candidate = all_items[0].id # Default to first item
                     for item in all_items:
-                        ans_exists = ResearchAnswer.query.filter_by(
-                            research_session_id=existing_session.id, 
+                        ans_exists = ChecklistAnswer.query.filter_by(
+                            checklist_analysis_id=existing_session.id, 
                             checklist_item_id=item.id
                         ).first()
                         if not ans_exists:
@@ -120,7 +120,7 @@ def select_checklist_for_company(company_id):
 @research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def research_step(session_id, item_id):
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(session_id)
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
@@ -153,8 +153,8 @@ def research_step(session_id, item_id):
                                             .all()
         
     # Fetch existing answer for this item in this session
-    research_answer = ResearchAnswer.query.filter_by(
-        research_session_id=session.id,
+    research_answer = ChecklistAnswer.query.filter_by(
+        checklist_analysis_id=session.id,
         checklist_item_id=current_item.id
     ).first()
 
@@ -166,9 +166,9 @@ def research_step(session_id, item_id):
             research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status_from_form
         else:
-            research_answer = ResearchAnswer(
+            research_answer = ChecklistAnswer(
                 answer_text=answer_text,
-                research_session_id=session.id,
+                checklist_analysis_id=session.id,
                 checklist_item_id=current_item.id,
                 satisfaction_status=satisfaction_status_from_form
             )
@@ -220,7 +220,7 @@ def autosave_research_answer(session_id, item_id):
     Auto-save endpoint for research answers - returns JSON for AJAX requests
     """
     try:
-        session = ResearchSession.query.get_or_404(session_id)
+        session = ChecklistAnalysis.query.get_or_404(session_id)
         current_item = ChecklistItem.query.get_or_404(item_id)
 
         # Authorization check
@@ -241,8 +241,8 @@ def autosave_research_answer(session_id, item_id):
             satisfaction_status = request.form.get('satisfaction_status', 'neutral')
 
         # Find or create research answer
-        research_answer = ResearchAnswer.query.filter_by(
-            research_session_id=session.id,
+        research_answer = ChecklistAnswer.query.filter_by(
+            checklist_analysis_id=session.id,
             checklist_item_id=current_item.id
         ).first()
 
@@ -251,9 +251,9 @@ def autosave_research_answer(session_id, item_id):
             research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status
         else:
-            research_answer = ResearchAnswer(
+            research_answer = ChecklistAnswer(
                 answer_text=answer_text,
-                research_session_id=session.id,
+                checklist_analysis_id=session.id,
                 checklist_item_id=current_item.id,
                 satisfaction_status=satisfaction_status
             )
@@ -283,7 +283,7 @@ def ai_analyze_item(session_id, item_id):
         return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
 
     # LLM service will handle API configuration automatically
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(session_id)
     # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
         return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
@@ -487,13 +487,12 @@ def ai_analyze_item(session_id, item_id):
         'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""),
         'ai_suggestion': ai_suggestion
     })
-    
-# We also need a route for the session summary. Let's add a placeholder for now.
+
 @research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
 @login_required
 def view_checklist_session_summary(session_id):
     # Fetch the core session object and authorize the user
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
@@ -516,7 +515,7 @@ def view_checklist_session_summary(session_id):
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     
     # 2. Fetch all answers for this session just once
-    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     
     # 3. Create a dictionary that maps an item's ID to its full answer object for easy lookup in the template
     answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
@@ -557,14 +556,14 @@ def view_checklist_session_summary(session_id):
 @login_required
 def export_session_to_txt(session_id):
     # 1. Fetch session and authorize user
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(session_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
-    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
 
     # 3. Construct the text content as a list of strings
@@ -662,7 +661,7 @@ def select_model(company_id):
         return redirect(url_for('companies.companies_dashboard'))
 
     # NEW: Check if there is at least one completed research session for this company
-    has_completed_research = ResearchSession.query.filter_by(
+    has_completed_research = ChecklistAnalysis.query.filter_by(
         user_id=current_user.id,
         company_id=company.id,
         status='completed'

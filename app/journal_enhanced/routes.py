@@ -31,12 +31,6 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@journal_enhanced_bp.route('/')
-@login_required
-def journal_home():
-    """Redirect to Knowledge Hub - Research Notes view (replaces old journal home)"""
-    return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
-
 @journal_enhanced_bp.route('/entry/new', methods=['GET', 'POST'])
 @login_required
 def new_entry():
@@ -149,9 +143,9 @@ def new_entry():
                     content,
                     trigger='Journal entry'
                 )
-            
+
             flash('Journal entry created successfully!', 'success')
-            return redirect(url_for('journal_enhanced.journal_home'))
+            return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
             
         except Exception as e:
             db.session.rollback()
@@ -192,8 +186,8 @@ def entry_detail(entry_id):
     
     if entry.user_id != current_user.id:
         flash('Access denied', 'error')
-        return redirect(url_for('journal_enhanced.journal_home'))
-    
+        return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+
     # Don't automatically mark as reviewed - let user control this manually
     
     # Get related entries using existing rule-based function
@@ -213,11 +207,11 @@ def entry_detail(entry_id):
 def edit_entry(entry_id):
    """Edit a journal entry"""
    entry = JournalEntry.query.get_or_404(entry_id)
-   
+
    if entry.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.journal_home'))
-   
+       return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+
    if request.method == 'POST':
        entry.title = request.form.get('title')
        entry.content = request.form.get('content')
@@ -275,11 +269,11 @@ def toggle_star(entry_id):
 def archive_entry(entry_id):
    """Archive a journal entry"""
    entry = JournalEntry.query.get_or_404(entry_id)
-   
+
    if entry.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('journal_enhanced.journal_home'))
-   
+       return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+
    entry.is_archived = True
    
    try:
@@ -288,8 +282,8 @@ def archive_entry(entry_id):
    except Exception as e:
        db.session.rollback()
        flash(f'Error archiving entry: {str(e)}', 'error')
-   
-   return redirect(url_for('journal_enhanced.journal_home'))
+
+   return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
 
 @journal_enhanced_bp.route('/thesis-evolution/<int:company_id>')
 @login_required
@@ -685,12 +679,6 @@ def edit_learning_note(note_id):
                          note=note,
                          companies=companies)
 
-@journal_enhanced_bp.route('/knowledge-library')
-@login_required
-def knowledge_library():
-   """Redirect to Knowledge Hub - Curated Wisdom view"""
-   return redirect(url_for('journal_enhanced.knowledge_hub', type='wisdom'))
-
 @journal_enhanced_bp.route('/knowledge-hub')
 @login_required
 def knowledge_hub():
@@ -929,13 +917,6 @@ def review_queue():
                          starred_entries=queue['starred_entries'],
                          total_items=queue['total_items'])
 
-@journal_enhanced_bp.route('/search')
-@login_required
-def search():
-    """Redirect to Knowledge Hub - search functionality has been integrated"""
-    # Preserve query parameters for backward compatibility
-    return redirect(url_for('journal_enhanced.knowledge_hub', **request.args))
-
 @journal_enhanced_bp.route('/templates')
 @login_required
 def manage_templates():
@@ -995,7 +976,7 @@ def export_journal():
    
    # Could add CSV, Markdown, or other formats
    flash('Export format not supported', 'error')
-   return redirect(url_for('journal_enhanced.journal_home'))
+   return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
 
 @journal_enhanced_bp.route('/attachment/<int:attachment_id>')
 @login_required
@@ -1090,7 +1071,7 @@ def delete_entry(entry_id):
         db.session.commit()
 
         flash('Journal entry deleted successfully', 'success')
-        return redirect(url_for('journal_enhanced.journal_home'))
+        return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
 
     except Exception as e:
         db.session.rollback()

@@ -62,32 +62,13 @@ def index():
 
     upcoming_checkpoints = []
     if portfolio_company_ids:
-        # Debug: Print some information
-        print(f"DEBUG: Found {len(portfolio_company_ids)} portfolio companies: {portfolio_company_ids}")
-
-        # First, let's see all checkpoints for portfolio companies
-        all_portfolio_checkpoints = DestinationCheckpoint.query.filter(
-            DestinationCheckpoint.company_id.in_(portfolio_company_ids)
-        ).all()
-        print(f"DEBUG: Found {len(all_portfolio_checkpoints)} total checkpoints for portfolio companies")
-        print(f"DEBUG: Date range: {today} to {twelve_months_from_now}")
-
-        for cp in all_portfolio_checkpoints:
-            print(f"DEBUG: Checkpoint details - Company: {cp.company.name}, Metric: {cp.metric}, Date: {cp.target_date}, Status: '{cp.status}', In date range: {today <= cp.target_date <= twelve_months_from_now}")
-
-        # Now filter by date and status
+        # Filter by date and status
         upcoming_checkpoints = DestinationCheckpoint.query.filter(
             DestinationCheckpoint.company_id.in_(portfolio_company_ids),
             DestinationCheckpoint.target_date >= today,
             DestinationCheckpoint.target_date <= twelve_months_from_now,
             DestinationCheckpoint.status == 'Active'  # Only show active checkpoints
         ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
-
-        print(f"DEBUG: Found {len(upcoming_checkpoints)} upcoming active checkpoints")
-        for cp in upcoming_checkpoints:
-            print(f"DEBUG: Checkpoint - {cp.company.name}: {cp.metric} on {cp.target_date} (status: {cp.status})")
-    else:
-        print("DEBUG: No portfolio companies found")
 
     # Get Too Hard Basket statistics
     all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})

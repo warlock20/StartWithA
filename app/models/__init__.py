@@ -39,8 +39,8 @@ from .idea_pipeline import (
     MistakeLog,
 )
 from .research import (
-    ResearchSession,
-    ResearchAnswer,
+    ChecklistAnalysis,
+    ChecklistAnswer,
     ResearchTemplate,
     ResearchProject,
     WorkSession,
@@ -120,8 +120,8 @@ __all__ = [
     'IdeaSourceAnalysis',
     'MistakeLog',
     # Research models
-    'ResearchSession',
-    'ResearchAnswer',
+    'ChecklistAnalysis',
+    'ChecklistAnswer',
     'ResearchTemplate',
     'ResearchProject',
     'WorkSession',

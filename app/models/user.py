@@ -28,7 +28,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     )
     checklists = db.relationship("Checklist", backref="author", lazy="dynamic")
     research_sessions = db.relationship(
-        "ResearchSession", backref="researcher", lazy="dynamic"
+        "ChecklistAnalysis", backref="researcher", lazy="dynamic"
     )
     companies = db.relationship("Company", backref="creator", lazy="dynamic")
     favorites = db.relationship(

@@ -14,7 +14,7 @@ Extracted from routes.py lines: 1217-1257, 1343-1476, 1478-1585, 1587-1599, 1602
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user, login_required
 from app import db
-from app.models import (WorkSession, ResearchSession, ResearchAnswer,
+from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
                        ResearchProject, KillChecklist, CompanyDocument)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @login_required
 def delete_research_session(session_id):
     """Delete a research session that is not in progress or completed"""
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(session_id)
 
     # Authorization check
     if session.user_id != current_user.id:
@@ -39,7 +39,7 @@ def delete_research_session(session_id):
 
     # For completed sessions, only allow deletion if they're incomplete/failed
     if session.status == 'completed':
-        total_answers = ResearchAnswer.query.filter_by(research_session_id=session_id).all()
+        total_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session_id).all()
         total_item_count = len(total_answers)
         satisfied_count = len([ans for ans in total_answers if ans.satisfaction_status == 'satisfied'])
 
@@ -50,7 +50,7 @@ def delete_research_session(session_id):
 
     try:
         # Delete related research answers first to handle foreign key constraints
-        ResearchAnswer.query.filter_by(research_session_id=session_id).delete()
+        ChecklistAnswer.query.filter_by(checklist_analysis_id=session_id).delete()
 
         # Commit the deletion of related records
         db.session.commit()

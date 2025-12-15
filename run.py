@@ -1,7 +1,7 @@
 from app import create_app, db
 from celery_app import celery # Import the celery instance
-from app.models import (User, Checklist, ChecklistItem, Company, 
-                        ResearchSession, ResearchAnswer, CompanyDocument)
+from app.models import (User, Checklist, ChecklistItem, Company,
+                        ChecklistAnalysis, ChecklistAnswer, CompanyDocument)
 
 # 1. Create the Flask app instance FIRST.
 app = create_app()
@@ -11,14 +11,14 @@ app = create_app()
 def make_shell_context():
     """Makes additional variables available in the Flask shell context."""
     return {
-        'app': app, 
-        'db': db, 
-        'User': User, 
-        'Checklist': Checklist, 
+        'app': app,
+        'db': db,
+        'User': User,
+        'Checklist': Checklist,
         'ChecklistItem': ChecklistItem,
         'Company': Company,
-        'ResearchSession': ResearchSession,
-        'ResearchAnswer': ResearchAnswer,
+        'ChecklistAnalysis': ChecklistAnalysis,
+        'ChecklistAnswer': ChecklistAnswer,
         'CompanyDocument': CompanyDocument
     }
 

@@ -17,7 +17,7 @@
             <p class="dashboard-subtitle">Capture your investment thinking</p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', view='research') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Cancel
             </a>
         </div>
@@ -156,7 +156,7 @@
 
                     <!-- Submit -->
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='research') }}" class="btn btn-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">Save Entry</button>
                     </div>
                 </form>

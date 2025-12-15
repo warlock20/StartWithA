@@ -8,7 +8,7 @@ from flask import render_template, request, redirect, url_for, flash, current_ap
 from flask_login import current_user, login_required
 from app import db, cache
 from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
-                        ResearchSession, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
+                        ChecklistAnalysis, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
                         FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
                         JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline)
 from app.services.duplicate_detection import DuplicateDetectionService
@@ -62,7 +62,7 @@ def companies_dashboard():
     portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
 
     # Get sets of company IDs that have a specific analysis completed
-    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    completed_checklist_ids = {s.company_id for s in ChecklistAnalysis.query.filter_by(user_id=current_user.id, status='completed').all()}
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 
@@ -160,7 +160,7 @@ def watchlist():
     watchlist_companies = [c for c in all_user_companies if c.id in favorite_ids and c.id not in portfolio_ids]
 
     # Get additional data for enrichment
-    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    completed_checklist_ids = {s.company_id for s in ChecklistAnalysis.query.filter_by(user_id=current_user.id, status='completed').all()}
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 
@@ -313,7 +313,7 @@ def list_companies():
     portfolio_ids = {c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()}
 
     # Get sets of company IDs that have a specific analysis completed
-    completed_checklist_ids = {s.company_id for s in ResearchSession.query.filter_by(user_id=current_user.id, status='completed').all()}
+    completed_checklist_ids = {s.company_id for s in ChecklistAnalysis.query.filter_by(user_id=current_user.id, status='completed').all()}
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 

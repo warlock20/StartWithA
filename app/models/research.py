@@ -4,7 +4,13 @@ from app import db
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 
 
-class ResearchSession(db.Model):
+class ChecklistAnalysis(db.Model):
+    """
+    A checklist analysis session tracks the process of analyzing a company
+    using a specific checklist. This is used as a step within research workflows.
+    """
+    __tablename__ = 'checklist_analysis'
+
     id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.DateTime, nullable=False, default=now_utc)
     status = db.Column(db.String(50), nullable=False, default="in_progress")
@@ -14,48 +20,43 @@ class ResearchSession(db.Model):
     checklist_id = db.Column(db.Integer, db.ForeignKey("checklist.id"), nullable=False)
     conclusion = db.Column(db.Text, nullable=True)
 
-    # Relationships:
-    # The 'company' attribute is created by the backref from the Company model.
-    # If your User model has a 'research_sessions' relationship with a backref='researcher',
-    # then session.researcher would be available.
-
-    # ADD/ENSURE THIS RELATIONSHIP FOR CHECKLIST:
+    # Relationships
     checklist = db.relationship("Checklist")
 
-    # You might also want a direct relationship to the User if not using a backref that names it 'user'
-    # user = db.relationship('User') # If User model's backref isn't simply 'user'
-
     answers = db.relationship(
-        "ResearchAnswer",
-        backref="session",
+        "ChecklistAnswer",
+        backref="analysis",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
 
     def __repr__(self):
-        return f"<ResearchSession {self.id} for Company {self.company_id} using Checklist {self.checklist_id}>"
+        return f"<ChecklistAnalysis {self.id} for Company {self.company_id} using Checklist {self.checklist_id}>"
 
 
-class ResearchAnswer(db.Model):
+class ChecklistAnswer(db.Model):
+    """
+    An answer to a specific checklist item during a checklist analysis.
+    """
+    __tablename__ = 'checklist_answer'
+
     id = db.Column(db.Integer, primary_key=True)
-    answer_text = db.Column(db.Text, nullable=True)  # Textual answer from the user
-    # file_path: For later, when we implement PDF uploads for specific questions
-    # file_path = db.Column(db.String(300), nullable=True)
+    answer_text = db.Column(db.Text, nullable=True)
     answered_at = db.Column(db.DateTime, default=now_utc)
     satisfaction_status = db.Column(db.String(30), nullable=True, default="neutral")
 
-    research_session_id = db.Column(
-        db.Integer, db.ForeignKey("research_session.id"), nullable=False
+    checklist_analysis_id = db.Column(
+        db.Integer, db.ForeignKey("checklist_analysis.id"), nullable=False
     )
     checklist_item_id = db.Column(
         db.Integer, db.ForeignKey("checklist_item.id"), nullable=False
     )
 
-    # Relationship to the specific checklist item this answer pertains to
+    # Relationship to the specific checklist item
     item = db.relationship("ChecklistItem")
 
     def __repr__(self):
-        return f"<ResearchAnswer {self.id} for Item {self.checklist_item_id} in Session {self.research_session_id}>"
+        return f"<ChecklistAnswer {self.id} for Item {self.checklist_item_id} in Analysis {self.checklist_analysis_id}>"
 
 
 class ResearchTemplate(db.Model):
@@ -204,13 +205,31 @@ class ResearchProject(db.Model):
 
     @property
     def progress_percentage(self):
-        """Calculate the completion percentage of this project"""
+        """
+        Calculate the completion percentage of this project.
+
+        This considers partial progress within steps (e.g., checklist items completed)
+        to provide more granular progress tracking.
+        """
+        # Import here to avoid circular import
+        from app.services.step_progress_calculator import StepProgressCalculator
+
         if not self.template or not self.template.workflow_steps:
-            return 0
+            return 0.0
+
         total_steps = len(self.template.workflow_steps)
         if total_steps == 0:
-            return 0
-        return round((len(self.completed_steps) / total_steps) * 100, 1)
+            return 0.0
+
+        # Calculate progress for each step and average them
+        total_progress = 0.0
+        for step_index in range(total_steps):
+            step_progress = StepProgressCalculator.get_step_progress(self, step_index)
+            total_progress += step_progress
+
+        # Average progress across all steps
+        overall_progress = total_progress / total_steps
+        return round(overall_progress, 1)
 
     @property
     def current_step(self):
