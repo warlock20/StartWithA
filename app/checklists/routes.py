@@ -3,21 +3,20 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
 import asyncio
-from datetime import datetime
 from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
-from app.models import User, Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
-from app.checklists import checklists_bp # Import the new blueprint
-from app.services.llm_service import (
+from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
+from app.checklists import checklists_bp 
+from app.services.ai.document_processor import (
     LLMChecklistProcessor,
     DocumentParser,
-    LLMProvider,
     ProcessingApproach,
-    get_available_providers,
     get_supported_file_types
 )
+from app.services.ai.config import AIProvider
 from app.services.template_loader import get_template_loader, TemplateValidationError
+from app.services.ai import get_available_providers
 
 
 @checklists_bp.route('/')
@@ -552,7 +551,7 @@ def process_document(import_id):
         db.session.commit()
 
         # Process with LLM
-        provider = LLMProvider(document_import.llm_provider)
+        provider = AIProvider(document_import.llm_provider)
         approach = ProcessingApproach(document_import.processing_approach)
 
         processor = LLMChecklistProcessor(provider)

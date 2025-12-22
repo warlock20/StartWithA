@@ -18,7 +18,7 @@ from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
                        ResearchProject, KillChecklist, CompanyDocument)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
-from app.services.llm_service import generate_ai_content
+from app.services.ai import generate_ai_content
 import logging
 
 logger = logging.getLogger(__name__)
