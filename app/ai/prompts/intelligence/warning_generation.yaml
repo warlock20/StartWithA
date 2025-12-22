@@ -5,8 +5,13 @@ name: "warning_generation"
 description: "Generate helpful warnings when patterns match past mistakes or risky behaviors"
 version: "1.0"
 category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"
+model: "claude-sonnet-4-20250514"
 max_tokens: 1000
 temperature: 0.4
+
 last_modified: "2025-12-22"
 
 system_context: |

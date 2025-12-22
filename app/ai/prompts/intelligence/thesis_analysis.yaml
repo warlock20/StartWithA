@@ -5,8 +5,13 @@ name: "thesis_analysis"
 description: "Analyze investment thesis quality, identify strengths/weaknesses, and suggest improvements"
 version: "1.0"
 category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"  # Can be overridden in ai_routing.yaml
+model: "claude-sonnet-4-20250514"
 max_tokens: 2000
 temperature: 0.3
+
 last_modified: "2025-12-22"
 
 system_context: |

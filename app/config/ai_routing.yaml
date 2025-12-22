@@ -1,71 +1,43 @@
 # AI Provider Routing Configuration
-# Controls which LLM provider is used for each task type
-# Modify this file to adjust cost/quality tradeoffs without code changes
+# Overrides prompt template defaults when needed
 
-# Routing rules: primary provider, fallback, and cost tier
-routing_rules:
-  # Quality-critical tasks - use Claude for best reasoning
-  thesis_analysis:
-    primary: claude
-    fallback: gemini
-    cost_tier: high
+# Task-specific overrides (optional - prompts have their own defaults)
+task_overrides:
+  # Example: Force thesis_analysis to use Gemini instead of Claude
+  # thesis_analysis:
+  #   provider: gemini
+  #   model: gemini-2.5-flash
+  #   max_tokens: 2000
 
-  warning_generation:
-    primary: claude
-    fallback: gemini
-    cost_tier: high
+  # Example: Use cheaper model for pattern explanation
+  # pattern_explanation:
+  #   provider: gemini
+  #   model: gemini-2.5-flash
 
-  pattern_explanation:
-    primary: claude
-    fallback: gemini
-    cost_tier: medium
-
-  insight_generation:
-    primary: claude
-    fallback: gemini
-    cost_tier: high
-
-  decision_review:
-    primary: claude
-    fallback: gemini
-    cost_tier: high
-
-  # Cost-effective tasks - use Gemini for high volume
-  document_qa:
-    primary: gemini
-    fallback: claude
-    cost_tier: low
-
-  text_extraction:
-    primary: gemini
-    fallback: none
-    cost_tier: low
-
-  simple_analysis:
-    primary: gemini
-    fallback: claude
-    cost_tier: low
-
-  embedding_generation:
-    primary: gemini
-    fallback: none
-    cost_tier: low
-
-# Provider configurations
+# Provider configurations (API keys and availability)
 providers:
   claude:
     api_key_env: ANTHROPIC_API_KEY
-    default_model: claude-sonnet-4-20250514
-    max_tokens: 4096
-    timeout_seconds: 60
+    available_models:
+      - claude-sonnet-4-20250514
+      - claude-opus-4-5-20251101
 
   gemini:
     api_key_env: GEMINI_API_KEY
-    default_model: gemini-pro
-    max_tokens: 8192
-    timeout_seconds: 30
+    available_models:
+      - gemini-2.5-flash
+      - gemini-pro
 
-# Cost optimization
-cost_optimization:
+# Global settings
+settings:
+  # Enable automatic fallback if primary provider unavailable
   enable_fallback: true
+
+  # Default fallback provider (used if prompt's preferred provider fails)
+  default_fallback: gemini
+
+  # Track API costs and usage
   track_costs: true
+
+  # Log all AI calls for debugging
+  log_ai_calls: false

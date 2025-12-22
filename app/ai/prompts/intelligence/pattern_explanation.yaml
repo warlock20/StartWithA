@@ -5,8 +5,13 @@ name: "pattern_explanation"
 description: "Translate ML-detected behavioral patterns into clear, actionable insights"
 version: "1.0"
 category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"
+model: "claude-sonnet-4-20250514"
 max_tokens: 500
 temperature: 0.5
+
 last_modified: "2025-12-22"
 
 system_context: |
