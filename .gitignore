@@ -24,5 +24,4 @@ app/static/js/dist/*.map
 mockups/
 migrations/
 app/static/uploads/ 
-app/static/js/dist/*.map
-app/static/js/dist
+app/static/js/dist/*

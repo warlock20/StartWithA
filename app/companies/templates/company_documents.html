@@ -13,9 +13,7 @@
             </h1>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Companies
-            </a>
+            {% include 'components/smart_back_button.html' %}
         </div>
     </header>
 

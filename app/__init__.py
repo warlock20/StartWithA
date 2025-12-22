@@ -127,6 +127,16 @@ def create_app(config_class=Config):
             show_quote_banner=show_banner
         )
 
+    @app.context_processor
+    def inject_smart_navigation():
+        """Inject smart navigation URLs into all templates"""
+        from app.utils.navigation_utils import get_smart_return_url
+        return_url, context_label = get_smart_return_url()
+        return dict(
+            return_url=return_url,
+            context_label=context_label
+        )
+
     # Custom error handlers
     @app.errorhandler(404)
     def not_found_error(error):

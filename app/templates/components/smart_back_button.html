@@ -1,0 +1,26 @@
+{#
+Smart Back Button Component
+
+Usage in templates:
+{% include 'components/smart_back_button.html' %}
+
+Or with custom classes:
+{% include 'components/smart_back_button.html' with btn_class='btn btn-primary' %}
+#}
+
+{% if return_url and context_label %}
+<a href="{{ return_url }}" class="{{ btn_class|default('btn btn-outline-secondary') }}">
+    <i class="bi bi-arrow-left"></i> Back to {{ context_label }}
+</a>
+{% elif research_context and research_context.get('project_id') %}
+{# Fallback for pages using research_context #}
+<a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}"
+   class="{{ btn_class|default('btn btn-outline-secondary') }}">
+    <i class="bi bi-arrow-left"></i> Back to Research
+</a>
+{% else %}
+{# Ultimate fallback #}
+<a href="{{ url_for('main.index') }}" class="{{ btn_class|default('btn btn-outline-secondary') }}">
+    <i class="bi bi-arrow-left"></i> Back
+</a>
+{% endif %}
