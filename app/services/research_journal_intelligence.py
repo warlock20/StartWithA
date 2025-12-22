@@ -6,42 +6,31 @@ This service provides AI-powered features for the research journal:
 - Thesis contradiction detection
 - Related entries identification
 - Insight pattern recognition
+
 """
 
-from typing import Dict, List, Optional, Any, Tuple
 import json
+import logging
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+
 from app import db
 from app.models import JournalEntry, ThesisEvolution, Company, User
-from app.ai.services.prompt_service import get_research_journal_prompt
 from app.utils.time_utils import now_utc
-import logging
-import google.generativeai as genai
-from flask import current_app
-import os
+
+# New imports from unified AI service
+from app.services.ai import ai_service, AITaskType
+from app.services.ai.prompt_service import get_research_journal_prompt
 
 logger = logging.getLogger(__name__)
+
 
 class ResearchJournalIntelligence:
     """AI-powered research journal intelligence features"""
 
     def __init__(self):
-        self.setup_gemini()
-
-    def setup_gemini(self):
-        """Initialize Gemini AI"""
-        try:
-            api_key = os.getenv('GEMINI_API_KEY')
-            if api_key:
-                genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-pro')
-                logger.info("Gemini AI initialized successfully")
-            else:
-                logger.warning("GEMINI_API_KEY not found in environment")
-                self.model = None
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini AI: {e}")
-            self.model = None
+        """Initialize with the unified AI service"""
+        self.ai = ai_service
 
     def analyze_journal_entry(self, entry: JournalEntry, user_context: Dict = None) -> Dict[str, Any]:
         """
@@ -55,41 +44,31 @@ class ResearchJournalIntelligence:
             Dictionary with analysis results
         """
         try:
-            if not self.model:
-                logger.warning("Gemini AI not available for entry analysis")
+            if not self.ai.is_available():
+                logger.warning("AI service not available for entry analysis")
                 return self._fallback_entry_analysis(entry)
 
             # Prepare user context
             if not user_context:
                 user_context = self._build_user_context(entry.user_id, limit=10)
 
-            # Get the prompt
-            prompt = get_research_journal_prompt('entry_analysis',
+            # Get the prompt from prompt service
+            prompt = get_research_journal_prompt(
+                'entry_analysis',
                 entry_title=entry.title or "Untitled Entry",
-                entry_type=entry.entry_type,
-                entry_content=entry.content,
-                company_name=entry.company.name if entry.company else "General Market",
+                entry_type=entry.entry_type or "general",
+                entry_content=entry.content or "",
+                company_name=entry.company.name if entry.company else "N/A",
                 ticker_symbol=entry.company.ticker_symbol if entry.company else "N/A",
-                existing_tags=', '.join(entry.tags) if entry.tags else "None",
-                user_journal_context=user_context['summary']
+                existing_tags=self._format_tags(entry),
+                user_journal_context=json.dumps(user_context, default=str)
             )
 
-            # Generate analysis
-            response = self.model.generate_content(prompt)
+            # Use AI service for analysis
+            result = self.ai.generate_json(prompt, task=AITaskType.JOURNAL_ANALYSIS)
 
-            # Parse JSON response
-            try:
-                analysis_result = json.loads(response.text)
-
-                # Validate and enhance the result
-                analysis_result = self._validate_analysis_result(analysis_result, entry)
-
-                logger.info(f"Successfully analyzed entry {entry.id}")
-                return analysis_result
-
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse AI response as JSON: {response.text[:200]}...")
-                return self._fallback_entry_analysis(entry)
+            logger.info(f"Successfully analyzed journal entry {entry.id}")
+            return result
 
         except Exception as e:
             logger.error(f"Error analyzing journal entry {entry.id}: {e}")
@@ -97,250 +76,199 @@ class ResearchJournalIntelligence:
 
     def detect_thesis_contradictions(self, entry: JournalEntry, company_id: int) -> Dict[str, Any]:
         """
-        Check if a new journal entry contradicts the existing thesis for a company
+        Check if a journal entry contains information that contradicts
+        the existing thesis for a company.
 
         Args:
-            entry: New journal entry to check
-            company_id: Company ID to check thesis for
+            entry: JournalEntry to check
+            company_id: Company to check thesis for
 
         Returns:
             Dictionary with contradiction analysis
         """
         try:
-            if not self.model:
-                logger.warning("Gemini AI not available for contradiction detection")
-                return self._fallback_contradiction_detection()
+            if not self.ai.is_available():
+                return self._fallback_contradiction_check(entry, company_id)
 
-            # Get current thesis
-            current_thesis = ThesisEvolution.query.filter_by(
-                user_id=entry.user_id,
-                company_id=company_id,
-                is_current=True
-            ).first()
-
-            if not current_thesis:
-                logger.info(f"No current thesis found for company {company_id}")
-                return {"contradiction_detected": False, "reason": "No thesis to compare against"}
-
-            # Get recent thesis updates for context
-            recent_updates = ThesisEvolution.query.filter_by(
+            # Get existing thesis evolution for this company
+            thesis_entries = ThesisEvolution.query.filter_by(
                 user_id=entry.user_id,
                 company_id=company_id
-            ).filter(
-                ThesisEvolution.created_at >= now_utc() - timedelta(days=90)
-            ).order_by(ThesisEvolution.created_at.desc()).limit(3).all()
+            ).order_by(ThesisEvolution.created_at.desc()).limit(5).all()
 
-            recent_thesis_text = "\n".join([
-                f"Version {t.version} ({t.created_at.strftime('%Y-%m-%d')}): {t.change_summary or 'No summary'}"
-                for t in recent_updates
-            ])
+            if not thesis_entries:
+                return {
+                    'has_contradictions': False,
+                    'message': 'No existing thesis found for comparison',
+                    'contradictions': []
+                }
+
+            # Build thesis context
+            thesis_context = []
+            for te in thesis_entries:
+                thesis_context.append({
+                    'date': te.created_at.isoformat() if te.created_at else 'Unknown',
+                    'thesis': te.current_thesis or '',
+                    'key_assumptions': te.key_assumptions or '',
+                    'confidence': te.confidence_level
+                })
 
             # Get the prompt
-            prompt = get_research_journal_prompt('thesis_contradiction_detection',
-                entry_title=entry.title or "Untitled Entry",
-                entry_content=entry.content,
-                entry_type=entry.entry_type,
-                company_name=entry.company.name if entry.company else "Unknown",
-                current_thesis=current_thesis.thesis,
-                conviction_level=current_thesis.conviction_level or 5,
-                recent_thesis_updates=recent_thesis_text
+            prompt = get_research_journal_prompt(
+                'thesis_contradiction_detection',
+                entry_content=entry.content or "",
+                entry_date=entry.created_at.isoformat() if entry.created_at else "Unknown",
+                thesis_history=json.dumps(thesis_context, default=str),
+                company_name=entry.company.name if entry.company else "Unknown"
             )
 
-            # Generate analysis
-            response = self.model.generate_content(prompt)
+            result = self.ai.generate_json(prompt, task=AITaskType.THESIS_ANALYSIS)
 
-            # Parse JSON response
-            try:
-                contradiction_result = json.loads(response.text)
-
-                # Validate result
-                if 'contradiction_detected' not in contradiction_result:
-                    contradiction_result['contradiction_detected'] = False
-
-                logger.info(f"Successfully checked thesis contradictions for entry {entry.id}")
-                return contradiction_result
-
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse contradiction detection response: {response.text[:200]}...")
-                return self._fallback_contradiction_detection()
+            logger.info(f"Contradiction check completed for entry {entry.id}")
+            return result
 
         except Exception as e:
-            logger.error(f"Error detecting thesis contradictions for entry {entry.id}: {e}")
-            return self._fallback_contradiction_detection()
+            logger.error(f"Error checking contradictions for entry {entry.id}: {e}")
+            return self._fallback_contradiction_check(entry, company_id)
 
     def find_related_entries(self, entry: JournalEntry, limit: int = 5) -> Dict[str, Any]:
         """
-        Find journal entries related to the given entry
+        Find journal entries that are related to the given entry.
 
         Args:
-            entry: Entry to find relations for
+            entry: JournalEntry to find relations for
             limit: Maximum number of related entries to return
 
         Returns:
-            Dictionary with related entries and analysis
+            Dictionary with related entries and relationship explanations
         """
         try:
-            if not self.model:
-                logger.warning("Gemini AI not available for related entries finding")
-                return self._fallback_related_entries(entry, limit)
+            if not self.ai.is_available():
+                return self._fallback_find_related(entry, limit)
 
-            # Get historical entries for the user
-            historical_entries = JournalEntry.query.filter(
+            # Get recent entries from the same user (excluding current)
+            recent_entries = JournalEntry.query.filter(
                 JournalEntry.user_id == entry.user_id,
-                JournalEntry.id != entry.id  # Exclude current entry
-            ).order_by(JournalEntry.created_at.desc()).limit(50).all()
+                JournalEntry.id != entry.id
+            ).order_by(JournalEntry.created_at.desc()).limit(20).all()
 
-            if not historical_entries:
+            if not recent_entries:
                 return {
-                    "related_entries": [],
-                    "pattern_detected": "No historical entries to compare against",
-                    "suggested_review_order": [],
-                    "knowledge_gaps": []
+                    'related_entries': [],
+                    'message': 'No other entries found for comparison'
                 }
 
-            # Format historical entries for AI analysis
-            historical_entries_text = self._format_entries_for_ai(historical_entries)
+            # Build context for comparison
+            entries_context = []
+            for e in recent_entries:
+                entries_context.append({
+                    'id': e.id,
+                    'title': e.title or 'Untitled',
+                    'type': e.entry_type,
+                    'content_preview': (e.content or '')[:300],
+                    'company': e.company.name if e.company else None,
+                    'created_at': e.created_at.isoformat() if e.created_at else None
+                })
 
-            # Get the prompt
-            prompt = get_research_journal_prompt('related_entries_finder',
-                entry_title=entry.title or "Untitled Entry",
-                entry_content=entry.content,
-                company_name=entry.company.name if entry.company else "General Market",
-                entry_tags=', '.join(entry.tags) if entry.tags else "None",
-                historical_entries=historical_entries_text
+            prompt = get_research_journal_prompt(
+                'related_entries_finder',
+                current_entry_title=entry.title or "Untitled",
+                current_entry_content=entry.content or "",
+                current_entry_type=entry.entry_type or "general",
+                candidate_entries=json.dumps(entries_context, default=str),
+                max_results=limit
             )
 
-            # Generate analysis
-            response = self.model.generate_content(prompt)
+            result = self.ai.generate_json(prompt, task=AITaskType.JOURNAL_ANALYSIS)
 
-            # Parse JSON response
-            try:
-                related_result = json.loads(response.text)
-
-                # Validate and limit results
-                if 'related_entries' in related_result:
-                    related_result['related_entries'] = related_result['related_entries'][:limit]
-
-                logger.info(f"Successfully found related entries for entry {entry.id}")
-                return related_result
-
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse related entries response: {response.text[:200]}...")
-                return self._fallback_related_entries(entry, limit)
+            logger.info(f"Found related entries for entry {entry.id}")
+            return result
 
         except Exception as e:
-            logger.error(f"Error finding related entries for entry {entry.id}: {e}")
-            return self._fallback_related_entries(entry, limit)
+            logger.error(f"Error finding related entries for {entry.id}: {e}")
+            return self._fallback_find_related(entry, limit)
 
-    def _build_user_context(self, user_id: int, limit: int = 10) -> Dict[str, str]:
-        """Build context about user's recent journal activity"""
+    def _build_user_context(self, user_id: int, limit: int = 10) -> Dict[str, Any]:
+        """Build context from user's recent journal activity"""
         recent_entries = JournalEntry.query.filter_by(
             user_id=user_id
         ).order_by(JournalEntry.created_at.desc()).limit(limit).all()
 
-        if not recent_entries:
-            return {"summary": "No recent journal activity"}
+        # Extract common themes and topics
+        themes = []
+        companies_mentioned = set()
 
-        # Create summary of recent activity
-        entry_summaries = []
         for entry in recent_entries:
-            company_name = entry.company.name if entry.company else "General"
-            summary = f"{entry.entry_type} about {company_name}: {entry.content[:100]}..."
-            entry_summaries.append(summary)
+            if entry.company:
+                companies_mentioned.add(entry.company.name)
+            if entry.ai_themes_extracted:
+                themes.extend(entry.ai_themes_extracted)
 
-        context_summary = f"Recent journal activity ({len(entry_summaries)} entries):\n" + \
-                         "\n".join(f"- {summary}" for summary in entry_summaries)
+        return {
+            'recent_entry_count': len(recent_entries),
+            'companies_researched': list(companies_mentioned)[:10],
+            'common_themes': list(set(themes))[:10] if themes else [],
+            'active_period': 'last_30_days'
+        }
 
-        return {"summary": context_summary}
+    def _format_tags(self, entry: JournalEntry) -> str:
+        """Format entry tags as string"""
+        if hasattr(entry, 'tags') and entry.tags:
+            return ', '.join([t.name for t in entry.tags])
+        return "None"
 
-    def _format_entries_for_ai(self, entries: List[JournalEntry], max_length: int = 2000) -> str:
-        """Format historical entries for AI analysis"""
-        formatted_entries = []
-        current_length = 0
-
-        for entry in entries:
-            company_name = entry.company.name if entry.company else "General"
-            tags = ', '.join(entry.tags) if entry.tags else "No tags"
-
-            entry_text = f"Entry #{entry.id} ({entry.created_at.strftime('%Y-%m-%d')}): " \
-                        f"{entry.title or 'Untitled'} [{entry.entry_type}] - {company_name} - " \
-                        f"Tags: {tags} - Content: {entry.content[:200]}..."
-
-            if current_length + len(entry_text) > max_length:
-                break
-
-            formatted_entries.append(entry_text)
-            current_length += len(entry_text)
-
-        return "\n".join(formatted_entries)
-
-    def _validate_analysis_result(self, result: Dict, entry: JournalEntry) -> Dict:
-        """Validate and enhance analysis result"""
-        # Ensure required fields exist
-        if 'key_themes' not in result:
-            result['key_themes'] = []
-        if 'suggested_tags' not in result:
-            result['suggested_tags'] = []
-        if 'follow_up_questions' not in result:
-            result['follow_up_questions'] = []
-
-        # Add metadata
-        result['analyzed_at'] = datetime.utcnow().isoformat()
-        result['entry_id'] = entry.id
-        result['ai_confidence'] = 0.8  # Default confidence score
-
-        return result
+    # ============================================================
+    # Fallback Methods (when AI is unavailable)
+    # ============================================================
 
     def _fallback_entry_analysis(self, entry: JournalEntry) -> Dict[str, Any]:
-        """Fallback analysis when AI is not available"""
-        # Simple rule-based analysis
+        """Simple rule-based analysis when AI is not available"""
+        content = entry.content or ""
+        content_lower = content.lower()
+
+        # Extract simple themes based on keywords
         themes = []
-        tags = []
-
-        # Extract basic themes from content
-        content_lower = entry.content.lower()
-
-        # Common investment themes
-        if any(word in content_lower for word in ['growth', 'revenue', 'sales']):
-            themes.append('growth_analysis')
-        if any(word in content_lower for word in ['risk', 'concern', 'worry']):
+        if 'revenue' in content_lower or 'sales' in content_lower:
+            themes.append('financial_metrics')
+        if 'competitor' in content_lower or 'competition' in content_lower:
+            themes.append('competitive_analysis')
+        if 'risk' in content_lower or 'concern' in content_lower:
             themes.append('risk_assessment')
-        if any(word in content_lower for word in ['management', 'ceo', 'leadership']):
+        if 'growth' in content_lower or 'expand' in content_lower:
+            themes.append('growth_analysis')
+        if 'management' in content_lower or 'ceo' in content_lower:
             themes.append('management_quality')
-        if any(word in content_lower for word in ['competition', 'competitive', 'moat']):
-            themes.append('competitive_dynamics')
 
-        # Generate basic tags based on content
+        # Suggest tags based on content
+        suggested_tags = []
         if entry.company:
-            tags.append(f"company_{entry.company.ticker_symbol.lower()}")
-        tags.append(entry.entry_type)
+            suggested_tags.append(entry.company.ticker_symbol.lower())
+        if themes:
+            suggested_tags.extend(themes[:3])
 
         return {
-            'key_themes': themes,
-            'key_insights': [],
-            'suggested_tags': tags,
+            'key_themes': themes or ['general_research'],
+            'key_insights': ['Manual review recommended - AI analysis not available'],
+            'suggested_tags': suggested_tags,
             'potential_connections': [],
             'follow_up_questions': [],
-            'thesis_implications': 'AI analysis not available - manual review recommended',
-            'knowledge_category': 'requires_review',
-            'analyzed_at': datetime.utcnow().isoformat(),
-            'entry_id': entry.id,
-            'ai_confidence': 0.3,
+            'thesis_implications': None,
+            'knowledge_category': entry.entry_type or 'general',
             'fallback_used': True
         }
 
-    def _fallback_contradiction_detection(self) -> Dict[str, Any]:
-        """Fallback contradiction detection when AI is not available"""
+    def _fallback_contradiction_check(self, entry: JournalEntry, company_id: int) -> Dict[str, Any]:
+        """Simple contradiction check when AI is not available"""
         return {
-            'contradiction_detected': False,
-            'contradiction_severity': 'unknown',
-            'reason': 'AI analysis not available - manual review recommended',
+            'has_contradictions': False,
+            'contradictions': [],
+            'analysis_method': 'fallback',
+            'message': 'AI analysis not available - manual review recommended',
             'fallback_used': True
         }
 
-    def _fallback_related_entries(self, entry: JournalEntry, limit: int) -> Dict[str, Any]:
-        """Fallback related entries finding when AI is not available"""
-        # Simple rule-based matching
+    def _fallback_find_related(self, entry: JournalEntry, limit: int) -> Dict[str, Any]:
+        """Simple related entries finder when AI is not available"""
         related_entries = []
 
         # Find entries with same company
@@ -370,11 +298,17 @@ class ResearchJournalIntelligence:
         }
 
 
-# Global service instance
+# ============================================================
+# Global Service Instance
+# ============================================================
+
 research_journal_intelligence = ResearchJournalIntelligence()
 
 
-# Convenience functions for easy import
+# ============================================================
+# Convenience Functions
+# ============================================================
+
 def analyze_journal_entry(entry: JournalEntry, user_context: Dict = None) -> Dict[str, Any]:
     """Analyze a journal entry for themes, insights, and connections"""
     return research_journal_intelligence.analyze_journal_entry(entry, user_context)
@@ -388,10 +322,3 @@ def detect_thesis_contradictions(entry: JournalEntry, company_id: int) -> Dict[s
 def find_related_entries(entry: JournalEntry, limit: int = 5) -> Dict[str, Any]:
     """Find entries related to the given entry"""
     return research_journal_intelligence.find_related_entries(entry, limit)
-
-
-# Helper function for prompt service integration
-def get_research_journal_prompt(prompt_name: str, **kwargs) -> str:
-    """Get a research journal prompt with variables"""
-    from app.ai.services.prompt_service import prompt_service
-    return prompt_service.get_prompt('research_journal', prompt_name, **kwargs)

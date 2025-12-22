@@ -10,10 +10,9 @@ from sqlalchemy import func, desc
 from app import db
 from app.models import (KillChecklist, KillCriterion, KillSession, KillAnswer,
                        KillChecklistSuggestion, MistakeLog, IdeaPipeline)
-from app.services.llm_service import generate_ai_content
-from app.ai.services.prompt_service import get_kill_checklist_prompt
+from app.services.ai import generate_ai_content
+from app.services.ai import get_kill_checklist_prompt
 import re
-import json
 from typing import List, Dict, Optional, Tuple
 
 

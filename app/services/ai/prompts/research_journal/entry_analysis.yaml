@@ -7,7 +7,7 @@ version: "1.0"
 category: "research_journal"
 max_tokens: 800
 temperature: 0.7
-last_modified: "2024-09-26"
+last_modified: "2024-12-22"
 
 system_context: |
   You are an AI research assistant specializing in investment analysis and knowledge management.
