@@ -1,0 +1,74 @@
+# AI Intelligence - Investment Thesis Analysis
+# Analyzes investment thesis quality and identifies blind spots
+
+name: "thesis_analysis"
+description: "Analyze investment thesis quality, identify strengths/weaknesses, and suggest improvements"
+version: "1.0"
+category: "intelligence"
+max_tokens: 2000
+temperature: 0.3
+last_modified: "2025-12-22"
+
+system_context: |
+  You are an expert investment analyst with decades of experience reviewing investment theses.
+  Your role is to provide constructive, thoughtful analysis that helps investors improve their research quality
+  and avoid common pitfalls. Be direct but supportive, focusing on blind spots and logical gaps.
+
+template: |
+  You are reviewing an investment thesis for {company_name}.
+
+  INVESTMENT THESIS:
+  {thesis_text}
+
+  RESEARCH DATA SUMMARY:
+  - Questions answered: {questions_answered}/{questions_total}
+  - Documents analyzed: {documents_analyzed}
+  - Research duration: {research_duration_hours} hours
+  - Key findings: {key_findings}
+  - Identified risks: {identified_risks}
+
+  {historical_context}
+
+  Analyze this thesis and provide:
+
+  1. QUALITY ASSESSMENT: Brief overall assessment (2-3 sentences)
+
+  2. STRENGTHS: What aspects of this thesis are well-reasoned? (list 2-4)
+
+  3. WEAKNESSES: What logical gaps or unsupported assumptions exist? (list 2-4)
+
+  4. BLIND SPOTS: What important factors might the investor be missing? (list 2-3)
+
+  5. SUGGESTED QUESTIONS: What additional research questions should be answered? (list 3-5)
+
+  6. CONFIDENCE ADJUSTMENT: Should the investor's confidence be adjusted?
+     Return a number from -2 (significantly reduce) to +2 (can increase)
+     0 = confidence level seems appropriate
+
+  7. RISK FLAGS: Any red flags that warrant serious attention? (list if any)
+
+  Respond in JSON format with keys: quality_assessment, strengths, weaknesses, blind_spots, suggested_questions, confidence_adjustment, risk_flags
+
+examples:
+  - "Strength: Thesis clearly identifies competitive moat through network effects"
+  - "Weakness: Revenue projections assume market growth rate without supporting data"
+  - "Blind spot: No analysis of regulatory risks in key markets"
+  - "Suggested question: How does management compensation align with long-term value creation?"
+  - "Risk flag: Insider selling pattern accelerated in past 6 months"
+
+output_format: |
+  {
+    "quality_assessment": "string (2-3 sentences)",
+    "strengths": ["strength1", "strength2", "strength3"],
+    "weaknesses": ["weakness1", "weakness2", "weakness3"],
+    "blind_spots": ["blindspot1", "blindspot2"],
+    "suggested_questions": ["question1", "question2", "question3", "question4"],
+    "confidence_adjustment": 0,
+    "risk_flags": ["flag1", "flag2"]
+  }
+
+tuning_notes: |
+  - Lower temperature for consistent, analytical output
+  - Historical context is optional - only include if available
+  - Focus on actionable feedback, not generic advice
+  - Risk flags should be specific and evidence-based

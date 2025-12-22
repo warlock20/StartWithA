@@ -232,6 +232,32 @@ class ResearchProject(db.Model):
         return round(overall_progress, 1)
 
     @property
+    def total_time_including_active(self):
+        """
+        Calculate total time spent including active sessions.
+
+        Returns total hours including:
+        - Completed sessions (stored in total_hours_spent)
+        - Active sessions (end_time is NULL)
+        """
+        total = self.total_hours_spent or 0.0
+
+        # Add time from active sessions
+        active_sessions = self.work_sessions.filter(
+            WorkSession.end_time.is_(None)
+        ).all()
+
+        for session in active_sessions:
+            # Calculate duration from start_time to now
+            start_time_aware = ensure_timezone_aware(session.start_time)
+            current_time = now_utc()
+            duration_seconds = (current_time - start_time_aware).total_seconds()
+            duration_hours = duration_seconds / 3600
+            total += duration_hours
+
+        return round(total, 1)
+
+    @property
     def current_step(self):
         """Get the current step details from the template"""
         if self.template:

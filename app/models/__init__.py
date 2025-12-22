@@ -77,6 +77,12 @@ from .portfolio import (
     update_portfolio_position,
 )
 from .background_task import BackgroundTask
+from .ai_intelligence import (
+    ResearchOutcome,
+    AIInsight,
+    EmbeddingStore,
+    MLPredictionLog,
+)
 
 
 # User loader function required by Flask-Login
@@ -155,4 +161,9 @@ __all__ = [
     'update_portfolio_position',
     # Background task
     'BackgroundTask',
+    # AI Intelligence models
+    'ResearchOutcome',
+    'AIInsight',
+    'EmbeddingStore',
+    'MLPredictionLog',
 ]

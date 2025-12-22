@@ -25,6 +25,7 @@ from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_durat
 from app.research.routes import get_all_ordered_items_for_checklist
 from app.services.sector_service import SectorService
 from sqlalchemy.orm.attributes import flag_modified
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -124,10 +125,6 @@ def project_dashboard(project_id):
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
-    # Update last worked timestamp when viewing project
-    project.last_worked_at = now_utc()
-    db.session.commit()
-
     # Get recent work sessions
     recent_sessions = project.work_sessions.order_by(
         WorkSession.start_time.desc()
@@ -165,6 +162,23 @@ def project_dashboard(project_id):
         current_time = now_utc()
         days_since_last_work = (current_time - last_worked_aware).days
 
+    # Get checklist analysis IDs for completed checklist steps
+    checklist_analyses = {}
+    if project.template and project.template.workflow_steps:
+        for step_index in project.completed_steps:
+            if step_index < len(project.template.workflow_steps):
+                step = project.template.workflow_steps[step_index]
+                if step.get('type') == 'checklist':
+                    checklist_id = step.get('config', {}).get('checklist_id')
+                    if checklist_id:
+                        analysis = ChecklistAnalysis.query.filter_by(
+                            user_id=current_user.id,
+                            checklist_id=int(checklist_id),
+                            company_id=project.company_id
+                        ).order_by(ChecklistAnalysis.start_date.desc()).first()
+                        if analysis:
+                            checklist_analyses[step_index] = analysis.id
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
@@ -172,7 +186,8 @@ def project_dashboard(project_id):
                           time_breakdown=time_breakdown,
                           next_steps=next_steps,
                           latest_research_session=latest_research_session,
-                          days_since_last_work=days_since_last_work)
+                          days_since_last_work=days_since_last_work,
+                          checklist_analyses=checklist_analyses)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
@@ -271,16 +286,22 @@ def execute_step(project_id, step_index):
                             }
 
                             return redirect(url_for('research.research_step',
-                                                  session_id=existing_research_session.id,
+                                                  analysis_id=existing_research_session.id,
                                                   item_id=redirect_to_item_id))
                         else:
                             flash('Investment checklist has no items to evaluate', 'warning')
                             return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
                     elif existing_research_session.status == 'completed':
+                        # Store research context even for completed checklists
+                        flask_session['research_context'] = {
+                            'project_id': project_id,
+                            'step_index': step_index,
+                            'workflow_session_id': session.id if session else None
+                        }
                         flash('Investment checklist research already completed. Viewing summary.', 'info')
                         return redirect(url_for('research.view_checklist_session_summary',
-                                              session_id=existing_research_session.id))
+                                              analysis_id=existing_research_session.id))
                 else:
                     # Create new research session
                     new_research_session = ChecklistAnalysis(
@@ -306,7 +327,7 @@ def execute_step(project_id, step_index):
                             }
 
                             return redirect(url_for('research.research_step',
-                                                  session_id=new_research_session.id,
+                                                  analysis_id=new_research_session.id,
                                                   item_id=all_items[0].id))
                         else:
                             flash('Investment checklist has no items to evaluate', 'warning')
@@ -380,13 +401,24 @@ def execute_step(project_id, step_index):
     # Format session start time for JavaScript timer
     session_start_js = format_for_javascript(session.start_time)
 
+    # Get existing notes for this step
+    # For thesis_writing steps, use project.investment_thesis
+    # For other steps, use project.step_notes[step_index]
+    existing_notes = None
+    if step['type'] == 'thesis_writing':
+        existing_notes = project.investment_thesis or ''
+    else:
+        if project.step_notes and str(step_index) in project.step_notes:
+            existing_notes = project.step_notes[str(step_index)]
+
     return render_template('execute_step.html',
                           title=f"Execute: {step['name']}",
                           project=project,
                           step=step,
                           step_index=step_index,
                           session=session,
-                          session_start_js=session_start_js)
+                          session_start_js=session_start_js,
+                          existing_notes=existing_notes)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/complete-step', methods=['POST'])
@@ -432,6 +464,31 @@ def complete_step(project_id):
     if not project.step_notes:
         project.step_notes = {}
     project.step_notes[str(step_index)] = notes
+
+    # If this is a thesis_writing step, also update project.investment_thesis
+    if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
+        step = project.template.workflow_steps[step_index]
+        if step.get('type') == 'thesis_writing':
+            # Extract plain text from BlockNote JSON if needed
+            try:
+                blocks = json.loads(notes) if notes else []
+                # Extract text from BlockNote blocks
+                thesis_text = []
+                for block in blocks:
+                    if block.get('type') == 'paragraph':
+                        content = block.get('content', [])
+                        paragraph_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                        if paragraph_text.strip():
+                            thesis_text.append(paragraph_text)
+                    elif block.get('type') == 'heading':
+                        content = block.get('content', [])
+                        heading_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                        if heading_text.strip():
+                            thesis_text.append(heading_text)
+                project.investment_thesis = '\n\n'.join(thesis_text) if thesis_text else notes
+            except (json.JSONDecodeError, TypeError):
+                # If not JSON, use as-is
+                project.investment_thesis = notes
 
     # Update project progress
     project.last_worked_at = now_utc()

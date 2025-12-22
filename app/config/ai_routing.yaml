@@ -1,0 +1,71 @@
+# AI Provider Routing Configuration
+# Controls which LLM provider is used for each task type
+# Modify this file to adjust cost/quality tradeoffs without code changes
+
+# Routing rules: primary provider, fallback, and cost tier
+routing_rules:
+  # Quality-critical tasks - use Claude for best reasoning
+  thesis_analysis:
+    primary: claude
+    fallback: gemini
+    cost_tier: high
+
+  warning_generation:
+    primary: claude
+    fallback: gemini
+    cost_tier: high
+
+  pattern_explanation:
+    primary: claude
+    fallback: gemini
+    cost_tier: medium
+
+  insight_generation:
+    primary: claude
+    fallback: gemini
+    cost_tier: high
+
+  decision_review:
+    primary: claude
+    fallback: gemini
+    cost_tier: high
+
+  # Cost-effective tasks - use Gemini for high volume
+  document_qa:
+    primary: gemini
+    fallback: claude
+    cost_tier: low
+
+  text_extraction:
+    primary: gemini
+    fallback: none
+    cost_tier: low
+
+  simple_analysis:
+    primary: gemini
+    fallback: claude
+    cost_tier: low
+
+  embedding_generation:
+    primary: gemini
+    fallback: none
+    cost_tier: low
+
+# Provider configurations
+providers:
+  claude:
+    api_key_env: ANTHROPIC_API_KEY
+    default_model: claude-sonnet-4-20250514
+    max_tokens: 4096
+    timeout_seconds: 60
+
+  gemini:
+    api_key_env: GEMINI_API_KEY
+    default_model: gemini-pro
+    max_tokens: 8192
+    timeout_seconds: 30
+
+# Cost optimization
+cost_optimization:
+  enable_fallback: true
+  track_costs: true

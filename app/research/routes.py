@@ -1,3 +1,7 @@
+import json
+import os
+import fitz
+from datetime import datetime
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required
 from flask import session as flask_session
@@ -5,11 +9,6 @@ from flask import session as flask_session
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
 from app.research import research_bp # Import the new blueprint
-
-# Utility imports needed for document handling
-import os
-from datetime import datetime
-import fitz
 from app.utils.time_utils import now_utc
 
 # For LLM-related functionality, ensure you have the transformers library installed
@@ -117,10 +116,10 @@ def select_checklist_for_company(company_id):
                            title=f"Select or Resume Research for {company.name}")
     
 # This is the checklist execution route
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
-def research_step(session_id, item_id):
-    session = ChecklistAnalysis.query.get_or_404(session_id)
+def research_step(analysis_id, item_id):
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
@@ -179,14 +178,14 @@ def research_step(session_id, item_id):
         # Determine next item
         if current_item_index + 1 < len(all_items_in_order):
             next_item = all_items_in_order[current_item_index + 1]
-            return redirect(url_for('research.research_step', session_id=session.id, item_id=next_item.id))
+            return redirect(url_for('research.research_step', analysis_id=session.id, item_id=next_item.id))
         else:
             # This is the last item
             session.status = 'completed' # Mark session as completed
             db.session.commit()
             flash('Checklist completed! Research session finished.', 'success')
             # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research.view_checklist_session_summary', session_id=session.id)) # We'll create this route next
+            return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -213,14 +212,14 @@ def research_step(session_id, item_id):
         research_context=research_context  # Pass research workflow context
     )
 
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>/autosave', methods=['POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
 @login_required
-def autosave_research_answer(session_id, item_id):
+def autosave_research_answer(analysis_id, item_id):
     """
     Auto-save endpoint for research answers - returns JSON for AJAX requests
     """
     try:
-        session = ChecklistAnalysis.query.get_or_404(session_id)
+        session = ChecklistAnalysis.query.get_or_404(analysis_id)
         current_item = ChecklistItem.query.get_or_404(item_id)
 
         # Authorization check
@@ -271,9 +270,9 @@ def autosave_research_answer(session_id, item_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required
-def ai_analyze_item(session_id, item_id):
+def ai_analyze_item(analysis_id, item_id):
     """
     Handles the AI analysis request for a specific checklist item within a research session.
     It extracts text from selected documents, calls the LLM, and returns a suggestion.
@@ -283,7 +282,7 @@ def ai_analyze_item(session_id, item_id):
         return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
 
     # LLM service will handle API configuration automatically
-    session = ChecklistAnalysis.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
         return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
@@ -315,7 +314,7 @@ def ai_analyze_item(session_id, item_id):
             return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}". IDs must be integers.'}), 400
 
     # Print received data for debugging (server-side)
-    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
+    print(f"AI Analysis Request for Session {analysis_id}, Item {item_id}")
     print(f"LLM Question: {llm_question}")
     print(f"Selected Document IDs (integers): {selected_document_ids}")
 
@@ -488,11 +487,11 @@ def ai_analyze_item(session_id, item_id):
         'ai_suggestion': ai_suggestion
     })
 
-@research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
+@research_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
-def view_checklist_session_summary(session_id):
+def view_checklist_session_summary(analysis_id):
     # Fetch the core session object and authorize the user
-    session = ChecklistAnalysis.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
@@ -506,7 +505,7 @@ def view_checklist_session_summary(session_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        return redirect(url_for('research.view_checklist_session_summary', session_id=session.id))
+        return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id))
 
     # --- GET Request Logic ---
     # Prepare all data needed for rendering the template
@@ -552,11 +551,49 @@ def view_checklist_session_summary(session_id):
         research_context=research_context  # Pass research workflow context
     )
 
-@research_bp.route('/session/<int:session_id>/export/txt')
+def blocknote_to_text(blocknote_json):
+    """Convert BlockNote JSON format to plain text"""
+    if not blocknote_json:
+        return ""
+
+    try:
+        blocks = json.loads(blocknote_json) if isinstance(blocknote_json, str) else blocknote_json
+
+        text_parts = []
+        for block in blocks:
+            if block.get('type') == 'paragraph':
+                content = block.get('content', [])
+                paragraph_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if paragraph_text.strip():
+                    text_parts.append(paragraph_text)
+            elif block.get('type') == 'heading':
+                content = block.get('content', [])
+                heading_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                level = block.get('props', {}).get('level', 1)
+                if heading_text.strip():
+                    text_parts.append('#' * level + ' ' + heading_text)
+            elif block.get('type') == 'bulletListItem':
+                content = block.get('content', [])
+                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if item_text.strip():
+                    text_parts.append('- ' + item_text)
+            elif block.get('type') == 'numberedListItem':
+                content = block.get('content', [])
+                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if item_text.strip():
+                    text_parts.append('1. ' + item_text)
+
+        return '\n\n'.join(text_parts)
+    except:
+        # If parsing fails, return the raw text
+        return str(blocknote_json)
+
+
+@research_bp.route('/checklist/<int:analysis_id>/export/txt')
 @login_required
-def export_session_to_txt(session_id):
+def export_session_to_txt(analysis_id):
     # 1. Fetch session and authorize user
-    session = ChecklistAnalysis.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
@@ -578,7 +615,8 @@ def export_session_to_txt(session_id):
     if session.conclusion:
         export_content.append(f"## Overall Conclusion")
         export_content.append(f"--------------------------")
-        export_content.append(session.conclusion)
+        conclusion_text = blocknote_to_text(session.conclusion)
+        export_content.append(conclusion_text)
         export_content.append("\n")
 
     export_content.append(f"## Individual Checklist Answers")
@@ -600,7 +638,8 @@ def export_session_to_txt(session_id):
 
         if answer_obj:
             status = answer_obj.satisfaction_status.replace('_', ' ').capitalize() if answer_obj.satisfaction_status else 'Not Set'
-            answer_text = answer_obj.answer_text if answer_obj.answer_text else "No text provided."
+            # Convert BlockNote JSON to readable text
+            answer_text = blocknote_to_text(answer_obj.answer_text) if answer_obj.answer_text else "No text provided."
             export_content.append(f"{indent}  - **Status:** {status}")
             export_content.append(f"{indent}  - **Answer:** {answer_text}")
         else:
@@ -610,7 +649,7 @@ def export_session_to_txt(session_id):
     final_text = "\n".join(export_content)
 
     safe_company_name = "".join(c if c.isalnum() else "_" for c in session.company.name)
-    filename = f"Research_{safe_company_name}_{session_id}.md" # Save as Markdown for nice formatting
+    filename = f"Research_{safe_company_name}_{analysis_id}.md" # Save as Markdown for nice formatting
 
     return Response(
         final_text,
