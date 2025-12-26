@@ -8,7 +8,7 @@ from flask import session as flask_session
 
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
-from app.research import research_bp # Import the new blueprint
+from app.research import research_bp
 from app.utils.time_utils import now_utc
 
 # Import unified LLM service
