@@ -305,12 +305,6 @@ def kill_room(idea_id):
                            current_index=current_index, total_criteria=len(criteria),
                            progress_percent=progress_percent, existing_answers=existing_answers)
 
-@ideas_bp.route('/graveyard')
-@login_required
-def graveyard():
-    """Deprecated: Redirect to unified Too Hard Basket - Early Kills tab"""
-    return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
-
 @ideas_bp.route('/kill-checklists')
 @login_required
 def manage_kill_checklists():

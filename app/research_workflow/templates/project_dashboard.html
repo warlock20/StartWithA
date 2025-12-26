@@ -55,7 +55,7 @@
             </a>
             {% endif %}
             <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Projects
+                <i class="bi bi-arrow-left"></i> Back to My Projects
             </a>
         </div>
     </header>
@@ -65,7 +65,15 @@
 
         <!-- Timeline Column (Main) -->
         <div class="col-lg-8">
-            <h2 class="font-poppins fw-bold mb-4">Project Workflow</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="font-poppins fw-bold mb-0">Project Workflow</h2>
+                {% if project.completed_steps and project.completed_steps|length > 0 %}
+                <a href="{{ url_for('research_workflow.project_summary', project_id=project.id) }}"
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-file-text"></i> View Full Summary
+                </a>
+                {% endif %}
+            </div>
 
             <!-- All Steps Completed - Make Decision CTA -->
             {% if project.progress_percentage == 100 and not project.decision %}
@@ -116,9 +124,24 @@
                                     <p class="text-muted small mb-0">Completed</p>
                                     {% endif %}
                                 </div>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="showNotes('{{ step_index }}')">
-                                    <i class="bi bi-journal-text"></i> View Notes
-                                </button>
+                                <div class="d-flex gap-2">
+                                    {% if step.type == 'checklist' and checklist_analyses and checklist_analyses[step_index] %}
+                                    <!-- Checklist-specific buttons -->
+                                    <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[step_index]) }}"
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="View checklist summary">
+                                        <i class="bi bi-file-text"></i> Summary
+                                    </a>
+                                    <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[step_index]) }}"
+                                       class="btn btn-sm btn-outline-success"
+                                       title="Export checklist analysis">
+                                        <i class="bi bi-download"></i> Export
+                                    </a>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="showNotes('{{ step_index }}')">
+                                        <i class="bi bi-journal-text"></i> Notes
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Step notes (hidden by default) -->
@@ -130,6 +153,12 @@
                                 {% if project.step_notes and project.step_notes[step_index|string] %}
                                 <div class="step-notes-content">
                                     {{ project.step_notes[step_index|string]|markdown|safe }}
+                                </div>
+                                {% elif step.type == 'thesis_writing' and project.investment_thesis %}
+                                <!-- Fallback: Show investment thesis if step_notes is empty -->
+                                <div class="step-notes-content">
+                                    <strong>Investment Thesis:</strong><br><br>
+                                    {{ project.investment_thesis }}
                                 </div>
                                 {% else %}
                                 <div class="alert alert-info border-0 mb-0">
@@ -197,7 +226,7 @@
                     </div>
                     <div class="project-vitals-item">
                         <span class="project-vitals-label">Time Spent:</span>
-                        <span class="project-vitals-value">{{ project.total_hours_spent|round(1) }} Hours</span>
+                        <span class="project-vitals-value">{{ project.total_time_including_active|round(1) }} Hours</span>
                     </div>
                     <div class="project-vitals-item border-bottom-0 pb-0">
                         <span class="project-vitals-label">Days Since Work:</span>
@@ -210,19 +239,6 @@
                         </span>
                     </div>
                 </div>
-            </div>
-
-            <!-- Evolving Thesis -->
-            <div class="evolving-thesis-card mb-4">
-                <h3 class="font-poppins fw-bold mb-2">Evolving Thesis</h3>
-                {% if project.investment_thesis %}
-                <p class="evolving-thesis-text">"{{ project.investment_thesis }}"</p>
-                {% else %}
-                <p class="evolving-thesis-text text-muted">No thesis documented yet. Start building your investment thesis as you progress through research.</p>
-                {% endif %}
-                <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#thesisModal">
-                    <i class="bi bi-pencil"></i> Edit Thesis
-                </button>
             </div>
 
             <!-- Key Findings -->
@@ -275,7 +291,7 @@
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-building"></i> Company Dashboard
                     </a>
-                    <a href="{{ url_for('journal_enhanced.search', company_id=project.company.id) }}" class="quick-action-link">
+                    <a href="{{ url_for('journal_enhanced.knowledge_hub', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-journal-text"></i> View Journal Entries
                     </a>
                     <a href="{{ url_for('journal_enhanced.new_entry', company_id=project.company.id) }}" class="quick-action-link">

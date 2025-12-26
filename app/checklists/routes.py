@@ -3,21 +3,20 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
 import asyncio
-from datetime import datetime
 from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
-from app.models import User, Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport
-from app.checklists import checklists_bp # Import the new blueprint
-from app.services.llm_service import (
+from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
+from app.checklists import checklists_bp 
+from app.services.ai.document_processor import (
     LLMChecklistProcessor,
     DocumentParser,
-    LLMProvider,
     ProcessingApproach,
-    get_available_providers,
     get_supported_file_types
 )
+from app.services.ai.config import AIProvider
 from app.services.template_loader import get_template_loader, TemplateValidationError
+from app.services.ai import get_available_providers
 
 
 @checklists_bp.route('/')
@@ -154,12 +153,11 @@ def delete_checklist_item(item_id):
 
     try:
         # First, delete any research answers that reference this item and its children
-        from app.models import ResearchAnswer
 
         def delete_item_and_children_answers(item):
             """Recursively delete research answers for item and its children"""
             # Delete research answers for this item
-            ResearchAnswer.query.filter_by(checklist_item_id=item.id).delete()
+            ChecklistAnswer.query.filter_by(checklist_item_id=item.id).delete()
 
             # Recursively delete research answers for children
             for child in item.children:
@@ -195,7 +193,6 @@ def delete_checklist(checklist_id):
 
     try:
         # First, delete any research answers that reference items in this checklist
-        from app.models import ResearchAnswer
 
         # Get all checklist items (including nested ones)
         def get_all_items_recursive(items):
@@ -210,11 +207,10 @@ def delete_checklist(checklist_id):
 
         # Delete all research answers for all items in this checklist
         for item in all_checklist_items:
-            ResearchAnswer.query.filter_by(checklist_item_id=item.id).delete()
+            ChecklistAnswer.query.filter_by(checklist_item_id=item.id).delete()
 
         # Delete any research sessions that reference this checklist
-        from app.models import ResearchSession
-        ResearchSession.query.filter_by(checklist_id=checklist.id).delete()
+        ChecklistAnalysis.query.filter_by(checklist_id=checklist.id).delete()
 
         # Commit the research data deletions first
         db.session.commit()
@@ -348,36 +344,24 @@ def move_checklist_item(item_id, direction):
         flash('Error finding item in its sibling list.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
 
-    print(f"DEBUG: Found item '{item_to_move.text}' at index {current_index} with order value {item_to_move.order}")
-
     swap_successful = False
     if direction == 'up':
         if current_index > 0:
             item_above = siblings[current_index - 1]
-            #print(f"DEBUG: Swapping with item above: '{item_above.text}' with order value {item_above.order}")
             item_to_move.order, item_above.order = item_above.order, item_to_move.order
             swap_successful = True
-        #else:
-            #print("DEBUG: Item is already at the top.")
     elif direction == 'down':
         if current_index < len(siblings) - 1:
             item_below = siblings[current_index + 1]
-            #print(f"DEBUG: Swapping with item below: '{item_below.text}' with order value {item_below.order}")
             item_to_move.order, item_below.order = item_below.order, item_to_move.order
             swap_successful = True
-        #else:
-            #print("DEBUG: Item is already at the bottom.")
-    
+
     if swap_successful:
-        #print(f"DEBUG: After swap, item '{item_to_move.text}' has new order value {item_to_move.order}")
         try:
-            #print("DEBUG: Calling db.session.commit()...")
             db.session.commit()
-            #print("DEBUG: Commit successful.")
             flash(f'Item moved successfully.', 'success')
         except Exception as e:
             db.session.rollback()
-            #print(f"DEBUG: Commit FAILED. Error: {e}")
             flash(f'Error saving item order: {str(e)}', 'error')
     
     return redirect(url_for('checklists.view_checklist', checklist_id=checklist.id))
@@ -567,7 +551,7 @@ def process_document(import_id):
         db.session.commit()
 
         # Process with LLM
-        provider = LLMProvider(document_import.llm_provider)
+        provider = AIProvider(document_import.llm_provider)
         approach = ProcessingApproach(document_import.processing_approach)
 
         processor = LLMChecklistProcessor(provider)

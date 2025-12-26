@@ -1,0 +1,43 @@
+# AI Provider Routing Configuration
+# Overrides prompt template defaults when needed
+
+# Task-specific overrides (optional - prompts have their own defaults)
+task_overrides:
+  # Example: Force thesis_analysis to use Gemini instead of Claude
+  # thesis_analysis:
+  #   provider: gemini
+  #   model: gemini-2.5-flash
+  #   max_tokens: 2000
+
+  # Example: Use cheaper model for pattern explanation
+  # pattern_explanation:
+  #   provider: gemini
+  #   model: gemini-2.5-flash
+
+# Provider configurations (API keys and availability)
+providers:
+  claude:
+    api_key_env: ANTHROPIC_API_KEY
+    available_models:
+      - claude-sonnet-4-20250514
+      - claude-opus-4-5-20251101
+
+  gemini:
+    api_key_env: GEMINI_API_KEY
+    available_models:
+      - gemini-2.5-flash
+      - gemini-pro
+
+# Global settings
+settings:
+  # Enable automatic fallback if primary provider unavailable
+  enable_fallback: true
+
+  # Default fallback provider (used if prompt's preferred provider fails)
+  default_fallback: gemini
+
+  # Track API costs and usage
+  track_costs: true
+
+  # Log all AI calls for debugging
+  log_ai_calls: false

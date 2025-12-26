@@ -74,18 +74,7 @@
                     </li>
                     <li><a class="dropdown-item" href="{{ url_for('portfolio.analytics') }}">Performance Analytics</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('portfolio.analytics_decisions') }}">Decision Intelligence</a></li>
-                </ul>
-            </li>
-
-            {# 📈 TRACKING & ANALYTICS #}
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarTrackingDropdown" role="button"
-                    data-bs-toggle="dropdown" aria-expanded="false">
-                    Tracking & Analytics
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="navbarTrackingDropdown">
-                    <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">Analytics
-                            Dashboard</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">Analytics Dashboard</a></li>
                 </ul>
             </li>
 
@@ -97,7 +86,7 @@
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="navbarKnowledgeDropdown">
                     <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub') }}">
-                        <i class="bi bi-search me-2"></i>Knowledge Hub
+                        <i class="bi me-2"></i>Knowledge Hub
                     </a></li>
             </li>
             <li>
@@ -113,8 +102,6 @@
             <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">Mistake Log</a></li>
             <li><a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">Weekly Review</a>
             </li>
-            <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.search') }}">Search
-                    Knowledge</a></li>
             </ul>
             </li>
             </ul>

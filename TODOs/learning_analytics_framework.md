@@ -12,11 +12,11 @@ Analytics system to track investor behavior, identify patterns, and provide acti
 | Metric | Data Source | Insight | User Journey Impact |
 |--------|-------------|---------|---------------------|
 | **Time per research step** | `WorkSession.duration`, `TemplateStep` | Identify bottlenecks, optimize workflow | Research Sprint suggestions |
-| **Step completion rate** | `ResearchAnswer.status`, `TemplateStep` | Which steps users skip/struggle with | Process improvement alerts |
+| **Step completion rate** | `ChecklistAnswer.status`, `TemplateStep` | Which steps users skip/struggle with | Process improvement alerts |
 | **Research velocity** | `ResearchProject.created_at`, `completed_at` | Projects completed per month, trending | Progress visualization |
-| **Question quality** | `ResearchAnswer.answer` length, depth | Are users giving thoughtful answers? | Guided prompts for improvement |
+| **Question quality** | `ChecklistAnswer.answer` length, depth | Are users giving thoughtful answers? | Guided prompts for improvement |
 | **Session frequency** | `WorkSession.start_time` intervals | Research consistency tracking | Habit formation nudges |
-| **Research depth** | `ResearchAnswer` count per project | Surface vs. deep analysis | Quality coaching |
+| **Research depth** | `ChecklistAnswer` count per project | Surface vs. deep analysis | Quality coaching |
 
 **Implementation:**
 ```python
@@ -232,7 +232,6 @@ def build_kill_prediction_model(user_id):
 | **Kill Efficiency** | Q4 2024 vs Q1 2024 | "You're now killing bad ideas 3 days faster than 6 months ago - process improving!" | Time saved per idea |
 | **Research Depth** | This quarter vs last quarter | "You're asking 12 questions/company now vs 8 before. Research quality improving." | Questions per company trend |
 | **Mistake Frequency** | Last 6 months vs previous 6 months | "Mistake rate decreased 40% - you're learning from past errors!" | Mistakes per decision |
-| **Decision Accuracy** | 2024 vs 2023 | "Your thesis accuracy improved from 60% to 75% - calibration improving!" | Thesis accuracy trend |
 | **Process Consistency** | Monthly discipline score | "You completed 90% of research steps this month vs 70% last month" | Completion rate trend |
 | **Time to Proficiency** | Learning curve by sector | "Your semiconductor research time dropped from 20h to 12h - expertise building!" | Hours per sector over time |
 
@@ -417,8 +416,8 @@ def suggest_next_sprint(user_id, available_minutes):
 
 | Metric | Data Source | Insight | User Journey Impact |
 |--------|-------------|---------|---------------------|
-| **Checklist completion rate** | `ResearchSession.status` | Are you following your process? | Discipline scoring |
-| **Template adherence** | `ResearchAnswer` vs `TemplateStep` | Skipping steps? | Process gap alerts |
+| **Checklist completion rate** | `ChecklistAnalysis.status` | Are you following your process? | Discipline scoring |
+| **Template adherence** | `ChecklistAnswer` vs `TemplateStep` | Skipping steps? | Process gap alerts |
 | **Pre-mortem usage** | `DecisionJournal.key_assumptions` filled | Thinking about risks upfront? | Risk awareness coaching |
 | **Post-mortem completion** | `InvestmentPostMortem` records | Learning from outcomes? | Learning loop prompts |
 | **Destination tracking** | `DestinationCheckpoint` usage | Monitoring thesis milestones? | Accountability system |

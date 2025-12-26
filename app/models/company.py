@@ -20,7 +20,7 @@ class Company(db.Model):
     sector = db.relationship("Sector", backref="companies")
 
     research_sessions = db.relationship(
-        "ResearchSession",
+        "ChecklistAnalysis",
         backref="company",
         lazy="dynamic",
         cascade="all, delete-orphan",

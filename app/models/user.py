@@ -28,7 +28,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     )
     checklists = db.relationship("Checklist", backref="author", lazy="dynamic")
     research_sessions = db.relationship(
-        "ResearchSession", backref="researcher", lazy="dynamic"
+        "ChecklistAnalysis", backref="researcher", lazy="dynamic"
     )
     companies = db.relationship("Company", backref="creator", lazy="dynamic")
     favorites = db.relationship(
@@ -102,8 +102,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
 
     # Community features
     buddy_system_enabled = db.Column(db.Boolean, default=False)
-    peer_feedback_count = db.Column(db.Integer, default=0)
-    community_reputation = db.Column(db.Integer, default=0)
 
     # FOMO protection
     last_fomo_alert = db.Column(db.DateTime)

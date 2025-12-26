@@ -288,31 +288,3 @@ def dashboard():
                           coc_total_unsure=coc_total_unsure,
                           coc_total_assessed=coc_total_assessed,
                           coc_overall_confidence=round(coc_overall_confidence, 1))
-
-@analytics_bp.route('/decision-journal')
-@login_required
-def decision_journal_list():
-    """Redirect to new portfolio decision journal"""
-    return redirect(url_for('portfolio.decision_journal_list'))
-
-@analytics_bp.route('/decision-journal/new', methods=['GET', 'POST'])
-@login_required
-def new_decision():
-    """Redirect to portfolio add transaction (where decision journals are created)"""
-    flash('Decision journals are now created automatically when you add BUY transactions', 'info')
-    return redirect(url_for('portfolio.add_transaction'))
-
-@analytics_bp.route('/decision-journal/<int:decision_id>/update', methods=['GET', 'POST'])
-@login_required
-def update_decision_outcome(decision_id):
-   """Redirect to new portfolio decision journal view"""
-   return redirect(url_for('portfolio.view_decision_journal', journal_id=decision_id))
-
-@analytics_bp.route('/export-data')
-@login_required
-def export_data():
-   """Export analytics data for external analysis"""
-   # This would generate a CSV or JSON export of the user's data
-   # Implementation depends on specific needs
-   flash('Data export feature coming soon!', 'info')
-   return redirect(url_for('analytics.dashboard'))

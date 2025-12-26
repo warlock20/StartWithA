@@ -1,29 +1,20 @@
+import json
+import os
+import fitz
+from datetime import datetime
 from flask import jsonify, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ResearchSession, ResearchAnswer, CompanyDocument, QualitativeAnalysis
-from app.research import research_bp # Import the new blueprint
-
-# Utility imports needed for document handling
-import os
-from datetime import datetime
-import fitz
+from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
+from app.research import research_bp
 from app.utils.time_utils import now_utc
 
-# For LLM-related functionality, ensure you have the transformers library installed
-from transformers import pipeline, AutoTokenizer, TFAutoModelForSeq2SeqLM # Or AutoModelForSeq2SeqLM for PyTorch
-
 # Import unified LLM service
-from app.services.llm_service import generate_ai_content
-
-from celery.result import AsyncResult
+from app.services.ai import generate_ai_content, ai_service
 from celery_app import celery
 
-# Global variable for the LLM pipeline (loaded once)
-llm_pipeline = None
-LLM_MODEL_NAME = "google/flan-t5-small"
 
 def get_all_ordered_items_for_checklist(checklist_id):
     """
@@ -46,18 +37,7 @@ def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
         ordered_items.append(item)
         ordered_items.extend(_get_ordered_checklist_items_recursive(item.id, checklist_id))
     return ordered_items
-
-def initialize_llm_pipeline():
-    global llm_pipeline
-    if llm_pipeline is None:
-        try:
-            print(f"INFO: Initializing local LLM model: {LLM_MODEL_NAME}...")
-            tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
-            llm_pipeline = pipeline("text2text-generation", model=LLM_MODEL_NAME, tokenizer=tokenizer)
-            print(f"INFO: Local LLM pipeline ({LLM_MODEL_NAME}) initialized successfully.")
-        except Exception as e:
-            print(f"ERROR: Failed to initialize local LLM pipeline: {e}")
-                                                                                                        
+                                                                             
 @research_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
 def select_checklist_for_company(company_id):
@@ -76,7 +56,7 @@ def select_checklist_for_company(company_id):
 
     checklists_data = []
     for chk in user_checklists:
-        existing_session = ResearchSession.query.filter_by(
+        existing_session = ChecklistAnalysis.query.filter_by(
             user_id=current_user.id,
             company_id=company.id,
             checklist_id=chk.id
@@ -99,8 +79,8 @@ def select_checklist_for_company(company_id):
                 if all_items:
                     resume_id_candidate = all_items[0].id # Default to first item
                     for item in all_items:
-                        ans_exists = ResearchAnswer.query.filter_by(
-                            research_session_id=existing_session.id, 
+                        ans_exists = ChecklistAnswer.query.filter_by(
+                            checklist_analysis_id=existing_session.id, 
                             checklist_item_id=item.id
                         ).first()
                         if not ans_exists:
@@ -117,10 +97,10 @@ def select_checklist_for_company(company_id):
                            title=f"Select or Resume Research for {company.name}")
     
 # This is the checklist execution route
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>', methods=['GET', 'POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
-def research_step(session_id, item_id):
-    session = ResearchSession.query.get_or_404(session_id)
+def research_step(analysis_id, item_id):
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     current_item = ChecklistItem.query.get_or_404(item_id)
     if session.researcher != current_user: # Authorization check (assuming 'researcher' backref)
         flash('You are not authorized to access this research session.', 'error')
@@ -153,8 +133,8 @@ def research_step(session_id, item_id):
                                             .all()
         
     # Fetch existing answer for this item in this session
-    research_answer = ResearchAnswer.query.filter_by(
-        research_session_id=session.id,
+    research_answer = ChecklistAnswer.query.filter_by(
+        checklist_analysis_id=session.id,
         checklist_item_id=current_item.id
     ).first()
 
@@ -166,9 +146,9 @@ def research_step(session_id, item_id):
             research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status_from_form
         else:
-            research_answer = ResearchAnswer(
+            research_answer = ChecklistAnswer(
                 answer_text=answer_text,
-                research_session_id=session.id,
+                checklist_analysis_id=session.id,
                 checklist_item_id=current_item.id,
                 satisfaction_status=satisfaction_status_from_form
             )
@@ -179,14 +159,14 @@ def research_step(session_id, item_id):
         # Determine next item
         if current_item_index + 1 < len(all_items_in_order):
             next_item = all_items_in_order[current_item_index + 1]
-            return redirect(url_for('research.research_step', session_id=session.id, item_id=next_item.id))
+            return redirect(url_for('research.research_step', analysis_id=session.id, item_id=next_item.id))
         else:
             # This is the last item
             session.status = 'completed' # Mark session as completed
             db.session.commit()
             flash('Checklist completed! Research session finished.', 'success')
             # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research.view_checklist_session_summary', session_id=session.id)) # We'll create this route next
+            return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -213,14 +193,14 @@ def research_step(session_id, item_id):
         research_context=research_context  # Pass research workflow context
     )
 
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>/autosave', methods=['POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
 @login_required
-def autosave_research_answer(session_id, item_id):
+def autosave_research_answer(analysis_id, item_id):
     """
     Auto-save endpoint for research answers - returns JSON for AJAX requests
     """
     try:
-        session = ResearchSession.query.get_or_404(session_id)
+        session = ChecklistAnalysis.query.get_or_404(analysis_id)
         current_item = ChecklistItem.query.get_or_404(item_id)
 
         # Authorization check
@@ -241,8 +221,8 @@ def autosave_research_answer(session_id, item_id):
             satisfaction_status = request.form.get('satisfaction_status', 'neutral')
 
         # Find or create research answer
-        research_answer = ResearchAnswer.query.filter_by(
-            research_session_id=session.id,
+        research_answer = ChecklistAnswer.query.filter_by(
+            checklist_analysis_id=session.id,
             checklist_item_id=current_item.id
         ).first()
 
@@ -251,9 +231,9 @@ def autosave_research_answer(session_id, item_id):
             research_answer.answered_at = now_utc()
             research_answer.satisfaction_status = satisfaction_status
         else:
-            research_answer = ResearchAnswer(
+            research_answer = ChecklistAnswer(
                 answer_text=answer_text,
-                research_session_id=session.id,
+                checklist_analysis_id=session.id,
                 checklist_item_id=current_item.id,
                 satisfaction_status=satisfaction_status
             )
@@ -271,19 +251,18 @@ def autosave_research_answer(session_id, item_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@research_bp.route('/session/<int:session_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required
-def ai_analyze_item(session_id, item_id):
+def ai_analyze_item(analysis_id, item_id):
     """
     Handles the AI analysis request for a specific checklist item within a research session.
     It extracts text from selected documents, calls the LLM, and returns a suggestion.
     """
-    gemini_api_key = current_app.config.get('GEMINI_API_KEY')
-    if not gemini_api_key:
-        return jsonify({'status': 'error_config', 'message': 'Gemini API key is not configured on the server.'}), 500
+    if not ai_service.is_available():
+        return jsonify({'status': 'error_config', 'message': 'AI service is not configured on the server.'}), 500
 
     # LLM service will handle API configuration automatically
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
         return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
@@ -315,7 +294,7 @@ def ai_analyze_item(session_id, item_id):
             return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}". IDs must be integers.'}), 400
 
     # Print received data for debugging (server-side)
-    print(f"AI Analysis Request for Session {session_id}, Item {item_id}")
+    print(f"AI Analysis Request for Session {analysis_id}, Item {item_id}")
     print(f"LLM Question: {llm_question}")
     print(f"Selected Document IDs (integers): {selected_document_ids}")
 
@@ -367,113 +346,27 @@ def ai_analyze_item(session_id, item_id):
     response_status = 'pending'
     response_message = ''
 
-    if selected_model == 'gemini':
-        print("INFO: Using Gemini API for analysis.")
-        gemini_api_key = current_app.config.get('GEMINI_API_KEY')
+    try:
+        prompt_for_llm = (
+            "You are a helpful financial analyst assistant. Your task is to answer the user's question based strictly "
+            "on the context provided from the financial documents. Do not use external knowledge. "
+            "If the answer is not found in the context, state that clearly.\n\n"
+            f"CONTEXT:\n---\n{aggregated_text_content}\n---\n\n"
+            f"QUESTION:\n{llm_question}"
+        )
+        
+        print("INFO: Sending prompt to AI service...")
+        ai_suggestion = generate_ai_content(prompt_for_llm)
+        response_status = 'success_ai_suggestion'
+        response_message = 'Suggestion generated successfully.'
+        print("INFO: AI suggestion received.")
 
-        if not gemini_api_key:
-            response_status = 'error_config'
-            response_message = 'Gemini API key is not configured on the server.'
-            ai_suggestion = 'Gemini API key missing.'
-        else:
-            try:
-                # Construct the prompt for the unified LLM service
-                prompt_for_llm = (
-                    "You are a helpful financial analyst assistant. Your task is to answer the user's question based strictly "
-                    "on the context provided from the financial documents. Do not use external knowledge. "
-                    "If the answer is not found in the context, state that clearly.\n\n"
-                    f"CONTEXT:\n---\n{aggregated_text_content}\n---\n\n"
-                    f"QUESTION:\n{llm_question}"
-                )
+    except Exception as e:
+        response_status = 'error_api_call'
+        response_message = 'An error occurred while calling the AI service.'
+        ai_suggestion = f"The AI service returned an error: {str(e)}"
+        print(f"ERROR: AI service error: {e}")                
 
-                print("INFO: Sending prompt to unified LLM service...")
-                # Generate content using unified LLM service
-                ai_suggestion = generate_ai_content(prompt_for_llm)
-                response_status = 'success_ai_suggestion'
-                response_message = 'Suggestion generated successfully by Gemini API.'
-                print("INFO: Gemini suggestion received.")
-
-            except Exception as e:
-                response_status = 'error_api_call'
-                response_message = 'An error occurred while calling the Gemini API.'
-                ai_suggestion = "The AI service returned an error. This could be due to content safety filters, API key issues, or other upstream errors. Please check the server logs."
-                print(f"ERROR: Gemini API call error: {e}")
-            
-    elif selected_model == 'local':
-            # --- EXECUTE LOCAL HUGGING FACE MODEL LOGIC ---
-            print("INFO: Using local model for analysis.")
-            
-            # Ensure the local model pipeline is initialized (lazy loads on first use)
-            initialize_llm_pipeline()
-            
-            if not llm_pipeline:
-                # This block runs if the initialize_llm_pipeline function failed
-                response_status = 'error_llm_not_loaded'
-                response_message = "The local AI model could not be initialized. Please check server logs."
-                ai_suggestion = "AI model unavailable."
-            elif not aggregated_text_content.strip():
-                # This block runs if documents were selected but no text could be extracted
-                response_status = 'warning_no_text_extracted'
-                response_message = "Could not extract usable text from the selected documents."
-                ai_suggestion = "No text available from selected documents for the AI to analyze."
-            else:
-                # If the pipeline is loaded and we have text, proceed with analysis
-                try:
-                    # --- Prepare context and prompt specifically for the local model ---
-                    tokenizer = llm_pipeline.tokenizer
-                    
-                    # Instruction-tune the prompt for better results
-                    instructions = "Answer the following question based only on the provided context. If the answer is not in the context, state that the information is not found in the provided documents."
-                    
-                    # Calculate token counts to avoid exceeding the model's max input length (e.g., 512 for T5-small)
-                    instruction_token_ids = tokenizer.encode(instructions, add_special_tokens=False)
-                    question_token_ids = tokenizer.encode(llm_question, add_special_tokens=False)
-                    template_overhead_tokens = 20 # Estimate for separators like "QUESTION:", "CONTEXT:", etc.
-                    
-                    # Calculate how many tokens are left for the actual document context
-                    available_for_context_tokens = tokenizer.model_max_length - len(instruction_token_ids) - len(question_token_ids) - template_overhead_tokens
-                    
-                    if available_for_context_tokens < 50: # Ensure we have at least some space for context
-                        print("WARNING: Long question/instructions leave little room for document context.")
-                        available_for_context_tokens = 50
-
-                    # Truncate the extracted document text to fit the available token space
-                    context_input_ids = tokenizer.encode(
-                        aggregated_text_content,
-                        max_length=available_for_context_tokens,
-                        truncation=True,
-                        add_special_tokens=False 
-                    )
-                    truncated_context = tokenizer.decode(context_input_ids, skip_special_tokens=True)
-
-                    # Construct the final prompt
-                    prompt_for_llm = f"{instructions}\n\nQUESTION:\n{llm_question}\n\nCONTEXT:\n{truncated_context}\n\nANSWER:"
-                    
-                    print(f"INFO: Sending prompt to local LLM. Input tokens approx: {len(tokenizer.encode(prompt_for_llm))}")
-
-                    # --- Call the local LLM pipeline ---
-                    generated_outputs = llm_pipeline(prompt_for_llm, max_new_tokens=150, min_length=10)
-                    
-                    if generated_outputs and isinstance(generated_outputs, list) and generated_outputs[0].get('generated_text'):
-                        ai_suggestion = generated_outputs[0]['generated_text'].strip()
-                        if ai_suggestion:
-                            response_status = 'success_ai_suggestion'
-                            response_message = f'Suggestion generated by local model ({LLM_MODEL_NAME}).'
-                        else:
-                            response_status = 'warning_llm_empty_response'
-                            response_message = 'Local model generated an empty suggestion.'
-                            ai_suggestion = "The local AI did not provide a suggestion for this query."
-                    else:
-                        response_status = 'error_llm_unexpected_response'
-                        response_message = 'Local model returned an unexpected response format.'
-                        ai_suggestion = "Could not understand local AI's response."
-
-                except Exception as e:
-                    response_status = 'error_llm_inference'
-                    response_message = 'An error occurred during local model inference.'
-                    ai_suggestion = f"Local model error: {str(e)}"
-                    print(f"ERROR: Local model inference error: {e}")
-                              
     else:
         response_status = 'error_invalid_model'
         response_message = f"Invalid model '{selected_model}' selected."
@@ -487,13 +380,12 @@ def ai_analyze_item(session_id, item_id):
         'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""),
         'ai_suggestion': ai_suggestion
     })
-    
-# We also need a route for the session summary. Let's add a placeholder for now.
-@research_bp.route('/session/<int:session_id>/summary', methods=['GET', 'POST'])
+
+@research_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
-def view_checklist_session_summary(session_id):
+def view_checklist_session_summary(analysis_id):
     # Fetch the core session object and authorize the user
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     if session.researcher != current_user:
         flash('You are not authorized to view this summary.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
@@ -507,7 +399,7 @@ def view_checklist_session_summary(session_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        return redirect(url_for('research.view_checklist_session_summary', session_id=session.id))
+        return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id))
 
     # --- GET Request Logic ---
     # Prepare all data needed for rendering the template
@@ -516,7 +408,7 @@ def view_checklist_session_summary(session_id):
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
     
     # 2. Fetch all answers for this session just once
-    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     
     # 3. Create a dictionary that maps an item's ID to its full answer object for easy lookup in the template
     answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
@@ -553,18 +445,56 @@ def view_checklist_session_summary(session_id):
         research_context=research_context  # Pass research workflow context
     )
 
-@research_bp.route('/session/<int:session_id>/export/txt')
+def blocknote_to_text(blocknote_json):
+    """Convert BlockNote JSON format to plain text"""
+    if not blocknote_json:
+        return ""
+
+    try:
+        blocks = json.loads(blocknote_json) if isinstance(blocknote_json, str) else blocknote_json
+
+        text_parts = []
+        for block in blocks:
+            if block.get('type') == 'paragraph':
+                content = block.get('content', [])
+                paragraph_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if paragraph_text.strip():
+                    text_parts.append(paragraph_text)
+            elif block.get('type') == 'heading':
+                content = block.get('content', [])
+                heading_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                level = block.get('props', {}).get('level', 1)
+                if heading_text.strip():
+                    text_parts.append('#' * level + ' ' + heading_text)
+            elif block.get('type') == 'bulletListItem':
+                content = block.get('content', [])
+                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if item_text.strip():
+                    text_parts.append('- ' + item_text)
+            elif block.get('type') == 'numberedListItem':
+                content = block.get('content', [])
+                item_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
+                if item_text.strip():
+                    text_parts.append('1. ' + item_text)
+
+        return '\n\n'.join(text_parts)
+    except:
+        # If parsing fails, return the raw text
+        return str(blocknote_json)
+
+
+@research_bp.route('/checklist/<int:analysis_id>/export/txt')
 @login_required
-def export_session_to_txt(session_id):
+def export_session_to_txt(analysis_id):
     # 1. Fetch session and authorize user
-    session = ResearchSession.query.get_or_404(session_id)
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
     if session.researcher != current_user:
         flash('You are not authorized to export this research session.', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
     # 2. Gather all necessary data
     all_ordered_items = get_all_ordered_items_for_checklist(session.checklist_id)
-    answers_for_session = ResearchAnswer.query.filter_by(research_session_id=session.id).all()
+    answers_for_session = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     answers_map = {ans.checklist_item_id: ans for ans in answers_for_session}
 
     # 3. Construct the text content as a list of strings
@@ -579,7 +509,8 @@ def export_session_to_txt(session_id):
     if session.conclusion:
         export_content.append(f"## Overall Conclusion")
         export_content.append(f"--------------------------")
-        export_content.append(session.conclusion)
+        conclusion_text = blocknote_to_text(session.conclusion)
+        export_content.append(conclusion_text)
         export_content.append("\n")
 
     export_content.append(f"## Individual Checklist Answers")
@@ -601,7 +532,8 @@ def export_session_to_txt(session_id):
 
         if answer_obj:
             status = answer_obj.satisfaction_status.replace('_', ' ').capitalize() if answer_obj.satisfaction_status else 'Not Set'
-            answer_text = answer_obj.answer_text if answer_obj.answer_text else "No text provided."
+            # Convert BlockNote JSON to readable text
+            answer_text = blocknote_to_text(answer_obj.answer_text) if answer_obj.answer_text else "No text provided."
             export_content.append(f"{indent}  - **Status:** {status}")
             export_content.append(f"{indent}  - **Answer:** {answer_text}")
         else:
@@ -611,7 +543,7 @@ def export_session_to_txt(session_id):
     final_text = "\n".join(export_content)
 
     safe_company_name = "".join(c if c.isalnum() else "_" for c in session.company.name)
-    filename = f"Research_{safe_company_name}_{session_id}.md" # Save as Markdown for nice formatting
+    filename = f"Research_{safe_company_name}_{analysis_id}.md" # Save as Markdown for nice formatting
 
     return Response(
         final_text,
@@ -662,7 +594,7 @@ def select_model(company_id):
         return redirect(url_for('companies.companies_dashboard'))
 
     # NEW: Check if there is at least one completed research session for this company
-    has_completed_research = ResearchSession.query.filter_by(
+    has_completed_research = ChecklistAnalysis.query.filter_by(
         user_id=current_user.id,
         company_id=company.id,
         status='completed'

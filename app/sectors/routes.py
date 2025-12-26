@@ -13,7 +13,7 @@ from datetime import datetime
 import re
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
-from app.ai import SummarizationService
+from app.services.ai import ai_service
 
 
 def get_sector_by_name_or_slug(sector_name, user_id, redirect_to_canonical=False):
@@ -1402,7 +1402,7 @@ def generate_ai_summary(sector_name):
         # - gemini-2.5-flash (default): Fast, cost-effective, good for most tasks
         # - gemini-2.5-pro: More capable, better for complex analysis
         # - gemini-2.0-flash: Alternative fast model
-        summarizer = SummarizationService(model="gemini-flash-latest")
+        summarizer = ai_service.summarize(model="gemini-flash-latest")
 
         # Prepare canvas notes data
         canvas_notes_data = []

@@ -18,6 +18,14 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Configure logging
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    app.logger.setLevel(logging.INFO)
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -117,6 +125,16 @@ def create_app(config_class=Config):
         return dict(
             investor_quote=quote_data,
             show_quote_banner=show_banner
+        )
+
+    @app.context_processor
+    def inject_smart_navigation():
+        """Inject smart navigation URLs into all templates"""
+        from app.utils.navigation_utils import get_smart_return_url
+        return_url, context_label = get_smart_return_url()
+        return dict(
+            return_url=return_url,
+            context_label=context_label
         )
 
     # Custom error handlers

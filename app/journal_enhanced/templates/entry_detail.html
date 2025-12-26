@@ -12,7 +12,7 @@
         </p>
     </div>
     <div>
-        <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='research') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to Journal
         </a>
     </div>
@@ -247,7 +247,7 @@
                     {% if entry.tags %}
                         {% for tag in entry.tags %}
                         {% set clean_tag = tag.lstrip('#') %}
-                        <a href="{{ url_for('journal_enhanced.search', q='#' + clean_tag) }}"
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', q='#' + clean_tag) }}"
                             class="badge bg-primary text-decoration-none me-1 mb-1">
                             #{{ clean_tag }}
                         </a>
@@ -669,7 +669,7 @@
             })
                 .then(response => {
                     if (response.ok) {
-                        window.location.href = "{{ url_for('journal_enhanced.journal_home') }}";
+                        window.location.href = "{{ url_for('journal_enhanced.knowledge_hub', view='research') }}";
                     }
                 });
         }

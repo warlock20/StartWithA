@@ -17,7 +17,7 @@
             <p class="dashboard-subtitle">Capture your investment thinking</p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', view='research') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Cancel
             </a>
         </div>
@@ -156,7 +156,7 @@
 
                     <!-- Submit -->
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('journal_enhanced.journal_home') }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='research') }}" class="btn btn-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">Save Entry</button>
                     </div>
                 </form>
@@ -451,33 +451,52 @@
     }
 
     function selectYahooCompany(yahooCompany) {
-        // Create the company first using the Yahoo Finance data
-        const data = {
-            ticker_symbol: yahooCompany.ticker_symbol,
-            name: yahooCompany.name,
-            industry: yahooCompany.industry || null,
-            sector: yahooCompany.sector || null
-        };
+        // First, check if the company already exists by searching for it
+        fetch(`/companies/api/companies/search?q=${encodeURIComponent(yahooCompany.ticker_symbol)}`)
+            .then(response => response.json())
+            .then(searchData => {
+                // Check if company already exists in user's companies
+                const existingCompany = searchData.user_companies.find(
+                    company => company.ticker_symbol === yahooCompany.ticker_symbol
+                );
 
-        fetch('/companies/api/companies/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                selectModalCompany(data.company);
-            } else {
-                alert('Error creating company: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error creating company:', error);
-            alert('Error creating company');
-        });
+                if (existingCompany) {
+                    // Company already exists, just select it
+                    selectModalCompany(existingCompany);
+                } else {
+                    // Company doesn't exist, create it
+                    const data = {
+                        ticker_symbol: yahooCompany.ticker_symbol,
+                        name: yahooCompany.name,
+                        industry: yahooCompany.industry || null,
+                        sector: yahooCompany.sector || null
+                    };
+
+                    fetch('/companies/api/companies/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            selectModalCompany(data.company);
+                        } else {
+                            alert('Error creating company: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error creating company:', error);
+                        alert('Error creating company');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error checking for existing company:', error);
+                alert('Error checking for existing company');
+            });
     }
 
     function addNewCompany() {
@@ -491,37 +510,65 @@
             return;
         }
 
-        const data = {
-            ticker_symbol: ticker,
-            name: name,
-            industry: industry || null,
-            sector: sector || null
-        };
+        // First check if company already exists (search by ticker or name)
+        const searchQuery = ticker || name;
+        fetch(`/companies/api/companies/search?q=${encodeURIComponent(searchQuery)}`)
+            .then(response => response.json())
+            .then(searchData => {
+                // Check if company already exists
+                const existingCompany = searchData.user_companies.find(company => {
+                    const tickerMatch = ticker && company.ticker_symbol === ticker.toUpperCase();
+                    const nameMatch = company.name.toLowerCase() === name.toLowerCase();
+                    return tickerMatch || nameMatch;
+                });
 
-        fetch('/companies/api/companies/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                selectModalCompany(data.company);
-                // Clear form
-                document.getElementById('newCompanyTicker').value = '';
-                document.getElementById('newCompanyName').value = '';
-                document.getElementById('newCompanyIndustry').value = '';
-                document.getElementById('newCompanySector').value = '';
-            } else {
-                alert('Error creating company: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error creating company:', error);
-            alert('Error creating company');
-        });
+                if (existingCompany) {
+                    // Company already exists, just select it
+                    selectModalCompany(existingCompany);
+                    // Clear form
+                    document.getElementById('newCompanyTicker').value = '';
+                    document.getElementById('newCompanyName').value = '';
+                    document.getElementById('newCompanyIndustry').value = '';
+                    document.getElementById('newCompanySector').value = '';
+                } else {
+                    // Company doesn't exist, create it
+                    const data = {
+                        ticker_symbol: ticker,
+                        name: name,
+                        industry: industry || null,
+                        sector: sector || null
+                    };
+
+                    fetch('/companies/api/companies/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            selectModalCompany(data.company);
+                            // Clear form
+                            document.getElementById('newCompanyTicker').value = '';
+                            document.getElementById('newCompanyName').value = '';
+                            document.getElementById('newCompanyIndustry').value = '';
+                            document.getElementById('newCompanySector').value = '';
+                        } else {
+                            alert('Error creating company: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error creating company:', error);
+                        alert('Error creating company');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error checking for existing company:', error);
+                alert('Error checking for existing company');
+            });
     }
 
     function openCompanyModal(callback) {

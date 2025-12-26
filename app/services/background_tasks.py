@@ -10,6 +10,7 @@ from app import db
 from app.models import BackgroundTask, WorkSession
 from app.utils.time_utils import now_utc
 import logging
+from app.tasks import competitor_analysis_task
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,6 @@ class BackgroundTaskService:
         }
 
         # Start Celery task
-        from app.tasks import competitor_analysis_task
         celery_task = competitor_analysis_task.delay(task_id, company_data)
 
         # Store Celery task ID for monitoring

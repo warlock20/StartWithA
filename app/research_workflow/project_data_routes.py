@@ -13,7 +13,7 @@ Extracted from routes.py lines: 189-226, 228-251, 253-303, 314-334, 337-370
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject, Sector
+from app.models import ResearchTemplate, ResearchProject, Sector, ChecklistAnalysis
 from app.research_workflow import research_workflow_bp
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
@@ -75,14 +75,53 @@ def project_summary(project_id):
         step = project.template.get_step(int(step_index))
         if step and notes:
             all_notes.append({
+                'step_index': int(step_index),
                 'step_name': step['name'],
+                'step_type': step.get('type'),
                 'notes': notes
             })
+
+    # Add investment thesis as a note if it exists but wasn't added
+    if project.investment_thesis and project.template.workflow_steps:
+        # Find the thesis step
+        for step_index, step in enumerate(project.template.workflow_steps):
+            if step.get('type') == 'thesis_writing':
+                # Check if this step already has notes
+                has_notes = any(n['step_index'] == step_index for n in all_notes)
+                if not has_notes:
+                    all_notes.append({
+                        'step_index': step_index,
+                        'step_name': step['name'],
+                        'step_type': 'thesis_writing',
+                        'notes': f"**Investment Thesis:**\n\n{project.investment_thesis}"
+                    })
+                break
+
+    # Sort notes by step index
+    all_notes.sort(key=lambda x: x['step_index'])
+
+    # Get checklist analyses for step links
+    checklist_analyses = {}
+    if project.template and project.template.workflow_steps:
+        for step_index in project.completed_steps:
+            if step_index < len(project.template.workflow_steps):
+                step = project.template.workflow_steps[step_index]
+                if step.get('type') == 'checklist':
+                    checklist_id = step.get('config', {}).get('checklist_id')
+                    if checklist_id:
+                        analysis = ChecklistAnalysis.query.filter_by(
+                            user_id=current_user.id,
+                            checklist_id=int(checklist_id),
+                            company_id=project.company_id
+                        ).order_by(ChecklistAnalysis.start_date.desc()).first()
+                        if analysis:
+                            checklist_analyses[step_index] = analysis.id
 
     return render_template('project_summary.html',
                           title=f"Summary: {project.project_name}",
                           project=project,
-                          all_notes=all_notes)
+                          all_notes=all_notes,
+                          checklist_analyses=checklist_analyses)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/decision', methods=['POST'])
@@ -99,7 +138,6 @@ def save_decision(project_id):
     decision = request.form.get('decision')
     project.decision = decision  # Save the decision to the project
     project.decision_confidence = request.form.get('confidence', type=int)
-    project.decision_notes = request.form.get('decision_notes')
     project.decision_date = now_utc()
 
     # Parse key findings
@@ -152,6 +190,16 @@ def update_thesis(project_id):
     thesis = request.form.get('investment_thesis', '').strip()
     project.investment_thesis = thesis
     project.last_worked_at = now_utc()
+
+    # Also update step_notes for the thesis_writing step to keep them in sync
+    if project.template and project.template.workflow_steps:
+        for step_index, step in enumerate(project.template.workflow_steps):
+            if step.get('type') == 'thesis_writing':
+                if not project.step_notes:
+                    project.step_notes = {}
+                # Update step notes with the thesis
+                project.step_notes[str(step_index)] = f"**Investment Thesis:**\n\n{thesis}"
+                break
 
     try:
         db.session.commit()

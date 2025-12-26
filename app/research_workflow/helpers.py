@@ -1,5 +1,5 @@
 from flask_login import current_user
-from app.models import ResearchSession, ResearchAnswer
+from app.models import ChecklistAnalysis, ChecklistAnswer
 
 
 def collect_research_session_summary(project, step_index):
@@ -13,18 +13,18 @@ def collect_research_session_summary(project, step_index):
             return "Completed research checklist evaluation (no company data)"
 
         # Get the most recent research session for this company (check all statuses first)
-        all_sessions = ResearchSession.query.filter_by(
+        all_sessions = ChecklistAnalysis.query.filter_by(
             user_id=current_user.id,
             company_id=project.company_id
-        ).order_by(ResearchSession.start_date.desc()).all()
+        ).order_by(ChecklistAnalysis.start_date.desc()).all()
 
 
         # Get the most recent research session for this company (try 'completed' first)
-        recent_session = ResearchSession.query.filter_by(
+        recent_session = ChecklistAnalysis.query.filter_by(
             user_id=current_user.id,
             company_id=project.company_id,
             status='completed'
-        ).order_by(ResearchSession.start_date.desc()).first()
+        ).order_by(ChecklistAnalysis.start_date.desc()).first()
 
         # If no completed session, try any recent session
         if not recent_session and all_sessions:
@@ -34,8 +34,8 @@ def collect_research_session_summary(project, step_index):
             return "Completed research checklist evaluation (no research session found)"
 
         # Collect all research answers from the session
-        research_answers = ResearchAnswer.query.filter_by(
-            research_session_id=recent_session.id
+        research_answers = ChecklistAnswer.query.filter_by(
+            checklist_analysis_id=recent_session.id
         ).all()
 
         if not research_answers:

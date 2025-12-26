@@ -10,16 +10,16 @@ from pathlib import Path
 import yfinance as yf
 import pandas as pd
 
-import fitz  # PyMuPDF
 from secedgar import filings, FilingType
 from flask import current_app
-from app.services.llm_service import generate_ai_content
 
 from app import db, create_app
 from app.models import Company, CompanyDocument, User, CompanyArticle, ScuttlebuttAnalysis, FinancialData, BackgroundTask, WorkSession
 from celery_app import celery
 from dateutil.parser import isoparse
-from app.ai.services.prompt_service import get_competitor_analysis_prompt
+
+from app.services.ai import generate_ai_content
+from app.services.ai.prompt_service import get_competitor_analysis_prompt
 from app.utils.time_utils import now_utc
 
 @celery.task(bind=True)
@@ -124,9 +124,6 @@ def competitor_analysis_task(self, task_id, company_data):
             db.session.commit()
 
             print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
-
-            # Import prompt service within task context
-            from app.ai.services.prompt_service import get_competitor_analysis_prompt
 
             # Generate the analysis prompt
             analysis_prompt = get_competitor_analysis_prompt(
@@ -544,9 +541,6 @@ def competitor_analysis_task(self, task_id, company_data):
             db.session.commit()
 
             print(f"BACKGROUND TASK ({self.request.id}): Starting competitor analysis for {company_data['name']}...")
-
-            # Import prompt service within task context
-            from app.ai.services.prompt_service import get_competitor_analysis_prompt
 
             # Generate the analysis prompt
             analysis_prompt = get_competitor_analysis_prompt(

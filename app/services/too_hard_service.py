@@ -272,7 +272,14 @@ class TooHardBasketService:
         """Generate AI-like recommendations based on patterns"""
         recs = []
 
+        # Exclude non-sectors from recommendations
+        excluded_sectors = {'Uncategorized', 'Unknown', 'None', ''}
+
         for sector, stats in sector_stats.items():
+            # Skip non-sectors
+            if sector in excluded_sectors:
+                continue
+
             # Pattern 1: High rejection rate + low CoC
             if stats['total_analyzed'] >= 3 and stats['coc_confidence'] < 30:
                 recs.append({
