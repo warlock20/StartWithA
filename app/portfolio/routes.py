@@ -4,15 +4,15 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import func, extract
+from sqlalchemy import func
 from app import db
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
     ResearchProject, DestinationCheckpoint, ThesisEvolution, update_portfolio_position
 )
 from app.services.price_service import PriceService
-
-# AI Outcome Tracking Integration
+from app.services.too_hard_service import TooHardBasketService
+from app.utils.time_utils import now_utc
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 
 # Import blueprint from current package (avoids circular import)
@@ -81,19 +81,33 @@ def dashboard():
     portfolio_company_ids = [pos.company_id for pos in all_positions]
 
     # Query upcoming checkpoints (Active status, future dates or recent past)
-    today = date.today()
+    today = now_utc().date()
     upcoming_checkpoints = DestinationCheckpoint.query.filter(
         DestinationCheckpoint.user_id == current_user.id,
         DestinationCheckpoint.company_id.in_(portfolio_company_ids),
         DestinationCheckpoint.status == 'Active'
     ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all() if portfolio_company_ids else []
 
+    # Calculate Too Hard Basket rate (research discipline metric)
+    too_hard_items = TooHardBasketService.get_all_too_hard_companies(user_id=current_user.id)
+    total_researched = ResearchProject.query.filter_by(user_id=current_user.id).count()
+    too_hard_rate = (len(too_hard_items) / total_researched * 100) if total_researched > 0 else 0
+
+    # Calculate inbox count (incomplete research projects)
+    inbox_count = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        status='in_progress'
+    ).count()
+
+    # Calculate portfolio count (number of active positions)
+    portfolio_count = len(all_positions)
+
     # Get user currency settings
     from app.services.currency_service import CurrencyService
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    return render_template('portfolio/dashboard.html',
+    return render_template('portfolio_dashboard.html',
                           positions=positions,
                           portfolio_value=portfolio_value,
                           recent_transactions=recent_transactions,
@@ -106,7 +120,10 @@ def dashboard():
                           sort_by=sort_by,
                           sort_order=sort_order,
                           user_currency=user_currency,
-                          currency_symbol=currency_symbol)
+                          currency_symbol=currency_symbol,
+                          too_hard_rate=too_hard_rate,
+                          inbox_count=inbox_count,
+                          portfolio_count=portfolio_count)
 
 
 @portfolio_bp.route('/transactions')
@@ -153,7 +170,7 @@ def transactions():
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    return render_template('portfolio/transactions.html',
+    return render_template('transactions.html',
                           transactions=transactions,
                           companies=companies,
                           user_currency=user_currency,
@@ -196,7 +213,7 @@ def add_transaction():
                 return redirect(url_for('portfolio.add_transaction'))
 
             # Validate date not in future
-            if transaction_date > datetime.now().date():
+            if transaction_date > now_utc().date():
                 flash('Transaction date cannot be in the future', 'error')
                 return redirect(url_for('portfolio.add_transaction'))
 
@@ -289,7 +306,7 @@ def add_transaction():
                         # Validate thesis is provided and meets minimum word count
                         if not investment_thesis:
                             flash('Please provide your investment thesis for buying without research', 'warning')
-                            return render_template('portfolio/add_transaction.html',
+                            return render_template('add_transaction.html',
                                                  companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
                                                  show_warning=True,
                                                  form_data=request.form)
@@ -298,7 +315,7 @@ def add_transaction():
                         word_count = len(investment_thesis.split())
                         if word_count < 20:
                             flash(f'Investment thesis must be at least 20 words (you provided {word_count})', 'warning')
-                            return render_template('portfolio/add_transaction.html',
+                            return render_template('add_transaction.html',
                                                  companies=Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all(),
                                                  show_warning=True,
                                                  form_data=request.form)
@@ -521,7 +538,7 @@ def add_transaction():
     # Get company_id from query params if provided
     preselected_company_id = request.args.get('company_id', type=int)
 
-    return render_template('portfolio/add_transaction.html',
+    return render_template('add_transaction.html',
                           companies=companies,
                           show_warning=False,
                           form_data=None,
@@ -589,7 +606,7 @@ def edit_transaction(transaction_id):
             return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
     # GET request
-    return render_template('portfolio/edit_transaction.html', transaction=transaction)
+    return render_template('edit_transaction.html', transaction=transaction)
 
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/delete', methods=['POST'])
@@ -615,7 +632,7 @@ def delete_transaction(transaction_id):
             user_id=current_user.id,
             company_id=company_id,
             type='BUY',  # Doesn't matter, just for recalculation
-            date=datetime.now().date(),
+            date=now_utc().date(),
             quantity=0,
             price_per_share=0
         )
@@ -683,7 +700,7 @@ def position_detail(company_id):
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    return render_template('portfolio/position_detail.html',
+    return render_template('position_detail.html',
                           company=company,
                           position=position,
                           transactions=transactions,
@@ -692,7 +709,7 @@ def position_detail(company_id):
                           research_project=research_project,
                           user_currency=user_currency,
                           currency_symbol=currency_symbol,
-                          today=date.today)
+                          today=now_utc().date())
 
 
 @portfolio_bp.route('/refresh-prices', methods=['POST'])
@@ -802,7 +819,7 @@ def decision_journal_list():
     successful_trades = sum(1 for j in journals_with_outcomes if j.actual_return > 0)
     win_rate = (successful_trades / len(journals_with_outcomes) * 100) if journals_with_outcomes else 0
 
-    return render_template('portfolio/decision_journal_list.html',
+    return render_template('decision_journal_list.html',
                           journals=journals,
                           total_decisions=total_decisions,
                           buy_decisions=buy_decisions,
@@ -838,7 +855,7 @@ def view_decision_journal(journal_id):
     if journal.linked_research_id:
         research_project = ResearchProject.query.get(journal.linked_research_id)
 
-    return render_template('portfolio/decision_journal_detail.html',
+    return render_template('decision_journal_detail.html',
                           journal=journal,
                           transactions=transactions,
                           position=position,
@@ -887,7 +904,7 @@ def sell_postmortem(journal_id):
             buy_journal.would_repeat = would_repeat
             buy_journal.mistake_category = mistake_category if actual_return and actual_return < 0 else None
             buy_journal.success_category = success_category if actual_return and actual_return > 0 else None
-            buy_journal.updated_at = datetime.utcnow()
+            buy_journal.updated_at = now_utc()
 
         try:
             db.session.commit()
@@ -897,7 +914,7 @@ def sell_postmortem(journal_id):
             db.session.rollback()
             flash(f'Error saving post-mortem: {str(e)}', 'error')
 
-    return render_template('portfolio/sell_postmortem.html',
+    return render_template('sell_postmortem.html',
                           journal=journal,
                           buy_journal=buy_journal)
 
@@ -953,7 +970,7 @@ def investment_journey(company_id):
     for thesis in thesis_versions:
         timeline_events.append({
             'type': 'thesis',
-            'date': thesis.created_at.date() if thesis.created_at else date.today(),
+            'date': thesis.created_at.date() if thesis.created_at else now_utc().date(),
             'datetime': thesis.created_at,
             'data': thesis
         })
@@ -1016,7 +1033,7 @@ def investment_journey(company_id):
             # Fallback to most recent
             current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
 
-    return render_template('portfolio/investment_journey.html',
+    return render_template('investment_journey.html',
                           company=company,
                           position=position,
                           timeline_events=timeline_events,
@@ -1149,7 +1166,7 @@ def add_thesis_version(company_id):
     ).scalar() or 0
     next_version = max_version + 1
 
-    return render_template('portfolio/add_thesis_version.html',
+    return render_template('add_thesis_version.html',
                           company=company,
                           position=position,
                           current_thesis=current_thesis,
@@ -1190,7 +1207,7 @@ def analytics():
     annualized_return = Decimal('0.00')
     years_held = 0
     if earliest_date and portfolio_value['total_cost'] > 0:
-        days_held = (date.today() - earliest_date).days
+        days_held = (now_utc().date() - earliest_date).days
         if days_held > 0:
             years_held = days_held / 365.25
             if total_return_pct:
@@ -1224,7 +1241,7 @@ def analytics():
     # Calculate monthly performance (last 12 months)
     monthly_performance = []
     for i in range(11, -1, -1):
-        month_date = date.today() - timedelta(days=i*30)
+        month_date = now_utc().date() - timedelta(days=i*30)
         month_name = month_date.strftime('%B %Y')
 
         # Get transactions for this month
@@ -1260,7 +1277,7 @@ def analytics():
             value = cost_basis + (growth_per_month * (i + 1))
             chart_values.append(round(value, 2))
 
-    return render_template('portfolio/analytics.html',
+    return render_template('analytics.html',
                           portfolio_value=portfolio_value,
                           total_return=total_return,
                           total_return_pct=total_return_pct,
@@ -1431,7 +1448,7 @@ def analytics_decisions():
     expectations_total_count = len(expectations_analysis)
     expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
 
-    return render_template('portfolio/analytics_decisions.html',
+    return render_template('analytics_decisions.html',
                           research_backed_count=len(research_positions),
                           non_research_count=len(non_research_positions),
                           research_avg_return=research_avg_return,
@@ -1451,3 +1468,22 @@ def analytics_decisions():
                           expectations_met_count=expectations_met_count,
                           expectations_total_count=expectations_total_count,
                           expectations_met_pct=expectations_met_pct)
+
+@portfolio_bp.route('/analytics/research-correlation')
+@login_required
+def research_correlation():
+    """Research Quality → Returns Correlation Dashboard"""
+    from app.services.portfolio_intelligence import (
+        get_correlation_data,
+        get_learning_insights
+    )
+    
+    correlation_data = get_correlation_data(current_user.id)
+    
+    insights = []
+    if correlation_data.has_sufficient_data:
+        insights = get_learning_insights(current_user.id)
+    
+    return render_template('research_correlation.html',
+                          correlation_data=correlation_data,
+                          insights=insights)

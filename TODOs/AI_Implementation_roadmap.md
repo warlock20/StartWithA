@@ -2314,3 +2314,172 @@ We've built the **data collection layer** (ResearchOutcome tracks quality→resu
   3. Verify ResearchOutcome records appear in database
   4. Make SELL transactions to complete the cycle
   5. Check AIInsight table after 5+ completed outcomes
+
+
+  # Tuning the platform
+
+  Excellent thinking! 🎯 This is an important architectural decision to make **before** we build the features.
+
+---
+
+## 📊 Current Hardcoded Parameters
+
+### In `research_quality.py`:
+| Parameter | Current Value | Should Be Tunable? |
+|-----------|---------------|-------------------|
+| `min_questions_pct` | 70% | ✅ Yes |
+| `min_time_minutes` | 30 | ✅ Yes |
+| `max_time_minutes` | 480 | ✅ Yes |
+| `ideal_documents` | 5 | ✅ Yes |
+| `good_answer_length` | 200 chars | ✅ Yes |
+| Grade thresholds | A=90, B=80, C=70... | ✅ Yes |
+| Weights | completeness 25%, depth 25%... | ✅ Yes |
+
+### In `outcome_tracking.py`:
+| Parameter | Current Value | Should Be Tunable? |
+|-----------|---------------|-------------------|
+| `big_win` threshold | ≥25% | ✅ Yes |
+| `small_win` threshold | ≥5% | ✅ Yes |
+| `min_outcomes_for_analysis` | 5 | ✅ Yes |
+
+---
+
+## 🎛️ Configuration Options
+
+### Option 1: System-wide Admin Only
+```
+Admin sets → All users get same thresholds
+```
+- ✅ Simple
+- ❌ One size fits all
+
+### Option 2: Preset Profiles Only
+```
+User picks: [Beginner] [Intermediate] [Expert] [Pro]
+```
+- ✅ Easy for users
+- ❌ Limited flexibility
+
+### Option 3: Full User Customization
+```
+Each user tunes every parameter
+```
+- ✅ Maximum flexibility
+- ❌ Complex, users might break things
+
+### Option 4: Hybrid (Recommended) ⭐
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CONFIGURATION HIERARCHY                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌─────────────┐                                          │
+│   │   SYSTEM    │  Admin-tunable defaults                  │
+│   │  DEFAULTS   │  (applies to all users)                  │
+│   └──────┬──────┘                                          │
+│          │                                                  │
+│          ▼                                                  │
+│   ┌─────────────┐                                          │
+│   │  INVESTOR   │  Preset profiles that override defaults  │
+│   │  PROFILES   │  • Beginner (lenient thresholds)         │
+│   │             │  • Intermediate (balanced)               │
+│   │             │  • Expert (strict)                       │
+│   │             │  • Professional (very strict)            │
+│   └──────┬──────┘                                          │
+│          │                                                  │
+│          ▼                                                  │
+│   ┌─────────────┐                                          │
+│   │    USER     │  Advanced users can override specific    │
+│   │  OVERRIDES  │  parameters (optional)                   │
+│   └─────────────┘                                          │
+│                                                             │
+│   Resolution: User Override > Profile > System Default     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 👤 Investor Profile Examples
+
+| Parameter | Beginner | Intermediate | Expert | Professional |
+|-----------|----------|--------------|--------|--------------|
+| Min research time | 15 min | 30 min | 60 min | 120 min |
+| Min questions % | 50% | 70% | 85% | 95% |
+| Big win threshold | ≥15% | ≥25% | ≥30% | ≥40% |
+| Min docs required | 1 | 3 | 5 | 10 |
+| Grade A threshold | 80 | 90 | 92 | 95 |
+| Outcome data needed | 3 | 5 | 5 | 10 |
+
+**Profile Descriptions:**
+- **Beginner**: Learning the process, lenient scoring, encouragement-focused
+- **Intermediate**: Building habits, balanced thresholds
+- **Expert**: Serious investor, stricter quality standards
+- **Professional**: Fund manager level, very strict, more data needed
+
+---
+
+## 🗂️ Implementation Plan
+
+### New Files:
+```
+app/models/configuration.py      # SystemConfig, InvestorProfile
+app/services/config_service.py   # ConfigurationService (resolves effective config)
+app/admin/config_routes.py       # Admin dashboard for system defaults
+app/settings/profile_routes.py   # User profile selection + custom overrides
+```
+
+### Database Tables:
+```sql
+-- System-wide defaults (admin-editable)
+system_config
+├── id
+├── key (e.g., 'research_quality.min_time_minutes')
+├── value (JSON)
+├── description
+└── updated_by, updated_at
+
+-- User's chosen profile + overrides
+user_investment_profile
+├── id
+├── user_id
+├── profile_type (beginner/intermediate/expert/professional/custom)
+├── custom_overrides (JSON - only if they want to tweak specific things)
+└── created_at, updated_at
+```
+
+### Usage in Code:
+```python
+# Before (hardcoded):
+if minutes < 30:
+    return low_score
+
+# After (configurable):
+config = ConfigurationService.get_effective_config(user_id)
+if minutes < config.min_research_time_minutes:
+    return low_score
+```
+
+---
+
+## 🤔 My Recommendation
+
+1. **Start with Step 0**: Create the configuration system (Hybrid approach)
+2. **Then build features** using configurable parameters
+3. **Admin dashboard** can come later (use DB directly initially)
+4. **User profile selection** added to settings page
+
+---
+
+## What Do You Think?
+
+| Approach | Complexity | Time |
+|----------|------------|------|
+| Skip config, hardcode for now | Low | 0 |
+| Simple profiles only (no overrides) | Low-Medium | 2-3 hrs |
+| Full hybrid system | Medium | 4-5 hrs |
+
+Should we:
+- **A**: Build config system first (Step 0), then Portfolio Intelligence
+- **B**: Build Portfolio Intelligence with hardcoded values, add config later
+- **C**: Just do simple profiles (no custom overrides) as a middle ground

@@ -1,0 +1,447 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Research Correlation Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+    .correlation-hero {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #1a4d8c) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .correlation-hero h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .correlation-hero p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .advantage-card {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .advantage-card.negative {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .advantage-card.neutral {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    }
+
+    .advantage-value {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .advantage-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+
+    .grade-card {
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .grade-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .grade-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .grade-badge.grade-a {
+        background: #10b981;
+    }
+
+    .grade-badge.grade-b {
+        background: #3b82f6;
+    }
+
+    .grade-badge.grade-c {
+        background: #f59e0b;
+    }
+
+    .grade-badge.grade-d {
+        background: #f97316;
+    }
+
+    .grade-badge.grade-f {
+        background: #ef4444;
+    }
+
+    .grade-return {
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .grade-return.positive {
+        color: #10b981;
+    }
+
+    .grade-return.negative {
+        color: #ef4444;
+    }
+
+    .metric-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .correlation-bar {
+        height: 12px;
+        background: var(--border-color);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .correlation-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+    }
+
+    .correlation-fill.positive {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .correlation-fill.negative {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .correlation-fill.neutral {
+        background: linear-gradient(90deg, #6b7280, #9ca3af);
+    }
+
+    .insight-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--primary);
+    }
+
+    .insight-card.edge {
+        border-left-color: #10b981;
+    }
+
+    .insight-card.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .insight-card.winning_pattern {
+        border-left-color: #3b82f6;
+    }
+
+    .insight-card.improvement {
+        border-left-color: #8b5cf6;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 1rem;
+    }
+
+    .stat-comparison {
+        display: flex;
+        justify-content: space-around;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .stat-comparison .stat-box {
+        flex: 1;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stat-box.researched {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .stat-box.non-researched {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Hero Section -->
+    <div class="correlation-hero">
+        <h1><i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation</h1>
+        <p>Discover how your research quality impacts investment outcomes</p>
+    </div>
+
+    {% if not correlation_data.has_sufficient_data %}
+    <!-- Not Enough Data State -->
+    <div class="empty-state">
+        <i class="bi bi-bar-chart-line"></i>
+        <h3>Building Your Track Record</h3>
+        <p class="text-muted">{{ correlation_data.min_data_message }}</p>
+        <p class="text-muted">Complete more research-backed trades to unlock insights.</p>
+        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary mt-3">
+            <i class="bi bi-plus-lg me-2"></i>Add Transaction
+        </a>
+    </div>
+
+    {% else %}
+
+    <!-- Main Content -->
+    <div class="row">
+
+        <!-- Left Column: Research Advantage & Metrics -->
+        <div class="col-lg-4 mb-4">
+
+            <!-- Research Advantage Card -->
+            <div
+                class="advantage-card {% if correlation_data.research_advantage < 0 %}negative{% elif correlation_data.research_advantage == 0 %}neutral{% endif %} mb-4">
+                <div class="advantage-value">
+                    {% if correlation_data.research_advantage >= 0 %}+{% endif %}{{ correlation_data.research_advantage
+                    }}%
+                </div>
+                <div class="advantage-label">
+                    Research Advantage
+                </div>
+                <div class="mt-2 small" style="opacity: 0.8;">
+                    {% if correlation_data.research_advantage > 0 %}
+                    Researched trades outperform by this much
+                    {% elif correlation_data.research_advantage < 0 %} Room for improvement in research process {% else
+                        %} Research not yet showing clear advantage {% endif %} </div>
+                </div>
+
+                <!-- Quick Metrics -->
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ correlation_data.total_outcomes }}</div>
+                            <div class="metric-label">Total Trades</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ correlation_data.researched_count }}</div>
+                            <div class="metric-label">Researched</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Correlation Strength -->
+                {% if correlation_data.correlation_coefficient is not none %}
+                <div class="metric-card mb-4">
+                    <div class="metric-label mb-2">Quality-Return Correlation</div>
+                    <div class="metric-value" style="font-size: 1.5rem;">
+                        {{ correlation_data.correlation_coefficient }}
+                    </div>
+                    <div class="correlation-bar">
+                        {% set corr_pct = ((correlation_data.correlation_coefficient + 1) / 2 * 100)|round %}
+                        <div class="correlation-fill {% if correlation_data.correlation_coefficient > 0.2 %}positive{% elif correlation_data.correlation_coefficient < -0.2 %}negative{% else %}neutral{% endif %}"
+                            style="width: {{ corr_pct }}%"></div>
+                    </div>
+                    <div class="small text-muted mt-2">
+                        {% if correlation_data.correlation_coefficient > 0.5 %}
+                        Strong positive correlation ✓
+                        {% elif correlation_data.correlation_coefficient > 0.2 %}
+                        Moderate positive correlation
+                        {% elif correlation_data.correlation_coefficient > -0.2 %}
+                        Weak/no correlation
+                        {% else %}
+                        Negative correlation ⚠️
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Researched vs Non-Researched Comparison -->
+                <div class="metric-card">
+                    <div class="metric-label mb-3">Average Return Comparison</div>
+                    <div class="stat-comparison">
+                        <div class="stat-box researched">
+                            <div class="fw-bold text-success" style="font-size: 1.25rem;">
+                                {% if correlation_data.researched_avg_return >= 0 %}+{% endif %}{{
+                                correlation_data.researched_avg_return }}%
+                            </div>
+                            <div class="small text-muted">Researched</div>
+                            <div class="small text-muted">({{ correlation_data.researched_count }} trades)</div>
+                        </div>
+                        <div class="stat-box non-researched">
+                            <div class="fw-bold text-danger" style="font-size: 1.25rem;">
+                                {% if correlation_data.non_researched_avg_return >= 0 %}+{% endif %}{{
+                                correlation_data.non_researched_avg_return }}%
+                            </div>
+                            <div class="small text-muted">Non-Researched</div>
+                            <div class="small text-muted">({{ correlation_data.non_researched_count }} trades)</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Grade Breakdown & Insights -->
+            <div class="col-lg-8">
+
+                <!-- Grade Performance Breakdown -->
+                <div class="card mb-4">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-award me-2"></i>Performance by Research Quality Grade
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if correlation_data.grade_performance %}
+                        {% for grade in correlation_data.grade_performance %}
+                        <div class="grade-card d-flex align-items-center gap-3">
+                            <div class="grade-badge grade-{{ grade.grade|lower }}">
+                                {{ grade.grade }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="fw-semibold">Grade {{ grade.grade }}</span>
+                                        <span class="text-muted small ms-2">({{ grade.count }} trades)</span>
+                                    </div>
+                                    <div
+                                        class="grade-return {% if grade.avg_return >= 0 %}positive{% else %}negative{% endif %}">
+                                        {% if grade.avg_return >= 0 %}+{% endif %}{{ grade.avg_return }}%
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-4 mt-1 small text-muted">
+                                    <span><i class="bi bi-trophy me-1"></i>{{ grade.win_rate }}% win rate</span>
+                                    <span><i class="bi bi-calendar me-1"></i>{{ grade.avg_hold_days }} days avg
+                                        hold</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {% if correlation_data.best_grade and correlation_data.worst_grade %}
+                        <div class="alert alert-light mt-3 mb-0">
+                            <i class="bi bi-lightbulb me-2 text-warning"></i>
+                            <strong>Best performing:</strong> Grade {{ correlation_data.best_grade }} trades
+                            &nbsp;|&nbsp;
+                            <strong>Weakest:</strong> Grade {{ correlation_data.worst_grade }} trades
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-bar-chart-line" style="font-size: 2rem; opacity: 0.3;"></i>
+                            <p class="mt-2 mb-0">Not enough trades per grade to show breakdown</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Learning Insights -->
+                {% if insights %}
+                <div class="card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lightbulb me-2"></i>What Your Data Tells You
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for insight in insights %}
+                        <div class="insight-card {{ insight.category }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if insight.category == 'edge' %}
+                                        <i class="bi bi-star-fill text-success me-1"></i>
+                                        {% elif insight.category == 'warning' %}
+                                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                                        {% elif insight.category == 'winning_pattern' %}
+                                        <i class="bi bi-trophy-fill text-primary me-1"></i>
+                                        {% else %}
+                                        <i class="bi bi-arrow-up-circle-fill text-purple me-1"></i>
+                                        {% endif %}
+                                        {{ insight.title }}
+                                    </h6>
+                                    <p class="mb-0 text-muted">{{ insight.description }}</p>
+                                    {% if insight.supporting_data %}
+                                    <small class="text-muted"><em>{{ insight.supporting_data }}</em></small>
+                                    {% endif %}
+                                </div>
+                                <span
+                                    class="badge {% if insight.importance == 'high' %}bg-danger{% elif insight.importance == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ insight.importance }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        <!-- Back to Analytics -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('portfolio.analytics') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Analytics
+            </a>
+            <a href="{{ url_for('portfolio.analytics_decisions') }}" class="btn btn-outline-primary ms-2">
+                <i class="bi bi-brain me-2"></i>Decision Intelligence
+            </a>
+        </div>
+
+    </div>
+    {% endblock %}
