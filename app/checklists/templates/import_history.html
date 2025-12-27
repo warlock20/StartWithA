@@ -10,9 +10,9 @@
         <a href="{{ url_for('checklists.import_document') }}" class="btn btn-primary">
             <i class="bi bi-upload"></i> Import New Document
         </a>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Checklists
-        </a>
+        {% with btn_class='btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
     </div>
 </div>
 

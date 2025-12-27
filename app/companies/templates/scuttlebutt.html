@@ -6,8 +6,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>{{ title }}</h1>
-    <a href="{{ url_for('research.select_model', company_id=company.id) }}" class="btn btn-secondary">Back to Select
-        Model</a>
+    {% with btn_class='btn btn-secondary' %}
+        {% include 'components/smart_back_button.html' %}
+    {% endwith %}
 </div>
 
 <p class="lead">Aggregate recent news and transcripts to perform a modern "Scuttlebutt" analysis.</p>

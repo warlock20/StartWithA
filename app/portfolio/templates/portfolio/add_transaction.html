@@ -13,9 +13,9 @@
                     <p class="dashboard-subtitle">Record a buy, sell, or dividend transaction</p>
                 </div>
                 <div class="dashboard-header-actions">
-                    <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to Portfolio
-                    </a>
+                    {% with btn_class='btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
                 </div>
             </header>
 

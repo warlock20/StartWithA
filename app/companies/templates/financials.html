@@ -3,7 +3,9 @@
 {% block content %}
     <div class="page-header d-flex justify-content-between align-items-center">
         <h1>{{ title }}</h1>
-        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-secondary">Back to Company Dashboard</a>
+        {% with btn_class='btn btn-secondary' %}
+            {% include 'components/smart_back_button.html' %}
+        {% endwith %}
     </div>
 
     <div class="row g-4 mt-2">

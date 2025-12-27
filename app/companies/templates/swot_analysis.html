@@ -15,15 +15,9 @@
             <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
                 <i class="bi bi-lightbulb"></i> Tips
             </button>
-            {% if request.args.get('project_id') %}
-                <a href="{{ url_for('research_workflow.project_dashboard', project_id=request.args.get('project_id')) }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Research
-                </a>
-            {% else %}
-                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Company
-                </a>
-            {% endif %}
+            {% with btn_class='btn btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
         </div>
     </header>
 

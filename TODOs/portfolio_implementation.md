@@ -148,7 +148,7 @@ Not just financial tracking, but:
 - [x] Link checkpoints to position detail pages
 
 ### **Testing & Quality**
-- [ ] Test full user journey: Research → Buy → Hold → Sell → Post-mortem
+- [xW] Test full user journey: Research → Buy → Hold → Sell → Post-mortem
 - [ ] Test FIFO calculation with multiple buy/sell transactions
 - [ ] Test edge cases (sell more than owned, invalid tickers, future dates)
 - [x] Test price updates with various ticker types (tested with AAPL, MSFT, GOOGL, MBB.DE)
@@ -161,20 +161,28 @@ Not just financial tracking, but:
 
 ## **PHASE 2: Analytics & Learning**
 
-### **Thesis Health Score**
-- [ ] Design multi-factor scoring algorithm (checkpoints, performance, recency)
-- [ ] Implement thesis health calculation
-- [ ] Display thesis health score on position page
-- [ ] Add thesis health indicator to portfolio dashboard
-- [ ] Create alerts when thesis health deteriorates
 
 ### **Portfolio Analytics Dashboard**
-- [ ] Calculate and display win rate (% of profitable trades)
-- [ ] Calculate average hold time (across all positions)
-- [ ] Track realized vs unrealized gains
-- [ ] Show position performance vs initial expectations
-- [ ] Calculate portfolio-level return (time-weighted)
-- [ ] Track decision confidence vs actual outcomes correlation
+- [x] Calculate average hold time (across all positions) - Implemented in Performance Analytics
+- [x] Track realized vs unrealized gains - Both tracked in PortfolioPosition model and displayed in analytics
+- [x] Calculate portfolio-level return (time-weighted) - Annualized return calculated in analytics route
+- [x] CAGR as a metric - Annualized return (CAGR) implemented in Performance Analytics
+- [x] Created two separate analytics dashboards:
+  - [x] Performance Analytics (/portfolio/analytics) - Metrics, charts, top/bottom performers
+  - [x] Decision Intelligence (/portfolio/analytics/decisions) - Research comparison, pattern recognition, decision quality matrix
+- [x] Implemented win rate calculation across all positions
+- [x] Created holding period performance analysis (5 buckets: 0-30, 31-90, 91-180, 181-365, 365+ days)
+- [x] Built decision quality matrix (process vs outcome analysis)
+- [x] Added research-backed vs non-research decision comparison
+- [x] Show position performance vs initial expectations - Implemented with expected return tracking in DecisionJournal
+- [x] Track decision confidence vs actual outcomes correlation - Implemented with confidence calibration analysis 
+
+### **Multi-Currency Support**
+- [ ] Add currency field to transactions
+- [ ] Integrate currency conversion API
+- [ ] Convert all positions to base currency
+- [ ] Track currency gains/losses separately
+- [ ] Support international tickers (LSE, TSX, etc.)
 
 ### **Pattern Recognition**
 - [ ] Identify purchases without research (track failure rate)
@@ -197,19 +205,24 @@ Not just financial tracking, but:
 - [ ] Quarterly position review reminders (90-day prompts)
 - [ ] Generate suggested learnings from completed trades
 - [ ] Link learnings to specific positions/transactions
-- [ ] Integrate with spaced repetition system
-- [ ] Weekly portfolio review prompts
 
 ### **Decision Journal Enhancements**
-- [ ] Make Decision Journal required for all BUY transactions
-- [ ] Add thesis evolution tracking visualization
-- [ ] Show thesis changes over time on position page
-- [ ] Compare pre-mortem expectations vs post-mortem reality
-- [ ] Generate "lessons learned" summaries
-- [ ] Track mistake patterns (categorize mistakes)
+- [x] Make Decision Journal required for all BUY transactions - Implemented in add_transaction route
+- [x] Add thesis evolution tracking visualization (Investment Journey page) - Investment Journey page shows all thesis versions
+- [x] Show thesis changes over time on position page (unified timeline) - Timeline shows all thesis updates with versions
+- [x] Create thesis update form with reference to current thesis - add_thesis_version.html with sidebar reference
+- [x] Implement Option 3 sidebar design (compact sticky sidebar with modal) - Sticky sidebar with modal for full details
+- [x] Add "Copy Current Thesis" functionality for easy iteration - JavaScript function to populate form from current thesis
+- [x] Compare pre-mortem expectations vs post-mortem reality - Implemented with confidence & expected return tracking
+  - [x] Expected return field in DecisionJournal
+  - [x] Confidence score tracking (1-10)
+  - [x] Performance vs Expectations analysis in Decision Intelligence dashboard
+  - [x] Confidence Calibration analysis showing high/medium/low confidence results
+  - [x] Expected vs Actual comparison on position detail pages
+- [ ] Generate "lessons learned" summaries (automated analytics) - Needs AI/LLM integration (Phase 4)
+- [x] Track mistake patterns (categorize mistakes) - mistake_category field in DecisionJournal model
 
 ### **Performance Enhancements**
-- [ ] Add background job for hourly price updates
 - [ ] Cache position calculations (reduce DB queries)
 - [ ] Batch API calls for price updates
 - [ ] Optimize FIFO calculation for large transaction histories
@@ -219,18 +232,10 @@ Not just financial tracking, but:
 
 ## **PHASE 3: Advanced Features**
 
-### **Benchmark Comparison**
-- [ ] Integrate S&P 500 benchmark data
-- [ ] Add sector-specific benchmark indices
-- [ ] Calculate portfolio beta (vs market)
-- [ ] Show portfolio performance vs benchmarks (charts)
-- [ ] Calculate alpha (excess return over benchmark)
-- [ ] Display benchmark comparison on dashboard
 
 ### **Dividend Tracking**
 - [ ] Track dividend payment history
 - [ ] Calculate dividend yield (annual dividend / cost basis)
-- [ ] Project future dividend income
 - [ ] Show dividend growth rate over time
 - [ ] Track dividend reinvestment options
 - [ ] Generate dividend income reports
@@ -242,12 +247,6 @@ Not just financial tracking, but:
 - [ ] Adjust historical data for splits
 - [ ] Display corporate action history
 
-### **Multi-Currency Support**
-- [ ] Add currency field to transactions
-- [ ] Integrate currency conversion API
-- [ ] Convert all positions to base currency
-- [ ] Track currency gains/losses separately
-- [ ] Support international tickers (LSE, TSX, etc.)
 
 ### **Account Types & Tax Optimization**
 - [ ] Add account type field (Taxable, IRA, 401k, Roth IRA)
@@ -444,3 +443,36 @@ Not just financial tracking, but:
 - Pattern recognition for behavioral biases
 - Portfolio analytics dashboard
 - Learning automation
+
+### **November 14, 2025 - Thesis Update UI Enhancement**
+
+**Features Implemented:**
+1. Created thesis update form with sidebar reference design (Option 3)
+2. Compact sticky sidebar showing current thesis while updating
+3. Quick reference cards with key metrics (conviction, position, target, date)
+4. Modal view for full thesis details
+5. "Copy Current Thesis" functionality for easy iteration
+6. Clean, minimal design matching platform aesthetic
+
+**Design Decisions:**
+- Implemented Option 3 (compact sticky sidebar) from 3 mockup proposals
+- Added copy functionality to allow users to iterate on existing thesis
+- Used custom button styles (`.expand-btn`, `.copy-thesis-btn`) instead of Bootstrap
+- Muted gray color palette for professional, understated look
+- Sidebar shows compact bull/bear case preview (first 3 items + count)
+- Modal expands to show full thesis details when needed
+
+**Key Files Modified:**
+- `app/portfolio/templates/portfolio/add_thesis_version.html` - Updated with sidebar layout
+- `app/static/css/modules/_thesis-update.css` - New CSS module for thesis update page
+- `app/static/css/design-system.css` - Added import for thesis-update module
+
+**JavaScript Features:**
+- `copyCurrentThesis()` - Copies all current thesis data to form (title, thesis, trigger, bull/bear cases)
+- Dynamic bull/bear case population when copying
+- Modal show/hide functionality for full thesis view
+
+**Testing Status:**
+- UI implementation complete and styled to match mockup
+- Copy functionality ready for testing
+- Responsive design with mobile breakpoint at 992px

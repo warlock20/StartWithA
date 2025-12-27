@@ -12,6 +12,9 @@ from app.models import (
 )
 from app.services.price_service import PriceService
 
+# AI Outcome Tracking Integration
+from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
+
 # Import blueprint from current package (avoids circular import)
 from . import portfolio_bp
 
@@ -328,6 +331,20 @@ def add_transaction():
             db.session.add(transaction)
             db.session.flush()  # Get transaction ID
 
+            # ═══════════════════════════════════════════════════════════════
+            # AI OUTCOME TRACKING: Capture cost basis BEFORE position update
+            # (because update_portfolio_position() changes the position data)
+            # ═══════════════════════════════════════════════════════════════
+            pre_sale_cost_basis = None
+            if transaction_type == 'SELL':
+                position = PortfolioPosition.query.filter_by(
+                    user_id=current_user.id,
+                    company_id=company_id
+                ).first()
+                if position and position.average_cost_basis:
+                    pre_sale_cost_basis = float(position.average_cost_basis)
+            # ═══════════════════════════════════════════════════════════════
+
             # Update portfolio position
             update_portfolio_position(transaction)
 
@@ -433,6 +450,38 @@ def add_transaction():
                 transaction.decision_journal_id = sell_journal.id
 
             db.session.commit()
+
+            # ═══════════════════════════════════════════════════════════════
+            # AI OUTCOME TRACKING: Create/Update ResearchOutcome records
+            # This links research quality to investment results for learning
+            # ═══════════════════════════════════════════════════════════════
+            if transaction_type == 'BUY':
+                try:
+                    outcome = on_buy_transaction(
+                        transaction=transaction,
+                        decision_journal=decision_journal
+                    )
+                    if outcome:
+                        print(f"[AI] Created ResearchOutcome {outcome.id} for {company.ticker_symbol} "
+                              f"(quality_score={outcome.research_quality_score})")
+                except Exception as e:
+                    print(f"[AI] Warning: Failed to create outcome record: {e}")
+
+            elif transaction_type == 'SELL' and pre_sale_cost_basis:
+                try:
+                    sell_price = float(price_per_share)
+                    realized_return_pct = ((sell_price - pre_sale_cost_basis) / pre_sale_cost_basis) * 100
+
+                    outcome = on_sell_transaction(
+                        transaction=transaction,
+                        realized_return_pct=realized_return_pct
+                    )
+                    if outcome:
+                        print(f"[AI] Updated ResearchOutcome {outcome.id}: "
+                              f"{outcome.outcome_category} ({realized_return_pct:.1f}%)")
+                except Exception as e:
+                    print(f"[AI] Warning: Failed to update outcome record: {e}")
+            # ═══════════════════════════════════════════════════════════════
 
             flash(f'{transaction_type} transaction for {company.ticker_symbol} recorded successfully', 'success')
 
@@ -838,7 +887,7 @@ def sell_postmortem(journal_id):
             buy_journal.would_repeat = would_repeat
             buy_journal.mistake_category = mistake_category if actual_return and actual_return < 0 else None
             buy_journal.success_category = success_category if actual_return and actual_return > 0 else None
-            buy_journal.updated_at = now_utc()
+            buy_journal.updated_at = datetime.utcnow()
 
         try:
             db.session.commit()

@@ -5,8 +5,6 @@ This module handles utility and navigation routes including:
 - Intelligent routing for company-based research
 - Quick start guide for new users
 - Research initiation page
-
-Extracted from routes.py lines: 110-172, 179-184, 190-209
 """
 
 from flask import render_template, request, redirect, url_for, flash

@@ -9,8 +9,6 @@ This module handles all routes related to executing research project workflows:
 - Completing research (checklist) steps
 - Skipping steps
 - Returning from checklist execution
-
-Extracted from routes.py lines: 190-268, 270-324, 326-509, 511-594, 596-646, 1256-1297, 1319-1366
 """
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, session as flask_session

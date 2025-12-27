@@ -10,16 +10,9 @@
                     current_item_number }} of {{ total_items }}</p>
             </div>
             <div class="d-flex align-items-center">
-                {% if research_context and research_context.get('project_id') %}
-                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}"
-                    class="btn btn-secondary me-2">
-                    <i class="bi bi-arrow-left"></i> Back to Research Workflow
-                </a>
-                {% else %}
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-secondary me-2">
-                    <i class="bi bi-arrow-left"></i> Back to Projects
-                </a>
-                {% endif %}
+                {% with btn_class='btn btn-secondary me-2' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
             </div>
         </div>
     </div>
@@ -102,7 +95,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" id="answerForm"
-                        action="{{ url_for('research.research_step', session_id=session.id, item_id=current_item.id) }}">
+                        action="{{ url_for('research.research_step', analysis_id=session.id, item_id=current_item.id) }}">
                         <div class="mb-3">
                             <label for="answer_text" class="form-label">Synthesize your findings, incorporating your
                                 research and insights.</label>
@@ -131,7 +124,7 @@
                             </div>
                             <div class="col-md-6 text-end">
                                 {% if previous_item_id %}
-                                <a href="{{ url_for('research.research_step', session_id=session.id, item_id=previous_item_id) }}"
+                                <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
                                     class="btn btn-secondary">← Previous Item</a>
                                 {% endif %}
                                 <button type="submit" class="btn btn-success">Save and Next →</button>
@@ -191,7 +184,7 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            <a href="{{ url_for('research.view_checklist_session_summary', session_id=session.id) }}"
+                            <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
                                 class="btn btn-primary btn-sm">
                                 <i class="bi bi-clipboard-data"></i> Session Summary
                             </a>
@@ -279,7 +272,7 @@
             answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
                 initialContent: existingContent,
                 placeholder: 'Start writing your analysis... Type "/" for commands',
-                saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", session_id=session.id, item_id=current_item.id) }}',
+                saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
                 onSave: (data) => {
                     // Update save indicator when auto-save succeeds
                     showSaveIndicator('saved');

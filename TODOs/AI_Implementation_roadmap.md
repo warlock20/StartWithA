@@ -59,7 +59,7 @@
 
 ---
 
-# WEEK 1-2: Foundation Layer
+# WEEK 1-2: Foundation Layer : THIS IS COMPLETE 
 
 ## Goals
 - [ ] New database tables for AI features
@@ -2038,6 +2038,50 @@ def get_research_warnings(
 
 ---
 
+
+
+# WEEK 7-8: Portfolio-Level Intelligence 
+# app/services/portfolio_intelligence.py
+```
+class PortfolioIntelligenceService:
+    """Week 7-8: Portfolio-level AI features"""
+    
+    def calculate_thesis_health_score(self, position_id: int) -> ThesisHealth:
+        """
+        Multi-factor thesis health calculation
+        
+        Factors:
+        - Checkpoint completion rate (30%)
+        - Time since last review (20%)
+        - Price vs. thesis expectations (20%)
+        - Thesis drift from original (15%)
+        - Red flags triggered (15%)
+        """
+        
+    def detect_portfolio_biases(self, user_id: int) -> List[BiasAlert]:
+        """
+        Portfolio-wide behavioral bias detection
+        
+        Biases:
+        - Disposition effect (hold losers, sell winners)
+        - Overconfidence (high confidence + poor outcomes)
+        - Sector concentration drift
+        - Research quality degradation over time
+        """
+        
+    def generate_quarterly_review(self, user_id: int) -> QuarterlyReview:
+        """
+        AI-generated quarterly portfolio review
+        
+        Includes:
+        - Performance attribution (what drove returns?)
+        - Research quality trends
+        - Behavioral pattern summary
+        - Suggested focus areas
+        """
+```
+
+
 # Summary: Complete Implementation Map
 
 ```
@@ -2083,3 +2127,54 @@ def get_research_warnings(
 
 
 
+# Tuning tips 
+
+ 1. Research Quality Calculator (app/services/research_quality.py)
+  - 5-factor scoring algorithm (0-100 scale):
+    - Completeness (25%): % of questions answered
+    - Depth (25%): Answer quality/length
+    - Breadth (20%): Analysis variety (financial, competitive, management, valuation)
+    - Time (15%): Time invested (30-120 min optimal)
+    - Documents (15%): Document analysis depth
+  - Returns ResearchQualityScore dataclass with grade (A-F) and improvement tips
+
+  2. Outcome Tracker (app/services/outcome_tracking.py)
+  - BUY Hook: Creates ResearchOutcome record linking research quality to investment
+  - SELL Hook: Updates outcome with realized returns, thesis accuracy
+  - Thesis Accuracy Algorithm:
+    - Return expectation (40%)
+    - Hold period accuracy (30%)
+    - Checkpoint hit rate (30%)
+  - Outcome Categories: big_win (≥25%), small_win (≥5%), break_even, small_loss, big_loss
+  - Correlation Analysis: Auto-runs when ≥5 outcomes, generates AIInsight if meaningful patterns found
+
+
+    How It Works
+
+  When user makes a BUY:
+  1. Transaction created → on_buy_transaction() called
+  2. Finds linked research (DecisionJournal → ResearchProject → ResearchSession)
+  3. Calculates research quality score (0-100)
+  4. Creates ResearchOutcome record with all metrics
+  5. Tracks: quality score, questions answered, documents, thesis, confidence, expected return
+
+  When user makes a SELL:
+  1. Transaction created → on_sell_transaction() called
+  2. Finds open ResearchOutcome for this company
+  3. Calculates realized return %
+  4. Updates: exit price, return %, hold days, outcome category, thesis accuracy
+  5. Runs correlation analysis if ≥5 outcomes exist
+  6. Generates AIInsight if research quality correlates with returns (>5% difference)
+
+  Example AIInsight Generated:
+  "Your high-quality research (score 70+) has averaged 18.5% returns, while lower-quality research averaged 6.2% returns. That's a 12.3% difference! This suggests your thorough research pays off."
+
+
+  ## Next testing phase 
+
+    When you're ready to test:
+  1. Run python test_outcome_tracking.py to verify everything works
+  2. Make real BUY transactions in the app (with or without research)
+  3. Verify ResearchOutcome records appear in database
+  4. Make SELL transactions to complete the cycle
+  5. Check AIInsight table after 5+ completed outcomes

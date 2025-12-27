@@ -85,6 +85,7 @@ from .ai_intelligence import (
 )
 
 
+
 # User loader function required by Flask-Login
 # This function is called to reload the user object from the user ID stored in the session
 @login_manager.user_loader

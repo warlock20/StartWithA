@@ -11,9 +11,9 @@
                     Step {{ step_index + 1 }} of {{ project.template.step_count }}</p>
             </div>
             <div>
-                <button class="btn btn-outline-primary" disabled>
-                    Back to Dashboard
-                </button>
+                {% with btn_class='btn btn-outline-primary' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
             </div>
         </div>
     </header>
@@ -225,8 +225,12 @@
                 throw new Error('BlockNote library not loaded');
             }
 
-            // Initialize BlockNote editor
+            // Get existing notes content if available
+            const existingContent = {{ existing_notes|tojson|safe }} || '';
+
+            // Initialize BlockNote editor with existing content
             notesEditorRoot = window.initBlockNoteEditor('notesEditor', {
+                initialContent: existingContent,
                 placeholder: 'Document your findings, observations, and conclusions from this step... Type "/" for commands',
                 onSave: null // We handle save via form submission
             });
@@ -246,14 +250,42 @@
 
             showToast('Rich editor failed to load, using simple text editor', 'warning');
         }
-    });
 
-    // Handle form submission to sync BlockNote content to textarea
-    document.querySelector('form').addEventListener('submit', function (e) {
-        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
-            // Get JSON content from BlockNote and put it in the hidden textarea
-            const blocks = window.blockNoteEditorInstance.editor.document;
-            document.getElementById('notes').value = JSON.stringify(blocks);
+        // Handle form submission to sync BlockNote content to textarea
+        // MUST be inside DOMContentLoaded to ensure form exists
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                console.log('Form submitting, syncing BlockNote content...');
+
+                // Check if BlockNote editor instance exists
+                if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                    try {
+                        // Get JSON content from BlockNote
+                        const blocks = window.blockNoteEditorInstance.editor.document;
+                        const notesField = document.getElementById('notes');
+                        if (notesField) {
+                            notesField.value = JSON.stringify(blocks);
+                            console.log('BlockNote content synced to form field:', blocks.length, 'blocks');
+                        } else {
+                            console.error('Notes textarea field not found!');
+                        }
+                    } catch (error) {
+                        console.error('Error syncing BlockNote content:', error);
+                    }
+                } else {
+                    console.warn('BlockNote editor instance not available, checking fallback textarea...');
+                    // If BlockNote didn't load, the fallback textarea should be visible and contain the content
+                    const fallbackTextarea = document.getElementById('notes');
+                    if (fallbackTextarea && !fallbackTextarea.classList.contains('d-none')) {
+                        console.log('Using fallback textarea content');
+                    } else {
+                        console.error('No editor content available - neither BlockNote nor fallback textarea!');
+                    }
+                }
+            });
+        } else {
+            console.error('Form not found in DOM!');
         }
     });
 
