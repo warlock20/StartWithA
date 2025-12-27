@@ -85,64 +85,7 @@ def project_summary(project_id):
     quality_score = None
     try:
         from app.services.research_quality import calculate_research_quality
-
-        # Debug: Show what data we have in the project
-        print(f"\n[DEBUG] Project ID: {project.id}")
-        print(f"[DEBUG] Template steps: {len(project.template.workflow_steps) if project.template else 0}")
-        print(f"[DEBUG] Step results keys: {list(project.step_results.keys()) if project.step_results else []}")
-        print(f"[DEBUG] Step notes keys: {list(project.step_notes.keys()) if project.step_notes else []}")
-
-        if project.step_results:
-            for step_idx, step_data in project.step_results.items():
-                print(f"[DEBUG] Step {step_idx} results type: {type(step_data)}")
-                if isinstance(step_data, dict):
-                    print(f"[DEBUG] Step {step_idx} keys: {list(step_data.keys())}")
-                    if 'answers' in step_data:
-                        answers = step_data.get('answers', {})
-                        print(f"[DEBUG] Step {step_idx} has {len(answers)} answer entries")
-
-        # Check what's in step_notes too
-        if project.step_notes:
-            for step_idx, note_data in project.step_notes.items():
-                print(f"[DEBUG] Step {step_idx} notes type: {type(note_data)}")
-                if isinstance(note_data, dict):
-                    print(f"[DEBUG] Step {step_idx} notes keys: {list(note_data.keys())[:10]}")  # First 10 keys
-                elif isinstance(note_data, str):
-                    print(f"[DEBUG] Step {step_idx} notes length: {len(note_data)} chars")
-
-        # Check template workflow steps structure
-        if project.template and project.template.workflow_steps:
-            for idx, step in enumerate(project.template.workflow_steps):
-                if isinstance(step, dict):
-                    print(f"[DEBUG] Template step {idx}: type={step.get('type')}, checklist_id={step.get('checklist_id')}")
-
-        # Check for linked ChecklistAnalysis records
-        analyses = ChecklistAnalysis.query.filter_by(
-            user_id=project.user_id,
-            company_id=project.company_id
-        ).all()
-        print(f"[DEBUG] Found {len(analyses)} ChecklistAnalysis records for this company")
-
-        # Find the most recent completed ChecklistAnalysis
-        checklist_analysis_id = None
-        for analysis in analyses:
-            answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=analysis.id).all()
-            answered_count = len([a for a in answers if a.answer_text and a.answer_text.strip()])
-            print(f"[DEBUG]   - Analysis {analysis.id}: checklist_id={analysis.checklist_id}, status={analysis.status}, {answered_count} answers")
-
-            # Use the first completed analysis (could be improved to find most recent)
-            if analysis.status == 'completed' and not checklist_analysis_id:
-                checklist_analysis_id = analysis.id
-                print(f"[DEBUG] >>> Using ChecklistAnalysis {checklist_analysis_id} for quality score")
-
-        # Calculate quality score with both project and checklist analysis
-        quality_score = calculate_research_quality(
-            research_project_id=project.id,
-            research_session_id=checklist_analysis_id  # Pass the ChecklistAnalysis ID
-        )
-        print(f"[AI] ✓ Quality score calculated: {quality_score.overall_score if quality_score else 'None'}")
-        print(f"[AI]   - Questions answered: {quality_score.questions_answered if quality_score else 0}")
-        print(f"[AI]   - Questions total: {quality_score.questions_total if quality_score else 0}")
+        quality_score = calculate_research_quality(research_project_id=project.id)
     except Exception as e:
         print(f"[AI] ✗ Error calculating quality score: {e}")
         print(traceback.format_exc())

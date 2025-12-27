@@ -1212,7 +1212,7 @@ def calculate_research_quality(
 
 ---
 
-# WEEK 3-4: Data Pipeline & Outcome Tracking
+# WEEK 3-4: Data Pipeline & Outcome Tracking: THIS IS COMPLETE
 
 ## Goals
 - [ ] Auto-capture research metrics at decision time
@@ -1496,7 +1496,7 @@ def on_sell_transaction(transaction: Transaction, realized_return_pct: float):
 
 ---
 
-# WEEK 5-6: Intelligence Engine (Phase 2)
+# WEEK 7-8: Intelligence Engine (Phase 2)
 
 ## Goals
 - [ ] Real-time warnings during research
@@ -2039,47 +2039,183 @@ def get_research_warnings(
 ---
 
 
+# WEEK 5-6: Portfolio Intelligence — Full Plan
 
-# WEEK 7-8: Portfolio-Level Intelligence 
-# app/services/portfolio_intelligence.py
+### The Big Picture
+
+We've built the **data collection layer** (ResearchOutcome tracks quality→results). Now we **visualize and act on it**.
+
 ```
-class PortfolioIntelligenceService:
-    """Week 7-8: Portfolio-level AI features"""
-    
-    def calculate_thesis_health_score(self, position_id: int) -> ThesisHealth:
-        """
-        Multi-factor thesis health calculation
-        
-        Factors:
-        - Checkpoint completion rate (30%)
-        - Time since last review (20%)
-        - Price vs. thesis expectations (20%)
-        - Thesis drift from original (15%)
-        - Red flags triggered (15%)
-        """
-        
-    def detect_portfolio_biases(self, user_id: int) -> List[BiasAlert]:
-        """
-        Portfolio-wide behavioral bias detection
-        
-        Biases:
-        - Disposition effect (hold losers, sell winners)
-        - Overconfidence (high confidence + poor outcomes)
-        - Sector concentration drift
-        - Research quality degradation over time
-        """
-        
-    def generate_quarterly_review(self, user_id: int) -> QuarterlyReview:
-        """
-        AI-generated quarterly portfolio review
-        
-        Includes:
-        - Performance attribution (what drove returns?)
-        - Research quality trends
-        - Behavioral pattern summary
-        - Suggested focus areas
-        """
+┌─────────────────────────────────────────────────────────────────┐
+│                    PORTFOLIO INTELLIGENCE                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │ Correlation  │    │ Checkpoint   │    │  Position    │      │
+│  │  Dashboard   │    │  Reminders   │    │  Monitoring  │      │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘      │
+│         │                   │                   │               │
+│         ▼                   ▼                   ▼               │
+│  "High quality         "AAPL earnings      "Your NVDA thesis   │
+│   research = 12%       call in 3 days"      was 'AI growth'    │
+│   better returns"                           but it's down 20%" │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                  Learning Insights                       │   │
+│  │  "Your best trades: 80+ quality score, held 6+ months"  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### Step 1: Correlation Dashboard
+
+**What it shows:**
+- Research quality score vs actual returns (scatter plot)
+- Average return by quality grade (A, B, C, D, F)
+- "Research Advantage" metric (researched vs non-researched returns)
+
+**Data source:** `ResearchOutcome` table (we built this!)
+
+**Location:** New page at `/portfolio/analytics/research-correlation` or widget on existing analytics page
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  📊 Research Quality → Returns Correlation      │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Grade A (90+):  +18.5% avg return  ████████▓  │
+│  Grade B (80-89): +12.2% avg return ██████▓    │
+│  Grade C (70-79): +5.1% avg return  ███▓       │
+│  Grade D (60-69): -2.3% avg return  ▓          │
+│  Grade F (<60):   -8.7% avg return  ░░░        │
+│                                                 │
+│  🎯 Your Research Advantage: +15.3%            │
+│  (Researched positions outperform by 15.3%)    │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 2: Checkpoint Reminders
+
+**What it does:**
+- Queries `DestinationCheckpoint` for upcoming dates
+- Shows on dashboard and/or sends notifications
+- Prompts user to evaluate: "Did this checkpoint get met?"
+
+**Data source:** `DestinationCheckpoint` table (already exists)
+
+**Location:** Widget on portfolio dashboard, notification system
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  📅 Upcoming Checkpoints                        │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  🔴 OVERDUE (2 days ago)                        │
+│     AAPL: "Q4 earnings beat estimates"          │
+│     [Mark Met] [Mark Not Met] [Snooze]          │
+│                                                 │
+│  🟡 THIS WEEK                                   │
+│     NVDA: "Data center revenue > $10B"          │
+│     Target: Dec 30, 2025                        │
+│                                                 │
+│  🟢 NEXT 30 DAYS                                │
+│     MSFT: "Azure growth > 25%"                  │
+│     Target: Jan 15, 2026                        │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 3: Position Monitoring (Thesis vs Reality)
+
+**What it does:**
+- Compares original investment thesis to current performance
+- Flags positions where reality diverges from thesis
+- Prompts reflection: "Is your thesis still valid?"
+
+**Data source:** `DecisionJournal.investment_thesis`, `PortfolioPosition`, current prices
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  ⚠️ Thesis Reality Check                        │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  NVDA — NEEDS ATTENTION                         │
+│  ├─ Original thesis: "AI demand drives 50%     │
+│  │   revenue growth"                            │
+│  ├─ Expected: +40% in 12 months                │
+│  ├─ Actual: -15% (held 8 months)               │
+│  └─ [Review Thesis] [Update] [Sell?]           │
+│                                                 │
+│  AAPL — ON TRACK                                │
+│  ├─ Original thesis: "Services revenue growth" │
+│  ├─ Expected: +20% in 18 months                │
+│  ├─ Actual: +12% (held 6 months)               │
+│  └─ Tracking well ✓                            │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 4: Learning Insights
+
+**What it does:**
+- Analyzes completed `ResearchOutcome` records
+- Finds patterns in winning vs losing trades
+- Generates personalized insights
+
+**Data source:** `ResearchOutcome`, `DecisionJournal`, `PortfolioPosition`
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  💡 What Your Data Tells You                    │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ✅ WINNING PATTERNS                            │
+│  • Your best trades had quality scores 80+     │
+│  • You perform better holding 6+ months        │
+│  • Tech sector: 72% win rate                   │
+│                                                 │
+│  ⚠️ WATCH OUT FOR                               │
+│  • Trades without research: -8% avg return     │
+│  • Positions sold < 30 days: 65% were losses   │
+│  • High confidence (9-10) ≠ better results     │
+│                                                 │
+│  📈 YOUR EDGE                                   │
+│  Research quality is your strongest predictor  │
+│  of success. Keep investing in thorough        │
+│  analysis!                                      │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## 📁 Files We'll Create
+
+| Step | Files |
+|------|-------|
+| **1** | `app/services/portfolio_intelligence.py` (service) |
+| | `app/portfolio/templates/research_correlation.html` (UI) |
+| **2** | Add to service + dashboard widget |
+| **3** | Add to service + new template section |
+| **4** | Add to service + insights card |
+
+---
+
+
 
 
 # Summary: Complete Implementation Map

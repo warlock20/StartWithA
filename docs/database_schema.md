@@ -37,8 +37,8 @@ The Investment Checklist Platform uses a comprehensive PostgreSQL database schem
 ### 3. Research and Analysis Tools
 - `checklist` - Research checklist templates
 - `checklist_item` - Individual checklist questions
-- `research_session` - Active research sessions
-- `research_answer` - Answers to research questions
+- `checklist_analysis` - Active research sessions
+- `checklist_answer` - Answers to research questions
 - `qualitative_analysis` - Structured analysis (SWOT, etc.)
 - `scuttlebutt_analysis` - AI-generated company summaries
 - `destination_checkpoint` - Expected future milestones
@@ -173,7 +173,7 @@ The Investment Checklist Platform uses a comprehensive PostgreSQL database schem
 **Self-Referential**: Supports hierarchical checklist structures
 **AI Integration**: LLM prompts enable AI-assisted analysis
 
-#### `research_session` Table
+#### `checklist_analysis` Table
 **Purpose**: Active research sessions using checklists on companies
 
 | Column | Type | Constraints | Description |
@@ -186,9 +186,9 @@ The Investment Checklist Platform uses a comprehensive PostgreSQL database schem
 | checklist_id | Integer | NOT NULL, FK(checklist.id) | Used checklist |
 | conclusion | Text | NULLABLE | Session conclusion |
 
-**Relationships**: One-to-many with `ResearchAnswer` (cascade delete)
+**Relationships**: One-to-many with `ChecklistAnswer` (cascade delete)
 
-#### `research_answer` Table
+#### `checklist_answer` Table
 **Purpose**: Individual answers to checklist questions
 
 | Column | Type | Constraints | Description |
@@ -197,7 +197,7 @@ The Investment Checklist Platform uses a comprehensive PostgreSQL database schem
 | answer_text | Text | NULLABLE | Answer content |
 | answered_at | DateTime | DEFAULT=utcnow | Answer timestamp |
 | satisfaction_status | String(30) | DEFAULT='neutral' | Answer satisfaction level |
-| research_session_id | Integer | NOT NULL, FK(research_session.id) | Parent session |
+| checklist_analysis_id | Integer | NOT NULL, FK(checklist_analysis.id) | Parent session |
 | checklist_item_id | Integer | NOT NULL, FK(checklist_item.id) | Answered question |
 
 **Status Values**: 'satisfied', 'unsatisfied', 'neutral', 'needs_attention'
@@ -365,7 +365,7 @@ The Investment Checklist Platform uses a comprehensive PostgreSQL database schem
 
 **Research Metrics**:
 - `total_research_hours`, `avg_research_hours_per_idea` (Float)
-- `research_sessions_completed` (Integer)
+- `checklist_analysiss_completed` (Integer)
 - `most_used_checklists` (JSON)
 
 **Decision Quality Metrics**:
@@ -471,7 +471,7 @@ User (root)
 ├── ResearchProject (cascade delete)
 │   └── WorkSession (cascade delete)
 └── Company
-    ├── ResearchSession
+    ├── ChecklistAnalysis
     └── FinancialData
 ```
 
