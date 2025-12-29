@@ -15,7 +15,8 @@
                         <span>{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }}</span>
                     </div>
                     <div class="portfolio-meta-item">
-                        <span class="portfolio-meta-value">{{ currency_symbol }}{{ "%.2f"|format(portfolio_value.total_value) }}</span>
+                        <span class="portfolio-meta-value">{{ currency_symbol }}{{
+                            "%.2f"|format(portfolio_value.total_value) }}</span>
                         <span>Total Value</span>
                     </div>
                     <div class="portfolio-meta-item">
@@ -50,10 +51,14 @@
                 <i class="bi bi-cash-stack"></i>
             </div>
             <div class="portfolio-stat-label">Total Value</div>
-            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_value) }}</div>
-            <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
-                <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
-                {{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss|abs) }} ({{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct|abs) }}%)
+            <div class="portfolio-stat-value">{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_value) }}
+            </div>
+            <div
+                class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
+                <i
+                    class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss|abs) }} ({{
+                "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct|abs) }}%)
             </div>
         </div>
 
@@ -74,11 +79,15 @@
             </div>
             <div class="portfolio-stat-label">Unrealized P/L</div>
             <div class="portfolio-stat-value">
-                {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
+                {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{
+                "%.0f"|format(portfolio_value.total_unrealized_gain_loss) }}
             </div>
-            <div class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
-                <i class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
-                {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.2f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}%
+            <div
+                class="portfolio-stat-trend {% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}">
+                <i
+                    class="bi bi-arrow-{% if portfolio_value.total_unrealized_gain_loss >= 0 %}up{% else %}down{% endif %}"></i>
+                {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                "%.2f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}%
             </div>
         </div>
 
@@ -99,9 +108,9 @@
             <h2 class="portfolio-table-section-title">Holdings</h2>
             <div class="portfolio-table-controls">
                 <select id="holdings-filter" class="portfolio-filter-select">
-                    <option value="all" {% if filter_status == 'all' %}selected{% endif %}>All Positions</option>
-                    <option value="gains" {% if filter_status == 'gains' %}selected{% endif %}>Gains Only</option>
-                    <option value="losses" {% if filter_status == 'losses' %}selected{% endif %}>Losses Only</option>
+                    <option value="all" {% if filter_status=='all' %}selected{% endif %}>All Positions</option>
+                    <option value="gains" {% if filter_status=='gains' %}selected{% endif %}>Gains Only</option>
+                    <option value="losses" {% if filter_status=='losses' %}selected{% endif %}>Losses Only</option>
                 </select>
                 <button class="portfolio-btn-export" onclick="holdingsTable.download('csv', 'portfolio-holdings.csv')">
                     <i class="bi bi-download"></i>
@@ -111,33 +120,40 @@
         </div>
         <div id="holdings-table"></div>
     </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- ADD CHECKPOINT WIDGET HERE -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    {% include '_checkpoint_widget.html' %}
+    <!-- ═══════════════════════════════════════════════════════ -->
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-// Initialize Holdings Table with Tabulator
-let holdingsTable;
+    // Initialize Holdings Table with Tabulator
+    let holdingsTable;
 
-// User's currency symbol from backend
-const currencySymbol = "{{ currency_symbol }}";
+    // User's currency symbol from backend
+    const currencySymbol = "{{ currency_symbol }}";
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Portfolio holdings data
-    const holdingsData = [
-        {% for position in positions %}
+    document.addEventListener('DOMContentLoaded', function () {
+        // Portfolio holdings data
+        const holdingsData = [
+            {% for position in positions %}
         {
             ticker: "{{ position.company.ticker_symbol }}",
             name: "{{ position.company.name }}",
             shares: {{ position.total_shares }},
-            avgCost: {{ position.average_cost_basis }},
-            currentPrice: {{ position.current_price if position.current_price else 'null' }},
-            currentValue: {{ position.current_value if position.current_value else 'null' }},
-            gainLoss: {{ position.unrealized_gain_loss if position.unrealized_gain_loss else 'null' }},
-            gainLossPct: {{ position.unrealized_gain_loss_pct if position.unrealized_gain_loss_pct else 'null' }},
-            daysHeld: {{ position.days_held }},
-            companyId: {{ position.company_id }}
+        avgCost: {{ position.average_cost_basis }},
+        currentPrice: {{ position.current_price if position.current_price else 'null' }},
+        currentValue: {{ position.current_value if position.current_value else 'null' }},
+        gainLoss: {{ position.unrealized_gain_loss if position.unrealized_gain_loss else 'null' }},
+        gainLossPct: {{ position.unrealized_gain_loss_pct if position.unrealized_gain_loss_pct else 'null' }},
+        daysHeld: {{ position.days_held }},
+        companyId: {{ position.company_id }}
         }{{ ',' if not loop.last else '' }}
         {% endfor %}
     ];
@@ -154,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: "Company",
                 field: "ticker",
                 sorter: "string",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const data = cell.getRow().getData();
                     return `<div>
                         <div class="portfolio-company-ticker">${data.ticker}</div>
@@ -169,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "shares",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     return cell.getValue().toLocaleString();
                 },
                 minWidth: 80,
@@ -180,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "avgCost",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
                     return currencySymbol + value.toFixed(2);
@@ -193,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "currentPrice",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
                     return currencySymbol + value.toFixed(2);
@@ -206,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "currentValue",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
                     return '<strong>' + currencySymbol + value.toLocaleString() + '</strong>';
@@ -219,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "gainLoss",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
                     const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
@@ -234,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "gainLossPct",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const value = cell.getValue();
                     if (value === null || value === undefined) return '--';
                     const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
@@ -249,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "daysHeld",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     return `<span class="portfolio-badge-modern">${cell.getValue()}d</span>`;
                 },
                 minWidth: 100,
@@ -260,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "companyId",
                 headerSort: false,
                 hozAlign: "right",
-                formatter: function(cell) {
+                formatter: function (cell) {
                     const companyId = cell.getValue();
                     return `<a href="/portfolio/position/${companyId}" class="portfolio-btn-icon" title="View Details">
                                 <i class="bi bi-eye"></i>
@@ -274,14 +290,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         ],
         initialSort: [
-            {column: "currentValue", dir: "desc"}
+            { column: "currentValue", dir: "desc" }
         ]
     });
 
     // Filter functionality
     const filterSelect = document.getElementById('holdings-filter');
     if (filterSelect) {
-        filterSelect.addEventListener('change', function(e) {
+        filterSelect.addEventListener('change', function (e) {
             const value = e.target.value;
             if (value === 'all') {
                 holdingsTable.clearFilter();

@@ -1,0 +1,191 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Thesis vs Reality{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/thesis-reality.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-container">
+
+    <!-- Page Header -->
+    <div class="portfolio-page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="portfolio-page-title">
+                    <i class="bi bi-clipboard-check me-2"></i>Thesis vs Reality
+                </h1>
+                <div class="portfolio-page-meta">
+                    <div class="portfolio-meta-item">
+                        <span>Compare your investment thesis to actual performance</span>
+                    </div>
+                </div>
+            </div>
+            <div class="portfolio-header-actions">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Portfolio
+                </a>
+                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-calendar-check"></i>
+                    Checkpoints
+                </a>
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="btn-portfolio-modern primary">
+                    <i class="bi bi-brain"></i>
+                    Decision Intelligence
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if not positions %}
+    <!-- Empty State -->
+    <div class="portfolio-empty-state">
+        <i class="bi bi-clipboard-data"></i>
+        <h3>No Positions to Track</h3>
+        <p>You don't have any active positions with investment theses yet.</p>
+        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
+            <i class="bi bi-plus-lg"></i>
+            Add Transaction
+        </a>
+    </div>
+
+    {% else %}
+
+    <!-- Stats Grid -->
+    <div class="portfolio-stats-grid">
+
+        <!-- Needs Attention Card -->
+        <div class="portfolio-stat-card {% if status_counts.needs_attention > 0 %}danger-highlight{% endif %}">
+            <div class="portfolio-stat-icon red">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">Needs Attention</div>
+            <div class="portfolio-stat-value">{{ status_counts.needs_attention }}</div>
+            <div class="portfolio-stat-trend {% if status_counts.needs_attention > 0 %}down{% endif %}">
+                Underperforming
+            </div>
+        </div>
+
+        <!-- Behind Card -->
+        <div class="portfolio-stat-card {% if status_counts.behind > 0 %}warning-highlight{% endif %}">
+            <div class="portfolio-stat-icon orange">
+                <i class="bi bi-dash-circle-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">Behind Plan</div>
+            <div class="portfolio-stat-value">{{ status_counts.behind }}</div>
+            <div class="portfolio-stat-trend">Below expectations</div>
+        </div>
+
+        <!-- On Track Card -->
+        <div class="portfolio-stat-card success-highlight">
+            <div class="portfolio-stat-icon green">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">On Track</div>
+            <div class="portfolio-stat-value">{{ status_counts.on_track }}</div>
+            <div class="portfolio-stat-trend">Meeting goals</div>
+        </div>
+
+        <!-- Exceeding Card -->
+        <div class="portfolio-stat-card success-highlight">
+            <div class="portfolio-stat-icon blue">
+                <i class="bi bi-arrow-up-circle-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">Exceeding</div>
+            <div class="portfolio-stat-value">{{ status_counts.exceeding }}</div>
+            <div class="portfolio-stat-trend">Above expectations</div>
+        </div>
+
+    </div>
+
+    <!-- Needs Attention Section -->
+    {% set needs_attention = positions | selectattr('status', 'equalto', 'needs_attention') | list %}
+    {% if needs_attention %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                Needs Attention
+            </h2>
+            <span class="portfolio-badge danger">{{ needs_attention|length }} positions</span>
+        </div>
+
+        {% for position in needs_attention %}
+        {% include '_thesis_card.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Behind Section -->
+    {% set behind = positions | selectattr('status', 'equalto', 'behind') | list %}
+    {% if behind %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-dash-circle-fill text-warning me-2"></i>
+                Behind Plan
+            </h2>
+            <span class="portfolio-badge warning">{{ behind|length }} positions</span>
+        </div>
+
+        {% for position in behind %}
+        {% include '_thesis_card.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- On Track Section -->
+    {% set on_track = positions | selectattr('status', 'equalto', 'on_track') | list %}
+    {% if on_track %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                On Track
+            </h2>
+            <span class="portfolio-badge success">{{ on_track|length }} positions</span>
+        </div>
+
+        {% for position in on_track %}
+        {% include '_thesis_card.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Exceeding Section -->
+    {% set exceeding = positions | selectattr('status', 'equalto', 'exceeding') | list %}
+    {% if exceeding %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-arrow-up-circle-fill text-primary me-2"></i>
+                Exceeding Expectations
+            </h2>
+            <span class="portfolio-badge success">{{ exceeding|length }} positions</span>
+        </div>
+
+        {% for position in exceeding %}
+        {% include '_thesis_card.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Initialize Bootstrap tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+<div class="thesis-position-card status-{{ position.status }}">
+    <!-- Header -->
+    <div class="position-card-header">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="ticker-symbol">{{ position.company_ticker }}</span>
+            <h5 class="company-name-title mb-0">{{ position.company_name }}</h5>
+        </div>
+        <div class="return-display">
+            <div class="return-label">
+                CAGR
+                <i class="bi bi-info-circle-fill"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="top"
+                   title="Compound Annual Growth Rate - annualized return for fair comparison across different time periods"
+                   style="font-size: 0.75rem; opacity: 0.6; cursor: help;"></i>
+            </div>
+            <div class="return-value {% if position.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                {% if position.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.annualized_return_pct) }}%
+            </div>
+            {% if position.days_held >= 30 %}
+            <div class="return-sublabel">
+                {{ "%.1f"|format(position.actual_return_pct) }}% total
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Thesis Content -->
+    <div class="position-card-body">
+        {% if position.investment_thesis and position.investment_thesis != 'No thesis recorded' %}
+            <div class="thesis-block">
+                <div class="thesis-heading">Investment Thesis</div>
+                <div class="thesis-content-text">{{ position.investment_thesis }}</div>
+            </div>
+        {% else %}
+            <div class="no-thesis-message">
+                <i class="bi bi-info-circle"></i>
+                <span>No investment thesis recorded</span>
+            </div>
+        {% endif %}
+
+        <!-- Metrics Row -->
+        <div class="metrics-row">
+            {% if position.expected_return %}
+            <div class="metric-pill">
+                <i class="bi bi-target"></i>
+                <span>Expected: {{ "%.1f"|format(position.expected_return) }}%</span>
+            </div>
+            {% endif %}
+            <div class="metric-pill">
+                <i class="bi bi-calendar3"></i>
+                <span>{{ position.days_held }} days</span>
+            </div>
+            {% if position.confidence_score %}
+            <div class="metric-pill">
+                <i class="bi bi-star-fill"></i>
+                <span>{{ position.confidence_score }}/10</span>
+            </div>
+            {% endif %}
+            {% if position.expected_timeframe_months %}
+            <div class="metric-pill">
+                <i class="bi bi-clock"></i>
+                <span>{{ position.expected_timeframe_months }}mo target</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="position-card-footer">
+        <a href="{{ url_for('portfolio.position_detail', company_id=position.company_id) }}" class="card-action-btn">
+            <i class="bi bi-eye"></i> View Position
+        </a>
+        <a href="{{ url_for('portfolio.investment_journey', company_id=position.company_id) }}" class="card-action-btn">
+            <i class="bi bi-graph-up"></i> Journey
+        </a>
+        {% if position.status == 'needs_attention' or position.status == 'behind' %}
+        <a href="{{ url_for('portfolio.add_thesis_version', company_id=position.company_id) }}" class="card-action-btn btn-warning">
+            <i class="bi bi-pencil"></i> Update Thesis
+        </a>
+        {% endif %}
+    </div>
+</div>

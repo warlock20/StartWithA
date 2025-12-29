@@ -8,12 +8,18 @@ from sqlalchemy import func
 from app import db
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, DestinationCheckpoint, ThesisEvolution, update_portfolio_position
+    ResearchProject, DestinationCheckpoint, ThesisEvolution, update_portfolio_position, ResearchOutcome
 )
+from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
+from app.utils.financial_utils import calculate_cagr
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
+from app.services.portfolio_intelligence import (
+    get_upcoming_checkpoints, get_thesis_reality_check, PortfolioIntelligenceService, 
+    get_learning_insights,get_correlation_data, get_learning_insights
+    )
 
 # Import blueprint from current package (avoids circular import)
 from . import portfolio_bp
@@ -103,10 +109,13 @@ def dashboard():
     portfolio_count = len(all_positions)
 
     # Get user currency settings
-    from app.services.currency_service import CurrencyService
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
+    intelligence_service = PortfolioIntelligenceService(current_user.id)
+    checkpoint_summary = intelligence_service.get_checkpoint_summary()
+    checkpoints_preview = intelligence_service.get_upcoming_checkpoints(days_ahead=30)
+    
     return render_template('portfolio_dashboard.html',
                           positions=positions,
                           portfolio_value=portfolio_value,
@@ -123,7 +132,9 @@ def dashboard():
                           currency_symbol=currency_symbol,
                           too_hard_rate=too_hard_rate,
                           inbox_count=inbox_count,
-                          portfolio_count=portfolio_count)
+                          portfolio_count=portfolio_count,
+                          checkpoint_summary = checkpoint_summary,
+                          checkpoints_preview = checkpoints_preview)
 
 
 @portfolio_bp.route('/transactions')
@@ -1198,7 +1209,7 @@ def analytics():
     total_return = portfolio_value['total_unrealized_gain_loss']
     total_return_pct = portfolio_value['total_unrealized_gain_loss_pct']
 
-    # Calculate annualized return
+    # Calculate annualized return (CAGR)
     earliest_date = db.session.query(func.min(PortfolioPosition.first_purchase_date)).filter_by(
         user_id=current_user.id,
         is_active=True
@@ -1211,8 +1222,7 @@ def analytics():
         if days_held > 0:
             years_held = days_held / 365.25
             if total_return_pct:
-                total_return_decimal = float(total_return_pct) / 100
-                annualized_return = ((1 + total_return_decimal) ** (1 / years_held) - 1) * 100
+                annualized_return = calculate_cagr(float(total_return_pct), days_held)
 
     # Calculate win rate
     winning_positions = sum(1 for p in positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0)
@@ -1487,3 +1497,351 @@ def research_correlation():
     return render_template('research_correlation.html',
                           correlation_data=correlation_data,
                           insights=insights)
+    
+
+@portfolio_bp.route('/checkpoints')
+@login_required
+def checkpoint_reminders():
+    """Checkpoint Reminders Dashboard"""    
+    checkpoints = get_upcoming_checkpoints(current_user.id, days_ahead=30)
+    
+    return render_template('checkpoint_reminders.html',
+                          checkpoints=checkpoints)
+    
+@portfolio_bp.route('/thesis-reality')
+@login_required
+def thesis_reality():
+    """Thesis vs Reality Dashboard"""    
+    positions = get_thesis_reality_check(current_user.id)
+    
+    # Count by status
+    status_counts = {
+        'exceeding': 0,
+        'on_track': 0,
+        'behind': 0,
+        'needs_attention': 0
+    }
+    
+    for pos in positions:
+        if pos.status in status_counts:
+            status_counts[pos.status] += 1
+    
+    return render_template('thesis_reality.html',
+                          positions=positions,
+                          status_counts=status_counts)    
+
+@portfolio_bp.route('/learning-insights')
+@login_required
+def learning_insights():
+    """
+    Learning Insights Dashboard
+    Shows personalized patterns from trading history
+    """
+    # Get outcomes for stats
+    outcomes = ResearchOutcome.query.filter(
+        ResearchOutcome.user_id == current_user.id,
+        ResearchOutcome.realized_return_pct.isnot(None)
+    ).all()
+    
+    min_trades_needed = 3
+    current_trades = len(outcomes)
+    has_sufficient_data = current_trades >= min_trades_needed
+    
+    # Initialize default values
+    insights_by_category = {
+        'edge': [],
+        'winning_pattern': [],
+        'warning': [],
+        'improvement': []
+    }
+    stats = {
+        'total_trades': 0,
+        'win_rate': 0,
+        'avg_return': 0,
+        'avg_hold_days': 0
+    }
+    has_quality_edge = False
+    has_holding_insight = False
+    has_sector_insight = False
+    
+    if has_sufficient_data:
+        # Get insights
+        insights = get_learning_insights(current_user.id)
+        
+        # Group insights by category
+        for insight in insights:
+            category = insight.category
+            if category in insights_by_category:
+                insights_by_category[category].append(insight)
+            else:
+                insights_by_category['improvement'].append(insight)
+        
+        # Calculate stats
+        returns = [float(o.realized_return_pct) for o in outcomes]
+        wins = [r for r in returns if r > 0]
+        
+        hold_days = []
+        for o in outcomes:
+            if o.exit_date and o.entry_date:
+                hold_days.append((o.exit_date - o.entry_date).days)
+        
+        stats = {
+            'total_trades': len(outcomes),
+            'win_rate': (len(wins) / len(returns) * 100) if returns else 0,
+            'avg_return': sum(returns) / len(returns) if returns else 0,
+            'avg_hold_days': sum(hold_days) // len(hold_days) if hold_days else 0
+        }
+        
+        # Check for specific insight types to show relevant actions
+        for insight in insights:
+            if 'research' in insight.title.lower() or 'quality' in insight.title.lower():
+                has_quality_edge = True
+            if 'hold' in insight.title.lower() or 'patience' in insight.title.lower():
+                has_holding_insight = True
+            if 'sector' in insight.title.lower():
+                has_sector_insight = True
+    
+    return render_template('learning_insights.html',
+                          has_sufficient_data=has_sufficient_data,
+                          min_trades_needed=min_trades_needed,
+                          current_trades=current_trades,
+                          insights_by_category=insights_by_category,
+                          stats=stats,
+                          has_quality_edge=has_quality_edge,
+                          has_holding_insight=has_holding_insight,
+                          has_sector_insight=has_sector_insight)
+    
+
+# ============================================================
+# ADD THIS ROUTE TO app/portfolio/routes.py
+# Place near the top with other analytics routes
+# ============================================================
+
+@portfolio_bp.route('/intelligence')
+@login_required
+def intelligence_hub():
+    """
+    Investment Intelligence Hub
+    Central dashboard linking all intelligence features with summary metrics
+    """
+
+    # Initialize service
+    intel_service = PortfolioIntelligenceService(current_user.id)
+    
+    # ========================================
+    # HEALTH BAR - Quick overview metrics
+    # ========================================
+    
+    # Get portfolio positions
+    positions = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        is_active=True
+    ).all()
+    
+    # Calculate total return
+    total_value = sum(float(p.current_value or 0) for p in positions)
+    total_cost = sum(float(p.total_cost or 0) for p in positions)
+    total_return = ((total_value - total_cost) / total_cost * 100) if total_cost > 0 else 0
+    
+    # Win rate from outcomes
+    outcomes = ResearchOutcome.query.filter(
+        ResearchOutcome.user_id == current_user.id,
+        ResearchOutcome.realized_return_pct.isnot(None)
+    ).all()
+    
+    wins = [o for o in outcomes if float(o.realized_return_pct) > 0]
+    win_rate = (len(wins) / len(outcomes) * 100) if outcomes else 0
+    
+    # Checkpoints
+    checkpoint_summary = intel_service.get_checkpoint_summary()
+    
+    # Thesis reality
+    thesis_positions = intel_service.get_thesis_reality_check()
+    needs_attention = len([p for p in thesis_positions if p.status == 'needs_attention'])
+    
+    # Average quality grade
+    if outcomes:
+        avg_score = sum(o.research_quality_score or 0 for o in outcomes) / len(outcomes)
+        if avg_score >= 90:
+            avg_grade = 'A'
+        elif avg_score >= 80:
+            avg_grade = 'B'
+        elif avg_score >= 70:
+            avg_grade = 'C'
+        elif avg_score >= 60:
+            avg_grade = 'D'
+        else:
+            avg_grade = 'F'
+    else:
+        avg_grade = '—'
+    
+    health = {
+        'total_return': total_return,
+        'win_rate': win_rate,
+        'overdue_checkpoints': checkpoint_summary.get('overdue_count', 0),
+        'needs_attention': needs_attention,
+        'avg_quality_grade': avg_grade
+    }
+    
+    # ========================================
+    # ALERTS - Action items
+    # ========================================
+    alerts = []
+    
+    # Overdue checkpoints
+    checkpoints_data = intel_service.get_upcoming_checkpoints(days_ahead=30)
+    for cp in checkpoints_data.get('overdue', [])[:3]:
+        alerts.append({
+            'type': 'danger',
+            'icon': 'exclamation-triangle-fill',
+            'message': f'{cp.company_ticker}: {cp.metric} is overdue',
+            'action': 'Review',
+            'link': url_for('portfolio.checkpoint_reminders')
+        })
+    
+    # Positions needing attention
+    for pos in thesis_positions:
+        if pos.status == 'needs_attention':
+            alerts.append({
+                'type': 'warning',
+                'icon': 'exclamation-circle',
+                'message': f'{pos.company_ticker} thesis diverging ({pos.actual_return_pct:+.1f}%)',
+                'action': 'Check',
+                'link': url_for('portfolio.thesis_reality')
+            })
+    
+    # This week checkpoints
+    for cp in checkpoints_data.get('this_week', [])[:2]:
+        alerts.append({
+            'type': 'info',
+            'icon': 'calendar-event',
+            'message': f'{cp.company_ticker}: {cp.metric} due this week',
+            'action': 'View',
+            'link': url_for('portfolio.checkpoint_reminders')
+        })
+    
+    # Learning insight (if new patterns detected)
+    insights = get_learning_insights(current_user.id) if len(outcomes) >= 3 else []
+    high_importance = [i for i in insights if i.importance == 'high']
+    if high_importance:
+        alerts.append({
+            'type': 'success',
+            'icon': 'lightbulb-fill',
+            'message': f'New insight: "{high_importance[0].title}"',
+            'action': 'View',
+            'link': url_for('portfolio.learning_insights')
+        })
+    
+    # ========================================
+    # CARD DATA - Individual sections
+    # ========================================
+    
+    # Performance Card
+    winning_positions = len([p for p in positions if (p.unrealized_gain_loss or 0) > 0])
+    losing_positions = len([p for p in positions if (p.unrealized_gain_loss or 0) < 0])
+    
+    top_performer = None
+    if positions:
+        best = max(positions, key=lambda p: float(p.unrealized_gain_loss_pct or 0))
+        if best.company:
+            top_performer = {
+                'ticker': best.company.ticker_symbol,
+                'return': float(best.unrealized_gain_loss_pct or 0)
+            }
+    
+    performance = {
+        'has_data': len(positions) > 0,
+        'total_return': total_return,
+        'positions_count': len(positions),
+        'winning': winning_positions,
+        'losing': losing_positions,
+        'top_performer': top_performer
+    }
+    
+    # Decisions Card
+    research_journals = DecisionJournal.query.filter(
+        DecisionJournal.user_id == current_user.id,
+        DecisionJournal.is_portfolio_decision == True,
+        DecisionJournal.decision_type == 'BUY',
+        DecisionJournal.linked_research_id.isnot(None)
+    ).all()
+    
+    no_research_journals = DecisionJournal.query.filter(
+        DecisionJournal.user_id == current_user.id,
+        DecisionJournal.is_portfolio_decision == True,
+        DecisionJournal.decision_type == 'BUY',
+        DecisionJournal.non_research_source.isnot(None)
+    ).all()
+    
+    # Calculate returns for each category
+    def get_avg_return(journals):
+        returns = []
+        for j in journals:
+            pos = next((p for p in positions if p.company_id == j.company_id), None)
+            if pos and pos.unrealized_gain_loss_pct is not None:
+                returns.append(float(pos.unrealized_gain_loss_pct))
+        return sum(returns) / len(returns) if returns else 0
+    
+    research_return = get_avg_return(research_journals)
+    no_research_return = get_avg_return(no_research_journals)
+    
+    decisions = {
+        'has_data': len(research_journals) > 0 or len(no_research_journals) > 0,
+        'research_return': research_return,
+        'no_research_return': no_research_return,
+        'research_advantage': research_return - no_research_return
+    }
+    
+    # Correlation Card
+    correlation_data = get_correlation_data(current_user.id)
+    
+    correlation = {
+        'has_data': correlation_data.has_sufficient_data,
+        'research_advantage': correlation_data.research_advantage,
+        'total_outcomes': correlation_data.total_outcomes,
+        'best_grade': correlation_data.best_grade,
+        'min_needed': 3
+    }
+    
+    # Checkpoints Card
+    checkpoints = {
+        'overdue': checkpoint_summary.get('overdue_count', 0),
+        'this_week': checkpoint_summary.get('this_week_count', 0),
+        'upcoming': checkpoint_summary.get('upcoming_count', 0),
+        'total': checkpoint_summary.get('total_active', 0)
+    }
+    
+    # Thesis Card
+    thesis = {
+        'has_positions': len(thesis_positions) > 0,
+        'exceeding': len([p for p in thesis_positions if p.status == 'exceeding']),
+        'on_track': len([p for p in thesis_positions if p.status == 'on_track']),
+        'behind': len([p for p in thesis_positions if p.status == 'behind']),
+        'needs_attention': needs_attention
+    }
+    
+    # Learning Card
+    insights_by_cat = {'edge': [], 'winning_pattern': [], 'warning': [], 'improvement': []}
+    for insight in insights:
+        if insight.category in insights_by_cat:
+            insights_by_cat[insight.category].append(insight)
+    
+    learning = {
+        'has_insights': len(insights) > 0,
+        'edge_count': len(insights_by_cat['edge']),
+        'patterns_count': len(insights_by_cat['winning_pattern']),
+        'warnings_count': len(insights_by_cat['warning']),
+        'total_trades': len(outcomes),
+        'top_insight': insights[0].title if insights else None,
+        'min_needed': 3
+    }
+    
+    return render_template('intelligence_hub.html',
+                          health=health,
+                          alerts=alerts,
+                          performance=performance,
+                          decisions=decisions,
+                          correlation=correlation,
+                          checkpoints=checkpoints,
+                          thesis=thesis,
+                          learning=learning)

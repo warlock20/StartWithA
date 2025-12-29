@@ -1,0 +1,270 @@
+/* ========================================================================
+   Research Correlation Styles
+   Styling for research quality to returns correlation analysis
+   Works with the portfolio design system
+   ======================================================================== */
+
+/* Portfolio Table Section (if not defined globally) */
+.portfolio-table-section {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.portfolio-table-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.portfolio-table-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #111827);
+}
+
+/* Additional Stat Card Highlights */
+.portfolio-stat-card.success-highlight {
+    border-color: #bbf7d0;
+    background: linear-gradient(135deg, #f0fdf4 0%, var(--card-bg, #fff) 100%);
+}
+
+/* Purple Icon Variant */
+.portfolio-stat-icon.purple {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    color: #9333ea;
+}
+
+/* Grade Cards */
+.grade-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.grade-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Grade Badges */
+.grade-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.grade-badge.grade-a {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.grade-badge.grade-b {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.grade-badge.grade-c {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.grade-badge.grade-d {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+.grade-badge.grade-f {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Grade Return Display */
+.grade-return {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.grade-return.positive {
+    color: #10b981;
+}
+
+.grade-return.negative {
+    color: #ef4444;
+}
+
+/* Correlation Insight */
+.correlation-insight {
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.correlation-insight i {
+    color: #f59e0b;
+}
+
+/* Insight Cards */
+.insight-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary, #2563eb);
+}
+
+.insight-card.edge {
+    border-left-color: #10b981;
+    background: linear-gradient(90deg, #f0fdf4 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.warning {
+    border-left-color: #f59e0b;
+    background: linear-gradient(90deg, #fffbeb 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.winning_pattern {
+    border-left-color: #3b82f6;
+    background: linear-gradient(90deg, #eff6ff 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.improvement {
+    border-left-color: #8b5cf6;
+    background: linear-gradient(90deg, #f5f3ff 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.insight-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.5;
+}
+
+/* Comparison Cards */
+.comparison-card {
+    padding: 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.comparison-card.researched {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
+}
+
+.comparison-card.non-researched {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 1px solid #fecaca;
+}
+
+.comparison-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.comparison-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.comparison-card.researched .comparison-value {
+    color: #16a34a;
+}
+
+.comparison-card.non-researched .comparison-value {
+    color: #dc2626;
+}
+
+.comparison-count {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Small Empty State */
+.portfolio-empty-state-small {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted, #9ca3af);
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+}
+
+.portfolio-empty-state-small i {
+    font-size: 2rem;
+    opacity: 0.3;
+    margin-bottom: 0.5rem;
+}
+
+.portfolio-empty-state-small p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Badge Variants */
+.portfolio-badge.secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .grade-return {
+        font-size: 1.25rem;
+    }
+
+    .comparison-value {
+        font-size: 1.75rem;
+    }
+
+    .insight-card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .grade-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .grade-card {
+        padding: 1rem;
+    }
+
+    .comparison-card {
+        padding: 1rem;
+    }
+
+    .comparison-value {
+        font-size: 1.5rem;
+    }
+}

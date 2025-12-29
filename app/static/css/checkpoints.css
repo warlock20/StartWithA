@@ -1,0 +1,345 @@
+/* ========================================================================
+   Checkpoint Reminders Styles
+   Styling for checkpoint tracking and reminder functionality
+   Works with the portfolio design system
+   ======================================================================== */
+
+/* Portfolio Table Section (if not defined globally) */
+.portfolio-table-section {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.portfolio-table-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.portfolio-table-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #111827);
+}
+
+/* Checkpoint Cards (within portfolio-table-section) */
+.checkpoint-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.checkpoint-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.checkpoint-card.overdue {
+    border-left: 4px solid #dc2626;
+    background: linear-gradient(90deg, #fef2f2 0%, var(--card-bg, #fff) 10%);
+}
+
+.checkpoint-card.this-week {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(90deg, #fffbeb 0%, var(--card-bg, #fff) 10%);
+}
+
+.checkpoint-card.upcoming {
+    border-left: 4px solid #16a34a;
+}
+
+/* Checkpoint Card Layout */
+.checkpoint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.company-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ticker-badge {
+    background: var(--primary, #2563eb);
+    color: white;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.company-name {
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+/* Date Badges */
+.date-badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.date-badge.overdue {
+    background: #dc2626;
+    color: white;
+}
+
+.date-badge.this-week {
+    background: #f59e0b;
+    color: white;
+}
+
+.date-badge.upcoming {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* Checkpoint Description */
+.checkpoint-description {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+}
+
+.checkpoint-metric {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.checkpoint-metric i {
+    color: var(--primary, #2563eb);
+}
+
+.checkpoint-expectation {
+    margin-left: 1.5rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Checkpoint Footer */
+.checkpoint-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* Checkpoint Actions */
+.checkpoint-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-portfolio-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: white;
+    color: var(--text-primary, #111827);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.btn-portfolio-action:hover {
+    background: var(--bg-hover, #f9fafb);
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-portfolio-action.success {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+.btn-portfolio-action.success:hover {
+    background: #059669;
+    border-color: #059669;
+    color: white;
+}
+
+.btn-portfolio-action.danger {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.btn-portfolio-action.danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.btn-portfolio-action.primary {
+    background: var(--primary, #2563eb);
+    color: white;
+    border-color: var(--primary, #2563eb);
+}
+
+.btn-portfolio-action.primary:hover {
+    background: var(--primary-dark, #1d4ed8);
+    border-color: var(--primary-dark, #1d4ed8);
+    color: white;
+}
+
+/* Portfolio Badges (for section headers) */
+.portfolio-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.portfolio-badge.danger {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.portfolio-badge.warning {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.portfolio-badge.success {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+/* Empty State Customization */
+.portfolio-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-radius: 12px;
+    border: 1px solid #bbf7d0;
+}
+
+.portfolio-empty-state i {
+    font-size: 4rem;
+    color: #16a34a;
+    margin-bottom: 1rem;
+}
+
+.portfolio-empty-state h3 {
+    color: #166534;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+
+.portfolio-empty-state p {
+    color: #15803d;
+    margin-bottom: 1.5rem;
+}
+
+/* Stat Card Icon Color Variants */
+.portfolio-stat-icon.red {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #dc2626;
+}
+
+.portfolio-stat-icon.orange {
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+    color: #ea580c;
+}
+
+.portfolio-stat-icon.green {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #16a34a;
+}
+
+.portfolio-stat-icon.blue {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #2563eb;
+}
+
+/* Stat Card Highlights */
+.portfolio-stat-card.danger-highlight {
+    border-color: #fecaca;
+}
+
+.portfolio-stat-card.warning-highlight {
+    border-color: #fde68a;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .checkpoint-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .checkpoint-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .checkpoint-actions {
+        width: 100%;
+    }
+
+    .btn-portfolio-action {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .company-info {
+        width: 100%;
+    }
+
+    .date-badge {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkpoint-card {
+        padding: 1rem;
+    }
+
+    .checkpoint-description {
+        padding: 0.5rem;
+    }
+
+    .portfolio-empty-state {
+        padding: 3rem 1.5rem;
+    }
+
+    .portfolio-empty-state i {
+        font-size: 3rem;
+    }
+}

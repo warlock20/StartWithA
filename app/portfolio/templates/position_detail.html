@@ -18,7 +18,7 @@
         </div>
         <div class="dashboard-header-actions">
             {% with btn_class='btn btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
+            {% include 'components/smart_back_button.html' %}
             {% endwith %}
         </div>
 
@@ -26,18 +26,24 @@
 
     <!-- Expected vs Actual Alert (if expectations were set) -->
     {% if decision_journal and decision_journal.expected_return and position.unrealized_gain_loss_pct %}
-    <div class="alert {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}alert-success{% else %}alert-warning{% endif %} border mb-4">
+    <div
+        class="alert {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}alert-success{% else %}alert-warning{% endif %} border mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <strong><i class="bi bi-bullseye me-2"></i>Performance vs Expectations</strong>
                 <div class="mt-2">
-                    <span class="me-3">Expected: <strong>{{ "%.1f"|format(decision_journal.expected_return) }}%</strong></span>
-                    <span class="me-3">Actual: <strong class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
-                    </strong></span>
-                    <span>Difference: <strong class="{% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}text-success{% else %}text-danger{% endif %}">
-                        {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
-                    </strong></span>
+                    <span class="me-3">Expected: <strong>{{ "%.1f"|format(decision_journal.expected_return)
+                            }}%</strong></span>
+                    <span class="me-3">Actual: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                            "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                        </strong></span>
+                    <span>Difference: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}text-success{% else %}text-danger{% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{
+                            "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
+                        </strong></span>
                 </div>
             </div>
             <div class="text-end">
@@ -261,7 +267,7 @@
                 </div>
                 <div class="card-body">
                     {% for checkpoint in checkpoints[:5] %}
-                    {% set days_until = (checkpoint.target_date - today()).days %}
+                    {% set days_until = (checkpoint.target_date - today).days %}
                     <div class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="flex-grow-1">
@@ -352,6 +358,9 @@
                     <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}"
                         class="btn btn-outline-primary w-100 mb-2">
                         <i class="bi bi-journal-text me-2"></i>View Decision Journal
+                    </a>
+                    <a href="{{ url_for('portfolio.thesis_reality') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-clipboard-check me-1"></i>Compare All Positions
                     </a>
                     {% endif %}
                     <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"

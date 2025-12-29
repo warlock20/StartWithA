@@ -84,6 +84,8 @@ All complex components have been fully modularized.
 @import url('modules/_portfolio.css');            /* Portfolio & transaction management */
 @import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
+@import url('learning-insights.css');             /* Learning insights from portfolio */
+@import url('intelligence-hub.css');              /* Investment intelligence hub */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
 @import url('modules/_profile.css');              /* User profile page */
 @import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */

@@ -62,7 +62,7 @@
                                 {% endfor %}
                             </select>
                             <div class="form-text">
-                                Don't see your company? <a href="{{ url_for('companies.new_company') }}" target="_blank">Add a new company</a>
+                                Don't see your company? <a href="#" onclick="event.preventDefault(); openCompanyModal(handleCompanySelection);" class="text-primary">Add a new company</a>
                             </div>
                         </div>
 
@@ -345,11 +345,72 @@
         </div>
     </div>
 </div>
+
+<!-- Include Company Search Modal -->
+{% include 'components/company_search_modal.html' %}
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
+    // Initialize Company Search Modal
+    let companySearchComponent;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        companySearchComponent = new CompanySearchComponent({
+            hiddenFieldId: 'company_id_hidden',  // We'll add a hidden field
+            displayInfoId: null  // We don't need display info, we use the select dropdown
+        });
+        companySearchComponent.init();
+    });
+
+    // Function to open the company modal
+    function openCompanyModal(callback) {
+        if (companySearchComponent) {
+            companySearchComponent.open(callback);
+        }
+    }
+
+    // Handle company selection from modal
+    function handleCompanySelection(company) {
+        // Add the new company to the select dropdown
+        const companySelect = document.getElementById('company_id');
+
+        // Check if company already exists in dropdown
+        let optionExists = false;
+        for (let i = 0; i < companySelect.options.length; i++) {
+            if (companySelect.options[i].value == company.id) {
+                optionExists = true;
+                companySelect.selectedIndex = i;
+                break;
+            }
+        }
+
+        // If not exists, add new option
+        if (!optionExists) {
+            const option = document.createElement('option');
+            option.value = company.id;
+            option.text = `${company.ticker_symbol} - ${company.name}`;
+            option.setAttribute('data-ticker', company.ticker_symbol);
+            option.setAttribute('data-has-position', 'false');
+            option.selected = true;
+            companySelect.add(option);
+        }
+
+        // Trigger change event to update currency and other related fields
+        companySelect.dispatchEvent(new Event('change'));
+
+        // Show success message
+        const formText = companySelect.parentElement.querySelector('.form-text');
+        const originalText = formText.innerHTML;
+        formText.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> Company "${company.name}" added successfully!</span>`;
+        setTimeout(() => {
+            formText.innerHTML = originalText;
+        }, 3000);
+    }
+
     // Currency symbol mapping
     const CURRENCY_SYMBOLS = {
         'USD': '$',

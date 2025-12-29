@@ -26,6 +26,7 @@ import logging
 
 from app import db
 from app.utils.time_utils import now_utc
+from app.utils.financial_utils import calculate_cagr
 
 from app.models.ai_intelligence import ResearchOutcome
 from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint, Company
@@ -78,6 +79,8 @@ class CheckpointReminder:
     company_name: str
     company_ticker: str
     company_id: int
+    metric: str            # E.g., "Quarterly Revenue", "EPS"
+    expectation: str       # E.g., ">$5 Billion", "Beat estimates"
     description: str
     target_date: date
     status: str  # 'overdue', 'this_week', 'upcoming'
@@ -86,25 +89,26 @@ class CheckpointReminder:
     metric_target: Optional[str]
 
 
-@dataclass 
+@dataclass
 class ThesisReality:
     """Comparison of thesis expectations vs actual performance"""
     company_name: str
     company_ticker: str
     company_id: int
     position_id: int
-    
+
     # Original thesis
     investment_thesis: str
     expected_return: Optional[float]
     expected_timeframe_months: Optional[int]
     confidence_score: Optional[int]
-    
+
     # Reality
     actual_return_pct: float
+    annualized_return_pct: float  # CAGR - Compound Annual Growth Rate
     days_held: int
     current_price: Optional[Decimal]
-    
+
     # Assessment
     status: str  # 'on_track', 'exceeding', 'behind', 'needs_attention'
     thesis_still_valid: Optional[bool]
@@ -336,6 +340,8 @@ class PortfolioIntelligenceService:
                 company_id=cp.company_id,
                 description=cp.description or '',
                 target_date=cp.target_date,
+                metric=cp.metric or '',
+                expectation=cp.expectation or '',
                 status=status,
                 days_until=days_until,
                 checkpoint_type=cp.checkpoint_type if hasattr(cp, 'checkpoint_type') else None,
@@ -365,7 +371,8 @@ class PortfolioIntelligenceService:
     def get_thesis_reality_check(self) -> List[ThesisReality]:
         """
         Compare original investment thesis to actual performance.
-        
+        Uses CAGR (annualized returns) for fair comparison across different holding periods.
+
         Returns:
             List of ThesisReality for each active position
         """
@@ -374,9 +381,9 @@ class PortfolioIntelligenceService:
             user_id=self.user_id,
             is_active=True
         ).all()
-        
+
         results = []
-        
+
         for position in positions:
             # Get the BUY decision journal
             journal = DecisionJournal.query.filter_by(
@@ -385,19 +392,21 @@ class PortfolioIntelligenceService:
                 decision_type='BUY',
                 is_portfolio_decision=True
             ).order_by(DecisionJournal.decision_date.desc()).first()
-            
-            # Calculate actual return
+
+            # Calculate actual returns
             actual_return = float(position.unrealized_gain_loss_pct or 0)
             days_held = position.days_held or 0
-            
-            # Determine status
+            annualized_return = calculate_cagr(actual_return, days_held)
+
+            # Determine status (using annualized return for fair comparison)
             status = self._assess_thesis_status(
                 expected_return=journal.expected_return if journal else None,
                 expected_timeframe=journal.expected_timeframe if journal else None,
-                actual_return=actual_return,
+                annualized_return=annualized_return,
+                total_return=actual_return,
                 days_held=days_held
             )
-            
+
             results.append(ThesisReality(
                 company_name=position.company.name if position.company else 'Unknown',
                 company_ticker=position.company.ticker_symbol if position.company else '???',
@@ -408,55 +417,76 @@ class PortfolioIntelligenceService:
                 expected_timeframe_months=journal.expected_timeframe if journal else None,
                 confidence_score=journal.confidence_score if journal else None,
                 actual_return_pct=actual_return,
+                annualized_return_pct=annualized_return,
                 days_held=days_held,
                 current_price=position.current_price,
                 status=status,
                 thesis_still_valid=None  # User needs to assess this
             ))
-        
+
         # Sort by status (needs_attention first)
         status_order = {'needs_attention': 0, 'behind': 1, 'on_track': 2, 'exceeding': 3}
         results.sort(key=lambda x: status_order.get(x.status, 99))
-        
+
         return results
     
     def _assess_thesis_status(
         self,
         expected_return: Optional[float],
         expected_timeframe: Optional[int],
-        actual_return: float,
+        annualized_return: float,
+        total_return: float,
         days_held: int
     ) -> str:
-        """Assess how the position is tracking vs expectations"""
-        
+        """
+        Assess how the position is tracking vs expectations using CAGR.
+
+        Args:
+            expected_return: Expected return % (assumed to be annualized if timeframe given)
+            expected_timeframe: Expected timeframe in months
+            annualized_return: CAGR of the position
+            total_return: Total return % (for short-term positions)
+            days_held: Days the position has been held
+
+        Returns:
+            Status: 'exceeding', 'on_track', 'behind', or 'needs_attention'
+        """
+
         if expected_return is None:
-            # No expectations set - just use return thresholds
-            if actual_return >= 20:
+            # No expectations set - use annualized return thresholds
+            if annualized_return >= 20:
                 return 'exceeding'
-            elif actual_return >= 0:
+            elif annualized_return >= 0:
                 return 'on_track'
-            elif actual_return >= -10:
+            elif annualized_return >= -10:
                 return 'behind'
             else:
                 return 'needs_attention'
-        
-        # Calculate expected progress
-        if expected_timeframe:
-            months_held = days_held / 30
-            expected_progress = months_held / expected_timeframe
-            expected_return_by_now = expected_return * min(expected_progress, 1.0)
+
+        # For positions held < 30 days, use total return for comparison
+        # (annualized returns are misleading for very short periods)
+        if days_held < 30:
+            comparison_return = total_return
+            # Scale expected return proportionally for short holding period
+            if expected_timeframe:
+                months_held = days_held / 30
+                expected_comparison = expected_return * (months_held / expected_timeframe)
+            else:
+                expected_comparison = expected_return * 0.1  # Assume 10% of expected
         else:
-            expected_return_by_now = expected_return * 0.5  # Assume halfway
-        
+            # Use annualized returns for fair comparison
+            comparison_return = annualized_return
+            expected_comparison = expected_return
+
         # Compare actual to expected
-        if actual_return >= expected_return:
-            return 'exceeding'
-        elif actual_return >= expected_return_by_now * 0.8:
-            return 'on_track'
-        elif actual_return >= 0:
-            return 'behind'
+        if comparison_return >= expected_comparison * 1.2:
+            return 'exceeding'  # Beating expectations by 20%+
+        elif comparison_return >= expected_comparison * 0.8:
+            return 'on_track'  # Within 80-120% of expectations
+        elif comparison_return >= 0:
+            return 'behind'  # Positive but below expectations
         else:
-            return 'needs_attention'
+            return 'needs_attention'  # Losing money
     
     # =========================================================================
     # STEP 4: Learning Insights
@@ -539,7 +569,7 @@ class PortfolioIntelligenceService:
         for o in outcomes:
             if o.exit_date and o.entry_date:
                 days = (o.exit_date - o.entry_date).days
-                if days < 90:
+                if days < 90: #TODO: Move this value to config value.
                     short_holds.append(float(o.realized_return_pct))
                 else:
                     long_holds.append(float(o.realized_return_pct))
@@ -585,7 +615,7 @@ class PortfolioIntelligenceService:
                     'return': float(o.realized_return_pct)
                 })
         
-        if len(confidence_returns) >= 3:
+        if len(confidence_returns) >= 3: #TODO: Tunable parameter
             high_conf = [cr for cr in confidence_returns if cr['confidence'] >= 8]
             low_conf = [cr for cr in confidence_returns if cr['confidence'] <= 5]
             

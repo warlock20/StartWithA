@@ -1,0 +1,268 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Learning Insights{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-insights.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-container">
+
+    <!-- Page Header -->
+    <div class="portfolio-page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="portfolio-page-title">
+                    <i class="bi bi-lightbulb me-2"></i>Learning Insights
+                </h1>
+                <div class="portfolio-page-meta">
+                    <div class="portfolio-meta-item">
+                        <span>Personalized patterns discovered from your trading history</span>
+                    </div>
+                </div>
+            </div>
+            <div class="portfolio-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.research_correlation') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Research Correlation
+                </a>
+                <a href="{{ url_for('portfolio.thesis_reality') }}" class="btn-portfolio-modern primary">
+                    <i class="bi bi-clipboard-check"></i>
+                    Thesis Reality
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if not has_sufficient_data %}
+    <!-- Not Enough Data State -->
+    <div class="portfolio-empty-state">
+        <i class="bi bi-bar-chart-line"></i>
+        <h3>Building Your Insights</h3>
+        <p class="text-muted mb-3">
+            Complete at least {{ min_trades_needed }} trades to unlock personalized learning insights.<br>
+            You currently have {{ current_trades }} completed trades.
+        </p>
+        <div class="insights-progress">
+            <div class="insights-progress-bar" style="width: {{ (current_trades / min_trades_needed * 100)|int }}%"></div>
+        </div>
+        <p class="text-muted small">{{ current_trades }} / {{ min_trades_needed }} trades</p>
+        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
+            <i class="bi bi-plus-lg"></i>
+            Add Transaction
+        </a>
+    </div>
+
+    {% else %}
+
+    <!-- Stats Overview -->
+    <div class="portfolio-stats-grid">
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon gray">
+                <i class="bi bi-list-check"></i>
+            </div>
+            <div class="portfolio-stat-label">Completed Trades</div>
+            <div class="portfolio-stat-value">{{ stats.total_trades }}</div>
+            <div class="portfolio-stat-trend">Total closed positions</div>
+        </div>
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon {% if stats.win_rate >= 50 %}green{% else %}red{% endif %}">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div class="portfolio-stat-label">Win Rate</div>
+            <div class="portfolio-stat-value">{{ "%.0f"|format(stats.win_rate) }}%</div>
+            <div class="portfolio-stat-trend {% if stats.win_rate >= 50 %}up{% else %}down{% endif %}">
+                <i class="bi bi-arrow-{% if stats.win_rate >= 50 %}up{% else %}down{% endif %}"></i>
+                {% if stats.win_rate >= 50 %}Above average{% else %}Below average{% endif %}
+            </div>
+        </div>
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon {% if stats.avg_return >= 0 %}green{% else %}red{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="portfolio-stat-label">Avg Return</div>
+            <div class="portfolio-stat-value">
+                {% if stats.avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(stats.avg_return) }}%
+            </div>
+            <div class="portfolio-stat-trend {% if stats.avg_return >= 0 %}up{% else %}down{% endif %}">
+                Per completed trade
+            </div>
+        </div>
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon blue">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="portfolio-stat-label">Avg Days Held</div>
+            <div class="portfolio-stat-value">{{ stats.avg_hold_days }}</div>
+            <div class="portfolio-stat-trend">Average holding period</div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="insights-quick-actions">
+        <h3><i class="bi bi-lightning me-2"></i>Based on Your Insights</h3>
+        <div class="insights-action-buttons">
+            {% if has_quality_edge %}
+            <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-success">
+                <i class="bi bi-search me-1"></i>Start New Research
+            </a>
+            {% endif %}
+            {% if has_holding_insight %}
+            <a href="{{ url_for('portfolio.thesis_reality') }}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-1"></i>Review Hold Times
+            </a>
+            {% endif %}
+            {% if has_sector_insight %}
+            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-primary">
+                <i class="bi bi-pie-chart me-1"></i>Check Sector Allocation
+            </a>
+            {% endif %}
+            <a href="{{ url_for('portfolio.research_correlation') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-graph-up me-1"></i>View Full Correlation Data
+            </a>
+        </div>
+    </div>
+    
+    <!-- Insights by Category -->
+    {% if insights_by_category.edge %}
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon edge">
+                <i class="bi bi-star-fill"></i>
+            </div>
+            <h2 class="mb-0">Your Edge</h2>
+        </div>
+        <div class="insights-grid">
+            {% for insight in insights_by_category.edge %}
+            <div class="insight-card edge">
+                <div class="insight-header">
+                    <div>
+                        <div class="insight-title">{{ insight.title }}</div>
+                    </div>
+                    <span class="importance-badge {{ insight.importance }}">{{ insight.importance }}</span>
+                </div>
+                <div class="insight-body">
+                    <div class="insight-description">{{ insight.description }}</div>
+                    {% if insight.supporting_data %}
+                    <div class="insight-data">
+                        <i class="bi bi-bar-chart me-1"></i>{{ insight.supporting_data }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if insights_by_category.winning_pattern %}
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon winning_pattern">
+                <i class="bi bi-trophy-fill"></i>
+            </div>
+            <h2 class="mb-0">Winning Patterns</h2>
+        </div>
+        <div class="insights-grid">
+            {% for insight in insights_by_category.winning_pattern %}
+            <div class="insight-card winning_pattern">
+                <div class="insight-header">
+                    <div>
+                        <div class="insight-title">{{ insight.title }}</div>
+                    </div>
+                    <span class="importance-badge {{ insight.importance }}">{{ insight.importance }}</span>
+                </div>
+                <div class="insight-body">
+                    <div class="insight-description">{{ insight.description }}</div>
+                    {% if insight.supporting_data %}
+                    <div class="insight-data">
+                        <i class="bi bi-bar-chart me-1"></i>{{ insight.supporting_data }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if insights_by_category.warning %}
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon warning">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <h2 class="mb-0">Watch Out For</h2>
+        </div>
+        <div class="insights-grid">
+            {% for insight in insights_by_category.warning %}
+            <div class="insight-card warning">
+                <div class="insight-header">
+                    <div>
+                        <div class="insight-title">{{ insight.title }}</div>
+                    </div>
+                    <span class="importance-badge {{ insight.importance }}">{{ insight.importance }}</span>
+                </div>
+                <div class="insight-body">
+                    <div class="insight-description">{{ insight.description }}</div>
+                    {% if insight.supporting_data %}
+                    <div class="insight-data">
+                        <i class="bi bi-bar-chart me-1"></i>{{ insight.supporting_data }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if insights_by_category.improvement %}
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon improvement">
+                <i class="bi bi-arrow-up-circle-fill"></i>
+            </div>
+            <h2 class="mb-0">Areas for Improvement</h2>
+        </div>
+        <div class="insights-grid">
+            {% for insight in insights_by_category.improvement %}
+            <div class="insight-card improvement">
+                <div class="insight-header">
+                    <div>
+                        <div class="insight-title">{{ insight.title }}</div>
+                    </div>
+                    <span class="importance-badge {{ insight.importance }}">{{ insight.importance }}</span>
+                </div>
+                <div class="insight-body">
+                    <div class="insight-description">{{ insight.description }}</div>
+                    {% if insight.supporting_data %}
+                    <div class="insight-data">
+                        <i class="bi bi-bar-chart me-1"></i>{{ insight.supporting_data }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not insights_by_category.edge and not insights_by_category.winning_pattern and not insights_by_category.warning and not insights_by_category.improvement %}
+    <div class="insights-empty-state">
+        <i class="bi bi-search"></i>
+        <h3>Analyzing Your Data</h3>
+        <p class="text-muted">No clear patterns detected yet. Keep trading to build your insight profile.</p>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+
+</div>
+{% endblock %}
