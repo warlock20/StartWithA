@@ -1287,7 +1287,7 @@ def analytics():
             value = cost_basis + (growth_per_month * (i + 1))
             chart_values.append(round(value, 2))
 
-    return render_template('analytics.html',
+    return render_template('portfolio_basic_analytics.html',
                           portfolio_value=portfolio_value,
                           total_return=total_return,
                           total_return_pct=total_return_pct,
@@ -1458,7 +1458,7 @@ def analytics_decisions():
     expectations_total_count = len(expectations_analysis)
     expectations_met_pct = (expectations_met_count / expectations_total_count * 100) if expectations_total_count > 0 else 0
 
-    return render_template('analytics_decisions.html',
+    return render_template('decisions_intelligence.html',
                           research_backed_count=len(research_positions),
                           non_research_count=len(non_research_positions),
                           research_avg_return=research_avg_return,
