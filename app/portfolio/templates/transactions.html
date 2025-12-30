@@ -11,9 +11,10 @@
             <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
         </div>
         <div class="dashboard-header-actions">
-            {% with btn_class='btn btn-outline-secondary me-2' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+            <a href="{{ url_for('portfolio.dashboard') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-briefcase"></i>
+                    Back to Portfolio
+            </a>
             <a href="{{ url_for('portfolio.add_transaction') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle-fill"></i> Add Transaction
             </a>
