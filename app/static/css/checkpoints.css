@@ -235,9 +235,19 @@
     color: #d97706;
 }
 
+.portfolio-badge.info {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
 .portfolio-badge.success {
     background: #f0fdf4;
     color: #16a34a;
+}
+
+.portfolio-badge.primary {
+    background: #ede9fe;
+    color: #7c3aed;
 }
 
 /* Empty State Customization */
@@ -277,9 +287,19 @@
     color: #ea580c;
 }
 
+.portfolio-stat-icon.yellow {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #f59e0b;
+}
+
 .portfolio-stat-icon.green {
     background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
     color: #16a34a;
+}
+
+.portfolio-stat-icon.purple {
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+    color: #9333ea;
 }
 
 .portfolio-stat-icon.blue {

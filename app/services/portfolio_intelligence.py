@@ -302,43 +302,51 @@ class PortfolioIntelligenceService:
         """
         today = now_utc().date()
         week_from_now = today + timedelta(days=7)
-        future_date = today + timedelta(days=days_ahead)
-        
+        month_from_now = today + timedelta(days=30)
+        three_months_from_now = today + timedelta(days=90)
+
         # Get active checkpoints for companies in portfolio
-        portfolio_company_ids = db.session.query(PortfolioPosition.company_id).filter(
+        from sqlalchemy import select
+        portfolio_company_ids_query = select(PortfolioPosition.company_id).filter(
             PortfolioPosition.user_id == self.user_id,
             PortfolioPosition.is_active == True
-        ).subquery()
-        
+        ).scalar_subquery()
+
+        # Get ALL active checkpoints (no date filter!)
         checkpoints = DestinationCheckpoint.query.filter(
             DestinationCheckpoint.user_id == self.user_id,
-            DestinationCheckpoint.company_id.in_(portfolio_company_ids),
-            DestinationCheckpoint.status == 'Active',
-            DestinationCheckpoint.target_date <= future_date
+            DestinationCheckpoint.company_id.in_(portfolio_company_ids_query),
+            DestinationCheckpoint.status == 'Active'
         ).order_by(DestinationCheckpoint.target_date.asc()).all()
-        
+
         result = {
             'overdue': [],
             'this_week': [],
-            'upcoming': []
+            'this_month': [],
+            'next_3_months': [],
+            'beyond': []
         }
-        
+
         for cp in checkpoints:
             days_until = (cp.target_date - today).days
-            
+
             if days_until < 0:
                 status = 'overdue'
             elif days_until <= 7:
                 status = 'this_week'
+            elif days_until <= 30:
+                status = 'this_month'
+            elif days_until <= 90:
+                status = 'next_3_months'
             else:
-                status = 'upcoming'
+                status = 'beyond'
             
             reminder = CheckpointReminder(
                 id=cp.id,
                 company_name=cp.company.name if cp.company else 'Unknown',
                 company_ticker=cp.company.ticker_symbol if cp.company else '???',
                 company_id=cp.company_id,
-                description=cp.description or '',
+                description='',  # DestinationCheckpoint doesn't have description field
                 target_date=cp.target_date,
                 metric=cp.metric or '',
                 expectation=cp.expectation or '',
@@ -355,11 +363,13 @@ class PortfolioIntelligenceService:
     def get_checkpoint_summary(self) -> Dict[str, Any]:
         """Get a quick summary of checkpoint status"""
         checkpoints = self.get_upcoming_checkpoints()
-        
+
         return {
             'overdue_count': len(checkpoints['overdue']),
             'this_week_count': len(checkpoints['this_week']),
-            'upcoming_count': len(checkpoints['upcoming']),
+            'this_month_count': len(checkpoints['this_month']),
+            'next_3_months_count': len(checkpoints['next_3_months']),
+            'beyond_count': len(checkpoints['beyond']),
             'total_active': sum(len(v) for v in checkpoints.values()),
             'needs_attention': len(checkpoints['overdue']) > 0
         }

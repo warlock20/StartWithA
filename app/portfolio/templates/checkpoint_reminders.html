@@ -2,10 +2,6 @@
 
 {% block title %}Checkpoint Reminders{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/checkpoints.css') }}">
-{% endblock %}
-
 {% block content %}
 <div class="portfolio-container">
 
@@ -56,17 +52,37 @@
             </div>
             <div class="portfolio-stat-label">This Week</div>
             <div class="portfolio-stat-value">{{ checkpoints.this_week|length }}</div>
-            <div class="portfolio-stat-trend">Coming up soon</div>
+            <div class="portfolio-stat-trend">Next 7 days</div>
         </div>
 
-        <!-- Upcoming Card -->
+        <!-- This Month Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon yellow">
+                <i class="bi bi-calendar-month"></i>
+            </div>
+            <div class="portfolio-stat-label">This Month</div>
+            <div class="portfolio-stat-value">{{ checkpoints.this_month|length }}</div>
+            <div class="portfolio-stat-trend">Next 30 days</div>
+        </div>
+
+        <!-- Next 3 Months Card -->
         <div class="portfolio-stat-card">
             <div class="portfolio-stat-icon green">
+                <i class="bi bi-calendar-range"></i>
+            </div>
+            <div class="portfolio-stat-label">Next 3 Months</div>
+            <div class="portfolio-stat-value">{{ checkpoints.next_3_months|length }}</div>
+            <div class="portfolio-stat-trend">Within 90 days</div>
+        </div>
+
+        <!-- Beyond Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon purple">
                 <i class="bi bi-calendar-plus"></i>
             </div>
-            <div class="portfolio-stat-label">Upcoming</div>
-            <div class="portfolio-stat-value">{{ checkpoints.upcoming|length }}</div>
-            <div class="portfolio-stat-trend">Next 30 days</div>
+            <div class="portfolio-stat-label">Beyond</div>
+            <div class="portfolio-stat-value">{{ checkpoints.beyond|length }}</div>
+            <div class="portfolio-stat-trend">Long-term</div>
         </div>
 
         <!-- Total Active Card -->
@@ -75,12 +91,12 @@
                 <i class="bi bi-calendar-check"></i>
             </div>
             <div class="portfolio-stat-label">Total Active</div>
-            <div class="portfolio-stat-value">{{ checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.upcoming|length }}</div>
+            <div class="portfolio-stat-value">{{ checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length }}</div>
             <div class="portfolio-stat-trend">All checkpoints</div>
         </div>
     </div>
 
-    {% set total_checkpoints = checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.upcoming|length %}
+    {% set total_checkpoints = checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length %}
 
     {% if total_checkpoints == 0 %}
     <!-- All Clear State -->
@@ -193,18 +209,106 @@
     </div>
     {% endif %}
 
-    <!-- Upcoming Section -->
-    {% if checkpoints.upcoming %}
+    <!-- This Month Section -->
+    {% if checkpoints.this_month %}
     <div class="portfolio-table-section">
         <div class="portfolio-table-section-header">
             <h2 class="portfolio-table-section-title">
-                <i class="bi bi-calendar-plus text-success me-2"></i>
-                Upcoming (Next 30 Days)
+                <i class="bi bi-calendar-month text-info me-2"></i>
+                This Month (Next 30 Days)
             </h2>
-            <span class="portfolio-badge success">{{ checkpoints.upcoming|length }} scheduled</span>
+            <span class="portfolio-badge info">{{ checkpoints.this_month|length }} scheduled</span>
         </div>
 
-        {% for cp in checkpoints.upcoming %}
+        {% for cp in checkpoints.this_month %}
+        <div class="checkpoint-card upcoming">
+            <div class="checkpoint-header">
+                <div class="company-info">
+                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="company-name">{{ cp.company_name }}</span>
+                </div>
+                <span class="date-badge upcoming">
+                    <i class="bi bi-calendar me-1"></i>In {{ cp.days_until }} days
+                </span>
+            </div>
+            <div class="checkpoint-description">
+                <div class="checkpoint-metric">
+                    <i class="bi bi-bullseye me-2"></i>
+                    <strong>{{ cp.metric }}</strong>
+                </div>
+                <div class="checkpoint-expectation">{{ cp.expectation }}</div>
+            </div>
+            <div class="checkpoint-footer">
+                <small class="text-muted">
+                    <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
+                </small>
+                <div class="checkpoint-actions">
+                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                        <i class="bi bi-eye"></i> View Position
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Next 3 Months Section -->
+    {% if checkpoints.next_3_months %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-calendar-range text-success me-2"></i>
+                Next 3 Months (31-90 Days)
+            </h2>
+            <span class="portfolio-badge success">{{ checkpoints.next_3_months|length }} scheduled</span>
+        </div>
+
+        {% for cp in checkpoints.next_3_months %}
+        <div class="checkpoint-card upcoming">
+            <div class="checkpoint-header">
+                <div class="company-info">
+                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="company-name">{{ cp.company_name }}</span>
+                </div>
+                <span class="date-badge upcoming">
+                    <i class="bi bi-calendar me-1"></i>In {{ cp.days_until }} days
+                </span>
+            </div>
+            <div class="checkpoint-description">
+                <div class="checkpoint-metric">
+                    <i class="bi bi-bullseye me-2"></i>
+                    <strong>{{ cp.metric }}</strong>
+                </div>
+                <div class="checkpoint-expectation">{{ cp.expectation }}</div>
+            </div>
+            <div class="checkpoint-footer">
+                <small class="text-muted">
+                    <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
+                </small>
+                <div class="checkpoint-actions">
+                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                        <i class="bi bi-eye"></i> View Position
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Beyond Section -->
+    {% if checkpoints.beyond %}
+    <div class="portfolio-table-section">
+        <div class="portfolio-table-section-header">
+            <h2 class="portfolio-table-section-title">
+                <i class="bi bi-calendar-plus text-primary me-2"></i>
+                Long-term (Beyond 90 Days)
+            </h2>
+            <span class="portfolio-badge primary">{{ checkpoints.beyond|length }} scheduled</span>
+        </div>
+
+        {% for cp in checkpoints.beyond %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
                 <div class="company-info">

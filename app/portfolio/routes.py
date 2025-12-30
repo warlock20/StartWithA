@@ -26,7 +26,8 @@ from app.utils.portfolio_utils import (
     calculate_confidence_stats, count_positions_by_status,
     get_top_performers, get_bottom_performers
 )
-from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
+from app.services.intelligence_engine import check_sell_warnings
+
 from app.constants import (
     TRANSACTIONS_PER_PAGE, JOURNALS_PER_PAGE, MIN_TRADES_FOR_INSIGHTS,
     DEFAULT_TOP_PERFORMERS_LIMIT, DEFAULT_BOTTOM_PERFORMERS_LIMIT,
@@ -1267,7 +1268,7 @@ def learning_insights():
     
     return render_template('learning_insights.html',
                           has_sufficient_data=has_sufficient_data,
-                          min_trades_needed=min_trades_needed,
+                          min_trades_needed=MIN_TRADES_FOR_INSIGHTS,
                           current_trades=current_trades,
                           insights_by_category=insights_by_category,
                           stats=stats,
@@ -1588,4 +1589,20 @@ def check_transaction_warnings():
         'warnings': warnings_data,
         'count': len(warnings_data),
         'has_high_severity': has_high
+    })
+    
+@portfolio_bp.route('/api/check-sell-warnings', methods=['POST'])
+@login_required
+def check_sell_transaction_warnings():
+    """API endpoint to check warnings before SELL transaction."""
+    
+    data = request.get_json()
+    company_id = data.get('company_id')
+    shares = data.get('shares')
+    
+    warnings = check_sell_warnings(current_user.id, company_id, shares) if company_id and shares else []
+    
+    return jsonify({
+        'warnings': [w.__dict__ for w in warnings],
+        'count': len(warnings)
     })

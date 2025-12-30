@@ -6,7 +6,7 @@ research and investment decisions.
 
 Features:
 - Portfolio Conflict Checks (concentration, sector, correlation)
-- Behavioral Pattern Detection (future)
+- Behavioral Pattern Detection (disposition effect, overconfidence, averaging down)
 - Thesis Analysis (future)
 - Similar Past Mistakes (future)
 
@@ -24,16 +24,63 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 import logging
 
+from app.models.ai_intelligence import ResearchOutcome
+
 try:
     import yfinance as yf
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
 
-from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis
+from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis, Transaction
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
+from app.constants import (
+    # Concentration thresholds
+    DEFAULT_POSITION_CONCENTRATION_THRESHOLD,
+    DEFAULT_SECTOR_CONCENTRATION_THRESHOLD,
+    DEFAULT_CORRELATION_THRESHOLD,
+    # Run-up detection
+    DEFAULT_RUNUP_LOOKBACK_DAYS,
+    DEFAULT_RUNUP_THRESHOLD_PCT,
+    # Chasing returns
+    DEFAULT_CHASING_RETURNS_CAGR_THRESHOLD,
+    DEFAULT_CHASING_RETURNS_MIN_DAYS,
+)
 
+# Import behavioral constants if they exist, otherwise use defaults
+try:
+    from app.constants import (
+        DEFAULT_WINNER_THRESHOLD_PCT,
+        DEFAULT_WINNER_MIN_HOLD_DAYS,
+        DEFAULT_WINNER_EARLY_SELL_DAYS,
+        DEFAULT_LOSER_THRESHOLD_PCT,
+        DEFAULT_LOSER_HOLD_DAYS_WARNING,
+        DEFAULT_LOSER_SEVERE_DAYS,
+        DEFAULT_LOSER_SEVERE_PCT,
+        DEFAULT_AVERAGING_DOWN_COUNT,
+        DEFAULT_AVERAGING_DOWN_SEVERE_COUNT,
+        DEFAULT_OVERCONFIDENCE_MIN_TRADES,
+        DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE,
+        DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT,
+        DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD,
+    )
+except ImportError:
+    # Fallback defaults if not yet added to constants.py
+    DEFAULT_WINNER_THRESHOLD_PCT = 15.0
+    DEFAULT_WINNER_MIN_HOLD_DAYS = 30
+    DEFAULT_WINNER_EARLY_SELL_DAYS = 90
+    DEFAULT_LOSER_THRESHOLD_PCT = -15.0
+    DEFAULT_LOSER_HOLD_DAYS_WARNING = 180
+    DEFAULT_LOSER_SEVERE_DAYS = 365
+    DEFAULT_LOSER_SEVERE_PCT = -30.0
+    DEFAULT_AVERAGING_DOWN_COUNT = 2
+    DEFAULT_AVERAGING_DOWN_SEVERE_COUNT = 4
+    DEFAULT_OVERCONFIDENCE_MIN_TRADES = 5
+    DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE = 8
+    DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT = -10.0
+    DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD = 0.40
+    
 from app import db
 
 logger = logging.getLogger(__name__)
@@ -65,33 +112,67 @@ class IntelligenceEngine:
     
     THRESHOLDS = {
         # Concentration warnings
-        'position_concentration_pct': 25.0,      # Warn if single position > 25%
-        'sector_concentration_pct': 40.0,        # Warn if sector > 40%
-        'industry_concentration_pct': 30.0,      # Warn if industry > 30%
+        'position_concentration_pct': DEFAULT_POSITION_CONCENTRATION_THRESHOLD,
+        'sector_concentration_pct': DEFAULT_SECTOR_CONCENTRATION_THRESHOLD,
+        'industry_concentration_pct': 30.0,  # Not in constants yet
         
         # Correlation warnings
-        'high_correlation_threshold': 0.80,      # Warn if correlation > 0.80
+        'high_correlation_threshold': DEFAULT_CORRELATION_THRESHOLD / 100,  # Convert to decimal
         
-        # Behavioral warnings
-        'buying_after_runup_pct': 20.0,          # Warn if stock up > 20% recently
-        'runup_lookback_days': 30,               # Look back 30 days for run-up
-        'chasing_returns_cagr': 50.0,            # Warn if adding to position with >50% CAGR
-        'chasing_returns_min_days': 90,          # Minimum days held before checking CAGR
-
+        # Run-up detection
+        'buying_after_runup_pct': DEFAULT_RUNUP_THRESHOLD_PCT,
+        'runup_lookback_days': DEFAULT_RUNUP_LOOKBACK_DAYS,
+        
+        # Chasing returns
+        'chasing_returns_cagr_threshold': DEFAULT_CHASING_RETURNS_CAGR_THRESHOLD,
+        'chasing_returns_min_days': DEFAULT_CHASING_RETURNS_MIN_DAYS,
+        
+        # Disposition effect - selling winners
+        'winner_threshold_pct': DEFAULT_WINNER_THRESHOLD_PCT,
+        'winner_min_hold_days': DEFAULT_WINNER_MIN_HOLD_DAYS,
+        'winner_early_sell_days': DEFAULT_WINNER_EARLY_SELL_DAYS,
+        
+        # Disposition effect - holding losers
+        'loser_threshold_pct': DEFAULT_LOSER_THRESHOLD_PCT,
+        'loser_hold_days_warning': DEFAULT_LOSER_HOLD_DAYS_WARNING,
+        'loser_severe_days': DEFAULT_LOSER_SEVERE_DAYS,
+        'loser_severe_pct': DEFAULT_LOSER_SEVERE_PCT,
+        
+        # Averaging down
+        'averaging_down_count': DEFAULT_AVERAGING_DOWN_COUNT,
+        'averaging_down_severe_count': DEFAULT_AVERAGING_DOWN_SEVERE_COUNT,
+        
+        # Overconfidence
+        'overconfidence_min_trades': DEFAULT_OVERCONFIDENCE_MIN_TRADES,
+        'overconfidence_high_confidence': DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE,
+        'overconfidence_poor_outcome_pct': DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT,
+        'overconfidence_poor_rate_threshold': DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD,
+        
         # Research warnings
-        'no_research_warning': True,             # Warn if buying without research
+        'no_research_warning': True,
     }
     
     # Enabled rules (will be per-user configurable later)
     ENABLED_RULES = {
+        # Concentration
         'position_concentration': True,
         'sector_concentration': True,
-        'industry_concentration': False,  # Disabled by default
+        'industry_concentration': False,
         'high_correlation': True,
+        
+        # Research
         'thesis_conflict': True,
         'no_research': True,
+        
+        # Behavioral - Buy side
         'buying_after_runup': True,
         'chasing_returns': True,
+        'averaging_down': True,
+        'overconfidence': True,
+        
+        # Behavioral - Sell side
+        'selling_winner_early': True,
+        'holding_loser_long': True,
     }
     
     def __init__(self, user_id: int):
@@ -124,12 +205,11 @@ class IntelligenceEngine:
         """
         warnings = []
         
-        # Get company info
         company = Company.query.get(company_id)
         if not company:
             return warnings
         
-        # Run enabled checks
+        # Concentration checks
         if self.ENABLED_RULES.get('position_concentration'):
             warning = self._check_position_concentration(company, amount)
             if warning:
@@ -145,6 +225,7 @@ class IntelligenceEngine:
             if warning:
                 warnings.append(warning)
         
+        # Research checks
         if self.ENABLED_RULES.get('thesis_conflict'):
             warning = self._check_thesis_conflict(company)
             if warning:
@@ -155,6 +236,7 @@ class IntelligenceEngine:
             if warning:
                 warnings.append(warning)
         
+        # Behavioral checks - Buy side
         if self.ENABLED_RULES.get('buying_after_runup'):
             warning = self._check_buying_after_runup(company)
             if warning:
@@ -164,7 +246,18 @@ class IntelligenceEngine:
             warning = self._check_chasing_returns(company, amount)
             if warning:
                 warnings.append(warning)
+        
+        if self.ENABLED_RULES.get('averaging_down'):
+            warning = self._check_averaging_down(company, amount)
+            if warning:
+                warnings.append(warning)
+        
+        if self.ENABLED_RULES.get('overconfidence'):
+            warning = self._check_overconfidence(company)
+            if warning:
+                warnings.append(warning)
 
+        # Correlation check
         if self.ENABLED_RULES.get('high_correlation'):
             warning = self._check_high_correlation(company)
             if warning:
@@ -185,7 +278,6 @@ class IntelligenceEngine:
         """
         warnings = []
         
-        # Check overall portfolio concentration
         positions = self._get_portfolio_positions()
         portfolio_value = self._get_portfolio_value()
         
@@ -236,8 +328,38 @@ class IntelligenceEngine:
         
         return warnings
     
+    def get_behavioral_insights(self) -> List[Warning]:
+        """
+        Get behavioral pattern insights for the user.
+        
+        Analyzes user's trading history to identify behavioral biases.
+        Called from analytics/insights dashboard.
+        
+        Returns:
+            List of behavioral insights/warnings
+        """
+        insights = []
+        
+        # Check overconfidence across all trades
+        if self.ENABLED_RULES.get('overconfidence'):
+            any_company = Company.query.filter_by(user_id=self.user_id).first()
+            if any_company:
+                warning = self._check_overconfidence(any_company)
+                if warning:
+                    insights.append(warning)
+        
+        # Check for losers being held too long
+        if self.ENABLED_RULES.get('holding_loser_long'):
+            positions = self._get_portfolio_positions()
+            for position in positions:
+                warning = self._check_holding_loser_long(position.company)
+                if warning:
+                    insights.append(warning)
+        
+        return insights
+    
     # ═══════════════════════════════════════════════════════════════
-    # INDIVIDUAL CHECKS
+    # CONCENTRATION CHECKS
     # ═══════════════════════════════════════════════════════════════
     
     def _check_position_concentration(self, company, amount: float) -> Optional[Warning]:
@@ -373,6 +495,10 @@ class IntelligenceEngine:
             )
         
         return None
+    
+    # ═══════════════════════════════════════════════════════════════
+    # RESEARCH CHECKS
+    # ═══════════════════════════════════════════════════════════════
     
     def _check_thesis_conflict(self, company) -> Optional[Warning]:
         """Check if new purchase conflicts with existing thesis"""
@@ -513,6 +639,10 @@ class IntelligenceEngine:
                 'ticker': company.ticker_symbol
             }
         )
+
+    # ═══════════════════════════════════════════════════════════════
+    # BEHAVIORAL CHECKS - BUY SIDE
+    # ═══════════════════════════════════════════════════════════════
     
     def _check_buying_after_runup(self, company) -> Optional[Warning]:
         """
@@ -625,14 +755,254 @@ class IntelligenceEngine:
 
         return None
 
+    def _check_averaging_down(self, company, amount: float) -> Optional[Warning]:
+        """Check if user is averaging down into a losing position repeatedly"""
+        positions = self._get_portfolio_positions()
+        existing_position = next((p for p in positions if p.company_id == company.id), None)
+
+        if not existing_position:
+            return None
+
+        current_return = float(existing_position.unrealized_gain_loss_pct or 0)
+
+        if current_return >= 0:
+            return None
+
+        previous_buys = Transaction.query.filter_by(
+            user_id=self.user_id,
+            company_id=company.id,
+            type='BUY'
+        ).count()
+
+        avg_down_threshold = self.THRESHOLDS['averaging_down_count']
+        severe_threshold = self.THRESHOLDS['averaging_down_severe_count']
+
+        if previous_buys >= avg_down_threshold:
+            avg_cost = float(existing_position.average_cost_basis or 0)
+            current_price = float(existing_position.current_price or 0)
+
+            if current_price < avg_cost:
+                severity = 'high' if previous_buys >= severe_threshold else 'medium'
+                
+                ordinal = lambda n: f"{n}{'th' if 11<=n<=13 else {1:'st',2:'nd',3:'rd'}.get(n%10,'th')}"
+
+                return Warning(
+                    code='averaging_down',
+                    severity=severity,
+                    category='behavioral',
+                    title='Repeated Averaging Down',
+                    message=(
+                        f'This would be your {ordinal(previous_buys + 1)} buy into {company.ticker_symbol}, '
+                        f'which is down {abs(current_return):.1f}%. Multiple averaging down often indicates hope over thesis.'
+                    ),
+                    data={
+                        'ticker': company.ticker_symbol,
+                        'current_return': current_return,
+                        'previous_buys': previous_buys,
+                        'avg_cost': avg_cost,
+                        'current_price': current_price,
+                        'adding_amount': amount,
+                        'current_position_value': float(existing_position.current_value or 0)
+                    }
+                )
+
+        return None
+
+    def _check_overconfidence(self, company) -> Optional[Warning]:
+        """Check if user shows overconfidence pattern"""
+        min_trades = self.THRESHOLDS['overconfidence_min_trades']
+        high_confidence = self.THRESHOLDS['overconfidence_high_confidence']
+        poor_outcome_pct = self.THRESHOLDS['overconfidence_poor_outcome_pct']
+        poor_rate_threshold = self.THRESHOLDS['overconfidence_poor_rate_threshold']
+
+        outcomes = ResearchOutcome.query.filter(
+            ResearchOutcome.user_id == self.user_id,
+            ResearchOutcome.realized_return_pct.isnot(None),
+            ResearchOutcome.decision_confidence.isnot(None)
+        ).all()
+
+        if len(outcomes) < min_trades:
+            return None
+
+        high_conf_outcomes = [
+            o for o in outcomes 
+            if o.decision_confidence >= high_confidence
+        ]
+
+        if len(high_conf_outcomes) < 3:
+            return None
+
+        high_conf_returns = [float(o.realized_return_pct) for o in high_conf_outcomes]
+        high_conf_avg = sum(high_conf_returns) / len(high_conf_returns)
+        high_conf_poor = len([r for r in high_conf_returns if r <= poor_outcome_pct])
+        high_conf_poor_rate = high_conf_poor / len(high_conf_outcomes)
+
+        all_returns = [float(o.realized_return_pct) for o in outcomes]
+        all_avg = sum(all_returns) / len(all_returns)
+
+        is_overconfident = (
+            (high_conf_avg < all_avg - 5) or
+            (high_conf_poor_rate > poor_rate_threshold)
+        )
+
+        if is_overconfident:
+            current_journal = DecisionJournal.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                decision_type='BUY',
+                is_portfolio_decision=True
+            ).order_by(DecisionJournal.created_at.desc()).first()
+
+            current_confidence = current_journal.confidence_score if current_journal else None
+            severity = 'medium' if high_conf_poor_rate > 0.5 else 'low'
+
+            return Warning(
+                code='overconfidence_pattern',
+                severity=severity,
+                category='behavioral',
+                title='Overconfidence Pattern Detected',
+                message=(
+                    f'Your high-confidence decisions (8+) have averaged {high_conf_avg:.1f}% returns '
+                    f'vs {all_avg:.1f}% overall. {high_conf_poor_rate*100:.0f}% of high-confidence '
+                    f'trades had poor outcomes. Consider tempering confidence.'
+                ),
+                data={
+                    'high_conf_avg_return': high_conf_avg,
+                    'overall_avg_return': all_avg,
+                    'high_conf_poor_rate': high_conf_poor_rate,
+                    'high_conf_count': len(high_conf_outcomes),
+                    'total_trades': len(outcomes),
+                    'current_confidence': current_confidence,
+                    'confidence_threshold': high_confidence
+                }
+            )
+
+        return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # BEHAVIORAL CHECKS - SELL SIDE
+    # ═══════════════════════════════════════════════════════════════
+    
+    def _check_selling_winner_early(self, company, shares_to_sell: int) -> Optional[Warning]:
+        """Check if user is selling a winning position too early (disposition effect)"""
+        positions = self._get_portfolio_positions()
+        position = next((p for p in positions if p.company_id == company.id), None)
+
+        if not position:
+            return None
+
+        gain_pct = float(position.unrealized_gain_loss_pct or 0)
+        days_held = position.days_held or 0
+
+        winner_threshold = self.THRESHOLDS['winner_threshold_pct']
+        early_sell_days = self.THRESHOLDS['winner_early_sell_days']
+
+        if gain_pct >= winner_threshold and days_held < early_sell_days:
+            is_full_exit = shares_to_sell >= position.total_shares
+
+            journal = DecisionJournal.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                decision_type='BUY',
+                is_portfolio_decision=True
+            ).order_by(DecisionJournal.created_at.desc()).first()
+
+            has_thesis = journal and journal.investment_thesis
+
+            if is_full_exit:
+                severity = 'medium'
+                action_msg = "You're exiting completely."
+            else:
+                severity = 'low'
+                action_msg = f"You're selling {shares_to_sell} of {position.total_shares} shares."
+
+            message = (
+                f'{company.ticker_symbol} is up {gain_pct:.1f}% after only {days_held} days. '
+                f'{action_msg} Winners often keep winning - is your thesis broken, or are you locking in gains too early?'
+            )
+
+            return Warning(
+                code='selling_winner_early',
+                severity=severity,
+                category='behavioral',
+                title='Selling Winner Early?',
+                message=message,
+                data={
+                    'ticker': company.ticker_symbol,
+                    'gain_pct': gain_pct,
+                    'days_held': days_held,
+                    'shares_selling': shares_to_sell,
+                    'total_shares': position.total_shares,
+                    'is_full_exit': is_full_exit,
+                    'has_thesis': has_thesis,
+                    'winner_threshold': winner_threshold,
+                    'early_sell_days': early_sell_days
+                }
+            )
+
+        return None
+    
+    def _check_holding_loser_long(self, company) -> Optional[Warning]:
+        """Check if user has been holding a losing position too long"""
+        positions = self._get_portfolio_positions()
+        position = next((p for p in positions if p.company_id == company.id), None)
+
+        if not position:
+            return None
+
+        loss_pct = float(position.unrealized_gain_loss_pct or 0)
+        days_held = position.days_held or 0
+
+        loser_threshold = self.THRESHOLDS['loser_threshold_pct']
+        hold_days_warning = self.THRESHOLDS['loser_hold_days_warning']
+        severe_days = self.THRESHOLDS['loser_severe_days']
+        severe_pct = self.THRESHOLDS['loser_severe_pct']
+
+        if loss_pct <= loser_threshold and days_held >= hold_days_warning:
+            journal = DecisionJournal.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                decision_type='BUY',
+                is_portfolio_decision=True
+            ).order_by(DecisionJournal.created_at.desc()).first()
+
+            if loss_pct <= severe_pct and days_held >= severe_days:
+                severity = 'high'
+            elif loss_pct <= severe_pct or days_held >= severe_days * 0.75:
+                severity = 'medium'
+            else:
+                severity = 'low'
+
+            return Warning(
+                code='holding_loser_long',
+                severity=severity,
+                category='behavioral',
+                title='Holding Loser Too Long?',
+                message=(
+                    f'{company.ticker_symbol} is down {abs(loss_pct):.1f}% after {days_held} days. '
+                    f'Is your original thesis still valid, or are you hoping it will recover?'
+                ),
+                data={
+                    'ticker': company.ticker_symbol,
+                    'loss_pct': loss_pct,
+                    'days_held': days_held,
+                    'loser_threshold': loser_threshold,
+                    'hold_days_warning': hold_days_warning,
+                    'has_thesis': bool(journal and journal.investment_thesis)
+                },
+                action_url=f'/portfolio/position/{position.id}'
+            )
+
+        return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # CORRELATION CHECK
+    # ═══════════════════════════════════════════════════════════════
+
     def _check_high_correlation(self, company) -> Optional[Warning]:
-        """
-        Check if new stock is highly correlated with existing positions.
-        Uses industry/sector matching and optionally price correlation if yfinance is available.
-        """
+        """Check if new stock is highly correlated with existing positions"""
         positions = self._get_portfolio_positions()
 
-        # Check for same industry (more specific than sector)
         same_industry_positions = []
         same_sector_positions = []
 
@@ -640,14 +1010,11 @@ class IntelligenceEngine:
             if not p.company or p.company_id == company.id:
                 continue
 
-            # Check industry match (most specific)
             if company.industry and p.company.industry == company.industry:
                 same_industry_positions.append(p)
-            # Check sector match (broader)
             elif company.sector and p.company.sector and p.company.sector.id == company.sector.id:
                 same_sector_positions.append(p)
 
-        # Industry concentration is more concerning than sector
         if len(same_industry_positions) >= 2:
             tickers = [p.company.ticker_symbol for p in same_industry_positions[:3]]
             industry_name = company.industry or 'same industry'
@@ -666,7 +1033,6 @@ class IntelligenceEngine:
                 }
             )
 
-        # Sector overlap - less severe but still notable
         if len(same_sector_positions) >= 3:
             tickers = [p.company.ticker_symbol for p in same_sector_positions[:3]]
             sector_name = company.sector.display_name if company.sector else 'same sector'
@@ -728,20 +1094,24 @@ class IntelligenceEngine:
 # ═══════════════════════════════════════════════════════════════
 
 def check_buy_warnings(user_id: int, company_id: int, amount: float) -> List[Warning]:
-    """
-    Check for warnings before a BUY transaction.
-    
-    Convenience function for easy use in routes.
-    """
+    """Check for warnings before a BUY transaction."""
     engine = IntelligenceEngine(user_id)
     return engine.check_buy_transaction(company_id, amount)
 
 
+def check_sell_warnings(user_id: int, company_id: int, shares: int) -> List[Warning]:
+    """Check for warnings before a SELL transaction."""
+    engine = IntelligenceEngine(user_id)
+    return engine.check_sell_transaction(company_id, shares)
+
+
 def get_portfolio_warnings(user_id: int) -> List[Warning]:
-    """
-    Get general portfolio warnings.
-    
-    Convenience function for dashboard display.
-    """
+    """Get general portfolio warnings."""
     engine = IntelligenceEngine(user_id)
     return engine.get_portfolio_warnings()
+
+
+def get_behavioral_insights(user_id: int) -> List[Warning]:
+    """Get behavioral pattern insights for a user."""
+    engine = IntelligenceEngine(user_id)
+    return engine.get_behavioral_insights()

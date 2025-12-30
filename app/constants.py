@@ -162,3 +162,53 @@ DEFAULT_CHASING_RETURNS_CAGR_THRESHOLD = 50.0
 
 DEFAULT_CHASING_RETURNS_MIN_DAYS = 90
 """Minimum holding period before checking CAGR for chasing returns"""
+
+
+
+# ============================================================================
+# BEHAVIORAL PATTERN DETECTION
+# (Part of Intelligence Engine)
+# ============================================================================
+
+# --- Disposition Effect: Selling Winners ---
+DEFAULT_WINNER_THRESHOLD_PCT = 15.0
+"""Position is considered a 'winner' if up 15%+"""
+
+DEFAULT_WINNER_MIN_HOLD_DAYS = 30
+"""Minimum days to hold before 'selling too early' warning applies"""
+
+DEFAULT_WINNER_EARLY_SELL_DAYS = 90
+"""Selling a winner before this many days triggers warning"""
+
+# --- Disposition Effect: Holding Losers ---
+DEFAULT_LOSER_THRESHOLD_PCT = -15.0
+"""Position is considered a 'loser' if down 15%+"""
+
+DEFAULT_LOSER_HOLD_DAYS_WARNING = 180
+"""Days holding a loser before warning about holding too long"""
+
+DEFAULT_LOSER_SEVERE_DAYS = 365
+"""Days holding a loser before high-severity warning"""
+
+DEFAULT_LOSER_SEVERE_PCT = -30.0
+"""Loss % considered severe (for high-severity warning)"""
+
+# --- Averaging Down ---
+DEFAULT_AVERAGING_DOWN_COUNT = 2
+"""Number of previous buys into losing position before warning"""
+
+DEFAULT_AVERAGING_DOWN_SEVERE_COUNT = 4
+"""Number of buys for high-severity warning"""
+
+# --- Overconfidence Detection ---
+DEFAULT_OVERCONFIDENCE_MIN_TRADES = 5
+"""Minimum completed trades needed for overconfidence analysis"""
+
+DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE = 8
+"""Confidence score considered 'high' (8-10 scale)"""
+
+DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT = -10.0
+"""Return % considered a poor outcome for overconfidence analysis"""
+
+DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD = 0.40
+"""% of high-confidence trades with poor outcomes to trigger warning"""

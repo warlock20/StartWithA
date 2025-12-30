@@ -18,6 +18,7 @@ from app.services.currency_service import CurrencyService
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 from app.services.intelligence_engine import IntelligenceEngine
 from app.utils.time_utils import now_utc
+from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 
 logger = logging.getLogger(__name__)
 

@@ -87,6 +87,7 @@ All complex components have been fully modularized.
 @import url('learning-insights.css');             /* Learning insights from portfolio */
 @import url('intelligence-hub.css');              /* Investment intelligence hub */
 @import url('thesis-reality.css');                /* Thesis vs Reality tracker */
+@import url('checkpoints.css');                   /* Checkpoint reminders and tracking */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
 @import url('modules/_profile.css');              /* User profile page */
 @import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */

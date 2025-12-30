@@ -42,7 +42,7 @@
             <div class="col-4">
                 <div class="p-2 rounded bg-light">
                     <div class="fw-bold text-success" style="font-size: 1.5rem;">
-                        {{ checkpoint_summary.upcoming_count }}
+                        {{ checkpoint_summary.this_month_count + checkpoint_summary.next_3_months_count + checkpoint_summary.beyond_count }}
                     </div>
                     <div class="text-muted small">Upcoming</div>
                 </div>
