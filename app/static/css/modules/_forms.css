@@ -11,3 +11,26 @@
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(30, 64, 175, 0.25);
 }
+
+/* =============================================================================
+   THESIS FEEDBACK PANEL (Real-time feedback)
+   ============================================================================= */
+
+.thesis-feedback-panel {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.thesis-elements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.thesis-elements span {
+    font-size: 0.8rem;
+}

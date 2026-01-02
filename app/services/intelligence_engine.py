@@ -1,14 +1,14 @@
 """
 Intelligence Engine
 
-Provides real-time AI-powered warnings and insights during 
+Provides real-time AI-powered warnings and insights during
 research and investment decisions.
 
 Features:
 - Portfolio Conflict Checks (concentration, sector, correlation)
 - Behavioral Pattern Detection (disposition effect, overconfidence, averaging down)
-- Thesis Analysis (future)
-- Similar Past Mistakes (future)
+- Thesis Quality Analysis (AI-powered)
+- Similar Past Mistakes (AI-powered with embeddings)
 
 Usage:
     from app.services.intelligence_engine import IntelligenceEngine
@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 import logging
 
 from app.models.ai_intelligence import ResearchOutcome
+from app.services.thesis_analysis import analyze_thesis
 
 try:
     import yfinance as yf
@@ -35,52 +36,8 @@ except ImportError:
 from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis, Transaction
 from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
-from app.constants import (
-    # Concentration thresholds
-    DEFAULT_POSITION_CONCENTRATION_THRESHOLD,
-    DEFAULT_SECTOR_CONCENTRATION_THRESHOLD,
-    DEFAULT_CORRELATION_THRESHOLD,
-    # Run-up detection
-    DEFAULT_RUNUP_LOOKBACK_DAYS,
-    DEFAULT_RUNUP_THRESHOLD_PCT,
-    # Chasing returns
-    DEFAULT_CHASING_RETURNS_CAGR_THRESHOLD,
-    DEFAULT_CHASING_RETURNS_MIN_DAYS,
-)
-
-# Import behavioral constants if they exist, otherwise use defaults
-try:
-    from app.constants import (
-        DEFAULT_WINNER_THRESHOLD_PCT,
-        DEFAULT_WINNER_MIN_HOLD_DAYS,
-        DEFAULT_WINNER_EARLY_SELL_DAYS,
-        DEFAULT_LOSER_THRESHOLD_PCT,
-        DEFAULT_LOSER_HOLD_DAYS_WARNING,
-        DEFAULT_LOSER_SEVERE_DAYS,
-        DEFAULT_LOSER_SEVERE_PCT,
-        DEFAULT_AVERAGING_DOWN_COUNT,
-        DEFAULT_AVERAGING_DOWN_SEVERE_COUNT,
-        DEFAULT_OVERCONFIDENCE_MIN_TRADES,
-        DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE,
-        DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT,
-        DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD,
-    )
-except ImportError:
-    # Fallback defaults if not yet added to constants.py
-    DEFAULT_WINNER_THRESHOLD_PCT = 15.0
-    DEFAULT_WINNER_MIN_HOLD_DAYS = 30
-    DEFAULT_WINNER_EARLY_SELL_DAYS = 90
-    DEFAULT_LOSER_THRESHOLD_PCT = -15.0
-    DEFAULT_LOSER_HOLD_DAYS_WARNING = 180
-    DEFAULT_LOSER_SEVERE_DAYS = 365
-    DEFAULT_LOSER_SEVERE_PCT = -30.0
-    DEFAULT_AVERAGING_DOWN_COUNT = 2
-    DEFAULT_AVERAGING_DOWN_SEVERE_COUNT = 4
-    DEFAULT_OVERCONFIDENCE_MIN_TRADES = 5
-    DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE = 8
-    DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT = -10.0
-    DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD = 0.40
-    
+from app.services.similar_mistakes import get_similar_mistakes_warnings
+from app.services.config_service import get_config
 from app import db
 
 logger = logging.getLogger(__name__)
@@ -97,60 +54,79 @@ class Warning:
     data: Dict[str, Any] = field(default_factory=dict)  # Supporting data
     action_url: Optional[str] = None  # Link to take action
     dismissible: bool = True     # Can user dismiss this warning?
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to JSON-serializable dictionary"""
+        return {
+            'code': self.code,
+            'severity': self.severity,
+            'category': self.category,
+            'title': self.title,
+            'message': self.message,
+            'data': self.data,
+            'action_url': self.action_url,
+            'dismissible': self.dismissible
+        }
 
 
 class IntelligenceEngine:
     """
     Main Intelligence Engine for generating investment warnings and insights.
-    
-    Currently uses hardcoded thresholds. Will be made configurable later.
+
+    Thresholds are now user-configurable via investment profiles.
     """
-    
+
     # ═══════════════════════════════════════════════════════════════
-    # HARDCODED THRESHOLDS (will be configurable via profiles later)
+    # USER-CONFIGURABLE THRESHOLDS (via investment profiles)
     # ═══════════════════════════════════════════════════════════════
-    
-    THRESHOLDS = {
-        # Concentration warnings
-        'position_concentration_pct': DEFAULT_POSITION_CONCENTRATION_THRESHOLD,
-        'sector_concentration_pct': DEFAULT_SECTOR_CONCENTRATION_THRESHOLD,
-        'industry_concentration_pct': 30.0,  # Not in constants yet
-        
-        # Correlation warnings
-        'high_correlation_threshold': DEFAULT_CORRELATION_THRESHOLD / 100,  # Convert to decimal
-        
-        # Run-up detection
-        'buying_after_runup_pct': DEFAULT_RUNUP_THRESHOLD_PCT,
-        'runup_lookback_days': DEFAULT_RUNUP_LOOKBACK_DAYS,
-        
-        # Chasing returns
-        'chasing_returns_cagr_threshold': DEFAULT_CHASING_RETURNS_CAGR_THRESHOLD,
-        'chasing_returns_min_days': DEFAULT_CHASING_RETURNS_MIN_DAYS,
-        
-        # Disposition effect - selling winners
-        'winner_threshold_pct': DEFAULT_WINNER_THRESHOLD_PCT,
-        'winner_min_hold_days': DEFAULT_WINNER_MIN_HOLD_DAYS,
-        'winner_early_sell_days': DEFAULT_WINNER_EARLY_SELL_DAYS,
-        
-        # Disposition effect - holding losers
-        'loser_threshold_pct': DEFAULT_LOSER_THRESHOLD_PCT,
-        'loser_hold_days_warning': DEFAULT_LOSER_HOLD_DAYS_WARNING,
-        'loser_severe_days': DEFAULT_LOSER_SEVERE_DAYS,
-        'loser_severe_pct': DEFAULT_LOSER_SEVERE_PCT,
-        
-        # Averaging down
-        'averaging_down_count': DEFAULT_AVERAGING_DOWN_COUNT,
-        'averaging_down_severe_count': DEFAULT_AVERAGING_DOWN_SEVERE_COUNT,
-        
-        # Overconfidence
-        'overconfidence_min_trades': DEFAULT_OVERCONFIDENCE_MIN_TRADES,
-        'overconfidence_high_confidence': DEFAULT_OVERCONFIDENCE_HIGH_CONFIDENCE,
-        'overconfidence_poor_outcome_pct': DEFAULT_OVERCONFIDENCE_POOR_OUTCOME_PCT,
-        'overconfidence_poor_rate_threshold': DEFAULT_OVERCONFIDENCE_POOR_RATE_THRESHOLD,
-        
-        # Research warnings
-        'no_research_warning': True,
-    }
+
+    @property
+    def THRESHOLDS(self) -> Dict[str, Any]:
+        """
+        Get user-specific thresholds from their investment profile.
+        Falls back to hardcoded defaults if not in database.
+        """
+        return {
+            # Concentration warnings
+            'position_concentration_pct': get_config('position_concentration_pct', self.user_id, 25.0),
+            'sector_concentration_pct': get_config('sector_concentration_pct', self.user_id, 40.0),
+            'industry_concentration_pct': get_config('industry_concentration_pct', self.user_id, 30.0),
+
+            # Correlation warnings
+            'high_correlation_threshold': get_config('correlation_threshold', self.user_id, 70.0) / 100,  # Convert to decimal
+
+            # Run-up detection
+            'buying_after_runup_pct': get_config('buying_after_runup_pct', self.user_id, 30.0),
+            'runup_lookback_days': get_config('runup_lookback_days', self.user_id, 90),
+
+            # Chasing returns
+            'chasing_returns_cagr_threshold': get_config('chasing_returns_cagr_threshold', self.user_id, 50.0),
+            'chasing_returns_min_days': get_config('chasing_returns_min_days', self.user_id, 90),
+
+            # Disposition effect - selling winners
+            'winner_threshold_pct': get_config('selling_winners_early_pct', self.user_id, 15.0),
+            'winner_min_hold_days': get_config('min_hold_days_for_pattern', self.user_id, 30),
+            'winner_early_sell_days': get_config('winner_early_sell_days', self.user_id, 90),
+
+            # Disposition effect - holding losers
+            'loser_threshold_pct': get_config('holding_losers_threshold_pct', self.user_id, -15.0),
+            'loser_hold_days_warning': get_config('loser_hold_days_warning', self.user_id, 180),
+            'loser_severe_days': get_config('loser_severe_days', self.user_id, 365),
+            'loser_severe_pct': get_config('loser_severe_pct', self.user_id, -30.0),
+
+            # Averaging down
+            'averaging_down_count': get_config('averaging_down_count', self.user_id, 2),
+            'averaging_down_severe_count': get_config('averaging_down_severe_count', self.user_id, 4),
+
+            # Overconfidence
+            'overconfidence_min_trades': get_config('overconfidence_threshold', self.user_id, 5),
+            'overconfidence_high_confidence': get_config('overconfidence_high_confidence', self.user_id, 8),
+            'overconfidence_poor_outcome_pct': get_config('overconfidence_poor_outcome_pct', self.user_id, -10.0),
+            'overconfidence_poor_rate_threshold': get_config('overconfidence_poor_rate_threshold', self.user_id, 0.40),
+
+            # Research warnings
+            'no_research_warning': True,
+        }
     
     # Enabled rules (will be per-user configurable later)
     ENABLED_RULES = {
@@ -159,20 +135,24 @@ class IntelligenceEngine:
         'sector_concentration': True,
         'industry_concentration': False,
         'high_correlation': True,
-        
+
         # Research
         'thesis_conflict': True,
+        'thesis_quality':True,
         'no_research': True,
-        
+
         # Behavioral - Buy side
         'buying_after_runup': True,
         'chasing_returns': True,
         'averaging_down': True,
         'overconfidence': True,
-        
+
         # Behavioral - Sell side
         'selling_winner_early': True,
         'holding_loser_long': True,
+
+        # AI-powered insights
+        'similar_past_mistakes': True,
     }
     
     def __init__(self, user_id: int):
@@ -236,6 +216,19 @@ class IntelligenceEngine:
             if warning:
                 warnings.append(warning)
         
+        if self.ENABLED_RULES.get('thesis_quality'):
+            journal = DecisionJournal.query.filter_by(
+                user_id=self.user_id,
+                company_id=company.id,
+                decision_type='BUY',
+                is_portfolio_decision=True
+            ).order_by(DecisionJournal.created_at.desc()).first()
+            
+            if journal and journal.investment_thesis:
+                warning = self._check_thesis_quality(company, journal.investment_thesis)
+                if warning:
+                    warnings.append(warning)
+        
         # Behavioral checks - Buy side
         if self.ENABLED_RULES.get('buying_after_runup'):
             warning = self._check_buying_after_runup(company)
@@ -256,6 +249,11 @@ class IntelligenceEngine:
             warning = self._check_overconfidence(company)
             if warning:
                 warnings.append(warning)
+
+        # Similar past mistakes check (AI-powered)
+        if self.ENABLED_RULES.get('similar_past_mistakes'):
+            similar_warnings = self._check_similar_mistakes(company)
+            warnings.extend(similar_warnings)
 
         # Correlation check
         if self.ENABLED_RULES.get('high_correlation'):
@@ -1053,6 +1051,208 @@ class IntelligenceEngine:
 
         return None
     
+    # ═══════════════════════════════════════════════════════════════
+    # THESIS QUALITY CHECK
+    # ═══════════════════════════════════════════════════════════════
+    
+    def _check_thesis_quality(self, company, thesis: str) -> Optional[Warning]:
+        """
+        Check thesis quality and return warning if weak.
+        
+        Args:
+            company: Company being purchased
+            thesis: Investment thesis text
+        
+        Returns:
+            Warning if thesis is weak
+        """
+        
+        if not thesis or len(thesis.strip()) < 20:
+            return Warning(
+                code='thesis_too_short',
+                severity='high',
+                category='research',
+                title='Thesis Too Brief',
+                message=f'Your thesis for {company.ticker_symbol} is very short. A well-documented thesis helps with discipline.',
+                data={
+                    'ticker': company.ticker_symbol,
+                    'word_count': len(thesis.split()) if thesis else 0,
+                    'minimum_recommended': 50
+                }
+            )
+        
+        try:
+            result = analyze_thesis(
+                thesis=thesis,
+                company_name=company.name,
+                ticker=company.ticker_symbol,
+                sector=company.sector.display_name if company.sector else None
+            )
+
+            # Positive feedback for strong thesis (optional, info level)
+            if result.quality_score >= 80:
+                return Warning(
+                    code='strong_thesis',
+                    severity='info',
+                    category='research',
+                    title='Well-Researched Thesis',
+                    message=f'Your thesis for {company.ticker_symbol} scored {result.quality_score}/100 (Grade: {result.quality_grade}). Strong analytical foundation detected.',
+                    data={
+                        'ticker': company.ticker_symbol,
+                        'quality_score': result.quality_score,
+                        'quality_grade': result.quality_grade,
+                        'strengths': result.strengths[:3],
+                    },
+                    dismissible=True
+                )
+
+            # Warn if thesis quality is poor
+            if result.quality_score < 60:
+                severity = 'high' if result.quality_score < 40 else 'medium'
+
+                # Build comprehensive message with top issues
+                issues = result.weaknesses[:2] + result.missing_elements[:2]
+                issues_text = '. '.join(issues[:3]) if issues else 'Several areas need improvement.'
+
+                # Add strengths context if any
+                strengths_context = ''
+                if result.strengths:
+                    strengths_context = f' Good points: {", ".join(result.strengths[:2])}.'
+
+                return Warning(
+                    code='weak_thesis',
+                    severity=severity,
+                    category='research',
+                    title='Weak Investment Thesis',
+                    message=f'Your thesis for {company.ticker_symbol} scored {result.quality_score}/100 (Grade: {result.quality_grade}). {issues_text}{strengths_context}',
+                    data={
+                        'ticker': company.ticker_symbol,
+                        'quality_score': result.quality_score,
+                        'quality_grade': result.quality_grade,
+                        'strengths': result.strengths,
+                        'weaknesses': result.weaknesses,
+                        'missing_elements': result.missing_elements,
+                        'risk_flags': result.risk_flags if hasattr(result, 'risk_flags') else [],
+                        'suggested_questions': result.suggested_questions,
+                        'word_count': result.word_count if hasattr(result, 'word_count') else len(thesis.split()),
+                        'has_risks': result.has_risks
+                    }
+                )
+            
+            # Warn about detected biases
+            if result.detected_biases and result.quality_score < 80:
+                bias_names = [b['bias_type'].replace('_', ' ').title() for b in result.detected_biases[:2]]
+                bias_count = len(result.detected_biases)
+
+                # Build detailed bias message
+                bias_details = []
+                for bias in result.detected_biases[:2]:
+                    if 'evidence' in bias:
+                        bias_details.append(f"{bias['bias_type'].replace('_', ' ').title()}: {bias['evidence'][:80]}")
+                    else:
+                        bias_details.append(bias['bias_type'].replace('_', ' ').title())
+
+                details_text = '. '.join(bias_details) if bias_details else ', '.join(bias_names)
+
+                return Warning(
+                    code='thesis_bias_detected',
+                    severity='medium' if bias_count >= 3 else 'low',
+                    category='behavioral',
+                    title='Potential Cognitive Biases Detected',
+                    message=f'Your thesis for {company.ticker_symbol} may show {bias_count} bias{"es" if bias_count > 1 else ""}: {details_text}. Consider reviewing objectively.',
+                    data={
+                        'ticker': company.ticker_symbol,
+                        'detected_biases': result.detected_biases,
+                        'bias_count': bias_count,
+                        'quality_score': result.quality_score
+                    }
+                )
+            
+            # Warn if high confidence but no risks documented
+            if not result.has_risks:
+                return Warning(
+                    code='no_risks_documented',
+                    severity='low',
+                    category='research',
+                    title='No Risks Documented',
+                    message=f'Your thesis for {company.ticker_symbol} doesn\'t mention any risks. Every investment has risks.',
+                    data={
+                        'ticker': company.ticker_symbol,
+                        'suggested_questions': ['What could go wrong?', 'What would make you sell?']
+                    }
+                )
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Failed to analyze thesis: {e}")
+            return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # SIMILAR PAST MISTAKES CHECK (AI-POWERED)
+    # ═══════════════════════════════════════════════════════════════
+
+    def _check_similar_mistakes(self, company) -> List[Warning]:
+        """
+        Check for similar past mistakes using embeddings.
+
+        Uses AI embeddings to find semantically similar past investment
+        decisions and their outcomes, helping users learn from their history.
+
+        Args:
+            company: Company being purchased
+
+        Returns:
+            List of Warning objects based on similar past decisions
+        """
+        warnings = []
+
+        # Get current thesis
+        journal = DecisionJournal.query.filter_by(
+            user_id=self.user_id,
+            company_id=company.id,
+            decision_type='BUY',
+            is_portfolio_decision=True
+        ).order_by(DecisionJournal.created_at.desc()).first()
+
+        if not journal or not journal.investment_thesis:
+            return warnings
+
+        thesis = journal.investment_thesis
+
+        # Minimum thesis length for meaningful embedding
+        if len(thesis.strip()) < 20:
+            return warnings
+
+        try:
+            # Get warnings from similar mistakes service
+            warning_dicts = get_similar_mistakes_warnings(
+                user_id=self.user_id,
+                thesis=thesis,
+                company_id=company.id,
+                company=company
+            )
+
+            # Convert warning dicts to Warning objects
+            for warning_dict in warning_dicts:
+                warnings.append(Warning(
+                    code=warning_dict['code'],
+                    severity=warning_dict['severity'],
+                    category=warning_dict['category'],
+                    title=warning_dict['title'],
+                    message=warning_dict['message'],
+                    data=warning_dict['data'],
+                    action_url=warning_dict.get('action_url'),
+                    dismissible=warning_dict.get('dismissible', True)
+                ))
+
+            logger.debug(f"Similar mistakes check found {len(warnings)} warnings")
+
+        except Exception as e:
+            logger.warning(f"Failed to check similar mistakes: {e}")
+
+        return warnings
+
     # ═══════════════════════════════════════════════════════════════
     # HELPER METHODS
     # ═══════════════════════════════════════════════════════════════

@@ -9,7 +9,6 @@ from app.services.sector_service import SectorService
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
 from sqlalchemy import func
-from datetime import datetime
 import re
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
@@ -677,7 +676,7 @@ def mark_source_accessed(source_id):
     if source.sector_analysis.author != current_user:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    source.accessed_at = datetime.utcnow()
+    source.accessed_at = now_utc()
     db.session.commit()
 
     return jsonify({'success': True})
@@ -1065,7 +1064,7 @@ def save_research_notes(sector_name):
     if takeaways is not None:
         analysis.key_takeaways = takeaways
 
-    analysis.updated_at = datetime.utcnow()
+    analysis.updated_at = now_utc()
 
     try:
         db.session.commit()
@@ -1131,7 +1130,7 @@ def archive_sector(sector_name):
     analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     analysis.status = 'archived'
-    analysis.archived_at = datetime.utcnow()
+    analysis.archived_at = now_utc()
     db.session.commit()
 
     flash(f'{sector.display_name} sector research archived', 'success')

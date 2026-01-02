@@ -25,13 +25,10 @@ template: |
   DETECTED PATTERN: {pattern_type}
 
   PATTERN DATA:
-  {pattern_data_json}
+  {pattern_data}
 
   USER CONTEXT:
-  - Investment experience: {experience_level}
-  - Portfolio size: {portfolio_size}
-  - Investment style: {investment_style}
-  - Typical holding period: {holding_period}
+  {user_context}
 
   Write a brief (2-3 paragraph), friendly explanation that:
   1. Explains what this pattern means in plain English

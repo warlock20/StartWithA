@@ -11,15 +11,15 @@
             <h1 class="dashboard-title font-poppins">
                 <i class="text-primary"></i>{{ company.ticker_symbol }} - {{ company.name }}
             </h1>
-            <p class="dashboard-subtitle">Tracking the long-term investment thesis for <span
+            <p class="dashboard-subtitle">Activites for <span
                     class="fw-semibold text-dark">{{ company.name }} ({{ company.ticker_symbol }}) {% if company.sector
                     %}{{ company.sector.name }}{% endif %}
                     {% if company.industry %} / {{ company.industry }}{% endif %}</span></p>
         </div>
         <div class="dashboard-header-actions">
-            {% with btn_class='btn btn-outline-secondary' %}
-            {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Portfolio Dashboard
+            </a>
         </div>
 
     </div>

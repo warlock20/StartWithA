@@ -287,6 +287,16 @@
                                     <span class="text-danger ms-2" id="thesis_warning" style="display:none;">Minimum 20
                                         words required</span>
                                 </div>
+
+                                <!-- Real-time Thesis Feedback -->
+                                <div id="thesis-feedback"></div>
+
+                                <!-- Full AI Thesis Analysis -->
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2"
+                                        onclick="runFullThesisAnalysis()" id="analyze-thesis-btn">
+                                    <i class="bi bi-robot"></i> Analyze Thesis with AI
+                                </button>
+                                <div id="full-thesis-analysis" class="mt-3"></div>
                             </div>
 
                             <!-- Research Source -->
@@ -1024,5 +1034,205 @@
     });
 </script>
 
+<!-- ============================================================
+     REAL-TIME THESIS FEEDBACK
+     ============================================================ -->
+<script>
+// Real-time thesis quality feedback
+let thesisCheckTimeout;
+
+function checkThesisQuality() {
+    const thesisInput = document.getElementById('investment_thesis');
+    const feedbackDiv = document.getElementById('thesis-feedback');
+
+    if (!thesisInput || !feedbackDiv) return;
+
+    const thesis = thesisInput.value.trim();
+
+    if (thesis.length < 10) {
+        feedbackDiv.innerHTML = '';
+        return;
+    }
+
+    // Debounce
+    clearTimeout(thesisCheckTimeout);
+    thesisCheckTimeout = setTimeout(() => {
+        fetch("{{ url_for('portfolio.quick_thesis_check') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thesis: thesis })
+        })
+        .then(response => response.json())
+        .then(data => {
+            renderThesisFeedback(data, feedbackDiv);
+        })
+        .catch(err => console.error('Thesis check failed:', err));
+    }, 500);
+}
+
+function renderThesisFeedback(data, container) {
+    const wordCount = data.word_count || 0;
+    const elements = data.elements_detected || 0;
+    const hasMinLength = data.has_minimum_length;
+
+    let html = '<div class="thesis-feedback-panel">';
+
+    // Word count indicator
+    let wordClass = wordCount >= 100 ? 'text-success' : (wordCount >= 50 ? 'text-warning' : 'text-danger');
+    html += `<span class="${wordClass}"><i class="bi bi-file-text"></i> ${wordCount} words</span>`;
+
+    // Elements checklist
+    html += '<div class="thesis-elements mt-2">';
+    html += renderElementCheck('Valuation', data.has_valuation);
+    html += renderElementCheck('Risks', data.has_risks);
+    html += renderElementCheck('Catalysts', data.has_catalysts);
+    html += renderElementCheck('Exit Criteria', data.has_exit_criteria);
+    html += '</div>';
+
+    // Quick score
+    if (wordCount >= 20) {
+        const scoreClass = data.quick_score >= 70 ? 'text-success' : (data.quick_score >= 50 ? 'text-warning' : 'text-danger');
+        html += `<div class="mt-2 ${scoreClass}"><strong>Quick Score: ${data.quick_score}/100</strong></div>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function renderElementCheck(name, hasIt) {
+    const icon = hasIt ? 'check-circle-fill text-success' : 'circle text-muted';
+    return `<span class="me-3"><i class="bi bi-${icon}"></i> ${name}</span>`;
+}
+
+// Attach listener
+document.addEventListener('DOMContentLoaded', function() {
+    const thesisInput = document.getElementById('investment_thesis');
+    if (thesisInput) {
+        thesisInput.addEventListener('input', checkThesisQuality);
+    }
+});
+</script>
+
+<!-- ============================================================
+     FULL THESIS ANALYSIS (AI-powered comprehensive analysis)
+     ============================================================ -->
+<script>
+function runFullThesisAnalysis() {
+    const thesisInput = document.getElementById('investment_thesis');
+    const companySelect = document.getElementById('company_id');
+    const confidenceInput = document.getElementById('confidence_score');
+    const expectedReturnInput = document.getElementById('expected_return');
+    const expectedTimeframeInput = document.getElementById('expected_timeframe');
+    const resultDiv = document.getElementById('full-thesis-analysis');
+    const btn = document.getElementById('analyze-thesis-btn');
+
+    const thesis = thesisInput?.value?.trim();
+    if (!thesis || thesis.length < 20) {
+        alert('Please enter at least 20 words for your thesis.');
+        return;
+    }
+
+    // Show loading
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analyzing...';
+    resultDiv.innerHTML = '';
+
+    fetch("{{ url_for('portfolio.analyze_investment_thesis') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            thesis: thesis,
+            company_id: companySelect?.value,
+            confidence_score: confidenceInput?.value ? parseInt(confidenceInput.value) : null,
+            expected_return: expectedReturnInput?.value ? parseFloat(expectedReturnInput.value) : null,
+            expected_timeframe: expectedTimeframeInput?.value ? parseInt(expectedTimeframeInput.value) : null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-robot"></i> Analyze Thesis with AI';
+
+        if (data.success) {
+            renderFullAnalysis(data.analysis, resultDiv);
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">${data.error || 'Analysis failed'}</div>`;
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-robot"></i> Analyze Thesis with AI';
+        console.error('Analysis failed:', err);
+        resultDiv.innerHTML = '<div class="alert alert-danger">Analysis failed. Please try again.</div>';
+    });
+}
+
+function renderFullAnalysis(analysis, container) {
+    const gradeColors = { A: 'success', B: 'primary', C: 'warning', D: 'warning', F: 'danger' };
+    const gradeColor = gradeColors[analysis.quality_grade] || 'secondary';
+
+    let html = `
+        <div class="card border-${gradeColor}">
+            <div class="card-header bg-${gradeColor} bg-opacity-10 d-flex justify-content-between align-items-center">
+                <span><strong>Thesis Analysis</strong></span>
+                <span class="badge bg-${gradeColor} fs-6">${analysis.quality_grade} - ${analysis.quality_score}/100</span>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">${analysis.summary}</p>
+    `;
+
+    // Strengths
+    if (analysis.strengths?.length) {
+        html += '<h6 class="text-success"><i class="bi bi-check-circle"></i> Strengths</h6><ul class="small">';
+        analysis.strengths.forEach(s => html += `<li>${escapeHtml(s)}</li>`);
+        html += '</ul>';
+    }
+
+    // Weaknesses
+    if (analysis.weaknesses?.length) {
+        html += '<h6 class="text-warning"><i class="bi bi-exclamation-triangle"></i> Areas to Improve</h6><ul class="small">';
+        analysis.weaknesses.forEach(w => html += `<li>${escapeHtml(w)}</li>`);
+        html += '</ul>';
+    }
+
+    // Risk flags
+    if (analysis.risk_flags?.length) {
+        html += '<h6 class="text-danger"><i class="bi bi-flag"></i> Risk Flags</h6><ul class="small">';
+        analysis.risk_flags.forEach(r => html += `<li>${escapeHtml(r)}</li>`);
+        html += '</ul>';
+    }
+
+    // Missing elements
+    if (analysis.missing_elements?.length) {
+        html += '<h6 class="text-muted"><i class="bi bi-clipboard-x"></i> Missing Elements</h6><ul class="small">';
+        analysis.missing_elements.forEach(m => html += `<li>${escapeHtml(m)}</li>`);
+        html += '</ul>';
+    }
+
+    // Suggested questions
+    if (analysis.suggested_questions?.length) {
+        html += '<h6 class="text-info"><i class="bi bi-question-circle"></i> Questions to Consider</h6><ul class="small">';
+        analysis.suggested_questions.forEach(q => html += `<li>${escapeHtml(q)}</li>`);
+        html += '</ul>';
+    }
+
+    // Detected biases
+    if (analysis.detected_biases?.length) {
+        html += '<h6 class="text-warning"><i class="bi bi-brain"></i> Potential Biases Detected</h6><ul class="small">';
+        analysis.detected_biases.forEach(bias => {
+            const biasName = bias.bias_type ? bias.bias_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Unknown';
+            html += `<li><strong>${biasName}:</strong> ${escapeHtml(bias.description || bias.suggestion || '')}`;
+            if (bias.trigger) {
+                html += ` <span class="text-muted">(triggered by: "${escapeHtml(bias.trigger)}")</span>`;
+            }
+            html += '</li>';
+        });
+        html += '</ul>';
+    }
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+</script>
 
 {% endblock %}

@@ -1,27 +1,25 @@
 # AI Intelligence - Warning Generation
-# Generate contextual warnings based on detected patterns from user history
+# Generate contextual investment warnings based on detected patterns
 
 name: "warning_generation"
-description: "Generate helpful warnings when patterns match past mistakes or risky behaviors"
+description: "Create helpful, non-judgmental warnings based on behavioral patterns and historical data"
 version: "1.0"
 category: "intelligence"
 
 # AI Provider Configuration
 preferred_provider: "claude"
 model: "claude-sonnet-4-20250514"
-max_tokens: 1000
-temperature: 0.4
+max_tokens: 800
+temperature: 0.5
 
-last_modified: "2025-12-22"
+last_modified: "2026-01-02"
 
 system_context: |
   You are a thoughtful investment advisor helping an investor avoid repeating past mistakes.
-  Your role is to provide gentle, non-judgmental warnings that reference specific past experiences
-  and suggest concrete actions. Be encouraging and collaborative, not critical or discouraging.
+  Your warnings should be supportive and actionable, not judgmental.
+  Focus on specific evidence and concrete suggestions.
 
 template: |
-  You are helping an investor who may be repeating a past pattern.
-
   CURRENT SITUATION:
   {situation_description}
   Company: {company_name}
@@ -34,37 +32,33 @@ template: |
   - Past similar situations: {similar_situations}
   - Outcomes in similar cases: {outcomes}
   - Common mistakes: {common_mistakes}
-  - Success patterns: {success_patterns}
 
-  Generate a helpful warning that:
-  1. Clearly explains the concern without being alarmist
-  2. References specific past experience if relevant
-  3. Suggests a concrete, actionable next step
-  4. Is encouraging and supportive, not discouraging
-  5. Uses "we" language to feel collaborative
-
-  Respond in JSON format with keys: title, warning_text, severity (low/medium/high), evidence (list), suggested_action, related_past_mistakes (list)
+  Generate a helpful, non-judgmental warning as JSON with:
+  {{
+      "title": "<Clear, concise title>",
+      "warning_text": "<Explanation of the concern in 2-3 sentences>",
+      "severity": "<low|medium|high>",
+      "evidence": ["<specific evidence point 1>", "<evidence 2>", ...],
+      "suggested_action": "<One concrete action to take>",
+      "related_past_mistakes": ["<relevant past mistake 1>", ...]
+  }}
 
 examples:
-  - "Title: Consider the timing - this feels similar to the XYZ situation"
-  - "Severity: medium"
-  - "Evidence: Last 3 tech investments made during market euphoria underperformed by 35%"
-  - "Suggested action: Wait 48 hours and review the thesis with fresh eyes"
-  - "Warning text: We've noticed you tend to move quickly when excited about a company story..."
+  - "Pattern: You've sold 3 similar growth stocks after 15% gains, all went on to 50%+ gains"
+  - "Pattern: 4 of 5 purchases in this sector resulted in losses averaging -18%"
+  - "Pattern: Adding to losing positions - 3 times in 6 months, average outcome -25%"
 
 output_format: |
-  {
-    "title": "string (concise, non-judgmental)",
-    "warning_text": "string (2-3 paragraphs, supportive tone)",
-    "severity": "low|medium|high",
-    "evidence": ["evidence1", "evidence2", "evidence3"],
-    "suggested_action": "string (specific, actionable)",
-    "related_past_mistakes": ["mistake_id_1", "mistake_id_2"]
-  }
+  JSON object with:
+  - title: string
+  - warning_text: string (2-3 sentences)
+  - severity: "low" | "medium" | "high"
+  - evidence: array of strings
+  - suggested_action: string
+  - related_past_mistakes: array of strings
 
 tuning_notes: |
-  - Slightly higher temperature for empathetic, human tone
-  - Never use fear-based language or be judgmental
-  - Always suggest what TO DO, not just what to avoid
-  - Reference specific past situations when possible
-  - Severity should match actual risk level, not be inflated
+  - Be specific with evidence - reference actual numbers and outcomes
+  - Suggested actions should be concrete and actionable
+  - Tone should be collaborative ("we noticed", "consider") not critical
+  - Severity mapping: low = FYI, medium = worth pausing, high = strong caution

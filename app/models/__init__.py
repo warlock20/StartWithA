@@ -83,6 +83,15 @@ from .ai_intelligence import (
     EmbeddingStore,
     MLPredictionLog,
 )
+from .configuration import (
+    SystemConfig,
+    InvestorProfile,
+    UserInvestmentProfile,
+)
+from .prompt_management import (
+    PromptVersion,
+    PromptUsageLog,
+)
 
 
 
@@ -167,4 +176,11 @@ __all__ = [
     'AIInsight',
     'EmbeddingStore',
     'MLPredictionLog',
+    # Configuration models
+    'SystemConfig',
+    'InvestorProfile',
+    'UserInvestmentProfile',
+    # Prompt Management models
+    'PromptVersion',
+    'PromptUsageLog',
 ]

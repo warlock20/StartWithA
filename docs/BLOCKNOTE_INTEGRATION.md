@@ -134,7 +134,7 @@ def save_notes(note_id):
     data = request.get_json()
 
     note.content = data.get('content', '')
-    note.updated_at = datetime.utcnow()
+    note.updated_at = now_utc()
 
     db.session.commit()
 

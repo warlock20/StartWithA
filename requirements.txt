@@ -23,3 +23,6 @@ authlib>=1.2.0
 python-jose[cryptography]>=3.3.0
 pgvector>=0.4.0
 anthropic>=0.40.0
+scikit-learn
+sentence-transformers
+flask-admin

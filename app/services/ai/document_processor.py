@@ -9,7 +9,7 @@ Classes:
 """
 
 import logging
-import time
+from app.utils.time_utils import now_utc
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -133,7 +133,7 @@ class LLMChecklistProcessor:
         approach: ProcessingApproach = ProcessingApproach.IMMEDIATE
     ) -> ProcessingResult:
         """Convert document text to checklist"""
-        start_time = time.time()
+        start_time = now_utc()
 
         if not self.ai.is_available():
             return ProcessingResult(
@@ -142,7 +142,7 @@ class LLMChecklistProcessor:
                 suggested_name="",
                 suggested_description="",
                 error_message="AI service not available",
-                processing_time=time.time() - start_time
+                processing_time=now_utc() - start_time
             )
 
         try:
@@ -155,7 +155,7 @@ class LLMChecklistProcessor:
                 items=items,
                 suggested_name=response.get('suggested_name', 'Imported Checklist'),
                 suggested_description=response.get('suggested_description', ''),
-                processing_time=time.time() - start_time
+                processing_time=now_utc() - start_time
             )
 
         except Exception as e:
@@ -166,7 +166,7 @@ class LLMChecklistProcessor:
                 suggested_name="",
                 suggested_description="",
                 error_message=str(e),
-                processing_time=time.time() - start_time
+                processing_time=now_utc() - start_time
             )
 
     def _create_prompt(self, document_text: str, approach: ProcessingApproach) -> str:

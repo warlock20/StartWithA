@@ -1,0 +1,84 @@
+# AI Intelligence - Investment Thesis Analysis (Simplified)
+# Lightweight thesis analysis without requiring research system integration
+
+name: "thesis_analysis_simple"
+description: "Analyze investment thesis quality without full research context"
+version: "1.0"
+category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"
+model: "claude-sonnet-4-20250514"
+max_tokens: 2000
+temperature: 0.3
+
+last_modified: "2026-01-01"
+
+system_context: |
+  You are an expert investment analyst who reviews investment theses.
+  Provide constructive feedback that helps investors improve their research quality.
+  Be direct but supportive, focusing on blind spots and logical gaps.
+
+template: |
+  Analyze this investment thesis and provide structured feedback.
+
+  CONTEXT:
+  {context_info}
+
+  THESIS:
+  {thesis_text}
+
+  Scoring guidelines:
+  - 90-100: Comprehensive thesis with valuation, risks, catalysts, and exit criteria
+  - 80-89: Strong thesis with most key elements
+  - 70-79: Decent thesis but missing some important elements
+  - 60-69: Basic thesis with significant gaps
+  - Below 60: Incomplete or poorly reasoned thesis
+
+  Analyze the thesis and respond with a JSON object containing:
+  {{
+      "quality_score": <0-100 integer>,
+      "summary": "<1-2 sentence assessment>",
+      "strengths": ["<strength 1>", "<strength 2>", ...],
+      "weaknesses": ["<weakness 1>", "<weakness 2>", ...],
+      "risk_flags": ["<red flag 1>", ...],
+      "suggested_questions": ["<question to consider 1>", "<question 2>", ...],
+      "missing_elements": ["<missing element 1>", ...],
+      "detected_biases": [
+          {{"bias_type": "<type>", "evidence": "<quote from thesis>", "suggestion": "<how to address>"}}
+      ],
+      "has_valuation": <true/false>,
+      "has_risks": <true/false>,
+      "has_catalysts": <true/false>,
+      "has_exit_criteria": <true/false>
+  }}
+
+  Be constructive but honest. Focus on actionable improvements.
+
+examples:
+  - "Strength: Clearly identifies competitive moat through network effects"
+  - "Weakness: Revenue projections assume market growth without supporting data"
+  - "Missing element: Valuation analysis (PE ratio, DCF, price target)"
+  - "Risk flag: Very high confidence without documented risks - possible overconfidence"
+
+output_format: |
+  {
+    "quality_score": 75,
+    "summary": "Solid thesis covering fundamentals but lacks exit criteria.",
+    "strengths": [...],
+    "weaknesses": [...],
+    "risk_flags": [...],
+    "suggested_questions": [...],
+    "missing_elements": [...],
+    "detected_biases": [...],
+    "has_valuation": true,
+    "has_risks": true,
+    "has_catalysts": false,
+    "has_exit_criteria": false
+  }
+
+tuning_notes: |
+  - Lower temperature (0.3) for consistent analytical output
+  - Context field allows optional company/sector information
+  - Biases should be specific with evidence quotes
+  - Risk flags should be evidence-based, not generic

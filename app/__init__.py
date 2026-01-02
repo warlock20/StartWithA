@@ -33,6 +33,10 @@ def create_app(config_class=Config):
 
     celery.conf.update(app.config)
 
+    # Initialize Flask-Admin
+    from app.admin import init_admin
+    init_admin(app)
+
     # (Blueprint registrations remain the same)
     from app.auth import auth_bp
     app.register_blueprint(auth_bp)
@@ -68,6 +72,8 @@ def create_app(config_class=Config):
     app.register_blueprint(api_bp)
     from app.portfolio import portfolio_bp
     app.register_blueprint(portfolio_bp)
+    from app.settings.profile_routes import profile_bp
+    app.register_blueprint(profile_bp)
 
     # Add custom template filters
     @app.template_filter('nl2br')

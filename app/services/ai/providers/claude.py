@@ -28,6 +28,9 @@ from typing import Dict, List, Optional, Any
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
+from ..prompt_service import get_intelligence_prompt
+from ..analytics import log_prompt_usage
+from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +146,8 @@ class ClaudeProvider(AIProvider):
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         system_prompt: Optional[str] = None,
+        prompt_name: Optional[str] = None,
+        prompt_version: str = "1.0",
         **kwargs
     ) -> str:
         """
@@ -153,6 +158,8 @@ class ClaudeProvider(AIProvider):
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (0-1)
             system_prompt: System prompt for context (optional)
+            prompt_name: Name of the prompt for analytics (optional)
+            prompt_version: Version of the prompt (default: "1.0")
             **kwargs: Additional parameters
 
         Returns:
@@ -164,6 +171,14 @@ class ClaudeProvider(AIProvider):
                 "Check ANTHROPIC_API_KEY environment variable."
             )
 
+        # Start timing
+        start_time = now_utc()
+        input_tokens = None
+        output_tokens = None
+        success = True
+        error_message = None
+        result_text = None
+
         try:
             message = self._client.messages.create(
                 model=self._model_enum.model_id,
@@ -174,20 +189,50 @@ class ClaudeProvider(AIProvider):
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
+            # Extract token usage from response
+            if hasattr(message, 'usage'):
+                input_tokens = getattr(message.usage, 'input_tokens', None)
+                output_tokens = getattr(message.usage, 'output_tokens', None)
+
             # Extract text from response
             if message.content and len(message.content) > 0:
-                return message.content[0].text
-            
-            raise ValueError("Empty response from Claude")
+                result_text = message.content[0].text
+            else:
+                raise ValueError("Empty response from Claude")
+
+            return result_text
 
         except Exception as e:
-            logger.error(f"Claude generate_text error: {str(e)}")
+            success = False
+            error_message = str(e)
+            logger.error(f"Claude generate_text error: {error_message}")
             raise
+
+        finally:
+            # Calculate latency in milliseconds
+            end_time = now_utc()
+            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # Log analytics (only if prompt_name provided)
+            if prompt_name:
+                log_prompt_usage(
+                    prompt_name=prompt_name,
+                    prompt_version=prompt_version,
+                    provider="claude",
+                    model=self._model_enum.model_id,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    latency_ms=latency_ms,
+                    success=success,
+                    error_message=error_message
+                )
 
     def generate_json(
         self,
         prompt: str,
+        prompt_name: Optional[str] = None,
+        prompt_version: str = "1.0",
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -197,6 +242,8 @@ class ClaudeProvider(AIProvider):
 
         Args:
             prompt: The input prompt
+            prompt_name: Name of the prompt for analytics (optional)
+            prompt_version: Version of the prompt (default: "1.0")
             **kwargs: Additional parameters
 
         Returns:
@@ -215,13 +262,15 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
                 json_prompt,
                 max_tokens=kwargs.get('max_tokens', self._config.default_max_tokens),
                 temperature=kwargs.get('temperature', 0.3),  # Lower temp for JSON
-                system_prompt=kwargs.get('system_prompt', 
-                    "You are a helpful assistant that responds only with valid JSON.")
+                system_prompt=kwargs.get('system_prompt',
+                    "You are a helpful assistant that responds only with valid JSON."),
+                prompt_name=prompt_name,
+                prompt_version=prompt_version
             )
-            
+
             # Clean up response
             text = response_text.strip()
-            
+
             # Remove markdown code blocks if present
             if text.startswith('```json'):
                 text = text[7:]
@@ -229,7 +278,7 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
                 text = text[3:]
             if text.endswith('```'):
                 text = text[:-3]
-            
+
             return json.loads(text.strip())
 
         except json.JSONDecodeError as e:
@@ -318,28 +367,28 @@ USER'S HISTORICAL CONTEXT:
 - Common blind spots: {historical_context.get('blind_spots', 'None')}
 """
         
-        prompt = f"""Analyze this investment thesis for {company_name}:
-
-INVESTMENT THESIS:
-{thesis_text}
-
-RESEARCH DATA:
+        # Build context info for YAML template
+        context_info = f"""Company: {company_name}
+Research Data:
 - Questions answered: {research_data.get('questions_answered', 0)}/{research_data.get('questions_total', 0)}
 - Documents analyzed: {research_data.get('documents_analyzed', 0)}
 - Key findings: {research_data.get('key_findings', 'Not provided')}
 - Identified risks: {research_data.get('identified_risks', 'Not provided')}
-{history_section}
+{history_section}"""
 
-Provide your analysis as JSON with these fields:
-- quality_assessment: Brief overall assessment (2-3 sentences)
-- strengths: List of 2-4 well-reasoned aspects
-- weaknesses: List of 2-4 logical gaps or unsupported assumptions
-- blind_spots: List of 2-3 factors the investor might be missing
-- suggested_questions: List of 3-5 additional research questions
-- confidence_adjustment: Integer from -2 (significantly reduce confidence) to +2 (can increase)
-- risk_flags: List of any red flags warranting serious attention"""
+        # Use YAML prompt template
+        prompt = get_intelligence_prompt(
+            'thesis_analysis_simple',
+            context_info=context_info,
+            thesis_text=thesis_text
+        )
 
-        return self.generate_json(prompt, temperature=0.5)
+        return self.generate_json(
+            prompt,
+            prompt_name='thesis_analysis_simple',
+            prompt_version='1.0',
+            temperature=0.5
+        )
 
     def generate_warning(
         self,
@@ -364,30 +413,24 @@ Provide your analysis as JSON with these fields:
             - suggested_action: str
             - related_past_mistakes: List[str]
         """
-        prompt = f"""You are a thoughtful investment advisor helping an investor avoid repeating past mistakes.
+        # Use YAML prompt template
+        prompt = get_intelligence_prompt(
+            'warning_generation',
+            situation_description=warning_context.get('situation_description', ''),
+            company_name=warning_context.get('company_name', 'Unknown'),
+            action=warning_context.get('action', 'Unknown'),
+            pattern_description=warning_context.get('pattern_description', ''),
+            similar_situations=user_patterns.get('similar_situations', 'None recorded'),
+            outcomes=user_patterns.get('outcomes', 'Unknown'),
+            common_mistakes=user_patterns.get('common_mistakes', 'None recorded')
+        )
 
-CURRENT SITUATION:
-{warning_context.get('situation_description', '')}
-Company: {warning_context.get('company_name', 'Unknown')}
-Action being considered: {warning_context.get('action', 'Unknown')}
-
-DETECTED PATTERN:
-{warning_context.get('pattern_description', '')}
-
-USER'S HISTORICAL PATTERNS:
-- Past similar situations: {user_patterns.get('similar_situations', 'None recorded')}
-- Outcomes in similar cases: {user_patterns.get('outcomes', 'Unknown')}
-- Common mistakes: {user_patterns.get('common_mistakes', 'None recorded')}
-
-Generate a helpful, non-judgmental warning as JSON with:
-- title: Clear, concise title
-- warning_text: Explanation of the concern (2-3 sentences)
-- severity: "low", "medium", or "high"
-- evidence: List of specific evidence points
-- suggested_action: One concrete action to take
-- related_past_mistakes: List of relevant past mistakes"""
-
-        return self.generate_json(prompt, temperature=0.5)
+        return self.generate_json(
+            prompt,
+            prompt_name='warning_generation',
+            prompt_version='1.0',
+            temperature=0.5
+        )
 
     def explain_pattern(
         self,
@@ -408,31 +451,20 @@ Generate a helpful, non-judgmental warning as JSON with:
         Returns:
             Plain English explanation (2-3 paragraphs)
         """
-        prompt = f"""You are a behavioral finance expert helping an investor understand their patterns.
-
-DETECTED PATTERN: {pattern_type}
-
-PATTERN DATA:
-{json.dumps(pattern_data, indent=2)}
-
-USER CONTEXT:
-- Investment experience: {user_context.get('experience_level', 'Unknown')}
-- Time on platform: {user_context.get('time_on_platform', 'Unknown')}
-- Investment style: {user_context.get('investment_style', 'Unknown')}
-
-Write a brief (2-3 paragraph), friendly explanation that:
-1. Explains what this pattern means in plain English
-2. Why it matters for investment performance
-3. One specific thing they could try differently
-
-Be supportive, not critical. Use "we" language to feel collaborative.
-Do NOT use bullet points - write in natural paragraphs."""
+        # Use YAML prompt template
+        prompt = get_intelligence_prompt(
+            'pattern_explanation',
+            pattern_type=pattern_type,
+            pattern_data=json.dumps(pattern_data, indent=2),
+            user_context=json.dumps(user_context, indent=2)
+        )
 
         return self.generate_text(
             prompt,
             max_tokens=500,
             temperature=0.7,
-            system_prompt="You are a supportive behavioral finance coach who explains concepts simply and encouragingly."
+            prompt_name='pattern_explanation',
+            prompt_version='1.0'
         )
 
     def review_decision(
@@ -452,6 +484,7 @@ Do NOT use bullet points - write in natural paragraphs."""
         Returns:
             Dict with review insights
         """
+        # Build outcome section if available
         outcome_section = ""
         if outcome:
             outcome_section = f"""
@@ -461,24 +494,23 @@ ACTUAL OUTCOME:
 - Thesis accuracy: {outcome.get('thesis_accuracy', 'Unknown')}%
 """
 
-        prompt = f"""Review this investment decision for learning purposes:
+        # Use YAML prompt template
+        prompt = get_intelligence_prompt(
+            'decision_review',
+            company_name=decision_data.get('company_name', 'Unknown'),
+            decision_date=decision_data.get('decision_date', 'Unknown'),
+            action=decision_data.get('action', 'Unknown'),
+            confidence_score=decision_data.get('confidence', 'Unknown'),
+            thesis=thesis,
+            research_time=decision_data.get('research_time', 'Unknown'),
+            questions_answered=decision_data.get('questions_answered', 'Unknown'),
+            documents_analyzed=decision_data.get('documents_analyzed', 'Unknown'),
+            outcome_section=outcome_section
+        )
 
-DECISION DETAILS:
-- Company: {decision_data.get('company_name', 'Unknown')}
-- Date: {decision_data.get('decision_date', 'Unknown')}
-- Action: {decision_data.get('action', 'Unknown')}
-- Confidence: {decision_data.get('confidence', 'Unknown')}/10
-
-INVESTMENT THESIS:
-{thesis}
-{outcome_section}
-
-Provide review as JSON with:
-- process_quality: Rating 1-10 of decision process
-- thesis_clarity: Rating 1-10 of thesis clarity
-- key_learnings: List of 2-3 key learnings
-- what_worked: List of things done well
-- improvements: List of suggested improvements
-- bias_indicators: Any cognitive biases detected"""
-
-        return self.generate_json(prompt, temperature=0.5)
+        return self.generate_json(
+            prompt,
+            prompt_name='decision_review',
+            prompt_version='1.0',
+            temperature=0.5
+        )

@@ -1,0 +1,160 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 profile-page">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>Account Settings</h1>
+                <p class="text-muted mb-0">Manage your account and preferences</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" disabled>
+                    Edit Profile (Coming Soon)
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- Account Information Row -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center mb-3 mb-md-0">
+                        <!-- Avatar -->
+                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center"
+                             style="width: 100px; height: 100px;">
+                            <span class="text-white" style="font-size: 2.5rem;">{{ user.username[0].upper() }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <h3 class="mb-2">{{ user.username }}</h3>
+                        <p class="text-muted mb-3">{{ user.email }}</p>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <span class="text-muted">Subscription:</span>
+                                <span class="badge bg-{{ 'success' if user.subscription_tier == 'premium' else 'secondary' }} ms-2">
+                                    {{ user.subscription_tier|title }}
+                                </span>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <span class="text-muted">User ID:</span>
+                                <span class="ms-2">{{ user.id }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Cards Row -->
+<div class="row">
+    <!-- Currency Settings -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">💱 Currency Settings</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.update_settings') }}">
+                    <div class="mb-3">
+                        <label for="base_currency" class="form-label fw-semibold">Base Currency</label>
+                        <select class="form-select" id="base_currency" name="base_currency" required>
+                            <option value="USD" {% if user.base_currency == 'USD' %}selected{% endif %}>🇺🇸 USD - US Dollar</option>
+                            <option value="EUR" {% if user.base_currency == 'EUR' %}selected{% endif %}>🇪🇺 EUR - Euro</option>
+                            <option value="GBP" {% if user.base_currency == 'GBP' %}selected{% endif %}>🇬🇧 GBP - British Pound</option>
+                            <option value="CAD" {% if user.base_currency == 'CAD' %}selected{% endif %}>🇨🇦 CAD - Canadian Dollar</option>
+                            <option value="AUD" {% if user.base_currency == 'AUD' %}selected{% endif %}>🇦🇺 AUD - Australian Dollar</option>
+                            <option value="JPY" {% if user.base_currency == 'JPY' %}selected{% endif %}>🇯🇵 JPY - Japanese Yen</option>
+                            <option value="CHF" {% if user.base_currency == 'CHF' %}selected{% endif %}>🇨🇭 CHF - Swiss Franc</option>
+                            <option value="CNY" {% if user.base_currency == 'CNY' %}selected{% endif %}>🇨🇳 CNY - Chinese Yuan</option>
+                            <option value="HKD" {% if user.base_currency == 'HKD' %}selected{% endif %}>🇭🇰 HKD - Hong Kong Dollar</option>
+                            <option value="INR" {% if user.base_currency == 'INR' %}selected{% endif %}>🇮🇳 INR - Indian Rupee</option>
+                            <option value="KRW" {% if user.base_currency == 'KRW' %}selected{% endif %}>🇰🇷 KRW - South Korean Won</option>
+                            <option value="SEK" {% if user.base_currency == 'SEK' %}selected{% endif %}>🇸🇪 SEK - Swedish Krona</option>
+                            <option value="NOK" {% if user.base_currency == 'NOK' %}selected{% endif %}>🇳🇴 NOK - Norwegian Krone</option>
+                            <option value="DKK" {% if user.base_currency == 'DKK' %}selected{% endif %}>🇩🇰 DKK - Danish Krone</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            All portfolio values and analytics will be shown in this currency
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show_original_currency"
+                                   name="show_original_currency" {% if user.show_original_currency %}checked{% endif %}>
+                            <label class="form-check-label" for="show_original_currency">
+                                Show original currency alongside base
+                            </label>
+                            <br>
+                            <small class="text-muted">Example: €65.00 (~$70.20)</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning" style="font-size: 0.875rem;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Changing your base currency will recalculate all portfolio values using current exchange rates.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle me-2"></i>Save Currency Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investment Profile Settings -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Investment Profile</h6>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="mb-3 flex-grow-1">
+                    Customize your investor profile to personalize research thresholds, portfolio warnings, and behavioral pattern detection.
+                </p>
+                <a href="{{ url_for('profile.profile_settings') }}" class="btn btn-primary w-100 mt-auto">
+                    <i class="fas fa-user-cog me-2"></i>Configure Profile
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-envelope me-2"></i>Update Email
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" disabled>
+                        <i class="fas fa-trash me-2"></i>Delete Account
+                    </button>
+                </div>
+                <small class="text-muted mt-3 d-block text-center">
+                    Coming with Auth0 integration
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+</div>
+{% endblock %}

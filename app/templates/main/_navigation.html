@@ -138,7 +138,10 @@
                         {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">Account Settings</a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('profile.profile_settings') }}">Profile
+                                Settings</a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

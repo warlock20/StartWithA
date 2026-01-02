@@ -29,6 +29,7 @@ from datetime import datetime
 import logging
 
 from app import db
+from app.services.config_service import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +77,22 @@ class ResearchQualityCalculator:
         'time': 0.15,
         'documents': 0.15
     }
-    
-    # Thresholds for scoring
-    THRESHOLDS = {
-        'min_questions_pct': 0.7,       # Answer at least 70% of questions
-        'min_time_minutes': 30,          # Spend at least 30 minutes
-        'max_time_minutes': 480,         # More than 8 hours shows diminishing returns
-        'min_documents': 1,              # Analyze at least 1 document
-        'ideal_documents': 5,            # 5+ documents is thorough
-        'min_answer_length': 50,         # Minimum chars for a "good" answer
-        'good_answer_length': 200,       # Good answer length
-        'excellent_answer_length': 500,  # Excellent answer length
-    }
+
+    def _get_thresholds(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Get user-specific thresholds from their investment profile.
+        Falls back to system defaults if not configured.
+        """
+        return {
+            'min_questions_pct': get_config('min_questions_answered_pct', user_id, 70) / 100,
+            'min_time_minutes': get_config('min_time_minutes', user_id, 30),
+            'max_time_minutes': get_config('max_time_minutes', user_id, 480),
+            'min_documents': get_config('min_documents_analyzed', user_id, 1),
+            'ideal_documents': get_config('ideal_documents', user_id, 5),
+            'min_answer_length': 50,         # Not user-configurable
+            'good_answer_length': 200,       # Not user-configurable
+            'excellent_answer_length': 500,  # Not user-configurable
+        }
     
     def calculate_score(
         self,
@@ -114,13 +119,16 @@ class ResearchQualityCalculator:
         
         if metrics is None:
             metrics = self._gather_metrics(research_session_id, research_project_id)
-        
+
+        # Get user-specific thresholds
+        thresholds = self._get_thresholds(metrics.get('user_id'))
+
         # Calculate component scores
-        completeness = self._score_completeness(metrics)
-        depth = self._score_depth(metrics)
-        breadth = self._score_breadth(metrics)
-        time = self._score_time(metrics)
-        documents = self._score_documents(metrics)
+        completeness = self._score_completeness(metrics, thresholds)
+        depth = self._score_depth(metrics, thresholds)
+        breadth = self._score_breadth(metrics, thresholds)
+        time = self._score_time(metrics, thresholds)
+        documents = self._score_documents(metrics, thresholds)
         
         # Weighted overall score
         overall = (
@@ -314,13 +322,13 @@ class ResearchQualityCalculator:
                     metrics['documents_analyzed'] = doc_count
                 
                 return metrics
-    def _score_completeness(self, metrics: Dict) -> float:
+    def _score_completeness(self, metrics: Dict, thresholds: Dict) -> float:
         """Score based on % of questions answered"""
         if metrics['questions_total'] == 0:
             return 50.0  # Neutral if no questions defined
-        
+
         pct = metrics['questions_answered'] / metrics['questions_total']
-        
+
         if pct >= 0.9:
             return 100.0
         elif pct >= 0.7:
@@ -329,23 +337,23 @@ class ResearchQualityCalculator:
             return 50.0 + (pct - 0.5) * 100  # 50-70 range
         else:
             return pct * 100  # 0-50 range
-    
-    def _score_depth(self, metrics: Dict) -> float:
+
+    def _score_depth(self, metrics: Dict, thresholds: Dict) -> float:
         """Score based on answer quality (length as proxy)"""
         scores = []
-        
+
         # Average answer length
         if metrics['answer_lengths']:
             avg_length = sum(metrics['answer_lengths']) / len(metrics['answer_lengths'])
-            
-            if avg_length >= self.THRESHOLDS['excellent_answer_length']:
+
+            if avg_length >= thresholds['excellent_answer_length']:
                 length_score = 100
-            elif avg_length >= self.THRESHOLDS['good_answer_length']:
-                length_score = 70 + (avg_length - self.THRESHOLDS['good_answer_length']) / 10
-            elif avg_length >= self.THRESHOLDS['min_answer_length']:
-                length_score = 40 + (avg_length - self.THRESHOLDS['min_answer_length']) / 5
+            elif avg_length >= thresholds['good_answer_length']:
+                length_score = 70 + (avg_length - thresholds['good_answer_length']) / 10
+            elif avg_length >= thresholds['min_answer_length']:
+                length_score = 40 + (avg_length - thresholds['min_answer_length']) / 5
             else:
-                length_score = max(0, avg_length / self.THRESHOLDS['min_answer_length'] * 40)
+                length_score = max(0, avg_length / thresholds['min_answer_length'] * 40)
             
             scores.append(min(100, length_score))
         
@@ -365,7 +373,7 @@ class ResearchQualityCalculator:
         
         return sum(scores) / len(scores) if scores else 50.0
     
-    def _score_breadth(self, metrics: Dict) -> float:
+    def _score_breadth(self, metrics: Dict, thresholds: Dict) -> float:
         """Score based on variety of analysis types"""
         analysis_types = [
             metrics.get('had_financial_analysis', False),
@@ -373,39 +381,39 @@ class ResearchQualityCalculator:
             metrics.get('had_management_review', False),
             metrics.get('had_valuation_model', False),
         ]
-        
+
         completed = sum(analysis_types)
         return (completed / len(analysis_types)) * 100
-    
-    def _score_time(self, metrics: Dict) -> float:
+
+    def _score_time(self, metrics: Dict, thresholds: Dict) -> float:
         """Score based on time invested (with diminishing returns)"""
         minutes = metrics.get('time_spent_minutes', 0)
-        
+
         if minutes == 0:
             return 30.0  # Low score if no time tracked
-        elif minutes < self.THRESHOLDS['min_time_minutes']:
+        elif minutes < thresholds['min_time_minutes']:
             # Too little time
-            return (minutes / self.THRESHOLDS['min_time_minutes']) * 60
+            return (minutes / thresholds['min_time_minutes']) * 60
         elif minutes <= 120:
             # Good range (30-120 minutes)
             return 70 + ((minutes - 30) / 90) * 30
-        elif minutes <= self.THRESHOLDS['max_time_minutes']:
+        elif minutes <= thresholds['max_time_minutes']:
             # Acceptable but long (120-480 minutes)
             return 80
         else:
             # Too much time (might indicate confusion)
             return 70
-    
-    def _score_documents(self, metrics: Dict) -> float:
+
+    def _score_documents(self, metrics: Dict, thresholds: Dict) -> float:
         """Score based on documents analyzed"""
         docs = metrics.get('documents_analyzed', 0)
-        
+
         if docs == 0:
             return 30.0  # Penalty for no document analysis
-        elif docs < self.THRESHOLDS['min_documents']:
+        elif docs < thresholds['min_documents']:
             return 50.0
-        elif docs < self.THRESHOLDS['ideal_documents']:
-            return 50 + (docs / self.THRESHOLDS['ideal_documents']) * 50
+        elif docs < thresholds['ideal_documents']:
+            return 50 + (docs / thresholds['ideal_documents']) * 50
         else:
             return 100.0
     

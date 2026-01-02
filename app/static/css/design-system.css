@@ -90,5 +90,6 @@ All complex components have been fully modularized.
 @import url('checkpoints.css');                   /* Checkpoint reminders and tracking */
 @import url('modules/_coc-analytics.css');        /* Circle of Competence analytics page */
 @import url('modules/_profile.css');              /* User profile page */
+@import url('modules/_investment-profile.css');   /* Investment profile settings page */
 @import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */
 @import url('modules/_warnings-widget.css');      /* Intelligence warnings widget */

@@ -35,6 +35,7 @@ Usage:
 import logging
 from typing import Dict, Any, List, Optional
 
+from app.services.ai.prompt_service import get_intelligence_prompt
 from .config import (
     get_ai_config,
     AIConfig,
@@ -360,15 +361,14 @@ class AIService:
             if isinstance(claude, ClaudeProvider) and claude.is_available():
                 return claude.explain_pattern(pattern_type, pattern_data, user_context)
         
-        # Fallback
-        prompt = f"""Explain this behavioral pattern simply and supportively:
+        # Fallback - use YAML prompt
+        prompt = get_intelligence_prompt(
+            'pattern_explanation',
+            pattern_type=pattern_type,
+            pattern_data=str(pattern_data),
+            user_context=str(user_context)
+        )
 
-Pattern: {pattern_type}
-Data: {pattern_data}
-Context: {user_context}
-
-Write 2-3 paragraphs explaining what it means and one thing to try differently."""
-        
         return self.generate(prompt, task=AITaskType.PATTERN_EXPLANATION)
     
     def answer_research_question(
@@ -392,21 +392,16 @@ Write 2-3 paragraphs explaining what it means and one thing to try differently."
         """
         # Limit documents to avoid token limits
         doc_text = "\n\n---\n\n".join(documents[:3])
-        
-        prompt = f"""Answer the question based ONLY on the provided documents.
-If the information is not in the documents, say so clearly.
 
-COMPANY: {company_context.get('company_name', 'Unknown')}
-SECTOR: {company_context.get('sector', 'Unknown')}
+        # Use YAML prompt
+        prompt = get_intelligence_prompt(
+            'research_qa',
+            company_name=company_context.get('company_name', 'Unknown'),
+            sector=company_context.get('sector', 'Unknown'),
+            documents_text=doc_text,
+            question=question
+        )
 
-DOCUMENTS:
-{doc_text}
-
-QUESTION:
-{question}
-
-Provide a clear, factual answer."""
-        
         return self.generate(prompt, task=AITaskType.DOCUMENT_QA)
     
     def summarize(
@@ -426,14 +421,16 @@ Provide a clear, factual answer."""
         Returns:
             Summary text
         """
-        length_instruction = f"Keep summary under {max_length} words." if max_length else ""
-        
-        prompt = f"""Summarize the following text, focusing on {focus}:
+        length_instruction = f"Keep summary under {max_length} words." if max_length else "No specific length requirement."
 
-{text}
+        # Use YAML prompt
+        prompt = get_intelligence_prompt(
+            'text_summarization',
+            focus=focus,
+            text_content=text,
+            length_instruction=length_instruction
+        )
 
-{length_instruction}"""
-        
         return self.generate(prompt, task=AITaskType.SUMMARIZATION)
     
     # ============================================================

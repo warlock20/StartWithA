@@ -37,8 +37,8 @@ class IntelligenceService:
         # Load routing configuration
         if config_path is None:
             config_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                'config', 'ai_routing.yaml'
+                os.path.dirname(__file__),
+                'prompts', 'ai_routing.yaml'
             )
 
         self.config = self._load_config(config_path)
