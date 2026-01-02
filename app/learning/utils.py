@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from sqlalchemy import func, and_
 from app import db
 from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
@@ -142,7 +142,7 @@ def calculate_learning_score(user_id):
     total_weeks = 12  # Last 12 weeks
     reviews_completed = WeeklyReview.query.filter(
         WeeklyReview.user_id == user_id,
-        WeeklyReview.week_start >= datetime.utcnow().date() - timedelta(weeks=12)
+        WeeklyReview.week_start >= now_utc().utcnow().date() - timedelta(weeks=12)
     ).count()
     
     review_score = (reviews_completed / total_weeks) * 20
@@ -334,7 +334,7 @@ def generate_learning_recommendations(user_id):
                                   .filter_by(user_id=user_id).scalar()
     
     if last_learning_note:
-        days_since = (datetime.utcnow() - last_learning_note).days
+        days_since = (now_utc().utcnow() - last_learning_note).days
         if days_since > 14:
             recommendations.append({
                 'title': 'Capture recent learnings',

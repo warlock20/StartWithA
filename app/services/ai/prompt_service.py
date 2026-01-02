@@ -311,6 +311,11 @@ def get_competitor_analysis_prompt(name: str, **kwargs) -> str:
     return prompt_service.get_prompt('competitor_analysis', name, **kwargs)
 
 
+def get_intelligence_prompt(name: str, **kwargs) -> str:
+    """Convenience function for intelligence prompts."""
+    return prompt_service.get_prompt('intelligence', name, **kwargs)
+
+
 def list_all_prompts() -> Dict[str, List[str]]:
     """List all available prompts."""
     return prompt_service.list_all_prompts()

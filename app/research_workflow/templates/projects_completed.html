@@ -9,9 +9,9 @@
             <p class="dashboard-subtitle">{{ pagination.total }} project{{ 's' if pagination.total != 1 else '' }} with final decisions</p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary me-2">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
+            {% with btn_class='btn btn-outline-secondary me-2' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
             <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-outline-warning">
                 <i class="bi bi-basket"></i> Too Hard Basket
             </a>

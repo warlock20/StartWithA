@@ -42,7 +42,6 @@ class AIProvider(Enum):
     CLAUDE = "claude"
     OPENAI = "openai"
 
-
 class AIModel(Enum):
     """
     Available AI models with their provider mapping.
@@ -108,7 +107,6 @@ class AIModel(Enum):
             return cls.GEMINI_FLASH_25
         return result
 
-
 class AITaskType(Enum):
     """
     Task types for intelligent provider/model routing.
@@ -135,6 +133,24 @@ class AITaskType(Enum):
     JOURNAL_ANALYSIS = "journal_analysis"
     SECTOR_ANALYSIS = "sector_analysis"
 
+class EmbeddingProvider(Enum):
+    """Available embedding providers (separate from text generation)"""
+    LOCAL = "local"       # Sentence Transformers - free, offline
+    OPENAI = "openai"     # OpenAI API
+    GEMINI = "gemini"     # Google Gemini API
+    VOYAGE = "voyage"     # Voyage AI (Anthropic recommended)
+    COHERE = "cohere"     # Cohere API
+    TFIDF = "tfidf"       # Fallback - always works
+
+# Default embedding provider priority
+DEFAULT_EMBEDDING_PRIORITY = [
+    EmbeddingProvider.LOCAL,
+    EmbeddingProvider.GEMINI,
+    EmbeddingProvider.OPENAI,
+    EmbeddingProvider.VOYAGE,
+    EmbeddingProvider.COHERE,
+    EmbeddingProvider.TFIDF,
+]
 
 # Task categories for routing decisions
 QUALITY_TASKS = {
@@ -183,6 +199,14 @@ class AIConfig:
     default_timeout: int = 180
     fast_timeout: int = 60
     
+    # Embedding API keys
+    voyage_api_key: Optional[str] = None
+    cohere_api_key: Optional[str] = None
+    
+    # Embedding configuration
+    embedding_cache_enabled: bool = True
+    embedding_cache_dir: str = "instance/embedding_cache"
+    
     @classmethod
     def from_env(cls) -> 'AIConfig':
         """
@@ -198,6 +222,9 @@ class AIConfig:
         config.claude_api_key = os.getenv('ANTHROPIC_API_KEY')
         config.openai_api_key = os.getenv('OPENAI_API_KEY')
         
+        config.voyage_api_key = os.getenv('VOYAGE_API_KEY')
+        config.cohere_api_key = os.getenv('COHERE_API_KEY')
+        
         # Load model preferences from environment
         default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-2.5-flash')
         config.default_model = AIModel.from_string(default_model_name)
@@ -207,12 +234,18 @@ class AIConfig:
         
         fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-2.5-flash')
         config.fast_model = AIModel.from_string(fast_model_name)
-        
+
         # Load routing preferences
         config.prefer_claude_for_reasoning = os.getenv(
             'AI_PREFER_CLAUDE', 'true'
         ).lower() in ('true', '1', 'yes')
         
+        config.embedding_cache_enabled = os.getenv(
+            'EMBEDDING_CACHE_ENABLED', 'true'
+        ).lower() in ('true', '1', 'yes')
+        config.embedding_cache_dir = os.getenv(
+            'EMBEDDING_CACHE_DIR', 'instance/embedding_cache'
+        )
         # Load generation parameters
         try:
             config.default_temperature = float(os.getenv('AI_DEFAULT_TEMPERATURE', '0.7'))
@@ -304,6 +337,40 @@ class AIConfig:
         model = self.get_model_for_task(task)
         return model.provider
 
+    # ============================================================
+    # Embedding Provider Methods
+    # ============================================================
+    
+    def is_embedding_provider_available(self, provider: 'EmbeddingProvider') -> bool:
+        """Check if an embedding provider is available."""
+        if provider == EmbeddingProvider.LOCAL:
+            try:
+                import sentence_transformers
+                return True
+            except ImportError:
+                return False
+        elif provider == EmbeddingProvider.OPENAI:
+            return bool(self.openai_api_key)
+        elif provider == EmbeddingProvider.GEMINI:
+            return bool(self.gemini_api_key)
+        elif provider == EmbeddingProvider.VOYAGE:
+            return bool(self.voyage_api_key)
+        elif provider == EmbeddingProvider.COHERE:
+            return bool(self.cohere_api_key)
+        elif provider == EmbeddingProvider.TFIDF:
+            try:
+                import sklearn
+                return True
+            except ImportError:
+                return False
+        return False
+    
+    def get_best_embedding_provider(self) -> Optional['EmbeddingProvider']:
+        """Get the best available embedding provider."""
+        for provider in DEFAULT_EMBEDDING_PRIORITY:
+            if self.is_embedding_provider_available(provider):
+                return provider
+        return None
 
 # ============================================================
 # Singleton Configuration Instance

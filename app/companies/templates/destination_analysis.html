@@ -12,9 +12,9 @@
                     class="fw-semibold text-dark">{{ company.name }} ({{ company.ticker_symbol }})</span></p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Companies
-            </a>
+            {% with btn_class='btn btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
         </div>
     </header>
 

@@ -1,0 +1,1332 @@
+@startuml Investment Checklist Database Schema
+
+' =============================================================================
+' USER DOMAIN
+' =============================================================================
+
+package "User Management" {
+  entity User {
+    * id : INTEGER <<PK>>
+    --
+    auth0_id : VARCHAR(255) <<INDEX>>
+    username : VARCHAR(64) <<INDEX>>
+    * email : VARCHAR(120) <<INDEX>>
+    password_hash : VARCHAR(256)
+    name : VARCHAR(200)
+    picture : VARCHAR(500)
+    auth_provider : VARCHAR(50)
+    * subscription_tier : VARCHAR(50) [DEFAULT: 'free']
+    --
+    ' User Preferences
+    preferred_sprint_duration : INTEGER [DEFAULT: 30]
+    research_experience_level : VARCHAR(20) [DEFAULT: 'intermediate']
+    notification_preferences : JSON
+    --
+    ' Multi-Currency Support
+    * base_currency : VARCHAR(3) [DEFAULT: 'USD']
+    show_original_currency : BOOLEAN [DEFAULT: TRUE]
+    --
+    ' Community Features
+    buddy_system_enabled : BOOLEAN [DEFAULT: FALSE]
+    peer_feedback_count : INTEGER [DEFAULT: 0]
+    community_reputation : INTEGER [DEFAULT: 0]
+    --
+    ' FOMO Protection
+    last_fomo_alert : DATETIME
+    fomo_protection_level : VARCHAR(20) [DEFAULT: 'medium']
+    --
+    ' Onboarding
+    onboarding_completed : BOOLEAN [DEFAULT: FALSE]
+    onboarding_path_chosen : VARCHAR(20)
+    onboarding_completed_at : DATETIME
+    page_tours_completed : JSON
+    tour_preferences : JSON
+  }
+}
+
+' =============================================================================
+' SECTOR DOMAIN
+' =============================================================================
+
+package "Sector Management" {
+  entity Sector {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    --
+    * name : VARCHAR(100)
+    * display_name : VARCHAR(100)
+    * slug : VARCHAR(100) <<INDEX>>
+    aliases : JSON
+    --
+    parent_sector_id : INTEGER <<FK>>
+    category : VARCHAR(50)
+    description : TEXT
+    key_characteristics : JSON
+    typical_metrics : JSON
+    --
+    color : VARCHAR(20)
+    icon : VARCHAR(50)
+    status : VARCHAR(20) [DEFAULT: 'active']
+    is_default : BOOLEAN [DEFAULT: FALSE]
+    merged_into_id : INTEGER <<FK>>
+    --
+    ' Cached Analytics
+    total_companies : INTEGER [DEFAULT: 0]
+    companies_analyzed : INTEGER [DEFAULT: 0]
+    companies_invested : INTEGER [DEFAULT: 0]
+    total_research_hours : FLOAT [DEFAULT: 0]
+    coc_yes_count : INTEGER [DEFAULT: 0]
+    coc_no_count : INTEGER [DEFAULT: 0]
+    coc_unsure_count : INTEGER [DEFAULT: 0]
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    last_researched : DATETIME
+    ..
+    <<UNIQUE>> user_id, slug
+  }
+
+  entity SectorAnalysis {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * sector_id : INTEGER <<FK>> <<INDEX>>
+    --
+    document_content : TEXT
+    key_takeaways : TEXT
+    * status : VARCHAR(20) [DEFAULT: 'active']
+    continuous_learning_enabled : BOOLEAN [DEFAULT: FALSE]
+    * total_time_spent : INTEGER [DEFAULT: 0]
+    archived_at : DATETIME
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    ..
+    <<UNIQUE>> user_id, sector_id
+  }
+
+  entity SectorResearchSection {
+    * id : INTEGER <<PK>>
+    * sector_analysis_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(200)
+    icon : VARCHAR(50)
+    description : VARCHAR(500)
+    content : TEXT
+    * display_order : INTEGER [DEFAULT: 0]
+    section_type : VARCHAR(50) [DEFAULT: 'custom']
+    is_visible : BOOLEAN [DEFAULT: TRUE]
+    is_locked : BOOLEAN [DEFAULT: FALSE]
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+  }
+
+  entity SectorResearchSource {
+    * id : INTEGER <<PK>>
+    * sector_analysis_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(300)
+    url : VARCHAR(1000)
+    * source_type : VARCHAR(50) [DEFAULT: 'article']
+    description : TEXT
+    key_takeaways : TEXT
+    author : VARCHAR(200)
+    publisher : VARCHAR(200)
+    published_date : DATE
+    tags : VARCHAR(500)
+    relevance_score : INTEGER
+    --
+    * created_at : DATETIME
+    accessed_at : DATETIME
+  }
+
+  entity SectorResearchSnippet {
+    * id : INTEGER <<PK>>
+    * sector_analysis_id : INTEGER <<FK>>
+    --
+    * content : TEXT
+    * category : VARCHAR(50)
+    tags : VARCHAR(500)
+    notes : TEXT
+    source_reference : VARCHAR(300)
+    --
+    * created_at : DATETIME
+    updated_at : DATETIME
+  }
+
+  entity SectorSection {
+    * id : INTEGER <<PK>>
+    * sector_analysis_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(200)
+    description : TEXT
+    * sort_order : INTEGER [DEFAULT: 0]
+    icon : VARCHAR(50)
+    color : VARCHAR(20)
+    --
+    * created_at : DATETIME
+    updated_at : DATETIME
+  }
+
+  entity SectorNote {
+    * id : INTEGER <<PK>>
+    * sector_analysis_id : INTEGER <<FK>>
+    section_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(300)
+    * content : TEXT
+    * note_type : VARCHAR(50) [DEFAULT: 'note']
+    source_reference : VARCHAR(500)
+    source_title : VARCHAR(300)
+    tags : VARCHAR(500)
+    * sort_order : INTEGER [DEFAULT: 0]
+    --
+    * created_at : DATETIME
+    updated_at : DATETIME
+  }
+}
+
+' =============================================================================
+' COMPANY DOMAIN
+' =============================================================================
+
+package "Company Management" {
+  entity Company {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(150)
+    * ticker_symbol : VARCHAR(20) <<INDEX>>
+    summary : TEXT
+    sector_id : INTEGER <<FK>> <<INDEX>>
+    industry : VARCHAR(150)
+    intrinsic_value : BIGINTEGER
+    * is_in_portfolio : BOOLEAN [DEFAULT: FALSE] <<INDEX>>
+  }
+
+  entity CompanyDocument {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * original_filename : VARCHAR(255)
+    * stored_filename : VARCHAR(300) <<UNIQUE>>
+    * document_group : VARCHAR(100) <<INDEX>>
+    document_title : VARCHAR(255)
+    document_date : DATE
+    description : TEXT
+    * uploaded_at : DATETIME
+  }
+
+  entity CompanyArticle {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(300)
+    * url : VARCHAR(500) <<UNIQUE>>
+    description : TEXT
+    source_name : VARCHAR(100)
+    * published_at : DATETIME <<INDEX>>
+    * fetched_at : DATETIME
+  }
+
+  entity ScuttlebuttAnalysis {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    --
+    * generated_summary : TEXT
+    * generated_at : DATETIME <<INDEX>>
+  }
+
+  entity QualitativeAnalysis {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * model_type : VARCHAR(50) <<INDEX>>
+    content : JSON
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    ..
+    <<UNIQUE>> company_id, user_id, model_type
+  }
+
+  entity FinancialData {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    --
+    * statement_type : VARCHAR(50) <<INDEX>>
+    * metric_name : VARCHAR(100) <<INDEX>>
+    * period_date : DATE <<INDEX>>
+    * value : BIGINTEGER
+    ..
+    <<UNIQUE>> company_id, metric_name, period_date
+  }
+}
+
+' =============================================================================
+' CHECKLIST DOMAIN
+' =============================================================================
+
+package "Checklist System" {
+  entity Checklist {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(120)
+    description : VARCHAR(1000)
+    * created_at : DATETIME
+    * updated_at : DATETIME
+  }
+
+  entity ChecklistItem {
+    * id : INTEGER <<PK>>
+    * checklist_id : INTEGER <<FK>>
+    --
+    * text : VARCHAR(500)
+    description : TEXT
+    parent_id : INTEGER <<FK>>
+    order : INTEGER [DEFAULT: 0]
+    llm_prompt : TEXT
+  }
+
+  entity QuestionBankItem {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * text : TEXT
+    llm_prompt : TEXT
+    sector_id : INTEGER <<FK>> <<INDEX>>
+    * created_at : DATETIME
+  }
+
+  entity DestinationCheckpoint {
+    * id : INTEGER <<PK>>
+    * company_id : INTEGER <<FK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * target_date : DATE <<INDEX>>
+    * metric : VARCHAR(200)
+    * expectation : TEXT
+    * status : VARCHAR(30) [DEFAULT: 'Active']
+    outcome_notes : TEXT
+    * created_at : DATETIME
+  }
+
+  entity DocumentImport {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * filename : VARCHAR(255)
+    * file_type : VARCHAR(50)
+    file_size : INTEGER
+    file_path : VARCHAR(500)
+    status : VARCHAR(50) [DEFAULT: 'uploaded']
+    llm_provider : VARCHAR(50)
+    processing_approach : VARCHAR(50)
+    raw_text : TEXT
+    processed_items : JSON
+    suggested_name : VARCHAR(200)
+    suggested_description : TEXT
+    created_checklist_id : INTEGER <<FK>>
+    processing_time : FLOAT
+    error_message : TEXT
+    --
+    created_at : DATETIME
+    processed_at : DATETIME
+    completed_at : DATETIME
+  }
+}
+
+' =============================================================================
+' RESEARCH WORKFLOW DOMAIN
+' =============================================================================
+
+package "Research Workflow" {
+  entity ChecklistAnalysis {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * company_id : INTEGER <<FK>>
+    * checklist_id : INTEGER <<FK>>
+    --
+    * start_date : DATETIME
+    * status : VARCHAR(50) [DEFAULT: 'in_progress']
+    conclusion : TEXT
+  }
+
+  entity ChecklistAnswer {
+    * id : INTEGER <<PK>>
+    * checklist_analysis_id : INTEGER <<FK>>
+    * checklist_item_id : INTEGER <<FK>>
+    --
+    answer_text : TEXT
+    answered_at : DATETIME
+    satisfaction_status : VARCHAR(30) [DEFAULT: 'neutral']
+  }
+
+  entity ResearchTemplate {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    description : TEXT
+    investment_style : VARCHAR(100)
+    * workflow_steps : JSON
+    is_public : BOOLEAN [DEFAULT: FALSE]
+    is_active : BOOLEAN [DEFAULT: TRUE]
+    times_used : INTEGER [DEFAULT: 0]
+    successful_investments : INTEGER [DEFAULT: 0]
+    failed_investments : INTEGER [DEFAULT: 0]
+    average_research_hours : FLOAT
+    --
+    created_at : DATETIME
+    updated_at : DATETIME
+  }
+
+  entity ResearchProject {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * template_id : INTEGER <<FK>>
+    * company_id : INTEGER <<FK>>
+    --
+    sector_id : INTEGER <<FK>> <<INDEX>>
+    idea_id : INTEGER <<FK>>
+    project_name : VARCHAR(200)
+    investment_thesis : TEXT
+    current_step_index : INTEGER [DEFAULT: 0]
+    completed_steps : JSON
+    step_notes : JSON
+    step_results : JSON
+    step_overrides : JSON
+    status : VARCHAR(50) [DEFAULT: 'active']
+    kill_reason : TEXT
+    total_hours_spent : FLOAT [DEFAULT: 0.0]
+    time_per_step : JSON
+    last_worked_at : DATETIME
+    decision : VARCHAR(50)
+    decision_date : DATETIME
+    decision_confidence : INTEGER
+    decision_notes : TEXT
+    within_circle_of_competence : VARCHAR(20)
+    too_hard_reason : VARCHAR(100)
+    too_hard_notes : TEXT
+    abandoned_at : DATETIME
+    investment_amount : FLOAT
+    investment_date : DATE
+    exit_date : DATE
+    return_percentage : FLOAT
+    key_findings : JSON
+    red_flags : JSON
+    green_flags : JSON
+    --
+    created_at : DATETIME
+    completed_at : DATETIME
+  }
+
+  entity WorkSession {
+    * id : INTEGER <<PK>>
+    * research_project_id : INTEGER <<FK>>
+    * user_id : INTEGER <<FK>>
+    --
+    step_index : INTEGER
+    step_name : VARCHAR(200)
+    * start_time : DATETIME
+    end_time : DATETIME
+    duration_minutes : INTEGER
+    notes : TEXT
+    findings : JSON
+    documents_reviewed : JSON
+    confidence_level : INTEGER
+    needs_followup : BOOLEAN [DEFAULT: FALSE]
+    followup_notes : TEXT
+  }
+
+  entity TemplateStep {
+    * id : INTEGER <<PK>>
+    user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    description : TEXT
+    * step_type : VARCHAR(50)
+    config : JSON
+    estimated_minutes : INTEGER [DEFAULT: 60]
+    is_critical : BOOLEAN [DEFAULT: FALSE]
+    instructions : TEXT
+    success_criteria : TEXT
+    common_pitfalls : TEXT
+    times_used : INTEGER [DEFAULT: 0]
+    average_actual_minutes : FLOAT
+    skip_rate : FLOAT
+    category : VARCHAR(100)
+    tags : JSON
+    created_at : DATETIME
+  }
+
+  entity ResearchMetrics {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<UNIQUE>>
+    --
+    ' Idea Pipeline Metrics
+    total_ideas_captured : INTEGER [DEFAULT: 0]
+    ideas_killed : INTEGER [DEFAULT: 0]
+    ideas_promoted : INTEGER [DEFAULT: 0]
+    ideas_in_pipeline : INTEGER [DEFAULT: 0]
+    average_days_to_decision : FLOAT
+    --
+    ' Kill Rate Analysis
+    kill_rate : FLOAT
+    most_common_kill_reason : VARCHAR(500)
+    fastest_kill_minutes : INTEGER
+    slowest_kill_minutes : INTEGER
+    --
+    ' Research Time Metrics
+    total_research_hours : FLOAT [DEFAULT: 0]
+    average_hours_per_company : FLOAT
+    average_hours_per_decision : FLOAT
+    most_time_consuming_step : VARCHAR(200)
+    --
+    ' Decision Quality Metrics
+    total_investment_decisions : INTEGER [DEFAULT: 0]
+    invest_decisions : INTEGER [DEFAULT: 0]
+    pass_decisions : INTEGER [DEFAULT: 0]
+    average_confidence_score : FLOAT
+    --
+    ' Success Tracking
+    winning_investments : INTEGER [DEFAULT: 0]
+    losing_investments : INTEGER [DEFAULT: 0]
+    average_return : FLOAT
+    best_investment_return : FLOAT
+    worst_investment_return : FLOAT
+    --
+    ' Source Quality
+    best_idea_source : VARCHAR(200)
+    best_source_success_rate : FLOAT
+    --
+    ' Behavioral Patterns
+    most_productive_day : VARCHAR(20)
+    most_productive_hour : INTEGER
+    average_session_duration : FLOAT
+    research_streak_days : INTEGER [DEFAULT: 0]
+    last_research_date : DATE
+    --
+    last_updated : DATETIME
+  }
+
+  entity ResearchLog {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * activity_type : VARCHAR(50)
+    idea_id : INTEGER <<FK>>
+    company_id : INTEGER <<FK>>
+    project_id : INTEGER <<FK>>
+    details : JSON
+    duration_minutes : INTEGER
+    * timestamp : DATETIME <<INDEX>>
+    day_of_week : INTEGER
+    hour_of_day : INTEGER
+  }
+}
+
+' =============================================================================
+' IDEA PIPELINE DOMAIN
+' =============================================================================
+
+package "Idea Pipeline" {
+  entity IdeaPipeline {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    * idea_type : VARCHAR(50) [DEFAULT: 'company']
+    * idea_purpose : VARCHAR(50) [DEFAULT: 'investment']
+    ticker_symbol : VARCHAR(20)
+    company_id : INTEGER <<FK>>
+    sector_id : INTEGER <<FK>> <<INDEX>>
+    source : VARCHAR(200)
+    thesis_summary : TEXT
+    initial_notes : TEXT
+    status : VARCHAR(50) [DEFAULT: 'inbox'] <<INDEX>>
+    kill_reason : TEXT
+    failed_criterion_id : INTEGER <<FK>>
+    within_circle_of_competence : VARCHAR(20)
+    created_at : DATETIME
+    killed_at : DATETIME
+    promoted_at : DATETIME
+    last_reviewed_at : DATETIME
+    priority : INTEGER [DEFAULT: 0]
+    promoted_to_company_id : INTEGER <<FK>>
+  }
+
+  entity KillChecklist {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    description : TEXT
+    is_default : BOOLEAN [DEFAULT: FALSE]
+    applicable_to : VARCHAR(100) [DEFAULT: 'all']
+    total_ideas_evaluated : INTEGER [DEFAULT: 0]
+    total_ideas_killed : INTEGER [DEFAULT: 0]
+    created_at : DATETIME
+    updated_at : DATETIME
+  }
+
+  entity KillCriterion {
+    * id : INTEGER <<PK>>
+    * kill_checklist_id : INTEGER <<FK>>
+    --
+    * question : VARCHAR(500)
+    failure_reason : TEXT
+    help_text : TEXT
+    order : INTEGER [DEFAULT: 0]
+    times_evaluated : INTEGER [DEFAULT: 0]
+    times_failed : INTEGER [DEFAULT: 0]
+    effectiveness_score : FLOAT [DEFAULT: 0.0]
+    last_calculated : DATETIME
+    auto_suggested : BOOLEAN [DEFAULT: FALSE]
+    source_mistake_id : INTEGER <<FK>>
+    created_at : DATETIME
+    last_used : DATETIME
+  }
+
+  entity KillSession {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * idea_id : INTEGER <<FK>>
+    * kill_checklist_id : INTEGER <<FK>>
+    --
+    started_at : DATETIME
+    completed_at : DATETIME
+    outcome : VARCHAR(50)
+    time_taken_seconds : INTEGER
+  }
+
+  entity KillAnswer {
+    * id : INTEGER <<PK>>
+    * kill_session_id : INTEGER <<FK>>
+    * criterion_id : INTEGER <<FK>>
+    --
+    passed : BOOLEAN
+    notes : TEXT
+    answered_at : DATETIME
+  }
+
+  entity KillChecklistSuggestion {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * kill_checklist_id : INTEGER <<FK>>
+    --
+    * suggestion_type : VARCHAR(50)
+    * title : VARCHAR(200)
+    * description : TEXT
+    reasoning : TEXT
+    * suggestion_data : JSON
+    effectiveness_gain : FLOAT
+    confidence_score : FLOAT [DEFAULT: 0.5]
+    created_at : DATETIME
+    status : VARCHAR(20) [DEFAULT: 'pending']
+    responded_at : DATETIME
+    trigger_event : VARCHAR(100)
+    source_data : JSON
+  }
+
+  entity IdeaSourceAnalysis {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * source_name : VARCHAR(200)
+    --
+    total_ideas : INTEGER [DEFAULT: 0]
+    ideas_killed : INTEGER [DEFAULT: 0]
+    ideas_promoted : INTEGER [DEFAULT: 0]
+    ideas_invested : INTEGER [DEFAULT: 0]
+    survival_rate : FLOAT
+    investment_rate : FLOAT
+    average_research_hours : FLOAT
+    average_confidence : FLOAT
+    successful_investments : INTEGER [DEFAULT: 0]
+    failed_investments : INTEGER [DEFAULT: 0]
+    average_return : FLOAT
+    last_idea_date : DATETIME
+    created_at : DATETIME
+    ..
+    <<UNIQUE>> user_id, source_name
+  }
+
+  entity MistakeLog {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(200)
+    * description : TEXT
+    * mistake_type : VARCHAR(100)
+    severity : INTEGER [DEFAULT: 5]
+    cost_estimate : FLOAT
+    company_id : INTEGER <<FK>>
+    decision_id : INTEGER <<FK>>
+    occurred_date : DATE
+    root_cause : TEXT
+    contributing_factors : JSON
+    * lesson_learned : TEXT
+    prevention_steps : JSON
+    process_changes : TEXT
+    times_reviewed : INTEGER [DEFAULT: 0]
+    last_reviewed : DATETIME
+    prevented_similar : INTEGER [DEFAULT: 0]
+    created_at : DATETIME
+    updated_at : DATETIME
+  }
+}
+
+' =============================================================================
+' JOURNAL DOMAIN
+' =============================================================================
+
+package "Journal & Learning" {
+  entity DecisionJournal {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * company_id : INTEGER <<FK>>
+    --
+    project_id : INTEGER <<FK>>
+    * decision_type : VARCHAR(20)
+    * decision_date : DATE
+    confidence_score : INTEGER
+    investment_thesis : TEXT
+    expected_return : FLOAT
+    expected_timeframe : INTEGER
+    key_assumptions : JSON
+    biggest_risks : JSON
+    exit_criteria : TEXT
+    actual_return : FLOAT
+    actual_timeframe : INTEGER
+    outcome_date : DATE
+    outcome_notes : TEXT
+    what_went_right : TEXT
+    what_went_wrong : TEXT
+    lessons_learned : TEXT
+    would_repeat : BOOLEAN
+    mistake_category : VARCHAR(100)
+    success_category : VARCHAR(100)
+    is_portfolio_decision : BOOLEAN [DEFAULT: FALSE] <<INDEX>>
+    linked_research_id : INTEGER <<FK>>
+    thesis_depth : VARCHAR(50)
+    thesis_word_count : INTEGER [DEFAULT: 0]
+    non_research_source : VARCHAR(100)
+    created_at : DATETIME
+    updated_at : DATETIME
+  }
+
+  entity JournalEntry {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    title : VARCHAR(200)
+    * entry_type : VARCHAR(50) [DEFAULT: 'observation']
+    * content : TEXT
+    key_insight : TEXT
+    action_items : JSON
+    questions_raised : JSON
+    sentiment : VARCHAR(20)
+    conviction_level : INTEGER
+    company_id : INTEGER <<FK>>
+    project_id : INTEGER <<FK>>
+    idea_id : INTEGER <<FK>>
+    tags : JSON
+    source : VARCHAR(200)
+    source_url : VARCHAR(500)
+    * created_at : DATETIME <<INDEX>>
+    updated_at : DATETIME
+    last_reviewed : DATETIME
+    review_count : INTEGER [DEFAULT: 0]
+    review_notes : TEXT
+    is_starred : BOOLEAN [DEFAULT: FALSE]
+    is_archived : BOOLEAN [DEFAULT: FALSE]
+    ai_analysis_result : JSON
+    ai_analyzed_at : DATETIME
+    ai_confidence_score : FLOAT
+    ai_suggested_tags : JSON
+    ai_themes_extracted : JSON
+    related_entry_ids : JSON
+    contradiction_flags : JSON
+    ai_processing_status : VARCHAR(50)
+  }
+
+  entity JournalAttachment {
+    * id : INTEGER <<PK>>
+    * journal_entry_id : INTEGER <<FK>>
+    --
+    * filename : VARCHAR(255)
+    file_type : VARCHAR(50)
+    file_path : VARCHAR(500)
+    file_size : INTEGER
+    caption : TEXT
+    uploaded_at : DATETIME
+  }
+
+  entity ThesisEvolution {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * company_id : INTEGER <<FK>>
+    --
+    version : INTEGER [DEFAULT: 1]
+    * thesis : TEXT
+    change_summary : TEXT
+    change_trigger : VARCHAR(200)
+    conviction_level : INTEGER
+    position_sizing : VARCHAR(50)
+    bull_case : JSON
+    bear_case : JSON
+    key_metrics : JSON
+    is_current : BOOLEAN [DEFAULT: TRUE]
+    created_at : DATETIME
+    linked_journal_entry_id : INTEGER <<FK>>
+  }
+
+  entity LearningNote {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * title : VARCHAR(200)
+    * lesson : TEXT
+    category : VARCHAR(100)
+    subcategory : VARCHAR(100)
+    context : TEXT
+    how_to_apply : TEXT
+    examples : JSON
+    anti_examples : JSON
+    source_type : VARCHAR(50)
+    source_detail : VARCHAR(200)
+    source_url : VARCHAR(500)
+    source_author : VARCHAR(200)
+    source_date : DATE
+    knowledge_type : VARCHAR(50)
+    topic_tags : JSON
+    investor_tags : JSON
+    company_id : INTEGER <<FK>>
+    decision_id : INTEGER <<FK>>
+    times_reviewed : INTEGER [DEFAULT: 0]
+    last_reviewed : DATETIME
+    importance : INTEGER [DEFAULT: 5]
+    is_favorite : BOOLEAN [DEFAULT: FALSE]
+    next_review_date : DATE
+    review_interval_days : INTEGER [DEFAULT: 7]
+    created_at : DATETIME
+    updated_at : DATETIME
+    tags : JSON
+  }
+
+  entity JournalTemplate {
+    * id : INTEGER <<PK>>
+    user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    description : TEXT
+    * entry_type : VARCHAR(50)
+    prompts : JSON
+    required_fields : JSON
+    example_content : TEXT
+    is_active : BOOLEAN [DEFAULT: TRUE]
+    is_public : BOOLEAN [DEFAULT: FALSE]
+    created_at : DATETIME
+  }
+
+  entity WeeklyReview {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * week_start : DATE
+    * week_end : DATE
+    ideas_captured : INTEGER [DEFAULT: 0]
+    ideas_killed : INTEGER [DEFAULT: 0]
+    research_hours : FLOAT [DEFAULT: 0]
+    decisions_made : INTEGER [DEFAULT: 0]
+    biggest_win : TEXT
+    biggest_challenge : TEXT
+    key_learnings : JSON
+    market_thoughts : TEXT
+    opportunities_identified : JSON
+    risks_identified : JSON
+    next_week_priorities : JSON
+    companies_to_research : JSON
+    last_week_goals_achieved : JSON
+    goals_completion_rate : INTEGER
+    confidence_level : INTEGER
+    market_sentiment : VARCHAR(50)
+    completed_at : DATETIME
+    created_at : DATETIME
+  }
+
+  entity InvestmentPostMortem {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    * company_id : INTEGER <<FK>>
+    --
+    decision_id : INTEGER <<FK>>
+    * entry_date : DATE
+    * exit_date : DATE
+    holding_period_days : INTEGER
+    entry_price : FLOAT
+    exit_price : FLOAT
+    total_return : FLOAT
+    annualized_return : FLOAT
+    benchmark_return : FLOAT
+    alpha : FLOAT
+    outcome : VARCHAR(50)
+    thesis_accuracy : VARCHAR(50)
+    thesis_playing_out : TEXT
+    unexpected_developments : JSON
+    decision_quality_score : INTEGER
+    process_followed : BOOLEAN
+    emotional_factors : TEXT
+    what_went_well : JSON
+    what_went_poorly : JSON
+    lucky_breaks : JSON
+    primary_lesson : TEXT
+    secondary_lessons : JSON
+    process_improvements : JSON
+    would_repeat : BOOLEAN
+    attachments : JSON
+    created_at : DATETIME
+  }
+
+  entity LearningPath {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * name : VARCHAR(200)
+    description : TEXT
+    skill_area : VARCHAR(100)
+    total_steps : INTEGER
+    completed_steps : INTEGER [DEFAULT: 0]
+    learning_resources : JSON
+    practice_exercises : JSON
+    milestones : JSON
+    current_step : INTEGER [DEFAULT: 1]
+    progress_notes : JSON
+    started_at : DATETIME
+    target_completion : DATE
+    completed_at : DATETIME
+    status : VARCHAR(50) [DEFAULT: 'planned']
+    created_at : DATETIME
+  }
+
+  entity PatternRecognition {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * pattern_name : VARCHAR(200)
+    pattern_type : VARCHAR(100)
+    * description : TEXT
+    occurrences : INTEGER [DEFAULT: 1]
+    examples : JSON
+    impact_score : INTEGER
+    financial_impact : TEXT
+    how_to_leverage : TEXT
+    how_to_avoid : TEXT
+    confidence_level : INTEGER
+    needs_more_data : BOOLEAN [DEFAULT: FALSE]
+    identified_date : DATE
+    last_observed : DATE
+    created_at : DATETIME
+  }
+}
+
+' =============================================================================
+' PORTFOLIO DOMAIN
+' =============================================================================
+
+package "Portfolio Management" {
+  entity ExchangeRate {
+    * id : INTEGER <<PK>>
+    * from_currency : VARCHAR(3) <<INDEX>>
+    * to_currency : VARCHAR(3) <<INDEX>>
+    * rate : NUMERIC(10,6)
+    * date : DATE <<INDEX>>
+    source : VARCHAR(50)
+    * fetched_at : DATETIME
+    ..
+    <<UNIQUE>> from_currency, to_currency, date
+    <<INDEX>> from_currency, to_currency, date
+  }
+
+  entity Transaction {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    * company_id : INTEGER <<FK>> <<INDEX>>
+    --
+    decision_journal_id : INTEGER <<FK>>
+    * type : VARCHAR(20) <<INDEX>>
+    * date : DATE <<INDEX>>
+    * quantity : INTEGER
+    * currency : VARCHAR(3) [DEFAULT: 'USD'] <<INDEX>>
+    * price_per_share : NUMERIC(10,2)
+    fees : NUMERIC(10,2) [DEFAULT: 0.00]
+    price_per_share_base : NUMERIC(10,2)
+    fees_base : NUMERIC(10,2)
+    exchange_rate : NUMERIC(10,6)
+    exchange_rate_date : DATE
+    notes : TEXT
+    bought_without_research : BOOLEAN [DEFAULT: FALSE] <<INDEX>>
+    reason_without_research : TEXT
+    is_add_to_position : BOOLEAN [DEFAULT: FALSE] <<INDEX>>
+    add_position_reason : VARCHAR(50)
+    add_position_notes : TEXT
+    thesis_updated : BOOLEAN [DEFAULT: FALSE]
+    * created_at : DATETIME
+    * updated_at : DATETIME
+  }
+
+  entity PortfolioPosition {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    * company_id : INTEGER <<FK>> <<INDEX>>
+    --
+    * total_shares : INTEGER [DEFAULT: 0]
+    * currency : VARCHAR(3) [DEFAULT: 'USD'] <<INDEX>>
+    average_cost_basis : NUMERIC(10,2)
+    * total_cost : NUMERIC(12,2) [DEFAULT: 0.00]
+    current_price : NUMERIC(10,2)
+    current_value : NUMERIC(12,2)
+    average_cost_basis_base : NUMERIC(10,2)
+    total_cost_base : NUMERIC(12,2)
+    current_price_base : NUMERIC(10,2)
+    current_value_base : NUMERIC(12,2)
+    current_exchange_rate : NUMERIC(10,6)
+    last_exchange_rate_update : DATETIME
+    unrealized_gain_loss : NUMERIC(12,2)
+    unrealized_gain_loss_pct : NUMERIC(6,2)
+    * currency_gain_loss : NUMERIC(12,2) [DEFAULT: 0.00]
+    * currency_gain_loss_pct : NUMERIC(6,2) [DEFAULT: 0.00]
+    * realized_gain_loss : NUMERIC(12,2) [DEFAULT: 0.00]
+    realized_gain_loss_pct : NUMERIC(6,2)
+    first_purchase_date : DATE <<INDEX>>
+    last_transaction_date : DATE
+    last_price_update : DATETIME
+    * is_active : BOOLEAN [DEFAULT: TRUE] <<INDEX>>
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    ..
+    <<UNIQUE>> user_id, company_id
+  }
+}
+
+' =============================================================================
+' AI INTELLIGENCE & LEARNING
+' =============================================================================
+
+package "AI Intelligence" {
+  entity ResearchOutcome {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    * company_id : INTEGER <<FK>> <<INDEX>>
+    --
+    research_session_id : INTEGER <<FK>>
+    research_project_id : INTEGER <<FK>>
+    decision_journal_id : INTEGER <<FK>>
+    * decision_date : DATE <<INDEX>>
+    --
+    ' Research Quality Metrics
+    research_quality_score : FLOAT
+    questions_answered : INTEGER
+    questions_total : INTEGER
+    documents_analyzed : INTEGER
+    research_duration_minutes : INTEGER
+    had_financial_analysis : BOOLEAN [DEFAULT: FALSE]
+    had_competitive_analysis : BOOLEAN [DEFAULT: FALSE]
+    had_management_review : BOOLEAN [DEFAULT: FALSE]
+    had_valuation_model : BOOLEAN [DEFAULT: FALSE]
+    --
+    ' Investment Details
+    * entry_price : NUMERIC(10,2)
+    exit_price : NUMERIC(10,2)
+    * position_size : NUMERIC(12,2)
+    --
+    ' Thesis & Expectations
+    initial_thesis : TEXT
+    confidence_at_entry : INTEGER
+    expected_return_pct : FLOAT
+    expected_hold_months : INTEGER
+    --
+    ' Actual Outcomes
+    realized_return_pct : FLOAT
+    current_return_pct : FLOAT
+    actual_hold_days : INTEGER
+    exit_date : DATE
+    --
+    ' Quality Assessment
+    thesis_accuracy_score : FLOAT
+    thesis_still_valid : BOOLEAN [DEFAULT: TRUE]
+    checkpoints_met : INTEGER
+    checkpoints_total : INTEGER
+    outcome_category : VARCHAR(50) <<INDEX>>
+    --
+    ' Timestamps
+    outcome_recorded_at : DATETIME
+    * created_at : DATETIME
+    last_updated_at : DATETIME
+  }
+
+  entity AIInsight {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    --
+    * insight_type : VARCHAR(50) <<INDEX>>
+    * title : VARCHAR(300)
+    * insight_text : TEXT
+    data_points : JSON
+    evidence : JSON
+    * ai_provider : VARCHAR(50)
+    * confidence : FLOAT
+    importance_score : FLOAT
+    --
+    company_id : INTEGER <<FK>>
+    sector_id : INTEGER <<FK>>
+    pattern_id : INTEGER <<FK>>
+    --
+    * is_active : BOOLEAN [DEFAULT: TRUE] <<INDEX>>
+    was_helpful : BOOLEAN
+    user_feedback : TEXT
+    dismissed_at : DATETIME
+    * created_at : DATETIME <<INDEX>>
+  }
+
+  entity EmbeddingStore {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    --
+    * content_type : VARCHAR(50) <<INDEX>>
+    * content_id : INTEGER <<INDEX>>
+    * content_text : TEXT
+    * embedding : VECTOR(1536)
+    metadata : JSON
+    * created_at : DATETIME
+    ..
+    <<INDEX>> user_id, content_type, content_id
+  }
+
+  entity MLPredictionLog {
+    * id : INTEGER <<PK>>
+    * user_id : INTEGER <<FK>> <<INDEX>>
+    --
+    * prediction_type : VARCHAR(50) <<INDEX>>
+    * model_version : VARCHAR(50)
+    input_data : JSON
+    * prediction_result : JSON
+    * confidence_score : FLOAT
+    actual_outcome : JSON
+    prediction_accuracy : FLOAT
+    company_id : INTEGER <<FK>>
+    * created_at : DATETIME <<INDEX>>
+    validated_at : DATETIME
+  }
+}
+
+' =============================================================================
+' BACKGROUND TASKS
+' =============================================================================
+
+package "Background Tasks" {
+  entity BackgroundTask {
+    * id : VARCHAR(36) <<PK>>
+    * user_id : INTEGER <<FK>>
+    --
+    * task_type : VARCHAR(50)
+    status : VARCHAR(20) [DEFAULT: 'pending']
+    project_id : INTEGER <<FK>>
+    step_index : INTEGER
+    result : TEXT
+    error_message : TEXT
+    created_at : DATETIME
+    started_at : DATETIME
+    completed_at : DATETIME
+  }
+}
+
+' =============================================================================
+' ASSOCIATION TABLES (Many-to-Many)
+' =============================================================================
+
+package "Associations" {
+  entity favorite_companies {
+    * user_id : INTEGER <<PK>> <<FK>>
+    * company_id : INTEGER <<PK>> <<FK>>
+  }
+
+  entity competitors_association {
+    * company_id : INTEGER <<PK>> <<FK>>
+    * competitor_id : INTEGER <<PK>> <<FK>>
+  }
+
+  entity sector_note_companies {
+    * sector_note_id : INTEGER <<PK>> <<FK>>
+    * company_id : INTEGER <<PK>> <<FK>>
+  }
+
+  entity sector_snippet_companies {
+    * sector_snippet_id : INTEGER <<PK>> <<FK>>
+    * company_id : INTEGER <<PK>> <<FK>>
+  }
+}
+
+' =============================================================================
+' RELATIONSHIPS
+' =============================================================================
+
+' User Relationships
+User ||--o{ Sector : "creates"
+User ||--o{ Company : "creates"
+User ||--o{ Checklist : "authors"
+User ||--o{ ChecklistAnalysis : "researches"
+User ||--o{ CompanyDocument : "uploads"
+User ||--o{ DestinationCheckpoint : "creates"
+User ||--o{ QuestionBankItem : "authors"
+User ||--o{ SectorAnalysis : "creates"
+User ||--o{ IdeaPipeline : "manages"
+User ||--o{ KillChecklist : "authors"
+User ||--o{ KillSession : "conducts"
+User ||--o{ ResearchTemplate : "creates"
+User ||--o{ ResearchProject : "conducts"
+User ||--o{ WorkSession : "logs"
+User ||--o{ TemplateStep : "creates"
+User ||--o| ResearchMetrics : "has"
+User ||--o{ ResearchLog : "generates"
+User ||--o{ DecisionJournal : "maintains"
+User ||--o{ JournalEntry : "writes"
+User ||--o{ ThesisEvolution : "tracks"
+User ||--o{ LearningNote : "collects"
+User ||--o{ JournalTemplate : "creates"
+User ||--o{ WeeklyReview : "completes"
+User ||--o{ InvestmentPostMortem : "writes"
+User ||--o{ LearningPath : "follows"
+User ||--o{ PatternRecognition : "identifies"
+User ||--o{ MistakeLog : "logs"
+User ||--o{ IdeaSourceAnalysis : "analyzes"
+User ||--o{ Transaction : "executes"
+User ||--o{ PortfolioPosition : "owns"
+User ||--o{ BackgroundTask : "initiates"
+User ||--o{ DocumentImport : "imports"
+
+' User Many-to-Many
+User ||--o{ favorite_companies : ""
+favorite_companies }o--|| Company : ""
+
+' Sector Relationships
+Sector ||--o{ Company : "categorizes"
+Sector ||--o{ SectorAnalysis : "analyzed_in"
+Sector ||--o{ QuestionBankItem : "contains"
+Sector ||--o{ IdeaPipeline : "categorizes"
+Sector ||--o{ ResearchProject : "tracks"
+Sector |o--o{ Sector : "parent/child"
+
+' Sector Analysis Relationships
+SectorAnalysis ||--o{ SectorResearchSection : "contains"
+SectorAnalysis ||--o{ SectorResearchSource : "references"
+SectorAnalysis ||--o{ SectorResearchSnippet : "collects"
+SectorAnalysis ||--o{ SectorSection : "organizes"
+SectorAnalysis ||--o{ SectorNote : "contains"
+
+' Sector Many-to-Many
+SectorNote ||--o{ sector_note_companies : ""
+sector_note_companies }o--|| Company : ""
+SectorResearchSnippet ||--o{ sector_snippet_companies : ""
+sector_snippet_companies }o--|| Company : ""
+
+' Sector Section Relationships
+SectorSection ||--o{ SectorNote : "organizes"
+
+' Company Relationships
+Company ||--o{ CompanyDocument : "has"
+Company ||--o{ CompanyArticle : "referenced_in"
+Company ||--o{ ScuttlebuttAnalysis : "analyzed_by"
+Company ||--o{ QualitativeAnalysis : "analyzed_by"
+Company ||--o{ FinancialData : "has"
+Company ||--o{ ChecklistAnalysis : "analyzed_in"
+Company ||--o{ DestinationCheckpoint : "tracked_for"
+Company ||--o{ IdeaPipeline : "originates_from"
+Company ||--o{ ResearchProject : "subject_of"
+Company ||--o{ DecisionJournal : "tracked_in"
+Company ||--o{ JournalEntry : "referenced_in"
+Company ||--o{ ThesisEvolution : "evolves_for"
+Company ||--o{ LearningNote : "learned_from"
+Company ||--o{ InvestmentPostMortem : "analyzed_in"
+Company ||--o{ MistakeLog : "relates_to"
+Company ||--o{ Transaction : "traded"
+Company ||--o{ PortfolioPosition : "held_as"
+
+' Company Many-to-Many (Competitors)
+Company ||--o{ competitors_association : "competes_with"
+competitors_association }o--|| Company : "competed_by"
+
+' Checklist Relationships
+Checklist ||--o{ ChecklistItem : "contains"
+Checklist ||--o{ ChecklistAnalysis : "used_in"
+Checklist ||--o{ DocumentImport : "creates"
+
+' Checklist Item Relationships
+ChecklistItem |o--o{ ChecklistItem : "parent/child"
+ChecklistItem ||--o{ ChecklistAnswer : "answered_by"
+
+' Research Workflow Relationships
+ChecklistAnalysis ||--o{ ChecklistAnswer : "collects"
+
+' Research Template Relationships
+ResearchTemplate ||--o{ ResearchProject : "instantiates"
+
+' Research Project Relationships
+ResearchProject ||--o{ WorkSession : "tracks_work_in"
+ResearchProject ||--o{ ResearchLog : "logs"
+ResearchProject ||--o{ BackgroundTask : "triggers"
+ResearchProject |o--|| DecisionJournal : "documented_in"
+
+' Idea Pipeline Relationships
+IdeaPipeline ||--o{ KillSession : "evaluated_by"
+IdeaPipeline |o--|| ResearchProject : "promotes_to"
+IdeaPipeline |o--|| KillCriterion : "failed_on"
+
+' Kill Checklist Relationships
+KillChecklist ||--o{ KillCriterion : "contains"
+KillChecklist ||--o{ KillSession : "evaluates_with"
+KillChecklist ||--o{ KillChecklistSuggestion : "receives"
+
+' Kill Criterion Relationships
+KillCriterion ||--o{ KillAnswer : "answered_in"
+KillCriterion |o--|| MistakeLog : "generated_from"
+
+' Kill Session Relationships
+KillSession ||--o{ KillAnswer : "collects"
+
+' Journal Relationships
+JournalEntry ||--o{ JournalAttachment : "has"
+JournalEntry |o--|| ThesisEvolution : "triggers"
+
+' Decision Journal Relationships
+DecisionJournal ||--o{ InvestmentPostMortem : "analyzed_in"
+DecisionJournal ||--o{ LearningNote : "generates"
+DecisionJournal ||--o{ MistakeLog : "logs"
+DecisionJournal ||--o{ Transaction : "executes"
+
+' Portfolio Relationships
+Transaction }o--|| PortfolioPosition : "affects"
+
+' AI Intelligence Relationships
+User ||--o{ ResearchOutcome : "tracks"
+User ||--o{ AIInsight : "receives"
+User ||--o{ EmbeddingStore : "stores"
+User ||--o{ MLPredictionLog : "generates"
+
+Company ||--o{ ResearchOutcome : "evaluated_in"
+Company ||--o{ AIInsight : "insights_about"
+Company ||--o{ MLPredictionLog : "predicted_for"
+
+Sector ||--o{ AIInsight : "insights_about"
+
+ChecklistAnalysis |o--|| ResearchOutcome : "quality_assessed"
+ResearchProject |o--|| ResearchOutcome : "quality_assessed"
+DecisionJournal |o--|| ResearchOutcome : "tracked_in"
+
+Transaction |o--|| ResearchOutcome : "creates/updates"
+
+PatternRecognition |o--|| AIInsight : "surfaces_as"
+
+@enduml

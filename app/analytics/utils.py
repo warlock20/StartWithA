@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import func
 from app import db
 from app.models import (User, ResearchMetrics, IdeaPipeline, ResearchProject,
-                       WorkSession, ResearchLog, IdeaSourceAnalysis,
-                       KillSession, DecisionJournal)
+                       WorkSession, ResearchLog, IdeaSourceAnalysis)
 from app.utils.time_utils import now_utc
 
 def update_user_metrics(user_id):
@@ -117,7 +116,7 @@ def update_user_metrics(user_id):
         
         # Calculate streak
         streak = 0
-        current_date = datetime.utcnow().date()
+        current_date = now_utc().date()
         while True:
             logs_on_date = user.research_logs.filter(
                 func.date(ResearchLog.timestamp) == current_date
@@ -129,7 +128,7 @@ def update_user_metrics(user_id):
                 break
         metrics.research_streak_days = streak
     
-    metrics.last_updated = datetime.utcnow()
+    metrics.last_updated = now_utc()
     
     try:
         db.session.commit()
@@ -143,7 +142,7 @@ def log_research_activity(user_id, activity_type, **kwargs):
     """
     Log a research activity for analysis.
     """
-    now = datetime.utcnow()
+    now = now_utc()
     log = ResearchLog(
         user_id=user_id,
         activity_type=activity_type,

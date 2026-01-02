@@ -17,9 +17,9 @@
         </p>
     </div>
     <div>
-        <a href="{{ url_for('journal_enhanced.knowledge_hub', type='wisdom') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Knowledge Hub
-        </a>
+        {% with btn_class='btn btn-outline-secondary' %}
+            {% include 'components/smart_back_button.html' %}
+        {% endwith %}
     </div>
 </div>
 

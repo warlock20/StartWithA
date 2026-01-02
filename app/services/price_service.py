@@ -1,11 +1,11 @@
 # app/services/price_service.py
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 import yfinance as yf
 from app import db
 from app.models import PortfolioPosition
-
+from app.utils.time_utils import now_utc
 
 class PriceService:
     """
@@ -116,7 +116,7 @@ class PriceService:
         if not position.last_price_update:
             return True
 
-        time_since_update = datetime.utcnow() - position.last_price_update
+        time_since_update = now_utc() - position.last_price_update
         return time_since_update > timedelta(minutes=15)
 
     @staticmethod
@@ -154,7 +154,7 @@ class PriceService:
                 position.unrealized_gain_loss = Decimal('0.00')
                 position.unrealized_gain_loss_pct = Decimal('0.00')
 
-            position.last_price_update = datetime.utcnow()
+            position.last_price_update = now_utc()
             db.session.commit()
 
             return True
@@ -388,7 +388,7 @@ class PriceService:
                     position.unrealized_gain_loss = Decimal('0.00')
                     position.unrealized_gain_loss_pct = Decimal('0.00')
 
-                position.last_price_update = datetime.utcnow()
+                position.last_price_update = now_utc()
                 results['updated'] += 1
 
             except Exception as e:

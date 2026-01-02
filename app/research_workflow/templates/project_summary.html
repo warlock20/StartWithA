@@ -15,9 +15,9 @@
                     • Make your final investment decision
                 </p>
             </div>
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-light">
-                <i class="bi bi-arrow-left"></i> Back to Projects
-            </a>
+            {% with btn_class='btn btn-light' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
         </div>
     </div>
 
@@ -39,28 +39,31 @@
                     </div>
                 </div>
 
-                <form method="POST" action="{{ url_for('research_workflow.save_decision', project_id=project.id) }}">
+                <form method="POST" action="{{ url_for('research_workflow.save_project_decision', project_id=project.id) }}">
 
                     <!-- Decision Options -->
                     <div class="mb-4">
                         <label class="form-label fw-bold mb-3">Your Decision:</label>
                         <div class="decision-options">
                             <div class="decision-option invest">
-                                <input type="radio" name="decision" id="decision_invest" value="invest" required>
+                                <input type="radio" name="decision" id="decision_invest" value="invest"
+                                       {% if project.decision == 'invest' %}checked{% endif %} required>
                                 <label for="decision_invest">
                                     <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
                                     Invest
                                 </label>
                             </div>
                             <div class="decision-option pass">
-                                <input type="radio" name="decision" id="decision_pass" value="pass">
+                                <input type="radio" name="decision" id="decision_pass" value="pass"
+                                       {% if project.decision == 'pass' %}checked{% endif %}>
                                 <label for="decision_pass">
                                     <i class="bi bi-x-circle-fill text-danger d-block mb-2" style="font-size: 2rem;"></i>
                                     Pass
                                 </label>
                             </div>
                             <div class="decision-option watchlist">
-                                <input type="radio" name="decision" id="decision_watchlist" value="watchlist">
+                                <input type="radio" name="decision" id="decision_watchlist" value="watchlist"
+                                       {% if project.decision == 'watchlist' %}checked{% endif %}>
                                 <label for="decision_watchlist">
                                     <i class="bi bi-eye-fill text-warning d-block mb-2" style="font-size: 2rem;"></i>
                                     Watchlist
@@ -70,25 +73,18 @@
                     </div>
 
                     <!-- Confidence Level -->
-                    <div class="confidence-section">
+                    <div class="confidence-section mb-4">
                         <div class="confidence-display">
                             <label class="form-label fw-bold mb-0">Confidence Level:</label>
-                            <span class="confidence-value" id="confidenceDisplay">5</span>
+                            <span class="confidence-value" id="confidenceDisplay">{{ project.decision_confidence or 5 }}</span>
                         </div>
                         <input type="range" class="form-range confidence-slider" min="1" max="10" step="1"
-                               id="confidence" name="confidence" value="5"
+                               id="confidence" name="confidence" value="{{ project.decision_confidence or 5 }}"
                                oninput="document.getElementById('confidenceDisplay').textContent = this.value">
                         <div class="d-flex justify-content-between text-muted small mt-2">
                             <span>Low Confidence</span>
                             <span>High Confidence</span>
                         </div>
-                    </div>
-
-                    <!-- Investment Thesis -->
-                    <div class="mb-4">
-                        <label for="decision_notes" class="form-label fw-bold">Final Investment Thesis:</label>
-                        <textarea class="form-control" name="decision_notes" id="decision_notes" rows="5"
-                                  placeholder="Summarize the core reasons for your investment decision..." required></textarea>
                     </div>
 
                     <!-- Key Positives and Risks -->
@@ -98,7 +94,7 @@
                                 <i class="bi bi-plus-circle-fill text-success me-2"></i>Key Positives:
                             </label>
                             <textarea class="form-control" name="green_flags" rows="4"
-                                      placeholder="One finding per line..."></textarea>
+                                      placeholder="One finding per line...">{% if project.green_flags %}{{ project.green_flags|join('\n') }}{% endif %}</textarea>
                             <small class="text-muted">One per line</small>
                         </div>
                         <div class="col-md-6">
@@ -106,7 +102,7 @@
                                 <i class="bi bi-dash-circle-fill text-danger me-2"></i>Key Risks:
                             </label>
                             <textarea class="form-control" name="red_flags" rows="4"
-                                      placeholder="One risk per line..."></textarea>
+                                      placeholder="One risk per line...">{% if project.red_flags %}{{ project.red_flags|join('\n') }}{% endif %}</textarea>
                             <small class="text-muted">One per line</small>
                         </div>
                     </div>
@@ -127,8 +123,8 @@
                         <i class="bi bi-journal-text"></i>
                     </div>
                     <div class="decision-card-title">
-                        <h2>Research Notes</h2>
-                        <p>Review your detailed findings from each step</p>
+                        <h2>Research Steps</h2>
+                        <p>Review and edit your detailed findings from each step</p>
                     </div>
                 </div>
 
@@ -141,6 +137,19 @@
                                     data-bs-toggle="collapse" data-bs-target="#note-{{ loop.index0 }}">
                                 <i class="bi bi-journal-check me-2"></i>
                                 {{ note.step_name }}
+                                {% if note.step_type == 'checklist' %}
+                                <span class="badge bg-primary ms-2">Checklist</span>
+                                {% elif note.step_type == 'thesis_writing' %}
+                                <span class="badge bg-success ms-2">Thesis</span>
+                                {% elif note.step_type == 'model' %}
+                                <span class="badge bg-purple ms-2">Mental Model</span>
+                                {% elif note.step_type == 'valuation' %}
+                                <span class="badge bg-info ms-2">Valuation</span>
+                                {% elif note.step_type == 'competitor_analysis' %}
+                                <span class="badge bg-warning ms-2">Competitor Analysis</span>
+                                {% elif note.step_type == 'custom' %}
+                                <span class="badge bg-secondary ms-2">Custom</span>
+                                {% endif %}
                             </button>
                         </h2>
                         <div id="note-{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
@@ -149,6 +158,31 @@
                                 <div class="step-notes-content">
                                     {{ note.notes|markdown|safe }}
                                 </div>
+
+                                <!-- Action buttons for different step types -->
+                                {% if note.step_type == 'checklist' and checklist_analyses and checklist_analyses[note.step_index] %}
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[note.step_index]) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-file-text"></i> View Full Checklist Summary
+                                        </a>
+                                        <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[note.step_index]) }}"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-download"></i> Export Checklist
+                                        </a>
+                                    </div>
+                                </div>
+                                {% elif note.step_type == 'thesis_writing' %}
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=note.step_index) }}"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-pencil"></i> Edit Investment Thesis
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -157,7 +191,7 @@
                 {% else %}
                 <div class="alert alert-info border-0">
                     <i class="bi bi-info-circle me-2"></i>
-                    No research notes were recorded for this project.
+                    No research steps were recorded for this project.
                 </div>
                 {% endif %}
             </div>
@@ -175,7 +209,7 @@
                             Company:
                         </span>
                         <span class="project-stat-value">
-                            {{ project.company.name if project.company else project.research_subject_name }}
+                            {{ project.subject_display_name }}
                         </span>
                     </div>
                     <div class="project-stat-item">
@@ -199,15 +233,8 @@
                 </div>
             </div>
 
-            <!-- Evolving Thesis Card -->
-            {% if project.investment_thesis %}
-            <div class="research-summary-card">
-                <h4>
-                    <i class="bi bi-lightbulb me-2"></i>Your Evolving Thesis
-                </h4>
-                <p>"{{ project.investment_thesis }}"</p>
-            </div>
-            {% endif %}
+            <!-- Research Quality Score -->
+            {% include '_quality_score_card.html' %}
 
             <!-- Key Findings Card -->
             {% if project.green_flags or project.red_flags %}

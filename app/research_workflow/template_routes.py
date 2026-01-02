@@ -9,9 +9,6 @@ This module handles all routes related to research template management including
 - Deleting and force deleting templates
 - Archiving and restoring templates
 - Creating default templates for users
-
-Extracted from routes.py lines: 193-237, 238-327, 328-368, 1330-1407, 1408-1437,
-1438-1461, 1906-1926, 1927-1948, 2096-2132
 """
 
 from flask import render_template, request, redirect, url_for, flash

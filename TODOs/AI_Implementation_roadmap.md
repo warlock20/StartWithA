@@ -59,7 +59,7 @@
 
 ---
 
-# WEEK 1-2: Foundation Layer
+# WEEK 1-2: Foundation Layer : THIS IS COMPLETE 
 
 ## Goals
 - [ ] New database tables for AI features
@@ -1212,7 +1212,7 @@ def calculate_research_quality(
 
 ---
 
-# WEEK 3-4: Data Pipeline & Outcome Tracking
+# WEEK 3-4: Data Pipeline & Outcome Tracking: THIS IS COMPLETE
 
 ## Goals
 - [ ] Auto-capture research metrics at decision time
@@ -1496,7 +1496,7 @@ def on_sell_transaction(transaction: Transaction, realized_return_pct: float):
 
 ---
 
-# WEEK 5-6: Intelligence Engine (Phase 2)
+# WEEK 7-8: Intelligence Engine (Phase 2)
 
 ## Goals
 - [ ] Real-time warnings during research
@@ -2038,6 +2038,186 @@ def get_research_warnings(
 
 ---
 
+
+# WEEK 5-6: Portfolio Intelligence — Full Plan
+
+### The Big Picture
+
+We've built the **data collection layer** (ResearchOutcome tracks quality→results). Now we **visualize and act on it**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PORTFOLIO INTELLIGENCE                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │ Correlation  │    │ Checkpoint   │    │  Position    │      │
+│  │  Dashboard   │    │  Reminders   │    │  Monitoring  │      │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘      │
+│         │                   │                   │               │
+│         ▼                   ▼                   ▼               │
+│  "High quality         "AAPL earnings      "Your NVDA thesis   │
+│   research = 12%       call in 3 days"      was 'AI growth'    │
+│   better returns"                           but it's down 20%" │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                  Learning Insights                       │   │
+│  │  "Your best trades: 80+ quality score, held 6+ months"  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 1: Correlation Dashboard
+
+**What it shows:**
+- Research quality score vs actual returns (scatter plot)
+- Average return by quality grade (A, B, C, D, F)
+- "Research Advantage" metric (researched vs non-researched returns)
+
+**Data source:** `ResearchOutcome` table (we built this!)
+
+**Location:** New page at `/portfolio/analytics/research-correlation` or widget on existing analytics page
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  📊 Research Quality → Returns Correlation      │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Grade A (90+):  +18.5% avg return  ████████▓  │
+│  Grade B (80-89): +12.2% avg return ██████▓    │
+│  Grade C (70-79): +5.1% avg return  ███▓       │
+│  Grade D (60-69): -2.3% avg return  ▓          │
+│  Grade F (<60):   -8.7% avg return  ░░░        │
+│                                                 │
+│  🎯 Your Research Advantage: +15.3%            │
+│  (Researched positions outperform by 15.3%)    │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 2: Checkpoint Reminders
+
+**What it does:**
+- Queries `DestinationCheckpoint` for upcoming dates
+- Shows on dashboard and/or sends notifications
+- Prompts user to evaluate: "Did this checkpoint get met?"
+
+**Data source:** `DestinationCheckpoint` table (already exists)
+
+**Location:** Widget on portfolio dashboard, notification system
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  📅 Upcoming Checkpoints                        │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  🔴 OVERDUE (2 days ago)                        │
+│     AAPL: "Q4 earnings beat estimates"          │
+│     [Mark Met] [Mark Not Met] [Snooze]          │
+│                                                 │
+│  🟡 THIS WEEK                                   │
+│     NVDA: "Data center revenue > $10B"          │
+│     Target: Dec 30, 2025                        │
+│                                                 │
+│  🟢 NEXT 30 DAYS                                │
+│     MSFT: "Azure growth > 25%"                  │
+│     Target: Jan 15, 2026                        │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 3: Position Monitoring (Thesis vs Reality)
+
+**What it does:**
+- Compares original investment thesis to current performance
+- Flags positions where reality diverges from thesis
+- Prompts reflection: "Is your thesis still valid?"
+
+**Data source:** `DecisionJournal.investment_thesis`, `PortfolioPosition`, current prices
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  ⚠️ Thesis Reality Check                        │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  NVDA — NEEDS ATTENTION                         │
+│  ├─ Original thesis: "AI demand drives 50%     │
+│  │   revenue growth"                            │
+│  ├─ Expected: +40% in 12 months                │
+│  ├─ Actual: -15% (held 8 months)               │
+│  └─ [Review Thesis] [Update] [Sell?]           │
+│                                                 │
+│  AAPL — ON TRACK                                │
+│  ├─ Original thesis: "Services revenue growth" │
+│  ├─ Expected: +20% in 18 months                │
+│  ├─ Actual: +12% (held 6 months)               │
+│  └─ Tracking well ✓                            │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### Step 4: Learning Insights
+
+**What it does:**
+- Analyzes completed `ResearchOutcome` records
+- Finds patterns in winning vs losing trades
+- Generates personalized insights
+
+**Data source:** `ResearchOutcome`, `DecisionJournal`, `PortfolioPosition`
+
+**Example output:**
+```
+┌─────────────────────────────────────────────────┐
+│  💡 What Your Data Tells You                    │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ✅ WINNING PATTERNS                            │
+│  • Your best trades had quality scores 80+     │
+│  • You perform better holding 6+ months        │
+│  • Tech sector: 72% win rate                   │
+│                                                 │
+│  ⚠️ WATCH OUT FOR                               │
+│  • Trades without research: -8% avg return     │
+│  • Positions sold < 30 days: 65% were losses   │
+│  • High confidence (9-10) ≠ better results     │
+│                                                 │
+│  📈 YOUR EDGE                                   │
+│  Research quality is your strongest predictor  │
+│  of success. Keep investing in thorough        │
+│  analysis!                                      │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## 📁 Files We'll Create
+
+| Step | Files |
+|------|-------|
+| **1** | `app/services/portfolio_intelligence.py` (service) |
+| | `app/portfolio/templates/research_correlation.html` (UI) |
+| **2** | Add to service + dashboard widget |
+| **3** | Add to service + new template section |
+| **4** | Add to service + insights card |
+
+---
+
+
+
+
 # Summary: Complete Implementation Map
 
 ```
@@ -2083,3 +2263,223 @@ def get_research_warnings(
 
 
 
+# Tuning tips 
+
+ 1. Research Quality Calculator (app/services/research_quality.py)
+  - 5-factor scoring algorithm (0-100 scale):
+    - Completeness (25%): % of questions answered
+    - Depth (25%): Answer quality/length
+    - Breadth (20%): Analysis variety (financial, competitive, management, valuation)
+    - Time (15%): Time invested (30-120 min optimal)
+    - Documents (15%): Document analysis depth
+  - Returns ResearchQualityScore dataclass with grade (A-F) and improvement tips
+
+  2. Outcome Tracker (app/services/outcome_tracking.py)
+  - BUY Hook: Creates ResearchOutcome record linking research quality to investment
+  - SELL Hook: Updates outcome with realized returns, thesis accuracy
+  - Thesis Accuracy Algorithm:
+    - Return expectation (40%)
+    - Hold period accuracy (30%)
+    - Checkpoint hit rate (30%)
+  - Outcome Categories: big_win (≥25%), small_win (≥5%), break_even, small_loss, big_loss
+  - Correlation Analysis: Auto-runs when ≥5 outcomes, generates AIInsight if meaningful patterns found
+
+
+    How It Works
+
+  When user makes a BUY:
+  1. Transaction created → on_buy_transaction() called
+  2. Finds linked research (DecisionJournal → ResearchProject → ResearchSession)
+  3. Calculates research quality score (0-100)
+  4. Creates ResearchOutcome record with all metrics
+  5. Tracks: quality score, questions answered, documents, thesis, confidence, expected return
+
+  When user makes a SELL:
+  1. Transaction created → on_sell_transaction() called
+  2. Finds open ResearchOutcome for this company
+  3. Calculates realized return %
+  4. Updates: exit price, return %, hold days, outcome category, thesis accuracy
+  5. Runs correlation analysis if ≥5 outcomes exist
+  6. Generates AIInsight if research quality correlates with returns (>5% difference)
+
+  Example AIInsight Generated:
+  "Your high-quality research (score 70+) has averaged 18.5% returns, while lower-quality research averaged 6.2% returns. That's a 12.3% difference! This suggests your thorough research pays off."
+
+
+  ## Next testing phase 
+
+    When you're ready to test:
+  1. Run python test_outcome_tracking.py to verify everything works
+  2. Make real BUY transactions in the app (with or without research)
+  3. Verify ResearchOutcome records appear in database
+  4. Make SELL transactions to complete the cycle
+  5. Check AIInsight table after 5+ completed outcomes
+
+
+  # Tuning the platform
+
+  Excellent thinking! 🎯 This is an important architectural decision to make **before** we build the features.
+
+---
+
+## 📊 Current Hardcoded Parameters
+
+### In `research_quality.py`:
+| Parameter | Current Value | Should Be Tunable? |
+|-----------|---------------|-------------------|
+| `min_questions_pct` | 70% | ✅ Yes |
+| `min_time_minutes` | 30 | ✅ Yes |
+| `max_time_minutes` | 480 | ✅ Yes |
+| `ideal_documents` | 5 | ✅ Yes |
+| `good_answer_length` | 200 chars | ✅ Yes |
+| Grade thresholds | A=90, B=80, C=70... | ✅ Yes |
+| Weights | completeness 25%, depth 25%... | ✅ Yes |
+
+### In `outcome_tracking.py`:
+| Parameter | Current Value | Should Be Tunable? |
+|-----------|---------------|-------------------|
+| `big_win` threshold | ≥25% | ✅ Yes |
+| `small_win` threshold | ≥5% | ✅ Yes |
+| `min_outcomes_for_analysis` | 5 | ✅ Yes |
+
+---
+
+## 🎛️ Configuration Options
+
+### Option 1: System-wide Admin Only
+```
+Admin sets → All users get same thresholds
+```
+- ✅ Simple
+- ❌ One size fits all
+
+### Option 2: Preset Profiles Only
+```
+User picks: [Beginner] [Intermediate] [Expert] [Pro]
+```
+- ✅ Easy for users
+- ❌ Limited flexibility
+
+### Option 3: Full User Customization
+```
+Each user tunes every parameter
+```
+- ✅ Maximum flexibility
+- ❌ Complex, users might break things
+
+### Option 4: Hybrid (Recommended) ⭐
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CONFIGURATION HIERARCHY                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌─────────────┐                                          │
+│   │   SYSTEM    │  Admin-tunable defaults                  │
+│   │  DEFAULTS   │  (applies to all users)                  │
+│   └──────┬──────┘                                          │
+│          │                                                  │
+│          ▼                                                  │
+│   ┌─────────────┐                                          │
+│   │  INVESTOR   │  Preset profiles that override defaults  │
+│   │  PROFILES   │  • Beginner (lenient thresholds)         │
+│   │             │  • Intermediate (balanced)               │
+│   │             │  • Expert (strict)                       │
+│   │             │  • Professional (very strict)            │
+│   └──────┬──────┘                                          │
+│          │                                                  │
+│          ▼                                                  │
+│   ┌─────────────┐                                          │
+│   │    USER     │  Advanced users can override specific    │
+│   │  OVERRIDES  │  parameters (optional)                   │
+│   └─────────────┘                                          │
+│                                                             │
+│   Resolution: User Override > Profile > System Default     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 👤 Investor Profile Examples
+
+| Parameter | Beginner | Intermediate | Expert | Professional |
+|-----------|----------|--------------|--------|--------------|
+| Min research time | 15 min | 30 min | 60 min | 120 min |
+| Min questions % | 50% | 70% | 85% | 95% |
+| Big win threshold | ≥15% | ≥25% | ≥30% | ≥40% |
+| Min docs required | 1 | 3 | 5 | 10 |
+| Grade A threshold | 80 | 90 | 92 | 95 |
+| Outcome data needed | 3 | 5 | 5 | 10 |
+
+**Profile Descriptions:**
+- **Beginner**: Learning the process, lenient scoring, encouragement-focused
+- **Intermediate**: Building habits, balanced thresholds
+- **Expert**: Serious investor, stricter quality standards
+- **Professional**: Fund manager level, very strict, more data needed
+
+---
+
+## 🗂️ Implementation Plan
+
+### New Files:
+```
+app/models/configuration.py      # SystemConfig, InvestorProfile
+app/services/config_service.py   # ConfigurationService (resolves effective config)
+app/admin/config_routes.py       # Admin dashboard for system defaults
+app/settings/profile_routes.py   # User profile selection + custom overrides
+```
+
+### Database Tables:
+```sql
+-- System-wide defaults (admin-editable)
+system_config
+├── id
+├── key (e.g., 'research_quality.min_time_minutes')
+├── value (JSON)
+├── description
+└── updated_by, updated_at
+
+-- User's chosen profile + overrides
+user_investment_profile
+├── id
+├── user_id
+├── profile_type (beginner/intermediate/expert/professional/custom)
+├── custom_overrides (JSON - only if they want to tweak specific things)
+└── created_at, updated_at
+```
+
+### Usage in Code:
+```python
+# Before (hardcoded):
+if minutes < 30:
+    return low_score
+
+# After (configurable):
+config = ConfigurationService.get_effective_config(user_id)
+if minutes < config.min_research_time_minutes:
+    return low_score
+```
+
+---
+
+## 🤔 My Recommendation
+
+1. **Start with Step 0**: Create the configuration system (Hybrid approach)
+2. **Then build features** using configurable parameters
+3. **Admin dashboard** can come later (use DB directly initially)
+4. **User profile selection** added to settings page
+
+---
+
+## What Do You Think?
+
+| Approach | Complexity | Time |
+|----------|------------|------|
+| Skip config, hardcode for now | Low | 0 |
+| Simple profiles only (no overrides) | Low-Medium | 2-3 hrs |
+| Full hybrid system | Medium | 4-5 hrs |
+
+Should we:
+- **A**: Build config system first (Step 0), then Portfolio Intelligence
+- **B**: Build Portfolio Intelligence with hardcoded values, add config later
+- **C**: Just do simple profiles (no custom overrides) as a middle ground

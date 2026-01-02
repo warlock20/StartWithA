@@ -1,0 +1,254 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Research Correlation Analysis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/correlation.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-container">
+
+    <!-- Page Header -->
+    <div class="portfolio-page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="portfolio-page-title">
+                    <i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation
+                </h1>
+                <div class="portfolio-page-meta">
+                    <div class="portfolio-meta-item">
+                        <span>Discover how your research quality impacts investment outcomes</span>
+                    </div>
+                </div>
+            </div>
+            <div class="portfolio-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="btn-portfolio-modern primary">
+                    <i class="bi bi-brain"></i>
+                    Decision Intelligence
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if not correlation_data.has_sufficient_data %}
+    <!-- Not Enough Data State -->
+    <div class="portfolio-empty-state">
+        <i class="bi bi-bar-chart-line"></i>
+        <h3>Building Your Track Record</h3>
+        <p>{{ correlation_data.min_data_message }}</p>
+        <p class="text-muted">Complete more research-backed trades to unlock insights.</p>
+        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
+            <i class="bi bi-plus-lg"></i>
+            Add Transaction
+        </a>
+    </div>
+
+    {% else %}
+
+    <!-- Stats Grid -->
+    <div class="portfolio-stats-grid">
+
+        <!-- Research Advantage Card -->
+        <div class="portfolio-stat-card {% if correlation_data.research_advantage < 0 %}danger-highlight{% elif correlation_data.research_advantage > 10 %}success-highlight{% endif %}">
+            <div class="portfolio-stat-icon {% if correlation_data.research_advantage >= 0 %}green{% else %}red{% endif %}">
+                <i class="bi bi-trophy-fill"></i>
+            </div>
+            <div class="portfolio-stat-label">Research Advantage</div>
+            <div class="portfolio-stat-value">
+                {% if correlation_data.research_advantage >= 0 %}+{% endif %}{{ correlation_data.research_advantage }}%
+            </div>
+            <div class="portfolio-stat-trend {% if correlation_data.research_advantage >= 0 %}up{% else %}down{% endif %}">
+                {% if correlation_data.research_advantage > 0 %}
+                    Researched trades outperform
+                {% elif correlation_data.research_advantage < 0 %}
+                    Room for improvement
+                {% else %}
+                    No clear advantage yet
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Total Outcomes Card -->
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon blue">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="portfolio-stat-label">Total Trades</div>
+            <div class="portfolio-stat-value">{{ correlation_data.total_outcomes }}</div>
+            <div class="portfolio-stat-trend">Completed positions</div>
+        </div>
+
+        <!-- Researched Trades Card -->
+        <div class="portfolio-stat-card success-highlight">
+            <div class="portfolio-stat-icon green">
+                <i class="bi bi-journal-check"></i>
+            </div>
+            <div class="portfolio-stat-label">Researched</div>
+            <div class="portfolio-stat-value">{{ correlation_data.researched_count }}</div>
+            <div class="portfolio-stat-trend">
+                {% if correlation_data.researched_avg_return >= 0 %}+{% endif %}{{ correlation_data.researched_avg_return }}% avg
+            </div>
+        </div>
+
+        <!-- Correlation Coefficient Card -->
+        {% if correlation_data.correlation_coefficient is not none %}
+        <div class="portfolio-stat-card">
+            <div class="portfolio-stat-icon purple">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div class="portfolio-stat-label">Correlation</div>
+            <div class="portfolio-stat-value">{{ correlation_data.correlation_coefficient }}</div>
+            <div class="portfolio-stat-trend">
+                {% if correlation_data.correlation_coefficient > 0.5 %}
+                    Strong positive
+                {% elif correlation_data.correlation_coefficient > 0.2 %}
+                    Moderate positive
+                {% elif correlation_data.correlation_coefficient > -0.2 %}
+                    Weak/no correlation
+                {% else %}
+                    Negative
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+
+        <!-- Left Column: Grade Breakdown -->
+        <div class="col-lg-8">
+
+            <!-- Grade Performance Breakdown -->
+            <div class="portfolio-table-section">
+                <div class="portfolio-table-section-header">
+                    <h2 class="portfolio-table-section-title">
+                        <i class="bi bi-award me-2"></i>Performance by Research Quality Grade
+                    </h2>
+                </div>
+
+                {% if correlation_data.grade_performance %}
+                    {% for grade in correlation_data.grade_performance %}
+                    <div class="grade-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="grade-badge grade-{{ grade.grade|lower }}">
+                                {{ grade.grade }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <span class="fw-semibold">Grade {{ grade.grade }}</span>
+                                        <span class="text-muted small ms-2">({{ grade.count }} trades)</span>
+                                    </div>
+                                    <div class="grade-return {% if grade.avg_return >= 0 %}positive{% else %}negative{% endif %}">
+                                        {% if grade.avg_return >= 0 %}+{% endif %}{{ grade.avg_return }}%
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-4 small text-muted">
+                                    <span><i class="bi bi-trophy me-1"></i>{{ grade.win_rate }}% win rate</span>
+                                    <span><i class="bi bi-calendar me-1"></i>{{ grade.avg_hold_days }} days avg hold</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if correlation_data.best_grade and correlation_data.worst_grade %}
+                    <div class="correlation-insight">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <strong>Best performing:</strong> Grade {{ correlation_data.best_grade }} trades
+                        &nbsp;|&nbsp;
+                        <strong>Weakest:</strong> Grade {{ correlation_data.worst_grade }} trades
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="portfolio-empty-state-small">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <p>Not enough trades per grade to show breakdown</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Learning Insights -->
+            {% if insights %}
+            <div class="portfolio-table-section mt-4">
+                <div class="portfolio-table-section-header">
+                    <h2 class="portfolio-table-section-title">
+                        <i class="bi bi-lightbulb me-2"></i>What Your Data Tells You
+                    </h2>
+                </div>
+
+                {% for insight in insights %}
+                <div class="insight-card {{ insight.category }}">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div class="flex-grow-1">
+                            <h6 class="insight-title mb-1">
+                                {% if insight.category == 'edge' %}
+                                    <i class="bi bi-star-fill text-success me-1"></i>
+                                {% elif insight.category == 'warning' %}
+                                    <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                                {% elif insight.category == 'winning_pattern' %}
+                                    <i class="bi bi-trophy-fill text-primary me-1"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-up-circle-fill text-purple me-1"></i>
+                                {% endif %}
+                                {{ insight.title }}
+                            </h6>
+                            <p class="insight-description mb-0">{{ insight.description }}</p>
+                            {% if insight.supporting_data %}
+                            <small class="text-muted"><em>{{ insight.supporting_data }}</em></small>
+                            {% endif %}
+                        </div>
+                        <span class="portfolio-badge {% if insight.importance == 'high' %}danger{% elif insight.importance == 'medium' %}warning{% else %}secondary{% endif %}">
+                            {{ insight.importance }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Right Column: Comparison Stats -->
+        <div class="col-lg-4">
+
+            <!-- Researched vs Non-Researched Comparison -->
+            <div class="portfolio-table-section">
+                <div class="portfolio-table-section-header">
+                    <h2 class="portfolio-table-section-title">
+                        <i class="bi bi-bar-chart me-2"></i>Comparison
+                    </h2>
+                </div>
+
+                <div class="comparison-card researched">
+                    <div class="comparison-label">Researched</div>
+                    <div class="comparison-value">
+                        {% if correlation_data.researched_avg_return >= 0 %}+{% endif %}{{ correlation_data.researched_avg_return }}%
+                    </div>
+                    <div class="comparison-count">{{ correlation_data.researched_count }} trades</div>
+                </div>
+
+                <div class="comparison-card non-researched">
+                    <div class="comparison-label">Non-Researched</div>
+                    <div class="comparison-value">
+                        {% if correlation_data.non_researched_avg_return >= 0 %}+{% endif %}{{ correlation_data.non_researched_avg_return }}%
+                    </div>
+                    <div class="comparison-count">{{ correlation_data.non_researched_count }} trades</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}

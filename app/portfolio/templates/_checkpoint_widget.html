@@ -1,0 +1,85 @@
+
+{% if checkpoint_summary %}
+<div class="card mb-4">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-check me-2"></i>Checkpoints
+        </h5>
+        <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="btn btn-sm btn-outline-primary">
+            View All
+        </a>
+    </div>
+    <div class="card-body">
+        
+        {% if checkpoint_summary.needs_attention %}
+        <!-- Alert Banner -->
+        <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                <strong>{{ checkpoint_summary.overdue_count }} overdue</strong> checkpoint{% if checkpoint_summary.overdue_count != 1 %}s{% endif %} need your attention
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Quick Stats -->
+        <div class="row text-center g-2">
+            <div class="col-4">
+                <div class="p-2 rounded {% if checkpoint_summary.overdue_count > 0 %}bg-danger bg-opacity-10{% else %}bg-light{% endif %}">
+                    <div class="fw-bold {% if checkpoint_summary.overdue_count > 0 %}text-danger{% endif %}" style="font-size: 1.5rem;">
+                        {{ checkpoint_summary.overdue_count }}
+                    </div>
+                    <div class="text-muted small">Overdue</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2 rounded {% if checkpoint_summary.this_week_count > 0 %}bg-warning bg-opacity-10{% else %}bg-light{% endif %}">
+                    <div class="fw-bold {% if checkpoint_summary.this_week_count > 0 %}text-warning{% endif %}" style="font-size: 1.5rem;">
+                        {{ checkpoint_summary.this_week_count }}
+                    </div>
+                    <div class="text-muted small">This Week</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2 rounded bg-light">
+                    <div class="fw-bold text-success" style="font-size: 1.5rem;">
+                        {{ checkpoint_summary.this_month_count + checkpoint_summary.next_3_months_count + checkpoint_summary.beyond_count }}
+                    </div>
+                    <div class="text-muted small">Upcoming</div>
+                </div>
+            </div>
+        </div>
+        
+        {% if checkpoint_summary.total_active == 0 %}
+        <div class="text-center text-muted mt-3 py-2">
+            <i class="bi bi-check-circle text-success me-1"></i>
+            No active checkpoints
+        </div>
+        {% endif %}
+        
+        <!-- Preview of overdue checkpoints if available -->
+        {% if checkpoints and checkpoints.overdue %}
+        <hr class="my-3">
+        <div class="small text-muted mb-2">Needs Attention:</div>
+        {% for cp in checkpoints.overdue[:2] %}
+        <div class="d-flex align-items-center justify-content-between py-2 {% if not loop.last %}border-bottom{% endif %}">
+            <div>
+                <span class="badge bg-primary me-1">{{ cp.company_ticker }}</span>
+                <span class="small text-truncate" style="max-width: 150px; display: inline-block; vertical-align: middle;">
+                    {{ cp.metric[:30] }}{% if cp.metric|length > 30 %}...{% endif %}
+                </span>
+            </div>
+            <span class="badge bg-danger">{{ cp.days_until|abs }}d late</span>
+        </div>
+        {% endfor %}
+        {% if checkpoints.overdue|length > 2 %}
+        <div class="text-center mt-2">
+            <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="small text-primary">
+                +{{ checkpoints.overdue|length - 2 }} more overdue
+            </a>
+        </div>
+        {% endif %}
+        {% endif %}
+        
+    </div>
+</div>
+{% endif %}

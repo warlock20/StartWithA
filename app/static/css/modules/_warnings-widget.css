@@ -1,0 +1,255 @@
+/*
+=============================================================================
+WARNINGS WIDGET - Intelligence Engine Warnings Display
+=============================================================================
+Reusable component for displaying AI-powered investment warnings.
+
+Usage in templates:
+    {% include 'portfolio/_warnings_widget.html' %}
+*/
+
+/* Widget Container */
+.warnings-widget {
+    background: var(--card-bg, #fff);
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+/* Header */
+.warnings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+    border-bottom: 1px solid #fecaca;
+}
+
+.warnings-header.collapsible {
+    cursor: pointer;
+}
+
+.warnings-header.collapsible:hover {
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+}
+
+.warnings-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #991b1b;
+}
+
+.warnings-title i {
+    font-size: 1.1rem;
+}
+
+.warnings-count {
+    background: #ef4444;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.collapse-icon {
+    color: #991b1b;
+    transition: transform 0.2s;
+}
+
+.warnings-header[aria-expanded="false"] .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+/* Content Area */
+.warnings-content {
+    padding: 0.5rem;
+}
+
+/* Warning Items */
+.warning-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.warning-item:last-of-type {
+    margin-bottom: 0;
+}
+
+/* Severity-based Styling */
+.warning-item.warning-high {
+    background: #fef2f2;
+    border-left: 3px solid #ef4444;
+}
+
+.warning-item.warning-medium {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+}
+
+.warning-item.warning-low {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.warning-item.warning-info {
+    background: #f0fdf4;
+    border-left: 3px solid #10b981;
+}
+
+/* Warning Icons */
+.warning-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.warning-high .warning-icon {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.warning-medium .warning-icon {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.warning-low .warning-icon {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.warning-info .warning-icon {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* Warning Content */
+.warning-body {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.warning-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.warning-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary, #111827);
+}
+
+.warning-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.warning-badge-high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.warning-badge-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.warning-badge-low {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.warning-badge-info {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.warning-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #4b5563);
+    line-height: 1.4;
+}
+
+/* Warning Data Display */
+.warning-data {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border-color, #e5e7eb);
+}
+
+.data-item {
+    font-size: 0.75rem;
+    color: var(--text-muted, #6b7280);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Warning Actions */
+.warning-actions {
+    margin-top: 0.5rem;
+}
+
+/* Dismiss Button */
+.warning-dismiss {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.warning-dismiss:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--text-primary, #111827);
+}
+
+/* Footer */
+.warnings-footer {
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    text-align: center;
+}
+
+/* Dismiss Animation */
+.warning-item.dismissing {
+    animation: slideOut 0.3s ease forwards;
+}
+
+@keyframes slideOut {
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+        height: 0;
+        padding: 0;
+        margin: 0;
+    }
+}

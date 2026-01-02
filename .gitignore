@@ -25,3 +25,6 @@ mockups/
 migrations/
 app/static/uploads/ 
 app/static/js/dist/*
+app/portfolio/routes.py
+app/research_workflow/templates/view_template.html.bak
+app/research_workflow/templates/start_new_research.html.bak

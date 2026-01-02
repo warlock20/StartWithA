@@ -12,9 +12,9 @@
             <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
                 <i class="bi bi-lightbulb"></i> Capture Tips
             </button>
-            <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Inbox
-            </a>
+            {% with btn_class='btn btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
         </div>
     </header>
 

@@ -1,11 +1,11 @@
 # app/services/currency_service.py
 
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from decimal import Decimal
 import yfinance as yf
 from app import db
 from app.models.portfolio import ExchangeRate
-
+from app.utils.time_utils import now_utc
 
 class CurrencyService:
     """
@@ -162,7 +162,7 @@ class CurrencyService:
             return Decimal('1.0')
 
         if rate_date is None:
-            rate_date = datetime.now().date()
+            rate_date = now_utc().date()
 
         # Check cache first
         cached_rate = ExchangeRate.query.filter_by(
@@ -259,7 +259,7 @@ class CurrencyService:
             if existing:
                 # Update existing rate
                 existing.rate = rate
-                existing.fetched_at = datetime.utcnow()
+                existing.fetched_at = now_utc()
                 existing.source = 'yahoo'
             else:
                 # Create new cache entry
@@ -269,7 +269,7 @@ class CurrencyService:
                     rate=rate,
                     date=rate_date,
                     source='yahoo',
-                    fetched_at=datetime.utcnow()
+                    fetched_at=now_utc()
                 )
                 db.session.add(new_rate)
 

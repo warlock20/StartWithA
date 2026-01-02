@@ -6,11 +6,9 @@ This module handles all routes related to project listing, filtering, and manage
 - Active, completed, paused, and "too hard basket" project views
 - Project state management (pause, resume, delete)
 - Project filtering and pagination
-
-Extracted from routes.py lines: 314-392, 394-445, 447-497, 499-555, 557-648, 650-670,
-672-692, 756-797
 """
 
+from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_required
 from app import db
@@ -207,14 +205,86 @@ def completed_projects():
 
 @research_workflow_bp.route('/my-projects/too-hard-basket')
 @login_required
-def too_hard_basket_legacy():
-    """Legacy route - redirect to unified Too Hard Basket"""
-    # Redirect to new unified route, preserving query parameters
-    return redirect(url_for('research_workflow.too_hard_basket', **request.args))
+def too_hard_basket():
+    """View all rejected companies (unified Too Hard Basket)"""
+    from app.services.too_hard_service import TooHardBasketService
 
+    # Get filter parameters
+    stage_filter = request.args.get('stage')
+    search_query = request.args.get('search', '').strip()
+    sector_filter = request.args.get('sector')
+    coc_filter = request.args.get('coc')
+    sort_by = request.args.get('sort', 'date_desc')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
 
+    # Build filters dict
+    filters = {}
+    if stage_filter:
+        filters['rejection_stage'] = stage_filter
+    if search_query:
+        filters['search'] = search_query
+    if sector_filter:
+        filters['sector'] = sector_filter
+    if coc_filter:
+        filters['within_coc'] = coc_filter
 
-    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+    # Get all too hard companies
+    all_items = TooHardBasketService.get_all_too_hard_companies(
+        user_id=current_user.id,
+        filters=filters
+    )
+
+    # Sort items
+    if sort_by == 'date_desc':
+        all_items.sort(key=lambda x: x.rejection_date or datetime.min, reverse=True)
+    elif sort_by == 'date_asc':
+        all_items.sort(key=lambda x: x.rejection_date or datetime.min)
+    elif sort_by == 'time_desc':
+        all_items.sort(key=lambda x: x.time_invested_hours, reverse=True)
+    elif sort_by == 'name_asc':
+        all_items.sort(key=lambda x: x.company_name.lower())
+
+    # Calculate stage counts (without filters for accurate counts)
+    all_unfiltered = TooHardBasketService.get_all_too_hard_companies(current_user.id)
+    total_count = len(all_unfiltered)
+    kill_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'kill_checklist')
+    mid_research_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'mid_research')
+    full_analysis_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'full_analysis')
+
+    # Paginate results
+    total_items = len(all_items)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    items = all_items[start_idx:end_idx]
+
+    # Create pagination object
+    class SimplePagination:
+        def __init__(self, page, per_page, total):
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+
+    pagination = SimplePagination(page, per_page, total_items)
+
+    return render_template('too_hard_basket.html',
+                          items=items,
+                          pagination=pagination,
+                          search_query=search_query,
+                          current_stage=stage_filter,
+                          current_sector=sector_filter,
+                          current_coc=coc_filter,
+                          sort_by=sort_by,
+                          current_per_page=per_page,
+                          total_count=total_count,
+                          kill_count=kill_count,
+                          mid_research_count=mid_research_count,
+                          full_analysis_count=full_analysis_count)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
@@ -234,7 +304,7 @@ def delete_research_project(project_id):
         return redirect(url_for('research_workflow.my_projects'))
 
     try:
-        project_name = project.research_subject_name or f"project"
+        project_name = project.subject_display_name or "project"
 
         # If project is linked to an idea, we must handle its dependencies before deleting the idea itself.
         if project.idea:

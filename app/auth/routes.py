@@ -96,10 +96,10 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login')) # Redirect to login page after logout
 
-@auth_bp.route('/profile')
+@auth_bp.route('/account')
 @login_required
-def profile():
-    """Display user profile page with basic information and account settings"""
+def account_settings():
+    """Display user account settings page with basic information and account management"""
     # Get user statistics from various modules for dashboard-like view
     from app.journal_enhanced.utils import get_journal_statistics
 
@@ -124,8 +124,8 @@ def profile():
             'pending_reviews': 0
         })
 
-    return render_template('profile.html',
-                         title="My Profile",
+    return render_template('account.html',
+                         title="Account Settings",
                          user=current_user,
                          stats=stats)
 
@@ -145,7 +145,7 @@ def update_settings():
 
         if base_currency not in supported_currencies:
             flash(f'Invalid currency code: {base_currency}', 'error')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('auth.account_settings'))
 
         # Check if currency is changing
         old_currency = current_user.base_currency
@@ -167,4 +167,4 @@ def update_settings():
         db.session.rollback()
         flash(f'Error updating settings: {str(e)}', 'error')
 
-    return redirect(url_for('auth.profile'))
+    return redirect(url_for('auth.account_settings'))

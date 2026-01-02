@@ -55,10 +55,12 @@ def destination_analysis(company_id):
 
     checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
 
-    return render_template('destination_analysis.html', 
-                           company=company, 
+    return render_template('destination_analysis.html',
+                           company=company,
                            checkpoints=checkpoints,
-                           title=f"Destination Analysis for {company.name}")
+                           title=f"Destination Analysis for {company.name}",
+                           return_url=url_for('companies.company_dashboard', company_id=company.id),
+                           context_label=f"{company.name} Dashboard")
     
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/update', methods=['POST'])
 @login_required

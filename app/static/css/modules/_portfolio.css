@@ -203,6 +203,16 @@
     color: var(--gray-600);
 }
 
+.portfolio-stat-icon.red {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.portfolio-stat-icon.orange {
+    background: #ffedd5;
+    color: #ea580c;
+}
+
 .portfolio-stat-label {
     font-size: var(--font-size-sm);
     font-weight: 500;

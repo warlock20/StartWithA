@@ -35,6 +35,8 @@
                         <li><a class="dropdown-item" href="{{ url_for('research_workflow.my_projects') }}">Company
                                 Research</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">Analytics Dashboard</a>
+                        </li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>
@@ -59,22 +61,23 @@
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="navbarTrackingDropdown">
                     <li>
-                        <h6 class="dropdown-header">Companies & Portfolio </h6>
+                        <h6 class="dropdown-header">Companies</h6>
                     </li>
                     <li><a class="dropdown-item" href="{{ url_for('companies.companies_dashboard') }}">My
                             Companies</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.dashboard') }}">Portfolio</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.decision_journal_list') }}">Decision
-                            Journal</a></li>
                     <li>
                         <hr class="dropdown-divider">
                     </li>
                     <li>
-                        <h6 class="dropdown-header">Analytics</h6>
+                        <h6 class="dropdown-header">Portfolio</h6>
                     </li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.analytics') }}">Performance Analytics</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.analytics_decisions') }}">Decision Intelligence</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">Analytics Dashboard</a></li>
+
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.dashboard') }}">Portfolio</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.intelligence_hub') }}">Portfolio
+                            Intelligence </a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.decision_journal_list') }}">Portfolio
+                            Journal</a></li>
                 </ul>
             </li>
 
@@ -86,8 +89,8 @@
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="navbarKnowledgeDropdown">
                     <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub') }}">
-                        <i class="bi me-2"></i>Knowledge Hub
-                    </a></li>
+                            <i class="bi me-2"></i>Knowledge Hub
+                        </a></li>
             </li>
             <li>
                 <hr class="dropdown-divider">
@@ -111,11 +114,14 @@
             <div class="navbar-quote-container">
                 <div class="navbar-quote-wrapper">
                     <div class="navbar-quote-inner">
-                        <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
-                        <span class="navbar-quote-text navbar-quote-duplicate">"{{ investor_quote.quote }}" — {{ investor_quote.author }}</span>
+                        <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author
+                            }}</span>
+                        <span class="navbar-quote-text navbar-quote-duplicate">"{{ investor_quote.quote }}" — {{
+                            investor_quote.author }}</span>
                     </div>
                 </div>
-                <button type="button" class="navbar-quote-close" aria-label="Dismiss quote" data-action="dismiss-quote-banner">
+                <button type="button" class="navbar-quote-close" aria-label="Dismiss quote"
+                    data-action="dismiss-quote-banner">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
@@ -132,7 +138,10 @@
                         {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">Account Settings</a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('profile.profile_settings') }}">Profile
+                                Settings</a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

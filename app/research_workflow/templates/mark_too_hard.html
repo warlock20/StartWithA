@@ -14,9 +14,9 @@
             </p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Project
-            </a>
+            {% with btn_class='btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
         </div>
     </header>
 

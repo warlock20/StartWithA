@@ -1,0 +1,278 @@
+{% extends "main/_base.html" %}
+
+{% block title %}Investment Profile Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-user-cog me-2"></i>Investment Profile Settings</h1>
+                <p class="text-muted mb-0">
+                    Choose your investor profile to personalize thresholds and warnings
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Profile Selection -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-circle me-2"></i>Select Your Investor Profile
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Your profile determines default thresholds for research quality, portfolio warnings, 
+                        and behavioral pattern detection. You can customize individual settings below.
+                    </p>
+                    
+                    <div class="row">
+                        {% for profile in profiles %}
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <form method="POST" action="{{ url_for('profile.select_profile') }}">
+                                <input type="hidden" name="profile_name" value="{{ profile.name }}">
+                                <div class="card profile-card h-100 profile-{{ profile.name }} 
+                                    {% if user_profile_info and user_profile_info.profile and user_profile_info.profile.name == profile.name %}selected{% endif %}"
+                                    onclick="this.closest('form').submit()">
+                                    <div class="card-body text-center">
+                                        <div class="profile-icon mx-auto">
+                                            <i class="fas fa-{{ profile.icon }}"></i>
+                                        </div>
+                                        <h6 class="card-title">{{ profile.display_name }}</h6>
+                                        <p class="card-text small text-muted">
+                                            {{ profile.description }}
+                                        </p>
+                                        {% if user_profile_info and user_profile_info.profile and user_profile_info.profile.name == profile.name %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-check me-1"></i>Current
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customization -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>Customize Settings
+                    </h5>
+                    {% if user_profile_info and user_profile_info.custom_override_count > 0 %}
+                    <form method="POST" action="{{ url_for('profile.reset_all_custom') }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" 
+                            onclick="return confirm('Reset all custom settings to profile defaults?')">
+                            <i class="fas fa-undo me-1"></i>Reset All ({{ user_profile_info.custom_override_count }})
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Override individual settings from your profile. Custom values take priority.
+                    </p>
+                    
+                    {% for category, configs in configs_by_category.items() %}
+                    <div class="config-category">
+                        <h5 class="text-capitalize">
+                            <i class="fas fa-{{ 
+                                'chart-line' if category == 'research_quality' else
+                                'bullseye' if category == 'outcome_tracking' else
+                                'bell' if category == 'portfolio_alerts' else
+                                'brain' if category == 'behavioral_patterns' else
+                                'lightbulb' if category == 'thesis_analysis' else
+                                'search' if category == 'similar_mistakes' else
+                                'cog'
+                            }} me-2"></i>
+                            {{ category.replace('_', ' ').title() }}
+                        </h5>
+                        
+                        {% for config in configs %}
+                        {% set effective_value = user_config.get(config.key, config.value) %}
+                        {% set is_custom = user_profile_info and user_profile_info.custom_overrides and config.key in user_profile_info.custom_overrides %}
+                        
+                        <div class="config-item">
+                            <div class="config-label">
+                                <strong>{{ config.key.replace('_', ' ').title() }}</strong>
+                                {% if is_custom %}
+                                <span class="custom-override-indicator">
+                                    <i class="fas fa-pen ms-1" title="Custom override"></i>
+                                </span>
+                                {% endif %}
+                                <small>{{ config.description or '' }}</small>
+                            </div>
+                            <div class="config-value">
+                                <form method="POST" action="{{ url_for('profile.customize_setting') }}" 
+                                    class="d-flex align-items-center gap-2">
+                                    <input type="hidden" name="key" value="{{ config.key }}">
+                                    <input type="{% if config.data_type == 'number' or config.data_type == 'percent' %}number{% else %}text{% endif %}" 
+                                        name="value" 
+                                        value="{{ effective_value }}"
+                                        class="form-control form-control-sm"
+                                        {% if config.min_value is not none %}min="{{ config.min_value }}"{% endif %}
+                                        {% if config.max_value is not none %}max="{{ config.max_value }}"{% endif %}
+                                        {% if config.data_type == 'percent' or config.data_type == 'number' %}step="1"{% endif %}>
+                                    {% if config.data_type == 'percent' %}
+                                    <span class="text-muted">%</span>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Save">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                
+                                {% if is_custom %}
+                                <form method="POST" action="{{ url_for('profile.reset_custom_setting', key=config.key) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reset to default">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Current Profile Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Current Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if user_profile_info and user_profile_info.profile %}
+                    <div class="text-center mb-3">
+                        <div class="profile-icon mx-auto profile-{{ user_profile_info.profile.name }}">
+                            <i class="fas fa-{{ user_profile_info.profile.icon }}"></i>
+                        </div>
+                        <h6>{{ user_profile_info.profile.display_name }}</h6>
+                        {% if user_profile_info.custom_override_count > 0 %}
+                        <span class="badge bg-success">
+                            {{ user_profile_info.custom_override_count }} custom override{{ 's' if user_profile_info.custom_override_count != 1 else '' }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-user-slash fa-2x mb-2"></i>
+                        <p>No profile selected</p>
+                        <small>Select a profile above to get started</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Profile Comparison -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-balance-scale me-2"></i>Profile Comparison
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm profile-comparison mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Setting</th>
+                                    <th class="text-center">Beginner</th>
+                                    <th class="text-center">Expert</th>
+                                    <th class="text-center">Pro</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Min Research Time</td>
+                                    <td class="text-center">15 min</td>
+                                    <td class="text-center">60 min</td>
+                                    <td class="text-center">120 min</td>
+                                </tr>
+                                <tr>
+                                    <td>Questions Required</td>
+                                    <td class="text-center">50%</td>
+                                    <td class="text-center">85%</td>
+                                    <td class="text-center">95%</td>
+                                </tr>
+                                <tr>
+                                    <td>Position Concentration</td>
+                                    <td class="text-center">30%</td>
+                                    <td class="text-center">20%</td>
+                                    <td class="text-center">15%</td>
+                                </tr>
+                                <tr>
+                                    <td>Sector Concentration</td>
+                                    <td class="text-center">50%</td>
+                                    <td class="text-center">35%</td>
+                                    <td class="text-center">30%</td>
+                                </tr>
+                                <tr>
+                                    <td>Big Win Threshold</td>
+                                    <td class="text-center">15%</td>
+                                    <td class="text-center">30%</td>
+                                    <td class="text-center">40%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6><i class="fas fa-question-circle me-2"></i>How It Works</h6>
+                    <ol class="small text-muted ps-3">
+                        <li class="mb-2">
+                            <strong>Select a Profile</strong> - Choose the level that matches your experience
+                        </li>
+                        <li class="mb-2">
+                            <strong>Customize (Optional)</strong> - Override any setting to match your preferences
+                        </li>
+                        <li class="mb-2">
+                            <strong>Thresholds Apply</strong> - Research scores, warnings, and patterns adjust automatically
+                        </li>
+                    </ol>
+                    <hr>
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-lightbulb me-1"></i>
+                        <strong>Tip:</strong> Start with Intermediate and adjust as needed. You can always change later.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Optional: Add AJAX for smoother profile selection
+document.querySelectorAll('.profile-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+        // Visual feedback
+        document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+    });
+});
+</script>
+{% endblock %}

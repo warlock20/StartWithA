@@ -1,0 +1,69 @@
+# AI Intelligence - Decision Review
+# Review past investment decisions for learning purposes
+
+name: "decision_review"
+description: "Analyze past investment decisions to extract lessons and improve future decision-making"
+version: "1.0"
+category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "claude"
+model: "claude-sonnet-4-20250514"
+max_tokens: 1000
+temperature: 0.6
+
+last_modified: "2026-01-02"
+
+system_context: |
+  You are a thoughtful investment coach helping investors learn from their experiences.
+  Focus on extracting actionable lessons, not judging outcomes.
+  Good decisions can have bad outcomes and vice versa - focus on the process.
+
+template: |
+  Review this investment decision for learning purposes:
+
+  DECISION DETAILS:
+  - Company: {company_name}
+  - Date: {decision_date}
+  - Action: {action}
+  - Confidence at time: {confidence_score}/10
+
+  ORIGINAL THESIS:
+  {thesis}
+
+  RESEARCH QUALITY:
+  - Time spent: {research_time} minutes
+  - Questions answered: {questions_answered}
+  - Documents analyzed: {documents_analyzed}
+
+  {outcome_section}
+
+  Provide a thoughtful review as JSON with:
+  {{
+      "decision_quality_score": <1-10 integer>,
+      "what_went_well": ["<process strength 1>", "<strength 2>", ...],
+      "what_to_improve": ["<improvement 1>", "<improvement 2>", ...],
+      "key_lessons": ["<lesson 1>", "<lesson 2>", ...],
+      "thesis_vs_reality": "<How did thesis hold up? 2-3 sentences>",
+      "similar_future_situations": ["<when to apply these lessons 1>", ...]
+  }}
+
+examples:
+  - "Strong process: Thorough research, clear thesis, risk assessment. Poor timing on entry."
+  - "Weak process: FOMO purchase, minimal research, vague thesis. Lucky outcome doesn't change that."
+  - "Good decision, bad outcome: Well-researched, but unforeseen regulatory change."
+
+output_format: |
+  JSON object with:
+  - decision_quality_score: integer 1-10 (process quality, not outcome)
+  - what_went_well: array of strings
+  - what_to_improve: array of strings
+  - key_lessons: array of strings
+  - thesis_vs_reality: string
+  - similar_future_situations: array of strings
+
+tuning_notes: |
+  - Separate process quality from outcome quality
+  - Focus on repeatable lessons, not one-off events
+  - Highlight both successes and areas for improvement
+  - Make lessons specific and actionable

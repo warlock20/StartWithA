@@ -6,9 +6,9 @@
         <h1>🔬 Research Workflow Migration</h1>
         <p class="text-muted mb-0">Research has been moved to the new workflow system</p>
     </div>
-    <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Back to Companies
-    </a>
+    {% with btn_class='btn-outline-secondary' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
 </div>
 
 <div class="row justify-content-center">

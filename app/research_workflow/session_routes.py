@@ -7,8 +7,6 @@ This module handles all routes related to work session and research session mana
 - Completing kill checklist steps
 - Saving session progress
 - AI analysis for checklist items
-
-Extracted from routes.py lines: 1217-1257, 1343-1476, 1478-1585, 1587-1599, 1602-1727
 """
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app

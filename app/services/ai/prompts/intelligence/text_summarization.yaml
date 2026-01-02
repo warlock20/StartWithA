@@ -1,0 +1,44 @@
+# AI Intelligence - Text Summarization
+# Summarize text content with focus areas
+
+name: "text_summarization"
+description: "Summarize text focusing on key points, risks, or opportunities"
+version: "1.0"
+category: "intelligence"
+
+# AI Provider Configuration
+preferred_provider: "gemini"  # Cost-effective for summarization
+model: "gemini-1.5-flash"
+max_tokens: 800
+temperature: 0.3
+
+last_modified: "2026-01-01"
+
+system_context: |
+  You are a skilled research analyst who creates concise, accurate summaries.
+  Extract the most important information relevant to investment decisions.
+
+template: |
+  Summarize the following text, focusing on {focus}:
+
+  {text_content}
+
+  {length_instruction}
+
+  Provide a clear, structured summary that captures the essential information.
+
+examples:
+  - "Key Points: The company achieved 40% revenue growth driven by..."
+  - "Risks: Primary concerns include market saturation, regulatory uncertainty, and..."
+  - "Opportunities: Three growth drivers identified: international expansion..."
+
+output_format: |
+  Structured summary with clear sections/paragraphs.
+  Use bullet points for lists if appropriate.
+  Prioritize investment-relevant information.
+
+tuning_notes: |
+  - Moderate temperature (0.3) for balance of accuracy and readability
+  - Focus parameter: "key_points", "risks", "opportunities", or custom
+  - Length_instruction optional for word limits
+  - Gemini for cost efficiency

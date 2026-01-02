@@ -9,9 +9,9 @@
             <p class="dashboard-subtitle">{{ pagination.total }} compan{{ 'ies' if pagination.total != 1 else 'y' }} you're monitoring</p>
         </div>
         <div class="dashboard-header-actions">
-            <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-secondary me-2">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
+            {% with btn_class='btn btn-outline-secondary me-2' %}
+                {% include 'components/smart_back_button.html' %}
+            {% endwith %}
             <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('companies.new_company') }}'">
                 <i class="bi bi-plus-circle-fill"></i> Add Company
             </button>

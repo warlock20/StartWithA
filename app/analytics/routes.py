@@ -2,11 +2,11 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
-                       DecisionJournal, ResearchLog, Company)
+                       DecisionJournal, ResearchLog, Company, KillSession)
 from app.models.sector import SectorAnalysis
 from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
-                                get_time_allocation_data, log_research_activity, KillSession)
+                                get_time_allocation_data, log_research_activity)
 from app.services.too_hard_service import TooHardBasketService
 from app.services.sector_service import SectorService
 from datetime import datetime, timedelta

@@ -1,0 +1,330 @@
+/* ========================================================================
+   Thesis vs Reality Styles
+   Styling for investment thesis tracking and reality comparison
+   Works with the portfolio design system
+   ======================================================================== */
+
+/* Portfolio Table Section (if not defined globally) */
+.portfolio-table-section {
+    background: #f9fafb;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.portfolio-table-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.portfolio-table-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #111827);
+}
+
+/* Thesis Position Cards */
+.thesis-position-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* When card is last in section, remove bottom margin */
+.thesis-position-card:last-child {
+    margin-bottom: 0;
+}
+
+.thesis-position-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Status Variants */
+.thesis-position-card.status-needs_attention {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(90deg, #fef2f2 0%, #ffffff 8%);
+}
+
+.thesis-position-card.status-behind {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(90deg, #fffbeb 0%, #ffffff 8%);
+}
+
+.thesis-position-card.status-on_track {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(90deg, #eff6ff 0%, #ffffff 8%);
+}
+
+.thesis-position-card.status-exceeding {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 8%);
+}
+
+/* Position Card Header */
+.position-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.ticker-symbol {
+    background: var(--primary, #2563eb);
+    color: white;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+
+.company-name-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-primary, #111827);
+}
+
+/* Return Display */
+.return-display {
+    text-align: right;
+}
+
+.return-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.return-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.return-value.positive {
+    color: #10b981;
+}
+
+.return-value.negative {
+    color: #ef4444;
+}
+
+.return-sublabel {
+    font-size: 0.65rem;
+    color: var(--text-muted, #9ca3af);
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+/* Position Card Body */
+.position-card-body {
+    padding: 1.25rem;
+}
+
+/* Thesis Block */
+.thesis-block {
+    margin-bottom: 1rem;
+}
+
+.thesis-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.thesis-content-text {
+    background: var(--bg-secondary, #f9fafb);
+    border-left: 3px solid var(--primary, #2563eb);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.95rem;
+    color: var(--text-primary, #111827);
+    line-height: 1.6;
+}
+
+/* No Thesis Message */
+.no-thesis-message {
+    background: var(--bg-secondary, #f9fafb);
+    border-left: 3px solid #9ca3af;
+    border-radius: 8px;
+    padding: 1rem;
+    color: var(--text-muted, #9ca3af);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.no-thesis-message i {
+    font-size: 1.1rem;
+}
+
+/* Metrics Row */
+.metrics-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.metric-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 20px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.metric-pill i {
+    color: var(--primary, #2563eb);
+    font-size: 0.85rem;
+}
+
+/* Position Card Footer */
+.position-card-footer {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.card-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: white;
+    color: var(--text-primary, #111827);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.card-action-btn:hover {
+    background: var(--bg-hover, #f9fafb);
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.card-action-btn i {
+    font-size: 0.9rem;
+}
+
+.card-action-btn.btn-warning {
+    background: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+}
+
+.card-action-btn.btn-warning:hover {
+    background: #d97706;
+    border-color: #d97706;
+    color: white;
+}
+
+/* Additional Portfolio Badge Variants */
+.portfolio-badge.secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Warning/Danger Highlights for Stat Cards */
+.portfolio-stat-card.warning-highlight {
+    border-color: #fde68a;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .position-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .return-display {
+        text-align: left;
+        width: 100%;
+    }
+
+    .company-name-title {
+        font-size: 1rem;
+    }
+
+    .return-value {
+        font-size: 1.3rem;
+    }
+
+    .position-card-footer {
+        flex-direction: column;
+    }
+
+    .card-action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .thesis-position-card {
+        margin-bottom: 0.75rem;
+    }
+
+    .position-card-header,
+    .position-card-body {
+        padding: 1rem;
+    }
+
+    .thesis-content-text,
+    .no-thesis-message {
+        padding: 0.75rem;
+    }
+
+    .position-card-footer {
+        padding: 0.75rem 1rem;
+        gap: 0.35rem;
+    }
+
+    .ticker-symbol {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.6rem;
+    }
+
+    .metric-pill {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+    }
+}

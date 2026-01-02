@@ -1,0 +1,126 @@
+/* =============================================================================
+   INVESTMENT PROFILE SETTINGS PAGE
+   Profile selection and threshold customization
+   ============================================================================= */
+
+/* Profile Selection Cards */
+.profile-card {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.profile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.profile-card.selected {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.profile-card .profile-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Profile Type Colors */
+.profile-beginner .profile-icon {
+    background: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.profile-intermediate .profile-icon {
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.profile-expert .profile-icon {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.profile-professional .profile-icon {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+/* Configuration Settings */
+.config-category {
+    margin-bottom: 2rem;
+}
+
+.config-category h5 {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.config-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.config-item:last-child {
+    border-bottom: none;
+}
+
+.config-item .config-label {
+    flex: 1;
+}
+
+.config-item .config-label small {
+    display: block;
+    color: #6c757d;
+}
+
+.config-item .config-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.config-item input {
+    width: 80px;
+    text-align: center;
+}
+
+/* Source Badges */
+.badge-source {
+    font-size: 0.7rem;
+    padding: 0.2em 0.5em;
+}
+
+.source-system { background: #6c757d; }
+.source-profile { background: #0d6efd; }
+.source-custom { background: #198754; }
+
+/* Custom Override Indicator */
+.custom-override-indicator {
+    color: #198754;
+    font-size: 0.8rem;
+}
+
+/* Profile Comparison Table */
+.profile-comparison {
+    font-size: 0.85rem;
+}
+
+.profile-comparison td {
+    padding: 0.25rem 0.5rem;
+}
+
+.current-value {
+    font-weight: 600;
+    color: var(--bs-primary);
+}

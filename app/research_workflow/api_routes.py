@@ -2,7 +2,6 @@
 API Routes Module for Research Workflow
 
 This module contains all REST API endpoints for AJAX requests in the research workflow.
-Extracted from the original routes.py file (lines 24-31, 2187-2660).
 """
 
 from flask import jsonify, request

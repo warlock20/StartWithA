@@ -115,7 +115,7 @@ def new_entry():
                     os.makedirs(upload_dir, exist_ok=True)
                     
                     # Save file with timestamp to avoid conflicts
-                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    timestamp = now_utc().strftime('%Y%m%d_%H%M%S')
                     filename = f"{timestamp}_{filename}"
                     filepath = os.path.join(upload_dir, filename)
                     file.save(filepath)
@@ -229,7 +229,7 @@ def edit_entry(entry_id):
        questions = request.form.get('questions_raised', '').split('\n')
        entry.questions_raised = [q.strip() for q in questions if q.strip()]
        
-       entry.updated_at = datetime.utcnow()
+       entry.updated_at = now_utc
        
        try:
            db.session.commit()
@@ -427,7 +427,7 @@ def learning_notes():
    
    # Get notes due for review
    due_for_review = current_user.learning_notes.filter(
-       LearningNote.next_review_date <= datetime.utcnow().date()
+       LearningNote.next_review_date <= now_utc().date()
    ).count()
    
    return render_template('learning_notes.html',
@@ -507,7 +507,7 @@ def new_learning_note():
            source_date=source_date,
            topic_tags=topic_tags,
            investor_tags=investor_tags,
-           next_review_date=datetime.utcnow().date() + timedelta(days=1)
+           next_review_date=now_utc().date() + timedelta(days=1)
        )
 
        # Extract and combine tags
@@ -567,7 +567,7 @@ def review_learning_note(note_id):
        return jsonify({'error': 'Access denied'}), 403
 
    note.times_reviewed += 1
-   note.last_reviewed = datetime.utcnow()
+   note.last_reviewed = now_utc()
    note.next_review_date = calculate_next_review_date(note)
 
    try:
@@ -777,7 +777,7 @@ def knowledge_hub():
         if starred_only:
             research_query = research_query.filter_by(is_starred=True)
         if date_range:
-            cutoff_date = datetime.utcnow() - timedelta(days=date_range)
+            cutoff_date = now_utc() - timedelta(days=date_range)
             research_query = research_query.filter(JournalEntry.created_at >= cutoff_date)
 
         research_results = research_query.order_by(
@@ -841,8 +841,7 @@ def knowledge_hub():
             grouped_results[type_label].append(result)
     elif group_by == 'date':
         # Group by date ranges
-        from datetime import datetime, timedelta
-        now = datetime.utcnow()
+        now = now_utc()
         for result in unified_results:
             item_date = result['date']
             if item_date >= now - timedelta(days=1):
@@ -1101,7 +1100,7 @@ def analyze_entry(entry_id):
 
         # Store results
         entry.ai_analysis_result = analysis_result
-        entry.ai_analyzed_at = datetime.utcnow()
+        entry.ai_analyzed_at = now_utc()
         entry.ai_confidence_score = analysis_result.get('ai_confidence', 0.8)
         entry.ai_suggested_tags = analysis_result.get('suggested_tags', [])
         entry.ai_themes_extracted = analysis_result.get('key_themes', [])
@@ -1245,7 +1244,7 @@ def auto_tag_entries():
                 entry.ai_suggested_tags = analysis_result.get('suggested_tags', [])
                 entry.ai_themes_extracted = analysis_result.get('key_themes', [])
                 entry.ai_processing_status = 'completed'
-                entry.ai_analyzed_at = datetime.utcnow()
+                entry.ai_analyzed_at = now_utc()
 
                 processed_count += 1
 
@@ -1366,10 +1365,8 @@ def review_entry(entry_id):
         abort(403)
 
     try:
-        from datetime import datetime
-
         # Update review information
-        entry.last_reviewed = datetime.utcnow()
+        entry.last_reviewed = now_utc()
         entry.review_count += 1
 
         # Add review notes if provided
@@ -1421,8 +1418,7 @@ def mark_entry_reviewed(entry_id):
         abort(403)
 
     try:
-        from datetime import datetime
-        entry.last_reviewed = datetime.utcnow()
+        entry.last_reviewed = now_utc()
         entry.review_count += 1
         db.session.commit()
         flash('Entry marked as reviewed', 'success')

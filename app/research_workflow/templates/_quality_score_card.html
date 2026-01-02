@@ -1,0 +1,165 @@
+{% if quality_score %}
+<!-- Research Quality Score Card -->
+<div class="project-stats-card" style="margin-top: 1.5rem;">
+    <h3 class="font-poppins d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-graph-up-arrow me-2"></i>Research Quality</span>
+        <span class="badge
+            {% if quality_score.grade == 'A' %}bg-success
+            {% elif quality_score.grade == 'B' %}bg-primary
+            {% elif quality_score.grade == 'C' %}bg-warning text-dark
+            {% elif quality_score.grade == 'D' %}bg-warning
+            {% else %}bg-danger{% endif %}"
+            style="font-size: 1.1rem; padding: 0.5rem 0.75rem;">
+            {{ quality_score.grade }}
+        </span>
+    </h3>
+    
+    <!-- Overall Score -->
+    <div class="text-center my-3">
+        <div style="font-size: 2.5rem; font-weight: 700;
+            {% if quality_score.overall_score >= 80 %}color: #198754;
+            {% elif quality_score.overall_score >= 60 %}color: #0d6efd;
+            {% elif quality_score.overall_score >= 40 %}color: #ffc107;
+            {% else %}color: #dc3545;{% endif %}">
+            {{ quality_score.overall_score }}
+        </div>
+        <div class="text-muted small">out of 100</div>
+        
+        {% if quality_score.comparison_to_average != 0 %}
+        <div class="mt-1 small">
+            {% if quality_score.comparison_to_average > 0 %}
+                <span class="text-success">
+                    <i class="bi bi-arrow-up"></i> {{ quality_score.comparison_to_average }}% above your average
+                </span>
+            {% else %}
+                <span class="text-warning">
+                    <i class="bi bi-arrow-down"></i> {{ quality_score.comparison_to_average|abs }}% below your average
+                </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Component Breakdown -->
+    <div class="mt-3">
+        <h6 class="text-muted mb-2" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            Score Breakdown
+        </h6>
+        
+        <!-- Completeness -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Completeness</span>
+                <span class="small fw-bold">{{ quality_score.completeness_score|round(0)|int }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" style="width: {{ quality_score.completeness_score }}%"></div>
+            </div>
+        </div>
+        
+        <!-- Depth -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Depth</span>
+                <span class="small fw-bold">{{ quality_score.depth_score|round(0)|int }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-info" style="width: {{ quality_score.depth_score }}%"></div>
+            </div>
+        </div>
+        
+        <!-- Breadth -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Breadth</span>
+                <span class="small fw-bold">{{ quality_score.breadth_score|round(0)|int }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-success" style="width: {{ quality_score.breadth_score }}%"></div>
+            </div>
+        </div>
+        
+        <!-- Time Investment -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Time Investment</span>
+                <span class="small fw-bold">{{ quality_score.time_score|round(0)|int }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-warning" style="width: {{ quality_score.time_score }}%"></div>
+            </div>
+        </div>
+        
+        <!-- Documents -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Documents</span>
+                <span class="small fw-bold">{{ quality_score.document_score|round(0)|int }}%</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-secondary" style="width: {{ quality_score.document_score }}%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Research Depth Indicators -->
+    <div class="mt-3 pt-3 border-top">
+        <h6 class="text-muted mb-2" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            Analysis Coverage
+        </h6>
+        <div class="d-flex flex-wrap gap-2">
+            <span class="badge {% if quality_score.had_financial_analysis %}bg-success{% else %}bg-light text-muted{% endif %}">
+                <i class="bi bi-{% if quality_score.had_financial_analysis %}check-circle{% else %}circle{% endif %} me-1"></i>
+                Financials
+            </span>
+            <span class="badge {% if quality_score.had_competitive_analysis %}bg-success{% else %}bg-light text-muted{% endif %}">
+                <i class="bi bi-{% if quality_score.had_competitive_analysis %}check-circle{% else %}circle{% endif %} me-1"></i>
+                Competitive
+            </span>
+            <span class="badge {% if quality_score.had_management_review %}bg-success{% else %}bg-light text-muted{% endif %}">
+                <i class="bi bi-{% if quality_score.had_management_review %}check-circle{% else %}circle{% endif %} me-1"></i>
+                Management
+            </span>
+            <span class="badge {% if quality_score.had_valuation_model %}bg-success{% else %}bg-light text-muted{% endif %}">
+                <i class="bi bi-{% if quality_score.had_valuation_model %}check-circle{% else %}circle{% endif %} me-1"></i>
+                Valuation
+            </span>
+        </div>
+    </div>
+    
+    <!-- Improvement Tips -->
+    {% if quality_score.improvement_tips %}
+    <div class="mt-3 pt-3 border-top">
+        <h6 class="text-muted mb-2" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="bi bi-lightbulb me-1"></i>Tips to Improve
+        </h6>
+        <ul class="list-unstyled mb-0 small">
+            {% for tip in quality_score.improvement_tips %}
+            <li class="mb-1">
+                <i class="bi bi-arrow-right text-primary me-1"></i>
+                {{ tip }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Stats -->
+    <div class="mt-3 pt-3 border-top">
+        <div class="row text-center small">
+            <div class="col-4">
+                <div class="fw-bold text-primary">{{ quality_score.questions_answered }}</div>
+                <div class="text-muted" style="font-size: 0.7rem;">Questions</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold text-primary">{{ quality_score.documents_analyzed }}</div>
+                <div class="text-muted" style="font-size: 0.7rem;">Documents</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold text-primary">{{ quality_score.research_duration_minutes }}</div>
+                <div class="text-muted" style="font-size: 0.7rem;">Minutes</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

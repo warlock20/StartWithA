@@ -8,9 +8,9 @@
         <div class="col-lg-8 mx-auto">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="mb-0">Edit Transaction</h2>
-                <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Transactions
-                </a>
+                {% with btn_class='btn btn-outline-secondary' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
             </div>
 
             <div class="card">

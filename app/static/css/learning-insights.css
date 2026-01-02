@@ -1,0 +1,269 @@
+/* ========================================================================
+   Learning Insights Styles
+   Personalized trading patterns and learning insights
+   Follows the portfolio design system patterns
+   ======================================================================== */
+
+/* Insights Grid */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Insight Cards - aligned with correlation.css pattern */
+.insight-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.insight-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.insight-card.edge {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(90deg, #f0fdf4 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.warning {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(90deg, #fffbeb 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.winning_pattern {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(90deg, #eff6ff 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-card.improvement {
+    border-left: 4px solid #8b5cf6;
+    background: linear-gradient(90deg, #f5f3ff 0%, var(--card-bg, #fff) 8%);
+}
+
+.insight-header {
+    padding: 1.25rem 1.25rem 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.insight-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #111827);
+}
+
+.insight-body {
+    padding: 0 1.25rem 1.25rem;
+}
+
+.insight-description {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+}
+
+.insight-data {
+    font-size: 0.85rem;
+    color: var(--text-muted, #9ca3af);
+    padding: 0.75rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+}
+
+/* Importance Badges */
+.importance-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.importance-badge.high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.importance-badge.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.importance-badge.low {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* Category Sections */
+.category-section {
+    margin-bottom: 2.5rem;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.category-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    font-family: 'Poppins', sans-serif;
+}
+
+.category-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.category-icon.edge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.category-icon.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.category-icon.winning_pattern {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.category-icon.improvement {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+/* Quick Actions Card */
+.insights-quick-actions {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.insights-quick-actions h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #111827);
+}
+
+.insights-action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Empty State */
+.insights-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.insights-empty-state i {
+    font-size: 4rem;
+    color: var(--text-muted, #9ca3af);
+    opacity: 0.3;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.insights-empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary, #111827);
+}
+
+.insights-empty-state p {
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 1rem;
+}
+
+/* Progress Bar */
+.insights-progress {
+    max-width: 300px;
+    margin: 0 auto 1rem;
+    height: 8px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.insights-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    transition: width 0.3s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .insights-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .insight-card {
+        margin-bottom: 0.75rem;
+    }
+
+    .insights-action-buttons {
+        flex-direction: column;
+    }
+
+    .insights-action-buttons .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .insight-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .insight-title {
+        font-size: 1rem;
+    }
+
+    .category-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .insights-empty-state {
+        padding: 3rem 1.5rem;
+    }
+
+    .insights-empty-state i {
+        font-size: 3rem;
+    }
+}
