@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from app import db
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, update_portfolio_position
+    ResearchProject, update_portfolio_position, ThesisEvolution
 )
 from app.services.currency_service import CurrencyService
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
@@ -402,6 +402,29 @@ class TransactionService:
                         thesis_word_count=word_count,
                         non_research_source=form_data.get('non_research_source', '').strip()
                     )
+
+                    # Create ThesisEvolution Version 0 for non-research purchases
+                    # Check if version 0 already exists for this company
+                    existing_v0 = ThesisEvolution.query.filter_by(
+                        user_id=user_id,
+                        company_id=company_id,
+                        version=0
+                    ).first()
+
+                    if not existing_v0 and investment_thesis:
+                        thesis_evolution = ThesisEvolution(
+                            user_id=user_id,
+                            company_id=company_id,
+                            version=0,
+                            thesis=investment_thesis,
+                            change_summary='Initial investment thesis from direct purchase',
+                            change_trigger=f'Buy transaction without research ({form_data.get("non_research_source", "unknown")})',
+                            is_current=True,
+                            created_at=transaction_date or now_utc()
+                        )
+                        db.session.add(thesis_evolution)
+                        logger.info(f"Created ThesisEvolution v0 for company {company_id} from non-research purchase")
+
                 else:
                     research_project = ResearchProject.query.filter_by(
                         company_id=company_id,

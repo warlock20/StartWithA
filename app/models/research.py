@@ -101,6 +101,15 @@ class ResearchTemplate(db.Model):
                                        lazy='dynamic', cascade='all, delete-orphan')
 
     @property
+    def actual_times_used(self):
+        """
+        Dynamically count actual ResearchProject records for this template's owner only.
+        This is always accurate, even after projects are deleted.
+        Filters by user_id for privacy/security.
+        """
+        return self.research_projects.filter_by(user_id=self.user_id).count()
+
+    @property
     def success_rate(self):
         """Calculate the success rate of investments made using this template"""
         total = self.successful_investments + self.failed_investments

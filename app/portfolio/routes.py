@@ -468,33 +468,6 @@ def refresh_prices():
     return redirect(url_for('portfolio.dashboard'))
 
 
-@portfolio_bp.route('/api/company-search')
-@login_required
-def company_search():
-    """API endpoint for company autocomplete search"""
-    query = request.args.get('q', '').strip()
-
-    if not query or len(query) < 2:
-        return jsonify([])
-
-    companies = Company.query.filter(
-        Company.user_id == current_user.id,
-        db.or_(
-            Company.name.ilike(f'%{query}%'),
-            Company.ticker_symbol.ilike(f'%{query}%')
-        )
-    ).order_by(Company.name).limit(10).all()
-
-    results = [{
-        'id': c.id,
-        'name': c.name,
-        'ticker': c.ticker_symbol,
-        'label': f'{c.ticker_symbol} - {c.name}'
-    } for c in companies]
-
-    return jsonify(results)
-
-
 @portfolio_bp.route('/checkpoint/<int:checkpoint_id>/update-status', methods=['POST'])
 @login_required
 def update_checkpoint_status(checkpoint_id):
@@ -529,6 +502,9 @@ def update_checkpoint_status(checkpoint_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+#########################
+#### Journal Related ####
+#########################
 
 @portfolio_bp.route('/decision-journal')
 @login_required
@@ -1520,7 +1496,37 @@ def intelligence_hub():
                           checkpoints=checkpoints,
                           thesis=thesis,
                           learning=learning)
-    
+
+#########################
+##### APIs Related ######
+#########################
+
+@portfolio_bp.route('/api/company-search')
+@login_required
+def company_search():
+    """API endpoint for company autocomplete search"""
+    query = request.args.get('q', '').strip()
+
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    companies = Company.query.filter(
+        Company.user_id == current_user.id,
+        db.or_(
+            Company.name.ilike(f'%{query}%'),
+            Company.ticker_symbol.ilike(f'%{query}%')
+        )
+    ).order_by(Company.name).limit(10).all()
+
+    results = [{
+        'id': c.id,
+        'name': c.name,
+        'ticker': c.ticker_symbol,
+        'label': f'{c.ticker_symbol} - {c.name}'
+    } for c in companies]
+
+    return jsonify(results)
+
 @portfolio_bp.route('/api/check-warnings', methods=['POST'])
 @login_required
 def check_transaction_warnings():
@@ -1753,7 +1759,8 @@ def quick_thesis_check():
             'elements_detected': 0,
             'quick_score': 0
         })
-        
+
+#TODO: Not intergrated to the system        
 @portfolio_bp.route('/api/similar-decisions', methods=['POST'])
 @login_required
 def find_similar_decisions_api():

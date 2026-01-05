@@ -10,6 +10,71 @@ let canvasData = {
 };
 
 /**
+ * Convert BlockNote JSON content to HTML
+ * Handles both BlockNote JSON format and plain HTML/text
+ */
+function blocknoteToHTML(content) {
+    if (!content || typeof content !== 'string') {
+        return '';
+    }
+
+    // Try to parse as BlockNote JSON
+    try {
+        const blocks = JSON.parse(content);
+        if (!Array.isArray(blocks)) {
+            return content; // Not BlockNote format, return as-is
+        }
+
+        const htmlParts = [];
+        for (const block of blocks) {
+            if (!block || typeof block !== 'object') continue;
+
+            const blockType = block.type || '';
+            const contentList = block.content || [];
+            const props = block.props || {};
+
+            // Extract text with styling
+            let textHTML = '';
+            if (Array.isArray(contentList)) {
+                for (const item of contentList) {
+                    if (item && item.type === 'text') {
+                        let text = item.text || '';
+                        const styles = item.styles || {};
+
+                        // Apply inline styles
+                        if (styles.bold) text = `<strong>${text}</strong>`;
+                        if (styles.italic) text = `<em>${text}</em>`;
+                        if (styles.underline) text = `<u>${text}</u>`;
+                        if (styles.strike) text = `<s>${text}</s>`;
+
+                        textHTML += text;
+                    }
+                }
+            }
+
+            // Convert block types to HTML
+            if (blockType === 'heading') {
+                const level = props.level || 1;
+                htmlParts.push(`<h${level}>${textHTML}</h${level}>`);
+            } else if (blockType === 'paragraph') {
+                htmlParts.push(`<p>${textHTML}</p>`);
+            } else if (blockType === 'bulletListItem') {
+                htmlParts.push(`<li>${textHTML}</li>`);
+            } else if (blockType === 'numberedListItem') {
+                htmlParts.push(`<li>${textHTML}</li>`);
+            } else if (textHTML) {
+                htmlParts.push(`<p>${textHTML}</p>`);
+            }
+        }
+
+        return htmlParts.join('');
+    } catch (e) {
+        // Not JSON, return content as-is (might be HTML already)
+        return content;
+    }
+}
+
+/**
  * Open the generate document modal and populate with sections
  */
 async function openGenerateDocumentModal() {
@@ -272,7 +337,7 @@ async function buildSelectedSectionsHTML(selectedIndices) {
             htmlParts.push('<h2>📥 Additional Notes (from Collector)</h2>');
             for (const note of canvasData.collectorNotes) {
                 htmlParts.push(`<h3>${note.title}</h3>`);
-                htmlParts.push(note.content);
+                htmlParts.push(blocknoteToHTML(note.content));
                 if (note.source_reference) {
                     const sourceText = note.source_title || note.source_reference;
                     htmlParts.push(`<p><small><em>Source: <a href="${note.source_reference}" target="_blank">${sourceText}</a></em></small></p>`);
@@ -294,7 +359,7 @@ async function buildSelectedSectionsHTML(selectedIndices) {
                 if (section.notes && section.notes.length > 0) {
                     for (const note of section.notes) {
                         htmlParts.push(`<h3>${note.title}</h3>`);
-                        htmlParts.push(note.content);
+                        htmlParts.push(blocknoteToHTML(note.content));
 
                         if (note.source_reference) {
                             const sourceText = note.source_title || note.source_reference;

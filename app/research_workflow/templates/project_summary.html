@@ -15,9 +15,10 @@
                     • Make your final investment decision
                 </p>
             </div>
-            {% with btn_class='btn btn-light' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn-portfolio-modern">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Reseach Worflow
+            </a>
         </div>
     </div>
 
@@ -156,7 +157,16 @@
                              data-bs-parent="#notesAccordion">
                             <div class="accordion-body">
                                 <div class="step-notes-content">
-                                    {{ note.notes|markdown|safe }}
+                                    {% if note.step_type == 'thesis_writing' %}
+                                        <!-- Display thesis - use blocknote_to_html for BlockNote JSON format -->
+                                        {% if project.investment_thesis %}
+                                            {{ project.investment_thesis|markdown|safe }}
+                                        {% else %}
+                                            {{ note.notes|blocknote_to_html|safe }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ note.notes|blocknote_to_html|safe }}
+                                    {% endif %}
                                 </div>
 
                                 <!-- Action buttons for different step types -->
