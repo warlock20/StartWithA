@@ -40,7 +40,7 @@
                             </div>
                             {% else %}
                             <div class="research-notes">
-                                {{ note.notes|markdown|safe }}
+                                {{ note.notes|blocknote_to_html|safe }}
                             </div>
                             {% endif %}
                         </div>

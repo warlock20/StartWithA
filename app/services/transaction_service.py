@@ -419,6 +419,7 @@ class TransactionService:
                             thesis=investment_thesis,
                             change_summary='Initial investment thesis from direct purchase',
                             change_trigger=f'Buy transaction without research ({form_data.get("non_research_source", "unknown")})',
+                            conviction_level=form_data.get('confidence_score', type=int),  # Set from transaction form
                             is_current=True,
                             created_at=transaction_date or now_utc()
                         )
@@ -437,7 +438,7 @@ class TransactionService:
                             company_id=company_id,
                             decision_type='BUY',
                             decision_date=transaction_date,
-                            investment_thesis=research_project.summary or 'Investment thesis from research',
+                            investment_thesis=research_project.investment_thesis or 'Investment thesis from research',
                             confidence_score=form_data.get('confidence_score', type=int),
                             expected_return=form_data.get('expected_return', type=float),
                             expected_timeframe=form_data.get('expected_timeframe', type=int),

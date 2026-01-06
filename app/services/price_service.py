@@ -5,7 +5,7 @@ from decimal import Decimal
 import yfinance as yf
 from app import db
 from app.models import PortfolioPosition
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 
 class PriceService:
     """
@@ -116,7 +116,9 @@ class PriceService:
         if not position.last_price_update:
             return True
 
-        time_since_update = now_utc() - position.last_price_update
+        # Ensure timezone-aware comparison
+        last_update_aware = ensure_timezone_aware(position.last_price_update)
+        time_since_update = now_utc() - last_update_aware
         return time_since_update > timedelta(minutes=15)
 
     @staticmethod

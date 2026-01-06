@@ -46,9 +46,14 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         parsed = urlparse(referer)
         path = parsed.path
 
-        # Research project
+        # Research project - use specific labels
         if '/research/workflow/projects/' in path:
-            return path, "Research"
+            if '/summary' in path:
+                return path, "Research Summary"
+            elif '/execute/' in path:
+                return path, "Research Step"
+            else:
+                return path, "Research"
 
         # Research session/checklist (updated to new routing)
         if '/research/checklist/' in path or '/research/session/' in path:
@@ -99,7 +104,13 @@ def _get_context_label(path):
         str: Context label
     """
     if '/research/workflow/projects/' in path:
-        return "Research"
+        # Be more specific for different research workflow pages
+        if '/summary' in path:
+            return "Research Summary"
+        elif '/execute/' in path:
+            return "Research Step"
+        else:
+            return "Research"
     elif '/research/checklist/' in path or '/research/session/' in path:
         return "Checklist"
     elif '/sectors/' in path:
@@ -115,7 +126,7 @@ def _get_context_label(path):
     elif '/analytics' in path:
         return "Analytics"
     else:
-        return "Back"
+        return "Previous Page"
 
 
 def get_return_url_with_label(default_route=None, default_kwargs=None):

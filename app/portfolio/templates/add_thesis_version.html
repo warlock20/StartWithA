@@ -38,9 +38,9 @@
                 <div class="quick-stat">
                     <span class="stat-label">Conviction</span>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="stat-value">{{ current_thesis.conviction_level }}/10</span>
+                        <span class="stat-value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
                         <div class="conviction-bar" style="width: 40px;">
-                            <div class="conviction-fill" style="width: {{ current_thesis.conviction_level * 10 }}%"></div>
+                            <div class="conviction-fill" style="width: {{ (current_thesis.conviction_level or 0) * 10 }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -178,12 +178,12 @@
                                    name="conviction_level"
                                    min="1"
                                    max="10"
-                                   value="{% if current_thesis %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}"
+                                   value="{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}"
                                    oninput="document.getElementById('conviction_value').textContent = this.value">
                         </div>
                         <div class="col-4">
-                            <span class="fs-3 fw-bold" id="conviction_value">{% if current_thesis %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span> / 10
-                            {% if current_thesis %}
+                            <span class="fs-3 fw-bold" id="conviction_value">{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span> / 10
+                            {% if current_thesis and current_thesis.conviction_level %}
                             <small class="d-block text-muted">Previous: {{ current_thesis.conviction_level }}</small>
                             {% endif %}
                         </div>
@@ -304,7 +304,7 @@
         <div class="row mt-4">
             <div class="col-4">
                 <small class="text-muted d-block">Conviction</small>
-                <strong class="fs-5">{{ current_thesis.conviction_level }}/10</strong>
+                <strong class="fs-5">{{ current_thesis.conviction_level or 'N/A' }}/10</strong>
             </div>
             {% if current_thesis.position_sizing %}
             <div class="col-4">

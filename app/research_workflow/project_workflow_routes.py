@@ -501,6 +501,7 @@ def complete_step(project_id):
                     thesis=project.investment_thesis,
                     change_summary='Initial investment thesis from research project',
                     change_trigger=f'Research project: {project.project_name}',
+                    conviction_level=project.decision_confidence,  # Set from research decision
                     is_current=True,
                     created_at=now_utc()
                 )
