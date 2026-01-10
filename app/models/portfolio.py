@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from app import db
 from app.utils.time_utils import now_utc
+from app.models.company import Company
 
 
 class ExchangeRate(db.Model):
@@ -358,24 +359,45 @@ def update_portfolio_position(transaction):
     Args:
         transaction: Transaction object that was just created/modified
     """
+    update_portfolio_position_for_company(transaction.company_id, transaction.user_id, transaction.date)
+
+
+def update_portfolio_position_for_company(company_id, user_id, last_transaction_date=None):
+    """
+    Update or create PortfolioPosition for a specific company/user combination.
+    More efficient for bulk operations where you already have company_id and user_id.
+
+    Args:
+        company_id: Company ID to update
+        user_id: User ID
+        last_transaction_date: Optional last transaction date (will query if not provided)
+    """
     # Recalculate position from scratch using FIFO
     total_shares, avg_cost, total_cost, realized_gl, first_date = calculate_fifo_cost_basis(
-        transaction.company_id,
-        transaction.user_id
+        company_id,
+        user_id
     )
 
     # Find or create position
     position = PortfolioPosition.query.filter_by(
-        user_id=transaction.user_id,
-        company_id=transaction.company_id
+        user_id=user_id,
+        company_id=company_id
     ).first()
 
     if not position:
         position = PortfolioPosition(
-            user_id=transaction.user_id,
-            company_id=transaction.company_id
+            user_id=user_id,
+            company_id=company_id
         )
         db.session.add(position)
+
+    # Get last transaction date if not provided
+    if last_transaction_date is None:
+        last_txn = Transaction.query.filter_by(
+            user_id=user_id,
+            company_id=company_id
+        ).order_by(Transaction.date.desc()).first()
+        last_transaction_date = last_txn.date if last_txn else None
 
     # Update position data
     position.total_shares = total_shares
@@ -383,23 +405,25 @@ def update_portfolio_position(transaction):
     position.total_cost = total_cost
     position.realized_gain_loss = realized_gl
     position.first_purchase_date = first_date
-    position.last_transaction_date = transaction.date
+    position.last_transaction_date = last_transaction_date
     position.is_active = (total_shares > 0)
 
     # Update company's is_in_portfolio flag
-    if total_shares > 0:
-        transaction.company.is_in_portfolio = True
-    else:
-        # Check if user has any other positions in this company
-        other_positions = PortfolioPosition.query.filter(
-            PortfolioPosition.user_id == transaction.user_id,
-            PortfolioPosition.company_id == transaction.company_id,
+    company = Company.query.get(company_id)
+    if company:
+        if total_shares > 0:
+            company.is_in_portfolio = True
+        else:
+            # Check if user has any other positions in this company
+            other_positions = PortfolioPosition.query.filter(
+                PortfolioPosition.user_id == user_id,
+                PortfolioPosition.company_id == company_id,
             PortfolioPosition.id != position.id if position.id else True,
             PortfolioPosition.is_active == True
         ).count()
 
-        if other_positions == 0:
-            transaction.company.is_in_portfolio = False
+            if other_positions == 0:
+                company.is_in_portfolio = False
 
     db.session.commit()
 

@@ -21,6 +21,7 @@ Usage:
 import json
 import logging
 from typing import Dict, List, Optional, Any
+import google.generativeai as genai
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
@@ -47,7 +48,6 @@ def _initialize_gemini():
         return _gemini_available
     
     try:
-        import google.generativeai as genai
         _genai = genai
         
         config = get_ai_config()
@@ -290,9 +290,11 @@ class GeminiProvider(AIProvider):
     def _get_default_safety_settings(self) -> List[Dict]:
         """
         Get default safety settings for content generation.
-        
+
         These are permissive settings suitable for business/research content.
         Override via kwargs if stricter settings needed.
+
+        Note: Only using the 4 standard safety categories supported by Gemini SDK.
         """
         return [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},

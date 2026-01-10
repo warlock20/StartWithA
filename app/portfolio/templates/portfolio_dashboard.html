@@ -35,6 +35,21 @@
                         Refresh
                     </button>
                 </form>
+                <form action="{{ url_for('portfolio.import_transactions') }}" method="post"
+                    enctype="multipart/form-data" class="d-inline">
+                    <label class="btn-portfolio-modern" style="cursor: pointer;">
+                        <i class="bi bi-upload"></i>
+                        Import
+                        <input type="file" name="file" style="display: none;" onchange="this.form.submit()"
+                            accept=".csv, .xlsx">
+                    </label>
+                </form>
+                <form action="{{ url_for('portfolio.reset_portfolio') }}" method="POST"
+                    onsubmit="return confirm('Are you absolutely sure you want to delete all transactions? This cannot be undone.');">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash-alt me-2"></i>Reset Entire Portfolio
+                    </button>
+                </form>
                 <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
                     <i class="bi bi-plus"></i>
                     Add Transaction

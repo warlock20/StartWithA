@@ -41,10 +41,20 @@
         <i class="bi bi-bar-chart-line"></i>
         <h3>Building Your Track Record</h3>
         <p>{{ correlation_data.min_data_message }}</p>
-        <p class="text-muted">Complete more research-backed trades to unlock insights.</p>
-        <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
-            <i class="bi bi-plus-lg"></i>
-            Add Transaction
+        <div class="alert alert-info border-0 mt-3" style="max-width: 600px; margin: 0 auto;">
+            <p class="mb-2"><strong>Note:</strong> This analysis requires completed research-backed trades:</p>
+            <ul class="text-start mb-0" style="font-size: 0.9rem;">
+                <li>Complete research using the platform's Research Workflow</li>
+                <li>Buy the stock based on your research</li>
+                <li>Later sell the position to realize returns</li>
+            </ul>
+            <p class="mt-2 mb-0 text-muted" style="font-size: 0.85rem;">
+                <em>Imported transactions don't include research data and won't appear here.</em>
+            </p>
+        </div>
+        <a href="{{ url_for('research_workflow.template_list') }}" class="btn-portfolio-modern primary mt-3">
+            <i class="bi bi-clipboard-check"></i>
+            Start Research
         </a>
     </div>
 

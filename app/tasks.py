@@ -256,7 +256,6 @@ def fetch_company_news_task(self, company_id):
             print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
             return f"Task failed: {e}"
 
-
 @celery.task(bind=True)
 def competitor_analysis_task(self, task_id, company_data):
     """
@@ -519,7 +518,6 @@ def analyze_scuttlebutt_task(self, company_id):
             db.session.rollback()
             print(f"BACKGROUND TASK FAILED ({self.request.id}): {e}")
             return f"Task failed: {e}"
-
 
 @celery.task(bind=True)
 def competitor_analysis_task(self, task_id, company_data):

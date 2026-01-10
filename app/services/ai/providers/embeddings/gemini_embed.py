@@ -13,6 +13,7 @@ import logging
 import os
 from typing import List, Optional
 import numpy as np
+import google.generativeai as genai
 
 from .base import BaseEmbeddingProvider
 
@@ -57,7 +58,6 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
     def _configure(self):
         """Configure Gemini API"""
         if not self._configured:
-            import google.generativeai as genai
             api_key = os.environ.get('GOOGLE_API_KEY') or os.environ.get('GEMINI_API_KEY')
             genai.configure(api_key=api_key)
             self._configured = True
@@ -80,7 +80,6 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
         
         try:
             self._configure()
-            import google.generativeai as genai
             
             result = genai.embed_content(
                 model=self.model,
@@ -99,7 +98,6 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
         
         try:
             self._configure()
-            import google.generativeai as genai
             
             # Filter valid texts
             valid_indices = []

@@ -1,9 +1,9 @@
 # app/portfolio/routes.py
 
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
@@ -15,6 +15,7 @@ from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
     ResearchProject, DestinationCheckpoint, ThesisEvolution, update_portfolio_position, ResearchOutcome
 )
+from app.services.portfolio_importer import PortfolioImporter, PortfolioImportError
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.services.too_hard_service import TooHardBasketService
@@ -44,10 +45,18 @@ from app.services.portfolio_intelligence import (
     )
 from app.services.intelligence_engine import IntelligenceEngine, get_portfolio_warnings
 from app.services.transaction_service import TransactionService
+from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
+from app.services.portfolio_data_extractor import PortfolioDataExtractor
+from app.celery_tasks.tasks_portfolio import portfolio_ai_analysis_task
+from celery_app import celery
 
+import json
 # Import blueprint from current package (avoids circular import)
 from . import portfolio_bp
 
+#############################
+#### Transaction Related ####
+#############################
 
 @portfolio_bp.route('/')
 @login_required
@@ -214,6 +223,105 @@ def transactions():
                           user_currency=user_currency,
                           currency_symbol=currency_symbol)
 
+@portfolio_bp.route('/transactions/import', methods=['POST'])
+def import_transactions():
+    if 'file' not in request.files:
+        flash('No file part', 'error')
+        return redirect(url_for('portfolio.dashboard'))
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        flash('No selected file', 'error')
+        return redirect(url_for('portfolio.index'))
+    
+    try:
+        importer = PortfolioImporter(current_user.id)
+        count = importer.process_file(file)
+        
+        force_resync()
+        
+        flash(f"Successfully imported {count} transactions!", "success")
+    except PortfolioImportError as e:
+        flash(f"Import Failed: {str(e)}", "error")
+    except Exception as e:
+        flash(f"System Error: {str(e)}", "error")
+        
+    return redirect(url_for('portfolio.dashboard'))
+
+@portfolio_bp.route('/transactions/reset', methods=['POST'])
+@login_required
+def reset_portfolio():
+    """
+    DANGER: Deletes ALL transactions and portfolio positions for the current user.
+    This cannot be undone.
+    """
+    try:
+        # 1. Delete all Portfolio Positions (Derived data)
+        num_positions = db.session.query(PortfolioPosition).filter_by(
+            user_id=current_user.id
+        ).delete()
+        
+        # 2. Delete all Transactions (Source data)
+        num_transactions = db.session.query(Transaction).filter_by(
+            user_id=current_user.id
+        ).delete()
+        
+        db.session.commit()
+        
+        flash(f"Portfolio reset complete. Deleted {num_transactions} transactions and {num_positions} positions.", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error resetting portfolio: {str(e)}", "error")
+        
+    return redirect(url_for('portfolio.dashboard'))
+
+@portfolio_bp.route('/debug/force-resync')
+@login_required
+def force_resync():
+    """
+    Debug Tool: Forces a recalculation of all portfolio positions
+    using existing transactions.
+    """
+    try:
+        # 1. Get all company IDs that have transactions for this user
+        company_ids = db.session.query(Transaction.company_id).filter_by(
+            user_id=current_user.id
+        ).distinct().all()
+        company_ids = [c[0] for c in company_ids]  # Flatten list of tuples
+        
+        if not company_ids:
+            flash("No transactions found to sync.", "warning")
+            return redirect(url_for('portfolio.dashboard'))
+
+        # 2. Force Recalculate Positions
+        recalculated = 0
+        for comp_id in company_ids:
+            # FIX: Fetch the actual latest transaction from the DB
+            # This ensures the object is attached to the session correctly
+            latest_txn = Transaction.query.filter_by(
+                user_id=current_user.id, 
+                company_id=comp_id
+            ).order_by(Transaction.date.desc()).first()
+            
+            if latest_txn:
+                # Pass the real transaction object
+                update_portfolio_position(latest_txn)
+                recalculated += 1
+            
+        # Commit all position updates
+        db.session.commit()
+            
+        flash(f"Resync Complete: Recalculated positions for {recalculated} companies based on {len(company_ids)} transaction sets.", "success")
+            
+    except Exception as e:
+        db.session.rollback()
+        # Log the full error for debugging
+        print(f"Resync Error: {str(e)}") 
+        flash(f"Debug failed: {str(e)}", 'error')
+        
+    return redirect(url_for('portfolio.dashboard'))
 
 @portfolio_bp.route('/transaction/new', methods=['GET', 'POST'])
 @portfolio_bp.route('/transaction/add', methods=['GET', 'POST'])
@@ -382,6 +490,9 @@ def delete_transaction(transaction_id):
 
     return redirect(url_for('portfolio.transactions'))
 
+#############################
+#### Postion Related ########
+#############################
 
 @portfolio_bp.route('/position/<int:company_id>')
 @login_required
@@ -447,198 +558,6 @@ def position_detail(company_id):
                           user_currency=user_currency,
                           currency_symbol=currency_symbol,
                           today=now_utc().date())
-
-
-@portfolio_bp.route('/refresh-prices', methods=['POST'])
-@login_required
-def refresh_prices():
-    """Manually refresh all portfolio prices"""
-    try:
-        results = PriceService.update_all_positions_batch(current_user.id, force=True)
-
-        if results['updated'] > 0:
-            flash(f"Successfully updated {results['updated']} positions", 'success')
-
-        if results['failed'] > 0:
-            flash(f"Failed to update {results['failed']} positions: {', '.join(results['errors'])}", 'warning')
-
-    except Exception as e:
-        flash(f'Error refreshing prices: {str(e)}', 'error')
-
-    return redirect(url_for('portfolio.dashboard'))
-
-
-@portfolio_bp.route('/checkpoint/<int:checkpoint_id>/update-status', methods=['POST'])
-@login_required
-def update_checkpoint_status(checkpoint_id):
-    """Update the status of a destination checkpoint"""
-    try:
-        data = request.get_json()
-        new_status = data.get('status')
-
-        # Validate status
-        if new_status not in ['Active', 'Met', 'Not Met']:
-            return jsonify({'success': False, 'error': 'Invalid status'}), 400
-
-        # Get checkpoint and verify ownership
-        checkpoint = DestinationCheckpoint.query.filter_by(
-            id=checkpoint_id,
-            user_id=current_user.id
-        ).first()
-
-        if not checkpoint:
-            return jsonify({'success': False, 'error': 'Checkpoint not found'}), 404
-
-        # Update status
-        checkpoint.status = new_status
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': f'Checkpoint marked as {new_status}'
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-#########################
-#### Journal Related ####
-#########################
-
-@portfolio_bp.route('/decision-journal')
-@login_required
-def decision_journal_list():
-    """List all portfolio decision journals with pagination"""
-    page = request.args.get('page', 1, type=int)
-    per_page = JOURNALS_PER_PAGE
-
-    # Get all portfolio decision journals with pagination
-    pagination = DecisionJournal.query.filter_by(
-        user_id=current_user.id,
-        is_portfolio_decision=True
-    ).order_by(DecisionJournal.decision_date.desc()).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False
-    )
-    journals = pagination.items
-
-    # Calculate statistics
-    total_decisions = len(journals)
-    buy_decisions = sum(1 for j in journals if j.decision_type == 'BUY')
-
-    # Count non-research purchases
-    non_research_purchases = sum(1 for j in journals if j.non_research_source is not None)
-
-    # Calculate average confidence
-    journals_with_confidence = [j for j in journals if j.confidence_score is not None]
-    avg_confidence = sum(j.confidence_score for j in journals_with_confidence) / len(journals_with_confidence) if journals_with_confidence else 0
-
-    # Track outcomes (for completed positions)
-    journals_with_outcomes = [j for j in journals if j.actual_return is not None]
-    successful_trades = sum(1 for j in journals_with_outcomes if j.actual_return > 0)
-    win_rate = (successful_trades / len(journals_with_outcomes) * 100) if journals_with_outcomes else 0
-
-    return render_template('decision_journal_list.html',
-                          journals=journals,
-                          pagination=pagination,
-                          total_decisions=total_decisions,
-                          buy_decisions=buy_decisions,
-                          non_research_purchases=non_research_purchases,
-                          avg_confidence=round(avg_confidence, 1),
-                          win_rate=round(win_rate, 1))
-
-
-@portfolio_bp.route('/decision-journal/<int:journal_id>')
-@login_required
-def view_decision_journal(journal_id):
-    """View a single decision journal entry"""
-    journal = DecisionJournal.query.filter_by(
-        id=journal_id,
-        user_id=current_user.id
-    ).first_or_404()
-
-    # Get associated transactions
-    transactions = Transaction.query.filter_by(
-        user_id=current_user.id,
-        company_id=journal.company_id,
-        decision_journal_id=journal_id
-    ).order_by(Transaction.date).all()
-
-    # Get portfolio position
-    position = PortfolioPosition.query.filter_by(
-        user_id=current_user.id,
-        company_id=journal.company_id
-    ).first()
-
-    # Get research project if exists
-    research_project = None
-    if journal.linked_research_id:
-        research_project = ResearchProject.query.get(journal.linked_research_id)
-
-    return render_template('decision_journal_detail.html',
-                          journal=journal,
-                          transactions=transactions,
-                          position=position,
-                          research_project=research_project)
-
-
-@portfolio_bp.route('/sell-postmortem/<int:journal_id>', methods=['GET', 'POST'])
-@login_required
-def sell_postmortem(journal_id):
-    """Complete post-mortem analysis after selling"""
-    journal = DecisionJournal.query.filter_by(
-        id=journal_id,
-        user_id=current_user.id,
-        decision_type='SELL'
-    ).first_or_404()
-
-    # Get the original BUY journal
-    buy_journal = DecisionJournal.query.filter_by(
-        company_id=journal.company_id,
-        user_id=current_user.id,
-        decision_type='BUY',
-        is_portfolio_decision=True
-    ).first()
-
-    if request.method == 'POST':
-        # Get form data
-        sell_reason = request.form.get('sell_reason', '').strip()
-        actual_return = request.form.get('actual_return', type=float)
-        what_went_right = request.form.get('what_went_right', '').strip()
-        what_went_wrong = request.form.get('what_went_wrong', '').strip()
-        lessons_learned = request.form.get('lessons_learned', '').strip()
-        would_repeat = request.form.get('would_repeat') == 'true'
-        mistake_category = request.form.get('mistake_category', '').strip()
-        success_category = request.form.get('success_category', '').strip()
-
-        # Update SELL journal with exit reasoning
-        journal.investment_thesis = sell_reason if sell_reason else journal.investment_thesis
-
-        # Update BUY journal with post-mortem data if it exists
-        if buy_journal:
-            buy_journal.actual_return = actual_return
-            buy_journal.outcome_date = journal.decision_date
-            buy_journal.what_went_right = what_went_right
-            buy_journal.what_went_wrong = what_went_wrong
-            buy_journal.lessons_learned = lessons_learned
-            buy_journal.would_repeat = would_repeat
-            buy_journal.mistake_category = mistake_category if actual_return and actual_return < 0 else None
-            buy_journal.success_category = success_category if actual_return and actual_return > 0 else None
-            buy_journal.updated_at = now_utc()
-
-        try:
-            db.session.commit()
-            flash('Post-mortem analysis saved successfully', 'success')
-            return redirect(url_for('portfolio.dashboard'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error saving post-mortem: {str(e)}', 'error')
-
-    return render_template('sell_postmortem.html',
-                          journal=journal,
-                          buy_journal=buy_journal)
 
 
 @portfolio_bp.route('/position/<int:company_id>/journey')
@@ -887,114 +806,338 @@ def add_thesis_version(company_id):
                           next_version=next_version)
 
 
+@portfolio_bp.route('/refresh-prices', methods=['POST'])
+@login_required
+def refresh_prices():
+    """Manually refresh all portfolio prices"""
+    try:
+        results = PriceService.update_all_positions_batch(current_user.id, force=True)
+
+        if results['updated'] > 0:
+            flash(f"Successfully updated {results['updated']} positions", 'success')
+
+        if results['failed'] > 0:
+            flash(f"Failed to update {results['failed']} positions: {', '.join(results['errors'])}", 'warning')
+
+    except Exception as e:
+        flash(f'Error refreshing prices: {str(e)}', 'error')
+
+    return redirect(url_for('portfolio.dashboard'))
+
+############################
+#### Checkpoint Related ####
+############################
+
+
+@portfolio_bp.route('/checkpoint/<int:checkpoint_id>/update-status', methods=['POST'])
+@login_required
+def update_checkpoint_status(checkpoint_id):
+    """Update the status of a destination checkpoint"""
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+
+        # Validate status
+        if new_status not in ['Active', 'Met', 'Not Met']:
+            return jsonify({'success': False, 'error': 'Invalid status'}), 400
+
+        # Get checkpoint and verify ownership
+        checkpoint = DestinationCheckpoint.query.filter_by(
+            id=checkpoint_id,
+            user_id=current_user.id
+        ).first()
+
+        if not checkpoint:
+            return jsonify({'success': False, 'error': 'Checkpoint not found'}), 404
+
+        # Update status
+        checkpoint.status = new_status
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Checkpoint marked as {new_status}'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@portfolio_bp.route('/checkpoints')
+@login_required
+def checkpoint_reminders():
+    """Checkpoint Reminders Dashboard"""    
+    checkpoints = get_upcoming_checkpoints(current_user.id, days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
+    
+    return render_template('checkpoint_reminders.html',
+                          checkpoints=checkpoints)
+    
+
+#########################
+#### Journal Related ####
+#########################
+
+@portfolio_bp.route('/decision-journal')
+@login_required
+def decision_journal_list():
+    """List all portfolio decision journals with pagination"""
+    page = request.args.get('page', 1, type=int)
+    per_page = JOURNALS_PER_PAGE
+
+    # Get all portfolio decision journals with pagination
+    pagination = DecisionJournal.query.filter_by(
+        user_id=current_user.id,
+        is_portfolio_decision=True
+    ).order_by(DecisionJournal.decision_date.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False
+    )
+    journals = pagination.items
+
+    # Calculate statistics
+    total_decisions = len(journals)
+    buy_decisions = sum(1 for j in journals if j.decision_type == 'BUY')
+
+    # Count non-research purchases
+    non_research_purchases = sum(1 for j in journals if j.non_research_source is not None)
+
+    # Calculate average confidence
+    journals_with_confidence = [j for j in journals if j.confidence_score is not None]
+    avg_confidence = sum(j.confidence_score for j in journals_with_confidence) / len(journals_with_confidence) if journals_with_confidence else 0
+
+    # Track outcomes (for completed positions)
+    journals_with_outcomes = [j for j in journals if j.actual_return is not None]
+    successful_trades = sum(1 for j in journals_with_outcomes if j.actual_return > 0)
+    win_rate = (successful_trades / len(journals_with_outcomes) * 100) if journals_with_outcomes else 0
+
+    return render_template('decision_journal_list.html',
+                          journals=journals,
+                          pagination=pagination,
+                          total_decisions=total_decisions,
+                          buy_decisions=buy_decisions,
+                          non_research_purchases=non_research_purchases,
+                          avg_confidence=round(avg_confidence, 1),
+                          win_rate=round(win_rate, 1))
+
+
+@portfolio_bp.route('/decision-journal/<int:journal_id>')
+@login_required
+def view_decision_journal(journal_id):
+    """View a single decision journal entry"""
+    journal = DecisionJournal.query.filter_by(
+        id=journal_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    # Get associated transactions
+    transactions = Transaction.query.filter_by(
+        user_id=current_user.id,
+        company_id=journal.company_id,
+        decision_journal_id=journal_id
+    ).order_by(Transaction.date).all()
+
+    # Get portfolio position
+    position = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        company_id=journal.company_id
+    ).first()
+
+    # Get research project if exists
+    research_project = None
+    if journal.linked_research_id:
+        research_project = ResearchProject.query.get(journal.linked_research_id)
+
+    return render_template('decision_journal_detail.html',
+                          journal=journal,
+                          transactions=transactions,
+                          position=position,
+                          research_project=research_project)
+
+
+@portfolio_bp.route('/sell-postmortem/<int:journal_id>', methods=['GET', 'POST'])
+@login_required
+def sell_postmortem(journal_id):
+    """Complete post-mortem analysis after selling"""
+    journal = DecisionJournal.query.filter_by(
+        id=journal_id,
+        user_id=current_user.id,
+        decision_type='SELL'
+    ).first_or_404()
+
+    # Get the original BUY journal
+    buy_journal = DecisionJournal.query.filter_by(
+        company_id=journal.company_id,
+        user_id=current_user.id,
+        decision_type='BUY',
+        is_portfolio_decision=True
+    ).first()
+
+    if request.method == 'POST':
+        # Get form data
+        sell_reason = request.form.get('sell_reason', '').strip()
+        actual_return = request.form.get('actual_return', type=float)
+        what_went_right = request.form.get('what_went_right', '').strip()
+        what_went_wrong = request.form.get('what_went_wrong', '').strip()
+        lessons_learned = request.form.get('lessons_learned', '').strip()
+        would_repeat = request.form.get('would_repeat') == 'true'
+        mistake_category = request.form.get('mistake_category', '').strip()
+        success_category = request.form.get('success_category', '').strip()
+
+        # Update SELL journal with exit reasoning
+        journal.investment_thesis = sell_reason if sell_reason else journal.investment_thesis
+
+        # Update BUY journal with post-mortem data if it exists
+        if buy_journal:
+            buy_journal.actual_return = actual_return
+            buy_journal.outcome_date = journal.decision_date
+            buy_journal.what_went_right = what_went_right
+            buy_journal.what_went_wrong = what_went_wrong
+            buy_journal.lessons_learned = lessons_learned
+            buy_journal.would_repeat = would_repeat
+            buy_journal.mistake_category = mistake_category if actual_return and actual_return < 0 else None
+            buy_journal.success_category = success_category if actual_return and actual_return > 0 else None
+            buy_journal.updated_at = now_utc()
+
+        try:
+            db.session.commit()
+            flash('Post-mortem analysis saved successfully', 'success')
+            return redirect(url_for('portfolio.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error saving post-mortem: {str(e)}', 'error')
+
+    return render_template('sell_postmortem.html',
+                          journal=journal,
+                          buy_journal=buy_journal)
+
+
+###########################
+#### Analytics Related ####
+###########################
+
 @portfolio_bp.route('/analytics')
 @login_required
 def analytics():
     """
-    Portfolio Analytics - Performance Overview
-    Quick metrics and returns focus
+    AI-Powered Portfolio Analytics (Async with Celery)
+
+    Flow:
+    1. Check cache - if exists, show results
+    2. Check running task - if exists, show loading page
+    3. If refresh=true, start new task and show loading page
+    4. Otherwise, show placeholder with "Run Analysis" button
     """
-    # Get all active positions with eager loading
-    positions = PortfolioPosition.query.filter_by(
-        user_id=current_user.id,
-        is_active=True
-    ).options(
-        joinedload(PortfolioPosition.company).joinedload(Company.sector)
-    ).all()
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    template_name = 'portfolio_raw_trade_analysis'  # Using deep behavioral analysis
 
-    # Update prices if needed
-    for position in positions:
-        if PriceService.should_update_price(position):
-            PriceService.update_position_price(position)
+    # Calculate chart data (always available, no AI needed)
+    time_period = request.args.get('period', '12')
+    try:
+        time_periods = int(time_period)
+        if time_periods not in [1, 3, 6, 12, 24, 36]:
+            time_periods = 12
+    except (ValueError, TypeError):
+        time_periods = 12
 
-    # Calculate portfolio totals
-    portfolio_value = PriceService.get_portfolio_value(current_user.id)
+    extractor = PortfolioDataExtractor(user_id=current_user.id)
+    transactions = Transaction.query.filter_by(user_id=current_user.id).all()
+    chart_data = extractor.calculate_performance_chart_data(transactions, time_periods=time_periods)
 
-    # Calculate total return
-    total_return = portfolio_value['total_unrealized_gain_loss']
-    total_return_pct = portfolio_value['total_unrealized_gain_loss_pct']
+    # 1. Check for cached results first
+    analytics = PortfolioAIAnalytics(user_id=current_user.id)
+    cached_insights = analytics._get_cached_insights(template_name)
 
-    # Calculate annualized return (CAGR)
-    earliest_date = db.session.query(func.min(PortfolioPosition.first_purchase_date)).filter_by(
-        user_id=current_user.id,
-        is_active=True
-    ).scalar()
+    if cached_insights and not force_refresh:
+        # We have cached results, show them
+        has_error = cached_insights.get('metadata', {}).get('error') is not None
+        return render_template('portfolio_basic_analytics.html',
+                              insights=cached_insights,
+                              has_error=has_error,
+                              chart_data=chart_data,
+                              selected_period=time_periods)
 
-    annualized_return = Decimal('0.00')
-    years_held = 0
-    if earliest_date and portfolio_value['total_cost'] > 0:
-        days_held = (now_utc().date() - earliest_date).days
-        if days_held > 0:
-            years_held = days_held / 365.25
-            if total_return_pct:
-                annualized_return = calculate_cagr(float(total_return_pct), days_held)
+    # 2. Check if there's already a task running
+    task_id = session.get(f'portfolio_analysis_task_{current_user.id}')
+    if task_id and not force_refresh:
+        # Use configured celery instance to check task status
+        task = celery.AsyncResult(task_id)
+        if task.state == 'SUCCESS':
+            # Task completed, parse results
+            result = json.loads(task.result)
+            if result.get('status') == 'success':
+                insights = result.get('insights')
+                has_error = insights.get('metadata', {}).get('error') is not None
+                return render_template('portfolio_basic_analytics.html',
+                                      insights=insights,
+                                      has_error=has_error,
+                                      chart_data=chart_data,
+                                      selected_period=time_periods)
+        elif task.state in ['PENDING', 'STARTED', 'RETRY']:
+            # Task still running, show loading page
+            return render_template('portfolio_analytics_loading.html',
+                                  task_id=task_id,
+                                  chart_data=chart_data,
+                                  selected_period=time_periods)
 
-    # Calculate win rate using utility
-    win_rate = calculate_win_rate(positions)
-    winning_positions = count_positions_by_status(positions)['winning']
-    total_positions = len(positions)
+    # 3. If force_refresh=true, start new background task
+    if force_refresh:
+        task = portfolio_ai_analysis_task.delay(current_user.id, template_name)
+        session[f'portfolio_analysis_task_{current_user.id}'] = task.id
+        return render_template('portfolio_analytics_loading.html',
+                              task_id=task.id,
+                              chart_data=chart_data,
+                              selected_period=time_periods)
 
-    # Calculate average holding period using utility
-    avg_hold_days = calculate_average_holding_period(positions)
-
-    # Get top and bottom performers using utilities
-    top_performers = get_top_performers(positions, limit=DEFAULT_TOP_PERFORMERS_LIMIT)
-    bottom_performers = get_bottom_performers(positions, limit=DEFAULT_BOTTOM_PERFORMERS_LIMIT)
-
-    # Calculate monthly performance (last 12 months)
-    monthly_performance = []
-    for i in range(11, -1, -1):
-        month_date = now_utc().date() - timedelta(days=i*30)
-        month_name = month_date.strftime('%B %Y')
-
-        # Get transactions for this month
-        month_start = date(month_date.year, month_date.month, 1)
-        if month_date.month == 12:
-            month_end = date(month_date.year + 1, 1, 1)
-        else:
-            month_end = date(month_date.year, month_date.month + 1, 1)
-
-        month_transactions = Transaction.query.filter(
-            Transaction.user_id == current_user.id,
-            Transaction.date >= month_start,
-            Transaction.date < month_end
-        ).count()
-
-        monthly_performance.append({
-            'month': month_name,
-            'month_short': month_date.strftime('%b'),
-            'trades': month_transactions
-        })
-
-    # Generate chart data for portfolio value over time
-    chart_labels = [m['month_short'] for m in monthly_performance]
-
-    # Calculate historical values (simplified projection based on current data)
-    current_value = float(portfolio_value['total_value'])
-    cost_basis = float(portfolio_value['total_cost'])
-
-    chart_values = []
-    if len(chart_labels) > 0:
-        growth_per_month = (current_value - cost_basis) / len(chart_labels) if len(chart_labels) > 0 else 0
-        for i in range(len(chart_labels)):
-            value = cost_basis + (growth_per_month * (i + 1))
-            chart_values.append(round(value, 2))
-
+    # 4. No cache, no task running, no refresh requested - show placeholder
+    placeholder_insights = analytics._get_placeholder_response(template_name)
     return render_template('portfolio_basic_analytics.html',
-                          portfolio_value=portfolio_value,
-                          total_return=total_return,
-                          total_return_pct=total_return_pct,
-                          annualized_return=annualized_return,
-                          win_rate=win_rate,
-                          winning_positions=winning_positions,
-                          total_positions=total_positions,
-                          avg_hold_days=avg_hold_days,
-                          top_performers=top_performers,
-                          bottom_performers=bottom_performers,
-                          monthly_performance=monthly_performance,
-                          chart_labels=chart_labels,
-                          chart_values=chart_values,
-                          cost_basis=cost_basis)
+                          insights=placeholder_insights,
+                          has_error=False,
+                          chart_data=chart_data,
+                          selected_period=time_periods,
+                          show_run_button=True)
+
+
+@portfolio_bp.route('/analytics/status/<task_id>')
+@login_required
+def analytics_status(task_id):
+    """
+    Check the status of a running portfolio analytics task.
+    Returns JSON for AJAX polling from loading page.
+    """
+    # Use the configured celery instance to create AsyncResult
+    task = celery.AsyncResult(task_id)
+
+    response = {
+        'state': task.state,
+        'current': 0,
+        'total': 100,
+        'status': ''
+    }
+
+    if task.state == 'PENDING':
+        response['status'] = 'Task is waiting to start...'
+    elif task.state == 'STARTED':
+        response['status'] = 'Analysis in progress...'
+        response['current'] = 50
+    elif task.state == 'SUCCESS':
+        response['status'] = 'Analysis completed!'
+        response['current'] = 100
+        # Parse the result
+        try:
+            result_data = json.loads(task.result)
+            response['result'] = result_data
+        except:
+            response['result'] = {'status': 'success', 'insights': None}
+    elif task.state == 'FAILURE':
+        response['status'] = 'Analysis failed'
+        response['current'] = 100
+        response['error'] = str(task.info)
+    else:
+        response['status'] = f'Task state: {task.state}'
+
+    return jsonify(response)
 
 
 @portfolio_bp.route('/analytics/decisions')
@@ -1141,17 +1284,8 @@ def research_correlation():
     return render_template('research_correlation.html',
                           correlation_data=correlation_data,
                           insights=insights)
-    
 
-@portfolio_bp.route('/checkpoints')
-@login_required
-def checkpoint_reminders():
-    """Checkpoint Reminders Dashboard"""    
-    checkpoints = get_upcoming_checkpoints(current_user.id, days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
-    
-    return render_template('checkpoint_reminders.html',
-                          checkpoints=checkpoints)
-    
+
 @portfolio_bp.route('/thesis-reality')
 @login_required
 def thesis_reality():

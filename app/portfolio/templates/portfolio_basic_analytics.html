@@ -1,229 +1,498 @@
 {% extends "main/_base.html" %}
 
-{% block title %}Portfolio Analytics{% endblock %}
+{% block title %}AI Portfolio Analytics{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-portfolio-analytics.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="analytics-container">
     <!-- Header -->
     <div class="analytics-header">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
             <div>
-                <h1 class="analytics-title">Portfolio Analytics</h1>
-                <p class="analytics-subtitle">Comprehensive performance metrics and return analysis</p>
+                <h1 class="analytics-title">AI Portfolio Intelligence</h1>
+                <p class="analytics-subtitle">
+                    AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{ insights.metadata.positions_count }} positions
+                </p>
             </div>
             <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Intelligence Hub
+                <i class="bi bi-arrow-left"></i>
+                Back to Intelligence Hub
             </a>
         </div>
     </div>
 
-    <!-- Key Metrics Row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="analytics-metric-card">
-                <div class="analytics-metric-label">Total Return</div>
-                <div class="analytics-metric-value">
-                    {% if total_return >= 0 %}+{% endif %}${{ "%.0f"|format(total_return|abs) }}
-                </div>
-                <div class="analytics-metric-change {% if total_return >= 0 %}positive{% else %}negative{% endif %}">
-                    <i class="bi bi-arrow-{% if total_return >= 0 %}up{% else %}down{% endif %}"></i>
-                    <span>{% if total_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(total_return_pct|abs) }}%</span>
-                </div>
+    {% if has_error %}
+    <!-- Error State -->
+    <div class="alert alert-warning" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Unable to generate AI insights:</strong> {{ insights.metadata.error }}
+    </div>
+    {% endif %}
+
+    <!-- KPI Grid -->
+    <div class="ai-kpi-grid">
+        <!-- Win Rate -->
+        <div class="ai-kpi-card">
+            <div class="ai-kpi-header">
+                <span class="ai-kpi-label">Win Rate</span>
+                <span class="ai-kpi-badge badge-success">
+                    <i class="bi bi-graph-up"></i> Above Avg
+                </span>
+            </div>
+            <div class="ai-kpi-value">{{ insights.kpis.win_rate }}%</div>
+            <div class="ai-kpi-progress">
+                <div class="ai-kpi-progress-bar" style="width: {{ insights.kpis.win_rate }}%; background: #10b981;"></div>
+            </div>
+            <div class="ai-kpi-subtitle">vs. {{ insights.kpis.market_avg_win_rate }}% Retail Avg</div>
+        </div>
+
+        <!-- Avg Hold Time -->
+        <div class="ai-kpi-card">
+            <div class="ai-kpi-header">
+                <span class="ai-kpi-label">Avg Hold Time</span>
+                <span class="ai-kpi-badge badge-info">
+                    <i class="bi bi-hourglass"></i>
+                </span>
+            </div>
+            <div class="ai-kpi-value">{{ insights.kpis.avg_hold_days }}d</div>
+            <div class="ai-kpi-progress">
+                <div class="ai-kpi-progress-bar" style="width: 75%; background: #3b82f6;"></div>
+            </div>
+            <div class="ai-kpi-subtitle">{{ insights.kpis.strategy_label }}</div>
+        </div>
+
+        <!-- Positions -->
+        <div class="ai-kpi-card">
+            <div class="ai-kpi-header">
+                <span class="ai-kpi-label">Active Positions</span>
+            </div>
+            <div class="ai-kpi-value">{{ insights.kpis.positions_count }}</div>
+            <div class="ai-kpi-subtitle" style="margin-top: 1.5rem;">
+                <i class="bi bi-circle-fill" style="color: #ef4444; font-size: 0.5rem;"></i>
+                {{ insights.kpis.sector_concentration }}% Tech Concentration
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="analytics-metric-card">
-                <div class="analytics-metric-label">Annualized Return</div>
-                <div class="analytics-metric-value">
-                    {% if annualized_return >= 0 %}+{% endif %}{{ "%.1f"|format(annualized_return|abs) }}%
-                </div>
-                <div class="analytics-metric-change positive">
-                    <span>Since inception</span>
-                </div>
+
+        <!-- Risk Level -->
+        <div class="ai-kpi-card" style="border-left: 4px solid #ef4444;">
+            <div class="ai-kpi-header">
+                <span class="ai-kpi-label">Risk Level</span>
+                <i class="bi bi-exclamation-octagon-fill" style="color: #ef4444; font-size: 1.25rem;"></i>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="analytics-metric-card">
-                <div class="analytics-metric-label">Win Rate</div>
-                <div class="analytics-metric-value">{{ "%.0f"|format(win_rate) }}%</div>
-                <div class="analytics-metric-change neutral">
-                    <span>{{ winning_positions }} of {{ total_positions }} positions</span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="analytics-metric-card">
-                <div class="analytics-metric-label">Avg Hold Period</div>
-                <div class="analytics-metric-value">{{ "%.0f"|format(avg_hold_days) }}d</div>
-                <div class="analytics-metric-change neutral">
-                    <span>~{{ "%.1f"|format(avg_hold_days / 30) }} months</span>
-                </div>
+            <div class="ai-kpi-value" style="color: #ef4444;">{{ insights.kpis.risk_level }}</div>
+            <div class="ai-kpi-subtitle" style="margin-top: 0.75rem;">
+                {{ insights.kpis.risk_description }}
             </div>
         </div>
     </div>
 
-    <!-- Performance Chart -->
-    <div class="analytics-chart-container">
-        <div class="analytics-chart-header">
-            <h3 class="analytics-chart-title mb-0">Portfolio Value Over Time</h3>
-            <div class="analytics-period-selector">
-                <button class="analytics-period-btn">1M</button>
-                <button class="analytics-period-btn">3M</button>
-                <button class="analytics-period-btn">6M</button>
-                <button class="analytics-period-btn active">1Y</button>
-                <button class="analytics-period-btn">ALL</button>
+    <!-- Main Layout with Sidebar -->
+    <div class="ai-layout">
+        <!-- Sidebar Navigation (Desktop) -->
+        <div class="ai-sidebar">
+            <div class="ai-nav-card">
+                <button class="ai-nav-btn active" data-panel="overview">
+                    <i class="bi bi-grid-3x3"></i>
+                    <span>Overview</span>
+                </button>
+                <button class="ai-nav-btn" data-panel="patterns">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Behavioral Patterns</span>
+                </button>
+                <button class="ai-nav-btn" data-panel="risks">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <span>Risk Analysis</span>
+                </button>
+                <button class="ai-nav-btn" data-panel="actions">
+                    <i class="bi bi-list-check"></i>
+                    <span>Action Plan</span>
+                </button>
+            </div>
+
+            <!-- AI Context Box -->
+            <div class="ai-context-box">
+                <div class="ai-context-status">
+                    <span class="ai-status-dot"></span>
+                    AI Analyst Active
+                </div>
+                <div class="ai-context-text">
+                    {{ insights.ai_summary.quick_insight }}
+                </div>
+                <button class="ai-refresh-btn" onclick="window.location.href='{{ url_for('portfolio.analytics') }}?refresh=true'">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Re-run Analysis
+                </button>
             </div>
         </div>
-        <canvas id="performanceChart" height="80"></canvas>
-    </div>
 
-    <!-- Two Column Layout -->
-    <div class="row g-3">
-        <!-- Top Performers -->
-        <div class="col-md-6">
-            <div class="analytics-table-container">
-                <h3 class="analytics-chart-title">Top Performers</h3>
-                {% if top_performers %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Company</th>
-                            <th style="text-align: right;">Return</th>
-                            <th style="text-align: right;">Gain/Loss</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for position in top_performers %}
-                        <tr>
-                            <td>
-                                <strong>{{ position.company.ticker_symbol }}</strong> - {{ position.company.name }}
-                            </td>
-                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss_pct >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
-                            </td>
-                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(position.unrealized_gain_loss|abs) }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="text-muted">No positions with returns data yet.</p>
+        <!-- Mobile Navigation (Horizontal) -->
+        <div class="ai-mobile-nav">
+            <button class="ai-mobile-nav-btn active" data-panel="overview">Overview</button>
+            <button class="ai-mobile-nav-btn" data-panel="patterns">Patterns</button>
+            <button class="ai-mobile-nav-btn" data-panel="risks">Risks</button>
+            <button class="ai-mobile-nav-btn" data-panel="actions">Actions</button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="ai-content">
+            <!-- Overview Panel -->
+            <div class="ai-content-panel active" id="panel-overview">
+                <!-- Performance Chart (No AI Required) -->
+                <div class="bg-white rounded-3 border shadow-sm p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h3 class="fw-bold mb-1" style="font-size: 1.1rem;">Performance vs Cost</h3>
+                            <p class="text-muted small mb-0">Portfolio Value Over Time</p>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Time Period Selector -->
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('portfolio.analytics', period=1, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 1 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1M</a>
+                                <a href="{{ url_for('portfolio.analytics', period=3, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 3 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3M</a>
+                                <a href="{{ url_for('portfolio.analytics', period=6, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 6 %}btn-primary{% else %}btn-outline-secondary{% endif %}">6M</a>
+                                <a href="{{ url_for('portfolio.analytics', period=12, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 12 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1Y</a>
+                                <a href="{{ url_for('portfolio.analytics', period=24, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 24 %}btn-primary{% else %}btn-outline-secondary{% endif %}">2Y</a>
+                                <a href="{{ url_for('portfolio.analytics', period=36, refresh=request.args.get('refresh', 'false')) }}"
+                                   class="btn btn-sm {% if selected_period == 36 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3Y</a>
+                            </div>
+                            <!-- Legend -->
+                            <div class="d-flex gap-3">
+                                <span class="d-flex align-items-center small">
+                                    <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background: #4f46e5;"></span>
+                                    Current Value
+                                </span>
+                                <span class="d-flex align-items-center small">
+                                    <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1;"></span>
+                                    Total Cost
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="position: relative; height: 280px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Primary Assessment -->
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-stars"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Portfolio Health Assessment</h3>
+                        </div>
+                    </div>
+                    <div class="narrative-text">
+                        {{ insights.analysis.overall_assessment|safe }}
+                    </div>
+                </div>
+
+                <!-- Key Strengths -->
+                {% if insights.analysis.key_strengths %}
+                <div class="narrative-block success">
+                    <div class="narrative-header">
+                        <div class="narrative-icon green">
+                            <i class="bi bi-trophy-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">What's Working</h3>
+                        </div>
+                    </div>
+                    <div class="narrative-text">
+                        <ul style="margin: 0; padding-left: 1.5rem;">
+                            {% for strength in insights.analysis.key_strengths %}
+                            <li style="margin-bottom: 0.5rem;">{{ strength }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
                 {% endif %}
-            </div>
-        </div>
 
-        <!-- Bottom Performers -->
-        <div class="col-md-6">
-            <div class="analytics-table-container">
-                <h3 class="analytics-chart-title">Bottom Performers</h3>
-                {% if bottom_performers %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Company</th>
-                            <th style="text-align: right;">Return</th>
-                            <th style="text-align: right;">Gain/Loss</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for position in bottom_performers %}
-                        <tr>
-                            <td>
-                                <strong>{{ position.company.ticker_symbol }}</strong> - {{ position.company.name }}
-                            </td>
-                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss_pct >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
-                            </td>
-                            <td style="text-align: right;" class="{% if position.unrealized_gain_loss >= 0 %}positive{% else %}negative{% endif %}">
-                                {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{ "%.0f"|format(position.unrealized_gain_loss|abs) }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="text-muted">No positions with returns data yet.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+                <!-- Comparison Grid -->
+                <div class="comparison-grid">
+                    <!-- Winners -->
+                    <div class="comparison-card">
+                        <div class="comparison-card-header">
+                            <div style="background: #f0fdf4; color: #10b981; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <span class="comparison-card-title">Winning Positions</span>
+                        </div>
+                        <div class="comparison-metrics">
+                            <div class="comparison-metric">
+                                <span class="metric-label">Avg Return</span>
+                                <span class="metric-value positive">+{{ insights.comparison.winners.avg_return }}%</span>
+                            </div>
+                            <div class="comparison-metric">
+                                <span class="metric-label">Hold Time</span>
+                                <span class="metric-value">{{ insights.comparison.winners.hold_time }} days</span>
+                            </div>
+                            <div class="comparison-metric">
+                                <span class="metric-label">Success Rate</span>
+                                <span class="metric-value">{{ insights.comparison.winners.success_rate }}%</span>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Monthly Performance Table -->
-    <div class="analytics-table-container">
-        <h3 class="analytics-chart-title">Trading Activity by Month</h3>
-        <table class="analytics-table">
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th style="text-align: right;">Trades</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for month_data in monthly_performance|reverse %}
-                <tr>
-                    <td><strong>{{ month_data.month }}</strong></td>
-                    <td style="text-align: right;">{{ month_data.trades }}</td>
-                </tr>
+                    <!-- Losers -->
+                    <div class="comparison-card">
+                        <div class="comparison-card-header">
+                            <div style="background: #fef2f2; color: #ef4444; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-graph-down"></i>
+                            </div>
+                            <span class="comparison-card-title">Losing Positions</span>
+                        </div>
+                        <div class="comparison-metrics">
+                            <div class="comparison-metric">
+                                <span class="metric-label">Avg Loss</span>
+                                <span class="metric-value negative">{{ insights.comparison.losers.avg_loss }}%</span>
+                            </div>
+                            <div class="comparison-metric">
+                                <span class="metric-label">Hold Time</span>
+                                <span class="metric-value">{{ insights.comparison.losers.hold_time }} days</span>
+                            </div>
+                            <div class="comparison-metric">
+                                <span class="metric-label">Pattern</span>
+                                <span class="metric-value">{{ insights.comparison.losers.pattern }}</span>
+                            </div>
+                        </div>
+                        {% if insights.comparison.losers.insight %}
+                        <div class="action-box" style="margin-top: 1rem;">
+                            <div class="action-box-header">
+                                <i class="bi bi-info-circle-fill"></i>
+                                Insight
+                            </div>
+                            <div class="action-box-content">
+                                {{ insights.comparison.losers.insight }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patterns Panel -->
+            <div class="ai-content-panel" id="panel-patterns">
+                {% if insights.analysis.behavioral_patterns %}
+                {% for pattern in insights.analysis.behavioral_patterns %}
+                <div class="narrative-block {% if pattern.severity == 'high' %}warning{% endif %}">
+                    <div class="narrative-header">
+                        <div class="narrative-icon {% if pattern.severity == 'high' %}orange{% else %}blue{% endif %}">
+                            <i class="bi bi-{{ pattern.icon }}"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">{{ pattern.title }}</h3>
+                        </div>
+                        {% if pattern.severity %}
+                        <span class="ai-kpi-badge badge-{% if pattern.severity == 'high' %}danger{% else %}warning{% endif %}">
+                            {{ pattern.severity|upper }} IMPACT
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="narrative-text">
+                        {{ pattern.description|safe }}
+                    </div>
+                    {% if pattern.recommendation %}
+                    <div class="action-box">
+                        <div class="action-box-header">
+                            <i class="bi bi-lightbulb-fill"></i>
+                            Recommendation
+                        </div>
+                        <div class="action-box-content">
+                            {{ pattern.recommendation }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+                {% else %}
+                <div class="narrative-block">
+                    <div class="narrative-text">
+                        No significant behavioral patterns detected yet. More data needed.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Risks Panel -->
+            <div class="ai-content-panel" id="panel-risks">
+                {% if insights.analysis.key_risks %}
+                {% for risk in insights.analysis.key_risks %}
+                <div class="narrative-block danger">
+                    <div class="narrative-header">
+                        <div class="narrative-icon red">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">{{ risk.title }}</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-danger">{{ risk.level|upper }}</span>
+                    </div>
+                    <div class="narrative-text">
+                        {{ risk.description|safe }}
+                    </div>
+                    {% if risk.mitigation %}
+                    <div class="action-box">
+                        <div class="action-box-header">
+                            <i class="bi bi-shield-check"></i>
+                            Mitigation Strategy
+                        </div>
+                        <div class="action-box-content">
+                            {{ risk.mitigation }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="narrative-block">
+                    <div class="narrative-text">
+                        No significant risks identified. Your portfolio appears well-balanced.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions Panel -->
+            <div class="ai-content-panel" id="panel-actions">
+                {% if insights.analysis.recommendations %}
+                <div class="action-list">
+                    {% for rec in insights.analysis.recommendations %}
+                    <div class="action-item">
+                        <div class="action-number {% if rec.priority == 'urgent' %}urgent{% elif rec.priority == 'high' %}high{% endif %}">
+                            {{ loop.index }}
+                        </div>
+                        <div class="action-content">
+                            <div class="action-title">{{ rec.title }}</div>
+                            <div class="action-description">{{ rec.description }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="narrative-block">
+                    <div class="narrative-text">
+                        No specific actions recommended at this time. Continue monitoring your portfolio.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching functionality
+    const navButtons = document.querySelectorAll('.ai-nav-btn, .ai-mobile-nav-btn');
+    const panels = document.querySelectorAll('.ai-content-panel');
+
+    navButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetPanel = this.getAttribute('data-panel');
+
+            // Remove active class from all buttons and panels
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            // Add active class to clicked button and target panel
+            this.classList.add('active');
+            document.getElementById('panel-' + targetPanel).classList.add('active');
+        });
+    });
+
     // Performance Chart
-    const ctx = document.getElementById('performanceChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ chart_labels|tojson }},
-            datasets: [{
-                label: 'Portfolio Value',
-                data: {{ chart_values|tojson }},
-                borderColor: '#4338ca',
-                backgroundColor: 'rgba(67, 56, 202, 0.1)',
-                fill: true,
-                tension: 0.4,
-                borderWidth: 3
-            }, {
-                label: 'Cost Basis',
-                data: Array({{ chart_labels|length }}).fill({{ cost_basis }}),
-                borderColor: '#9ca3af',
-                borderDash: [5, 5],
-                fill: false,
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    align: 'end'
-                }
+    const ctx = document.getElementById('performanceChart');
+    if (ctx) {
+        const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
+        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.1)');
+        gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_data.labels | tojson }},
+                datasets: [{
+                    label: 'Current Value',
+                    data: {{ chart_data.current_values | tojson }},
+                    borderColor: '#4f46e5',
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#4f46e5',
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Total Cost',
+                    data: {{ chart_data.total_costs | tojson }},
+                    borderColor: '#cbd5e1',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false,
+                    tension: 0.2
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + (value / 1000).toFixed(0) + 'K';
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 12,
+                        titleFont: { family: 'Inter', size: 13 },
+                        bodyFont: { family: 'Inter', size: 13 },
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                            }
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Inter' }, color: '#94a3b8' }
+                    },
+                    y: {
+                        grid: { color: '#f1f5f9', borderDash: [5, 5] },
+                        ticks: {
+                            font: { family: 'Inter' },
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return '$' + (value / 1000).toFixed(0) + 'k';
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
                 }
             }
-        }
-    });
+        });
+    }
 });
 </script>
 {% endblock %}

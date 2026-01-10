@@ -45,15 +45,28 @@ class AIProvider(Enum):
 class AIModel(Enum):
     """
     Available AI models with their provider mapping.
-    
+
     Each model is a tuple of (model_id, provider).
     Access via: model.model_id, model.provider
+
+    Updated: January 2026 - Includes Gemini 3.x and 2.5.x series
     """
-    # Gemini models
-    GEMINI_PRO = ("gemini-pro", AIProvider.GEMINI)                      # Legacy - avoid
-    GEMINI_FLASH_20 = ("gemini-2.0-flash", AIProvider.GEMINI)           # Fast, good quality
-    GEMINI_FLASH_25 = ("gemini-2.5-flash", AIProvider.GEMINI)           # Recommended default
-    GEMINI_PRO_25 = ("gemini-2.5-pro", AIProvider.GEMINI)               # Best Gemini quality
+    # Gemini 3.x models (Preview - Latest as of Jan 2026)
+    GEMINI_3_FLASH = ("gemini-3-flash-preview", AIProvider.GEMINI)      # Latest Flash with Pro-grade reasoning
+    GEMINI_3_PRO = ("gemini-3-pro-preview", AIProvider.GEMINI)          # Latest Pro for agentic workflows
+
+    # Gemini 2.5 models (Stable)
+    GEMINI_FLASH_25 = ("gemini-2.5-flash", AIProvider.GEMINI)           # Recommended default - fast & intelligent
+    GEMINI_PRO_25 = ("gemini-2.5-pro", AIProvider.GEMINI)               # Best quality
+    GEMINI_FLASH_LITE_25 = ("gemini-2.5-flash-lite", AIProvider.GEMINI) # High-throughput, cost-optimized
+
+    # Gemini aliases (auto-update to latest)
+    GEMINI_FLASH_LATEST = ("gemini-flash-latest", AIProvider.GEMINI)    # Alias: latest Flash version
+    GEMINI_PRO_LATEST = ("gemini-pro-latest", AIProvider.GEMINI)        # Alias: latest Pro version
+
+    # Gemini legacy/deprecated (retiring March 3, 2026)
+    GEMINI_PRO = ("gemini-pro", AIProvider.GEMINI)                      # Legacy - deprecated
+    GEMINI_FLASH_20 = ("gemini-2.0-flash", AIProvider.GEMINI)           # Deprecated - use 2.5 or 3.x
     
     # Claude models  
     CLAUDE_HAIKU = ("claude-3-5-haiku-20241022", AIProvider.CLAUDE)     # Fast, cost-effective
@@ -82,11 +95,28 @@ class AIModel(Enum):
             Matching AIModel or default (GEMINI_FLASH_25)
         """
         model_map = {
-            # Gemini
-            'gemini-pro': cls.GEMINI_PRO,
-            'gemini-2.0-flash': cls.GEMINI_FLASH_20,
+            # Gemini 3.x (Latest Preview)
+            'gemini-3-flash-preview': cls.GEMINI_3_FLASH,
+            'gemini-3-flash': cls.GEMINI_3_FLASH,  # Alias
+            'gemini-3-pro-preview': cls.GEMINI_3_PRO,
+            'gemini-3-pro': cls.GEMINI_3_PRO,  # Alias
+
+            # Gemini 2.5.x (Stable)
             'gemini-2.5-flash': cls.GEMINI_FLASH_25,
             'gemini-2.5-pro': cls.GEMINI_PRO_25,
+            'gemini-2.5-flash-lite': cls.GEMINI_FLASH_LITE_25,
+
+            # Gemini aliases (auto-update)
+            'gemini-flash-latest': cls.GEMINI_FLASH_LATEST,
+            'gemini-pro-latest': cls.GEMINI_PRO_LATEST,
+
+            # Custom aliases (not official Google aliases)
+            'gemini-3-latest': cls.GEMINI_3_FLASH,  # Custom: latest Gemini 3
+
+            # Gemini legacy/deprecated
+            'gemini-pro': cls.GEMINI_PRO,
+            'gemini-2.0-flash': cls.GEMINI_FLASH_20,
+
             # Claude
             'claude-haiku': cls.CLAUDE_HAIKU,
             'claude-3-5-haiku-20241022': cls.CLAUDE_HAIKU,
@@ -94,6 +124,7 @@ class AIModel(Enum):
             'claude-sonnet-4-20250514': cls.CLAUDE_SONNET,
             'claude-opus': cls.CLAUDE_OPUS,
             'claude-3-opus-20240229': cls.CLAUDE_OPUS,
+
             # OpenAI
             'gpt-4': cls.GPT4,
             'gpt-4-turbo': cls.GPT4_TURBO,

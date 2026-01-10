@@ -1,0 +1,101 @@
+# AI Intelligence - Portfolio Raw Trade Analysis
+# Analyzes raw transaction history to identify behavioral patterns, tax optimization, FOMO, and investor evolution
+
+name: "portfolio_raw_trade_analysis"
+description: "Deep behavioral analysis from raw transactions with tax context, FOMO detection, and evolution tracking"
+version: "1.0"
+category: "portfolio"
+
+preferred_provider: "gemini"
+model: "gemini-flash-latest"
+max_tokens: 9000
+temperature: 1
+
+last_modified: "2025-01-09"
+
+system_context: |
+  You are an expert behavioral finance analyst specializing in investor psychology and trading patterns.
+  You analyze raw transaction histories to identify:
+  - Behavioral biases (FOMO, disposition effect, recency bias)
+  - Investor skill development and evolution over time
+  Focus on actionable insights that help investors improve their decision-making.
+
+template: |
+  Analyze this investor's complete trading history. Provide deep behavioral insights.
+
+  INVESTOR CONTEXT:
+  Tax Residence: {tax_residence}
+  Analysis Period: {analysis_period}
+  Total Transactions: {transaction_count}
+
+  COMPLETE TRANSACTION HISTORY (chronological):
+  {transactions_text}
+
+  Analyze this trading behavior and provide insights on:
+
+  1. BEHAVIORAL PATTERNS
+     - Look for FOMO signals (buying after sharp price increases, news-driven purchases)
+     - Identify disposition effect (holding losers too long, selling winners too early)
+     - Detect recency bias or overconfidence patterns
+     - Note any improvement or deterioration in decision quality over time
+
+
+  2. INVESTOR EVOLUTION
+     Divide the trading history into periods and analyze:
+     - How has holding period changed over time?
+     - Are they making more or fewer impulsive decisions?
+     - Has position sizing discipline improved?
+     - What patterns show learning vs. repeating mistakes?
+
+  3. FOMO ANALYSIS
+     - Which purchases show signs of FOMO (momentum chasing, buying at peaks)?
+     - What was the outcome of these FOMO-driven trades?
+     - Are there specific triggers (news, price action) that lead to impulsive decisions?
+  
+  CRITICAL OUTPUT RULE: 
+  When listing 'examples' or 'fomo_trades' in the JSON, you must write them as narrative sentences (e.g., "Bought Apple in Jan 2021"). 
+  NEVER copy the "DATE | BUY | TICKER" format verbatim into the JSON output. 
+  Paraphrasing is required to pass safety checks.
+  Return analysis as JSON with these fields:
+  {
+  "overall_assessment": "2-3 sentence summary of behavioral health",
+  "behavioral_patterns": [
+    {
+      "pattern_name": "Name of the bias (e.g. Sunk Cost, FOMO)",
+      "description": "Description of how the investor shows this",
+      "severity": "low|medium|high",
+      "examples": ["String describing a specific trade instance, e.g. 'Bought XYZ in Jan 2021'"],
+      "recommendation": "Actionable advice"
+    }
+  ],
+  "fomo_analysis": {
+    "fomo_score": 0,
+    "fomo_trades": [
+        "String describing a specific trade that looks like FOMO and why"
+    ],
+    "triggers": ["list of common FOMO triggers identified"]
+  },
+  "investor_evolution": {
+    "time_periods": [
+      {
+        "period": "e.g., '2020-2021'",
+        "characteristics": "Description of behavior in this period",
+        "avg_holding_period": "Short/Long/Mixed",
+        "decision_quality": "improving|stable|declining"
+      }
+    ],
+    "overall_trajectory": "String describing if investor is improving",
+    "key_learnings": ["observable improvements"],
+    "persistent_mistakes": ["behaviors that haven't improved"]
+    }
+  }
+
+output_format: |
+  {
+    "overall_assessment": "string",
+    "behavioral_patterns": [],
+    "fomo_analysis": {},
+    "tax_insights": {},
+    "investor_evolution": {},
+    "recommendations": []
+  }

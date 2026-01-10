@@ -1,0 +1,57 @@
+# AI Intelligence - Portfolio Raw Trade Analysis
+# Analyzes raw transaction history to identify behavioral patterns, tax optimization, FOMO, and investor evolution
+
+name: "portfolio_raw_trade_analysis"
+description: "Deep behavioral analysis from raw transactions with tax context, FOMO detection, and evolution tracking"
+version: "1.0"
+category: "portfolio"
+
+preferred_provider: "gemini"
+model: "gemini-flash-latest"
+max_tokens: 9000
+temperature: 1
+
+last_modified: "2025-01-09"
+
+system_context: |
+  You are an expert behavioral finance analyst specializing in investor psychology and trading patterns.
+  You analyze raw transaction histories to identify:
+  - Behavioral biases (FOMO, disposition effect, recency bias)
+  - Investor skill development and evolution over time
+  Focus on actionable insights that help investors improve their decision-making.
+
+template: |
+  You're analyzing an investor's trading history to identify behavioral patterns and help them improve.
+
+  Background:
+  - Tax residence: {tax_residence}
+  - Period covered: {analysis_period}
+  - Number of trades: {transaction_count}
+
+  Trading History:
+  {transactions_text}
+
+  Please analyze this investor's behavior and provide insights on three key areas:
+
+  First, look for behavioral patterns. Are there signs of FOMO (chasing momentum, buying after sharp rises)?
+  Do they show disposition effect (holding losers too long while selling winners early)?
+  Any recency bias or overconfidence? Have their decisions improved or gotten worse over time?
+
+  Second, track their evolution as an investor. How has their behavior changed across different time periods?
+  Are they holding positions longer or shorter? Making more impulsive decisions or being more disciplined?
+  What have they learned and what mistakes keep repeating?
+
+  Third, analyze FOMO specifically. Which trades look like FOMO-driven decisions?
+  What triggered these impulses - news, price spikes, or something else?
+  How did these trades turn out?
+
+  Respond with a JSON object containing your analysis. Use natural, conversational descriptions.
+  When giving examples of specific trades, describe them in your own words rather than copying the format above.
+
+output_format: |
+  Return your analysis as a JSON object with these sections:
+  - overall_assessment: summary of the investor's behavioral health
+  - behavioral_patterns: array of identified biases with descriptions and examples
+  - fomo_analysis: assessment of FOMO behavior with specific trades and triggers
+  - investor_evolution: how the investor has changed over time
+  - recommendations: actionable advice for improvement

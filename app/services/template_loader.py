@@ -28,14 +28,14 @@ class ChecklistTemplateLoader:
         Initialize the template loader
 
         Args:
-            templates_dir: Path to templates directory. If None, uses default app/checklist_templates
+            templates_dir: Path to templates directory. If None, uses default app/checklists/checklist_templates
         """
         if templates_dir:
             self.templates_dir = Path(templates_dir)
         else:
-            # Default to app/checklist_templates
+            # Default to app/checklists/checklist_templates
             app_root = Path(__file__).parent.parent
-            self.templates_dir = app_root / 'checklist_templates'
+            self.templates_dir = app_root / 'checklists/checklist_templates'
 
     def load_template(self, template_name: str) -> Dict:
         """
