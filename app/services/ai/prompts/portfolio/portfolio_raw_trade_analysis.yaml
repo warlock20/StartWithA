@@ -8,6 +8,7 @@ category: "portfolio"
 
 preferred_provider: "gemini"
 model: "gemini-flash-latest"
+#model: "gemini-3-flash"
 max_tokens: 9000
 temperature: 1
 
@@ -48,10 +49,105 @@ template: |
   Respond with a JSON object containing your analysis. Use natural, conversational descriptions.
   When giving examples of specific trades, describe them in your own words rather than copying the format above.
 
-output_format: |
-  Return your analysis as a JSON object with these sections:
-  - overall_assessment: summary of the investor's behavioral health
-  - behavioral_patterns: array of identified biases with descriptions and examples
-  - fomo_analysis: assessment of FOMO behavior with specific trades and triggers
-  - investor_evolution: how the investor has changed over time
-  - recommendations: actionable advice for improvement
+# output_format: |
+#   Return your analysis as a JSON object with these sections:
+#   - overall_assessment: summary of the investor's behavioral health
+#   - behavioral_patterns: array of identified biases with descriptions and examples
+#   - fomo_analysis: assessment of FOMO behavior with specific trades and triggers
+#   - investor_evolution: how the investor has changed over time.
+#   - recommendations: actionable advice for improvement
+  
+response_schema:
+ {
+  "type": "OBJECT",
+  "properties": {
+    "investor_behavior_analysis": {
+      "type": "OBJECT",
+      "properties": {
+        "summary": {
+          "type": "STRING",
+          "description": "Executive summary of the investor's psychology (e.g., Disposition Effect, FOMO)."
+        },
+        "key_findings": {
+          "type": "ARRAY",
+          "description": "High-level observations about strategy fragmentation or risk.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "finding_type": { "type": "STRING" },
+              "description": { "type": "STRING" }
+            }
+          }
+        },
+        "behavioral_patterns": {
+          "type": "ARRAY",
+          "description": "Detailed psychological patterns observed (e.g., Recency Bias, Overtrading).",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "pattern_name": { "type": "STRING" },
+              "description": { "type": "STRING" },
+              "examples": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" },
+                "description": "Specific trade examples supporting this pattern."
+              },
+              "counter_examples": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" },
+                "description": "Instances where the investor defied this pattern (optional)."
+              }
+            },
+            "required": ["pattern_name", "description", "examples"]
+          }
+        },
+        "evolution_timeline": {
+          "type": "ARRAY",
+          "description": "Chronological analysis of how the trading style changed year over year.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "period": { "type": "STRING", "description": "The years covered (e.g., 2021-2022)." },
+              "phase_name": { "type": "STRING", "description": "Short title for the phase." },
+              "analysis": { "type": "STRING", "description": "Detailed description of behavior during this period." }
+            },
+            "required": ["period", "phase_name", "analysis"]
+          }
+        },
+        "evolution_metadata": {
+          "type": "OBJECT",
+          "properties": {
+            "repeating_mistakes": {
+              "type": "ARRAY",
+              "items": { "type": "STRING" }
+            }
+          }
+        },
+        "fomo_analysis": {
+          "type": "OBJECT",
+          "properties": {
+            "definition": { "type": "STRING" },
+            "fomo_trades": {
+              "type": "ARRAY",
+              "description": "Specific trades identified as FOMO-driven.",
+              "items": {
+                "type": "OBJECT",
+                "properties": {
+                  "ticker": { "type": "STRING" },
+                  "date": { "type": "STRING" },
+                  "action": { "type": "STRING" },
+                  "trigger": { "type": "STRING", "description": "Psychological trigger (e.g., momentum, news)." },
+                  "outcome": { "type": "STRING", "description": "Financial result or lesson learned." }
+                },
+                "required": ["ticker", "action", "outcome"]
+              }
+            }
+          },
+          "required": ["fomo_trades"]
+        }
+      },
+      "required": ["summary", "behavioral_patterns", "evolution_timeline", "fomo_analysis"]
+    }
+  }
+}
+

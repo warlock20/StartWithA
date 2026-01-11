@@ -150,7 +150,8 @@ class IntelligenceService:
             'provider': template.get('preferred_provider', 'gemini'),
             'model': template.get('model'),
             'max_tokens': template.get('max_tokens', 2000),
-            'temperature': template.get('temperature', 0.7)
+            'temperature': template.get('temperature', 0.7),
+            'output_schema': template.get('response_schema') or None,
         }
         
 
@@ -200,9 +201,6 @@ class IntelligenceService:
         Raises:
             RuntimeError: If no providers available
         """
-        # Import here to avoid circular dependency
-        from app.services.ai import AIModel
-
         # Check if provider API key is available
         if provider_name not in self.available_providers:
             # Try fallback
@@ -232,7 +230,6 @@ class IntelligenceService:
 
         try:
             if provider_name == 'gemini':
-                
                 provider = GeminiProvider(model=model_enum)
             elif provider_name == 'claude':
                 provider = ClaudeProvider(model=model_enum)
@@ -249,7 +246,7 @@ class IntelligenceService:
             logger.error(f"Failed to create provider {cache_key}: {e}")
             raise RuntimeError(f"Failed to create provider {provider_name}: {e}")
 
-    def _call_provider(self, provider: Any, prompt: str, config: Dict) -> str:
+    def _call_provider_to_generate_text(self, provider: Any, prompt: str, config: Dict) -> str:
         """
         Call AI provider generically - NO hardcoded provider logic!
 
@@ -264,6 +261,25 @@ class IntelligenceService:
         return provider.generate_text(
             prompt=prompt,
             max_tokens=config.get('max_tokens'),
+            temperature=config.get('temperature')
+        )
+    
+    def _call_provider_to_generate_json(self, provider: Any, prompt: str, config: Dict) -> json:
+        """
+        Call AI provider generically - NO hardcoded provider logic!
+
+        Args:
+            provider: The provider instance (ClaudeProvider or GeminiProvider)
+            prompt: Formatted prompt json
+            config: Config dict with model, max_tokens, temperature
+
+        Returns:
+            Generated json response
+        """
+        return provider.generate_json(
+            prompt=prompt,
+            max_tokens=config.get('max_tokens'),
+            schema=config.get('output_schema'),
             temperature=config.get('temperature')
         )
 
@@ -369,7 +385,7 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
 
         # 6. Call provider (generic!)
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         # 7. Parse response
         return self._parse_response(response, template)
@@ -400,7 +416,7 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
         provider = self._get_provider(config['provider'], config.get('model'))
 
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         return self._parse_response(response, template)
 
@@ -429,7 +445,7 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
         provider = self._get_provider(config['provider'], config.get('model'))
 
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         result = self._parse_response(response, template)
         return result.get('response', response) if isinstance(result, dict) else result

@@ -196,49 +196,45 @@ class PortfolioAIAnalytics:
             )
 
             # Call provider to generate insights
-            response = self.intelligence._call_provider(provider, prompt, config)
+            ai_insights = self.intelligence._call_provider_to_generate_json(provider, prompt, config)
 
-            # Log the response
+            # Log the structured response
             logger.info(f"=" * 80)
-            logger.info(f"RAW RESPONSE FROM {config['provider']}:")
-            logger.info(f"-" * 80)
-            logger.info(
-                response[:500] if len(response) > 500 else response
-            )  # First 500 chars
-            if len(response) > 500:
-                logger.info(f"... (truncated, total length: {len(response)} chars)")
-            logger.info(f"=" * 80)
-
-            # Save raw response to file for debugging
-            debug_file = CACHE_DIR / f"user_{self.user_id}_{template_name}_raw_response.txt"
-            try:
-                with open(debug_file, 'w') as f:
-                    f.write(response)
-                logger.info(f"Saved raw AI response to {debug_file}")
-            except Exception as e:
-                logger.warning(f"Failed to save raw response: {e}")
-
-            # Parse response
-            ai_insights = self.intelligence._parse_response(response, template)
-            if not ai_insights:
-                logger.error("AI response parsing returned None")
-                return self._get_fallback_insights(portfolio_data)
-
-            # Log parsed insights structure for debugging
-            logger.info(f"=" * 80)
-            logger.info(f"PARSED AI INSIGHTS STRUCTURE:")
+            logger.info(f"STRUCTURED JSON RESPONSE FROM {config['provider']}:")
             logger.info(f"-" * 80)
             logger.info(f"Keys: {list(ai_insights.keys())}")
             logger.info(f"=" * 80)
 
-            # Save parsed structure to file for debugging
-            parsed_file = CACHE_DIR / f"user_{self.user_id}_{template_name}_parsed_structure.json"
+            # Save raw response to file for debugging
+            debug_file = CACHE_DIR / f"user_{self.user_id}_{template_name}_structured_response.json"
             try:
-                with open(parsed_file, 'w') as f:
+                with open(debug_file, 'w') as f:
                     json.dump(ai_insights, f, indent=2, default=str)
-                logger.info(f"Saved parsed structure to {parsed_file}")
+                logger.info(f"Structured raw AI response to {debug_file}")
             except Exception as e:
-                logger.warning(f"Failed to save parsed structure: {e}")
+                logger.warning(f"Failed to save raw response: {e}")
+
+            # Parse response
+            # ai_insights = self.intelligence._parse_response(response, template)
+            # if not ai_insights:
+            #     logger.error("AI response parsing returned None")
+            #     return self._get_fallback_insights(portfolio_data)
+
+            # # Log parsed insights structure for debugging
+            # logger.info(f"=" * 80)
+            # logger.info(f"PARSED AI INSIGHTS STRUCTURE:")
+            # logger.info(f"-" * 80)
+            # logger.info(f"Keys: {list(ai_insights.keys())}")
+            # logger.info(f"=" * 80)
+
+            # Save parsed structure to file for debugging
+            # parsed_file = CACHE_DIR / f"user_{self.user_id}_{template_name}_parsed_structure.json"
+            # try:
+            #     with open(parsed_file, 'w') as f:
+            #         json.dump(ai_insights, f, indent=2, default=str)
+            #     logger.info(f"Saved parsed structure to {parsed_file}")
+            # except Exception as e:
+            #     logger.warning(f"Failed to save parsed structure: {e}")
 
             # Normalize AI response structure (handle different wrappers)
             normalized_insights = self._normalize_ai_response(ai_insights)
@@ -471,182 +467,203 @@ class PortfolioAIAnalytics:
         return "\n".join(lines)
 
     def _normalize_ai_response(self, ai_insights: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Normalize AI response to expected structure.
+      """Normalize AI response - handles both schema-based and free-form responses"""
 
-        Different AI models may wrap responses differently:
-        - {"investor_analysis": {...}} -> unwrap
-        - {"overall_assessment": ...} -> use as-is
+      logger.info(f"Normalizing AI response with top-level keys: {list(ai_insights.keys())}")
 
-        Expected output structure:
-        {
-            "overall_assessment": str,
-            "behavioral_patterns": list,
-            "fomo_analysis": str or dict,
-            "investor_evolution": str,
-            "recommendations": list
-        }
-        """
-        # Log the incoming structure for debugging
-        logger.info(f"Normalizing AI response with top-level keys: {list(ai_insights.keys())}")
+      # If response follows the new schema structure
+      if "investor_behavior_analysis" in ai_insights:
+          logger.info("Detected schema-based response structure")
+          analysis = ai_insights["investor_behavior_analysis"]
 
-        # Special case: If response is wrapped in 'response' key with text (JSON parsing failed)
-        # Try to parse it again, stripping markdown code fences
-        if len(ai_insights) == 1 and 'response' in ai_insights and isinstance(ai_insights['response'], str):
-            logger.warning("Response wrapped in 'response' key as string, attempting to parse JSON")
-            try:
-                # Strip markdown code fences if present
-                response_text = ai_insights['response'].strip()
+          return {
+              "overall_assessment": analysis.get("summary", ""),
+              "behavioral_patterns": self._extract_behavioral_patterns(analysis.get("behavioral_patterns", [])),
+              "fomo_analysis": self._extract_fomo_analysis(analysis.get("fomo_analysis", {})),
+              "investor_evolution": self._extract_evolution(analysis.get("evolution_timeline", [])),
+              "recommendations": [],  # Will be added if in schema
+              "key_strengths": analysis.get("key_findings", []),
+              "key_risks": []
+          }
+    
+    
+    # def _normalize_ai_response(self, ai_insights: Dict[str, Any]) -> Dict[str, Any]:
+    #     """
+    #     Normalize AI response to expected structure.
 
-                # Remove ```json or ``` at start and end
-                if response_text.startswith('```'):
-                    # Find the first newline after opening fence
-                    first_newline = response_text.find('\n')
-                    if first_newline > 0:
-                        response_text = response_text[first_newline + 1:].strip()
+    #     Different AI models may wrap responses differently:
+    #     - {"investor_analysis": {...}} -> unwrap
+    #     - {"overall_assessment": ...} -> use as-is
 
-                if response_text.endswith('```'):
-                    response_text = response_text[:-3].strip()
+    #     Expected output structure:
+    #     {
+    #         "overall_assessment": str,
+    #         "behavioral_patterns": list,
+    #         "fomo_analysis": str or dict,
+    #         "investor_evolution": str,
+    #         "recommendations": list
+    #     }
+    #     """
+    #     # Log the incoming structure for debugging
+    #     logger.info(f"Normalizing AI response with top-level keys: {list(ai_insights.keys())}")
 
-                logger.info(f"Cleaned response text, length: {len(response_text)}")
-                logger.info(f"First 100 chars: {response_text[:100]}")
+    #     # Special case: If response is wrapped in 'response' key with text (JSON parsing failed)
+    #     # Try to parse it again, stripping markdown code fences
+    #     if len(ai_insights) == 1 and 'response' in ai_insights and isinstance(ai_insights['response'], str):
+    #         logger.warning("Response wrapped in 'response' key as string, attempting to parse JSON")
+    #         try:
+    #             # Strip markdown code fences if present
+    #             response_text = ai_insights['response'].strip()
 
-                # Try to parse the cleaned response string as JSON
-                reparsed = json.loads(response_text)
-                if isinstance(reparsed, dict):
-                    ai_insights = reparsed
-                    logger.info(f"Successfully reparsed JSON, new keys: {list(ai_insights.keys())}")
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to reparse JSON from response string: {e}")
-                # Continue with the original structure
+    #             # Remove ```json or ``` at start and end
+    #             if response_text.startswith('```'):
+    #                 # Find the first newline after opening fence
+    #                 first_newline = response_text.find('\n')
+    #                 if first_newline > 0:
+    #                     response_text = response_text[first_newline + 1:].strip()
 
-        # If wrapped in a single key, unwrap it
-        if len(ai_insights) == 1:
-            wrapper_key = list(ai_insights.keys())[0]
-            if isinstance(ai_insights[wrapper_key], dict):
-                # Unwrap: {"investor_analysis": {...}} -> {...}
-                ai_insights = ai_insights[wrapper_key]
-                logger.info(f"Unwrapped AI response from '{wrapper_key}' key, new keys: {list(ai_insights.keys())}")
+    #             if response_text.endswith('```'):
+    #                 response_text = response_text[:-3].strip()
 
-        # Map different possible keys to expected structure
-        normalized = {}
+    #             logger.info(f"Cleaned response text, length: {len(response_text)}")
+    #             logger.info(f"First 100 chars: {response_text[:100]}")
 
-        # Overall assessment (multiple possible keys)
-        # Try to extract from nested structures if not found at top level
-        overall_assessment = (
-            ai_insights.get("overall_assessment") or
-            ai_insights.get("summary") or
-            ai_insights.get("analysis")
-        )
+    #             # Try to parse the cleaned response string as JSON
+    #             reparsed = json.loads(response_text)
+    #             if isinstance(reparsed, dict):
+    #                 ai_insights = reparsed
+    #                 logger.info(f"Successfully reparsed JSON, new keys: {list(ai_insights.keys())}")
+    #         except json.JSONDecodeError as e:
+    #             logger.error(f"Failed to reparse JSON from response string: {e}")
+    #             # Continue with the original structure
 
-        # If not found, try to extract from nested pattern objects
-        if not overall_assessment:
-            # Look for any nested dict that might contain the assessment
-            for key, value in ai_insights.items():
-                if isinstance(value, dict):
-                    if "summary" in value:
-                        overall_assessment = value["summary"]
-                        logger.info(f"Found summary in nested key '{key}'")
-                        break
-                    elif "description" in value:
-                        overall_assessment = value["description"]
-                        logger.info(f"Found description in nested key '{key}'")
-                        break
+    #     # If wrapped in a single key, unwrap it
+    #     if len(ai_insights) == 1:
+    #         wrapper_key = list(ai_insights.keys())[0]
+    #         if isinstance(ai_insights[wrapper_key], dict):
+    #             # Unwrap: {"investor_analysis": {...}} -> {...}
+    #             ai_insights = ai_insights[wrapper_key]
+    #             logger.info(f"Unwrapped AI response from '{wrapper_key}' key, new keys: {list(ai_insights.keys())}")
 
-        normalized["overall_assessment"] = overall_assessment or "No overall assessment available."
+    #     # Map different possible keys to expected structure
+    #     normalized = {}
 
-        # Behavioral patterns (may be nested)
-        patterns_raw = (
-            ai_insights.get("behavioral_patterns") or
-            ai_insights.get("first_key_behavioral_patterns") or
-            ai_insights.get("key_patterns")
-        )
+    #     # Overall assessment (multiple possible keys)
+    #     # Try to extract from nested structures if not found at top level
+    #     overall_assessment = (
+    #         ai_insights.get("overall_assessment") or
+    #         ai_insights.get("summary") or
+    #         ai_insights.get("analysis")
+    #     )
 
-        # If not found at top level, look for nested pattern structures
-        if not patterns_raw:
-            for key, value in ai_insights.items():
-                if isinstance(value, dict) and ("patterns" in key.lower() or "bias" in key.lower()):
-                    logger.info(f"Found patterns in nested key '{key}'")
-                    # Extract the pattern dict and convert to list format
-                    patterns_raw = [{
-                        "title": k.replace("_", " ").title(),
-                        "description": v.get("summary", v.get("description", str(v))) if isinstance(v, dict) else str(v)
-                    } for k, v in value.items()]
-                    break
+    #     # If not found, try to extract from nested pattern objects
+    #     if not overall_assessment:
+    #         # Look for any nested dict that might contain the assessment
+    #         for key, value in ai_insights.items():
+    #             if isinstance(value, dict):
+    #                 if "summary" in value:
+    #                     overall_assessment = value["summary"]
+    #                     logger.info(f"Found summary in nested key '{key}'")
+    #                     break
+    #                 elif "description" in value:
+    #                     overall_assessment = value["description"]
+    #                     logger.info(f"Found description in nested key '{key}'")
+    #                     break
 
-        # If it's a dict, extract analysis text
-        if isinstance(patterns_raw, dict):
-            normalized["behavioral_patterns"] = [{
-                "name": "Behavioral Analysis",
-                "description": patterns_raw.get("analysis", patterns_raw.get("summary", str(patterns_raw)))
-            }]
-        elif isinstance(patterns_raw, list):
-            normalized["behavioral_patterns"] = patterns_raw
-        else:
-            normalized["behavioral_patterns"] = []
+    #     normalized["overall_assessment"] = overall_assessment or "No overall assessment available."
 
-        # FOMO analysis
-        fomo_raw = (
-            ai_insights.get("fomo_analysis") or
-            ai_insights.get("fomo_details") or
-            ai_insights.get("fomo")
-        )
-        if isinstance(fomo_raw, dict):
-            normalized["fomo_analysis"] = fomo_raw.get("analysis") or str(fomo_raw)
-        else:
-            normalized["fomo_analysis"] = fomo_raw or "No FOMO analysis available."
+    #     # Behavioral patterns (may be nested)
+    #     patterns_raw = (
+    #         ai_insights.get("behavioral_patterns") or
+    #         ai_insights.get("first_key_behavioral_patterns") or
+    #         ai_insights.get("key_patterns")
+    #     )
 
-        # Investor evolution
-        evolution_raw = (
-            ai_insights.get("investor_evolution") or
-            ai_insights.get("evolution") or
-            ai_insights.get("progression")
-        )
-        if isinstance(evolution_raw, dict):
-            normalized["investor_evolution"] = evolution_raw.get("analysis") or str(evolution_raw)
-        else:
-            normalized["investor_evolution"] = evolution_raw or "No evolution tracking available."
+    #     # If not found at top level, look for nested pattern structures
+    #     if not patterns_raw:
+    #         for key, value in ai_insights.items():
+    #             if isinstance(value, dict) and ("patterns" in key.lower() or "bias" in key.lower()):
+    #                 logger.info(f"Found patterns in nested key '{key}'")
+    #                 # Extract the pattern dict and convert to list format
+    #                 patterns_raw = [{
+    #                     "title": k.replace("_", " ").title(),
+    #                     "description": v.get("summary", v.get("description", str(v))) if isinstance(v, dict) else str(v)
+    #                 } for k, v in value.items()]
+    #                 break
 
-        # Recommendations
-        recs_raw = (
-            ai_insights.get("recommendations") or
-            ai_insights.get("advice") or
-            ai_insights.get("suggestions")
-        )
+    #     # If it's a dict, extract analysis text
+    #     if isinstance(patterns_raw, dict):
+    #         normalized["behavioral_patterns"] = [{
+    #             "name": "Behavioral Analysis",
+    #             "description": patterns_raw.get("analysis", patterns_raw.get("summary", str(patterns_raw)))
+    #         }]
+    #     elif isinstance(patterns_raw, list):
+    #         normalized["behavioral_patterns"] = patterns_raw
+    #     else:
+    #         normalized["behavioral_patterns"] = []
 
-        # Look for recommendations in nested structures
-        if not recs_raw:
-            for key, value in ai_insights.items():
-                if isinstance(value, dict) and "recommend" in key.lower():
-                    logger.info(f"Found recommendations in nested key '{key}'")
-                    if isinstance(value, dict):
-                        recs_raw = [{"title": k.replace("_", " ").title(), "description": v} for k, v in value.items()]
-                    else:
-                        recs_raw = value
-                    break
+    #     # FOMO analysis
+    #     fomo_raw = (
+    #         ai_insights.get("fomo_analysis") or
+    #         ai_insights.get("fomo_details") or
+    #         ai_insights.get("fomo")
+    #     )
+    #     if isinstance(fomo_raw, dict):
+    #         normalized["fomo_analysis"] = fomo_raw.get("analysis") or str(fomo_raw)
+    #     else:
+    #         normalized["fomo_analysis"] = fomo_raw or "No FOMO analysis available."
 
-        if isinstance(recs_raw, dict):
-            normalized["recommendations"] = [{"title": k, "description": v} for k, v in recs_raw.items()]
-        elif isinstance(recs_raw, list):
-            normalized["recommendations"] = recs_raw
-        elif isinstance(recs_raw, str):
-            normalized["recommendations"] = [{"title": "Recommendation", "description": recs_raw}]
-        else:
-            normalized["recommendations"] = []
+    #     # Investor evolution
+    #     evolution_raw = (
+    #         ai_insights.get("investor_evolution") or
+    #         ai_insights.get("evolution") or
+    #         ai_insights.get("progression")
+    #     )
+    #     if isinstance(evolution_raw, dict):
+    #         normalized["investor_evolution"] = evolution_raw.get("analysis") or str(evolution_raw)
+    #     else:
+    #         normalized["investor_evolution"] = evolution_raw or "No evolution tracking available."
 
-        # Key strengths (optional)
-        normalized["key_strengths"] = ai_insights.get("key_strengths", [])
+    #     # Recommendations
+    #     recs_raw = (
+    #         ai_insights.get("recommendations") or
+    #         ai_insights.get("advice") or
+    #         ai_insights.get("suggestions")
+    #     )
 
-        # Key risks (optional)
-        normalized["key_risks"] = ai_insights.get("key_risks", [])
+    #     # Look for recommendations in nested structures
+    #     if not recs_raw:
+    #         for key, value in ai_insights.items():
+    #             if isinstance(value, dict) and "recommend" in key.lower():
+    #                 logger.info(f"Found recommendations in nested key '{key}'")
+    #                 if isinstance(value, dict):
+    #                     recs_raw = [{"title": k.replace("_", " ").title(), "description": v} for k, v in value.items()]
+    #                 else:
+    #                     recs_raw = value
+    #                 break
 
-        logger.info(f"Normalized AI response - Keys: {list(normalized.keys())}")
-        logger.info(f"Normalized data preview:")
-        logger.info(f"  - overall_assessment: {normalized['overall_assessment'][:100] if normalized['overall_assessment'] else 'None'}...")
-        logger.info(f"  - behavioral_patterns count: {len(normalized.get('behavioral_patterns', []))}")
-        logger.info(f"  - recommendations count: {len(normalized.get('recommendations', []))}")
+    #     if isinstance(recs_raw, dict):
+    #         normalized["recommendations"] = [{"title": k, "description": v} for k, v in recs_raw.items()]
+    #     elif isinstance(recs_raw, list):
+    #         normalized["recommendations"] = recs_raw
+    #     elif isinstance(recs_raw, str):
+    #         normalized["recommendations"] = [{"title": "Recommendation", "description": recs_raw}]
+    #     else:
+    #         normalized["recommendations"] = []
 
-        return normalized
+    #     # Key strengths (optional)
+    #     normalized["key_strengths"] = ai_insights.get("key_strengths", [])
+
+    #     # Key risks (optional)
+    #     normalized["key_risks"] = ai_insights.get("key_risks", [])
+
+    #     logger.info(f"Normalized AI response - Keys: {list(normalized.keys())}")
+    #     logger.info(f"Normalized data preview:")
+    #     logger.info(f"  - overall_assessment: {normalized['overall_assessment'][:100] if normalized['overall_assessment'] else 'None'}...")
+    #     logger.info(f"  - behavioral_patterns count: {len(normalized.get('behavioral_patterns', []))}")
+    #     logger.info(f"  - recommendations count: {len(normalized.get('recommendations', []))}")
+
+    #     return normalized
 
     def _format_for_template(
         self, ai_insights: Dict[str, Any], portfolio_data: Dict[str, Any]
@@ -830,6 +847,29 @@ class PortfolioAIAnalytics:
                 )
         return formatted
 
+    def _extract_behavioral_patterns(self, patterns: list) -> list:
+        """Convert schema-based patterns to template format"""
+        return [{
+            "title": p.get("pattern_name", ""),
+            "description": p.get("description", ""),
+            "severity": None,  # Could derive from description
+            "icon": "brain",
+            "recommendation": None
+        } for p in patterns]
+    
+    def _extract_fomo_analysis(self, fomo: dict) -> str:
+        """Convert FOMO dict to text"""
+        definition = fomo.get("definition", "")
+        trades = fomo.get("fomo_trades", [])
+        # Format as text for display
+        return f"{definition}\n\nIdentified {len(trades)} FOMO-driven trades."
+
+    def _extract_evolution(self, timeline: list) -> str:
+        """Convert evolution timeline to text"""
+        parts = []
+        for period in timeline:
+            parts.append(f"**{period.get('phase_name', '')} ({period.get('period', '')})**: {period.get('analysis', '')}")
+        return "\n\n".join(parts)
     # ================================================================
     # Caching
     # ================================================================

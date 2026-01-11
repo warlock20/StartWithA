@@ -1,12 +1,31 @@
   # Non-blocking celery task
+    ┌─────────────────────────────────────────────────────────────────┐
+  │                        DATABASE (Shared State)                  │
+  │                                                                 │
+  │  BackgroundTask Table:                                         │
+  │  ┌──────────────────────────────────────────────────────────┐ │
+  │  │ id (UUID)           | user_id | task_type | status        │ │
+  │  │ result (JSON TEXT)  | error   | created_at | completed_at │ │
+  │  └──────────────────────────────────────────────────────────┘ │
+  │         ↑ WRITE (create)                  ↑ WRITE (update)    │
+  │         │                                  │                   │
+  │    ┌────┴─────┐                      ┌────┴─────┐            │
+  │    │  FLASK   │                      │  CELERY  │            │
+  │    │   APP    │                      │  WORKER  │            │
+  │    └──────────┘                      └──────────┘            │
+  └─────────────────────────────────────────────────────────────────┘
   
   Flask App (creates)          Celery Worker (updates)
        ↓                              ↓
   BackgroundTask DB Record ← shared → BackgroundTask DB Record
 
-  Flow:
-  1. Flask creates a BackgroundTask record in the database with status='pending'
-  2. Flask passes the task_id to Celery and returns immediately (non-blocking)
-  3. Celery worker retrieves the same BackgroundTask record using task_id
-  4. Celery updates the record: status='running', then status='completed' with results
-  5. Flask (via polling) reads the updated record from the database
+  Step-by-step:
+  1. Flask creates BackgroundTask record: status='pending', result=NULL
+  2. Flask passes task_id to Celery and returns immediately
+  3. Celery fetches the same record: BackgroundTask.query.get(task_id)
+  4. Celery updates: status='running', then status='completed', result='{"analysis": ...}'
+  5. Flask polls the record to check status and retrieve results
+
+
+
+

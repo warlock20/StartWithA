@@ -191,6 +191,7 @@ class GeminiProvider(AIProvider):
     def generate_json(
         self,
         prompt: str,
+        schema: Optional[Dict] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -211,7 +212,8 @@ class GeminiProvider(AIProvider):
         try:
             # Use JSON response mode
             generation_config = _genai.types.GenerationConfig(
-                response_mime_type="application/json"
+                response_mime_type="application/json",
+                response_schema=schema if schema else None
             )
             
             timeout = kwargs.get('timeout', self._config.default_timeout)

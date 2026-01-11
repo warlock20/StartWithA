@@ -532,6 +532,7 @@ def analytics():
         if latest_task and latest_task.result:
             # We have a completed analysis, show it
             result = json.loads(latest_task.result)
+            logger.info(result)
             insights = result.get('analysis')
             if insights:
                 has_error = insights.get('metadata', {}).get('error') is not None
@@ -582,8 +583,6 @@ def analytics_status(task_id):
     Check the status of a running portfolio analytics task.
     Returns JSON for AJAX polling from loading page.
     """
-    from app.services.background_tasks import BackgroundTaskService
-
     # Get task status from database
     task_status = BackgroundTaskService.get_task_status(task_id)
 
