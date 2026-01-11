@@ -8,17 +8,21 @@ import json
 import logging
 from app import db, create_app
 from celery_app import celery
+from app.models import BackgroundTask
+from app.utils.time_utils import now_utc
+from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 
 logger = logging.getLogger(__name__)
 
 
 @celery.task(bind=True)
-def portfolio_ai_analysis_task(self, user_id, template_name='portfolio_raw_trade_analysis'):
+def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_raw_trade_analysis'):
     """
     Celery task for AI-powered portfolio analysis.
     Runs in background to avoid blocking the UI during long AI calls.
 
     Args:
+        task_id: BackgroundTask ID for status tracking
         user_id: User ID whose portfolio to analyze
         template_name: Which analysis template to use
             - 'portfolio_raw_trade_analysis': Deep behavioral analysis (default)
@@ -29,11 +33,20 @@ def portfolio_ai_analysis_task(self, user_id, template_name='portfolio_raw_trade
     """
     app = create_app()
     with app.app_context():
-        try:
-            logger.info(f"TASK {self.request.id}: Starting portfolio AI analysis for user {user_id}")
+        
+        # Get task record
+        task = BackgroundTask.query.get(task_id)
+        if not task:
+            logger.error(f"TASK {self.request.id}: BackgroundTask {task_id} not found")
+            return json.dumps({"status": "failed", "message": "Task record not found"})
 
-            # Import here to avoid circular dependencies
-            from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
+        try:
+            # Update task status to running
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            logger.info(f"TASK {self.request.id}: Starting portfolio AI analysis for user {user_id}")
 
             # Create analytics service
             analytics = PortfolioAIAnalytics(user_id=user_id)
@@ -49,6 +62,15 @@ def portfolio_ai_analysis_task(self, user_id, template_name='portfolio_raw_trade
             # Task completed successfully
             logger.info(f"TASK {self.request.id}: Completed successfully")
 
+            # Update task status to completed
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps({
+                "analysis": result,
+                "message": "Portfolio AI analysis completed successfully!"
+            })
+            db.session.commit()
+
             # Return result as JSON string
             return json.dumps({
                 "status": "success",
@@ -58,7 +80,12 @@ def portfolio_ai_analysis_task(self, user_id, template_name='portfolio_raw_trade
 
         except Exception as e:
             logger.error(f"TASK {self.request.id}: Failed - {e}", exc_info=True)
-            db.session.rollback()
+
+            # Update task status to failed
+            task.status = 'failed'
+            task.completed_at = now_utc()
+            task.error_message = str(e)
+            db.session.commit()
 
             # Return error as JSON string
             return json.dumps({

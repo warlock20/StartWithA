@@ -11,7 +11,7 @@ from app import db
 logger = logging.getLogger(__name__)
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome
+    ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome,BackgroundTask
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
@@ -22,6 +22,7 @@ from app.utils.portfolio_utils import (
     calculate_holding_period_stats,
     calculate_confidence_stats, count_positions_by_status
 )
+from app.services.background_tasks import BackgroundTaskService
 
 from app.constants import (
     MIN_TRADES_FOR_INSIGHTS,
@@ -37,8 +38,6 @@ from app.services.portfolio_intelligence import (
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.celery_tasks.tasks_portfolio import portfolio_ai_analysis_task
-from celery_app import celery
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -522,53 +521,52 @@ def analytics():
     transactions = Transaction.query.filter_by(user_id=current_user.id).all()
     chart_data = extractor.calculate_performance_chart_data(transactions, time_periods=time_periods)
 
-    # 1. Check for cached results first
-    analytics = PortfolioAIAnalytics(user_id=current_user.id)
-    cached_insights = analytics._get_cached_insights(template_name)
+    # 1. Check for latest completed task in database (single source of truth)
+    if not force_refresh:
+        latest_task = BackgroundTask.query.filter_by(
+            user_id=current_user.id,
+            task_type='portfolio_analysis',
+            status='completed'
+        ).order_by(BackgroundTask.completed_at.desc()).first()
 
-    if cached_insights and not force_refresh:
-        # We have cached results, show them
-        has_error = cached_insights.get('metadata', {}).get('error') is not None
-        return render_template('portfolio_basic_analytics.html',
-                              insights=cached_insights,
-                              has_error=has_error,
-                              chart_data=chart_data,
-                              selected_period=time_periods)
-
-    # 2. Check if there's already a task running
-    task_id = session.get(f'portfolio_analysis_task_{current_user.id}')
-    if task_id and not force_refresh:
-        # Use configured celery instance to check task status
-        task = celery.AsyncResult(task_id)
-        if task.state == 'SUCCESS':
-            # Task completed, parse results
-            result = json.loads(task.result)
-            if result.get('status') == 'success':
-                insights = result.get('insights')
+        if latest_task and latest_task.result:
+            # We have a completed analysis, show it
+            result = json.loads(latest_task.result)
+            insights = result.get('analysis')
+            if insights:
                 has_error = insights.get('metadata', {}).get('error') is not None
                 return render_template('portfolio_basic_analytics.html',
                                       insights=insights,
                                       has_error=has_error,
                                       chart_data=chart_data,
                                       selected_period=time_periods)
-        elif task.state in ['PENDING', 'STARTED', 'RETRY']:
-            # Task still running, show loading page
-            return render_template('portfolio_analytics_loading.html',
-                                  task_id=task_id,
-                                  chart_data=chart_data,
-                                  selected_period=time_periods)
 
-    # 3. If force_refresh=true, start new background task
-    if force_refresh:
-        task = portfolio_ai_analysis_task.delay(current_user.id, template_name)
-        session[f'portfolio_analysis_task_{current_user.id}'] = task.id
+    # 2. Check if there's a running task
+    running_task = BackgroundTask.query.filter_by(
+        user_id=current_user.id,
+        task_type='portfolio_analysis',
+        status='running'
+    ).first()
+
+    if running_task and not force_refresh:
+        # Task is running, show loading page
         return render_template('portfolio_analytics_loading.html',
-                              task_id=task.id,
+                              task_id=running_task.id,
                               chart_data=chart_data,
                               selected_period=time_periods)
 
-    # 4. No cache, no task running, no refresh requested - show placeholder
-    placeholder_insights = analytics._get_placeholder_response(template_name)
+    # 3. If force_refresh=true, start new background task
+    if force_refresh:
+        task_id = BackgroundTaskService.start_portfolio_analysis(current_user.id, template_name)
+        session[f'portfolio_analysis_task_{current_user.id}'] = task_id
+        return render_template('portfolio_analytics_loading.html',
+                              task_id=task_id,
+                              chart_data=chart_data,
+                              selected_period=time_periods)
+
+    # 4. No completed analysis, no running task, no refresh requested - show placeholder
+    analytics_service = PortfolioAIAnalytics(user_id=current_user.id)
+    placeholder_insights = analytics_service._get_placeholder_response(template_name)
     return render_template('portfolio_basic_analytics.html',
                           insights=placeholder_insights,
                           has_error=False,
@@ -584,37 +582,50 @@ def analytics_status(task_id):
     Check the status of a running portfolio analytics task.
     Returns JSON for AJAX polling from loading page.
     """
+    from app.services.background_tasks import BackgroundTaskService
 
-    # Use the configured celery instance to create AsyncResult
-    task = celery.AsyncResult(task_id)
+    # Get task status from database
+    task_status = BackgroundTaskService.get_task_status(task_id)
 
+    if not task_status:
+        return jsonify({
+            'state': 'NOT_FOUND',
+            'current': 0,
+            'total': 100,
+            'status': 'Task not found',
+            'error': 'Task ID not found in database'
+        })
+
+    # Map database status to response format
     response = {
-        'state': task.state,
         'current': 0,
         'total': 100,
         'status': ''
     }
 
-    if task.state == 'PENDING':
+    if task_status['status'] == 'pending':
+        response['state'] = 'PENDING'
         response['status'] = 'Task is waiting to start...'
-    elif task.state == 'STARTED':
+        response['current'] = 10
+    elif task_status['status'] == 'running':
+        response['state'] = 'STARTED'
         response['status'] = 'Analysis in progress...'
         response['current'] = 50
-    elif task.state == 'SUCCESS':
+    elif task_status['status'] == 'completed':
+        response['state'] = 'SUCCESS'
         response['status'] = 'Analysis completed!'
         response['current'] = 100
-        # Parse the result
-        try:
-            result_data = json.loads(task.result)
-            response['result'] = result_data
-        except:
-            response['result'] = {'status': 'success', 'insights': None}
-    elif task.state == 'FAILURE':
+        # Include the result
+        if task_status.get('result'):
+            response['result'] = task_status['result']
+    elif task_status['status'] == 'failed':
+        response['state'] = 'FAILURE'
         response['status'] = 'Analysis failed'
         response['current'] = 100
-        response['error'] = str(task.info)
+        response['error'] = task_status.get('error', 'Unknown error')
     else:
-        response['status'] = f'Task state: {task.state}'
+        response['state'] = 'UNKNOWN'
+        response['status'] = f"Task state: {task_status['status']}"
 
     return jsonify(response)
 

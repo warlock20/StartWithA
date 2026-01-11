@@ -5,12 +5,13 @@ Uses Celery for robust task processing
 
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app import db
-from app.models import BackgroundTask, WorkSession
+from app.models import BackgroundTask
 from app.utils.time_utils import now_utc
 import logging
-from app.tasks import competitor_analysis_task
+from app.celery_tasks import competitor_analysis_task
+from app.celery_tasks import portfolio_ai_analysis_task
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,29 @@ class BackgroundTaskService:
             result['error'] = task.error_message
 
         return result
+
+    @staticmethod
+    def start_portfolio_analysis(user_id, template_name):
+        """Start a portfolio AI analysis task in the background"""
+        
+        # Create task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type='portfolio_analysis',
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task with task_id as first parameter
+        celery_task = portfolio_ai_analysis_task.delay(task_id, user_id, template_name)
+
+        logger.info(f"Started portfolio analysis task {task_id} (Celery: {celery_task.id}, template: {template_name}) for user {user_id}")
+
+        return task_id
 
     @staticmethod
     def cleanup_old_tasks(days_old=7):

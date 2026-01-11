@@ -14,7 +14,7 @@ from app.models import (ResearchProject, Company, CompanyDocument, DestinationCh
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.companies import companies_bp
-from app.tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 from app.utils.ticker_validator import TickerValidator
 
 # You can define this dictionary at the top of your routes.py file

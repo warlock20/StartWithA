@@ -281,17 +281,30 @@ class IntelligenceService:
             try:
                 # Strip markdown code fences if present (Gemini often wraps JSON in ```json ... ```)
                 cleaned_text = response_text.strip()
+
+                logger.info(f"Original response starts with: {cleaned_text[:50]}")
+                logger.info(f"Original response ends with: {cleaned_text[-50:]}")
+
                 if cleaned_text.startswith('```'):
                     # Find the first newline after opening fence
                     first_newline = cleaned_text.find('\n')
                     # Find the closing fence
                     last_fence = cleaned_text.rfind('```')
+                    logger.info(f"Found fence markers: first_newline={first_newline}, last_fence={last_fence}")
                     if first_newline > 0 and last_fence > first_newline:
                         cleaned_text = cleaned_text[first_newline + 1:last_fence].strip()
+                        logger.info(f"Stripped fences, new length: {len(cleaned_text)}")
 
                 # Try to parse as JSON
-                return json.loads(cleaned_text)
+                logger.info(f"Attempting to parse JSON (length: {len(cleaned_text)} chars)")
+                logger.info(f"First 200 chars: {cleaned_text[:200]}")
+                logger.info(f"Last 200 chars: {cleaned_text[-200:]}")
+                parsed = json.loads(cleaned_text)
+                logger.info(f"✓ JSON parsed successfully, keys: {list(parsed.keys())}")
+                return parsed
             except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed at position {e.pos}: {e.msg}")
+                logger.error(f"Context around error: {cleaned_text[max(0, e.pos-100):e.pos+100]}")
                 logger.warning(f"Expected JSON output but parsing failed: {e}, returning raw text")
                 # Return in dict format for consistency
                 return {'response': response_text}

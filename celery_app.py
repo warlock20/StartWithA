@@ -6,7 +6,6 @@ celery = Celery('app.celery_tasks',
                 broker='redis://localhost:6379/0',
                 backend='redis://localhost:6379/0',
                 include=[
-                    'app.tasks',  # Legacy tasks (for backward compatibility)
                     'app.celery_tasks.tasks_portfolio',  # Portfolio AI analytics tasks
                     'app.celery_tasks.tasks_research',   # Research & competitor analysis tasks
                     'app.celery_tasks.tasks_financial',  # Financial data & SEC filings tasks
