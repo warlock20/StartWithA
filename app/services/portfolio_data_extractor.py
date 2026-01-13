@@ -338,15 +338,20 @@ class PortfolioDataExtractor:
         Extract behavioral patterns from transaction history.
 
         Returns:
-            Dict with averages, frequencies, most-traded companies
+            Dict with averages, frequencies, most-traded companies, winners vs losers
         """
         if not transactions:
             return {
                 'total_buys': 0,
                 'total_sells': 0,
                 'avg_hold_time_days': 0,
+                'avg_hold_days': 0,
                 'transactions_per_month': 0,
-                'most_traded_companies': []
+                'most_traded_companies': [],
+                'avg_winner_return': 0,
+                'avg_winner_hold_days': 0,
+                'avg_loser_return': 0,
+                'avg_loser_hold_days': 0
             }
 
         buys = [t for t in transactions if t.type == 'BUY']
@@ -363,12 +368,22 @@ class PortfolioDataExtractor:
         # Most traded companies
         most_traded = self._get_most_traded_companies(transactions, limit=5)
 
+        # Winners vs losers comparison
+        positions = self._load_positions()
+        winners_vs_losers = self._calculate_winners_vs_losers(positions)
+
         return {
             'total_buys': len(buys),
             'total_sells': len(sells),
-            'avg_hold_time_days': avg_hold_days,
+            'avg_hold_time_days': avg_hold_days,  # Legacy key
+            'avg_hold_days': avg_hold_days,       # New consistent key
             'transactions_per_month': round(txns_per_month, 1),
-            'most_traded_companies': most_traded
+            'most_traded_companies': most_traded,
+            # Winners vs Losers metrics
+            'avg_winner_return': round(winners_vs_losers['avg_winner_return'], 1),
+            'avg_winner_hold_days': round(winners_vs_losers['avg_winner_hold_days']),
+            'avg_loser_return': round(winners_vs_losers['avg_loser_return'], 1),
+            'avg_loser_hold_days': round(winners_vs_losers['avg_loser_hold_days'])
         }
 
     def extract_sector_breakdown(self, positions: List[PortfolioPosition]) -> List[Dict[str, Any]]:
@@ -627,3 +642,65 @@ class PortfolioDataExtractor:
         )
 
         return sorted_companies[:limit]
+
+    def _calculate_winners_vs_losers(self, positions: List[PortfolioPosition]) -> Dict[str, Any]:
+        """
+        Calculate comparison metrics for winning vs losing positions.
+
+        Returns:
+            Dict with avg returns, hold times for winners and losers
+        """
+        closed_positions = [p for p in positions if not p.is_active]
+
+        winners = []
+        losers = []
+
+        for position in closed_positions:
+            if not position.realized_gain_loss:
+                continue
+
+            gl = float(position.realized_gain_loss)
+
+            # Calculate hold time
+            hold_days = 0
+            if position.first_purchase_date and position.last_transaction_date:
+                hold_days = (position.last_transaction_date - position.first_purchase_date).days
+
+            # Calculate return percentage
+            return_pct = 0
+            if position.total_cost and position.total_cost > 0:
+                return_pct = (gl / float(position.total_cost)) * 100
+
+            position_data = {
+                'hold_days': hold_days,
+                'return_pct': return_pct,
+                'gain_loss': gl
+            }
+
+            if gl > 0:
+                winners.append(position_data)
+            else:
+                losers.append(position_data)
+
+        # Calculate averages for winners
+        avg_winner_return = 0
+        avg_winner_hold_days = 0
+        if winners:
+            avg_winner_return = sum(p['return_pct'] for p in winners) / len(winners)
+            avg_winner_hold_days = sum(p['hold_days'] for p in winners) / len(winners)
+
+        # Calculate averages for losers
+        avg_loser_return = 0
+        avg_loser_hold_days = 0
+        if losers:
+            avg_loser_return = sum(p['return_pct'] for p in losers) / len(losers)
+            avg_loser_hold_days = sum(p['hold_days'] for p in losers) / len(losers)
+
+        return {
+            'win_count': len(winners),
+            'loss_count': len(losers),
+            'avg_winner_return': avg_winner_return,
+            'avg_winner_hold_days': avg_winner_hold_days,
+            'avg_loser_return': avg_loser_return,
+            'avg_loser_hold_days': avg_loser_hold_days
+        }
