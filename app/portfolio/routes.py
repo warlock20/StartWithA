@@ -522,11 +522,26 @@ def analytics():
     transactions = Transaction.query.filter_by(user_id=current_user.id).all()
     chart_data = extractor.calculate_performance_chart_data(transactions, time_periods=time_periods)
 
-    # 1. Check for latest completed task in database (single source of truth)
+    # 1. HIGHEST PRIORITY: Check if there's a running task
+    # Always show loading page if task is running, even if old cache exists
+    running_task = BackgroundTask.query.filter_by(
+        user_id=current_user.id,
+        task_type=f'portfolio_analysis:{template_name}',
+        status='running'
+    ).first()
+
+    if running_task:
+        # Task is running, show loading page
+        return render_template('portfolio_analytics_loading.html',
+                              task_id=running_task.id,
+                              chart_data=chart_data,
+                              selected_period=time_periods)
+
+    # 2. Check for latest completed task in database (cache)
     if not force_refresh:
         latest_task = BackgroundTask.query.filter_by(
             user_id=current_user.id,
-            task_type='portfolio_analysis',
+            task_type=f'portfolio_analysis:{template_name}',
             status='completed'
         ).order_by(BackgroundTask.completed_at.desc()).first()
 
@@ -542,20 +557,6 @@ def analytics():
                                       has_error=has_error,
                                       chart_data=chart_data,
                                       selected_period=time_periods)
-
-    # 2. Check if there's a running task
-    running_task = BackgroundTask.query.filter_by(
-        user_id=current_user.id,
-        task_type='portfolio_analysis',
-        status='running'
-    ).first()
-
-    if running_task:
-        # Task is running, show loading page
-        return render_template('portfolio_analytics_loading.html',
-                              task_id=running_task.id,
-                              chart_data=chart_data,
-                              selected_period=time_periods)
 
     # 3. If force_refresh=true, start new background task
     if force_refresh:

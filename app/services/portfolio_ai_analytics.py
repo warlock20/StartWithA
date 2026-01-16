@@ -183,11 +183,11 @@ class PortfolioAIAnalytics:
             prompt = self.intelligence._format_prompt(template, variables)
 
             # Log the prompt for debugging
-            logger.info(f"=" * 80)
-            logger.info(f"PROMPT FOR {template_name}:")
-            logger.info(f"-" * 80)
-            logger.info(prompt)
-            logger.info(f"=" * 80)
+            logger.debug(f"=" * 80)
+            logger.debug(f"PROMPT FOR {template_name}:")
+            logger.debug(f"-" * 80)
+            logger.debug(prompt)
+            logger.debug(f"=" * 80)
 
             # Get provider with specific model (will raise RuntimeError if none available)
             provider = self.intelligence._get_provider(
@@ -199,11 +199,11 @@ class PortfolioAIAnalytics:
             ai_insights = self.intelligence._call_provider_to_generate_json(provider, prompt, config)
 
             # Log the structured response
-            logger.info(f"=" * 80)
-            logger.info(f"STRUCTURED JSON RESPONSE FROM {config['provider']}:")
-            logger.info(f"-" * 80)
-            logger.info(f"Keys: {list(ai_insights.keys())}")
-            logger.info(f"=" * 80)
+            logger.debug(f"=" * 80)
+            logger.debug(f"STRUCTURED JSON RESPONSE FROM {config['provider']}:")
+            logger.debug(f"-" * 80)
+            logger.debug(f"Keys: {list(ai_insights.keys())}")
+            logger.debug(f"=" * 80)
 
             # Save raw response to file for debugging
             debug_file = CACHE_DIR / f"user_{self.user_id}_{template_name}_structured_response.json"
