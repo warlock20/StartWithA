@@ -152,8 +152,12 @@ class IntelligenceService:
             'max_tokens': template.get('max_tokens', 2000),
             'temperature': template.get('temperature', 0.7),
             'output_schema': template.get('response_schema') or None,
+            'system_context': template.get('system_context'),
         }
-        
+
+        # Log system_context extraction
+        system_ctx = template.get('system_context')
+        logger.info(f"IntelligenceService: Extracted system_context from template '{template_name}': {system_ctx is not None} (length: {len(system_ctx) if system_ctx else 0} chars)")
 
         # Apply overrides from ai_routing.yaml if they exist
         # Safety check: handle None config or None task_overrides
@@ -271,17 +275,30 @@ class IntelligenceService:
         Args:
             provider: The provider instance (ClaudeProvider or GeminiProvider)
             prompt: Formatted prompt json
-            config: Config dict with model, max_tokens, temperature
+            config: Config dict with model, max_tokens, temperature, system_context
 
         Returns:
             Generated json response
         """
-        return provider.generate_json(
-            prompt=prompt,
-            max_tokens=config.get('max_tokens'),
-            schema=config.get('output_schema'),
-            temperature=config.get('temperature')
-        )
+        # Build kwargs for provider
+        kwargs = {
+            'max_tokens': config.get('max_tokens'),
+            'temperature': config.get('temperature'),
+            'schema': config.get('output_schema'),
+        }
+
+        # Add system context if available (both Gemini and Claude support this)
+        system_ctx = config.get('system_context')
+        logger.info(f"IntelligenceService._call_provider_to_generate_json: system_context in config: {system_ctx is not None} (length: {len(system_ctx) if system_ctx else 0} chars)")
+
+        if system_ctx:
+            # For Gemini: system_instruction
+            # For Claude: system
+            # Pass as 'system' - providers will handle their own parameter name
+            kwargs['system'] = system_ctx
+            logger.info(f"IntelligenceService: Added system_context to kwargs (keys: {list(kwargs.keys())})")
+
+        return provider.generate_json(prompt=prompt, **kwargs)
 
     def _parse_response(self, response_text: str, template: Dict) -> Any:
         """

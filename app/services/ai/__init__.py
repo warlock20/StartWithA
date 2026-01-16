@@ -5,29 +5,38 @@ This package provides a unified interface for all AI operations across the platf
 It supports multiple providers (Gemini, Claude) with intelligent task-based routing.
 
 Quick Start:
-    from app.services.ai import ai_service, generate, generate_json
-    
+    from app.services.ai import ai_service, generate_text, generate_json
+
     # Simple text generation
-    response = ai_service.generate("Analyze this company...")
-    
+    response = ai_service.generate_text("Analyze this company...")
+
     # Or use convenience function
-    response = generate("Analyze this company...")
-    
+    response = generate_text("Analyze this company...")
+
     # JSON generation
     data = generate_json("Return JSON with name and age fields")
-    
+
+    # With configuration
+    response = generate_text(
+        "Analyze this thesis...",
+        temperature=0.7,
+        max_tokens=1000,
+        top_p=0.9
+    )
+
     # Task-specific with auto-routing (uses best provider for task)
     from app.services.ai import AITaskType
-    response = ai_service.generate(
+    response = ai_service.generate_text(
         "Analyze this thesis...",
         task=AITaskType.THESIS_ANALYSIS
     )
-    
-    # Force specific provider
+
+    # Force specific provider with provider-specific config
     from app.services.ai import AIProvider
-    response = ai_service.generate(
+    response = ai_service.generate_text(
         "Quick summary...",
-        provider=AIProvider.GEMINI
+        provider=AIProvider.GEMINI,
+        safety_settings={'HARM_CATEGORY_DANGEROUS': 'BLOCK_NONE'}
     )
 
 Investment-Specific Methods:
@@ -79,11 +88,13 @@ from .ai_service import (
     AIService,
     get_ai_service,
     reset_ai_service,
-    generate,
+    # Main functions
+    generate_text,
     generate_json,
     generate_embeddings,
     get_available_providers,
-    # Backward-compatible names
+    # Backward-compatible aliases (DEPRECATED)
+    generate,
     generate_ai_content,
     generate_ai_content_async,
     generate_ai_json,
@@ -118,21 +129,23 @@ ai_service = get_ai_service()
 __all__ = [
     # Main service instance
     'ai_service',
-    
+
     # Service class and factory
     'AIService',
     'get_ai_service',
     'reset_ai_service',
-    
-    # Convenience functions
-    'generate',
+
+    # Main convenience functions
+    'generate_text',
     'generate_json',
     'generate_embeddings',
-    # Backward-compatible names
+
+    # Backward-compatible aliases (DEPRECATED)
+    'generate',
     'generate_ai_content',
     'generate_ai_content_async',
     'generate_ai_json',
-    
+
     # Configuration
     'AIProvider',
     'AIModel',
@@ -140,11 +153,11 @@ __all__ = [
     'AIConfig',
     'get_ai_config',
     'reload_ai_config',
-    
+
     # Providers (for advanced usage)
     'GeminiProvider',
     'ClaudeProvider',
-    
+
     # Prompt service
     'prompt_service',
     'PromptService',

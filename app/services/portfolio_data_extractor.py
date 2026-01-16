@@ -22,10 +22,10 @@ Usage:
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta
-from decimal import Decimal
 
 from app.models.portfolio import Transaction, PortfolioPosition
 from app.models.company import Company
+from app.utils.financial_utils import calculate_cagr, calculate_total_return
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,7 @@ class PortfolioDataExtractor:
         Calculate high-level portfolio metrics.
 
         Returns:
-            Dict with win rate, total invested, realized gains/losses
+            Dict with win rate, total invested, realized gains/losses, CAGR
         """
         active_positions = [p for p in positions if p.is_active]
         closed_positions = [p for p in positions if not p.is_active]
@@ -241,6 +241,9 @@ class PortfolioDataExtractor:
         losses = len([p for p in closed_positions if p.realized_gain_loss and p.realized_gain_loss <= 0])
         total_closed = wins + losses
 
+        # Calculate CAGR
+        cagr = self._calculate_portfolio_cagr(positions, transactions)
+
         return {
             'total_positions': len(active_positions),
             'closed_positions': len(closed_positions),
@@ -249,7 +252,8 @@ class PortfolioDataExtractor:
             'win_rate': round(wins / total_closed * 100, 1) if total_closed > 0 else 0.0,
             'wins': wins,
             'losses': losses,
-            'total_transactions': len(transactions)
+            'total_transactions': len(transactions),
+            'cagr': cagr
         }
 
     def extract_active_positions(self, positions: List[PortfolioPosition]) -> List[Dict[str, Any]]:
@@ -370,7 +374,7 @@ class PortfolioDataExtractor:
 
         # Winners vs losers comparison
         positions = self._load_positions()
-        winners_vs_losers = self._calculate_winners_vs_losers(positions)
+        winners_vs_losers = self._calculate_winners_vs_losers(positions, transactions)
 
         return {
             'total_buys': len(buys),
@@ -643,9 +647,13 @@ class PortfolioDataExtractor:
 
         return sorted_companies[:limit]
 
-    def _calculate_winners_vs_losers(self, positions: List[PortfolioPosition]) -> Dict[str, Any]:
+    def _calculate_winners_vs_losers(self, positions: List[PortfolioPosition], transactions: List[Transaction]) -> Dict[str, Any]:
         """
         Calculate comparison metrics for winning vs losing positions.
+
+        Args:
+            positions: List of portfolio positions
+            transactions: List of all transactions (needed to calculate original cost basis)
 
         Returns:
             Dict with avg returns, hold times for winners and losers
@@ -666,10 +674,24 @@ class PortfolioDataExtractor:
             if position.first_purchase_date and position.last_transaction_date:
                 hold_days = (position.last_transaction_date - position.first_purchase_date).days
 
-            # Calculate return percentage
+            # Calculate return percentage for closed positions
+            # For closed positions, total_cost is 0 (FIFO reduces it as shares are sold)
+            # We need to get all transactions to calculate original cost basis
             return_pct = 0
-            if position.total_cost and position.total_cost > 0:
-                return_pct = (gl / float(position.total_cost)) * 100
+
+            # Get all transactions for this position
+            company_transactions = [t for t in transactions if t.company_id == position.company_id]
+
+            if company_transactions:
+                # Calculate total buy cost (original investment)
+                total_buy_cost = sum(
+                    float(t.quantity) * float(t.price_per_share) + float(t.fees)
+                    for t in company_transactions
+                    if t.type == 'BUY'
+                )
+
+                if total_buy_cost > 0:
+                    return_pct = (gl / total_buy_cost) * 100
 
             position_data = {
                 'hold_days': hold_days,
@@ -704,3 +726,64 @@ class PortfolioDataExtractor:
             'avg_loser_return': avg_loser_return,
             'avg_loser_hold_days': avg_loser_hold_days
         }
+
+    def _calculate_portfolio_cagr(self, positions: List[PortfolioPosition], transactions: List[Transaction]) -> float:
+        """
+        Calculate portfolio-level CAGR using the existing financial utilities.
+
+        Returns:
+            CAGR as a percentage (e.g., 15.5 for 15.5%)
+        """
+        if not transactions:
+            return 0.0
+
+        # Get first and last transaction dates
+        sorted_transactions = sorted(transactions, key=lambda t: t.date)
+        first_date = sorted_transactions[0].date
+        last_date = sorted_transactions[-1].date
+        days_held = (last_date - first_date).days
+
+        # Calculate NET cash invested (money in - money out)
+        # This accounts for proceeds from sells being reinvested or withdrawn
+        total_buys = sum(
+            t.total_value
+            for t in transactions
+            if t.type == 'BUY'
+        )
+
+        total_sells = sum(
+            (float(t.quantity) * float(t.price_per_share))
+            for t in transactions
+            if t.type == 'SELL'
+        )
+
+        net_invested = total_buys - total_sells
+
+        # If net is negative or zero, user withdrew more than invested
+        if net_invested <= 0:
+            # Use total buys as baseline if user withdrew profits
+            net_invested = total_buys if total_buys > 0 else 1
+
+        # Calculate current portfolio value
+        # = market value of active positions + realized gains still in portfolio
+        active_value = sum(
+            float(p.current_value) if p.current_value else float(p.total_cost) if p.total_cost else 0
+            for p in positions if p.is_active
+        )
+
+        # Add back realized gains from closed positions (assuming not withdrawn)
+        # This represents profit that's either reinvested or held as cash
+        realized_gains = sum(
+            float(p.realized_gain_loss) if p.realized_gain_loss else 0
+            for p in positions if not p.is_active
+        )
+
+        ending_value = active_value + realized_gains
+
+        # Calculate total return percentage
+        total_return_pct = calculate_total_return(net_invested, ending_value)
+
+        # Calculate CAGR using the utility
+        cagr = calculate_cagr(total_return_pct, days_held)
+
+        return round(cagr, 1)

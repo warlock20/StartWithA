@@ -661,3 +661,324 @@
     color: #1f2937;
     margin-top: 4px;
 }
+
+/* ========================================================================
+   Evidence Section (Collapsible)
+   ======================================================================== */
+
+.evidence-section {
+    margin-top: 1rem;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.evidence-section:hover {
+    background: #f3f4f6;
+}
+
+.evidence-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.evidence-summary:hover {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+.evidence-summary::-webkit-details-marker {
+    display: none;
+}
+
+.evidence-summary i:first-child {
+    color: #3b82f6;
+    font-size: 1rem;
+}
+
+.evidence-chevron {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.evidence-section[open] .evidence-chevron {
+    transform: rotate(180deg);
+}
+
+.evidence-content {
+    padding: 0 1rem 1rem 1rem;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.evidence-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.evidence-item {
+    padding: 0.75rem;
+    padding-left: 1rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #4b5563;
+    transition: all 0.2s ease;
+}
+
+.evidence-item:hover {
+    border-left-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transform: translateX(2px);
+}
+
+.evidence-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Counter-examples */
+.counter-evidence {
+    margin-top: 1rem;
+    padding: 0.875rem;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+}
+
+.counter-evidence-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: #166534;
+}
+
+.counter-evidence-header i {
+    color: #10b981;
+    font-size: 1.125rem;
+}
+
+.counter-evidence-header strong {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.counter-evidence-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.counter-evidence-item {
+    padding: 0.625rem;
+    padding-left: 0.875rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-left: 3px solid #10b981;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #166534;
+}
+
+.counter-evidence-item:last-child {
+    margin-bottom: 0;
+}
+
+/* ========================================================================
+   Evolution Timeline (Horizontal)
+   ======================================================================== */
+
+.timeline-horizontal {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    position: relative;
+}
+
+.timeline-phase {
+    position: relative;
+    padding: 1.25rem;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.timeline-phase:hover {
+    border-color: #8b5cf6;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    transform: translateY(-4px);
+}
+
+.timeline-marker {
+    width: 12px;
+    height: 12px;
+    background: #8b5cf6;
+    border-radius: 50%;
+    position: absolute;
+    top: -6px;
+    left: 1.25rem;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #8b5cf6;
+}
+
+.timeline-period {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8b5cf6;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-phase-name {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+}
+
+.timeline-analysis {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: #6b7280;
+}
+
+/* ========================================================================
+   FOMO Trades Table
+   ======================================================================== */
+
+.evidence-table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.evidence-table thead {
+    background: #f9fafb;
+}
+
+.evidence-table th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.evidence-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+    color: #4b5563;
+    vertical-align: top;
+}
+
+.evidence-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.evidence-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.evidence-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.trade-trigger {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* ========================================================================
+   Repeating Mistakes
+   ======================================================================== */
+
+.mistakes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.mistake-item {
+    position: relative;
+    padding: 1rem;
+    padding-left: 3rem;
+    margin-bottom: 0.75rem;
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    border-radius: 6px;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #991b1b;
+    transition: all 0.2s ease;
+}
+
+.mistake-item:before {
+    content: "\26A0";
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.25rem;
+    color: #ef4444;
+}
+
+.mistake-item:hover {
+    background: #fee2e2;
+    border-left-color: #dc2626;
+    transform: translateX(4px);
+}
+
+.mistake-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Purple narrative icon color */
+.narrative-icon.purple {
+    background: #f3e8ff;
+    color: #8b5cf6;
+}

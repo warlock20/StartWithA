@@ -459,6 +459,7 @@ class PortfolioAIAnalytics:
               "behavioral_patterns": self._extract_behavioral_patterns(analysis.get("behavioral_patterns", [])),
               "fomo_analysis": self._extract_fomo_analysis(analysis.get("fomo_analysis", {})),
               "investor_evolution": self._extract_evolution(analysis.get("evolution_timeline", [])),
+              "repeating_mistakes": self._extract_repeating_mistakes(analysis.get("evolution_metadata", {})),
               "recommendations": [],  # Will be added if in schema
               "key_strengths": analysis.get("key_findings", []),
               "key_risks": []
@@ -469,8 +470,6 @@ class PortfolioAIAnalytics:
         logger.info("Assuming free-form response structure")
         return ai_insights    
     
-
-
     def _format_for_template(
         self, ai_insights: Dict[str, Any], portfolio_data: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -516,6 +515,7 @@ class PortfolioAIAnalytics:
             "kpis": {
                 "win_rate": summary.get("win_rate", 0),  # From portfolio_summary
                 "market_avg_win_rate": 52,  # Market average
+                "cagr": summary.get("cagr", 0),  # From portfolio_summary
                 "avg_hold_days": patterns.get("avg_hold_days", 0),
                 "strategy_label": self._get_strategy_label(
                     patterns.get("avg_hold_days", 0)
@@ -542,6 +542,9 @@ class PortfolioAIAnalytics:
                 "recommendations": self._format_recommendations(
                     ai_insights.get("recommendations", [])
                 ),
+                "investor_evolution": ai_insights.get("investor_evolution", []),
+                "fomo_trades": ai_insights.get("fomo_analysis", {}).get("fomo_trades", []),
+                "repeating_mistakes": ai_insights.get("repeating_mistakes", []),
             },
             "comparison": {
                 "winners": {
@@ -624,6 +627,8 @@ class PortfolioAIAnalytics:
                         "description": pattern.get(
                             "description", pattern.get("detail", "")
                         ),
+                        "examples": pattern.get("examples", []),
+                        "counter_examples": pattern.get("counter_examples", []),
                         "severity": pattern.get(
                             "severity", pattern.get("impact", None)
                         ),
@@ -654,28 +659,49 @@ class PortfolioAIAnalytics:
         return formatted
 
     def _extract_behavioral_patterns(self, patterns: list) -> list:
-        """Convert schema-based patterns to template format"""
+        """Convert schema-based patterns to template format with examples and severity"""
         return [{
             "title": p.get("pattern_name", ""),
             "description": p.get("description", ""),
-            "severity": None,  # Could derive from description
+            "examples": p.get("examples", []),
+            "counter_examples": p.get("counter_examples", []),
+            "severity": p.get("severity", "medium"),  # AI provides severity directly
             "icon": "brain",
             "recommendation": None
         } for p in patterns]
-    
-    def _extract_fomo_analysis(self, fomo: dict) -> str:
-        """Convert FOMO dict to text"""
-        definition = fomo.get("definition", "")
-        trades = fomo.get("fomo_trades", [])
-        # Format as text for display
-        return f"{definition}\n\nIdentified {len(trades)} FOMO-driven trades."
 
-    def _extract_evolution(self, timeline: list) -> str:
-        """Convert evolution timeline to text"""
-        parts = []
-        for period in timeline:
-            parts.append(f"**{period.get('phase_name', '')} ({period.get('period', '')})**: {period.get('analysis', '')}")
-        return "\n\n".join(parts)
+    def _extract_fomo_analysis(self, fomo: dict) -> dict:
+        """Convert FOMO dict to structured format for UI"""
+        fomo_trades = fomo.get("fomo_trades", [])
+
+        # Format trades for table display
+        formatted_trades = []
+        for trade in fomo_trades:
+            formatted_trades.append({
+                "ticker": trade.get("ticker", ""),
+                "action": trade.get("action", ""),
+                "date": trade.get("date", ""),
+                "outcome": trade.get("outcome", ""),
+                "trigger": trade.get("trigger", "")
+            })
+
+        return {
+            "fomo_trades": formatted_trades,
+            "count": len(formatted_trades)
+        }
+
+    def _extract_evolution(self, timeline: list) -> list:
+        """Convert evolution timeline to array of phase objects for horizontal timeline"""
+        return [{
+            "period": phase.get("period", ""),
+            "phase_name": phase.get("phase_name", ""),
+            "analysis": phase.get("analysis", "")
+        } for phase in timeline]
+
+    def _extract_repeating_mistakes(self, evolution_metadata: dict) -> list:
+        """Extract repeating mistakes from evolution metadata"""
+        return evolution_metadata.get("repeating_mistakes", [])
+
     # ================================================================
     # Caching
     # ================================================================

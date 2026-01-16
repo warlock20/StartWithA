@@ -14,7 +14,8 @@
             <div>
                 <h1 class="analytics-title">AI Portfolio Intelligence</h1>
                 <p class="analytics-subtitle">
-                    AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{ insights.metadata.positions_count }} positions
+                    AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{
+                    insights.metadata.positions_count }} positions
                 </p>
             </div>
             <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
@@ -44,9 +45,32 @@
             </div>
             <div class="ai-kpi-value">{{ insights.kpis.win_rate }}%</div>
             <div class="ai-kpi-progress">
-                <div class="ai-kpi-progress-bar" style="width: {{ insights.kpis.win_rate }}%; background: #10b981;"></div>
+                <div class="ai-kpi-progress-bar" style="width: {{ insights.kpis.win_rate }}%; background: #10b981;">
+                </div>
             </div>
             <div class="ai-kpi-subtitle">vs. {{ insights.kpis.market_avg_win_rate }}% Retail Avg</div>
+        </div>
+
+        <!-- CAGR -->
+        <div class="ai-kpi-card">
+            <div class="ai-kpi-header">
+                <span class="ai-kpi-label">Portfolio CAGR</span>
+                <span
+                    class="ai-kpi-badge {% if insights.kpis.cagr|default(0) > 15 %}badge-success{% elif insights.kpis.cagr|default(0) > 0 %}badge-info{% else %}badge-danger{% endif %}">
+                    <i
+                        class="bi bi-{% if insights.kpis.cagr|default(0) > 0 %}graph-up-arrow{% else %}graph-down-arrow{% endif %}"></i>
+                </span>
+            </div>
+            <div class="ai-kpi-value"
+                style="color: {% if insights.kpis.cagr|default(0) > 0 %}#10b981{% else %}#ef4444{% endif %};">
+                {{ insights.kpis.cagr|default(0) }}%
+            </div>
+            <div class="ai-kpi-progress">
+                <div class="ai-kpi-progress-bar"
+                    style="width: {% if insights.kpis.cagr|default(0) > 0 %}{{ insights.kpis.cagr }}{% else %}0{% endif %}%; background: {% if insights.kpis.cagr|default(0) > 0 %}#10b981{% else %}#ef4444{% endif %};">
+                </div>
+            </div>
+            <div class="ai-kpi-subtitle">Annualized Return</div>
         </div>
 
         <!-- Avg Hold Time -->
@@ -121,7 +145,8 @@
                 <div class="ai-context-text">
                     {{ insights.ai_summary.quick_insight }}
                 </div>
-                <button class="ai-refresh-btn" onclick="window.location.href='{{ url_for('portfolio.analytics') }}?refresh=true'">
+                <button class="ai-refresh-btn"
+                    onclick="window.location.href='{{ url_for('portfolio.analytics') }}?refresh=true'">
                     <i class="bi bi-arrow-clockwise"></i>
                     Re-run Analysis
                 </button>
@@ -151,26 +176,28 @@
                             <!-- Time Period Selector -->
                             <div class="btn-group btn-group-sm" role="group">
                                 <a href="{{ url_for('portfolio.analytics', period=1, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 1 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1M</a>
+                                    class="btn btn-sm {% if selected_period == 1 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1M</a>
                                 <a href="{{ url_for('portfolio.analytics', period=3, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 3 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3M</a>
+                                    class="btn btn-sm {% if selected_period == 3 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3M</a>
                                 <a href="{{ url_for('portfolio.analytics', period=6, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 6 %}btn-primary{% else %}btn-outline-secondary{% endif %}">6M</a>
+                                    class="btn btn-sm {% if selected_period == 6 %}btn-primary{% else %}btn-outline-secondary{% endif %}">6M</a>
                                 <a href="{{ url_for('portfolio.analytics', period=12, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 12 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1Y</a>
+                                    class="btn btn-sm {% if selected_period == 12 %}btn-primary{% else %}btn-outline-secondary{% endif %}">1Y</a>
                                 <a href="{{ url_for('portfolio.analytics', period=24, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 24 %}btn-primary{% else %}btn-outline-secondary{% endif %}">2Y</a>
+                                    class="btn btn-sm {% if selected_period == 24 %}btn-primary{% else %}btn-outline-secondary{% endif %}">2Y</a>
                                 <a href="{{ url_for('portfolio.analytics', period=36, refresh=request.args.get('refresh', 'false')) }}"
-                                   class="btn btn-sm {% if selected_period == 36 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3Y</a>
+                                    class="btn btn-sm {% if selected_period == 36 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3Y</a>
                             </div>
                             <!-- Legend -->
                             <div class="d-flex gap-3">
                                 <span class="d-flex align-items-center small">
-                                    <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background: #4f46e5;"></span>
+                                    <span class="me-2"
+                                        style="width: 12px; height: 12px; border-radius: 50%; background: #4f46e5;"></span>
                                     Current Value
                                 </span>
                                 <span class="d-flex align-items-center small">
-                                    <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1;"></span>
+                                    <span class="me-2"
+                                        style="width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1;"></span>
                                     Total Cost
                                 </span>
                             </div>
@@ -207,12 +234,24 @@
                             <h3 class="narrative-title">What's Working</h3>
                         </div>
                     </div>
+
                     <div class="narrative-text">
-                        <ul style="margin: 0; padding-left: 1.5rem;">
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
                             {% for strength in insights.analysis.key_strengths %}
-                            <li style="margin-bottom: 0.5rem;">{{ strength }}</li>
+                            <div class="strength-item" style="border-left: 2px solid #dcfce7; padding-left: 1rem;">
+
+                                <div style="margin-bottom: 0.35rem;">
+                                    <span class="strength-badge">
+                                        {{ strength.finding_type }}
+                                    </span>
+                                </div>
+
+                                <div style="color: #374151; font-size: 0.95rem; line-height: 1.5;">
+                                    {{ strength.description }}
+                                </div>
+                            </div>
                             {% endfor %}
-                        </ul>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -222,7 +261,8 @@
                     <!-- Winners -->
                     <div class="comparison-card">
                         <div class="comparison-card-header">
-                            <div style="background: #f0fdf4; color: #10b981; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                            <div
+                                style="background: #f0fdf4; color: #10b981; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-trophy"></i>
                             </div>
                             <span class="comparison-card-title">Winning Positions</span>
@@ -230,7 +270,8 @@
                         <div class="comparison-metrics">
                             <div class="comparison-metric">
                                 <span class="metric-label">Avg Return</span>
-                                <span class="metric-value positive">+{{ insights.comparison.winners.avg_return }}%</span>
+                                <span class="metric-value positive">+{{ insights.comparison.winners.avg_return
+                                    }}%</span>
                             </div>
                             <div class="comparison-metric">
                                 <span class="metric-label">Hold Time</span>
@@ -246,7 +287,8 @@
                     <!-- Losers -->
                     <div class="comparison-card">
                         <div class="comparison-card-header">
-                            <div style="background: #fef2f2; color: #ef4444; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                            <div
+                                style="background: #fef2f2; color: #ef4444; width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-graph-down"></i>
                             </div>
                             <span class="comparison-card-title">Losing Positions</span>
@@ -278,6 +320,30 @@
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Evolution Timeline (Horizontal) -->
+                {% if insights.analysis.investor_evolution %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon purple">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Investor Evolution</h3>
+                        </div>
+                    </div>
+                    <div class="timeline-horizontal">
+                        {% for phase in insights.analysis.investor_evolution %}
+                        <div class="timeline-phase">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-period">{{ phase.period }}</div>
+                            <div class="timeline-phase-name">{{ phase.phase_name }}</div>
+                            <div class="timeline-analysis">{{ phase.analysis }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Patterns Panel -->
@@ -293,7 +359,8 @@
                             <h3 class="narrative-title">{{ pattern.title }}</h3>
                         </div>
                         {% if pattern.severity %}
-                        <span class="ai-kpi-badge badge-{% if pattern.severity == 'high' %}danger{% else %}warning{% endif %}">
+                        <span
+                            class="ai-kpi-badge badge-{% if pattern.severity == 'high' %}danger{% else %}warning{% endif %}">
                             {{ pattern.severity|upper }} IMPACT
                         </span>
                         {% endif %}
@@ -301,6 +368,40 @@
                     <div class="narrative-text">
                         {{ pattern.description|safe }}
                     </div>
+
+                    <!-- Evidence Section (Collapsible) -->
+                    {% if pattern.examples %}
+                    <details class="evidence-section">
+                        <summary class="evidence-summary">
+                            <i class="bi bi-graph-up"></i>
+                            <span>Evidence ({{ pattern.examples|length }} example{% if pattern.examples|length > 1 %}s{%
+                                endif %})</span>
+                            <i class="bi bi-chevron-down evidence-chevron"></i>
+                        </summary>
+                        <div class="evidence-content">
+                            <ul class="evidence-list">
+                                {% for example in pattern.examples %}
+                                <li class="evidence-item">{{ example }}</li>
+                                {% endfor %}
+                            </ul>
+
+                            {% if pattern.counter_examples %}
+                            <div class="counter-evidence">
+                                <div class="counter-evidence-header">
+                                    <i class="bi bi-shield-check"></i>
+                                    <strong>Counter-examples</strong>
+                                </div>
+                                <ul class="counter-evidence-list">
+                                    {% for counter in pattern.counter_examples %}
+                                    <li class="counter-evidence-item">{{ counter }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </details>
+                    {% endif %}
+
                     {% if pattern.recommendation %}
                     <div class="action-box">
                         <div class="action-box-header">
@@ -318,6 +419,68 @@
                 <div class="narrative-block">
                     <div class="narrative-text">
                         No significant behavioral patterns detected yet. More data needed.
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- FOMO Trades Table -->
+                {% if insights.analysis.fomo_trades %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon orange">
+                            <i class="bi bi-lightning-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">FOMO-Driven Trades</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-warning">
+                            {{ insights.analysis.fomo_trades|length }} Trades
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="evidence-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                    <th>Trigger</th>
+                                    <th>Outcome</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trade in insights.analysis.fomo_trades %}
+                                <tr>
+                                    <td><strong>{{ trade.ticker }}</strong></td>
+                                    <td>{{ trade.date }}</td>
+                                    <td>{{ trade.action }}</td>
+                                    <td><span class="trade-trigger">{{ trade.trigger }}</span></td>
+                                    <td>{{ trade.outcome }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Repeating Mistakes -->
+                {% if insights.analysis.repeating_mistakes %}
+                <div class="narrative-block warning">
+                    <div class="narrative-header">
+                        <div class="narrative-icon red">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Repeating Mistakes</h3>
+                        </div>
+                    </div>
+                    <div class="narrative-text">
+                        <ul class="mistakes-list">
+                            {% for mistake in insights.analysis.repeating_mistakes %}
+                            <li class="mistake-item">{{ mistake }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 </div>
                 {% endif %}
@@ -368,7 +531,8 @@
                 <div class="action-list">
                     {% for rec in insights.analysis.recommendations %}
                     <div class="action-item">
-                        <div class="action-number {% if rec.priority == 'urgent' %}urgent{% elif rec.priority == 'high' %}high{% endif %}">
+                        <div
+                            class="action-number {% if rec.priority == 'urgent' %}urgent{% elif rec.priority == 'high' %}high{% endif %}">
                             {{ loop.index }}
                         </div>
                         <div class="action-content">
@@ -395,102 +559,102 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Tab switching functionality
-    const navButtons = document.querySelectorAll('.ai-nav-btn, .ai-mobile-nav-btn');
-    const panels = document.querySelectorAll('.ai-content-panel');
+    document.addEventListener('DOMContentLoaded', function () {
+        // Tab switching functionality
+        const navButtons = document.querySelectorAll('.ai-nav-btn, .ai-mobile-nav-btn');
+        const panels = document.querySelectorAll('.ai-content-panel');
 
-    navButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetPanel = this.getAttribute('data-panel');
+        navButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const targetPanel = this.getAttribute('data-panel');
 
-            // Remove active class from all buttons and panels
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            panels.forEach(panel => panel.classList.remove('active'));
+                // Remove active class from all buttons and panels
+                navButtons.forEach(btn => btn.classList.remove('active'));
+                panels.forEach(panel => panel.classList.remove('active'));
 
-            // Add active class to clicked button and target panel
-            this.classList.add('active');
-            document.getElementById('panel-' + targetPanel).classList.add('active');
+                // Add active class to clicked button and target panel
+                this.classList.add('active');
+                document.getElementById('panel-' + targetPanel).classList.add('active');
+            });
         });
-    });
 
-    // Performance Chart
-    const ctx = document.getElementById('performanceChart');
-    if (ctx) {
-        const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
-        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.1)');
-        gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+        // Performance Chart
+        const ctx = document.getElementById('performanceChart');
+        if (ctx) {
+            const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
+            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.1)');
+            gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
 
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: {{ chart_data.labels | tojson }},
-                datasets: [{
-                    label: 'Current Value',
-                    data: {{ chart_data.current_values | tojson }},
-                    borderColor: '#4f46e5',
-                    backgroundColor: gradient,
-                    borderWidth: 2,
-                    pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#4f46e5',
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.4
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: {{ chart_data.labels | tojson }},
+        datasets: [{
+            label: 'Current Value',
+            data: {{ chart_data.current_values | tojson }},
+        borderColor: '#4f46e5',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#4f46e5',
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.4
                 },
-                {
-                    label: 'Total Cost',
-                    data: {{ chart_data.total_costs | tojson }},
-                    borderColor: '#cbd5e1',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    fill: false,
-                    tension: 0.2
+        {
+            label: 'Total Cost',
+            data: {{ chart_data.total_costs | tojson }},
+        borderColor: '#cbd5e1',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        tension: 0.2
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        padding: 12,
-                        titleFont: { family: 'Inter', size: 13 },
-                        bodyFont: { family: 'Inter', size: 13 },
-                        displayColors: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
-                            }
-                        }
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                backgroundColor: '#1e293b',
+                padding: 12,
+                titleFont: { family: 'Inter', size: 13 },
+                bodyFont: { family: 'Inter', size: 13 },
+                displayColors: false,
+                callbacks: {
+                    label: function (context) {
+                        return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
                     }
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { family: 'Inter' }, color: '#94a3b8' }
-                    },
-                    y: {
-                        grid: { color: '#f1f5f9', borderDash: [5, 5] },
-                        ticks: {
-                            font: { family: 'Inter' },
-                            color: '#94a3b8',
-                            callback: function(value) {
-                                return '$' + (value / 1000).toFixed(0) + 'k';
-                            }
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
                 }
             }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { font: { family: 'Inter' }, color: '#94a3b8' }
+            },
+            y: {
+                grid: { color: '#f1f5f9', borderDash: [5, 5] },
+                ticks: {
+                    font: { family: 'Inter' },
+                    color: '#94a3b8',
+                    callback: function (value) {
+                        return '$' + (value / 1000).toFixed(0) + 'k';
+                    }
+                }
+            }
+        },
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        }
+    }
         });
     }
 });

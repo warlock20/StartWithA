@@ -162,105 +162,182 @@ class AIService:
     # ============================================================
     # Core Generation Methods
     # ============================================================
-    
-    def generate(
+
+    def generate_text(
         self,
         prompt: str,
+        # Common configuration (works across providers)
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        stop_sequences: Optional[List[str]] = None,
+        # Routing
         task: Optional[AITaskType] = None,
         provider: Optional[AIProvider] = None,
         model: Optional[AIModel] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        # Provider-specific (via kwargs)
         **kwargs
     ) -> str:
         """
         Generate text response.
-        
+
         This is the main method for text generation. It routes to the
         optimal provider based on task type or explicit parameters.
-        
+
         Args:
             prompt: The input prompt
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
+            stop_sequences: List of strings to stop generation
             task: Task type for intelligent routing
             provider: Force specific provider
             model: Force specific model
-            max_tokens: Max tokens to generate
-            temperature: Sampling temperature (0-1)
-            **kwargs: Additional provider-specific params
-        
+            **kwargs: Provider-specific params (safety_settings, thinking, system, etc.)
+
         Returns:
             Generated text
-            
+
         Examples:
             # Simple generation
-            response = ai_service.generate("Explain value investing")
-            
-            # Task-specific (routes to best provider)
-            response = ai_service.generate(
+            response = ai_service.generate_text("Explain value investing")
+
+            # With common configs
+            response = ai_service.generate_text(
                 "Analyze this thesis...",
-                task=AITaskType.THESIS_ANALYSIS
+                temperature=0.7,
+                max_tokens=1000,
+                top_p=0.9
             )
-            
-            # Force Gemini
-            response = ai_service.generate(
-                "Quick summary...",
-                provider=AIProvider.GEMINI
+
+            # With provider-specific config (Gemini safety settings)
+            response = ai_service.generate_text(
+                "Investment risks...",
+                provider=AIProvider.GEMINI,
+                temperature=0.5,
+                safety_settings={'HARM_CATEGORY_DANGEROUS': 'BLOCK_NONE'}
+            )
+
+            # With provider-specific config (Claude system prompt)
+            response = ai_service.generate_text(
+                "Analyze this...",
+                provider=AIProvider.CLAUDE,
+                system="You are a conservative value investor."
             )
         """
         ai_provider = self._get_provider(task, provider, model)
-        
+
         return ai_provider.generate_text(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            stop_sequences=stop_sequences,
             **kwargs
         )
     
     def generate_json(
         self,
         prompt: str,
+        # Common configuration
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        # Routing
         task: Optional[AITaskType] = None,
         provider: Optional[AIProvider] = None,
+        model: Optional[AIModel] = None,
+        # Provider-specific (via kwargs)
         **kwargs
     ) -> Dict[str, Any]:
         """
         Generate structured JSON response.
-        
+
         Args:
             prompt: The input prompt (should describe expected JSON structure)
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
             task: Task type for routing
             provider: Force specific provider
-            **kwargs: Additional parameters
-            
+            model: Force specific model
+            **kwargs: Provider-specific params (schema for Gemini, etc.)
+
         Returns:
             Parsed JSON as dictionary
+
+        Examples:
+            # Simple JSON generation
+            data = ai_service.generate_json("Return user info as JSON")
+
+            # With schema (Gemini-specific)
+            data = ai_service.generate_json(
+                "Analyze this company",
+                temperature=0.5,
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "score": {"type": "number"},
+                        "summary": {"type": "string"}
+                    }
+                }
+            )
         """
-        ai_provider = self._get_provider(task, provider)
-        return ai_provider.generate_json(prompt, **kwargs)
+        ai_provider = self._get_provider(task, provider, model)
+
+        return ai_provider.generate_json(
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            **kwargs
+        )
     
     def generate_embeddings(
         self,
         texts: List[str],
-        provider: Optional[AIProvider] = None
+        # Routing
+        provider: Optional[AIProvider] = None,
+        model: Optional[AIModel] = None,
+        # Provider-specific (via kwargs)
+        **kwargs
     ) -> List[List[float]]:
         """
         Generate embeddings for texts.
-        
+
         Prefers Gemini for embeddings as it has native support.
-        
+
         Args:
             texts: List of text strings to embed
             provider: Force specific provider
-            
+            model: Force specific model
+            **kwargs: Provider-specific params
+
         Returns:
             List of embedding vectors
+
+        Examples:
+            # Simple embeddings
+            vectors = ai_service.generate_embeddings(["text1", "text2"])
+
+            # With specific provider
+            vectors = ai_service.generate_embeddings(
+                ["Investment thesis", "Company analysis"],
+                provider=AIProvider.GEMINI
+            )
         """
         # Prefer Gemini for embeddings (native support)
-        if provider is None and AIProvider.GEMINI in self._providers:
+        if provider is None and model is None and AIProvider.GEMINI in self._providers:
             provider = AIProvider.GEMINI
-        
-        ai_provider = self._get_provider(provider=provider)
-        return ai_provider.generate_embeddings(texts)
+
+        ai_provider = self._get_provider(provider=provider, model=model)
+        return ai_provider.generate_embeddings(texts, **kwargs)
     
     # ============================================================
     # Investment-Specific Methods
@@ -369,7 +446,7 @@ class AIService:
             user_context=str(user_context)
         )
 
-        return self.generate(prompt, task=AITaskType.PATTERN_EXPLANATION)
+        return self.generate_text(prompt, task=AITaskType.PATTERN_EXPLANATION)
     
     def answer_research_question(
         self,
@@ -402,7 +479,7 @@ class AIService:
             question=question
         )
 
-        return self.generate(prompt, task=AITaskType.DOCUMENT_QA)
+        return self.generate_text(prompt, task=AITaskType.DOCUMENT_QA)
     
     def summarize(
         self,
@@ -431,7 +508,7 @@ class AIService:
             length_instruction=length_instruction
         )
 
-        return self.generate(prompt, task=AITaskType.SUMMARIZATION)
+        return self.generate_text(prompt, task=AITaskType.SUMMARIZATION)
     
     # ============================================================
     # Helper Methods
@@ -562,66 +639,82 @@ def reset_ai_service():
 # Convenience Functions
 # ============================================================
 
-def generate(prompt: str, **kwargs) -> str:
+def generate_text(prompt: str, **kwargs) -> str:
     """
     Quick access to text generation.
-    
+
     Args:
         prompt: Input prompt
-        **kwargs: Additional parameters
-        
+        **kwargs: Additional parameters (max_tokens, temperature, top_p, etc.)
+
     Returns:
         Generated text
     """
-    return get_ai_service().generate(prompt, **kwargs)
+    return get_ai_service().generate_text(prompt, **kwargs)
 
 
 def generate_json(prompt: str, **kwargs) -> Dict[str, Any]:
     """
     Quick access to JSON generation.
-    
+
     Args:
         prompt: Input prompt
-        **kwargs: Additional parameters
-        
+        **kwargs: Additional parameters (max_tokens, temperature, schema, etc.)
+
     Returns:
         Parsed JSON dictionary
     """
     return get_ai_service().generate_json(prompt, **kwargs)
 
 
-def generate_embeddings(texts: List[str]) -> List[List[float]]:
+def generate_embeddings(texts: List[str], **kwargs) -> List[List[float]]:
     """
     Quick access to embedding generation.
-    
+
     Args:
         texts: List of texts to embed
-        
+        **kwargs: Additional parameters
+
     Returns:
         List of embedding vectors
     """
-    return get_ai_service().generate_embeddings(texts)
+    return get_ai_service().generate_embeddings(texts, **kwargs)
+
+
+# ============================================================
+# Backward-Compatible Aliases
+# ============================================================
+
+def generate(prompt: str, **kwargs) -> str:
+    """
+    Backward-compatible alias for generate_text().
+    DEPRECATED: Use generate_text() instead.
+    """
+    return generate_text(prompt, **kwargs)
 
 
 def generate_ai_content(prompt: str, **kwargs) -> str:
     """
     Generate AI content.
     Backward-compatible function name from old llm_service.py.
+    DEPRECATED: Use generate_text() instead.
     """
-    return get_ai_service().generate(prompt, **kwargs)
+    return generate_text(prompt, **kwargs)
 
 
 async def generate_ai_content_async(prompt: str, **kwargs) -> str:
     """
     Generate AI content asynchronously.
+    DEPRECATED: Use generate_text() instead.
     """
-    return get_ai_service().generate(prompt, **kwargs)
+    return generate_text(prompt, **kwargs)
 
 
 def generate_ai_json(prompt: str, **kwargs) -> Dict[str, Any]:
     """
     Generate structured JSON response.
     Backward-compatible function name from old llm_service.py.
+    DEPRECATED: Use generate_json() instead.
     """
     return get_ai_service().generate_json(prompt, **kwargs)
 

@@ -153,6 +153,7 @@ def dashboard():
                           portfolio_count=portfolio_count,
                           checkpoint_summary = checkpoint_summary,
                           checkpoints_preview = checkpoints_preview)
+
 ############################
 #### Postion Related ########
 #############################
@@ -549,7 +550,7 @@ def analytics():
         status='running'
     ).first()
 
-    if running_task and not force_refresh:
+    if running_task:
         # Task is running, show loading page
         return render_template('portfolio_analytics_loading.html',
                               task_id=running_task.id,

@@ -145,7 +145,11 @@ class ClaudeProvider(AIProvider):
         prompt: str,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
-        system_prompt: Optional[str] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        stop_sequences: Optional[List[str]] = None,
+        system: Optional[str] = None,
+        system_prompt: Optional[str] = None,  # Backward compatibility
         prompt_name: Optional[str] = None,
         prompt_version: str = "1.0",
         **kwargs
@@ -156,11 +160,15 @@ class ClaudeProvider(AIProvider):
         Args:
             prompt: The input prompt
             max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0-1)
-            system_prompt: System prompt for context (optional)
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
+            stop_sequences: List of strings to stop generation
+            system: System prompt for context (Claude-specific)
+            system_prompt: Deprecated alias for 'system'
             prompt_name: Name of the prompt for analytics (optional)
             prompt_version: Version of the prompt (default: "1.0")
-            **kwargs: Additional parameters
+            **kwargs: Claude-specific parameters (thinking, etc.)
 
         Returns:
             Generated text response
@@ -180,15 +188,38 @@ class ClaudeProvider(AIProvider):
         result_text = None
 
         try:
-            message = self._client.messages.create(
-                model=self._model_enum.model_id,
-                max_tokens=max_tokens or self._config.default_max_tokens,
-                temperature=temperature if temperature is not None else self._config.default_temperature,
-                system=system_prompt or self.DEFAULT_SYSTEM_PROMPT,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+            # Build message creation params
+            create_params = {
+                "model": self._model_enum.model_id,
+                "max_tokens": max_tokens or self._config.default_max_tokens,
+                "messages": [{"role": "user", "content": prompt}]
+            }
+
+            # Add system prompt (prefer 'system' over 'system_prompt')
+            sys_prompt = system or system_prompt or self.DEFAULT_SYSTEM_PROMPT
+            create_params["system"] = sys_prompt
+
+            # Log system context usage
+            if system or system_prompt:
+                logger.info(f"Claude: Using custom system prompt (length: {len(sys_prompt)} chars)")
+                logger.debug(f"Claude system prompt: {sys_prompt[:200]}...")
+            else:
+                logger.debug(f"Claude: Using default system prompt")
+
+            # Add optional parameters
+            if temperature is not None:
+                create_params["temperature"] = temperature
+            else:
+                create_params["temperature"] = self._config.default_temperature
+
+            if top_p is not None:
+                create_params["top_p"] = top_p
+            if top_k is not None:
+                create_params["top_k"] = top_k
+            if stop_sequences is not None:
+                create_params["stop_sequences"] = stop_sequences
+
+            message = self._client.messages.create(**create_params)
 
             # Extract token usage from response
             if hasattr(message, 'usage'):
@@ -231,6 +262,10 @@ class ClaudeProvider(AIProvider):
     def generate_json(
         self,
         prompt: str,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
         prompt_name: Optional[str] = None,
         prompt_version: str = "1.0",
         **kwargs
@@ -242,9 +277,13 @@ class ClaudeProvider(AIProvider):
 
         Args:
             prompt: The input prompt
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
             prompt_name: Name of the prompt for analytics (optional)
             prompt_version: Version of the prompt (default: "1.0")
-            **kwargs: Additional parameters
+            **kwargs: Additional parameters (system, etc.)
 
         Returns:
             Parsed JSON dictionary
@@ -260,10 +299,11 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
         try:
             response_text = self.generate_text(
                 json_prompt,
-                max_tokens=kwargs.get('max_tokens', self._config.default_max_tokens),
-                temperature=kwargs.get('temperature', 0.3),  # Lower temp for JSON
-                system_prompt=kwargs.get('system_prompt',
-                    "You are a helpful assistant that responds only with valid JSON."),
+                max_tokens=max_tokens or self._config.default_max_tokens,
+                temperature=temperature if temperature is not None else 0.3,  # Lower temp for JSON
+                top_p=top_p,
+                top_k=top_k,
+                system=kwargs.get('system', "You are a helpful assistant that responds only with valid JSON."),
                 prompt_name=prompt_name,
                 prompt_version=prompt_version
             )
@@ -289,28 +329,32 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown code blocks, no explanation
             logger.error(f"Claude generate_json error: {e}")
             raise
 
-    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def generate_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
         """
         Generate embeddings for texts.
-        
+
         Claude doesn't have native embeddings, so we use sentence-transformers
         as a fallback.
 
         Args:
             texts: List of text strings to embed
+            **kwargs: Additional parameters (model_name, etc.)
 
         Returns:
             List of embedding vectors
         """
         try:
             from sentence_transformers import SentenceTransformer
-            
+
+            # Allow custom model via kwargs
+            model_name = kwargs.get('model', 'all-MiniLM-L6-v2')
+
             if not hasattr(self, '_embedding_model'):
-                self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Loaded sentence-transformers for Claude embeddings fallback")
-            
+                self._embedding_model = SentenceTransformer(model_name)
+                logger.info(f"Loaded sentence-transformers ({model_name}) for Claude embeddings fallback")
+
             return [self._embedding_model.encode(text).tolist() for text in texts]
-            
+
         except ImportError:
             raise NotImplementedError(
                 "Claude doesn't support native embeddings. "
