@@ -2,7 +2,7 @@
 # Overrides prompt template defaults when needed
 
 # Task-specific overrides (optional - prompts have their own defaults)
-task_overrides:
+task_overrides: {}
   # Example: Force thesis_analysis to use Gemini instead of Claude
   # thesis_analysis:
   #   provider: gemini

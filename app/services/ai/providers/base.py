@@ -32,6 +32,9 @@ class AIProvider(ABC):
         prompt: str,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        stop_sequences: Optional[List[str]] = None,
         **kwargs
     ) -> str:
         """
@@ -40,8 +43,11 @@ class AIProvider(ABC):
         Args:
             prompt: The input prompt
             max_tokens: Maximum tokens to generate (provider default if None)
-            temperature: Sampling temperature 0-1 (lower = more deterministic)
-            **kwargs: Provider-specific parameters
+            temperature: Sampling temperature 0.0-2.0 (lower = more deterministic)
+            top_p: Nucleus sampling threshold 0.0-1.0
+            top_k: Limits token selection pool
+            stop_sequences: List of strings to stop generation
+            **kwargs: Provider-specific parameters (safety_settings, thinking, system, etc.)
 
         Returns:
             Generated text response
@@ -56,6 +62,10 @@ class AIProvider(ABC):
     def generate_json(
         self,
         prompt: str,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -66,7 +76,11 @@ class AIProvider(ABC):
 
         Args:
             prompt: The input prompt (should request JSON output)
-            **kwargs: Provider-specific parameters
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature 0.0-2.0
+            top_p: Nucleus sampling threshold 0.0-1.0
+            top_k: Limits token selection pool
+            **kwargs: Provider-specific parameters (schema, etc.)
 
         Returns:
             Parsed JSON as dictionary
@@ -79,12 +93,13 @@ class AIProvider(ABC):
         pass
 
     @abstractmethod
-    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def generate_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
         """
         Generate vector embeddings for semantic similarity.
 
         Args:
             texts: List of text strings to embed
+            **kwargs: Provider-specific parameters
 
         Returns:
             List of embedding vectors (one per input text)

@@ -213,7 +213,25 @@ function updateStepConfig(stepIndex, stepType, existingConfig = {}) {
 }
 
 function removeStep(stepIndex) {
-    document.querySelector(`.step-item[data-step-index="${stepIndex}"]`).remove();
+    const step = document.querySelector(`.step-item[data-step-index="${stepIndex}"]`);
+
+    // Check if this is the Investment Thesis step
+    const stepTypeInput = step.querySelector('input[name="step_type[]"]');
+    if (stepTypeInput && stepTypeInput.value === 'thesis_writing') {
+        const confirmed = confirm(
+            '⚠️ WARNING: The Investment Thesis step is highly recommended as the final step.\n\n' +
+            'This step creates Version 0 of your investment thesis, which is essential for:\n' +
+            '• Tracking thesis evolution over time\n' +
+            '• AI-powered thesis analysis\n' +
+            '• Decision quality improvement\n\n' +
+            'Are you sure you want to remove it?'
+        );
+        if (!confirmed) {
+            return; // User cancelled, don't remove
+        }
+    }
+
+    step.remove();
     renumberSteps();
 }
 
@@ -221,18 +239,36 @@ function moveStep(stepIndex, direction) {
     const steps = Array.from(document.querySelectorAll('.step-item'));
     const currentStep = document.querySelector(`.step-item[data-step-index="${stepIndex}"]`);
     const currentIndex = steps.indexOf(currentStep);
-    
-    if ((direction === -1 && currentIndex > 0) || 
+
+    // Check if moving Investment Thesis step away from last position
+    const stepTypeInput = currentStep.querySelector('input[name="step_type[]"]');
+    if (stepTypeInput && stepTypeInput.value === 'thesis_writing') {
+        const isLastStep = currentIndex === steps.length - 1;
+        const movingUp = direction === -1; // Moving up means away from last position
+
+        if (isLastStep && movingUp) {
+            const confirmed = confirm(
+                '⚠️ NOTICE: You are moving the Investment Thesis step away from the final position.\n\n' +
+                'It is recommended to keep this as the last step of your research workflow.\n\n' +
+                'Continue anyway?'
+            );
+            if (!confirmed) {
+                return; // User cancelled, don't move
+            }
+        }
+    }
+
+    if ((direction === -1 && currentIndex > 0) ||
         (direction === 1 && currentIndex < steps.length - 1)) {
         const swapIndex = currentIndex + direction;
         const swapStep = steps[swapIndex];
-        
+
         if (direction === -1) {
             currentStep.parentNode.insertBefore(currentStep, swapStep);
         } else {
             currentStep.parentNode.insertBefore(swapStep, currentStep);
         }
-        
+
         renumberSteps();
     }
 }

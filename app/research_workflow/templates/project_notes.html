@@ -9,10 +9,9 @@
         <small class="text-secondary">Template: {{ project.template.name }}</small>
     </div>
     <div>
-        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-            class="btn btn-platform-outline">
-            <i class="bi bi-arrow-left"></i> Back to Project
-        </a>
+        {% with btn_class='btn btn-platform-outline' %}
+        {% include 'components/smart_back_button.html' %}
+        {% endwith %}
     </div>
 </div>
 <div class="container-fluid">
@@ -40,7 +39,7 @@
                             </div>
                             {% else %}
                             <div class="research-notes">
-                                {{ note.notes|markdown|safe }}
+                                {{ note.notes|blocknote_to_html|safe }}
                             </div>
                             {% endif %}
                         </div>

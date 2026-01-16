@@ -16,10 +16,21 @@
             </div>
             <div class="return-value {% if position.annualized_return_pct >= 0 %}positive{% else %}negative{% endif %}">
                 {% if position.annualized_return_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.annualized_return_pct) }}%
+                {% if position.days_held < 365 %}
+                <span style="font-size: 0.7rem; opacity: 0.7; font-weight: normal;">*</span>
+                {% endif %}
             </div>
             {% if position.days_held >= 30 %}
             <div class="return-sublabel">
                 {{ "%.1f"|format(position.actual_return_pct) }}% total
+                {% if position.days_held < 365 %}
+                <span style="font-size: 0.7rem; opacity: 0.8;">({{ position.days_held }} days)</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if position.days_held < 365 %}
+            <div class="return-sublabel" style="font-size: 0.65rem; opacity: 0.7; margin-top: 2px;">
+                * Annualized projection
             </div>
             {% endif %}
         </div>

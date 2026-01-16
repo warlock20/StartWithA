@@ -15,6 +15,7 @@ import json
 from typing import Dict, Any, Optional
 
 from app.services.ai import ClaudeProvider, GeminiProvider
+from app.services.ai.config import AIModel
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +43,11 @@ class IntelligenceService:
             )
 
         self.config = self._load_config(config_path)
-        self.prompts_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            'ai', 'prompts', 'intelligence'
+
+        # Base prompts directory - supports subdirectories for different categories
+        self.prompts_base_dir = os.path.join(
+            os.path.dirname(__file__),
+            'prompts'
         )
 
         # Initialize provider registry
@@ -52,48 +55,89 @@ class IntelligenceService:
 
     def _load_config(self, config_path: str) -> Dict:
         """Load routing configuration from YAML"""
+        default_config = {'task_overrides': {}, 'providers': {}, 'settings': {}}
+
         try:
             with open(config_path, 'r') as f:
-                return yaml.safe_load(f)
+                config = yaml.safe_load(f)
+
+            # Handle empty/None YAML files
+            if config is None:
+                logger.warning(f"AI routing config is empty, using defaults")
+                return default_config
+
+            return config
         except Exception as e:
             logger.error(f"Failed to load AI routing config: {e}")
-            return {'task_overrides': {}, 'providers': {}, 'settings': {}}
+            return default_config
 
     def _init_provider_registry(self):
-        """Initialize provider registry with all available providers"""
+        """
+        Initialize provider registry.
+
+        Note: Providers are now cached by model (e.g., 'gemini:gemini-2.5-flash')
+        and created on-demand in _get_provider() to respect per-task model configs.
+
+        This method checks API key availability but doesn't pre-create providers.
+        """
         self.provider_registry = {}
 
-        # Initialize each provider if API key is available
+        # Store available providers (those with API keys)
+        self.available_providers = set()
+
+        # Safety check
+        if self.config is None:
+            logger.error("Cannot initialize providers: config is None")
+            return
+
+        # Check which providers have API keys available
         for provider_name, provider_config in self.config.get('providers', {}).items():
             api_key_env = provider_config.get('api_key_env')
             api_key = os.getenv(api_key_env)
 
-            if not api_key:
-                logger.warning(f"{provider_name} API key not found ({api_key_env})")
-                continue
-
-            try:
-                if provider_name == 'claude':
-                    self.provider_registry['claude'] = ClaudeProvider(api_key=api_key)
-                    logger.info(f"✓ Claude provider initialized")
-                elif provider_name == 'gemini':
-                    self.provider_registry['gemini'] = GeminiProvider(api_key=api_key)
-                    logger.info(f"✓ Gemini provider initialized")
-                else:
-                    logger.warning(f"Unknown provider: {provider_name}")
-
-            except Exception as e:
-                logger.error(f"Failed to initialize {provider_name}: {e}")
+            if api_key:
+                self.available_providers.add(provider_name)
+                logger.info(f"✓ {provider_name} API key found, provider available")
+            else:
+                logger.warning(f"✗ {provider_name} API key not found ({api_key_env})")
 
     def _load_prompt_template(self, template_name: str) -> Dict:
-        """Load prompt template from YAML"""
-        template_path = os.path.join(self.prompts_dir, f"{template_name}.yaml")
-        try:
-            with open(template_path, 'r') as f:
-                return yaml.safe_load(f)
-        except Exception as e:
-            logger.error(f"Failed to load prompt template {template_name}: {e}")
-            raise
+        """
+        Load prompt template from YAML.
+
+        Searches in multiple subdirectories:
+        - prompts/portfolio/ (portfolio-specific prompts)
+        - prompts/intelligence/ (general intelligence prompts)
+
+        Args:
+            template_name: Name of template (with or without .yaml extension)
+
+        Returns:
+            Loaded template dict
+        """
+        # Remove .yaml extension if provided
+        if template_name.endswith('.yaml'):
+            template_name = template_name[:-5]
+
+        # Search in subdirectories
+        search_dirs = ['portfolio', 'intelligence']
+
+        for subdir in search_dirs:
+            template_path = os.path.join(self.prompts_base_dir, subdir, f"{template_name}.yaml")
+            if os.path.exists(template_path):
+                try:
+                    with open(template_path, 'r') as f:
+                        template = yaml.safe_load(f)
+                        logger.info(f"Loaded template '{template_name}' from {subdir}/")
+                        return template
+                except Exception as e:
+                    logger.error(f"Failed to load template {template_name} from {template_path}: {e}")
+                    continue
+
+        # Template not found in any directory
+        raise FileNotFoundError(
+            f"Prompt template '{template_name}' not found in: {', '.join(search_dirs)}"
+        )
 
     def _get_task_config(self, template_name: str, template: Dict) -> Dict:
         """
@@ -106,15 +150,27 @@ class IntelligenceService:
             'provider': template.get('preferred_provider', 'gemini'),
             'model': template.get('model'),
             'max_tokens': template.get('max_tokens', 2000),
-            'temperature': template.get('temperature', 0.7)
+            'temperature': template.get('temperature', 0.7),
+            'output_schema': template.get('response_schema') or None,
+            'system_context': template.get('system_context'),
         }
 
+        # Log system_context extraction
+        system_ctx = template.get('system_context')
+        logger.info(f"IntelligenceService: Extracted system_context from template '{template_name}': {system_ctx is not None} (length: {len(system_ctx) if system_ctx else 0} chars)")
+
         # Apply overrides from ai_routing.yaml if they exist
-        task_overrides = self.config.get('task_overrides', {}).get(template_name, {})
+        # Safety check: handle None config or None task_overrides
+        if self.config is None:
+            logger.warning("AI routing config is None, using template defaults only")
+            return config
+
+        # Handle case where task_overrides exists but is None (empty YAML section)
+        task_overrides_dict = self.config.get('task_overrides') or {}
+        task_overrides = task_overrides_dict.get(template_name, {})
         if task_overrides:
             logger.info(f"Applying config overrides for {template_name}: {task_overrides}")
             config.update(task_overrides)
-
         return config
 
     def _format_prompt(self, template: Dict, variables: Dict[str, Any]) -> str:
@@ -132,45 +188,69 @@ class IntelligenceService:
 
         return prompt_text
 
-    def _get_provider(self, provider_name: str) -> Any:
+    def _get_provider(self, provider_name: str, model_name: Optional[str] = None) -> Any:
         """
-        Get provider from registry with automatic fallback
+        Get provider from registry with model-specific caching.
+
+        Providers are cached by "provider:model" key (e.g., "gemini:gemini-2.5-flash").
+        This allows different tasks to use different models from the same provider.
 
         Args:
-            provider_name: Name of preferred provider
+            provider_name: Name of provider (e.g., 'gemini', 'claude')
+            model_name: Model to use (e.g., 'gemini-2.5-flash'). If None, uses default.
 
         Returns:
-            Provider instance
+            Provider instance configured for the specified model
 
         Raises:
             RuntimeError: If no providers available
         """
-        # Try preferred provider first
-        if provider_name in self.provider_registry:
-            provider = self.provider_registry[provider_name]
-            if provider.is_available():
-                return provider
+        # Check if provider API key is available
+        if provider_name not in self.available_providers:
+            # Try fallback
+            if self.config.get('settings', {}).get('enable_fallback', True):
+                fallback = self.config.get('settings', {}).get('default_fallback', 'gemini')
+                if fallback != provider_name and fallback in self.available_providers:
+                    logger.info(f"Provider {provider_name} not available, using fallback: {fallback}")
+                    provider_name = fallback
+                else:
+                    raise RuntimeError(f"Provider {provider_name} not available and no fallback found")
             else:
-                logger.warning(f"{provider_name} not available, trying fallback")
+                raise RuntimeError(f"Provider {provider_name} not available")
 
-        # Try fallback if enabled
-        if self.config.get('settings', {}).get('enable_fallback', True):
-            fallback = self.config.get('settings', {}).get('default_fallback', 'gemini')
+        # Convert model string to AIModel enum
+        model_enum = AIModel.from_string(model_name) if model_name else None
 
-            if fallback != provider_name and fallback in self.provider_registry:
-                logger.info(f"Using fallback provider: {fallback}")
-                provider = self.provider_registry[fallback]
-                if provider.is_available():
-                    return provider
+        # Build cache key: "provider:model_id"
+        cache_key = f"{provider_name}:{model_enum.model_id if model_enum else 'default'}"
 
-        # No providers available
-        available = [name for name, p in self.provider_registry.items() if p.is_available()]
-        raise RuntimeError(
-            f"No available AI provider. Requested: {provider_name}, "
-            f"Available: {available or 'none'}"
-        )
+        # Check if we already have this provider+model cached
+        if cache_key in self.provider_registry:
+            logger.debug(f"Using cached provider: {cache_key}")
+            return self.provider_registry[cache_key]
 
-    def _call_provider(self, provider: Any, prompt: str, config: Dict) -> str:
+        # Create new provider instance with specified model
+        logger.info(f"Creating new provider instance: {cache_key}")
+
+        try:
+            if provider_name == 'gemini':
+                provider = GeminiProvider(model=model_enum)
+            elif provider_name == 'claude':
+                provider = ClaudeProvider(model=model_enum)
+            else:
+                raise RuntimeError(f"Unknown provider: {provider_name}")
+
+            # Cache it for future use
+            self.provider_registry[cache_key] = provider
+            logger.info(f"✓ Provider created and cached: {cache_key}")
+
+            return provider
+
+        except Exception as e:
+            logger.error(f"Failed to create provider {cache_key}: {e}")
+            raise RuntimeError(f"Failed to create provider {provider_name}: {e}")
+
+    def _call_provider_to_generate_text(self, provider: Any, prompt: str, config: Dict) -> str:
         """
         Call AI provider generically - NO hardcoded provider logic!
 
@@ -187,6 +267,38 @@ class IntelligenceService:
             max_tokens=config.get('max_tokens'),
             temperature=config.get('temperature')
         )
+    
+    def _call_provider_to_generate_json(self, provider: Any, prompt: str, config: Dict) -> json:
+        """
+        Call AI provider generically - NO hardcoded provider logic!
+
+        Args:
+            provider: The provider instance (ClaudeProvider or GeminiProvider)
+            prompt: Formatted prompt json
+            config: Config dict with model, max_tokens, temperature, system_context
+
+        Returns:
+            Generated json response
+        """
+        # Build kwargs for provider
+        kwargs = {
+            'max_tokens': config.get('max_tokens'),
+            'temperature': config.get('temperature'),
+            'schema': config.get('output_schema'),
+        }
+
+        # Add system context if available (both Gemini and Claude support this)
+        system_ctx = config.get('system_context')
+        logger.info(f"IntelligenceService._call_provider_to_generate_json: system_context in config: {system_ctx is not None} (length: {len(system_ctx) if system_ctx else 0} chars)")
+
+        if system_ctx:
+            # For Gemini: system_instruction
+            # For Claude: system
+            # Pass as 'system' - providers will handle their own parameter name
+            kwargs['system'] = system_ctx
+            logger.info(f"IntelligenceService: Added system_context to kwargs (keys: {list(kwargs.keys())})")
+
+        return provider.generate_json(prompt=prompt, **kwargs)
 
     def _parse_response(self, response_text: str, template: Dict) -> Any:
         """
@@ -200,10 +312,33 @@ class IntelligenceService:
         # Check if JSON output is expected
         if '{' in output_format and '}' in output_format:
             try:
+                # Strip markdown code fences if present (Gemini often wraps JSON in ```json ... ```)
+                cleaned_text = response_text.strip()
+
+                logger.info(f"Original response starts with: {cleaned_text[:50]}")
+                logger.info(f"Original response ends with: {cleaned_text[-50:]}")
+
+                if cleaned_text.startswith('```'):
+                    # Find the first newline after opening fence
+                    first_newline = cleaned_text.find('\n')
+                    # Find the closing fence
+                    last_fence = cleaned_text.rfind('```')
+                    logger.info(f"Found fence markers: first_newline={first_newline}, last_fence={last_fence}")
+                    if first_newline > 0 and last_fence > first_newline:
+                        cleaned_text = cleaned_text[first_newline + 1:last_fence].strip()
+                        logger.info(f"Stripped fences, new length: {len(cleaned_text)}")
+
                 # Try to parse as JSON
-                return json.loads(response_text)
-            except json.JSONDecodeError:
-                logger.warning("Expected JSON output but parsing failed, returning raw text")
+                logger.info(f"Attempting to parse JSON (length: {len(cleaned_text)} chars)")
+                logger.info(f"First 200 chars: {cleaned_text[:200]}")
+                logger.info(f"Last 200 chars: {cleaned_text[-200:]}")
+                parsed = json.loads(cleaned_text)
+                logger.info(f"✓ JSON parsed successfully, keys: {list(parsed.keys())}")
+                return parsed
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed at position {e.pos}: {e.msg}")
+                logger.error(f"Context around error: {cleaned_text[max(0, e.pos-100):e.pos+100]}")
+                logger.warning(f"Expected JSON output but parsing failed: {e}, returning raw text")
                 # Return in dict format for consistency
                 return {'response': response_text}
 
@@ -262,12 +397,12 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
 
         prompt = self._format_prompt(template, variables)
 
-        # 5. Get provider (generic!)
-        provider = self._get_provider(config['provider'])
+        # 5. Get provider with specific model (generic!)
+        provider = self._get_provider(config['provider'], config.get('model'))
 
         # 6. Call provider (generic!)
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         # 7. Parse response
         return self._parse_response(response, template)
@@ -295,10 +430,10 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
         }
 
         prompt = self._format_prompt(template, variables)
-        provider = self._get_provider(config['provider'])
+        provider = self._get_provider(config['provider'], config.get('model'))
 
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         return self._parse_response(response, template)
 
@@ -324,10 +459,10 @@ HISTORICAL CONTEXT FROM USER'S PAST INVESTMENTS:
         }
 
         prompt = self._format_prompt(template, variables)
-        provider = self._get_provider(config['provider'])
+        provider = self._get_provider(config['provider'], config.get('model'))
 
         logger.info(f"Calling {config['provider']} for {template_name}")
-        response = self._call_provider(provider, prompt, config)
+        response = self._call_provider_to_generate_text(provider, prompt, config)
 
         result = self._parse_response(response, template)
         return result.get('response', response) if isinstance(result, dict) else result

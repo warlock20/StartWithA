@@ -21,7 +21,7 @@ def create_app(config_class=Config):
     # Configure logging
     import logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     app.logger.setLevel(logging.INFO)
@@ -31,7 +31,11 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     cache.init_app(app)
 
-    celery.conf.update(app.config)
+    # Configure Celery with Flask app config
+    celery.conf.update(
+        broker_url=app.config['CELERY_BROKER_URL'],
+        result_backend=app.config['CELERY_RESULT_BACKEND'],
+    )
 
     # Initialize Flask-Admin
     from app.admin import init_admin

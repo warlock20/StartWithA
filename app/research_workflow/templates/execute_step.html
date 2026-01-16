@@ -127,7 +127,7 @@
                 </div>
                 <div class="card-body text-center">
                     <h2 id="timer">00:00:00</h2>
-                    <small class="text-muted">Started: {{ session.start_time.strftime('%H:%M') }}</small>
+                    <small class="text-muted" id="start-time-display">Started: <span id="start-time">{{ session.start_time.strftime('%H:%M') }}</span></small>
                 </div>
             </div>
 
@@ -206,6 +206,14 @@
 
     // Initialize timer (simplified - no server sync)
     function initializeTimer() {
+        // Update the displayed start time to match the timer calculation
+        const startTimeDisplay = document.getElementById('start-time');
+        if (startTimeDisplay) {
+            const hours = startTimeUTC.getHours();
+            const minutes = startTimeUTC.getMinutes();
+            startTimeDisplay.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
         updateTimer(); // Initial update
         setInterval(updateTimer, 1000); // Update every second
     }

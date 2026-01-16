@@ -180,6 +180,44 @@
     color: #4338ca;
 }
 
+/* Priority Card Children (used in decision journal stats) */
+.priority-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(145deg, #ffffff, #f9fafb);
+}
+
+.priority-card .card-header i {
+    font-size: 1.25rem;
+    color: #6b7280;
+}
+
+.priority-card .card-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.priority-card .card-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #111827;
+    padding: 1.5rem 1.25rem 1rem;
+    line-height: 1;
+}
+
+.priority-card .card-footer {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    padding: 0 1.25rem 1.25rem;
+    font-weight: 500;
+}
+
 /* Investment Discipline Banner */
 .discipline-banner {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

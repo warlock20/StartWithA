@@ -8,6 +8,7 @@ from flask import jsonify, request
 from flask_login import current_user, login_required
 from app.models import (ResearchTemplate, ResearchProject, Company, BackgroundTask)
 from app.research_workflow import research_workflow_bp
+from app.services.background_tasks import BackgroundTaskService
 from app.services.adaptive_template_service import (
     suggest_template_adaptations,
     apply_template_adaptations,
@@ -256,8 +257,6 @@ def get_project_adaptive_suggestions(project_id):
 def get_background_task_status(task_id):
     """Get status of a background task"""
     try:
-        from app.services.background_tasks import BackgroundTaskService
-
         status = BackgroundTaskService.get_task_status(task_id)
         if not status:
             return jsonify({'success': False, 'error': 'Task not found'}), 404

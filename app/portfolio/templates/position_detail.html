@@ -61,24 +61,24 @@
 
     <!-- Position Overview Cards -->
     <div class="row mb-4">
-        <div class="col-md-2">
-            <div class="card">
+        <div class="col-md-2 d-flex">
+            <div class="card h-100 w-100">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Shares Owned</h6>
                     <h4 class="card-title mb-0">{{ position.total_shares }}</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card">
+        <div class="col-md-2 d-flex">
+            <div class="card h-100 w-100">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Avg Cost Basis</h6>
                     <h4 class="card-title mb-0">${{ "%.2f"|format(position.average_cost_basis) }}</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card">
+        <div class="col-md-2 d-flex">
+            <div class="card h-100 w-100">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Current Price</h6>
                     <h4 class="card-title mb-0">
@@ -94,8 +94,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-md-3 d-flex">
+            <div class="card h-100 w-100">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
                     <h4 class="card-title mb-0">
@@ -109,9 +109,9 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 d-flex">
             <div
-                class="card {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}border-success{% else %}border-danger{% endif %}{% endif %}">
+                class="card h-100 w-100 {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}border-success{% else %}border-danger{% endif %}{% endif %}">
                 <div class="card-body">
                     <h6 class="card-subtitle mb-2 text-muted">Unrealized Gain/Loss</h6>
                     <h4
@@ -328,7 +328,7 @@
                 <div class="card-body">
                     <p class="mb-3">Research project created on {{ research_project.created_at.strftime('%Y-%m-%d') }}
                     </p>
-                    <a href="{{ url_for('research_workflow.view_project', project_id=research_project.id) }}"
+                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}"
                         class="btn btn-outline-primary w-100">
                         View Research Project
                     </a>

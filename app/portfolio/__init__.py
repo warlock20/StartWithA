@@ -5,4 +5,5 @@ portfolio_bp = Blueprint('portfolio',
                          template_folder='templates',
                          url_prefix='/portfolio')
 
-from app.portfolio import routes
+from app.portfolio import (api_routes, routes, transactions,
+                           portfolio_journal,checkpoint)

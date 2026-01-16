@@ -1,0 +1,185 @@
+# AI Intelligence - Portfolio Raw Trade Analysis
+# Analyzes raw transaction history to identify behavioral patterns, tax optimization, FOMO, and investor evolution
+
+name: "portfolio_raw_trade_analysis"
+description: "Deep behavioral analysis from raw transactions with tax context, FOMO detection, and evolution tracking"
+version: "1.0"
+category: "portfolio"
+
+preferred_provider: "gemini"
+model: "gemini-flash-latest"
+#model: "gemini-3-flash"
+#model: "gemini-3-pro-preview"
+#model: "gemini-3-pro"
+max_tokens: 20000
+temperature: 0.3
+
+last_modified: "2025-01-09"
+
+system_context: |
+  You are an expert behavioral finance analyst specializing in investor psychology and trading patterns.
+  You analyze raw transaction histories to identify:
+  - Behavioral biases (FOMO, disposition effect, recency bias)
+  - Investor skill development and evolution over time
+  Focus on actionable insights that help investors improve their decision-making.
+
+
+template: |
+  You're analyzing an investor's trading history to identify behavioral patterns and help them improve.
+
+   **CRITICAL ANALYSIS INSTRUCTIONS:**
+
+  1. Analyze Position Sizing & Recovery: - Do NOT judge a trade solely by the first entry price. 
+     - Check if the investor "Averaged Down" successfully. Did they buy *more* shares at the bottom than they did at the top? 
+     - If they bought 5 shares at $100 and 100 shares at $10, their average is ~$14. An exit at $20 is a HUGE win, even though the $100 entry was bad. 
+     - **Identify "Redemption Arcs":** Trades that started as losses but were managed into profits via aggressive accumulation at lows.
+
+  2. Distinguish "Falling Knife" from "Value Investing":
+     - "Falling Knife" = Buying small amounts all the way down and selling at the bottom (Capitulation).
+     - "Value Investing" = Buying small amounts down, buying HEAVY at the bottom, and holding for the recovery (Conviction).
+
+  3. Data Handling:
+     - If a buy price is "N/A", infer it from the market context of that date or treat it as a low-cost accumulation (possibly 0 if a spin-off, or market price if a transfer).
+     - Calculate the *implied* outcome based on the Weighted Average Cost Basis (WACB).
+
+  4. MOST IMPORTANT: First idenfity whether user is a values investor or a momentum trader.
+     - Values investors will have different behavioral patterns than momentum traders.
+     - Tailor your analysis accordingly.   
+
+  Background:
+  - Tax residence: Germany #{tax_residence}
+  - Period covered: {analysis_period}
+  - Number of trades: {transaction_count}
+  - Tickers are in yahoo finance format
+
+  Trading History:
+  {transactions_text}
+  
+  NOTE: Consider tax implications of trades in Germany when analyzing behavior. For example, instant selling and buying the same asset may indicate tax-loss harvesting.
+  
+  Please analyze this investor's behavior and provide insights on three key areas:
+
+  First, look for behavioral patterns. Are there signs of FOMO (chasing momentum, buying after sharp rises)?
+  Do they show disposition effect (holding losers too long while selling winners early)?
+  Any recency bias or overconfidence? Have their decisions improved or gotten worse over time?
+
+  **For each pattern, assign a severity level:**
+  - "high": Major financial impact (>20% portfolio loss, or pattern affecting majority of trades), requires urgent attention
+  - "medium": Moderate concern (10-20% impact, or affects several trades), should be addressed
+  - "low": Minor issue (<10% impact, or isolated incidents), monitor and be aware
+
+  Second, track their evolution as an investor. How has their behavior changed across different time periods?
+  Are they holding positions longer or shorter? Making more impulsive decisions or being more disciplined?
+  What have they learned and what mistakes keep repeating? 
+  What is the CAGR of their portfolio over time? Here you need to be careful with your calculations. 
+  The primary goal is to identify quality of decision-making over time in terms of returns.In the final phase, 
+  the investor is still invested, and is too early to conclude something.
+
+  Third, analyze FOMO specifically. Which trades look like FOMO-driven decisions?
+  What triggered these impulses - news, price spikes, or something else?
+  How did these trades turn out? We need to be bit careful here as well, because some FOMO trades can be profitable. 
+  To determine FOMO, look for trends during the time of purchase, like social media buzzes, youtube videos relesased during the time of purchase,
+  influencer endorsements, trend during that time, etc.
+
+  Respond with a JSON object containing your analysis. Use natural, conversational descriptions.
+  When giving examples of specific trades, describe them in your own words rather than copying the format above.
+ 
+response_schema:
+ {
+  "type": "OBJECT",
+  "properties": {
+    "investor_behavior_analysis": {
+      "type": "OBJECT",
+      "properties": {
+        "summary": {
+          "type": "STRING",
+          "description": "Executive summary of the investor's psychology (e.g., Disposition Effect, FOMO)."
+        },
+        "key_findings": {
+          "type": "ARRAY",
+          "description": "High-level observations about strategy fragmentation or risk.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "finding_type": { "type": "STRING" },
+              "description": { "type": "STRING" }
+            }
+          }
+        },
+        "behavioral_patterns": {
+          "type": "ARRAY",
+          "description": "Detailed psychological patterns observed (e.g., Recency Bias, Overtrading).",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "pattern_name": { "type": "STRING" },
+              "description": { "type": "STRING" },
+              "severity": {
+                "type": "STRING",
+                "description": "Impact severity: 'high' (major financial impact, requires urgent attention), 'medium' (moderate concern, should address), 'low' (minor issue, monitor).",
+                "enum": ["high", "medium", "low"]
+              },
+              "examples": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" },
+                "description": "Specific trade examples supporting this pattern."
+              },
+              "counter_examples": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" },
+                "description": "Instances where the investor defied this pattern (optional)."
+              }
+            },
+            "required": ["pattern_name", "description", "severity", "examples"]
+          }
+        },
+        "evolution_timeline": {
+          "type": "ARRAY",
+          "description": "Chronological analysis of how the trading style changed year over year.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "period": { "type": "STRING", "description": "The years covered (e.g., 2021-2022)." },
+              "phase_name": { "type": "STRING", "description": "Short title for the phase." },
+              "analysis": { "type": "STRING", "description": "Detailed description of behavior during this period." }
+            },
+            "required": ["period", "phase_name", "analysis"]
+          }
+        },
+        "evolution_metadata": {
+          "type": "OBJECT",
+          "properties": {
+            "repeating_mistakes": {
+              "type": "ARRAY",
+              "items": { "type": "STRING" }
+            }
+          }
+        },
+        "fomo_analysis": {
+          "type": "OBJECT",
+          "properties": {
+            "definition": { "type": "STRING" },
+            "fomo_trades": {
+              "type": "ARRAY",
+              "description": "Specific trades identified as FOMO-driven.",
+              "items": {
+                "type": "OBJECT",
+                "properties": {
+                  "ticker": { "type": "STRING" },
+                  "date": { "type": "STRING" },
+                  "action": { "type": "STRING" },
+                  "trigger": { "type": "STRING", "description": "Psychological trigger (e.g., momentum, news)." },
+                  "outcome": { "type": "STRING", "description": "Financial result or lesson learned." }
+                },
+                "required": ["ticker", "action", "outcome"]
+              }
+            }
+          },
+          "required": ["fomo_trades"]
+        }
+      },
+      "required": ["summary", "behavioral_patterns", "evolution_timeline", "fomo_analysis"]
+    }
+  }
+}
+

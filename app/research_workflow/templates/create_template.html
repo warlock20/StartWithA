@@ -229,7 +229,7 @@
                     </div>
                 </div>
                 <div class="step-actions-menu">
-                    <button type="button" class="btn btn-sm btn-ghost text-danger" onclick="removeStep(${stepIndex})" title="Delete">
+                    <button type="button" class="btn btn-sm btn-ghost text-danger" onclick="removeStep(this)" title="Delete">
                         <i class="bi bi-trash3"></i>
                     </button>
                 </div>
@@ -239,7 +239,17 @@
         <input type="hidden" name="step_config[]" id="step-config-data-${stepIndex}" value="{}">
     `;
 
-        container.appendChild(stepDiv);
+        // Insert new steps BEFORE the Investment Thesis step (which should always be last)
+        // Find the thesis_writing step
+        const thesisStep = container.querySelector('.workflow-step[data-step-type="thesis_writing"]');
+
+        if (thesisStep && type !== 'thesis_writing') {
+            // Insert before the thesis step to keep thesis as last step
+            container.insertBefore(stepDiv, thesisStep);
+        } else {
+            // No thesis step yet, or we're adding the thesis step itself
+            container.appendChild(stepDiv);
+        }
 
         // Add drag and drop event listeners
         setupDragAndDrop(stepDiv);
@@ -291,6 +301,24 @@
         element.addEventListener('drop', function (e) {
             e.preventDefault();
             if (draggedElement === this) return;
+
+            // Check if trying to move Investment Thesis step away from last position
+            if (draggedElement.dataset.stepType === 'thesis_writing') {
+                const allSteps = Array.from(document.querySelectorAll('.workflow-step'));
+                const currentIndex = allSteps.indexOf(draggedElement);
+                const isLastStep = currentIndex === allSteps.length - 1;
+
+                if (isLastStep) {
+                    const confirmed = confirm(
+                        '⚠️ NOTICE: You are moving the Investment Thesis step away from the final position.\n\n' +
+                        'It is recommended to keep this as the last step of your research workflow.\n\n' +
+                        'Continue anyway?'
+                    );
+                    if (!confirmed) {
+                        return; // Cancel the drop
+                    }
+                }
+            }
 
             const rect = this.getBoundingClientRect();
             const midpoint = rect.top + rect.height / 2;
@@ -352,9 +380,24 @@
         configDiv.innerHTML = configHtml;
     }
 
-    function removeStep(stepIndex) {
-        const step = document.querySelector(`.workflow-step[data-step-index="${stepIndex}"]`);
+    function removeStep(buttonElement) {
+        // Find the parent workflow-step element
+        const step = buttonElement.closest('.workflow-step');
         if (step) {
+            // Check if this is the Investment Thesis step
+            if (step.dataset.stepType === 'thesis_writing') {
+                const confirmed = confirm(
+                    '⚠️ WARNING: The Investment Thesis step is highly recommended as the final step.\n\n' +
+                    'This step creates Version 0 of your investment thesis, which is essential for:\n' +
+                    '• Tracking thesis evolution over time\n' +
+                    '• AI-powered thesis analysis\n' +
+                    '• Decision quality improvement\n\n' +
+                    'Are you sure you want to remove it?'
+                );
+                if (!confirmed) {
+                    return; // User cancelled, don't remove
+                }
+            }
             step.remove();
             updateStepNumbers();
         }
@@ -408,7 +451,16 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function () {
-        // Start with empty state to encourage user exploration
+        // Add default Investment Thesis step as the final step
+        addStep('Investment Thesis', 'thesis_writing');
+
+        // Mark this step as required (cannot be easily removed)
+        const thesisStep = document.querySelector('.workflow-step[data-step-type="thesis_writing"]');
+        if (thesisStep) {
+            thesisStep.classList.add('required-step');
+            thesisStep.setAttribute('data-required', 'true');
+        }
+
         updateStepNumbers();
 
         // Add event listener for investment style

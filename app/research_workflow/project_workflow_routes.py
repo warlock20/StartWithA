@@ -16,7 +16,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
-                       ChecklistAnalysis, ChecklistAnswer)
+                       ChecklistAnalysis, ChecklistAnswer, ThesisEvolution)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
@@ -92,9 +92,6 @@ def start_project():
         if idea and idea.user_id == current_user.id:
             project.idea = idea
             project.investment_thesis = idea.thesis_summary
-
-    # Update template usage count
-    template.times_used += 1
 
     try:
         db.session.add(project)
@@ -487,6 +484,29 @@ def complete_step(project_id):
             except (json.JSONDecodeError, TypeError):
                 # If not JSON, use as-is
                 project.investment_thesis = notes
+
+            # Create ThesisEvolution Version 0 (initial thesis from research)
+            # Check if version 0 already exists for this company
+            existing_v0 = ThesisEvolution.query.filter_by(
+                user_id=current_user.id,
+                company_id=project.company_id,
+                version=0
+            ).first()
+
+            if not existing_v0 and project.investment_thesis:
+                thesis_evolution = ThesisEvolution(
+                    user_id=current_user.id,
+                    company_id=project.company_id,
+                    version=0,
+                    thesis=project.investment_thesis,
+                    change_summary='Initial investment thesis from research project',
+                    change_trigger=f'Research project: {project.project_name}',
+                    conviction_level=project.decision_confidence,  # Set from research decision
+                    is_current=True,
+                    created_at=now_utc()
+                )
+                db.session.add(thesis_evolution)
+                logger.info(f"Created ThesisEvolution v0 for company {project.company_id} from research project {project.id}")
 
     # Update project progress
     project.last_worked_at = now_utc()

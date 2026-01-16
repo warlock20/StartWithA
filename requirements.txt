@@ -26,3 +26,4 @@ anthropic>=0.40.0
 scikit-learn
 sentence-transformers
 flask-admin
+openpyxl

@@ -105,7 +105,7 @@
                 <!-- Stats Row -->
                 <div class="research-template-stats">
                     <div class="template-stat-item">
-                        <div class="template-stat-value">{{ template.times_used }}</div>
+                        <div class="template-stat-value">{{ template.actual_times_used }}</div>
                         <div class="template-stat-label">
                             <i class="bi bi-repeat"></i> Uses
                         </div>
@@ -137,7 +137,7 @@
                    class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
-                {% if template.times_used == 0 %}
+                {% if template.actual_times_used == 0 %}
                 <form method="POST" action="{{ url_for('research_workflow.delete_template', template_id=template.id) }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger"
                             onclick="return confirm('Delete this template? This cannot be undone.');">
@@ -147,7 +147,7 @@
                 {% else %}
                 <form method="POST" action="{{ url_for('research_workflow.force_delete_template', template_id=template.id) }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger"
-                            onclick="return confirm('⚠️ FORCE DELETE?\n\nThis template has been used {{ template.times_used }} times. Deleting it will not affect existing projects, but this action cannot be undone.\n\nAre you sure?');">
+                            onclick="return confirm('⚠️ FORCE DELETE?\n\nThis template has been used {{ template.actual_times_used }} times. Deleting it will not affect existing projects, but this action cannot be undone.\n\nAre you sure?');">
                         <i class="bi bi-trash"></i> Delete
                     </button>
                 </form>

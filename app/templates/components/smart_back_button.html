@@ -14,9 +14,8 @@ Or with custom classes:
 </a>
 {% elif research_context and research_context.get('project_id') %}
 {# Fallback for pages using research_context #}
-<a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}"
-   class="{{ btn_class|default('btn btn-outline-secondary') }}">
-    <i class="bi bi-arrow-left"></i> Back to Research
+<a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="{{ btn_class|default('btn btn-outline-secondary') }}">
+    <i class="bi bi-arrow-left"></i> Back to Research Dashboard
 </a>
 {% else %}
 {# Ultimate fallback #}

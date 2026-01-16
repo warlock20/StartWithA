@@ -816,15 +816,15 @@ class IntelligenceEngine:
         outcomes = ResearchOutcome.query.filter(
             ResearchOutcome.user_id == self.user_id,
             ResearchOutcome.realized_return_pct.isnot(None),
-            ResearchOutcome.decision_confidence.isnot(None)
+            ResearchOutcome.confidence_at_entry.isnot(None)
         ).all()
 
         if len(outcomes) < min_trades:
             return None
 
         high_conf_outcomes = [
-            o for o in outcomes 
-            if o.decision_confidence >= high_confidence
+            o for o in outcomes
+            if o.confidence_at_entry >= high_confidence
         ]
 
         if len(high_conf_outcomes) < 3:

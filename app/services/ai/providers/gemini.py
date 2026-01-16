@@ -21,6 +21,7 @@ Usage:
 import json
 import logging
 from typing import Dict, List, Optional, Any
+import google.generativeai as genai
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
@@ -47,7 +48,6 @@ def _initialize_gemini():
         return _gemini_available
     
     try:
-        import google.generativeai as genai
         _genai = genai
         
         config = get_ai_config()
@@ -139,6 +139,9 @@ class GeminiProvider(AIProvider):
         prompt: str,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        stop_sequences: Optional[List[str]] = None,
         **kwargs
     ) -> str:
         """
@@ -147,8 +150,11 @@ class GeminiProvider(AIProvider):
         Args:
             prompt: The input prompt
             max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0-1)
-            **kwargs: Additional parameters (timeout, safety_settings)
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
+            stop_sequences: List of strings to stop generation
+            **kwargs: Gemini-specific parameters (safety_settings, etc.)
 
         Returns:
             Generated text response
@@ -166,21 +172,45 @@ class GeminiProvider(AIProvider):
                 generation_config['max_output_tokens'] = max_tokens
             if temperature is not None:
                 generation_config['temperature'] = temperature
-            
+            if top_p is not None:
+                generation_config['top_p'] = top_p
+            if top_k is not None:
+                generation_config['top_k'] = top_k
+            if stop_sequences is not None:
+                generation_config['stop_sequences'] = stop_sequences
+
             # Extract timeout if provided
             timeout = kwargs.pop('timeout', self._config.default_timeout)
             request_options = {"timeout": timeout}
-            
+
             # Get safety settings
             safety_settings = kwargs.pop('safety_settings', self._get_default_safety_settings())
-            
-            # Generate content
-            response = self._model.generate_content(
-                prompt,
-                generation_config=generation_config if generation_config else None,
-                safety_settings=safety_settings,
-                request_options=request_options
-            )
+
+            # Handle system context (Gemini uses system_instruction)
+            system_context = kwargs.get('system')
+            logger.info(f"Gemini TEXT: Checking system context - Found: {system_context is not None}, kwargs keys: {list(kwargs.keys())}")
+            if system_context:
+                logger.info(f"Gemini: Using system_instruction (length: {len(system_context)} chars)")
+                logger.debug(f"Gemini system_instruction: {system_context[:200]}...")
+                # Create model with system instruction
+                model_with_system = _genai.GenerativeModel(
+                    self._model_enum.model_id,
+                    system_instruction=system_context
+                )
+                response = model_with_system.generate_content(
+                    prompt,
+                    generation_config=generation_config if generation_config else None,
+                    safety_settings=safety_settings,
+                    request_options=request_options
+                )
+            else:
+                logger.debug("Gemini: No system_instruction provided")
+                response = self._model.generate_content(
+                    prompt,
+                    generation_config=generation_config if generation_config else None,
+                    safety_settings=safety_settings,
+                    request_options=request_options
+                )
 
             return self._process_response(response)
 
@@ -191,6 +221,11 @@ class GeminiProvider(AIProvider):
     def generate_json(
         self,
         prompt: str,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        schema: Optional[Dict] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -200,7 +235,12 @@ class GeminiProvider(AIProvider):
 
         Args:
             prompt: The input prompt
-            **kwargs: Additional parameters (timeout)
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (0.0-2.0)
+            top_p: Nucleus sampling threshold (0.0-1.0)
+            top_k: Limits token selection pool
+            schema: JSON schema for structured output (Gemini-specific)
+            **kwargs: Additional parameters (timeout, safety_settings)
 
         Returns:
             Parsed JSON dictionary
@@ -209,19 +249,51 @@ class GeminiProvider(AIProvider):
             raise RuntimeError("Gemini provider is not available")
 
         try:
-            # Use JSON response mode
-            generation_config = _genai.types.GenerationConfig(
-                response_mime_type="application/json"
-            )
-            
+            # Build generation config with JSON mode
+            config_dict = {
+                "response_mime_type": "application/json"
+            }
+
+            if schema:
+                config_dict["response_schema"] = schema
+            if max_tokens is not None:
+                config_dict["max_output_tokens"] = max_tokens
+            if temperature is not None:
+                config_dict["temperature"] = temperature
+            if top_p is not None:
+                config_dict["top_p"] = top_p
+            if top_k is not None:
+                config_dict["top_k"] = top_k
+
+            generation_config = _genai.types.GenerationConfig(**config_dict)
+
             timeout = kwargs.get('timeout', self._config.default_timeout)
             request_options = {"timeout": timeout}
 
-            response = self._model.generate_content(
-                prompt,
-                generation_config=generation_config,
-                request_options=request_options
-            )
+            # Handle system context (Gemini uses system_instruction)
+            # If system context is provided, create a new model instance with it
+            system_context = kwargs.get('system')
+            logger.info(f"Gemini JSON: Checking system context - Found: {system_context is not None}, kwargs keys: {list(kwargs.keys())}")
+            if system_context:
+                logger.info(f"Gemini JSON: Using system_instruction (length: {len(system_context)} chars)")
+                logger.info(f"Gemini JSON system_instruction: {system_context[:200]}...")
+                # Create model with system instruction
+                model_with_system = _genai.GenerativeModel(
+                    self._model_enum.model_id,
+                    system_instruction=system_context
+                )
+                response = model_with_system.generate_content(
+                    prompt,
+                    generation_config=generation_config,
+                    request_options=request_options
+                )
+            else:
+                logger.info("Gemini JSON: No system_instruction provided")
+                response = self._model.generate_content(
+                    prompt,
+                    generation_config=generation_config,
+                    request_options=request_options
+                )
 
             content = response.text
             if not content:
@@ -237,12 +309,13 @@ class GeminiProvider(AIProvider):
             logger.error(f"Gemini generate_json error: {e}")
             raise
 
-    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def generate_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
         """
         Generate embeddings using Gemini embedding model.
 
         Args:
             texts: List of text strings to embed
+            **kwargs: Additional parameters (task_type, model, etc.)
 
         Returns:
             List of embedding vectors
@@ -251,12 +324,16 @@ class GeminiProvider(AIProvider):
             raise RuntimeError("Gemini provider is not available")
 
         try:
+            # Extract optional parameters
+            task_type = kwargs.get('task_type', 'retrieval_document')
+            embedding_model = kwargs.get('model', 'models/embedding-001')
+
             embeddings = []
             for text in texts:
                 result = _genai.embed_content(
-                    model="models/embedding-001",
+                    model=embedding_model,
                     content=text,
-                    task_type="retrieval_document"
+                    task_type=task_type
                 )
                 embeddings.append(result['embedding'])
 
@@ -290,9 +367,11 @@ class GeminiProvider(AIProvider):
     def _get_default_safety_settings(self) -> List[Dict]:
         """
         Get default safety settings for content generation.
-        
+
         These are permissive settings suitable for business/research content.
         Override via kwargs if stricter settings needed.
+
+        Note: Only using the 4 standard safety categories supported by Gemini SDK.
         """
         return [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},

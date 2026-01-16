@@ -13,9 +13,10 @@
             <p class="dashboard-subtitle">{{ journal.company.name }}</p>
         </div>
         <div class="dashboard-header-actions">
-            {% with btn_class='btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="btn-portfolio-modern">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Decision Journal
+            </a>
         </div>
     </header>
 
@@ -47,6 +48,24 @@
                         </div>
                         {% if journal.thesis_word_count %}
                         <small class="text-muted">{{ journal.thesis_word_count }} words</small>
+                        {% endif %}
+
+                        <!-- AI Analysis Button -->
+                        {% if journal.investment_thesis %}
+                        <button id="analyzeThesisBtn" class="btn btn-primary btn-sm mt-2" onclick="analyzeThesis()">
+                            <i class="bi bi-robot"></i> Analyze Thesis with AI
+                        </button>
+                        <div id="analysisSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+
+                        <!-- AI Analysis Results -->
+                        <div id="aiAnalysisResults" class="mt-3 d-none">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> AI Analysis</h6>
+                                <div id="analysisContent"></div>
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -178,7 +197,7 @@
                         </div>
                         {% if research_project %}
                         <div class="mt-2">
-                            <a href="{{ url_for('research.view_project', project_id=research_project.id) }}"
+                            <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}"
                                class="btn btn-sm btn-outline-primary">
                                 View Research Project
                             </a>
@@ -281,4 +300,89 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function analyzeThesis() {
+    const btn = document.getElementById('analyzeThesisBtn');
+    const spinner = document.getElementById('analysisSpinner');
+    const resultsDiv = document.getElementById('aiAnalysisResults');
+    const contentDiv = document.getElementById('analysisContent');
+
+    // Show spinner, disable button
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    resultsDiv.classList.add('d-none');
+
+    // Prepare data
+    const data = {
+        thesis: {{ journal.investment_thesis|tojson }},
+        company_name: {{ journal.company.name|tojson }},
+        ticker: {{ journal.company.ticker_symbol|tojson }},
+        confidence_score: {{ journal.confidence_score or 'null' }},
+        expected_return: {{ journal.expected_return or 'null' }},
+        expected_timeframe: {{ journal.expected_timeframe or 'null' }}
+    };
+
+    // Call API
+    fetch('/portfolio/api/analyze-thesis', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        spinner.classList.add('d-none');
+        btn.disabled = false;
+
+        if (result.success) {
+            // Display results
+            const analysis = result.analysis;
+            let html = `
+                <div class="mb-2"><strong>Quality Score:</strong> ${analysis.quality_score || 'N/A'}/100</div>
+                <div class="mb-2"><strong>Summary:</strong> ${analysis.summary || 'No summary available'}</div>
+            `;
+
+            if (analysis.strengths && analysis.strengths.length > 0) {
+                html += '<div class="mb-2"><strong>Strengths:</strong><ul class="mb-0">';
+                analysis.strengths.forEach(s => html += `<li>${s}</li>`);
+                html += '</ul></div>';
+            }
+
+            if (analysis.weaknesses && analysis.weaknesses.length > 0) {
+                html += '<div class="mb-2"><strong>Weaknesses:</strong><ul class="mb-0">';
+                analysis.weaknesses.forEach(w => html += `<li>${w}</li>`);
+                html += '</ul></div>';
+            }
+
+            if (analysis.risk_flags && analysis.risk_flags.length > 0) {
+                html += '<div class="mb-2"><strong>Risk Flags:</strong><ul class="mb-0">';
+                analysis.risk_flags.forEach(r => html += `<li class="text-danger">${r}</li>`);
+                html += '</ul></div>';
+            }
+
+            contentDiv.innerHTML = html;
+            resultsDiv.classList.remove('d-none');
+        } else {
+            contentDiv.innerHTML = `<div class="text-danger">Error: ${result.error || 'Analysis failed'}</div>`;
+            resultsDiv.classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        spinner.classList.add('d-none');
+        btn.disabled = false;
+        contentDiv.innerHTML = `<div class="text-danger">Error: ${error.message}</div>`;
+        resultsDiv.classList.remove('d-none');
+    });
+}
+</script>
 {% endblock %}

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from app import db
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, update_portfolio_position
+    ResearchProject, update_portfolio_position, ThesisEvolution
 )
 from app.services.currency_service import CurrencyService
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
@@ -402,6 +402,30 @@ class TransactionService:
                         thesis_word_count=word_count,
                         non_research_source=form_data.get('non_research_source', '').strip()
                     )
+
+                    # Create ThesisEvolution Version 0 for non-research purchases
+                    # Check if version 0 already exists for this company
+                    existing_v0 = ThesisEvolution.query.filter_by(
+                        user_id=user_id,
+                        company_id=company_id,
+                        version=0
+                    ).first()
+
+                    if not existing_v0 and investment_thesis:
+                        thesis_evolution = ThesisEvolution(
+                            user_id=user_id,
+                            company_id=company_id,
+                            version=0,
+                            thesis=investment_thesis,
+                            change_summary='Initial investment thesis from direct purchase',
+                            change_trigger=f'Buy transaction without research ({form_data.get("non_research_source", "unknown")})',
+                            conviction_level=form_data.get('confidence_score', type=int),  # Set from transaction form
+                            is_current=True,
+                            created_at=transaction_date or now_utc()
+                        )
+                        db.session.add(thesis_evolution)
+                        logger.info(f"Created ThesisEvolution v0 for company {company_id} from non-research purchase")
+
                 else:
                     research_project = ResearchProject.query.filter_by(
                         company_id=company_id,
@@ -414,7 +438,7 @@ class TransactionService:
                             company_id=company_id,
                             decision_type='BUY',
                             decision_date=transaction_date,
-                            investment_thesis=research_project.summary or 'Investment thesis from research',
+                            investment_thesis=research_project.investment_thesis or 'Investment thesis from research',
                             confidence_score=form_data.get('confidence_score', type=int),
                             expected_return=form_data.get('expected_return', type=float),
                             expected_timeframe=form_data.get('expected_timeframe', type=int),

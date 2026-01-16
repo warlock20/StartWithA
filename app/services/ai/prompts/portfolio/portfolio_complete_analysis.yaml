@@ -1,0 +1,60 @@
+# AI Intelligence - Portfolio Analysis
+# Analyzes portfolio transaction history to identify patterns, risks, and opportunities
+
+name: "portfolio_analysis"
+description: "AI-powered analysis of portfolio data to extract behavioral insights and recommendations"
+version: "1.0"
+category: "intelligence"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 5000
+temperature: 0.7
+
+last_modified: "2025-01-08"
+
+system_context: |
+  You are an expert portfolio analyst with deep expertise in behavioral finance.
+  Analyze transaction data to identify patterns, strengths, risks, and opportunities.
+  Focus on actionable insights specific to THIS portfolio's data.
+
+template: |
+  Analyze this investment portfolio and provide insights.
+
+  PORTFOLIO METRICS:
+  {portfolio_summary}
+
+  TRADING PATTERNS:
+  {trading_patterns}
+
+  TOP SECTORS:
+  {sector_breakdown}
+
+  TOP CURRENT POSITIONS:
+  {positions}
+
+  TOP CLOSED POSITIONS:
+  {closed_positions}
+
+  RECENT ACTIVITY:
+  {recent_activity}
+
+  Provide analysis in JSON format:
+  {{
+    "overall_assessment": "2-3 sentence summary",
+    "key_strengths": ["strength1", "strength2"],
+    "key_risks": ["risk1", "risk2"],
+    "behavioral_patterns": ["pattern1", "pattern2"],
+    "recommendations": ["rec1", "rec2"],
+    "sector_analysis": {{"concentration_risk": "assessment", "sector_comments": "comments"}}
+  }}
+
+output_format: |
+  {
+    "overall_assessment": "string",
+    "key_strengths": [],
+    "key_risks": [],
+    "behavioral_patterns": [],
+    "recommendations": [],
+    "sector_analysis": {}
+  }
