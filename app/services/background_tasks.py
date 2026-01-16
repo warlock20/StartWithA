@@ -16,6 +16,29 @@ from app.celery_tasks import portfolio_ai_analysis_task
 logger = logging.getLogger(__name__)
 
 
+def parse_task_type(task_type: str) -> tuple:
+    """
+    Parse composite task_type into (category, template).
+
+    Args:
+        task_type: Task type string (e.g., 'portfolio_analysis:portfolio_raw_trade_analysis')
+
+    Returns:
+        Tuple of (category, template). If no separator found, returns (task_type, None).
+
+    Examples:
+        >>> parse_task_type('portfolio_analysis:behavioral')
+        ('portfolio_analysis', 'behavioral')
+
+        >>> parse_task_type('simple_task')
+        ('simple_task', None)
+    """
+    parts = task_type.split(':', 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return task_type, None
+
+
 class BackgroundTaskService:
     @staticmethod
     def start_competitor_analysis(user_id, project_id, step_index, company):
@@ -78,14 +101,32 @@ class BackgroundTaskService:
 
     @staticmethod
     def start_portfolio_analysis(user_id, template_name):
-        """Start a portfolio AI analysis task in the background"""
-        
-        # Create task record
+        """Start a portfolio AI analysis task in the background
+
+        Uses composite task_type format: 'portfolio_analysis:{template_name}'
+        This allows different analysis types to run concurrently while preventing duplicates.
+        """
+
+        # Create composite task_type
+        task_type_full = f'portfolio_analysis:{template_name}'
+
+        # Check if a task with the same type is already running
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type_full,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Task {existing_task.id} already running for {template_name}, reusing it")
+            return existing_task.id
+
+        # Create new task record
         task_id = str(uuid.uuid4())
         task = BackgroundTask(
             id=task_id,
             user_id=user_id,
-            task_type='portfolio_analysis',
+            task_type=task_type_full,  # Use composite format
             status='pending'
         )
 
