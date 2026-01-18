@@ -1,0 +1,1 @@
+- Add AI research assistant to sector research 

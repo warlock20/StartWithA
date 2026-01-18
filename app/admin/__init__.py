@@ -22,6 +22,7 @@ from app.models import (
     PromptVersion,
     PromptUsageLog,
     User,
+    AIResearchFeedback,
 )
 
 
@@ -129,6 +130,76 @@ class PromptUsageLogView(SecureModelView):
     }
 
 
+class UserView(SecureModelView):
+    """Admin view for User management and token monitoring"""
+    column_list = [
+        'id', 'email', 'username', 'subscription_tier',
+        'ai_tokens_used', 'ai_tokens_limit', 'ai_tokens_reset_date',
+        'auth_provider'
+    ]
+    column_searchable_list = ['email', 'username', 'auth0_id']
+    column_filters = ['subscription_tier', 'auth_provider']
+    column_editable_list = ['subscription_tier', 'ai_tokens_limit']
+    column_default_sort = [('ai_tokens_used', True)]
+
+    # Only show safe fields in edit form
+    form_columns = [
+        'email', 'username', 'name',
+        'subscription_tier', 'ai_tokens_limit', 'ai_tokens_used', 'ai_tokens_reset_date',
+        'base_currency', 'preferred_sprint_duration', 'research_experience_level'
+    ]
+
+    can_create = False  # Users created via registration only
+    can_edit = True
+    can_delete = False  # Soft delete only
+
+    page_size = 50
+
+    # Format display values
+    column_formatters = {
+        'ai_tokens_used': lambda v, c, m, p: f'{m.ai_tokens_used:,}',
+        'ai_tokens_limit': lambda v, c, m, p: f'{m.ai_tokens_limit:,}',
+        'ai_tokens_reset_date': lambda v, c, m, p: m.ai_tokens_reset_date.strftime('%Y-%m-%d') if m.ai_tokens_reset_date else 'Not set'
+    }
+
+    column_descriptions = {
+        'subscription_tier': 'User subscription level (free, beta_tester, pro)',
+        'ai_tokens_used': 'Tokens used in current period',
+        'ai_tokens_limit': 'Token limit per period',
+        'ai_tokens_reset_date': 'When token usage resets'
+    }
+
+
+class AIResearchFeedbackView(SecureModelView):
+    """Admin view for AI Research Assistant feedback and monitoring"""
+    column_list = [
+        'created_at', 'user_id', 'mode', 'feedback',
+        'tokens_used', 'company_name', 'provider', 'model'
+    ]
+    column_searchable_list = ['company_name', 'question_text', 'user_answer']
+    column_filters = ['mode', 'feedback', 'provider', 'model', 'created_at']
+    column_default_sort = [('created_at', True)]
+
+    # View-only for analytics
+    can_create = False
+    can_edit = False
+    can_delete = True  # Allow cleanup
+
+    page_size = 100
+
+    # Format display
+    column_formatters = {
+        'tokens_used': lambda v, c, m, p: f'{m.tokens_used:,}' if m.tokens_used else 'N/A',
+        'feedback': lambda v, c, m, p: m.feedback or 'No feedback yet'
+    }
+
+    column_descriptions = {
+        'mode': 'AI mode used (challenge, elaboration, factcheck)',
+        'feedback': 'User feedback (helpful, not_helpful, dismissed)',
+        'tokens_used': 'Actual tokens consumed by this interaction'
+    }
+
+
 def init_admin(app):
     """
     Initialize Flask-Admin with the app.
@@ -146,5 +217,9 @@ def init_admin(app):
 
     admin.add_view(PromptVersionView(PromptVersion, db.session, name='Prompt Versions', category='AI Prompts'))
     admin.add_view(PromptUsageLogView(PromptUsageLog, db.session, name='Usage Analytics', category='AI Prompts'))
+    admin.add_view(AIResearchFeedbackView(AIResearchFeedback, db.session, name='AI Research Feedback', category='AI Prompts'))
+
+    # User Management & Token Monitoring
+    admin.add_view(UserView(User, db.session, name='Users & Tokens', category='User Management'))
 
     return admin

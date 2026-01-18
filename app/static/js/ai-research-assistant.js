@@ -112,7 +112,17 @@ class AIResearchAssistant {
             },
             body: JSON.stringify(requestData)
         })
-        .then(response => response.json())
+        .then(response => {
+            // Check for token limit error (429)
+            if (response.status === 429) {
+                return response.json().then(data => {
+                    this.hideLoading();
+                    this.showTokenLimitError(data);
+                    throw new Error('Token limit exceeded'); // Stop further processing
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             this.hideLoading();
 
@@ -130,10 +140,79 @@ class AIResearchAssistant {
             }
         })
         .catch(error => {
-            this.hideLoading();
-            alert('Network error. Please check your connection and try again.');
-            console.error('AI assist network error:', error);
+            // Only show network error if not token limit error
+            if (error.message !== 'Token limit exceeded') {
+                this.hideLoading();
+                alert('Network error. Please check your connection and try again.');
+                console.error('AI assist network error:', error);
+            }
         });
+    }
+
+    /**
+     * Show token limit error message
+     * Displays user-friendly error when token limit is exceeded (429)
+     */
+    showTokenLimitError(data) {
+        const responseArea = document.getElementById('aiResponseArea');
+        const loadingSpinner = document.getElementById('aiLoadingSpinner');
+
+        // Hide loading spinner
+        if (loadingSpinner) {
+            loadingSpinner.style.display = 'none';
+        }
+
+        // Hide all response sections
+        Object.values(this.modes).forEach(modeConfig => {
+            const section = document.getElementById(modeConfig.section);
+            if (section) section.style.display = 'none';
+        });
+
+        // Format reset date if available
+        let resetDateText = 'unknown date';
+        if (data.reset_date) {
+            const resetDate = new Date(data.reset_date);
+            resetDateText = resetDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Create error message HTML
+        const errorHtml = `
+            <div class="alert alert-warning" role="alert">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="alert-heading mb-2">
+                            <strong>AI Token Limit Reached</strong>
+                        </h6>
+                        <p class="mb-2">
+                            You've used <strong>${data.tokens_used?.toLocaleString() || 'all'}</strong> of your
+                            <strong>${data.tokens_limit?.toLocaleString() || 'monthly'}</strong> AI tokens.
+                        </p>
+                        <p class="mb-2 small">
+                            Your token limit will reset on <strong>${resetDateText}</strong>.
+                        </p>
+                        <hr class="my-2">
+                        <p class="mb-0 small">
+                            <a href="/settings/profile/" class="alert-link">
+                                <i class="bi bi-graph-up me-1"></i>View your token usage and subscription details
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Show error in response area
+        if (responseArea) {
+            responseArea.innerHTML = errorHtml;
+            responseArea.style.display = 'block';
+        }
+
+        console.warn('Token limit exceeded:', data);
     }
 
     /**
@@ -338,7 +417,17 @@ class AIResearchAssistant {
                 feedback_id: this.currentFeedbackId
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            // Check for token limit error (429)
+            if (response.status === 429) {
+                return response.json().then(data => {
+                    this.hideLoading();
+                    this.showTokenLimitError(data);
+                    throw new Error('Token limit exceeded');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             this.hideLoading();
 
@@ -354,9 +443,12 @@ class AIResearchAssistant {
             }
         })
         .catch(error => {
-            this.hideLoading();
-            alert('Network error. Please check your connection and try again.');
-            console.error('Regeneration network error:', error);
+            // Only show network error if not token limit error
+            if (error.message !== 'Token limit exceeded') {
+                this.hideLoading();
+                alert('Network error. Please check your connection and try again.');
+                console.error('Regeneration network error:', error);
+            }
         });
     }
 
