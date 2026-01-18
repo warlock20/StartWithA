@@ -558,8 +558,44 @@ def analytics():
                                       chart_data=chart_data,
                                       selected_period=time_periods)
 
-    # 3. If force_refresh=true, start new background task
+    # 3. If force_refresh=true, check tokens then start background task
     if force_refresh:
+        # Check tokens BEFORE starting expensive AI task (estimate: 10,000 tokens for portfolio analysis)
+        if not current_user.can_use_ai_tokens(10000):
+            # User has hit token limit - show cached analysis with error message
+            logger.warning(f"User {current_user.id} attempted portfolio analysis but hit token limit ({current_user.ai_tokens_used}/{current_user.ai_tokens_limit})")
+
+            # Try to show cached analysis if available
+            latest_task = BackgroundTask.query.filter_by(
+                user_id=current_user.id,
+                task_type=f'portfolio_analysis:{template_name}',
+                status='completed'
+            ).order_by(BackgroundTask.completed_at.desc()).first()
+
+            if latest_task and latest_task.result:
+                # Show cached analysis with token limit error
+                result = json.loads(latest_task.result)
+                insights = result.get('analysis')
+                flash(f"AI Token Limit Reached: You've used {current_user.ai_tokens_used:,} of {current_user.ai_tokens_limit:,} tokens. Showing previous analysis. Your limit resets on {current_user.ai_tokens_reset_date.strftime('%b %d, %Y') if current_user.ai_tokens_reset_date else 'unknown date'}.", 'warning')
+                return render_template('portfolio_basic_analytics.html',
+                                      insights=insights,
+                                      has_error=False,
+                                      chart_data=chart_data,
+                                      selected_period=time_periods,
+                                      show_run_button=False)  # Don't show run button - they're at limit
+            else:
+                # No cache and no tokens - show placeholder with error
+                analytics_service = PortfolioAIAnalytics(user_id=current_user.id)
+                placeholder_insights = analytics_service._get_placeholder_response(template_name)
+                flash(f"AI Token Limit Reached: You've used {current_user.ai_tokens_used:,} of {current_user.ai_tokens_limit:,} tokens. Cannot generate new analysis. Your limit resets on {current_user.ai_tokens_reset_date.strftime('%b %d, %Y') if current_user.ai_tokens_reset_date else 'unknown date'}.", 'error')
+                return render_template('portfolio_basic_analytics.html',
+                                      insights=placeholder_insights,
+                                      has_error=True,
+                                      chart_data=chart_data,
+                                      selected_period=time_periods,
+                                      show_run_button=False)
+
+        # User has enough tokens - start task
         task_id = BackgroundTaskService.start_portfolio_analysis(current_user.id, template_name)
         session[f'portfolio_analysis_task_{current_user.id}'] = task_id
         return render_template('portfolio_analytics_loading.html',

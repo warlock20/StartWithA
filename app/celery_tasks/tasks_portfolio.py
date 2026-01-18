@@ -55,9 +55,18 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
             logger.info(f"TASK {self.request.id}: Calling AI service with template '{template_name}'...")
 
             if template_name == 'portfolio_raw_trade_analysis':
-                result = analytics.get_deep_behavioral_insights(force_refresh=True)
+                result, tokens_used = analytics.get_deep_behavioral_insights(force_refresh=True)
             else:
-                result = analytics.get_quick_insights(force_refresh=True)
+                result, tokens_used = analytics.get_quick_insights(force_refresh=True)
+
+            # Track token usage
+            from app.models.user import User
+            user = User.query.get(user_id)
+            if user:
+                user.increment_ai_tokens(tokens_used)
+                logger.info(f"TASK {self.request.id}: Incremented {tokens_used} tokens for user {user_id}")
+            else:
+                logger.warning(f"TASK {self.request.id}: User {user_id} not found for token tracking")
 
             # Task completed successfully
             logger.info(f"TASK {self.request.id}: Completed successfully")
@@ -67,6 +76,7 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
             task.completed_at = now_utc()
             task.result = json.dumps({
                 "analysis": result,
+                "tokens_used": tokens_used,
                 "message": "Portfolio AI analysis completed successfully!"
             })
             db.session.commit()
@@ -75,7 +85,8 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
             return json.dumps({
                 "status": "success",
                 "message": f"Portfolio AI analysis completed for user {user_id}",
-                "insights": result
+                "insights": result,
+                "tokens_used": tokens_used
             })
 
         except Exception as e:
