@@ -49,6 +49,7 @@ All complex components have been fully modularized.
 @import url('modules/_sector-research.css');      /* Simplified sector research page */
 @import url('modules/_research-sources.css');     /* Research sources component */
 @import url('modules/_research-checklist.css');   /* Research checklist/step pages */
+@import url('modules/_ai-research-assistant.css'); /* AI Research Assistant component */
 @import url('modules/_research-tabs.css');        /* Research tabbed interface */
 @import url('modules/_atomic-canvas.css');        /* Atomic notes canvas */
 @import url('modules/_research-workspace.css');   /* Research workspace layout */

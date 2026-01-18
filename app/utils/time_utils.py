@@ -13,7 +13,7 @@ from typing import Optional
 # TODO: Make this configurable per user or from environment variables
 PLATFORM_TIMEZONE_OFFSET_HOURS = 2  # UTC+2 (Central European Summer Time)
 
-
+# TODO: Is this correct place?
 def now_utc() -> datetime:
     """
     Get the current time in UTC.

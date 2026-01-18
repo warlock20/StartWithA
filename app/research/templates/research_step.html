@@ -44,50 +44,179 @@
             </div>
 
 
-            <!-- AI Analysis Section (if available) -->
-            {% if current_item.llm_prompt %}
-            <div class="accordion mb-4" id="aiAccordion">
-                <div class="accordion-item">
+            <!-- Unified AI Research Assistant -->
+            <div class="accordion mb-4" id="aiResearchAccordion">
+                <div class="accordion-item border-primary">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#collapseAI">
-                            ✨ <strong>Analyze with AI Assistant</strong>
+                            data-bs-target="#collapseAIResearch">
+                            <i class="bi bi-robot me-2"></i> <strong>AI Research Assistant</strong>
+                            <span class="badge bg-primary ms-2">{% if current_item.llm_prompt %}4{% else %}3{% endif %} AI Tools Available</span>
                         </button>
                     </h2>
-                    <div id="collapseAI" class="accordion-collapse collapse" data-bs-parent="#aiAccordion">
+                    <div id="collapseAIResearch" class="accordion-collapse collapse" data-bs-parent="#aiResearchAccordion">
                         <div class="accordion-body">
-                            <p><strong>Suggested AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></p>
+                            <p class="text-muted mb-3">
+                                <i class="bi bi-lightbulb me-1"></i>
+                                Use AI to strengthen your analysis, challenge your reasoning, or extract insights from documents
+                            </p>
 
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Select Documents for AI Context:</strong></label>
-                                <div class="document-list border rounded p-3"
-                                    style="max-height: 200px; overflow-y: auto;">
-                                    {% if company_documents %}
-                                    {% for doc in company_documents %}
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" value="{{ doc.id }}"
-                                            id="doc{{ doc.id }}" checked>
-                                        <label class="form-check-label" for="doc{{ doc.id }}">{{ doc.document_title or
-                                            doc.original_filename }}</label>
+                            <!-- AI Modes Grid -->
+                            <div class="row g-3 mb-3">
+                                <!-- Challenge Mode -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 ai-mode-card border-danger" style="cursor: pointer;" onclick="triggerAIMode('challenge')">
+                                        <div class="card-body text-center p-3">
+                                            <div class="mb-2">
+                                                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem;"></i>
+                                            </div>
+                                            <h6 class="mb-1">Challenge</h6>
+                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
+                                            <p class="small text-muted mb-0">Get counter-arguments to test your reasoning</p>
+                                        </div>
                                     </div>
-                                    {% endfor %}
-                                    {% else %}
-                                    <div class="text-muted">No documents uploaded yet</div>
-                                    {% endif %}
                                 </div>
+
+                                <!-- Elaboration Mode -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 ai-mode-card border-primary" style="cursor: pointer;" onclick="triggerAIMode('elaboration')">
+                                        <div class="card-body text-center p-3">
+                                            <div class="mb-2">
+                                                <i class="bi bi-question-circle text-primary" style="font-size: 2rem;"></i>
+                                            </div>
+                                            <h6 class="mb-1">Elaboration</h6>
+                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
+                                            <p class="small text-muted mb-0">Get follow-up questions to deepen analysis</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Fact-Check Mode -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 ai-mode-card border-warning" style="cursor: pointer;" onclick="triggerAIMode('factcheck')">
+                                        <div class="card-body text-center p-3">
+                                            <div class="mb-2">
+                                                <i class="bi bi-shield-check text-warning" style="font-size: 2rem;"></i>
+                                            </div>
+                                            <h6 class="mb-1">Fact-Check</h6>
+                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
+                                            <p class="small text-muted mb-0">Verify claims and request evidence</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Document Analysis (if available) -->
+                                {% if current_item.llm_prompt %}
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 ai-mode-card border-secondary disabled">
+                                        <div class="card-body text-center p-3">
+                                            <div class="mb-2">
+                                                <i class="bi bi-file-earmark-text text-secondary" style="font-size: 2rem;"></i>
+                                            </div>
+                                            <h6 class="mb-1">Document Analysis</h6>
+                                            <span class="badge bg-secondary mb-2" style="font-size: 0.7rem;">COMING SOON</span>
+                                            <p class="small text-muted mb-0">Extract insights from uploaded documents</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
 
-                            <button type="button" class="btn btn-primary"><i class="bi bi-robot"></i> Run AI
-                                Analysis</button>
+                            <!-- AI Response Area (initially hidden) -->
+                            <div id="aiResponseArea" style="display: none;">
+                                <!-- Loading spinner -->
+                                <div id="aiLoadingSpinner" class="text-center py-4" style="display: none;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">AI is thinking...</p>
+                                </div>
 
-                            <div id="aiAnalysisResult" class="mt-3">
-                                <!-- AI results will appear here -->
+                                <!-- Challenge Response -->
+                                <div id="aiResponseChallenge" class="ai-response-content" style="display: none;">
+                                    <div class="alert alert-danger border-start border-danger border-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-exclamation-diamond me-2" style="font-size: 1.5rem;"></i>
+                                            <strong>Challenge Mode</strong>
+                                        </div>
+                                        <div id="aiResponseChallengeText"></div>
+                                    </div>
+                                    <div class="ai-feedback-buttons"></div>
+                                </div>
+
+                                <!-- Elaboration Response -->
+                                <div id="aiResponseElaboration" class="ai-response-content" style="display: none;">
+                                    <div class="alert alert-primary border-start border-primary border-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-chat-dots me-2" style="font-size: 1.5rem;"></i>
+                                            <strong>Elaboration Mode</strong>
+                                        </div>
+                                        <div id="aiResponseElaborationText"></div>
+                                    </div>
+                                    <div class="ai-feedback-buttons d-flex gap-2 justify-content-end mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="submitFeedback('helpful')">
+                                            <i class="bi bi-hand-thumbs-up me-1"></i> Helpful
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="submitFeedback('not_helpful')">
+                                            <i class="bi bi-hand-thumbs-down me-1"></i> Not Helpful
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissAI()">
+                                            <i class="bi bi-x-lg me-1"></i> Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Fact-Check Response -->
+                                <div id="aiResponseFactcheck" class="ai-response-content" style="display: none;">
+                                    <div class="alert alert-warning border-start border-warning border-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-shield-exclamation me-2" style="font-size: 1.5rem;"></i>
+                                            <strong>Fact-Check Mode</strong>
+                                        </div>
+                                        <div id="aiResponseFactcheckText"></div>
+                                    </div>
+                                    <div class="ai-feedback-buttons"></div>
+                                </div>
+
+                                <!-- Document Analysis Response -->
+                                {% if current_item.llm_prompt %}
+                                <div id="aiResponseDocuments" class="ai-response-content" style="display: none;">
+                                    <div class="border rounded p-3" style="background: #f8f9fa;">
+                                        <h6 class="mb-3"><i class="bi bi-files me-2"></i>Document Analysis</h6>
+
+                                        <p class="text-muted small mb-2">Select documents to analyze with the question prompt:</p>
+                                        <div class="document-list border rounded p-2 mb-3" style="max-height: 150px; overflow-y: auto; background: white;">
+                                            {% if company_documents %}
+                                            {% for doc in company_documents %}
+                                            <div class="form-check">
+                                                <input class="form-check-input doc-checkbox" type="checkbox" id="doc{{ doc.id }}" value="{{ doc.id }}" checked>
+                                                <label class="form-check-label small" for="doc{{ doc.id }}">
+                                                    {{ doc.document_title or doc.original_filename }}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                            {% else %}
+                                            <div class="text-muted small">No documents uploaded yet</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="alert alert-light mb-2">
+                                            <small><strong>AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></small>
+                                        </div>
+
+                                        <button class="btn btn-secondary btn-sm" onclick="runDocumentAnalysis()">
+                                            <i class="bi bi-robot"></i> Run Document Analysis
+                                        </button>
+
+                                        <div id="documentAnalysisResult" class="mt-3" style="display: none;"></div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            {% endif %}
 
             <div class="card">
                 <div class="card-header">
@@ -218,6 +347,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
 
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
@@ -807,7 +937,91 @@
     document.addEventListener('DOMContentLoaded', function () {
         updateSaveLaterButton();
         enhanceResearchTools();
+        initializeAIAssistant();
     });
+
+    // =============================================================================
+    // AI Research Assistant - Module Initialization
+    // =============================================================================
+
+    /**
+     * Initialize AI Research Assistant Module
+     * Creates a reusable instance that can be used across the platform
+     */
+    function initializeAIAssistant() {
+        // Helper function to get answer text from BlockNote editor
+        function getAnswerText() {
+            const editorContainer = document.getElementById('answerEditor');
+            if (editorContainer) {
+                return editorContainer.textContent || editorContainer.innerText || '';
+            }
+
+            const fallbackTextarea = document.getElementById('answer_text');
+            if (fallbackTextarea && fallbackTextarea.value) {
+                try {
+                    const blocks = JSON.parse(fallbackTextarea.value);
+                    let text = '';
+                    blocks.forEach(block => {
+                        if (block.content && Array.isArray(block.content)) {
+                            block.content.forEach(item => {
+                                if (item.type === 'text' && item.text) {
+                                    text += item.text + ' ';
+                                }
+                            });
+                            text += '\n';
+                        }
+                    });
+                    return text.trim();
+                } catch (e) {
+                    return fallbackTextarea.value.trim();
+                }
+            }
+
+            return '';
+        }
+
+        // Initialize AI Assistant with configuration
+        window.aiAssistant = new AIResearchAssistant({
+            apiEndpoint: '/research/ai_assist',
+            feedbackEndpoint: '/research/ai_assist/feedback',
+            regenerateEndpoint: '/research/ai_assist/regenerate',
+            getAnswerText: getAnswerText,
+            context: {
+                analysis_id: {{ session.id }},
+                item_id: {{ current_item.id }},
+                company_name: {{ session.company.name|tojson }},
+                question_text: {{ current_item.text|tojson }}
+            }
+        });
+
+        console.log('AI Research Assistant initialized');
+    }
+
+    // =============================================================================
+    // Wrapper Functions for HTML onclick handlers
+    // =============================================================================
+
+    /**
+     * Trigger AI mode from HTML onclick
+     * Wraps the module's triggerMode method
+     */
+    function triggerAIMode(mode) {
+        if (window.aiAssistant) {
+            window.aiAssistant.triggerMode(mode);
+        } else {
+            console.error('AI Assistant not initialized');
+        }
+    }
+
+    /**
+     * Run Document Analysis (existing feature - placeholder)
+     * TODO: Integrate with existing document analysis functionality
+     */
+    function runDocumentAnalysis() {
+        alert('Document Analysis feature integration coming soon!');
+        console.log('Document Analysis triggered');
+        // TODO: Call existing document analysis code
+    }
 </script>
 
 {% endblock %}

@@ -473,6 +473,9 @@ class PortfolioDataExtractor:
         """
         Calculate portfolio value and cost over time for chart visualization.
 
+        Uses HISTORICAL prices for each time period (not current prices).
+        This ensures accurate performance tracking.
+
         Args:
             transactions: All transactions
             time_periods: Number of time periods to calculate (default 12 months)
@@ -482,6 +485,10 @@ class PortfolioDataExtractor:
         """
         from collections import defaultdict
         from calendar import monthrange
+        from app.utils.financial_utils import get_historical_prices_multi
+        import logging
+
+        logger = logging.getLogger(__name__)
 
         today = date.today()
 
@@ -510,7 +517,13 @@ class PortfolioDataExtractor:
             labels.append(date(year, month, 1).strftime('%b'))
             period_ends.append(period_end)
 
-        # Get current prices for all positions
+        # Collect all unique tickers from transactions
+        unique_tickers = set()
+        for txn in transactions:
+            if txn.company and txn.company.ticker_symbol:
+                unique_tickers.add(txn.company.ticker_symbol)
+
+        # Get CURRENT prices for all positions (for today's value)
         positions = self._load_positions()
         current_prices = {}
         for pos in positions:
@@ -519,6 +532,28 @@ class PortfolioDataExtractor:
                 # Use current_price from position (already cached)
                 if pos.current_price:
                     current_prices[ticker] = float(pos.current_price)
+
+        logger.info(f"Loaded {len(current_prices)} current prices for today's portfolio value")
+
+        # Fetch HISTORICAL prices for all tickers at all period ends
+        # This uses cached provider - first run fetches, subsequent runs are instant
+        logger.info(f"Fetching historical prices for {len(unique_tickers)} tickers across {len(period_ends)} periods")
+        historical_prices = get_historical_prices_multi(
+            tickers=list(unique_tickers),
+            price_dates=period_ends
+        )
+
+        # Log summary of historical prices fetched
+        total_historical_prices = sum(len(prices) for prices in historical_prices.values())
+        logger.info(f"Historical prices fetched: {total_historical_prices} price points across {len(historical_prices)} tickers")
+
+        # Diagnose tickers with no data
+        tickers_with_no_data = [ticker for ticker in unique_tickers if not historical_prices.get(ticker)]
+        tickers_with_sparse_data = [(ticker, len(prices)) for ticker, prices in historical_prices.items() if len(prices) < len(period_ends) // 2]
+        if tickers_with_no_data:
+            logger.warning(f"{len(tickers_with_no_data)} tickers have NO historical data from Yahoo Finance: {tickers_with_no_data[:5]}")
+        if tickers_with_sparse_data:
+            logger.warning(f"{len(tickers_with_sparse_data)} tickers have sparse data: {tickers_with_sparse_data[:5]}")
 
         # Sort transactions by date
         sorted_txns = sorted(transactions, key=lambda t: t.date)
@@ -569,16 +604,67 @@ class PortfolioDataExtractor:
             period_total_cost = sum(pos['cost_basis'] for pos in cumulative_positions.values())
             total_costs.append(round(period_total_cost, 2))
 
-            # Calculate current value using real prices
+            # Calculate portfolio value
+            # For TODAY: use current prices (real-time)
+            # For HISTORY: use historical prices (accurate past performance)
+            is_current_period = (period_end == today)
+
             period_current_value = 0
+            price_sources = {'current': 0, 'historical_exact': 0, 'historical_nearest': 0, 'cost_basis': 0}
+
             for ticker, pos_data in cumulative_positions.items():
                 if pos_data['quantity'] > 0:
-                    if ticker in current_prices:
-                        # Use actual current price
-                        period_current_value += pos_data['quantity'] * current_prices[ticker]
+                    price_to_use = None
+                    price_source = None
+
+                    if is_current_period:
+                        # Use current/real-time price for today
+                        price_to_use = current_prices.get(ticker)
+                        if price_to_use:
+                            price_source = 'current'
+                            logger.debug(f"[{period_end}] {ticker}: Using CURRENT price ${price_to_use:.2f}")
+
+                    if price_to_use is None:
+                        # Use historical price for past periods (or fallback for current if no current price)
+                        ticker_prices = historical_prices.get(ticker, {})
+
+                        # Try to get exact date first
+                        price_to_use = ticker_prices.get(period_end)
+                        if price_to_use:
+                            price_source = 'historical_exact'
+
+                        # If exact date not available (weekend/holiday), find nearest
+                        if price_to_use is None and ticker_prices:
+                            # Find closest available date within 7 days
+                            closest_date = None
+                            min_days_diff = float('inf')
+
+                            for available_date in ticker_prices.keys():
+                                days_diff = abs((available_date - period_end).days)
+                                if days_diff <= 7 and days_diff < min_days_diff:
+                                    min_days_diff = days_diff
+                                    closest_date = available_date
+
+                            if closest_date:
+                                price_to_use = ticker_prices[closest_date]
+                                price_source = 'historical_nearest'
+                                logger.debug(f"[{period_end}] {ticker}: Using nearest price from {closest_date}")
+
+                    if price_to_use is not None:
+                        # Use the price we found
+                        value_contribution = pos_data['quantity'] * price_to_use
+                        period_current_value += value_contribution
+                        price_sources[price_source] += 1
+                        logger.debug(f"[{period_end}] {ticker}: {pos_data['quantity']} shares × ${price_to_use:.2f} = ${value_contribution:.2f} ({price_source})")
                     else:
-                        # Fallback: use cost basis if no current price
+                        # Last resort: use cost basis if no price available at all
+                        price_source = 'cost_basis'
+                        price_sources[price_source] += 1
                         period_current_value += pos_data['cost_basis']
+                        logger.warning(f"[{period_end}] {ticker}: No price available, using cost basis ${pos_data['cost_basis']:.2f}")
+
+            # Log summary for this period
+            logger.info(f"[{period_end}] Portfolio value: ${period_current_value:,.2f} | Cost: ${period_total_cost:,.2f} | Sources: {dict(price_sources)}")
 
             current_values.append(round(period_current_value, 2))
 

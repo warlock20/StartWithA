@@ -92,6 +92,9 @@ from .prompt_management import (
     PromptVersion,
     PromptUsageLog,
 )
+from .ai_research_feedback import (
+    AIResearchFeedback,
+)
 
 
 
@@ -183,4 +186,6 @@ __all__ = [
     # Prompt Management models
     'PromptVersion',
     'PromptUsageLog',
+    # AI Research Feedback models
+    'AIResearchFeedback',
 ]
