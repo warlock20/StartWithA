@@ -4,7 +4,8 @@ Common functions for portfolio analytics and performance tracking
 """
 
 from decimal import Decimal
-from typing import Union
+from typing import Union, Optional, Dict
+from datetime import date
 
 
 def calculate_cagr(
@@ -129,3 +130,95 @@ def format_return_display(
     value = float(return_pct)
     sign = '+' if value >= 0 and include_sign else ''
     return f"{sign}{value:.1f}%"
+
+
+# ============================================================
+# Historical Price Functions (Provider-Agnostic)
+# ============================================================
+
+def get_historical_price(ticker: str, price_date: date) -> Optional[float]:
+    """
+    Get historical close price for a ticker on a specific date.
+
+    Uses configured financial data provider (Yahoo Finance by default).
+    Results are cached (history never changes!).
+
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL', 'GOOGL')
+        price_date: Date to fetch price for
+
+    Returns:
+        Close price as float, or None if unavailable
+
+    Example:
+        >>> from datetime import date
+        >>> price = get_historical_price('AAPL', date(2024, 1, 31))
+        >>> print(f"${price:.2f}")
+        $185.50
+    """
+    from app.services.financial_data import FinancialDataService
+
+    service = FinancialDataService()
+    return service.get_historical_price(ticker, price_date)
+
+
+def get_historical_prices_bulk(
+    ticker: str,
+    start_date: date,
+    end_date: date
+) -> Dict[date, float]:
+    """
+    Get historical prices for a ticker over a date range.
+
+    Efficient bulk fetch with caching.
+
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start of date range (inclusive)
+        end_date: End of date range (inclusive)
+
+    Returns:
+        Dict mapping date -> close_price
+        Only includes dates where data is available (skips weekends/holidays)
+
+    Example:
+        >>> from datetime import date
+        >>> prices = get_historical_prices_bulk('AAPL', date(2024, 1, 1), date(2024, 1, 31))
+        >>> print(f"{len(prices)} trading days")
+        21 trading days
+    """
+    from app.services.financial_data import FinancialDataService
+
+    service = FinancialDataService()
+    return service.get_historical_prices_bulk(ticker, start_date, end_date)
+
+
+def get_historical_prices_multi(
+    tickers: list[str],
+    price_dates: list[date]
+) -> Dict[str, Dict[date, float]]:
+    """
+    Get historical prices for multiple tickers on specific dates.
+
+    Optimized for portfolio performance charts where you need prices
+    for multiple stocks on the same set of dates.
+
+    Args:
+        tickers: List of stock ticker symbols
+        price_dates: List of dates to fetch prices for
+
+    Returns:
+        Dict mapping ticker -> {date -> price}
+
+    Example:
+        >>> from datetime import date
+        >>> tickers = ['AAPL', 'GOOGL', 'MSFT']
+        >>> dates = [date(2024, 1, 31), date(2024, 2, 29)]
+        >>> prices = get_historical_prices_multi(tickers, dates)
+        >>> print(prices['AAPL'][date(2024, 1, 31)])
+        185.50
+    """
+    from app.services.financial_data import FinancialDataService
+
+    service = FinancialDataService()
+    return service.get_historical_prices_multi(tickers, price_dates)

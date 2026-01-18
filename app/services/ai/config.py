@@ -21,9 +21,9 @@ Environment Variables:
     ANTHROPIC_API_KEY   - Anthropic Claude API key  
     OPENAI_API_KEY      - OpenAI API key (optional)
     
-    AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
+    AI_DEFAULT_MODEL    - Default model (default: gemini-flash-latest)
     AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
-    AI_FAST_MODEL       - Model for fast tasks (default: gemini-2.5-flash)
+    AI_FAST_MODEL       - Model for fast tasks (default: gemini-flash-latest)
     AI_PREFER_CLAUDE    - Use Claude for reasoning tasks (default: true)
 """
 
@@ -56,12 +56,12 @@ class AIModel(Enum):
     GEMINI_3_PRO = ("gemini-3-pro-preview", AIProvider.GEMINI)          # Latest Pro for agentic workflows
 
     # Gemini 2.5 models (Stable)
-    GEMINI_FLASH_25 = ("gemini-2.5-flash", AIProvider.GEMINI)           # Recommended default - fast & intelligent
+    GEMINI_FLASH_25 = ("gemini-2.5-flash", AIProvider.GEMINI)           # Stable version - fast & intelligent
     GEMINI_PRO_25 = ("gemini-2.5-pro", AIProvider.GEMINI)               # Best quality
     GEMINI_FLASH_LITE_25 = ("gemini-2.5-flash-lite", AIProvider.GEMINI) # High-throughput, cost-optimized
 
-    # Gemini aliases (auto-update to latest)
-    GEMINI_FLASH_LATEST = ("gemini-flash-latest", AIProvider.GEMINI)    # Alias: latest Flash version
+    # Gemini aliases (auto-update to latest) - RECOMMENDED
+    GEMINI_FLASH_LATEST = ("gemini-flash-latest", AIProvider.GEMINI)    # Recommended default - always latest Flash
     GEMINI_PRO_LATEST = ("gemini-pro-latest", AIProvider.GEMINI)        # Alias: latest Pro version
 
     # Gemini legacy/deprecated (retiring March 3, 2026)
@@ -87,12 +87,12 @@ class AIModel(Enum):
     def from_string(cls, model_name: str) -> 'AIModel':
         """
         Parse model name string to AIModel enum.
-        
+
         Args:
             model_name: Model identifier string
-            
+
         Returns:
-            Matching AIModel or default (GEMINI_FLASH_25)
+            Matching AIModel or default (GEMINI_FLASH_LATEST)
         """
         model_map = {
             # Gemini 3.x (Latest Preview)
@@ -134,8 +134,8 @@ class AIModel(Enum):
         
         result = model_map.get(model_name.lower())
         if result is None:
-            logger.warning(f"Unknown model '{model_name}', using default GEMINI_FLASH_25")
-            return cls.GEMINI_FLASH_25
+            logger.warning(f"Unknown model '{model_name}', using default GEMINI_FLASH_LATEST")
+            return cls.GEMINI_FLASH_LATEST
         return result
 
 class AITaskType(Enum):
@@ -215,9 +215,9 @@ class AIConfig:
     openai_api_key: Optional[str] = None
     
     # Model configuration
-    default_model: AIModel = AIModel.GEMINI_FLASH_25
+    default_model: AIModel = AIModel.GEMINI_FLASH_LATEST
     quality_model: AIModel = AIModel.GEMINI_PRO_25
-    fast_model: AIModel = AIModel.GEMINI_FLASH_25
+    fast_model: AIModel = AIModel.GEMINI_FLASH_LATEST
     
     # Default generation parameters
     default_temperature: float = 0.7
@@ -257,13 +257,13 @@ class AIConfig:
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         # Load model preferences from environment
-        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-2.5-flash')
+        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-flash-latest')
         config.default_model = AIModel.from_string(default_model_name)
-        
+
         quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-2.5-pro')
         config.quality_model = AIModel.from_string(quality_model_name)
-        
-        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-2.5-flash')
+
+        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-flash-latest')
         config.fast_model = AIModel.from_string(fast_model_name)
 
         # Load routing preferences

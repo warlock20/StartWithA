@@ -188,6 +188,8 @@ class PromptService:
             'category': category,
             'max_tokens': prompt_data.get('max_tokens', 2000),
             'temperature': prompt_data.get('temperature', 0.7),
+            'preferred_provider': prompt_data.get('preferred_provider'),
+            'model': prompt_data.get('model'),
             'required_variables': self._extract_variables(template),
             'has_system_context': 'system_context' in prompt_data,
             'has_output_format': 'output_format' in prompt_data,
@@ -198,21 +200,26 @@ class PromptService:
     def get_prompt_with_metadata(self, category: str, name: str, **kwargs) -> Dict[str, Any]:
         """
         Get both the formatted prompt and its metadata.
-        
+
         Args:
             category: Prompt category
             name: Prompt name
             **kwargs: Variables for templating
-            
+
         Returns:
-            Dict with 'prompt' and 'metadata' keys
+            Dict with 'prompt', 'metadata', and optionally 'system_context' keys
         """
         prompt = self.get_prompt(category, name, **kwargs)
         metadata = self.get_prompt_info(category, name)
 
+        # Also get system_context separately for providers that need it (e.g., Gemini)
+        prompt_data = self._cache[category][name]
+        system_context = prompt_data.get('system_context')
+
         return {
             'prompt': prompt,
             'metadata': metadata,
+            'system_context': system_context,
             'rendered_length': len(prompt),
             'variables_used': kwargs
         }
