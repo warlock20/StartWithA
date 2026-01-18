@@ -17,7 +17,7 @@ from app.models import (ResearchTemplate, ResearchProject, Company,
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.services.too_hard_service import TooHardBasketService
-
+from app.services.sector_service import SectorService
 
 @research_workflow_bp.route('/my-projects')
 @login_required
@@ -271,9 +271,11 @@ def too_hard_basket():
             self.next_num = page + 1 if self.has_next else None
 
     pagination = SimplePagination(page, per_page, total_items)
-
+    sectors_list = SectorService.get_user_sectors_list(current_user.id)
+                                                       
     return render_template('too_hard_basket.html',
-                          items=items,
+                          too_hard_items=items,
+                          sectors_list=sectors_list,
                           pagination=pagination,
                           search_query=search_query,
                           current_stage=stage_filter,

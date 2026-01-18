@@ -152,6 +152,80 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
+            <!-- AI Token Usage Widget -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>AI Usage
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% set token_percentage = current_user.get_token_usage_percentage() %}
+                    {% set tokens_remaining = current_user.get_tokens_remaining() %}
+
+                    <!-- Subscription Tier Badge -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted small">Subscription Tier</span>
+                        <span class="badge bg-{% if current_user.subscription_tier == 'free' %}secondary{% elif current_user.subscription_tier == 'beta_tester' %}info{% else %}primary{% endif %}">
+                            {{ current_user.subscription_tier|upper }}
+                        </span>
+                    </div>
+
+                    <!-- Token Usage Stats -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted">Tokens Used</span>
+                            <span class="fw-bold">{{ "{:,}".format(current_user.ai_tokens_used) }} / {{ "{:,}".format(current_user.ai_tokens_limit) }}</span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar
+                                {% if token_percentage < 50 %}bg-success
+                                {% elif token_percentage < 80 %}bg-warning
+                                {% else %}bg-danger{% endif %}"
+                                role="progressbar"
+                                style="width: {{ token_percentage }}%"
+                                aria-valuenow="{{ token_percentage }}"
+                                aria-valuemin="0"
+                                aria-valuemax="100">
+                                {{ "%.0f"|format(token_percentage) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tokens Remaining -->
+                    <div class="alert alert-{% if token_percentage < 80 %}info{% else %}warning{% endif %} mb-3 py-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-{% if token_percentage < 80 %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                            <div class="small">
+                                <strong>{{ "{:,}".format(tokens_remaining) }} tokens remaining</strong>
+                                {% if token_percentage >= 80 %}
+                                <br><span class="text-muted">You're running low on tokens</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reset Date -->
+                    {% if current_user.ai_tokens_reset_date %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-muted">
+                            <i class="fas fa-calendar-alt me-1"></i>Resets on
+                        </span>
+                        <span class="small fw-bold">{{ current_user.ai_tokens_reset_date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Usage Info -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Tokens are used when you interact with AI features like Research Assistant, Portfolio Analytics, and more.
+                    </p>
+                </div>
+            </div>
+
             <!-- Current Profile Summary -->
             <div class="card mb-4">
                 <div class="card-header">

@@ -244,7 +244,7 @@
             <!-- Key Findings -->
             <div class="key-findings-card mb-4">
                 <h3 class="font-poppins fw-bold mb-3">Key Findings</h3>
-                <div>
+                <div id="findingsList">
                     {% if project.green_flags %}
                     {% for flag in project.green_flags %}
                     <div class="key-finding-item">
@@ -389,18 +389,87 @@ function showNotes(stepIndex) {
     }
 }
 
-// Show add finding modal
+
+// showAddFindingModal and form handling with this:
 function showAddFindingModal(findingType) {
-    const modal = new bootstrap.Modal(document.getElementById('addFindingModal'));
+    const modalEl = document.getElementById('addFindingModal');
+    const modal = new bootstrap.Modal(modalEl);
     const form = document.getElementById('addFindingForm');
     const title = document.getElementById('findingModalTitle');
     const typeInput = document.getElementById('findingType');
+    const textInput = document.getElementById('findingText');
 
+    // 1. Setup modal state
     typeInput.value = findingType;
-    title.textContent = findingType === 'green_flag' ? 'Add Green Flag' : 'Add Red Flag';
-    form.action = '{{ url_for("research_workflow.add_finding", project_id=project.id) }}';
+    title.textContent = findingType.includes('green') ? 'Add Green Flag' : 'Add Red Flag';
+    textInput.value = ''; // Clear previous text
+
+    // 2. Attach AJAX submission handler
+    form.onsubmit = async (e) => {
+        e.preventDefault(); // STOP THE RELOAD
+        
+        const text = textInput.value.trim();
+        if (!text) return;
+
+        try {
+            const response = await fetch('{{ url_for("research_workflow.add_finding", project_id=project.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: findingType.includes('green') ? 'green' : 'red',
+                    text: text
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // SUCCESS: Update the UI dynamically instead of reloading!
+                appendFindingToSidebar(findingType, text);
+                modal.hide();
+                
+                // Optional: Show a small success toast/alert
+                console.log("Finding saved via AJAX");
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            console.error('AJAX Error:', err);
+            alert('Failed to save finding. check console.');
+        }
+    };
 
     modal.show();
+}
+
+/**
+ * Helper to inject the new finding into the HTML sidebar
+ */
+function appendFindingToSidebar(findingType, text) {
+    const container = document.getElementById('findingsList');
+    if (!container) return;
+
+    // Remove the "No findings" text if it exists
+    const emptyMsg = container.querySelector('p.text-muted');
+    if (emptyMsg) emptyMsg.remove();
+
+    const isGreen = findingType.includes('green');
+    const iconClass = isGreen ? 'bi-plus-circle-fill green' : 'bi-dash-circle-fill red';
+    const label = isGreen ? 'Green Flag:' : 'Red Flag:';
+
+    const findingHtml = `
+        <div class="key-finding-item">
+            <i class="bi ${iconClass} key-finding-icon"></i>
+            <div>
+                <span class="key-finding-label">${label}</span>
+                <span class="key-finding-text">${text}</span>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', findingHtml);
 }
 </script>
 {% endblock %}

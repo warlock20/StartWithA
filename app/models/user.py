@@ -4,6 +4,8 @@ from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from .associations import favorite_companies
+from app.utils.time_utils import now_utc
+from datetime import timedelta
 
 
 # The User class needs to inherit from UserMixin
@@ -41,6 +43,12 @@ class User(UserMixin, db.Model):  # Add UserMixin here
         "DestinationCheckpoint", backref="creator", lazy="dynamic"
     )
     subscription_tier  = db.Column(db.String(50), nullable=False, default="free")
+
+    # AI Token Usage Tracking
+    ai_tokens_used = db.Column(db.Integer, nullable=False, default=0, index=True)
+    ai_tokens_limit = db.Column(db.Integer, nullable=False, default=10000)  # Free tier default
+    ai_tokens_reset_date = db.Column(db.DateTime, nullable=True)
+
     question_bank_items = db.relationship(
         "QuestionBankItem",
         backref="author",
@@ -122,6 +130,63 @@ class User(UserMixin, db.Model):  # Add UserMixin here
         if self.password_hash is None:
             return False
         return check_password_hash(self.password_hash, password)
+
+    # AI Token Management Methods
+    def check_and_reset_tokens(self):
+        """Check if token reset date has passed and reset if needed."""
+        if self.ai_tokens_reset_date is None:
+            # First time using AI - set reset date to 30 days from now
+            self.ai_tokens_reset_date = now_utc() + timedelta(days=30)
+            return
+
+        if now_utc() >= self.ai_tokens_reset_date:
+            # Reset period has passed - reset tokens
+            self.ai_tokens_used = 0
+            self.ai_tokens_reset_date = now_utc() + timedelta(days=30)
+            db.session.commit()
+
+    def can_use_ai_tokens(self, tokens_needed=5000):
+        """
+        Check if user has enough tokens available.
+
+        Args:
+            tokens_needed: Number of tokens needed (default 5000 for research assistant)
+
+        Returns:
+            bool: True if user has enough tokens, False otherwise
+        """
+        self.check_and_reset_tokens()
+        return (self.ai_tokens_used + tokens_needed) <= self.ai_tokens_limit
+
+    def increment_ai_tokens(self, tokens_used):
+        """
+        Increment user's AI token usage counter.
+
+        Args:
+            tokens_used: Number of tokens consumed by the AI request
+        """
+        self.ai_tokens_used += tokens_used
+        db.session.commit()
+
+    def get_token_usage_percentage(self):
+        """
+        Calculate token usage as percentage for UI display.
+
+        Returns:
+            float: Percentage of tokens used (0-100)
+        """
+        if self.ai_tokens_limit == 0:
+            return 0.0
+        return (self.ai_tokens_used / self.ai_tokens_limit) * 100
+
+    def get_tokens_remaining(self):
+        """
+        Get number of tokens remaining in current period.
+
+        Returns:
+            int: Tokens remaining
+        """
+        return max(0, self.ai_tokens_limit - self.ai_tokens_used)
 
     def __repr__(self):
         return f"<User {self.username}>"

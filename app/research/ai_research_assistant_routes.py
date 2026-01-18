@@ -20,12 +20,14 @@ from app.research import research_bp
 from app.models import ChecklistAnalysis, ChecklistItem, AIResearchFeedback
 from app.services.ai_research_assistant import ai_research_assistant
 from app.utils.time_utils import now_utc
+from app.utils.decorators import require_ai_tokens
 
 logger = logging.getLogger(__name__)
 
 
 @research_bp.route('/ai_assist', methods=['POST'])
 @login_required
+@require_ai_tokens(5000)
 def ai_assist():
     """
     Generate AI research assistance response.
@@ -176,9 +178,13 @@ def ai_assist():
         db.session.add(feedback_record)
         db.session.commit()
 
+        # Increment user's token usage with actual tokens from AI response
+        current_user.increment_ai_tokens(ai_response.tokens_used)
+
         logger.info(
             f"AI assist success: feedback_id={feedback_record.id}, "
-            f"tokens={ai_response.tokens_used}, mode={mode}"
+            f"tokens={ai_response.tokens_used}, mode={mode}, "
+            f"user_total={current_user.ai_tokens_used}/{current_user.ai_tokens_limit}"
         )
 
         # Return success response
@@ -305,6 +311,7 @@ def ai_assist_feedback():
 
 @research_bp.route('/ai_assist/regenerate', methods=['POST'])
 @login_required
+@require_ai_tokens(5000)
 def ai_assist_regenerate():
     """
     Regenerate AI response for the same question/answer.
@@ -405,9 +412,13 @@ def ai_assist_regenerate():
         db.session.add(new_feedback_record)
         db.session.commit()
 
+        # Increment user's token usage with actual tokens from AI response
+        current_user.increment_ai_tokens(ai_response.tokens_used)
+
         logger.info(
             f"AI response regenerated: original_id={feedback_id}, "
-            f"new_id={new_feedback_record.id}, mode={original_record.mode}"
+            f"new_id={new_feedback_record.id}, mode={original_record.mode}, "
+            f"tokens={ai_response.tokens_used}, user_total={current_user.ai_tokens_used}/{current_user.ai_tokens_limit}"
         )
 
         return jsonify({

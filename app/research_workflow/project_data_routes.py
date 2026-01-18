@@ -114,6 +114,9 @@ def save_project_decision(project_id):
         decision_summary = request.form.get('decision_summary', '').strip()
         decision_confidence = request.form.get('decision_confidence', type=int)
 
+        green_flags_raw = request.form.get('green_flags', '')
+        red_flags_raw = request.form.get('red_flags', '')
+        
         # Validate decision
         if decision not in ['invest', 'pass', 'watchlist']:
             flash('Invalid decision type', 'error')
@@ -124,7 +127,9 @@ def save_project_decision(project_id):
         project.decision_summary = decision_summary
         project.decision_confidence = decision_confidence
         project.decision_date = now_utc()
-
+        project.green_flags = [f.strip() for f in green_flags_raw.split('\n') if f.strip()]
+        project.red_flags = [f.strip() for f in red_flags_raw.split('\n') if f.strip()]
+        
         # Mark as completed if not already
         if project.status != 'completed':
             project.status = 'completed'
@@ -162,25 +167,39 @@ def add_finding(project_id):
         return jsonify({'success': False, 'error': 'Access denied'}), 403
 
     try:
-        data = request.get_json()
-        finding_type = data.get('type')  # 'green' or 'red'
-        finding_text = data.get('text', '').strip()
+        if request.is_json:
+            data = request.get_json()
+            finding_type = data.get('type')  # 'green' or 'red'
+            finding_text = data.get('text', '').strip()
+        else:
+            # Handle standard form submission
+            finding_type = request.form.get('finding_type')
+            finding_text = request.form.get('finding_text', '').strip()
+        
+        # Normalize types (convert green_flag to green, etc. if needed)
+        if 'green' in finding_type: finding_type = 'green'
+        if 'red' in finding_type: finding_type = 'red'
+        
+        if not finding_text:
+            return jsonify({'success': False, 'error': 'Finding text is required'}), 400
 
         if not finding_text:
             return jsonify({'success': False, 'error': 'Finding text is required'}), 400
 
         if finding_type == 'green':
-            if not project.green_flags:
-                project.green_flags = []
-            project.green_flags = project.green_flags + [finding_text]
+            project.green_flags = (project.green_flags or []) + [finding_text]
         elif finding_type == 'red':
-            if not project.red_flags:
-                project.red_flags = []
-            project.red_flags = project.red_flags + [finding_text]
+            project.red_flags = (project.red_flags or []) + [finding_text]
         else:
             return jsonify({'success': False, 'error': 'Invalid finding type'}), 400
 
         db.session.commit()
+        
+        # If it was a form submisison, redirect back. If AJAX, return JSON.
+        if not request.is_json:
+            flash(f'{finding_type.capitalize()} flag added!', 'success')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+            
         return jsonify({'success': True, 'message': f'{finding_type.capitalize()} flag added'})
 
     except Exception as e:

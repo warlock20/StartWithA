@@ -1,102 +1,95 @@
 # Portfolio Analytics - Argos Integration Roadmap
 
-**Last Updated:** 2026-01-13
-**Goal:** Build dual-layer portfolio analytics (UI + Argos intelligence system)
+**Last Updated:** 2026-01-16
+**Goal:** Build portfolio analytics UI + independent Argos intelligence backend
+**Status:** Phase 1 COMPLETE ✅ (including Smart Routing milestone)
 
 ---
 
 ## 🎯 Core Strategy
 
-**Approach:** Complete portfolio analytics piece by piece, then extend to research workflow, finally connect via Argos.
+**Approach:** Complete portfolio analytics UI first, then build Argos as a separate multi-agent backend system.
 
-**Data Architecture:**
-- **UI Layer:** Direct visualization data (metrics, charts, comparisons)
-- **Argos Layer:** Raw intelligence data for correlation analysis and pattern detection
+**Architecture Separation:**
+- **AI Analytics (Current):** Human-readable insights from raw transactions → UI visualization
+- **Argos (Future):** Independent multi-agent backend that queries DB directly → Correlation detection
 
----
-
-## Phase 1: Deep Behavioral Insights (CURRENT FOCUS)
-
-### 1.1 Define UI Requirements
-- [ ] List exact metrics for Overview section (Win Rate, Hold Time, ???)
-- [ ] Define Behavioral Patterns section content (pattern cards, evidence, severity)
-- [ ] Define Winners vs Losers comparison metrics
-- [ ] Decide on Risk Analysis visualization
-- [ ] Review mockup: `/docs/mockup_option3_portofolio_analytics.html`
-
-**Decisions Needed:**
-- What KPIs to show in Overview besides Win Rate and Hold Time?
-- Show ALL patterns or only HIGH severity?
-- What specific comparisons for Winners vs Losers?
+**Key Insight:** All raw data exists in the database. Argos doesn't need AI-generated metadata—it queries structured DB tables directly (transactions, positions, research_project, decision_journal, checklist). This keeps systems decoupled, deterministic, and scalable.
 
 ---
 
-### 1.2 Adapt Response Schema
-- [ ] Update `portfolio_raw_trade_analysis.yaml` response_schema
-- [ ] Add `ui_data` section (formatted for direct rendering)
-- [ ] Add `argos_data` section (raw metadata for correlations)
-- [ ] Include fields for:
-  - Winners vs Losers metrics (avg return, hold time, count)
-  - Disposition Effect metadata (severity score, affected stocks, evidence)
-  - Pattern detection data (pattern type, severity, trade examples)
+## Phase 1: Portfolio Analytics UI ✅ COMPLETE
 
-**Schema Structure:**
-```yaml
-{
-  "ui_data": {
-    "kpis": {...},
-    "behavioral_patterns": [...],
-    "comparisons": {...}
-  },
-  "argos_data": {
-    "pattern_metadata": {...},
-    "affected_stocks": [...],
-    "correlation_hints": {...}
-  }
-}
-```
+### 1.1 Complete UI Implementation ✅
+- [x] Define KPIs: Win Rate, CAGR, Avg Hold Time
+- [x] Design pattern cards with collapsible evidence sections
+- [x] Create horizontal evolution timeline
+- [x] Add FOMO trades table
+- [x] Add repeating mistakes list
+- [x] Build Winners vs Losers comparison section
+- [x] Update extraction methods to populate new UI fields
+- [x] Add CAGR calculation using `financial_utils.py`
 
----
+### 1.2 Testing & Polish ✅
+- [x] Test complete flow with re-run analysis
+- [x] Verify all UI sections render correctly
+- [x] Check severity detection logic accuracy
+- [x] Validate CAGR calculations
+- [x] Test cache invalidation
 
-### 1.3 Create Database Tables
+### 1.3 AI Service Infrastructure Improvements ✅
+- [x] Refactor AI service API for consistency
+  - Removed confusing `generate()` method, use `generate_text()` directly
+  - Added config parameters (temperature, max_tokens, top_p, top_k, stop_sequences) to all methods
+  - Unified interface across `generate_text()`, `generate_json()`, `generate_embeddings()`
+- [x] Fix system_context passing to providers
+  - Added `system_context` extraction in `_get_task_config()`
+  - Updated `_call_provider_to_generate_json()` to pass system context as 'system' kwarg
+  - Verified Gemini uses `system_instruction` and Claude uses `system` parameter correctly
+- [x] Changed severity detection from fuzzy keywords to AI-provided enum (high/medium/low)
+- [x] Fixed CAGR calculation (removed double-counting of reinvested proceeds)
+- [x] Fixed Winners vs Losers average returns (reconstruct cost basis from transactions)
 
-#### Table 1: `portfolio_ui_insights`
-**Purpose:** Direct UI rendering (snapshot-based)
+### 1.4 Smart Routing & Background Task Handling ✅ COMPLETE
+**Goal:** Improve UX when background tasks are running
 
-- [ ] Design schema (user_id, generated_at, analysis_period, etc.)
-- [ ] Decide: JSONB for flexibility or normalized columns?
-- [ ] Fields: kpis, behavioral_patterns, comparisons, evolution_timeline
-- [ ] Add indexes for user_id, generated_at
+**Implemented Solution:**
+- [x] Composite task_type format: `'portfolio_analysis:{template_name}'`
+- [x] Reordered route checks: Running task → Cached results → Force refresh → Placeholder
+- [x] Prevents duplicate tasks of same type
+- [x] Allows concurrent different analysis types (e.g., behavioral + risk)
+- [x] Consistent UX regardless of navigation path
 
-#### Table 2: `portfolio_argos_data`
-**Purpose:** Argos correlation engine intelligence
+**Technical Implementation:**
+- Modified `start_portfolio_analysis()` to check for existing running tasks before creating new ones
+- Updated route queries to use composite task_type for granular control
+- Added `parse_task_type()` utility function for future enhancements
+- Fixed priority: Running task check happens FIRST (prevents showing stale cache)
 
-- [ ] Design schema (user_id, analysis_id, pattern_type, etc.)
-- [ ] Store: pattern_metadata, affected_stocks, severity_scores
-- [ ] Add fields for research correlation hints
-- [ ] Enable time-series tracking (detect pattern evolution)
+**Files Modified:**
+- `/app/services/background_tasks.py` - Composite task_type, duplicate prevention
+- `/app/portfolio/routes.py` - Reordered checks, composite queries
 
-**Key Question:** Normalize patterns into separate rows, or keep as JSONB?
+**Future Enhancements (Phase 1.4.1):**
+- [ ] Enhance loading page to show:
+  - Which specific analysis is running (parse task_type to display "Behavioral Analysis")
+  - Progress percentage (if available)
+  - Estimated time remaining
+  - List of queued tasks (if multiple types running)
 
----
+**Benefits Achieved:**
+- ✅ Consistent UX regardless of navigation path
+- ✅ No duplicate tasks wasted
+- ✅ Foundation for multiple concurrent background tasks
+- ✅ No database migration required
 
-### 1.4 Implement Data Storage
-- [ ] Update `_normalize_ai_response()` to handle dual schema
-- [ ] Create `_split_ui_and_argos_data()` helper method
-- [ ] Update `_format_for_template()` to format UI data
-- [ ] Create database service for saving to both tables
-- [ ] Update Celery task to save to DB after analysis
-- [ ] Maintain backward compatibility with cache files
+### 1.5 Database Storage (Optional Enhancement)
+**Note:** Currently using file cache. DB storage can be added later.
 
----
-
-### 1.5 UI Integration
-- [ ] Update `portfolio_basic_analytics.html` template
-- [ ] Implement Winners vs Losers comparison section
-- [ ] Add Disposition Effect visualization (conditional)
-- [ ] Update Overview section with new KPIs
-- [ ] Test rendering with real data
-- [ ] Verify caching and performance
+- [ ] Create `portfolio_ui_insights` table (user_id, generated_at, insights_json)
+- [ ] Store AI analysis results in DB alongside file cache
+- [ ] Add endpoint to retrieve historical analyses
+- [ ] Enable trend tracking over time
 
 ---
 
@@ -109,54 +102,79 @@
 - [ ] Dividend vs growth allocation
 
 **For Each Analysis:**
-1. Define UI + Argos schema
-2. Create YAML template
-3. Store in same dual tables
-4. Update UI to render new sections
+1. Create YAML prompt template
+2. Define UI visualization components
+3. Update analytics template
+4. Add to UI rendering
 
 ---
 
-## Phase 3: Research Workflow Insights (FUTURE)
+## Phase 3: Research Workflow Analytics (FUTURE)
 
-### Research Data Extraction:
-- [ ] Research quality scores
-- [ ] Checklist completion rates
-- [ ] Exit criteria documentation
+### AI-Powered Research Insights:
+- [ ] Research quality scoring (from checklist completion)
+- [ ] Exit criteria documentation patterns
 - [ ] Thesis evolution tracking
-- [ ] Time spent researching per position
+- [ ] Time-to-decision metrics
+- [ ] Correlation: Research depth vs Trade outcomes
 
-### Database:
-- [ ] Create `research_ui_insights` table
-- [ ] Create `research_argos_data` table
-- [ ] Link to portfolio data via company_id + date range
+### UI Components:
+- [ ] Create `research_analytics.html` template
+- [ ] Research quality timeline visualization
+- [ ] Thesis evolution narrative
+- [ ] Entry/Exit criteria compliance tracker
 
 ---
 
-## Phase 4: Argos Correlation Engine (FUTURE)
+## Phase 4: Argos - Independent Intelligence Backend (FUTURE)
 
-### Graph-Based Intelligence:
+**Philosophy:** Argos is NOT a consumer of AI analytics. It's an independent multi-agent system that queries raw database tables directly.
 
-**Node 1:** Portfolio Pattern Detector
-- Input: Transaction history
-- Output: Detected patterns (Disposition Effect, FOMO, etc.)
+### System Architecture:
 
-**Node 2:** Research Quality Checker
-- Input: Pattern type + affected stocks
-- Output: Research quality metrics for those stocks
+**Input Layer:** Direct SQL queries to:
+- `transaction` table → Trade history, hold times, realized G/L
+- `portfolio_position` → Active positions, cost basis
+- `research_project` → Research depth, quality scores
+- `decision_journal` → Entry/exit criteria, thesis changes
+- `checklist` → Due diligence completeness
 
-**Node 3:** Correlation Analyzer
-- Input: Pattern data + Research data
-- Output: Specific correlations found
+**Processing Layer:** Multi-agent graph
+- **Agent 1:** Pattern Detection (algorithmic, not LLM)
+  - Queries transactions → Detects disposition effect mathematically
+  - Output: Affected stocks, hold time deltas, severity scores
 
-**Node 4:** Insight Generator
-- Input: Correlations
-- Output: Actionable insights
+- **Agent 2:** Research Quality Analyzer
+  - Queries research_project + checklist for stocks from Agent 1
+  - Output: Research quality scores per affected stock
 
-### First Flow to Implement:
-- [ ] Disposition Effect → Exit Criteria check
-- [ ] Define correlation logic
-- [ ] Create insight templates
-- [ ] Test with real data
+- **Agent 3:** Correlation Engine
+  - Combines outputs from Agent 1 + Agent 2
+  - Runs statistical correlation analysis
+  - Output: "Disposition effect stocks have 60% lower research quality"
+
+- **Agent 4:** Insight Generator (LLM-based)
+  - Takes correlation data + generates human-readable insight
+  - Output: Actionable recommendation with evidence
+
+**Output Layer:**
+- Store in `argos_intelligence` table
+- Trigger notifications for high-severity patterns
+- Surface in UI as "Argos Insights" panel
+
+### First Flow to Build:
+- [ ] Agent 1: Detect disposition effect from transactions table
+- [ ] Agent 2: Pull research quality for affected stocks
+- [ ] Agent 3: Calculate correlation coefficient
+- [ ] Agent 4: Generate insight narrative
+- [ ] Test end-to-end with real user data
+
+### Why This Works:
+- ✅ Deterministic (not reliant on LLM interpretation)
+- ✅ Fresh data (queries DB, not cached AI responses)
+- ✅ Scalable (can add new data sources without re-running AI analytics)
+- ✅ Decoupled (Argos evolves independently)
+- ✅ Multi-domain (can correlate portfolio + research + market data + news)
 
 ---
 
@@ -183,77 +201,86 @@
 - [ ] Configure what is/isn't a risk (e.g., concentration)
 - [ ] Set personal thresholds and preferences
 
+### Historical Price Data Limitations (Deferred)
+**Known Issue:** Yahoo Finance returns no historical data for many European stocks (`.F`, `.DE`, `.SW`, `.AS` tickers)
+
+**Impact:**
+- Periods where price data unavailable fall back to transaction cost_basis
+- Results in portfolio value = cost for those periods
+- Affects CAGR calculation accuracy when many holdings lack data
+
+**Observed Examples:**
+- `R6C.F`, `GAZ.F`, `TWR.F`, `TATB.F` - no data available
+- Multiple European tickers with sparse or missing historical data
+
+**Current Mitigation:**
+- Fallback to cost_basis when historical price unavailable
+- Nearest date matching within 7-day window for weekends/holidays
+- Comprehensive logging to track data sources
+
+**Potential Solutions (Future):**
+- [ ] Integrate alternative data provider (Alpha Vantage, Polygon.io, etc.)
+- [ ] Manual price data entry for critical holdings
+- [ ] Transaction-based approximation (calculate from realized G/L patterns)
+- [ ] Multi-provider fallback strategy (try Yahoo → fallback to Alpha Vantage)
+
+**Priority:** Low - Deferred for now (not main priority)
+
 ---
 
-## Immediate Next Steps (This Session)
+## Immediate Next Steps
 
-**Target:** Complete Phase 1.1 and 1.2
+**Status:** Phase 1 COMPLETE ✅ (January 16, 2026)
 
-1. **Brainstorm UI Requirements (30 min)**
-   - List all metrics for Overview
-   - Define Behavioral Patterns display format
-   - Decide on comparison metrics
+**Phase 1 Completed:**
+- ✅ Portfolio analytics UI fully implemented
+- ✅ AI service infrastructure improved (system_context passing, config parameters)
+- ✅ Severity detection using AI enum instead of fuzzy matching
+- ✅ CAGR and Winners vs Losers calculations fixed and validated
+- ✅ All UI sections rendering correctly with collapsible evidence
 
-2. **Design Dual Schema (45 min)**
-   - Separate UI data from Argos data
-   - Update YAML template
-   - Document field mappings
+**Ready for Phase 2 or Phase 3:**
 
-3. **Validate with Mockup**
-   - Cross-reference with mockup HTML
-   - Ensure all UI elements have data source
+**Option 1: Phase 2 - Additional Portfolio Insights**
+- Add sector momentum chasing detection
+- Implement position sizing risk analysis
+- Tax optimization opportunities
+- Dividend vs growth allocation
 
----
+**Option 2: Phase 3 - Research Workflow Analytics**
+- Research quality scoring from checklist completion
+- Exit criteria documentation patterns
+- Thesis evolution tracking
+- Correlation: Research depth vs Trade outcomes
 
-## Questions to Answer
-
-### UI Layer:
-1. Overview KPIs: Besides Win Rate and Hold Time, what else?
-   - Total return %?
-   - Best/worst trade?
-   - Portfolio value vs cost?
-
-2. Behavioral Patterns: Show all or filter by severity?
-
-3. Evolution Timeline: Expandable phases or inline metrics?
-
-### Argos Layer:
-1. What metadata needed for Disposition Effect correlation?
-   - Losing stocks list + hold times?
-   - Severity score (0-100)?
-   - Evidence trades with dates?
-
-2. How to link portfolio data → research data?
-   - Via company_id + date range?
-   - Exact match or fuzzy matching?
-
-### Database:
-1. JSONB (flexible) vs Normalized columns (queryable)?
-2. Store full AI response or parsed fields only?
-3. How to handle schema evolution over time?
+**Option 3: Phase 1.4 - Database Storage (Optional)**
+- Store AI analysis results in DB for historical tracking
+- Enable trend visualization over time
 
 ---
 
 ## Success Criteria
 
 **Phase 1 Complete When:**
-- ✅ UI shows meaningful behavioral insights
-- ✅ Data stored in both UI and Argos tables
-- ✅ Winners vs Losers comparison functional
-- ✅ Disposition Effect detected and visualized
-- ✅ Cache invalidation working correctly
+- ✅ UI shows all agreed sections (KPIs, patterns, evolution, FOMO, mistakes)
+- ✅ Collapsible evidence sections work smoothly
+- ✅ Winners vs Losers comparison displays correctly
+- ✅ CAGR calculated accurately
+- ✅ Severity auto-detection working
+- ✅ Cache invalidation functional
 
-**Argos Ready When:**
-- ✅ Raw pattern metadata stored
-- ✅ Affected stocks tracked
-- ✅ Correlation hints prepared
-- ✅ Time-series data available for pattern evolution
+**Argos Ready When (Phase 4):**
+- ✅ Multi-agent graph architecture defined
+- ✅ First correlation flow working (Disposition Effect → Research Quality)
+- ✅ DB queries optimized for performance
+- ✅ Insight generation producing actionable recommendations
+- ✅ System scalable for additional data domains
 
 ---
 
 ## Notes
 
-- **Focus:** No scope creep. Complete one phase before moving to next.
-- **Philosophy:** Lay groundwork for Argos, don't build full Argos yet.
-- **Iteration:** Get basic version working, then enhance.
-- **Data Quality:** Garbage in = garbage out. Ensure clean transaction data.
+- **Focus:** Complete Phase 1 fully before thinking about Phase 2-4
+- **Philosophy:** Argos is independent—don't couple it to AI analytics
+- **Architecture:** Keep AI Analytics (human insights) and Argos (machine intelligence) separate
+- **Data Quality:** All intelligence depends on clean, structured DB data
