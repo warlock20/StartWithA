@@ -166,7 +166,7 @@ class ResearchProject(db.Model):
     step_overrides = db.Column(db.JSON, default=dict)  # Override step configs (e.g., if checklist was deleted)
 
     # Status tracking
-    status = db.Column(db.String(50), default='active')  # 'active', 'completed', 'abandoned', 'killed'
+    status = db.Column(db.String(50), default='active')  # 'active', 'completed', 'killed'
     kill_reason = db.Column(db.Text)  # Reason for killing the investment during screening
 
     # Time tracking - crucial for understanding where effort goes
@@ -183,10 +183,10 @@ class ResearchProject(db.Model):
     # Circle of Competence tracking (for Too Hard Basket analytics)
     within_circle_of_competence = db.Column(db.String(20))  # 'yes', 'no', 'unsure'
 
-    # Too Hard / Abandon tracking
+    # Too Hard / Mid-research pass tracking
     too_hard_reason = db.Column(db.String(100))  # 'too_complex', 'insufficient_info', 'outside_competence', 'better_opportunities', 'other'
     too_hard_notes = db.Column(db.Text)  # What they learned
-    abandoned_at = db.Column(db.DateTime)  # When marked as too hard
+    abandoned_at = db.Column(db.DateTime)  # When marked as too hard (kept for backwards compatibility)
 
     # If invested, track the outcome
     investment_amount = db.Column(db.Float)

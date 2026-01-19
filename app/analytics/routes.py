@@ -242,7 +242,7 @@ def dashboard():
             'total_analyzed': stats.get('total_analyzed', 0),
             'invested': stats.get('invested', 0),
             'killed': stats.get('killed', 0),
-            'abandoned': stats.get('abandoned', 0),
+            'mid_research_pass': stats.get('mid_research_pass', 0),
             'passed_full': stats.get('passed_full', 0),
             'total_time': round(stats.get('total_time', 0), 1),
             'coc_confidence': round(stats.get('coc_confidence', 0), 1),

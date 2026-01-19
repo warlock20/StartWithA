@@ -58,10 +58,16 @@
                             <p><strong>Status:</strong>
                                 <span class="badge
                                         {% if project.status == 'active' %}badge-success
+                                        {% elif project.status == 'completed' and project.decision == 'invest' %}badge-success
+                                        {% elif project.status == 'completed' and project.decision == 'pass' %}badge-secondary
+                                        {% elif project.status == 'completed' and project.decision == 'watchlist' %}badge-warning
                                         {% elif project.status == 'completed' %}badge-primary
-                                        {% elif project.status == 'abandoned' %}badge-secondary
                                         {% else %}badge-secondary{% endif %}">
-                                    {{ project.status.title() }}
+                                    {% if project.status == 'completed' and project.decision %}
+                                        {{ project.decision.title() }}
+                                    {% else %}
+                                        {{ project.status.title() }}
+                                    {% endif %}
                                 </span>
                             </p>
                             {% if project.created_at %}

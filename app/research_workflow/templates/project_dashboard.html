@@ -210,10 +210,14 @@
                         <span class="project-vitals-value">
                             {% if project.status == 'active' %}
                             <span class="badge bg-primary">In Progress</span>
+                            {% elif project.status == 'completed' and project.decision == 'invest' %}
+                            <span class="badge bg-success">Invested</span>
+                            {% elif project.status == 'completed' and project.decision == 'pass' %}
+                            <span class="badge bg-secondary">Passed</span>
+                            {% elif project.status == 'completed' and project.decision == 'watchlist' %}
+                            <span class="badge bg-warning">Watchlist</span>
                             {% elif project.status == 'completed' %}
                             <span class="badge bg-success">Completed</span>
-                            {% elif project.status == 'abandoned' %}
-                            <span class="badge bg-secondary">Abandoned</span>
                             {% endif %}
                         </span>
                     </div>

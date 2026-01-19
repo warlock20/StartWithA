@@ -193,7 +193,7 @@ class Sector(db.Model):
             sector_id=self.id
         ).all()
 
-        self.companies_analyzed = len([p for p in projects if p.status in ['completed', 'abandoned']])
+        self.companies_analyzed = len([p for p in projects if p.status == 'completed'])
         self.companies_invested = len([p for p in projects if p.decision == 'invest'])
         self.total_research_hours = sum(p.total_hours_spent or 0 for p in projects)
 
