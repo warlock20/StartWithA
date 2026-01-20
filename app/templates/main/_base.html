@@ -79,6 +79,10 @@
                 }, 10000); // 10 seconds
             });
 
+            // Initialize Bootstrap tooltips globally
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+
             // Navbar quote scrolling effect - continuous marquee
             const quoteInner = document.querySelector('.navbar-quote-inner');
             const quoteText = document.querySelector('.navbar-quote-text');

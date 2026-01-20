@@ -17,7 +17,9 @@
             </button>
             <div class="dropdown">
                 <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
-                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    data-bs-custom-class="tooltip-primary"
+                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Quick Add New Item">
                     <i class="bi bi-plus-circle-fill me-2"></i> Quick Add
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="quickActionsDropdown">
@@ -156,38 +158,36 @@
         <div class="quick-access-section">
             <h2 class="section-title font-poppins mb-4">Quick Access</h2>
             <div class="quick-access-grid">
-                <!-- Research Templates -->
-                <a href="{{ url_for('research_workflow.template_list') }}" class="quick-access-card">
+                <!-- Portfolio -->
+                <a href="{{ url_for('portfolio.dashboard') }}" class="quick-access-card">
                     <div class="quick-access-icon">
-                        <i class="bi bi-clipboard-check"></i>
+                        <i class="bi bi-briefcase"></i>
                     </div>
                     <div class="quick-access-content">
-                        <h4 class="quick-access-title">Research Templates</h4>
-                        <p class="quick-access-count">{{ template_count or 0 }} template{{ 's' if template_count != 1 }}
-                        </p>
+                        <h4 class="quick-access-title">Portfolio</h4>
+                        <p class="quick-access-count">{{ portfolio_count }} position{{ 's' if portfolio_count != 1 }}</p>
                     </div>
                 </a>
 
-                <!-- Kill Checklists -->
-                <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="quick-access-card">
+                <!-- Active Research -->
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-access-card">
                     <div class="quick-access-icon">
-                        <i class="bi bi-x-octagon"></i>
+                        <i class="bi bi-search"></i>
                     </div>
                     <div class="quick-access-content">
-                        <h4 class="quick-access-title">Kill Checklists</h4>
-                        <p class="quick-access-count">{{ kill_checklist_count or 0 }} checklist{{ 's' if
-                            kill_checklist_count != 1 }}</p>
+                        <h4 class="quick-access-title">Active Research</h4>
+                        <p class="quick-access-count">{{ active_projects_count or 0 }} project{{ 's' if active_projects_count != 1 }}</p>
                     </div>
                 </a>
 
-                <!-- Companies -->
-                <a href="{{ url_for('companies.companies_dashboard') }}" class="quick-access-card">
+                <!-- Sector Research -->
+                <a href="{{ url_for('sectors.list_sectors') }}" class="quick-access-card">
                     <div class="quick-access-icon">
-                        <i class="bi bi-building"></i>
+                        <i class="bi bi-grid-3x3-gap"></i>
                     </div>
                     <div class="quick-access-content">
-                        <h4 class="quick-access-title">My Companies</h4>
-                        <p class="quick-access-count">{{ portfolio_count }} in portfolio</p>
+                        <h4 class="quick-access-title">Sector Research</h4>
+                        <p class="quick-access-count">Explore sectors</p>
                     </div>
                 </a>
 

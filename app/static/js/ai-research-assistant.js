@@ -323,21 +323,31 @@ class AIResearchAssistant {
 
     /**
      * Create reusable AI feedback buttons
-     * Generates HTML for feedback buttons (Helpful, Not Helpful, Dismiss)
+     * Generates HTML for feedback buttons (Helpful, Not Helpful, Regenerate, Copy, Dismiss)
      * Can be reused across platform (research, decision journal, portfolio notes, etc.)
      */
     createFeedbackButtons() {
         return `
-            <div class="d-flex gap-2 justify-content-end mt-2">
-                <button type="button" class="btn btn-sm btn-outline-success" onclick="window.aiAssistant.submitFeedback('helpful')">
-                    <i class="bi bi-hand-thumbs-up me-1"></i> Helpful
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.aiAssistant.submitFeedback('not_helpful')">
-                    <i class="bi bi-hand-thumbs-down me-1"></i> Not Helpful
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.aiAssistant.dismiss()">
-                    <i class="bi bi-x-lg me-1"></i> Dismiss
-                </button>
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3 pt-2 border-top">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="window.aiAssistant.submitFeedback('helpful')" title="Mark this response as helpful">
+                        <i class="bi bi-hand-thumbs-up me-1"></i> Helpful
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.aiAssistant.submitFeedback('not_helpful')" title="Mark this response as not helpful">
+                        <i class="bi bi-hand-thumbs-down me-1"></i> Not Helpful
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.aiAssistant.regenerate()" title="Generate a new response">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Regenerate
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.aiAssistant.copyToClipboard()" title="Copy response to clipboard">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.aiAssistant.dismiss()" title="Close this response">
+                        <i class="bi bi-x-lg me-1"></i> Dismiss
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -476,6 +486,53 @@ class AIResearchAssistant {
         // Reset state
         this.currentFeedbackId = null;
         this.currentMode = null;
+    }
+
+    /**
+     * Copy current AI response to clipboard
+     */
+    copyToClipboard() {
+        if (!this.currentMode) {
+            console.error('No current mode set');
+            return;
+        }
+
+        const modeConfig = this.modes[this.currentMode];
+        if (!modeConfig) {
+            console.error('Invalid mode:', this.currentMode);
+            return;
+        }
+
+        const contentDiv = document.getElementById(modeConfig.text);
+        if (!contentDiv) {
+            console.error('Could not find response content');
+            return;
+        }
+
+        // Get text content (strip HTML)
+        const textContent = contentDiv.innerText || contentDiv.textContent;
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(textContent).then(() => {
+            // Show brief success feedback
+            const copyBtn = document.querySelector('.ai-feedback-buttons .btn-outline-secondary[onclick*="copyToClipboard"]');
+            if (copyBtn) {
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="bi bi-check me-1"></i> Copied!';
+                copyBtn.classList.remove('btn-outline-secondary');
+                copyBtn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHTML;
+                    copyBtn.classList.remove('btn-success');
+                    copyBtn.classList.add('btn-outline-secondary');
+                }, 2000);
+            }
+            console.log('Response copied to clipboard');
+        }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+            alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+        });
     }
 }
 
