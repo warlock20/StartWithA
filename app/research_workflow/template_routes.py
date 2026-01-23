@@ -19,6 +19,21 @@ from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 import json
 
+# Available step types for research templates
+STEP_TYPES = [
+    {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
+    {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
+    {'value': 'free_research', 'label': 'Free Research', 'icon': '🔍'},
+    {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
+    {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
+    {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
+]
+
+MENTAL_MODELS = [
+    'SWOT Analysis',
+    'Porter\'s Five Forces'
+]
+
 @research_workflow_bp.route('/templates')
 @login_required
 def template_list():
@@ -166,26 +181,12 @@ def create_template():
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
     user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
     
-    # Define available step types and mental models
-    step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
-        {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
-        {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
-    ]
-    
-    mental_models = [
-        'SWOT Analysis',
-        'Porter\'s Five Forces'
-    ]
-    
     return render_template('create_template.html',
                           title="Create Research Template",
                           user_checklists=user_checklists,
                           user_kill_checklists=user_kill_checklists,
-                          step_types=step_types,
-                          mental_models=mental_models)
+                          step_types=STEP_TYPES,
+                          mental_models=MENTAL_MODELS)
 
 
 
@@ -288,27 +289,13 @@ def edit_template(template_id):
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
     user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
     
-    # Define available step types and mental models (same as create)
-    step_types = [
-        {'value': 'checklist', 'label': 'Investment Checklist', 'icon': '📋'},
-        {'value': 'model', 'label': 'Mental Model', 'icon': '🧠'},
-        {'value': 'competitor_analysis', 'label': 'Competitor Analysis', 'icon': '🎯'},
-        {'value': 'thesis_writing', 'label': 'Write Investment Thesis', 'icon': '✍️'},
-        {'value': 'custom', 'label': 'Custom Task', 'icon': '⚙️'}
-    ]
-    
-    mental_models = [
-        'SWOT Analysis',
-        'Porter\'s Five Forces'
-    ]
-    
     return render_template('edit_template.html',
                           title=f"Edit Template: {template.name}",
                           template=template,
                           user_checklists=user_checklists,
                           user_kill_checklists=user_kill_checklists,
-                          step_types=step_types,
-                          mental_models=mental_models)
+                          step_types=STEP_TYPES,
+                          mental_models=MENTAL_MODELS)
 
 
 

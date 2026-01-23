@@ -179,8 +179,12 @@ class CompanySearchComponent {
         if (query.length < 2) {
             this.hideElement(this.config.resultsId);
             this.hideElement(this.config.quickAddFormId);
+            this.hideElement('searchSpinner');
             return;
         }
+
+        // Show loading spinner
+        this.showElement('searchSpinner');
 
         try {
             const response = await fetch(`${this.config.searchEndpoint}?q=${encodeURIComponent(query)}`);
@@ -190,6 +194,9 @@ class CompanySearchComponent {
         } catch (error) {
             console.error('Search error:', error);
             this.hideElement(this.config.resultsId);
+        } finally {
+            // Always hide spinner when done
+            this.hideElement('searchSpinner');
         }
     }
 
@@ -573,6 +580,15 @@ class CompanySearchComponent {
      * Lookup company info via yfinance API
      */
     async lookupTickerInfo(ticker) {
+        // Show loading state on ticker field
+        const tickerField = document.getElementById('newCompanyTicker');
+        if (tickerField) {
+            tickerField.style.backgroundImage = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 50 50\'%3E%3Cpath fill=\'%230d6efd\' d=\'M25 5A20 20 0 1 0 45 25 20 20 0 0 0 25 5zm0 36A16 16 0 1 1 41 25 16 16 0 0 1 25 41z\' opacity=\'.3\'/%3E%3Cpath fill=\'%230d6efd\' d=\'M25 5v4A16 16 0 0 1 41 25h4A20 20 0 0 0 25 5z\'%3E%3CanimateTransform attributeName=\'transform\' type=\'rotate\' from=\'0 25 25\' to=\'360 25 25\' dur=\'0.8s\' repeatCount=\'indefinite\'/%3E%3C/path%3E%3C/svg%3E")';
+            tickerField.style.backgroundRepeat = 'no-repeat';
+            tickerField.style.backgroundPosition = 'right 10px center';
+            tickerField.style.backgroundSize = '20px';
+        }
+
         try {
             const response = await fetch(`/companies/api/lookup/${ticker}`);
             const data = await response.json();
@@ -590,6 +606,11 @@ class CompanySearchComponent {
         } catch (error) {
             console.error('Ticker lookup error:', error);
             // Silently fail - don't interrupt user experience
+        } finally {
+            // Remove loading state
+            if (tickerField) {
+                tickerField.style.backgroundImage = '';
+            }
         }
     }
 

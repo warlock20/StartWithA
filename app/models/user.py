@@ -4,7 +4,7 @@ from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from .associations import favorite_companies
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from datetime import timedelta
 
 
@@ -139,7 +139,10 @@ class User(UserMixin, db.Model):  # Add UserMixin here
             self.ai_tokens_reset_date = now_utc() + timedelta(days=30)
             return
 
-        if now_utc() >= self.ai_tokens_reset_date:
+        # Ensure reset_date is timezone-aware for comparison
+        reset_date_aware = ensure_timezone_aware(self.ai_tokens_reset_date)
+
+        if now_utc() >= reset_date_aware:
             # Reset period has passed - reset tokens
             self.ai_tokens_used = 0
             self.ai_tokens_reset_date = now_utc() + timedelta(days=30)

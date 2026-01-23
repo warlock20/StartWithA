@@ -94,3 +94,4 @@ All complex components have been fully modularized.
 @import url('modules/_investment-profile.css');   /* Investment profile settings page */
 @import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */
 @import url('modules/_warnings-widget.css');      /* Intelligence warnings widget */
+@import url('modules/_free-research.css');        /* Free research step */

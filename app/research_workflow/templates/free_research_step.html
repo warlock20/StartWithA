@@ -1,0 +1,890 @@
+{% extends "main/_base.html" %}
+
+{% block head %}
+<!-- Styles loaded from /static/css/modules/_free-research.css via design-system.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-1">{{ step.name }}: {{ project.company.name }}</h1>
+                <p class="text-muted mb-0">
+                    Step {{ step_index + 1 }} of {{ project.template.workflow_steps|length }} in "{{ project.template.name }}"
+                    <span class="fr-saving-indicator" id="savingIndicator">
+                        <span class="spinner-border spinner-border-sm"></span> Saving...
+                    </span>
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Warning Banner (hidden by default) -->
+            <div class="free-research-warning" id="warningBanner" style="display: none;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div class="free-research-warning-content">
+                    <h6>Many questions still exploring</h6>
+                    <p>Consider marking some questions as "Answered" before completing this step.</p>
+                </div>
+                <button class="btn btn-sm btn-outline-warning ms-auto" onclick="FreeResearch.dismissWarning()">Dismiss</button>
+            </div>
+
+            <!-- Add Question Section -->
+            <div class="free-research-add-section">
+                <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Add Research Question</h5>
+                <div class="free-research-add-input">
+                    <input type="text" id="newQuestionInput"
+                           placeholder="What question do you want to explore?"
+                           onkeypress="if(event.key === 'Enter') FreeResearch.addQuestion()">
+                    <button class="btn btn-primary" onclick="FreeResearch.addQuestion()">
+                        <i class="bi bi-plus-lg me-1"></i> Add
+                    </button>
+                </div>
+            </div>
+
+            <!-- Questions List -->
+            <div id="questionsList">
+                <!-- Questions will be loaded here via AJAX -->
+                <div class="fr-empty-state" id="emptyState">
+                    <i class="bi bi-journal-plus"></i>
+                    <h5>No questions yet</h5>
+                    <p>Add your first research question above to get started.</p>
+                </div>
+            </div>
+
+            <!-- Complete Step Section -->
+            <div class="fr-complete-section">
+                <div>
+                    <h5 class="mb-1">Ready to move on?</h5>
+                    <p class="text-muted mb-0" id="completionSummary">0 questions</p>
+                </div>
+                <form method="POST" action="{{ url_for('research_workflow.complete_step', project_id=project.id) }}" id="completeStepForm">
+                    <input type="hidden" name="step_index" value="{{ step_index }}">
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    <input type="hidden" name="notes" value="">
+                    <div class="d-flex gap-2">
+                        {% if step_index > 0 %}
+                        <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index - 1) }}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Previous
+                        </a>
+                        {% endif %}
+                        <button type="submit" class="btn btn-success" onclick="return FreeResearch.validateCompletion()">
+                            Complete Step <i class="bi bi-check-lg ms-1"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="sticky-top" style="top: 1rem;">
+                <!-- Company Info -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <i class="bi bi-building me-2"></i>{{ project.company.name }} ({{ project.company.ticker_symbol }})
+                    </div>
+                    <div class="card-body">
+                        {% if project.company.sector %}
+                        <p class="text-muted mb-2">{{ project.company.sector.display_name }}</p>
+                        {% endif %}
+                        <div class="fr-progress-stats">
+                            <div class="fr-progress-stat">
+                                <div class="fr-progress-stat-value" id="statTotal">0</div>
+                                <div class="fr-progress-stat-label">Questions</div>
+                            </div>
+                            <div class="fr-progress-stat">
+                                <div class="fr-progress-stat-value success" id="statAnswered">0</div>
+                                <div class="fr-progress-stat-label">Answered</div>
+                            </div>
+                            <div class="fr-progress-stat">
+                                <div class="fr-progress-stat-value warning" id="statExploring">0</div>
+                                <div class="fr-progress-stat-label">Exploring</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Questions Library -->
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-bookmarks me-2"></i>Model Questions</span>
+                        <span class="badge bg-primary" id="modelQuestionsCount">0</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Click to insert into your research</p>
+                        <div id="modelQuestionsList">
+                            <p class="text-muted small">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-lightning-charge me-2"></i>Quick Actions
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="https://www.google.com/search?q={{ project.company.name|urlencode }}+{{ project.company.ticker_symbol|urlencode }}"
+                               target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-search me-1"></i> Smart Search
+                            </a>
+                            <a href="https://finance.yahoo.com/quote/{{ project.company.ticker_symbol }}"
+                               target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-graph-up me-1"></i> Financial Data
+                            </a>
+                            <a href="{{ url_for('companies.company_dashboard', company_id=project.company_id) }}"
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-earmark-text me-1"></i> View Documents
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- BlockNote Editor -->
+{% include 'components/blocknote_editor_include.html' %}
+<!-- AI Research Assistant -->
+<script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
+<!-- SortableJS is already included in base -->
+
+<script>
+const FreeResearch = {
+    projectId: {{ project.id }},
+    stepIndex: {{ step_index }},
+    companyName: {{ project.company.name|tojson }},
+    questions: [],
+    modelQuestions: [],
+    editors: {},  // Store BlockNote editor instances
+
+    // API endpoints
+    apiBase: '/research/workflow/api',
+
+    // =============================================================================
+    // Initialization
+    // =============================================================================
+
+    init() {
+        this.loadQuestions();
+        this.loadModelQuestions();
+        this.initSortable();
+    },
+
+    initSortable() {
+        const list = document.getElementById('questionsList');
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(list, {
+                handle: '.fr-drag-handle',
+                animation: 150,
+                ghostClass: 'dragging',
+                onEnd: (evt) => this.handleReorder(evt)
+            });
+        }
+    },
+
+    // =============================================================================
+    // Questions CRUD
+    // =============================================================================
+
+    async loadQuestions() {
+        try {
+            const response = await fetch(`${this.apiBase}/project/${this.projectId}/step/${this.stepIndex}/questions`);
+            const data = await response.json();
+
+            if (data.success) {
+                this.questions = data.questions;
+                this.renderQuestions();
+                this.updateStats(data.stats);
+            }
+        } catch (error) {
+            console.error('Error loading questions:', error);
+            this.showToast('Error loading questions', 'error');
+        }
+    },
+
+    async addQuestion() {
+        const input = document.getElementById('newQuestionInput');
+        const text = input.value.trim();
+
+        if (!text) {
+            this.showToast('Please enter a question', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/project/${this.projectId}/step/${this.stepIndex}/questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_text: text })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.questions.push(data.question);
+                this.renderQuestions();
+                this.updateStatsFromQuestions();
+                input.value = '';
+                this.showToast('Question added');
+
+                // Auto-expand the new question
+                setTimeout(() => this.toggleQuestion(data.question.id), 100);
+            } else {
+                this.showToast(data.error || 'Error adding question', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding question:', error);
+            this.showToast('Error adding question', 'error');
+        }
+    },
+
+    async updateQuestion(questionId, updates) {
+        this.showSaving(true);
+
+        try {
+            const response = await fetch(`${this.apiBase}/questions/${questionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update local data
+                const question = this.questions.find(q => q.id === questionId);
+                if (question) {
+                    Object.assign(question, data.question);
+                }
+                this.updateStatsFromQuestions();
+                this.updateQuestionUI(questionId);
+            }
+        } catch (error) {
+            console.error('Error updating question:', error);
+            this.showToast('Error saving', 'error');
+        } finally {
+            this.showSaving(false);
+        }
+    },
+
+    async deleteQuestion(questionId) {
+        if (!confirm('Delete this question and its answer?')) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/questions/${questionId}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Clean up editor instance
+                if (this.editors[questionId]) {
+                    delete this.editors[questionId];
+                }
+
+                this.questions = this.questions.filter(q => q.id !== questionId);
+                this.renderQuestions();
+                this.updateStatsFromQuestions();
+                this.showToast('Question deleted');
+            }
+        } catch (error) {
+            console.error('Error deleting question:', error);
+            this.showToast('Error deleting question', 'error');
+        }
+    },
+
+    async toggleStatus(questionId) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return;
+
+        const newStatus = question.status === 'exploring' ? 'answered' : 'exploring';
+        await this.updateQuestion(questionId, { status: newStatus });
+
+        this.showToast(newStatus === 'answered' ? 'Marked as answered' : 'Marked as exploring');
+    },
+
+    async handleReorder(evt) {
+        const questionIds = Array.from(document.querySelectorAll('.fr-question-card'))
+            .map(card => parseInt(card.dataset.questionId));
+
+        try {
+            await fetch(`${this.apiBase}/project/${this.projectId}/step/${this.stepIndex}/questions/reorder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_ids: questionIds })
+            });
+        } catch (error) {
+            console.error('Error reordering:', error);
+        }
+    },
+
+    // =============================================================================
+    // Rendering
+    // =============================================================================
+
+    renderQuestions() {
+        const container = document.getElementById('questionsList');
+        const emptyState = document.getElementById('emptyState');
+
+        // Clear existing question cards (but preserve emptyState)
+        const existingCards = container.querySelectorAll('.fr-question-card');
+        existingCards.forEach(card => card.remove());
+
+        if (this.questions.length === 0) {
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+
+        if (emptyState) emptyState.style.display = 'none';
+
+        // Insert question cards before emptyState
+        const html = this.questions.map((q, index) => this.renderQuestionCard(q, index + 1)).join('');
+        container.insertAdjacentHTML('afterbegin', html);
+
+        // Initialize editors for expanded questions
+        this.questions.forEach(q => {
+            const card = document.querySelector(`[data-question-id="${q.id}"]`);
+            if (card && card.classList.contains('expanded')) {
+                this.initEditorForQuestion(q.id);
+            }
+        });
+
+        // Initialize tooltips for new elements
+        const tooltips = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(el => new bootstrap.Tooltip(el));
+    },
+
+    renderQuestionCard(question, number) {
+        const statusClass = question.status === 'answered' ? 'answered' : 'exploring';
+        const statusIcon = question.status === 'answered' ? 'check-circle' : 'search';
+        const statusText = question.status === 'answered' ? 'Answered' : 'Exploring';
+
+        return `
+            <div class="fr-question-card status-${statusClass}" data-question-id="${question.id}">
+                <div class="fr-question-card-header" onclick="FreeResearch.toggleQuestion(${question.id})">
+                    <i class="bi bi-grip-vertical fr-drag-handle" onclick="event.stopPropagation()"></i>
+                    <span class="fr-question-number">${number}</span>
+                    <p class="fr-question-text">${this.escapeHtml(question.question_text)}</p>
+                    <span class="fr-question-status-badge ${statusClass}">
+                        <i class="bi bi-${statusIcon} me-1"></i>${statusText}
+                    </span>
+                    <i class="bi bi-chevron-down fr-question-expand-icon"></i>
+                </div>
+                <div class="fr-question-card-body">
+                    <!-- Answer Editor -->
+                    <div class="fr-answer-editor" id="editor-${question.id}"></div>
+
+                    <!-- AI Assistant -->
+                    <div class="fr-ai-assistant">
+                        <h6><i class="bi bi-robot me-1"></i> AI Research Tools</h6>
+                        <div class="fr-ai-mode-buttons">
+                            <button class="fr-ai-mode-btn challenge" onclick="FreeResearch.triggerAI(${question.id}, 'challenge')">
+                                <i class="bi bi-exclamation-triangle"></i> Challenge
+                            </button>
+                            <button class="fr-ai-mode-btn elaborate" onclick="FreeResearch.triggerAI(${question.id}, 'elaboration')">
+                                <i class="bi bi-question-circle"></i> Elaborate
+                            </button>
+                            <button class="fr-ai-mode-btn factcheck" onclick="FreeResearch.triggerAI(${question.id}, 'factcheck')">
+                                <i class="bi bi-shield-check"></i> Fact-Check
+                            </button>
+                        </div>
+                        <div class="fr-ai-response" id="aiResponse-${question.id}"></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="fr-question-actions">
+                        <div class="d-flex flex-column">
+                            <div class="d-flex gap-2">
+                                <button class="fr-status-toggle ${statusClass}" onclick="FreeResearch.toggleStatus(${question.id})"
+                                        data-bs-toggle="tooltip" title="Click to mark as ${question.status === 'answered' ? 'Exploring' : 'Answered'}">
+                                    <i class="bi bi-${statusIcon}${question.status === 'answered' ? '-fill' : ''}"></i>
+                                    ${statusText}
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="FreeResearch.saveAsModelQuestion(${question.id})">
+                                    <i class="bi bi-bookmark-plus"></i> Save as Model
+                                </button>
+                            </div>
+                            ${question.status === 'exploring' ? '<p class="fr-status-hint mb-0"><i class="bi bi-info-circle me-1"></i>Click the button above to mark this question as answered</p>' : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="FreeResearch.deleteQuestion(${question.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    toggleQuestion(questionId) {
+        const card = document.querySelector(`[data-question-id="${questionId}"]`);
+        if (!card) return;
+
+        const wasExpanded = card.classList.contains('expanded');
+
+        // Collapse all others
+        document.querySelectorAll('.fr-question-card.expanded').forEach(c => {
+            c.classList.remove('expanded');
+        });
+
+        // Toggle this one
+        if (!wasExpanded) {
+            card.classList.add('expanded');
+            this.initEditorForQuestion(questionId);
+        }
+    },
+
+    updateQuestionUI(questionId) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return;
+
+        const card = document.querySelector(`[data-question-id="${questionId}"]`);
+        if (!card) return;
+
+        // Update status class
+        card.classList.remove('status-answered', 'status-exploring');
+        card.classList.add(`status-${question.status}`);
+
+        // Update badge
+        const badge = card.querySelector('.fr-question-status-badge');
+        if (badge) {
+            const isAnswered = question.status === 'answered';
+            badge.className = `fr-question-status-badge ${question.status}`;
+            badge.innerHTML = `<i class="bi bi-${isAnswered ? 'check-circle' : 'search'} me-1"></i>${isAnswered ? 'Answered' : 'Exploring'}`;
+        }
+
+        // Update toggle button
+        const toggle = card.querySelector('.fr-status-toggle');
+        if (toggle) {
+            const isAnswered = question.status === 'answered';
+            toggle.className = `fr-status-toggle ${question.status}`;
+            toggle.innerHTML = `<i class="bi bi-${isAnswered ? 'check-circle-fill' : 'search'}"></i> ${isAnswered ? 'Answered' : 'Exploring'}`;
+        }
+    },
+
+    // =============================================================================
+    // BlockNote Editor
+    // =============================================================================
+
+    initEditorForQuestion(questionId) {
+        if (this.editors[questionId]) return; // Already initialized
+
+        const container = document.getElementById(`editor-${questionId}`);
+        if (!container || !window.initBlockNoteEditor) return;
+
+        const question = this.questions.find(q => q.id === questionId);
+
+        // Use onChange callback - BlockNote already debounces (2 seconds)
+        this.editors[questionId] = window.initBlockNoteEditor(`editor-${questionId}`, {
+            initialContent: question?.answer_content || '',
+            placeholder: 'Write your research findings here...',
+            onChange: (json) => {
+                // json is already stringified by BlockNote
+                this.saveAnswer(questionId, json);
+            }
+        });
+    },
+
+    async saveAnswer(questionId, content) {
+        // Update local question data
+        const question = this.questions.find(q => q.id === questionId);
+        if (question) {
+            question.answer_content = content;
+        }
+
+        // Save to server
+        try {
+            await fetch(`${this.apiBase}/questions/${questionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answer_content: content })
+            });
+        } catch (error) {
+            console.error('Error saving answer:', error);
+        }
+    },
+
+    getEditorContent(questionId) {
+        const editor = this.editors[questionId];
+        if (editor && window.blockNoteEditorInstance?.editor) {
+            return JSON.stringify(window.blockNoteEditorInstance.editor.document);
+        }
+        return '';
+    },
+
+    getEditorText(questionId) {
+        const container = document.getElementById(`editor-${questionId}`);
+        if (container) {
+            return container.textContent || container.innerText || '';
+        }
+        return '';
+    },
+
+    // =============================================================================
+    // AI Assistant Integration
+    // =============================================================================
+
+    async triggerAI(questionId, mode) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return;
+
+        const answerText = this.getEditorText(questionId);
+
+        if (!answerText.trim()) {
+            this.showToast('Please write some research findings first', 'warning');
+            return;
+        }
+
+        const responseArea = document.getElementById(`aiResponse-${questionId}`);
+
+        // Show loading
+        responseArea.innerHTML = `
+            <div class="d-flex align-items-center gap-2 text-muted">
+                <span class="spinner-border spinner-border-sm"></span>
+                <span>AI is analyzing your answer...</span>
+            </div>
+        `;
+        responseArea.classList.add('visible');
+
+        try {
+            const response = await fetch('/research/ai_assist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mode: mode,
+                    answer_text: answerText,
+                    question_text: question.question_text,
+                    company_name: this.companyName,
+                    context: 'free_research'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.renderAIResponse(questionId, mode, data.response);
+            } else {
+                responseArea.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-circle me-2"></i>${data.error || 'AI request failed'}</div>`;
+            }
+        } catch (error) {
+            console.error('AI error:', error);
+            responseArea.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-circle me-2"></i>Error connecting to AI service</div>`;
+        }
+    },
+
+    renderAIResponse(questionId, mode, responseText) {
+        const responseArea = document.getElementById(`aiResponse-${questionId}`);
+
+        const modeConfig = {
+            challenge: { icon: 'exclamation-diamond', color: 'danger', title: 'Challenge Mode' },
+            elaboration: { icon: 'chat-dots', color: 'primary', title: 'Elaboration Mode' },
+            factcheck: { icon: 'shield-exclamation', color: 'warning', title: 'Fact-Check Mode' }
+        };
+
+        const config = modeConfig[mode] || modeConfig.challenge;
+
+        responseArea.innerHTML = `
+            <div class="d-flex align-items-center gap-2 mb-2 text-${config.color}">
+                <i class="bi bi-${config.icon}"></i>
+                <strong>${config.title}</strong>
+            </div>
+            <div class="ai-response-text" style="font-size: 0.9rem; line-height: 1.6;">
+                ${this.formatAIResponse(responseText)}
+            </div>
+            <div class="d-flex gap-2 mt-3 pt-2 border-top">
+                <button class="btn btn-sm btn-outline-success" onclick="FreeResearch.submitAIFeedback(${questionId}, 'helpful')">
+                    <i class="bi bi-hand-thumbs-up"></i> Helpful
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="FreeResearch.submitAIFeedback(${questionId}, 'not_helpful')">
+                    <i class="bi bi-hand-thumbs-down"></i> Not Helpful
+                </button>
+                <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="FreeResearch.dismissAI(${questionId})">
+                    <i class="bi bi-x-lg"></i> Dismiss
+                </button>
+            </div>
+        `;
+    },
+
+    formatAIResponse(text) {
+        // Convert markdown-style formatting to HTML
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+    },
+
+    dismissAI(questionId) {
+        const responseArea = document.getElementById(`aiResponse-${questionId}`);
+        responseArea.classList.remove('visible');
+        setTimeout(() => responseArea.innerHTML = '', 300);
+    },
+
+    async submitAIFeedback(questionId, feedback) {
+        this.showToast(feedback === 'helpful' ? 'Thanks for the feedback!' : 'Feedback recorded');
+        this.dismissAI(questionId);
+    },
+
+    // =============================================================================
+    // Model Questions
+    // =============================================================================
+
+    async loadModelQuestions() {
+        try {
+            const response = await fetch(`${this.apiBase}/model-questions`);
+            const data = await response.json();
+
+            if (data.success) {
+                this.modelQuestions = data.questions;
+                this.renderModelQuestions();
+            }
+        } catch (error) {
+            console.error('Error loading model questions:', error);
+        }
+    },
+
+    renderModelQuestions() {
+        const container = document.getElementById('modelQuestionsList');
+        const countBadge = document.getElementById('modelQuestionsCount');
+
+        countBadge.textContent = this.modelQuestions.length;
+
+        if (this.modelQuestions.length === 0) {
+            container.innerHTML = '<p class="text-muted small mb-0">No saved questions yet. Save good questions from your research!</p>';
+            return;
+        }
+
+        container.innerHTML = this.modelQuestions.slice(0, 5).map(q => `
+            <div class="fr-model-question-item d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1" onclick="FreeResearch.insertModelQuestion(${q.id}, '${this.escapeHtml(q.question_text).replace(/'/g, "\\'")}')">
+                    <div>${this.escapeHtml(q.question_text.substring(0, 50))}${q.question_text.length > 50 ? '...' : ''}</div>
+                    <div class="usage-count"><i class="bi bi-arrow-repeat me-1"></i>Used ${q.times_used} times</div>
+                </div>
+                <button class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="event.stopPropagation(); FreeResearch.deleteModelQuestion(${q.id})" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `).join('');
+
+        if (this.modelQuestions.length > 5) {
+            container.innerHTML += `<p class="text-muted small mt-2 mb-0">+ ${this.modelQuestions.length - 5} more</p>`;
+        }
+    },
+
+    async insertModelQuestion(modelQuestionId, questionText) {
+        // Check if question already exists in current step
+        const existingQuestion = this.questions.find(q =>
+            q.question_text.toLowerCase().trim() === questionText.toLowerCase().trim()
+        );
+
+        if (existingQuestion) {
+            this.showToast('This question already exists in your research', 'warning');
+            return;
+        }
+
+        // Confirm before adding
+        if (!confirm(`Add this question to your research?\n\n"${questionText}"`)) {
+            return;
+        }
+
+        // Add the question directly
+        try {
+            const response = await fetch(`${this.apiBase}/project/${this.projectId}/step/${this.stepIndex}/questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_text: questionText })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.questions.push(data.question);
+                this.renderQuestions();
+                this.updateStatsFromQuestions();
+
+                // Track usage only after successful add
+                await fetch(`${this.apiBase}/model-questions/${modelQuestionId}/use`, { method: 'POST' });
+
+                // Update local model question usage count
+                const modelQ = this.modelQuestions.find(q => q.id === modelQuestionId);
+                if (modelQ) {
+                    modelQ.times_used = (modelQ.times_used || 0) + 1;
+                    this.renderModelQuestions();
+                }
+
+                this.showToast('Question added from library');
+
+                // Auto-expand the new question
+                setTimeout(() => this.toggleQuestion(data.question.id), 100);
+            } else {
+                this.showToast(data.error || 'Error adding question', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding question:', error);
+            this.showToast('Error adding question', 'error');
+        }
+    },
+
+    async deleteModelQuestion(modelQuestionId) {
+        if (!confirm('Delete this question from your library?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/model-questions/${modelQuestionId}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.modelQuestions = this.modelQuestions.filter(q => q.id !== modelQuestionId);
+                this.renderModelQuestions();
+                this.showToast('Question removed from library');
+            } else {
+                this.showToast(data.error || 'Error deleting', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting model question:', error);
+            this.showToast('Error deleting', 'error');
+        }
+    },
+
+    async saveAsModelQuestion(questionId) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/model-questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question_text: question.question_text,
+                    source_project_id: this.projectId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.modelQuestions.unshift(data.question);
+                this.renderModelQuestions();
+                this.showToast('Saved to Model Questions library');
+            } else {
+                this.showToast(data.error || 'Error saving', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving model question:', error);
+            this.showToast('Error saving', 'error');
+        }
+    },
+
+    // =============================================================================
+    // Stats & Validation
+    // =============================================================================
+
+    updateStats(stats) {
+        document.getElementById('statTotal').textContent = stats.total;
+        document.getElementById('statAnswered').textContent = stats.answered;
+        document.getElementById('statExploring').textContent = stats.exploring;
+
+        const summary = stats.total === 0
+            ? 'No questions yet'
+            : `${stats.answered} of ${stats.total} questions answered`;
+        document.getElementById('completionSummary').textContent = summary;
+
+        // Show warning if >= 5 questions and >50% exploring
+        const warningBanner = document.getElementById('warningBanner');
+        if (stats.total >= 5 && stats.exploring > stats.total / 2) {
+            warningBanner.style.display = 'flex';
+        } else {
+            warningBanner.style.display = 'none';
+        }
+    },
+
+    updateStatsFromQuestions() {
+        const stats = {
+            total: this.questions.length,
+            answered: this.questions.filter(q => q.status === 'answered').length,
+            exploring: this.questions.filter(q => q.status === 'exploring').length
+        };
+        this.updateStats(stats);
+    },
+
+    validateCompletion() {
+        const exploring = this.questions.filter(q => q.status === 'exploring').length;
+        const total = this.questions.length;
+
+        if (total > 0 && exploring > total / 2) {
+            return confirm(`${exploring} of ${total} questions are still "Exploring". Continue anyway?`);
+        }
+        return true;
+    },
+
+    dismissWarning() {
+        document.getElementById('warningBanner').style.display = 'none';
+    },
+
+    // =============================================================================
+    // Utilities
+    // =============================================================================
+
+    showSaving(show) {
+        const indicator = document.getElementById('savingIndicator');
+        indicator.classList.toggle('visible', show);
+    },
+
+    showToast(message, type = 'success') {
+        // Use Bootstrap toast or simple alert
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '1055';
+            document.body.appendChild(container);
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const bgClass = type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-success';
+
+        container.innerHTML = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        const toast = new bootstrap.Toast(document.getElementById(toastId));
+        toast.show();
+    },
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => FreeResearch.init());
+</script>
+{% endblock %}

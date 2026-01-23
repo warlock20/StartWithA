@@ -392,6 +392,17 @@ def execute_step(project_id, step_index):
         return redirect(url_for('research_workflow.competitor_analysis_step',
                               project_id=project_id, step_index=step_index))
 
+    elif step['type'] == 'free_research':
+        # Free research step - user-defined questions with AI assistance
+        session_start_js = format_for_javascript(session.start_time)
+        return render_template('free_research_step.html',
+                              title=f"Free Research: {step['name']}",
+                              project=project,
+                              step=step,
+                              step_index=step_index,
+                              session=session,
+                              session_start_js=session_start_js)
+
     # For other step types, show the generic execution interface
     # Format session start time for JavaScript timer
     session_start_js = format_for_javascript(session.start_time)
@@ -588,12 +599,14 @@ def mark_too_hard(project_id):
         return redirect(request.referrer)
 
     try:
-        # Update project status
-        project.status = 'abandoned'
+        # Update project - mark as pass (too hard = a type of pass decision)
+        project.status = 'completed'
+        project.decision = 'pass'
+        project.decision_date = now_utc()
         project.too_hard_reason = too_hard_reason
         project.within_circle_of_competence = within_coc
         project.too_hard_notes = too_hard_notes
-        project.abandoned_at = now_utc()
+        project.abandoned_at = now_utc()  # Keep for backwards compatibility / timing
 
         # Handle sector assignment
         if sector_action == 'existing' and sector_id:
@@ -618,13 +631,14 @@ def mark_too_hard(project_id):
 
         log_research_activity(
             current_user.id,
-            'project_abandoned',
+            'project_passed',
             company_id=project.company_id,
             project_id=project.id,
             details={
                 'reason': too_hard_reason,
                 'within_coc': within_coc,
-                'hours_spent': project.total_hours_spent
+                'hours_spent': project.total_hours_spent,
+                'pass_type': 'mid_research'
             }
         )
 

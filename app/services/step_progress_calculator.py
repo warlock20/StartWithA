@@ -265,6 +265,43 @@ def calculate_custom_step_progress(project, step, step_index):
         return 0.0
 
 
+def calculate_free_research_progress(project, step, step_index):
+    """
+    Calculate progress for a free research step.
+
+    Progress is based on the ratio of answered questions to total questions.
+    If no questions exist yet, progress is 0%.
+    """
+    try:
+        questions = FreeResearchQuestion.query.filter_by(
+            project_id=project.id,
+            step_index=step_index
+        ).all()
+
+        if not questions:
+            return 0.0
+
+        answered_count = sum(1 for q in questions if q.status == 'answered')
+        total_count = len(questions)
+
+        progress = (answered_count / total_count) * 100
+        return round(progress, 1)
+
+    except Exception as e:
+        logger.error(f"Error calculating free research progress for project {project.id}, step {step_index}: {e}")
+        return 0.0
+
+
+def calculate_free_research_progress(project, step, step_index):
+    """
+    Calculate progress for a free research step.
+
+    Free research uses binary progress: 0% until user completes the step.
+    The 100% case is already handled by get_step_progress() checking completed_steps.
+    """
+    return 0.0
+
+
 STEP_CALCULATORS = {
     'checklist': calculate_checklist_progress,
     'kill_checklist': calculate_kill_checklist_progress,
@@ -272,5 +309,6 @@ STEP_CALCULATORS = {
     'swot': calculate_swot_progress,
     'porters': calculate_porters_progress,
     'porter_five_forces': calculate_porters_progress,
+    'free_research': calculate_free_research_progress,
     'custom': calculate_custom_step_progress,
 }

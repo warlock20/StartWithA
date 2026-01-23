@@ -21,10 +21,15 @@ def create_app(config_class=Config):
     # Configure logging
     import logging
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     app.logger.setLevel(logging.INFO)
+
+    # Suppress noisy third-party loggers
+    logging.getLogger('yfinance').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('peewee').setLevel(logging.WARNING)
 
     db.init_app(app)
     migrate.init_app(app, db)

@@ -28,7 +28,7 @@ def my_projects():
     paused_count = current_user.research_projects.filter_by(status='paused').count()
     completed_count = current_user.research_projects.filter_by(status='completed').count()
 
-    # Get Too Hard Basket count (includes: killed ideas, abandoned projects, and completed+pass)
+    # Get Too Hard Basket count (includes: killed ideas and all passed projects)
     all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
     too_hard_count = len(all_too_hard_items)
 

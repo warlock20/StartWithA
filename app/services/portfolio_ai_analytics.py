@@ -16,7 +16,9 @@ from pathlib import Path
 
 from app.models.portfolio import Transaction
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
-from app.services.ai.intelligence_service import IntelligenceService
+from app.services.ai.ai_service import AIService
+from app.services.ai.prompt_service import PromptService
+from app.services.ai.config import AIProvider, AIModel
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +42,14 @@ class PortfolioAIAnalytics:
         """Initialize analytics service"""
         self.user_id = user_id
         self.extractor = PortfolioDataExtractor(user_id)
-        self.intelligence = IntelligenceService()
+        self.ai_service = AIService()
+        self.prompt_service = PromptService()
 
     # ================================================================
     # Public API - Main Orchestrator
     # ================================================================
 
-    def get_insights(self, force_refresh: bool = False) -> Dict[str, Any]:
+    def get_insights(self, force_refresh: bool = False) -> tuple[Dict[str, Any], int]:
         """
         Get comprehensive AI-powered portfolio insights.
 
@@ -65,7 +68,7 @@ class PortfolioAIAnalytics:
             force_refresh: Skip cache and regenerate all analyses
 
         Returns:
-            Combined analysis dict with all insights
+            Tuple of (combined_analysis_dict, tokens_used)
         """
         logger.info(f"Running portfolio insights for user {self.user_id}")
 
@@ -84,19 +87,22 @@ class PortfolioAIAnalytics:
     # Sub-Analysis Methods (Modular)
     # ================================================================
 
-    def get_quick_insights(self, force_refresh: bool = False) -> Dict[str, Any]:
+    def get_quick_insights(self, force_refresh: bool = False) -> tuple[Dict[str, Any], int]:
         """
         Quick portfolio overview using pre-calculated metrics.
         Template: portfolio_complete_analysis.yaml
 
         Fast, high-level summary suitable for dashboard display.
+
+        Returns:
+            Tuple of (insights_dict, tokens_used)
         """
         template_name = "portfolio_complete_analysis"
         return self._run_analysis(template_name, force_refresh)
 
     def get_deep_behavioral_insights(
         self, force_refresh: bool = False
-    ) -> Dict[str, Any]:
+    ) -> tuple[Dict[str, Any], int]:
         """
         Deep behavioral analysis from raw transaction history.
         Template: portfolio_raw_trade_analysis.yaml
@@ -106,6 +112,9 @@ class PortfolioAIAnalytics:
         - Tax optimization opportunities
         - Investor evolution over time
         - Behavioral biases (disposition effect, recency bias)
+
+        Returns:
+            Tuple of (insights_dict, tokens_used)
         """
         template_name = "portfolio_raw_trade_analysis"
         return self._run_analysis(template_name, force_refresh)
@@ -116,7 +125,7 @@ class PortfolioAIAnalytics:
 
     def _run_analysis(
         self, template_name: str, force_refresh: bool = False
-    ) -> Dict[str, Any]:
+    ) -> tuple[Dict[str, Any], int]:
         """
         Run a specific analysis using the given template.
         Handles caching per template.
@@ -126,7 +135,7 @@ class PortfolioAIAnalytics:
             force_refresh: Skip cache and run fresh analysis
 
         Returns:
-            Analysis results or placeholder if no cache and not forced
+            Tuple of (analysis_results, tokens_used)
         """
         # Check cache first
         cached = self._get_cached_insights(template_name)
@@ -136,73 +145,112 @@ class PortfolioAIAnalytics:
         if not force_refresh:
             if cached:
                 logger.info(f"Using cached {template_name} for user {self.user_id}")
-                return cached
+                # Cached results don't have token count, return 0
+                return (cached, 0)
             else:
                 # No cache and not forcing refresh - return placeholder
                 logger.info(
                     f"No cache for {template_name}, user must click 'Re-run Analysis'"
                 )
-                return self._get_placeholder_response(template_name)
+                return (self._get_placeholder_response(template_name), 0)
 
         # Force refresh requested - generate fresh insights
         logger.info(
             f"Generating fresh {template_name} insights for user {self.user_id}"
         )
-        insights = self._generate_insights(template_name)
+        insights, tokens_used = self._generate_insights(template_name)
 
-        # Cache result
+        # Cache result (only insights, not tokens)
         self._cache_insights(insights, template_name)
 
-        return insights
+        return (insights, tokens_used)
 
-    def _generate_insights(self, template_name: str) -> Dict[str, Any]:
-        """Generate fresh AI insights using IntelligenceService + YAML prompt"""
+    def _generate_insights(self, template_name: str) -> tuple[Dict[str, Any], int]:
+        """Generate fresh AI insights using AIService + YAML prompt
+
+        Returns:
+            Tuple of (insights_dict, tokens_used)
+        """
 
         # 1. Extract portfolio data
         portfolio_data = self.extractor.extract_all()
 
         # Check sufficient data
         if not portfolio_data["metadata"]["has_data"]:
-            return self._get_insufficient_data_response(portfolio_data)
+            return (self._get_insufficient_data_response(portfolio_data), 0)
 
         # 2. Prepare variables based on template type
         variables = self._prepare_template_variables(template_name, portfolio_data)
 
-        # 3. Call IntelligenceService with specified template
+        # 3. Call AIService with specified template
         try:
-            # Load template
-            template = self.intelligence._load_prompt_template(template_name)
-            if not template:
-                logger.error("Template returned None")
-                return self._get_fallback_insights(portfolio_data)
-
-            # Get config (provider, model, etc.)
-            config = self.intelligence._get_task_config(template_name, template)
-
-            # Format prompt with variables
-            prompt = self.intelligence._format_prompt(template, variables)
-
-            # Log the prompt for debugging
-            logger.debug(f"=" * 80)
-            logger.debug(f"PROMPT FOR {template_name}:")
-            logger.debug(f"-" * 80)
-            logger.debug(prompt)
-            logger.debug(f"=" * 80)
-
-            # Get provider with specific model (will raise RuntimeError if none available)
-            provider = self.intelligence._get_provider(
-                config["provider"],
-                config.get("model")
+            # Load template with metadata and system context
+            prompt_with_metadata = self.prompt_service.get_prompt_with_metadata(
+                'portfolio', template_name, **variables
             )
 
-            # Call provider to generate insights
-            ai_insights = self.intelligence._call_provider_to_generate_json(provider, prompt, config)
+            prompt_text = prompt_with_metadata['prompt']
+            metadata = prompt_with_metadata['metadata']
+            system_context = prompt_with_metadata.get('system_context')
+
+            if not metadata:
+                logger.error(f"Template metadata for '{template_name}' returned None")
+                return (self._get_fallback_insights(portfolio_data), 0)
+
+            # Log the prompt for debugging
+            logger.info(f"=" * 80)
+            logger.info(f"PROMPT FOR {template_name}:")
+            logger.info(f"-" * 80)
+            logger.info(prompt_text)
+            logger.info(f"=" * 80)
+
+            # Get provider and model from metadata
+            provider_str = metadata.get('preferred_provider', 'gemini')
+            model_str = metadata.get('model', 'gemini-flash-latest')
+
+            # Convert to enums
+            provider_enum = AIProvider(provider_str)
+            model_enum = AIModel.from_string(model_str)
+
+            # Call AIService to generate insights
+            logger.info(f"Calling AIService with provider={provider_enum}, model={model_enum}")
+
+            # Pass system context and schema if available in template
+            kwargs = {}
+            if system_context:
+                kwargs['system'] = system_context
+                logger.info(f"Using system context from template (length: {len(system_context)} chars)")
+
+            # Get response_schema from the raw YAML data (not in metadata)
+            # Need to access the cached prompt data directly
+            prompt_data = self.prompt_service._cache.get('portfolio', {}).get(template_name, {})
+            response_schema = prompt_data.get('response_schema')
+            if response_schema:
+                kwargs['schema'] = response_schema
+                logger.info(f"Using response_schema from template")
+
+            ai_insights = self.ai_service.generate_json(
+                prompt=prompt_text,
+                provider=provider_enum,
+                model=model_enum,
+                max_tokens=metadata.get('max_tokens', 8000),
+                temperature=metadata.get('temperature', 0.7),
+                **kwargs
+            )
+
+            # generate_json() returns raw dict - estimate tokens
+            # Rough estimate: prompt + response length / 4 characters per token
+            tokens_estimate = (len(prompt_text) + len(str(ai_insights))) // 4
+            tokens_used = tokens_estimate
+
+            logger.info(f"Portfolio analysis completed. Estimated {tokens_used} tokens")
 
             # Log the structured response
             logger.debug(f"=" * 80)
-            logger.debug(f"STRUCTURED JSON RESPONSE FROM {config['provider']}:")
+            logger.debug(f"STRUCTURED JSON RESPONSE FROM {provider_enum.value}:")
             logger.debug(f"-" * 80)
             logger.debug(f"Keys: {list(ai_insights.keys())}")
+            logger.debug(f"Estimated tokens: {tokens_used}")
             logger.debug(f"=" * 80)
 
             # Save raw response to file for debugging
@@ -210,7 +258,7 @@ class PortfolioAIAnalytics:
             try:
                 with open(debug_file, 'w') as f:
                     json.dump(ai_insights, f, indent=2, default=str)
-                logger.info(f"Structured raw AI response to {debug_file}")
+                logger.info(f"Saved raw AI response to {debug_file}")
             except Exception as e:
                 logger.warning(f"Failed to save raw response: {e}")
 
@@ -220,15 +268,15 @@ class PortfolioAIAnalytics:
             # Format for template
             formatted_insights = self._format_for_template(normalized_insights, portfolio_data)
 
-            return formatted_insights
+            return (formatted_insights, tokens_used)
 
         except RuntimeError as e:
             # No AI provider available
             logger.warning(f"No AI provider available: {e}")
-            return self._get_fallback_insights(portfolio_data)
+            return (self._get_fallback_insights(portfolio_data), 0)
         except Exception as e:
             logger.error(f"Failed to generate portfolio insights: {e}", exc_info=True)
-            return self._get_fallback_insights(portfolio_data)
+            return (self._get_fallback_insights(portfolio_data), 0)
 
     def _prepare_template_variables(
         self, template_name: str, portfolio_data: Dict[str, Any]
@@ -949,7 +997,7 @@ class PortfolioAIAnalytics:
 
 def get_portfolio_ai_insights(
     user_id: int, force_refresh: bool = False
-) -> Dict[str, Any]:
+) -> tuple[Dict[str, Any], int]:
     """
     Get AI-powered portfolio insights.
 
@@ -958,7 +1006,7 @@ def get_portfolio_ai_insights(
         force_refresh: Skip cache
 
     Returns:
-        AI analysis dict
+        Tuple of (AI_analysis_dict, tokens_used)
     """
     analytics = PortfolioAIAnalytics(user_id)
     return analytics.get_insights(force_refresh=force_refresh)

@@ -97,7 +97,7 @@ class ResearchSprint(db.Model):
     target_checklist_items = db.Column(db.JSON)  # List of checklist item IDs
 
     # Sprint status
-    status = db.Column(db.String(20), default='planned')  # planned, active, completed, abandoned
+    status = db.Column(db.String(20), default='planned')  # planned, active, completed
     completion_percentage = db.Column(db.Integer, default=0)
 
     # Results

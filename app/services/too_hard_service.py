@@ -34,7 +34,7 @@ class TooHardBasketService:
         """
         Returns unified list of all rejected companies from:
         1. IdeaPipeline (status='killed')
-        2. ResearchProject (status='abandoned' OR decision='pass')
+        2. ResearchProject (decision='pass')
 
         Args:
             user_id: User ID to fetch data for
@@ -76,39 +76,10 @@ class TooHardBasketService:
                 company_id=idea.company_id
             ))
 
-        # 2. Get abandoned research projects (marked as too hard mid-research)
-        abandoned_projects = ResearchProject.query.filter_by(
-            user_id=user_id,
-            status='abandoned'
-        ).all()
-
-        for project in abandoned_projects:
-            # Get sector info
-            sector = None
-            if project.sector_id:
-                sector = project.sector.display_name if project.sector else None
-            elif project.company and project.company.sector_id:
-                sector = project.company.sector.display_name if project.company.sector else None
-
-            items.append(TooHardItem(
-                company_name=project.company.name if project.company else 'Unknown',
-                ticker=project.company.ticker_symbol if project.company else None,
-                sector=sector,
-                rejection_stage='mid_research',
-                rejection_date=project.abandoned_at,
-                time_invested_hours=project.total_hours_spent or 0,
-                reason=project.too_hard_reason,
-                within_coc=project.within_circle_of_competence,
-                notes=project.too_hard_notes,
-                source_type='ResearchProject',
-                source_id=project.id,
-                company_id=project.company_id
-            ))
-
-        # 3. Get completed + pass decisions (full analysis but passed)
+        # 2. Get all passed research projects (decision='pass')
+        # This includes both mid-research passes (too hard) and full analysis passes
         passed_projects = ResearchProject.query.filter_by(
             user_id=user_id,
-            status='completed',
             decision='pass'
         ).all()
 
@@ -120,21 +91,40 @@ class TooHardBasketService:
             elif project.company and project.company.sector_id:
                 sector = project.company.sector.display_name if project.company.sector else None
 
-            items.append(TooHardItem(
-                company_name=project.company.name if project.company else 'Unknown',
-                ticker=project.company.ticker_symbol if project.company else None,
-                sector=sector,
-                rejection_stage='full_analysis',
-                rejection_date=project.decision_date,
-                time_invested_hours=project.total_hours_spent or 0,
-                reason='Completed full analysis',
-                within_coc=project.within_circle_of_competence,
-                confidence=project.decision_confidence,
-                notes=project.decision_notes,
-                source_type='ResearchProject',
-                source_id=project.id,
-                company_id=project.company_id
-            ))
+            # Determine if this was a mid-research pass (too hard) or full analysis pass
+            is_mid_research = bool(project.too_hard_reason)
+
+            if is_mid_research:
+                items.append(TooHardItem(
+                    company_name=project.company.name if project.company else 'Unknown',
+                    ticker=project.company.ticker_symbol if project.company else None,
+                    sector=sector,
+                    rejection_stage='mid_research',
+                    rejection_date=project.abandoned_at or project.decision_date,
+                    time_invested_hours=project.total_hours_spent or 0,
+                    reason=project.too_hard_reason,
+                    within_coc=project.within_circle_of_competence,
+                    notes=project.too_hard_notes,
+                    source_type='ResearchProject',
+                    source_id=project.id,
+                    company_id=project.company_id
+                ))
+            else:
+                items.append(TooHardItem(
+                    company_name=project.company.name if project.company else 'Unknown',
+                    ticker=project.company.ticker_symbol if project.company else None,
+                    sector=sector,
+                    rejection_stage='full_analysis',
+                    rejection_date=project.decision_date,
+                    time_invested_hours=project.total_hours_spent or 0,
+                    reason='Completed full analysis',
+                    within_coc=project.within_circle_of_competence,
+                    confidence=project.decision_confidence,
+                    notes=project.decision_notes,
+                    source_type='ResearchProject',
+                    source_id=project.id,
+                    company_id=project.company_id
+                ))
 
         # Apply filters if provided
         if filters:
@@ -172,7 +162,7 @@ class TooHardBasketService:
                 sector_stats[sector] = {
                     'total_analyzed': 0,
                     'killed': 0,
-                    'abandoned': 0,
+                    'mid_research_pass': 0,
                     'passed_full': 0,
                     'total_time': 0,
                     'within_coc_yes': 0,
@@ -185,7 +175,7 @@ class TooHardBasketService:
             if item.rejection_stage == 'kill_checklist':
                 sector_stats[sector]['killed'] += 1
             elif item.rejection_stage == 'mid_research':
-                sector_stats[sector]['abandoned'] += 1
+                sector_stats[sector]['mid_research_pass'] += 1
             else:
                 sector_stats[sector]['passed_full'] += 1
 
@@ -219,7 +209,7 @@ class TooHardBasketService:
                 sector_stats[sector] = {
                     'total_analyzed': 0,
                     'killed': 0,
-                    'abandoned': 0,
+                    'mid_research_pass': 0,
                     'passed_full': 0,
                     'invested': 0,
                     'total_time': 0
