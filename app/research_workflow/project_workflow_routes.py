@@ -392,6 +392,17 @@ def execute_step(project_id, step_index):
         return redirect(url_for('research_workflow.competitor_analysis_step',
                               project_id=project_id, step_index=step_index))
 
+    elif step['type'] == 'free_research':
+        # Free research step - user-defined questions with AI assistance
+        session_start_js = format_for_javascript(session.start_time)
+        return render_template('free_research_step.html',
+                              title=f"Free Research: {step['name']}",
+                              project=project,
+                              step=step,
+                              step_index=step_index,
+                              session=session,
+                              session_start_js=session_start_js)
+
     # For other step types, show the generic execution interface
     # Format session start time for JavaScript timer
     session_start_js = format_for_javascript(session.start_time)

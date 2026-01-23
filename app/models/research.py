@@ -463,3 +463,76 @@ class ResearchLog(db.Model):
 
     def __repr__(self):
         return f'<ResearchLog {self.activity_type} at {self.timestamp}>'
+
+
+class FreeResearchQuestion(db.Model):
+    """
+    A custom research question created by the user during a Free Research step.
+    Unlike checklist items which are predefined, these are user-generated questions
+    that allow for exploratory, unstructured research.
+    """
+    __tablename__ = 'free_research_question'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+
+    # Link to the research project and step
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False, index=True)
+    step_index = db.Column(db.Integer, nullable=False)  # Which step in the workflow
+
+    # Question content
+    question_text = db.Column(db.Text, nullable=False)
+    answer_content = db.Column(db.Text)  # BlockNote JSON content
+
+    # Status tracking
+    status = db.Column(db.String(20), default='exploring')  # 'exploring', 'answered'
+
+    # Ordering
+    order_index = db.Column(db.Integer, default=0)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
+    answered_at = db.Column(db.DateTime)  # When marked as answered
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('free_research_questions', lazy='dynamic'))
+    project = db.relationship('ResearchProject', backref=db.backref(
+        'free_research_questions', lazy='dynamic', cascade='all, delete-orphan'
+    ))
+
+    def __repr__(self):
+        return f'<FreeResearchQuestion {self.id}: {self.question_text[:50]}...>'
+
+
+class ModelQuestion(db.Model):
+    """
+    A saved research question that can be reused across multiple research projects.
+    Users can promote good questions from Free Research steps to their personal
+    library of 'model questions' for future use.
+    """
+    __tablename__ = 'model_question'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+
+    # Question content
+    question_text = db.Column(db.Text, nullable=False)
+
+    # Optional categorization
+    category = db.Column(db.String(100))  # 'moat', 'risks', 'valuation', 'management', etc.
+
+    # Track origin and usage
+    source_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'))
+    times_used = db.Column(db.Integer, default=0)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=now_utc)
+    last_used_at = db.Column(db.DateTime)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('model_questions', lazy='dynamic'))
+    source_project = db.relationship('ResearchProject', backref='promoted_questions')
+
+    def __repr__(self):
+        return f'<ModelQuestion {self.id}: {self.question_text[:50]}...>'

@@ -40,6 +40,18 @@ window.initBlockNoteEditor = function (elementId, config = {}) {
 
   // Save handler
   const handleSave = async (json, blocks) => {
+    // Option 1: Direct onChange callback (for custom save handling)
+    if (config.onChange) {
+      try {
+        await config.onChange(json, blocks);
+      } catch (error) {
+        console.error("onChange error:", error);
+        throw error;
+      }
+      return;
+    }
+
+    // Option 2: URL-based save
     if (config.saveResearchNotesUrl) {
       try {
         // Support different content fields (e.g., 'content', 'takeaways')
@@ -147,6 +159,18 @@ window.initBlockNoteEditorWithTOC = function (elementId, config = {}) {
 
   // Save handler
   const handleSave = async (json, blocks) => {
+    // Option 1: Direct onChange callback (for custom save handling)
+    if (config.onChange) {
+      try {
+        await config.onChange(json, blocks);
+      } catch (error) {
+        console.error("onChange error:", error);
+        throw error;
+      }
+      return;
+    }
+
+    // Option 2: URL-based save
     if (config.saveResearchNotesUrl) {
       try {
         // Support different content fields (e.g., 'content', 'takeaways')
