@@ -1,58 +1,64 @@
-# company_research_platform/config.py
-
 import os
-from dotenv import load_dotenv # Import the library
+from dotenv import load_dotenv
 
-# Define the base directory of the application
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Load environment variables from .env file
-# This line will look for a .env file in the current directory (where config.py is)
-# or in parent directories, and load the variables found into the environment.
-load_dotenv(os.path.join(basedir, '.env')) # Load .env file for PostgreSQL configuration
+# Load .env only in local development. 
+# Railway injects variables directly into the environment.
+if os.path.exists(os.path.join(basedir, '.env')):
+    load_dotenv(os.path.join(basedir, '.env'))
 
 class Config:
-    """Base configuration."""
-    # Now, os.environ.get() will be able to find variables set in your .env file
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess-default'
+    """Production configuration."""
+    
+    # 1. SECURITY: Secret Key
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'change-this-in-railway-dashboard'
 
-    # Example: if DATABASE_URL is in your .env, it will be used
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db') # Default if not in .env
-
+    # 2. DATABASE: Handle Railway Postgres URL Fix
+    _db_url = os.environ.get('DATABASE_URL')
+    if _db_url and _db_url.startswith("postgres://"):
+        # SQLAlchemy requires 'postgresql://' instead of 'postgres://'
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    
+    SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Session configuration for OAuth
-    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+    # 3. COOKIES & GDPR: Security settings for German/EU residency
+    # Ensure this is TRUE in Railway to prevent session hijacking over non-HTTPS
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
     
+    # 4. API KEYS (No print statements in production logs!)
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
     NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
-    print(f"Using Gemini API Key: {GEMINI_API_KEY}")
-    print(f"Using News API Key: {NEWS_API_KEY}")
-    # You can also load Flask specific config directly if set in .env
-    # For example, FLASK_DEBUG=1 or FLASK_ENV=development
-    # Though these are often handled by how you run the Flask CLI or app.run()
     
-    UPLOAD_FOLDER = os.path.join(basedir, 'instance', 'uploads', 'company_documents')
-    ALLOWED_EXTENSIONS = {'pdf', 'txt'} # Allow PDFs and text files for now
-    MAX_CONTENT_LENGTH = 100 * 1024 * 1024 # Limit upload size to 100 MB
+    # 5. STORAGE: Persistent Volume Path
+    # Note: On Railway, local files are deleted on restart. 
+    # Use /app/instance/uploads and mount a Railway Volume there.
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(basedir, 'instance', 'uploads')
+    ALLOWED_EXTENSIONS = {'pdf', 'txt'}
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB
     
-    CACHE_TYPE = "SimpleCache"  # Use a simple in-memory cache
-    CACHE_DEFAULT_TIMEOUT = 300 # Default timeout in seconds (e.g., 5 minutes)
+    # 6. CACHE: Use Redis for caching if available, otherwise fallback
+    # Since you are using Redis for Celery, it's better to use it for cache too.
+    CACHE_TYPE = "RedisCache" if os.environ.get('REDIS_URL') else "SimpleCache"
+    CACHE_REDIS_URL = os.environ.get('REDIS_URL')
+    CACHE_DEFAULT_TIMEOUT = 300 
     
-    CELERY_BROKER_URL = 'redis://localhost:6379/0'
-    CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+    # 7. CELERY: Use Railway's Redis Service
+    # Use REDIS_URL from environment; defaults to local for dev
+    CELERY_BROKER_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
 
-    # Set the default subscription tier for newly registered users.
-    # Use 'premium' for development/testing, change to 'free' for production.
-    DEFAULT_USER_TIER = 'premium'
+    # 8. BUSINESS LOGIC
+    DEFAULT_USER_TIER = os.environ.get('DEFAULT_USER_TIER', 'free')
 
-    # Auth0 Configuration
+    # 9. AUTH0 CONFIGURATION
     AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
     AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
+    # Use Railway's Public Domain if set
     AUTH0_CALLBACK_URL = os.environ.get('AUTH0_CALLBACK_URL') or 'http://localhost:5000/auth/callback'
     AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')
