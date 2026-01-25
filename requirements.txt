@@ -27,3 +27,5 @@ scikit-learn
 sentence-transformers
 flask-admin
 openpyxl
+gunicorn==23.0.0
+psycopg2-binary==2.9.10

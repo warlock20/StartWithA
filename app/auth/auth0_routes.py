@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from app import db
 from app.models import User
 from app.auth import auth_bp
+from app.utils.auth_utils import is_authorized
 import secrets
 
 
@@ -71,6 +72,12 @@ def auth0_callback():
             flash('Failed to get user information from Auth0.', 'error')
             return redirect(url_for('auth.login'))
 
+        # Inside your callback function
+        user_info = oauth.auth0.get('userinfo').data
+        if not is_authorized(user_info['email']):
+            flash("This is currently a private beta. Please contact the admin for access.", "warning")
+            return redirect(url_for('main.public_home'))
+        
         # Extract user data
         auth0_id = userinfo['sub']  # Unique Auth0 user ID (e.g., "auth0|123", "google-oauth2|456")
         email = userinfo.get('email')

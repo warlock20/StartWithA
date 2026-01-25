@@ -7,7 +7,16 @@ from typing import Optional, Tuple, Any
 from functools import wraps
 from flask import jsonify, abort
 from flask_login import current_user
+import os
 
+# Create a list of allowed emails in your Railway Variables
+ALLOWED_USERS = os.environ.get('ALLOWED_USERS', '').split(',')
+
+def is_authorized(email):
+    # If ALLOWED_USERS is empty, everyone is allowed (dev mode)
+    if not ALLOWED_USERS or ALLOWED_USERS == ['']:
+        return True
+    return email in ALLOWED_USERS
 
 def check_resource_ownership(
     resource_obj: Any,

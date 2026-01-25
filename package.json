@@ -6,7 +6,8 @@
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
-    "build:dev": "webpack --mode development"
+    "build:dev": "webpack --mode development",
+    "watch": "webpack --watch"
   },
   "dependencies": {
     "@blocknote/core": "^0.15.11",
