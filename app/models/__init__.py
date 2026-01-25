@@ -47,6 +47,7 @@ from .research import (
     TemplateStep,
     ResearchMetrics,
     ResearchLog,
+    FreeResearchQuestion,
 )
 from .sector import (
     Sector,
@@ -94,6 +95,9 @@ from .prompt_management import (
 )
 from .ai_research_feedback import (
     AIResearchFeedback,
+)
+from .bias_check import (
+    BiasCheckResult,
 )
 
 
@@ -147,6 +151,7 @@ __all__ = [
     'TemplateStep',
     'ResearchMetrics',
     'ResearchLog',
+    'FreeResearchQuestion',
     # Sector models
     'Sector',
     'SectorAnalysis',
@@ -188,4 +193,6 @@ __all__ = [
     'PromptUsageLog',
     # AI Research Feedback models
     'AIResearchFeedback',
+    # Bias Check models
+    'BiasCheckResult',
 ]

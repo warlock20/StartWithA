@@ -164,6 +164,13 @@ class AITaskType(Enum):
     JOURNAL_ANALYSIS = "journal_analysis"
     SECTOR_ANALYSIS = "sector_analysis"
 
+    # Argos tasks -> Gemini preferred (cost-effective, good enough)
+    ARGOS_RELEVANCE_SCORING = "argos_relevance_scoring"
+    ARGOS_EXPLANATION = "argos_explanation"
+
+    # Bias check -> Gemini Pro preferred (nuanced analysis)
+    BIAS_CHECK = "bias_check"
+
 class EmbeddingProvider(Enum):
     """Available embedding providers (separate from text generation)"""
     LOCAL = "local"       # Sentence Transformers - free, offline

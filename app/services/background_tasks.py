@@ -12,6 +12,7 @@ from app.utils.time_utils import now_utc
 import logging
 from app.celery_tasks import competitor_analysis_task
 from app.celery_tasks import portfolio_ai_analysis_task
+from app.celery_tasks import bias_check_task
 
 logger = logging.getLogger(__name__)
 
@@ -155,3 +156,43 @@ class BackgroundTaskService:
 
         db.session.commit()
         logger.info(f"Cleaned up {len(old_tasks)} old background tasks")
+
+    @staticmethod
+    def start_bias_check(user_id, project_id):
+        """Start a cognitive bias check task in the background.
+
+        Uses task_type 'bias_check' to prevent duplicate concurrent tasks.
+        """
+        task_type = 'bias_check'
+
+        # Check for existing running task for this project
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type,
+            project_id=project_id,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Bias check task {existing_task.id} already running for project {project_id}")
+            return existing_task.id
+
+        # Create new task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            project_id=project_id,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task
+        celery_task = bias_check_task.delay(task_id, user_id, project_id)
+
+        logger.info(f"Started bias check task {task_id} (Celery: {celery_task.id}) for project {project_id}")
+
+        return task_id

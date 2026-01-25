@@ -1,0 +1,66 @@
+{% if too_hard_items %}
+<div class="completed-projects-grid">
+    {% for item in too_hard_items %}
+    <div class="completed-project-card {% if item.rejection_stage == 'kill_checklist' %}decision-pass{% elif item.rejection_stage == 'mid_research' %}decision-watchlist{% else %}decision-pending{% endif %}">
+        <div class="decision-header">
+            {% if item.rejection_stage == 'kill_checklist' %}
+            <div class="decision-badge decision-pass"><i class="bi bi-x-circle-fill"></i> Early Kill</div>
+            {% elif item.rejection_stage == 'mid_research' %}
+            <div class="decision-badge decision-watchlist"><i class="bi bi-pause-circle-fill"></i> Mid-Research</div>
+            {% else %}
+            <div class="decision-badge decision-pending"><i class="bi bi-clipboard-check-fill"></i> Full Analysis</div>
+            {% endif %}
+        </div>
+
+        <div class="completed-project-content">
+            <h3 class="completed-project-title font-poppins">
+                {{ item.company_name }}
+                {% if item.ticker %}<span class="badge bg-secondary ms-2 small">{{ item.ticker }}</span>{% endif %}
+            </h3>
+            <div class="completed-stats-row">
+                <div class="stat-item">
+                    <i class="bi bi-clock text-muted"></i>
+                    <span class="stat-value">{{ "%.1f"|format(item.time_invested_hours or 0) }}h</span>
+                </div>
+                <div class="stat-item">
+                    <i class="bi bi-calendar-check text-muted"></i>
+                    <span class="stat-value">{{ item.rejection_date.strftime('%b %d') if item.rejection_date else '-' }}</span>
+                </div>
+            </div>
+            {% if item.reason %}
+            <div class="mt-2">
+                <p class="text-muted small mb-0">{{ item.reason[:150] }}...</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="completed-project-actions">
+            {% if item.company_id %}
+            <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
+                <i class="bi bi-building"></i> Dashboard
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if pagination.pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            <button class="page-link" data-page="{{ pagination.prev_num }}"><i class="bi bi-chevron-left"></i> Previous</button>
+        </li>
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            <button class="page-link" data-page="{{ pagination.next_num }}">Next <i class="bi bi-chevron-right"></i></button>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="empty-state-container text-center py-5">
+    <div class="empty-state-icon mb-3"><i class="bi bi-archive text-muted display-4"></i></div>
+    <h3 class="empty-state-title">No Companies Found</h3>
+</div>
+{% endif %}

@@ -1,0 +1,235 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="bi bi-eye me-2"></i>Argos Test Console</h4>
+        </div>
+        <div class="card-body">
+            <!-- Input Form -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Company ID</label>
+                    <input type="number" id="companyId" class="form-control" value="171">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Step Type</label>
+                    <select id="stepType" class="form-select">
+                        <option value="checklist">Checklist</option>
+                        <option value="free_research">Free Research</option>
+                        <option value="thesis">Thesis</option>
+                        <option value="completion">Completion</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Section (optional)</label>
+                    <input type="text" id="section" class="form-control" placeholder="e.g., financial">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" onclick="runArgosCheck()">
+                        <i class="bi bi-play-fill me-1"></i> Run Argos Check
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Current Research Text (optional, for semantic matching)</label>
+                <textarea id="currentText" class="form-control" rows="3"
+                    placeholder="Enter research text for semantic matching..."></textarea>
+            </div>
+
+            <!-- Results -->
+            <div id="loading" class="text-center py-4" style="display: none;">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2 text-muted">Running Argos Check...</p>
+            </div>
+
+            <div id="results" style="display: none;">
+                <h5 class="mb-3">Results</h5>
+
+                <!-- Summary -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h2 id="totalInsights" class="mb-0">0</h2>
+                                <small class="text-muted">Total Insights</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger">
+                            <div class="card-body text-center">
+                                <h2 id="highCount" class="mb-0 text-white">0</h2>
+                                <small class="text-white-50">High Confidence</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning">
+                            <div class="card-body text-center">
+                                <h2 id="mediumCount" class="mb-0 text-dark">0</h2>
+                                <small class="text-dark text-opacity-75">Medium Confidence</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info bg-opacity-10">
+                            <div class="card-body text-center">
+                                <h2 id="processingTime" class="mb-0 text-info">0</h2>
+                                <small class="text-muted">ms Processing</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insights List -->
+                <div id="insightsList"></div>
+
+                <!-- Checks -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="bi bi-check-circle me-1"></i> Checks Passed</h6>
+                        <ul id="checksPassed" class="list-unstyled"></ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="bi bi-x-circle me-1"></i> Checks Failed</h6>
+                        <ul id="checksFailed" class="list-unstyled"></ul>
+                    </div>
+                </div>
+
+                <!-- Raw JSON -->
+                <div class="mt-4">
+                    <h6>
+                        <a data-bs-toggle="collapse" href="#rawJson" class="text-decoration-none">
+                            <i class="bi bi-code me-1"></i> Raw JSON Response
+                        </a>
+                    </h6>
+                    <div class="collapse" id="rawJson">
+                        <pre id="jsonOutput" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow: auto;"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="error" class="alert alert-danger" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function runArgosCheck() {
+    const companyId = document.getElementById('companyId').value;
+    const stepType = document.getElementById('stepType').value;
+    const section = document.getElementById('section').value;
+    const currentText = document.getElementById('currentText').value;
+
+    // Show loading
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+
+    try {
+        const payload = {
+            company_id: parseInt(companyId),
+            step_type: stepType,
+        };
+
+        if (section) {
+            payload.step_context = { section: section };
+        }
+
+        if (currentText.trim()) {
+            payload.current_text = currentText;
+        }
+
+        const response = await fetch('/research/workflow/api/argos/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        document.getElementById('loading').style.display = 'none';
+
+        if (data.success) {
+            displayResults(data.result);
+        } else {
+            document.getElementById('error').textContent = data.error || 'Unknown error';
+            document.getElementById('error').style.display = 'block';
+        }
+    } catch (err) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').textContent = err.message;
+        document.getElementById('error').style.display = 'block';
+    }
+}
+
+function displayResults(result) {
+    document.getElementById('results').style.display = 'block';
+
+    // Summary
+    document.getElementById('totalInsights').textContent = result.summary.total;
+    document.getElementById('highCount').textContent = result.summary.high;
+    document.getElementById('mediumCount').textContent = result.summary.medium;
+    document.getElementById('processingTime').textContent = result.meta.processing_time_ms;
+
+    // Insights
+    const insightsList = document.getElementById('insightsList');
+    if (result.insights.length === 0) {
+        insightsList.innerHTML = '<div class="alert alert-info">No insights found for this company.</div>';
+    } else {
+        insightsList.innerHTML = result.insights.map(insight => `
+            <div class="card mb-2 border-start border-4 ${getConfidenceClass(insight.confidence)}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge ${getBadgeClass(insight.confidence)} me-2">${insight.confidence.toUpperCase()}</span>
+                            <strong>${insight.summary}</strong>
+                        </div>
+                        <small class="text-muted">${insight.source_label}</small>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        Category: ${insight.category} |
+                        ${insight.tags.length ? 'Tags: ' + insight.tags.join(', ') : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Checks passed
+    const checksPassed = document.getElementById('checksPassed');
+    checksPassed.innerHTML = result.checks_passed.length
+        ? result.checks_passed.map(c => `<li><i class="bi bi-check text-success me-1"></i>${c}</li>`).join('')
+        : '<li class="text-muted">None</li>';
+
+    // Checks failed
+    const checksFailed = document.getElementById('checksFailed');
+    checksFailed.innerHTML = result.checks_failed.length
+        ? result.checks_failed.map(c => `<li><i class="bi bi-x text-danger me-1"></i>${c}</li>`).join('')
+        : '<li class="text-muted">None</li>';
+
+    // Raw JSON
+    document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
+}
+
+function getConfidenceClass(confidence) {
+    switch(confidence) {
+        case 'high': return 'border-danger';
+        case 'medium': return 'border-warning';
+        default: return 'border-info';
+    }
+}
+
+function getBadgeClass(confidence) {
+    switch(confidence) {
+        case 'high': return 'bg-danger';
+        case 'medium': return 'bg-warning text-dark';
+        default: return 'bg-info';
+    }
+}
+</script>
+{% endblock %}

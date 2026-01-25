@@ -1,0 +1,277 @@
+{#
+  Argos Check Component
+
+  Include in research step templates with:
+  {% include 'partials/_argos_check.html' %}
+
+  Requires: project.company_id, step_index (or step_type)
+#}
+
+<!-- Argos Check Button -->
+<button type="button" class="btn btn-outline-primary" onclick="ArgosCheck.open()">
+    <i class="bi bi-eye me-1"></i> Argos Check
+    <span class="badge bg-secondary ms-1" id="argosInsightCount" style="display: none;">0</span>
+</button>
+
+<!-- Argos Modal -->
+<div class="modal fade" id="argosModal" tabindex="-1" aria-labelledby="argosModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="argosModalLabel">
+                    <i class="bi bi-eye me-2"></i>Argos Insights
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading -->
+                <div id="argosLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted">Analyzing your research context...</p>
+                </div>
+
+                <!-- Results -->
+                <div id="argosResults" style="display: none;">
+                    <!-- Summary Stats -->
+                    <div class="row mb-4">
+                        <div class="col-4">
+                            <div class="text-center p-2 bg-light rounded">
+                                <h4 class="mb-0" id="argosTotal">0</h4>
+                                <small class="text-muted">Insights</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center p-2 bg-danger rounded">
+                                <h4 class="mb-0 text-white" id="argosHigh">0</h4>
+                                <small class="text-white-50">High Priority</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center p-2 bg-warning rounded">
+                                <h4 class="mb-0 text-dark" id="argosMedium">0</h4>
+                                <small class="text-dark text-opacity-75">Medium</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Insights List -->
+                    <div id="argosInsightsList"></div>
+
+                    <!-- Checks Summary -->
+                    <div id="argosChecks" class="mt-3"></div>
+
+                    <!-- Empty State -->
+                    <div id="argosEmpty" class="text-center py-4" style="display: none;">
+                        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">No concerns found</h5>
+                        <p class="text-muted">Argos didn't find any relevant insights from your past experiences.</p>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <div id="argosError" class="alert alert-danger" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted me-auto" id="argosProcessingTime"></small>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const ArgosCheck = {
+    companyId: {{ project.company_id if project.company_id else 'null' }},
+    stepType: '{{ step.type if step else "checklist" }}',
+    stepIndex: {{ step_index if step_index is defined else 0 }},
+    modal: null,
+
+    init() {
+        this.modal = new bootstrap.Modal(document.getElementById('argosModal'));
+    },
+
+    async open() {
+        if (!this.companyId) {
+            alert('No company associated with this project');
+            return;
+        }
+
+        if (!this.modal) this.init();
+        this.modal.show();
+
+        // Show loading
+        document.getElementById('argosLoading').style.display = 'block';
+        document.getElementById('argosResults').style.display = 'none';
+        document.getElementById('argosError').style.display = 'none';
+
+        try {
+            // Gather current research text from page
+            const currentText = this.gatherCurrentText();
+
+            const response = await fetch('/research/workflow/api/argos/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company_id: this.companyId,
+                    step_type: this.stepType,
+                    step_context: { step_index: this.stepIndex },
+                    current_text: currentText
+                })
+            });
+
+            const data = await response.json();
+
+            document.getElementById('argosLoading').style.display = 'none';
+
+            if (data.success) {
+                this.displayResults(data.result);
+            } else {
+                this.showError(data.error || 'Failed to check');
+            }
+        } catch (err) {
+            document.getElementById('argosLoading').style.display = 'none';
+            this.showError(err.message);
+        }
+    },
+
+    gatherCurrentText() {
+        // Try to gather text from various sources on the page
+        const sources = [];
+
+        // Textareas
+        document.querySelectorAll('textarea').forEach(ta => {
+            if (ta.value.trim()) sources.push(ta.value);
+        });
+
+        // BlockNote editors
+        document.querySelectorAll('[class*="blocknote"]').forEach(el => {
+            if (el.textContent.trim()) sources.push(el.textContent);
+        });
+
+        // Notes fields
+        const notes = document.getElementById('notes');
+        if (notes && notes.value) sources.push(notes.value);
+
+        return sources.join(' ').substring(0, 2000);
+    },
+
+    displayResults(result) {
+        document.getElementById('argosResults').style.display = 'block';
+
+        // Summary
+        document.getElementById('argosTotal').textContent = result.summary.total;
+        document.getElementById('argosHigh').textContent = result.summary.high;
+        document.getElementById('argosMedium').textContent = result.summary.medium;
+        document.getElementById('argosProcessingTime').textContent = `Processed in ${result.meta.processing_time_ms}ms`;
+
+        // Update badge on button
+        const badge = document.getElementById('argosInsightCount');
+        if (result.summary.total > 0) {
+            badge.textContent = result.summary.total;
+            badge.style.display = 'inline';
+            badge.className = result.summary.high > 0 ? 'badge bg-danger ms-1' : 'badge bg-warning ms-1';
+        }
+
+        // Insights list
+        const listEl = document.getElementById('argosInsightsList');
+        const emptyEl = document.getElementById('argosEmpty');
+
+        if (result.insights.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.style.display = 'block';
+        } else {
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = result.insights.map(insight => `
+                <div class="card mb-2 border-start border-4 ${this.getConfidenceBorder(insight.confidence)}">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge ${this.getConfidenceBadge(insight.confidence)} me-2">
+                                    ${insight.confidence.toUpperCase()}
+                                </span>
+                                <strong>${this.escapeHtml(insight.summary)}</strong>
+                            </div>
+                            <small class="text-muted">${insight.source_label}</small>
+                        </div>
+                        ${insight.tags.length ? `
+                            <div class="mt-1">
+                                ${insight.tags.map(t => `<span class="badge bg-light text-dark me-1">${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="ArgosCheck.feedback('${insight.id}', 'helpful')">
+                                <i class="bi bi-hand-thumbs-up"></i> Helpful
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="ArgosCheck.feedback('${insight.id}', 'not_helpful')">
+                                <i class="bi bi-hand-thumbs-down"></i> Not useful
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Checks
+        const checksEl = document.getElementById('argosChecks');
+        if (result.checks_passed.length > 0 || result.checks_failed.length > 0) {
+            checksEl.innerHTML = `
+                <hr>
+                <div class="row">
+                    ${result.checks_passed.length ? `
+                        <div class="col-6">
+                            <small class="text-success"><i class="bi bi-check-circle me-1"></i>Checks Passed</small>
+                            <ul class="small mb-0">${result.checks_passed.map(c => `<li>${c}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${result.checks_failed.length ? `
+                        <div class="col-6">
+                            <small class="text-danger"><i class="bi bi-x-circle me-1"></i>Warnings</small>
+                            <ul class="small mb-0">${result.checks_failed.map(c => `<li>${c}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            checksEl.innerHTML = '';
+        }
+    },
+
+    async feedback(insightId, feedbackType) {
+        try {
+            await fetch('/research/workflow/api/argos/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    insight_id: insightId,
+                    feedback: feedbackType
+                })
+            });
+
+            // Visual feedback
+            event.target.closest('.card').style.opacity = '0.5';
+            event.target.closest('.card').innerHTML += '<div class="text-center text-muted small">Thanks for feedback!</div>';
+        } catch (err) {
+            console.error('Feedback error:', err);
+        }
+    },
+
+    showError(message) {
+        document.getElementById('argosError').textContent = message;
+        document.getElementById('argosError').style.display = 'block';
+    },
+
+    getConfidenceBorder(confidence) {
+        return confidence === 'high' ? 'border-danger' : confidence === 'medium' ? 'border-warning' : 'border-info';
+    },
+
+    getConfidenceBadge(confidence) {
+        return confidence === 'high' ? 'bg-danger' : confidence === 'medium' ? 'bg-warning text-dark' : 'bg-info';
+    },
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+</script>

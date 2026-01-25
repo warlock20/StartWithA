@@ -1,0 +1,514 @@
+{#
+  Bias Check Card Component
+
+  Displays bias check status and results in the project summary sidebar.
+  Include with: {% include 'partials/_bias_check_card.html' %}
+
+  Requires: project.id
+#}
+
+<!-- Bias Check Card -->
+<div class="project-stats-card" id="biasCheckCard" style="margin-top: 1.5rem;">
+    <h3 class="font-poppins d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-brain me-2"></i>Thesis Reflection</span>
+        <span class="badge bg-secondary" id="biasCheckBadge" style="display: none;">--</span>
+    </h3>
+
+    <!-- Loading State -->
+    <div id="biasCheckLoading" style="display: none;">
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <p class="small text-muted mt-2 mb-0">Analyzing for cognitive biases...</p>
+        </div>
+    </div>
+
+    <!-- No Result State -->
+    <div id="biasCheckEmpty">
+        <p class="text-muted small mb-3">
+            Check your research for cognitive biases based on Charlie Munger's framework.
+        </p>
+        <div id="biasCheckPreview" class="mb-3">
+            <!-- Stats will be loaded here -->
+        </div>
+        <button class="btn btn-outline-primary w-100" onclick="BiasCheck.run()" id="runBiasCheckBtn">
+            <i class="bi bi-play-circle me-1"></i> Run Bias Check
+        </button>
+    </div>
+
+    <!-- Result State -->
+    <div id="biasCheckResult" style="display: none;">
+        <!-- Score Display -->
+        <div class="text-center my-3">
+            <div id="biasScoreValue" style="font-size: 2.5rem; font-weight: 700;">--</div>
+            <div class="text-muted small">Reflection Score</div>
+            <div id="biasScoreLevel" class="mt-1 small"></div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row text-center mb-3">
+            <div class="col-6">
+                <div class="p-2 bg-light rounded">
+                    <div class="fw-bold" id="biasExcitementScore">--</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">Excitement</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="p-2 bg-light rounded">
+                    <div class="fw-bold" id="biasBullBearRatio">--</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">Bull/Bear</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detected Biases -->
+        <div id="biasDetectedList" class="mb-3">
+            <!-- Bias items will be inserted here -->
+        </div>
+
+        <!-- Actions -->
+        <div class="d-grid gap-2">
+            <button class="btn btn-outline-primary btn-sm" onclick="BiasCheck.showModal()">
+                <i class="bi bi-eye me-1"></i> View Full Analysis
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="BiasCheck.run()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Re-run Check
+            </button>
+        </div>
+
+        <!-- Last Checked -->
+        <div class="text-muted text-center mt-2" style="font-size: 0.75rem;">
+            <span id="biasLastChecked"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Bias Check Modal -->
+<div class="modal fade" id="biasCheckModal" tabindex="-1" aria-labelledby="biasCheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="biasCheckModalLabel">
+                    <i class="bi bi-brain me-2"></i>Thesis Reflection - Cognitive Bias Analysis
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="biasCheckModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <button class="btn btn-outline-success btn-sm" onclick="BiasCheck.submitFeedback('helpful')">
+                        <i class="bi bi-hand-thumbs-up"></i> Helpful
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="BiasCheck.submitFeedback('not_helpful')">
+                        <i class="bi bi-hand-thumbs-down"></i> Not Helpful
+                    </button>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const BiasCheck = {
+    projectId: {{ project.id }},
+    currentResult: null,
+    resultId: null,
+    pollInterval: null,
+
+    // Initialize on page load
+    init() {
+        this.loadPreview();
+        this.loadLatest();
+    },
+
+    // Load preview stats (word count, etc.)
+    async loadPreview() {
+        try {
+            const response = await fetch(`/research/workflow/api/bias-check/${this.projectId}/preview`);
+            const data = await response.json();
+
+            if (data.success) {
+                const preview = document.getElementById('biasCheckPreview');
+                const btn = document.getElementById('runBiasCheckBtn');
+
+                if (data.can_run_check) {
+                    preview.innerHTML = `
+                        <div class="small text-muted">
+                            <i class="bi bi-file-text me-1"></i> ${data.stats.word_count} words of research
+                        </div>
+                    `;
+                    btn.disabled = false;
+                } else {
+                    preview.innerHTML = `
+                        <div class="alert alert-warning py-2 small mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Need at least ${data.min_word_count} words. Currently: ${data.stats.word_count}
+                        </div>
+                    `;
+                    btn.disabled = true;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading preview:', error);
+        }
+    },
+
+    // Load latest result if exists
+    async loadLatest() {
+        try {
+            const response = await fetch(`/research/workflow/api/bias-check/${this.projectId}/latest`);
+            const data = await response.json();
+
+            if (data.success && data.has_result) {
+                this.currentResult = data.result;
+                this.resultId = data.result.id;
+                this.displayResult(data.result);
+            }
+        } catch (error) {
+            console.error('Error loading latest:', error);
+        }
+    },
+
+    // Run bias check (async with polling)
+    async run() {
+        const btn = document.getElementById('runBiasCheckBtn');
+        const loading = document.getElementById('biasCheckLoading');
+        const empty = document.getElementById('biasCheckEmpty');
+        const result = document.getElementById('biasCheckResult');
+
+        // Show loading
+        btn.disabled = true;
+        empty.style.display = 'none';
+        result.style.display = 'none';
+        loading.style.display = 'block';
+
+        try {
+            const response = await fetch(`/research/workflow/api/bias-check/${this.projectId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.task_id) {
+                // Start polling for task completion
+                this.startPolling(data.task_id);
+            } else {
+                this.showError(data.error || 'Failed to start analysis');
+            }
+        } catch (error) {
+            console.error('Error running bias check:', error);
+            this.showError('Error starting analysis. Please try again.');
+        }
+    },
+
+    // Poll task status until completion
+    startPolling(taskId) {
+        // Clear any existing interval
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+        }
+
+        this.pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/research/workflow/api/bias-check/status/${taskId}`);
+                const data = await response.json();
+
+                if (data.state === 'COMPLETED') {
+                    this.stopPolling();
+                    if (data.result) {
+                        this.currentResult = data.result;
+                        this.resultId = data.result_id;
+                        this.displayResult(data.result);
+                    } else {
+                        this.showError('Analysis completed but no result found');
+                    }
+                } else if (data.state === 'FAILED') {
+                    this.stopPolling();
+                    this.showError(data.error || 'Analysis failed');
+                }
+                // PENDING/RUNNING - continue polling
+            } catch (error) {
+                console.error('Error polling task status:', error);
+                // Continue polling on network errors
+            }
+        }, 2000); // Poll every 2 seconds
+    },
+
+    // Stop polling
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+        document.getElementById('biasCheckLoading').style.display = 'none';
+        document.getElementById('runBiasCheckBtn').disabled = false;
+    },
+
+    // Show error and reset UI
+    showError(message) {
+        this.stopPolling();
+        alert(message);
+        document.getElementById('biasCheckEmpty').style.display = 'block';
+    },
+
+    // Display result in card
+    displayResult(result) {
+        const empty = document.getElementById('biasCheckEmpty');
+        const resultDiv = document.getElementById('biasCheckResult');
+        const badge = document.getElementById('biasCheckBadge');
+
+        empty.style.display = 'none';
+        resultDiv.style.display = 'block';
+
+        // Score
+        const scoreValue = document.getElementById('biasScoreValue');
+        const scoreLevel = document.getElementById('biasScoreLevel');
+        scoreValue.textContent = result.overall_score;
+        scoreValue.style.color = this.getScoreColor(result.overall_score);
+
+        // Level badge
+        const levelConfig = {
+            'low': { text: 'Low Concern', class: 'bg-success' },
+            'moderate': { text: 'Moderate', class: 'bg-warning text-dark' },
+            'high': { text: 'High Concern', class: 'bg-danger' }
+        };
+        const level = levelConfig[result.overall_level] || levelConfig.moderate;
+        scoreLevel.innerHTML = `<span class="badge ${level.class}">${level.text}</span>`;
+        badge.className = `badge ${level.class}`;
+        badge.textContent = result.overall_score;
+        badge.style.display = 'inline';
+
+        // Excitement score
+        document.getElementById('biasExcitementScore').textContent = result.excitement_score;
+
+        // Bull/Bear ratio
+        const meta = result.meta || {};
+        const bullBear = `${meta.bullish_points || 0}/${meta.bearish_points || 0}`;
+        document.getElementById('biasBullBearRatio').textContent = bullBear;
+
+        // Detected biases
+        const biasesList = document.getElementById('biasDetectedList');
+        const detectedBiases = (result.biases || []).filter(b => b.detected && b.severity !== 'none');
+
+        if (detectedBiases.length === 0) {
+            biasesList.innerHTML = `
+                <div class="text-success small">
+                    <i class="bi bi-check-circle me-1"></i> No significant bias patterns detected
+                </div>
+            `;
+        } else {
+            biasesList.innerHTML = detectedBiases.slice(0, 3).map(bias => `
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge ${this.getSeverityClass(bias.severity)}" style="font-size: 0.65rem;">
+                        ${bias.severity.toUpperCase()}
+                    </span>
+                    <span class="small">${this.formatBiasName(bias.type)}</span>
+                </div>
+            `).join('');
+
+            if (detectedBiases.length > 3) {
+                biasesList.innerHTML += `<div class="small text-muted">+${detectedBiases.length - 3} more</div>`;
+            }
+        }
+
+        // Last checked
+        if (result.created_at) {
+            const date = new Date(result.created_at);
+            document.getElementById('biasLastChecked').textContent = `Last checked: ${date.toLocaleDateString()}`;
+        }
+    },
+
+    // Show full modal
+    showModal() {
+        if (!this.currentResult) return;
+
+        const modal = new bootstrap.Modal(document.getElementById('biasCheckModal'));
+        const body = document.getElementById('biasCheckModalBody');
+        const result = this.currentResult;
+
+        body.innerHTML = this.renderModalContent(result);
+        modal.show();
+    },
+
+    // Render modal content
+    renderModalContent(result) {
+        const meta = result.meta || {};
+        const biases = result.biases || [];
+        const strengths = result.strengths || [];
+
+        let html = `
+            <!-- Summary Stats -->
+            <div class="row mb-4">
+                <div class="col-4">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="mb-0" style="color: ${this.getScoreColor(result.overall_score)}">${result.overall_score}</h3>
+                        <div class="small text-muted">/100 Score</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="mb-0">${result.excitement_score}</h3>
+                        <div class="small text-muted">Excitement</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="mb-0">${meta.bullish_points || 0} / ${meta.bearish_points || 0}</h3>
+                        <div class="small text-muted">Bull / Bear</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Balance Assessment -->
+            ${result.balance_assessment ? `
+            <div class="alert alert-info mb-4">
+                <strong>Balance Assessment:</strong> ${result.balance_assessment}
+            </div>
+            ` : ''}
+
+            <!-- Bias Analysis -->
+            <h6 class="text-uppercase text-muted mb-3" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+                Bias Analysis
+            </h6>
+        `;
+
+        // Render each bias
+        for (const bias of biases) {
+            const isDetected = bias.detected && bias.severity !== 'none';
+            const icon = isDetected ? 'exclamation-triangle' : 'check-circle';
+            const borderClass = isDetected ? this.getSeverityBorderClass(bias.severity) : 'border-success';
+
+            html += `
+                <div class="card mb-3 ${borderClass}" style="border-left-width: 4px;">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">
+                                <i class="bi bi-${icon} me-1 ${isDetected ? 'text-warning' : 'text-success'}"></i>
+                                ${this.formatBiasName(bias.type)}
+                            </span>
+                            <span class="badge ${this.getSeverityClass(bias.severity)}">
+                                ${bias.severity.toUpperCase()}
+                            </span>
+                        </div>
+
+                        <p class="small mb-2">${bias.summary}</p>
+
+                        ${bias.evidence && bias.evidence.length > 0 ? `
+                        <div class="mb-2">
+                            <strong class="small">Evidence:</strong>
+                            <ul class="small mb-0 ps-3">
+                                ${bias.evidence.map(e => `<li class="text-muted">"${e}"</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${bias.suggestion ? `
+                        <div class="small text-primary mb-2">
+                            <i class="bi bi-lightbulb me-1"></i> <strong>Reflection:</strong> ${bias.suggestion}
+                        </div>
+                        ` : ''}
+
+                        ${bias.caveat ? `
+                        <div class="small text-muted fst-italic">
+                            <i class="bi bi-info-circle me-1"></i> ${bias.caveat}
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Strengths
+        if (strengths.length > 0) {
+            html += `
+                <h6 class="text-uppercase text-muted mb-3 mt-4" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+                    <i class="bi bi-star me-1"></i> Strengths
+                </h6>
+                <ul class="list-unstyled">
+                    ${strengths.map(s => `
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle text-success me-1"></i>
+                            <span class="small">${s}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+        }
+
+        // Footer
+        html += `
+            <hr>
+            <p class="small text-muted mb-0">
+                <i class="bi bi-book me-1"></i>
+                Based on Charlie Munger's "Psychology of Human Misjudgment" - 25 cognitive biases that affect investment decisions.
+            </p>
+        `;
+
+        return html;
+    },
+
+    // Submit feedback
+    async submitFeedback(feedback) {
+        if (!this.resultId) return;
+
+        try {
+            await fetch(`/research/workflow/api/bias-check/result/${this.resultId}/feedback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedback })
+            });
+
+            // Show toast or feedback
+            alert(feedback === 'helpful' ? 'Thanks for your feedback!' : 'Feedback recorded. We\'ll improve.');
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+        }
+    },
+
+    // Utility functions
+    getScoreColor(score) {
+        if (score >= 80) return '#198754';  // green
+        if (score >= 60) return '#0d6efd';  // blue
+        if (score >= 40) return '#ffc107';  // yellow
+        return '#dc3545';  // red
+    },
+
+    getSeverityClass(severity) {
+        const classes = {
+            'high': 'bg-danger',
+            'medium': 'bg-warning text-dark',
+            'low': 'bg-info',
+            'none': 'bg-success'
+        };
+        return classes[severity] || 'bg-secondary';
+    },
+
+    getSeverityBorderClass(severity) {
+        const classes = {
+            'high': 'border-danger',
+            'medium': 'border-warning',
+            'low': 'border-info',
+            'none': 'border-success'
+        };
+        return classes[severity] || 'border-secondary';
+    },
+
+    formatBiasName(type) {
+        const names = {
+            'CONFIRMATION_BIAS': 'Confirmation Bias',
+            'OVERCONFIDENCE': 'Overconfidence',
+            'SOCIAL_PROOF': 'Social Proof',
+            'AUTHORITY_BIAS': 'Authority Bias',
+            'RECENCY_BIAS': 'Recency Bias',
+            'LOVE_BIAS': 'Love Bias'
+        };
+        return names[type] || type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => BiasCheck.init());
+</script>

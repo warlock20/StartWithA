@@ -127,166 +127,90 @@
     </div>
 
     <!-- Companies Grid -->
-    {% if too_hard_items %}
-    <div class="completed-projects-grid">
-        {% for item in too_hard_items %}
-        <div class="completed-project-card {% if item.rejection_stage == 'kill_checklist' %}decision-pass{% elif item.rejection_stage == 'mid_research' %}decision-watchlist{% else %}decision-pending{% endif %}">
-            <!-- Stage Badge Header -->
-            <div class="decision-header">
-                {% if item.rejection_stage == 'kill_checklist' %}
-                <div class="decision-badge decision-pass">
-                    <i class="bi bi-x-circle-fill"></i> Early Kill
-                </div>
-                {% elif item.rejection_stage == 'mid_research' %}
-                <div class="decision-badge decision-watchlist">
-                    <i class="bi bi-pause-circle-fill"></i> Mid-Research
-                </div>
-                {% else %}
-                <div class="decision-badge decision-pending">
-                    <i class="bi bi-clipboard-check-fill"></i> Full Analysis
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Card Content -->
-            <div class="completed-project-content">
-                <h3 class="completed-project-title font-poppins">
-                    {{ item.company_name }}
-                    {% if item.ticker %}
-                    <span class="badge bg-secondary ms-2 small">{{ item.ticker }}</span>
-                    {% endif %}
-                </h3>
-                <p class="completed-project-meta">
-                    {% if item.sector %}
-                    <span class="text-muted"><i class="bi bi-tag"></i> {{ item.sector }}</span>
-                    {% endif %}
-                </p>
-
-                <!-- Stats Row -->
-                <div class="completed-stats-row">
-                    <div class="stat-item">
-                        <i class="bi bi-clock text-muted"></i>
-                        <span class="stat-value">{{ "%.1f"|format(item.time_invested_hours) }}h</span>
-                    </div>
-                    <div class="stat-item">
-                        <i class="bi bi-calendar-check text-muted"></i>
-                        <span class="stat-value">
-                            {% if item.rejection_date %}
-                                {{ item.rejection_date.strftime('%b %d') }}
-                            {% else %}-{% endif %}
-                        </span>
-                    </div>
-                    {% if item.within_coc %}
-                    <div class="stat-item">
-                        <i class="bi bi-bullseye {% if item.within_coc == 'yes' %}text-success{% elif item.within_coc == 'no' %}text-danger{% else %}text-warning{% endif %}"></i>
-                        <span class="stat-value">{{ item.within_coc|title }}</span>
-                    </div>
-                    {% endif %}
-                    {% if item.confidence %}
-                    <div class="stat-item">
-                        <i class="bi bi-star-fill text-warning"></i>
-                        <span class="stat-value">{{ item.confidence }}/10</span>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Reason -->
-                {% if item.reason %}
-                <div class="mt-2">
-                    <p class="text-muted small mb-0">{{ item.reason[:150] }}{% if item.reason|length > 150 %}...{% endif %}</p>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Actions Footer -->
-            <div class="completed-project-actions">
-                {% if item.company_id %}
-                <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}"
-                   class="btn btn-outline-primary btn-sm flex-grow-1">
-                    <i class="bi bi-building"></i> Dashboard
-                </a>
-                {% endif %}
-
-                {% if item.source_type == 'ResearchProject' and item.source_id %}
-                <a href="{{ url_for('research_workflow.project_summary', project_id=item.source_id) }}"
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-file-text"></i> Research
-                </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+    <div id="tooHardListContainer">
+        {% include 'partials/_too_hard_list.html' %}
     </div>
-
-    <!-- Pagination Controls -->
-    {% if pagination.pages > 1 %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            <!-- Previous Button -->
-            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.prev_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
-                    <i class="bi bi-chevron-left"></i> Previous
-                </a>
-            </li>
-
-            <!-- Page Numbers -->
-            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                {% if page_num %}
-                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                        <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=page_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
-                            {{ page_num }}
-                        </a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-            {% endfor %}
-
-            <!-- Next Button -->
-            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('research_workflow.too_hard_basket', page=pagination.next_num, per_page=current_per_page, search=search_query, stage=current_stage, sector=current_sector, coc=current_coc, sort=sort_by) }}">
-                    Next <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-        </ul>
-
-        <!-- Page Info -->
-        <div class="text-center text-muted small mt-2">
-            {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
-            {% set end = pagination.page * pagination.per_page %}
-            {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
-            Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
-        </div>
-    </nav>
-    {% endif %}
-
-    {% else %}
-    <!-- Empty State -->
-    <div class="empty-state-container">
-        <div class="empty-state-icon">
-            <i class="bi bi-archive"></i>
-        </div>
-        <h3 class="empty-state-title">
-            {% if search_query or current_stage or current_sector or current_coc %}
-            No Companies Found
-            {% else %}
-            No Companies in Too Hard Basket
-            {% endif %}
-        </h3>
-        <p class="empty-state-description">
-            {% if search_query or current_stage or current_sector or current_coc %}
-            No companies match your current filters. Try adjusting your filter criteria.
-            {% else %}
-            You haven't passed on any companies yet. Companies you decide not to pursue will appear here.
-            {% endif %}
-        </p>
-        {% if search_query or current_stage or current_sector or current_coc %}
-        <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="btn btn-outline-secondary btn-lg">
-            <i class="bi bi-x-circle"></i> Clear Filters
-        </a>
-        {% endif %}
-    </div>
-    {% endif %}
-
 </div>
+{% endblock %}
+
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const listContainer = document.getElementById('tooHardListContainer');
+    
+    // 1. AJAX LOADING FUNCTION
+    async function updateBasket(url) {
+        listContainer.style.opacity = '0.5'; // Loading indicator
+        
+        try {
+            const response = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const html = await response.text();
+            
+            listContainer.innerHTML = html;
+            listContainer.style.opacity = '1';
+            
+            // Update URL in browser so refresh works
+            window.history.pushState({}, '', url);
+            
+            // Re-bind click events to the new pagination buttons
+            bindPagination();
+        } catch (err) {
+            console.error("AJAX Error:", err);
+            listContainer.style.opacity = '1';
+        }
+    }
+
+    // 2. INTERCEPT TAB CLICKS (All, Early Kills, etc)
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            // UI Visual Update
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
+            this.classList.replace('btn-outline-primary', 'btn-primary');
+            
+            updateBasket(this.href);
+        });
+    });
+
+    // 3. INTERCEPT PAGINATION
+    function bindPagination() {
+        document.querySelectorAll('.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (this.href && !this.parentNode.classList.contains('disabled')) {
+                    updateBasket(this.href);
+                }
+            });
+        });
+    }
+
+    bindPagination();
+
+    const filterForm = document.querySelector('form');
+
+    // 4. INTERCEPT SEARCH & FILTER FORM
+    filterForm.addEventListener('submit', function(e) {
+        e.preventDefault(); // Stop the reload
+        
+        // Build the URL with the form data
+        const formData = new FormData(this);
+        const params = new URLSearchParams(formData);
+        const url = `${this.action}?${params.toString()}`;
+        
+        // Use the same function we created for tabs!
+        updateBasket(url);
+    });
+
+    // Bonus: Auto-submit when a dropdown changes
+    document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+            filterForm.requestSubmit(); 
+        });
+    });
+});
+</script>
 {% endblock %}
