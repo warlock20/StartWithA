@@ -272,7 +272,13 @@ def too_hard_basket():
 
     pagination = SimplePagination(page, per_page, total_items)
     sectors_list = SectorService.get_user_sectors_list(current_user.id)
-                                                       
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('partials/_too_hard_list.html', 
+                               too_hard_items=items, 
+                               pagination=pagination,
+                               current_stage=stage_filter)  
+                               
     return render_template('too_hard_basket.html',
                           too_hard_items=items,
                           sectors_list=sectors_list,

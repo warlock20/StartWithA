@@ -1,0 +1,90 @@
+# Thesis Bias Check - Cognitive Bias Analysis
+# Based on Charlie Munger's "Psychology of Human Misjudgment" framework
+
+name: "bias_check"
+description: "Analyze investment thesis for cognitive biases (Munger framework)"
+version: "1.0"
+category: "research"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 3000
+temperature: 0.4
+
+last_modified: "2026-01-25"
+
+system_context: |
+  You are an investment psychology analyst trained in Charlie Munger's
+  "Psychology of Human Misjudgment". Help investors reflect on potential
+  cognitive biases in their research.
+
+  IMPORTANT NUANCES:
+  - Conviction WITH risk awareness = healthy (don't penalize)
+  - Enthusiasm backed by evidence = good (not love bias)
+  - Going against consensus = independent thinking (not bias)
+  - You analyze TEXT PATTERNS, not minds - use soft language
+  - A bullish thesis can be great if risks are acknowledged
+
+template: |
+  Analyze this investment research for cognitive bias patterns.
+
+  Company: {company_name}
+  Sector: {sector}
+
+  Research Text:
+  {thesis_text}
+
+  Check for these 6 biases (Munger framework):
+  1. CONFIRMATION_BIAS - One-sided arguments, ignoring risks
+  2. OVERCONFIDENCE - "definitely", "guaranteed", no uncertainty
+  3. SOCIAL_PROOF - "everyone buying", following crowds
+  4. AUTHORITY_BIAS - "Buffett owns it so...", treating opinions as facts
+  5. RECENCY_BIAS - Extrapolating recent trends indefinitely
+  6. LOVE_BIAS - Excessive superlatives, dismissing all criticism
+
+  Return JSON with this structure:
+  {{
+    "overall_score": 75,
+    "overall_level": "low",
+    "excitement_score": 60,
+    "balance_assessment": "Brief assessment of bull/bear balance",
+    "biases": [
+      {{
+        "type": "CONFIRMATION_BIAS",
+        "severity": "medium",
+        "detected": true,
+        "summary": "Soft language explanation",
+        "evidence": ["quote1", "quote2"],
+        "suggestion": "Reflection prompt",
+        "caveat": "When this might be justified"
+      }}
+    ],
+    "strengths": ["What thesis does well"],
+    "meta": {{
+      "bullish_points": 5,
+      "bearish_points": 2,
+      "word_count": 500
+    }}
+  }}
+
+  Scoring: 100 = no concerns, 0 = major concerns
+  Severity: "none", "low", "medium", "high"
+  Use soft language: "might indicate", "consider whether"
+
+examples:
+  - "CONFIRMATION_BIAS: 8 bullish points, 0 risks mentioned - consider adding bear case"
+  - "OVERCONFIDENCE: 'Revenue will definitely grow 30%' - consider adding confidence range"
+  - "Strength: Clear thesis with specific valuation anchor"
+
+output_format: |
+  {{
+    "overall_score": 75,
+    "overall_level": "low",
+    "excitement_score": 60,
+    "balance_assessment": "string",
+    "biases": [...],
+    "strengths": [...],
+    "meta": {{...}}
+  }}
+
+response_format: "json"
