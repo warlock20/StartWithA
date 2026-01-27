@@ -31,3 +31,11 @@ app/research_workflow/templates/start_new_research.html.bak
 
 
 TODOs/*
+
+.venv
+venv
+__pycache__
+instance/embedding_cache
+.git
+*.pdf
+*.pyc
