@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy only the code (the .dockerignore will skip the .venv bloat)
 COPY . .
 
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "run:app"]
+CMD gunicorn --bind 0.0.0.0:$PORT run:app
