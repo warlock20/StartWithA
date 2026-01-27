@@ -1,4 +1,5 @@
-torch==2.1.2+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.5.1
 transformers
 sentence-transformers
 Flask==3.1.1
