@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Web Assets / Node
+node_modules/
+frontend/node_modules/
+package-lock.json
+package.json
+webpack.config.js
+
+# App Data
+instance/
+instance/uploads/
+*.db
+*.sqlite3
+
+# Large Documents
+*.pdf
+*.docx
+*.csv
+*.xlsx
+data/
+docs/
+
+# Tests
+unittests/
+tests/
