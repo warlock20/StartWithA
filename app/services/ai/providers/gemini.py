@@ -2,18 +2,18 @@
 Google Gemini AI Provider Implementation
 
 This provider handles all interactions with Google's Gemini API.
-It uses centralized configuration and ensures single initialization.
+Uses the new google-genai SDK with Client object pattern.
 
 Usage:
     from app.services.ai.providers import GeminiProvider
     from app.services.ai.config import AIModel
-    
+
     # Default model from config
     provider = GeminiProvider()
-    
+
     # Specific model
     provider = GeminiProvider(model=AIModel.GEMINI_PRO_25)
-    
+
     # Generate text
     response = provider.generate_text("Analyze this company...")
 """
@@ -21,7 +21,7 @@ Usage:
 import json
 import logging
 from typing import Dict, List, Optional, Any
-import google.generativeai as genai
+from google import genai
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
@@ -29,62 +29,50 @@ from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# Module-level Gemini initialization (happens once)
+# Module-level Gemini Client (singleton pattern)
 # ============================================================
 
-_gemini_available = False
-_genai = None
+_gemini_client: Optional[genai.Client] = None
 
 
-def _initialize_gemini():
+def _get_gemini_client() -> Optional[genai.Client]:
     """
-    Initialize Gemini API exactly once at module level.
-    
-    This prevents multiple configurations which can cause issues.
+    Get or create the Gemini Client (singleton).
+
+    In the new google-genai SDK, we use a Client object
+    instead of global configuration.
     """
-    global _gemini_available, _genai
-    
-    if _genai is not None:
-        return _gemini_available
-    
+    global _gemini_client
+
+    if _gemini_client is not None:
+        return _gemini_client
+
     try:
-        _genai = genai
-        
         config = get_ai_config()
         if not config.gemini_api_key:
             logger.warning("Gemini API key not found in environment")
-            _gemini_available = False
-            return False
-        
-        # Configure Gemini API (once)
-        genai.configure(
-            api_key=config.gemini_api_key,
-            transport='rest',
-            client_options={'api_endpoint': 'https://generativelanguage.googleapis.com'}
-        )
-        
-        _gemini_available = True
-        logger.info("Gemini API initialized successfully")
-        return True
-        
+            return None
+
+        # Create client with API key
+        _gemini_client = genai.Client(api_key=config.gemini_api_key)
+        logger.info("Gemini Client initialized successfully")
+        return _gemini_client
+
     except ImportError:
-        logger.error("google-generativeai package not installed. "
-                    "Install with: pip install google-generativeai")
-        _gemini_available = False
-        return False
+        logger.error("google-genai package not installed. "
+                    "Install with: pip install google-genai")
+        return None
     except Exception as e:
-        logger.error(f"Failed to initialize Gemini API: {e}")
-        _gemini_available = False
-        return False
+        logger.error(f"Failed to initialize Gemini Client: {e}")
+        return None
 
 
 class GeminiProvider(AIProvider):
     """
     Google Gemini AI provider implementation.
-    
+
     Features:
-    - Centralized configuration
-    - Single API initialization
+    - Centralized configuration via Client object
     - JSON response support
     - Embedding generation
     - Token counting
@@ -99,10 +87,8 @@ class GeminiProvider(AIProvider):
             model: AIModel to use (defaults to config default_model)
         """
         self._config = get_ai_config()
-        
-        # Ensure Gemini is initialized
-        _initialize_gemini()
-        
+        self._client = _get_gemini_client()
+
         # Set model
         if model is not None:
             if model.provider != AIProviderEnum.GEMINI:
@@ -115,15 +101,8 @@ class GeminiProvider(AIProvider):
                 self._model_enum = default
             else:
                 self._model_enum = AIModel.GEMINI_FLASH_25
-        
-        # Create model instance
-        self._model = None
-        if _gemini_available and _genai is not None:
-            try:
-                self._model = _genai.GenerativeModel(self._model_enum.model_id)
-                logger.debug(f"GeminiProvider created with model: {self._model_enum.model_id}")
-            except Exception as e:
-                logger.error(f"Failed to create Gemini model: {e}")
+
+        logger.debug(f"GeminiProvider created with model: {self._model_enum.model_id}")
 
     @property
     def model_name(self) -> str:
@@ -132,7 +111,7 @@ class GeminiProvider(AIProvider):
 
     def is_available(self) -> bool:
         """Check if Gemini provider is available"""
-        return _gemini_available and self._model is not None
+        return self._client is not None
 
     def generate_text(
         self,
@@ -154,7 +133,7 @@ class GeminiProvider(AIProvider):
             top_p: Nucleus sampling threshold (0.0-1.0)
             top_k: Limits token selection pool
             stop_sequences: List of strings to stop generation
-            **kwargs: Gemini-specific parameters (safety_settings, etc.)
+            **kwargs: Additional parameters (system, timeout, safety_settings)
 
         Returns:
             Generated text response
@@ -166,51 +145,36 @@ class GeminiProvider(AIProvider):
             )
 
         try:
-            # Build generation config
-            generation_config = {}
+            # Build generation config dict
+            config_dict = {}
             if max_tokens is not None:
-                generation_config['max_output_tokens'] = max_tokens
+                config_dict['max_output_tokens'] = max_tokens
             if temperature is not None:
-                generation_config['temperature'] = temperature
+                config_dict['temperature'] = temperature
             if top_p is not None:
-                generation_config['top_p'] = top_p
+                config_dict['top_p'] = top_p
             if top_k is not None:
-                generation_config['top_k'] = top_k
+                config_dict['top_k'] = top_k
             if stop_sequences is not None:
-                generation_config['stop_sequences'] = stop_sequences
+                config_dict['stop_sequences'] = stop_sequences
 
-            # Extract timeout if provided
-            timeout = kwargs.pop('timeout', self._config.default_timeout)
-            request_options = {"timeout": timeout}
+            # Handle system context
+            system_context = kwargs.get('system')
+            if system_context:
+                logger.info(f"Gemini TEXT: Using system_instruction (length: {len(system_context)} chars)")
+                config_dict['system_instruction'] = system_context
 
             # Get safety settings
             safety_settings = kwargs.pop('safety_settings', self._get_default_safety_settings())
+            if safety_settings:
+                config_dict['safety_settings'] = safety_settings
 
-            # Handle system context (Gemini uses system_instruction)
-            system_context = kwargs.get('system')
-            logger.info(f"Gemini TEXT: Checking system context - Found: {system_context is not None}, kwargs keys: {list(kwargs.keys())}")
-            if system_context:
-                logger.info(f"Gemini: Using system_instruction (length: {len(system_context)} chars)")
-                logger.debug(f"Gemini system_instruction: {system_context[:200]}...")
-                # Create model with system instruction
-                model_with_system = _genai.GenerativeModel(
-                    self._model_enum.model_id,
-                    system_instruction=system_context
-                )
-                response = model_with_system.generate_content(
-                    prompt,
-                    generation_config=generation_config if generation_config else None,
-                    safety_settings=safety_settings,
-                    request_options=request_options
-                )
-            else:
-                logger.debug("Gemini: No system_instruction provided")
-                response = self._model.generate_content(
-                    prompt,
-                    generation_config=generation_config if generation_config else None,
-                    safety_settings=safety_settings,
-                    request_options=request_options
-                )
+            # New SDK syntax: client.models.generate_content
+            response = self._client.models.generate_content(
+                model=self._model_enum.model_id,
+                contents=prompt,
+                config=config_dict if config_dict else None
+            )
 
             return self._process_response(response)
 
@@ -240,7 +204,7 @@ class GeminiProvider(AIProvider):
             top_p: Nucleus sampling threshold (0.0-1.0)
             top_k: Limits token selection pool
             schema: JSON schema for structured output (Gemini-specific)
-            **kwargs: Additional parameters (timeout, safety_settings)
+            **kwargs: Additional parameters (system, timeout, safety_settings)
 
         Returns:
             Parsed JSON dictionary
@@ -248,52 +212,36 @@ class GeminiProvider(AIProvider):
         if not self.is_available():
             raise RuntimeError("Gemini provider is not available")
 
+        response = None
         try:
-            # Build generation config with JSON mode
+            # Build config dict with JSON mode
             config_dict = {
-                "response_mime_type": "application/json"
+                'response_mime_type': 'application/json'
             }
 
             if schema:
-                config_dict["response_schema"] = schema
+                config_dict['response_schema'] = schema
             if max_tokens is not None:
-                config_dict["max_output_tokens"] = max_tokens
+                config_dict['max_output_tokens'] = max_tokens
             if temperature is not None:
-                config_dict["temperature"] = temperature
+                config_dict['temperature'] = temperature
             if top_p is not None:
-                config_dict["top_p"] = top_p
+                config_dict['top_p'] = top_p
             if top_k is not None:
-                config_dict["top_k"] = top_k
+                config_dict['top_k'] = top_k
 
-            generation_config = _genai.types.GenerationConfig(**config_dict)
-
-            timeout = kwargs.get('timeout', self._config.default_timeout)
-            request_options = {"timeout": timeout}
-
-            # Handle system context (Gemini uses system_instruction)
-            # If system context is provided, create a new model instance with it
+            # Handle system context
             system_context = kwargs.get('system')
-            logger.info(f"Gemini JSON: Checking system context - Found: {system_context is not None}, kwargs keys: {list(kwargs.keys())}")
             if system_context:
                 logger.info(f"Gemini JSON: Using system_instruction (length: {len(system_context)} chars)")
-                logger.info(f"Gemini JSON system_instruction: {system_context[:200]}...")
-                # Create model with system instruction
-                model_with_system = _genai.GenerativeModel(
-                    self._model_enum.model_id,
-                    system_instruction=system_context
-                )
-                response = model_with_system.generate_content(
-                    prompt,
-                    generation_config=generation_config,
-                    request_options=request_options
-                )
-            else:
-                logger.info("Gemini JSON: No system_instruction provided")
-                response = self._model.generate_content(
-                    prompt,
-                    generation_config=generation_config,
-                    request_options=request_options
-                )
+                config_dict['system_instruction'] = system_context
+
+            # New SDK syntax: client.models.generate_content
+            response = self._client.models.generate_content(
+                model=self._model_enum.model_id,
+                contents=prompt,
+                config=config_dict
+            )
 
             content = response.text
             if not content:
@@ -325,17 +273,16 @@ class GeminiProvider(AIProvider):
 
         try:
             # Extract optional parameters
-            task_type = kwargs.get('task_type', 'retrieval_document')
-            embedding_model = kwargs.get('model', 'models/embedding-001')
+            embedding_model = kwargs.get('model', 'models/text-embedding-004')
 
             embeddings = []
             for text in texts:
-                result = _genai.embed_content(
+                # New SDK syntax: client.models.embed_content
+                result = self._client.models.embed_content(
                     model=embedding_model,
-                    content=text,
-                    task_type=task_type
+                    contents=text
                 )
-                embeddings.append(result['embedding'])
+                embeddings.append(result.embeddings[0].values)
 
             return embeddings
 
@@ -358,7 +305,11 @@ class GeminiProvider(AIProvider):
             return len(text) // 4
 
         try:
-            result = self._model.count_tokens(text)
+            # New SDK syntax: client.models.count_tokens
+            result = self._client.models.count_tokens(
+                model=self._model_enum.model_id,
+                contents=text
+            )
             return result.total_tokens
         except Exception as e:
             logger.warning(f"Token counting failed, using approximation: {str(e)}")
@@ -370,8 +321,6 @@ class GeminiProvider(AIProvider):
 
         These are permissive settings suitable for business/research content.
         Override via kwargs if stricter settings needed.
-
-        Note: Only using the 4 standard safety categories supported by Gemini SDK.
         """
         return [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -399,25 +348,25 @@ class GeminiProvider(AIProvider):
             raise RuntimeError("No response candidates returned from Gemini API")
 
         candidate = response.candidates[0]
-        
-        # Handle finish reasons
-        # 1=STOP (normal), 2=RECITATION, 3=SAFETY, 4=MAX_TOKENS, 5=OTHER
+
+        # Handle finish reasons (new SDK uses string values)
         finish_reason = candidate.finish_reason
-        
-        if finish_reason == 2:  # RECITATION
+
+        # Map string values to behavior
+        if finish_reason == 'RECITATION':
             raise RuntimeError(
                 "Content generation blocked due to potential copyright/recitation concerns. "
                 "Try rephrasing your prompt or using more original content."
             )
-        elif finish_reason == 3:  # SAFETY
+        elif finish_reason == 'SAFETY':
             raise RuntimeError(
                 "Content generation blocked by safety filters. "
                 "Please review your input content."
             )
-        elif finish_reason == 4:  # MAX_TOKENS
+        elif finish_reason == 'MAX_TOKENS':
             logger.warning("Response truncated due to max_tokens limit")
             # Still return partial response
-        elif finish_reason not in [1, 4, None]:  # Not STOP, MAX_TOKENS, or unset
+        elif finish_reason not in ['STOP', 'MAX_TOKENS', None]:
             logger.warning(f"Unexpected finish_reason: {finish_reason}")
 
         return response.text
@@ -439,7 +388,7 @@ class GeminiProvider(AIProvider):
         """
         if not content:
             raise ValueError("Empty content, cannot extract JSON")
-        
+
         # Remove markdown code blocks
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
