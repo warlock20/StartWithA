@@ -1,33 +1,43 @@
-#--index-url https://download.pytorch.org/whl/cpu
-#torch==2.1.2+cpu
-#sentence-transformers
-Flask-Migrate
-Flask-WTF
-Flask-Caching
+# Web Framework & Extensions
 Flask==3.1.1
 flask_login==0.6.3
 flask_sqlalchemy==3.1.1
+Flask-Migrate
+Flask-Caching
+Flask-WTF
 python-dotenv
 Werkzeug
+flask-admin
+
+# Machine Learning (CPU Optimized to prevent Timeout)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.5.1
+transformers
+sentence-transformers
+
+# Data Processing
+pandas
+scikit-learn
+matplotlib
 yfinance
 PyMuPDF
 python-docx
-google-generativeai
-pandas
-scikit-learn
-requests
+openpyxl
 beautifulsoup4
-matplotlib
+
+# APIs & Integrations
+google-genai
+openai
+anthropic>=0.40.0
+requests
+secedgar
+PyYAML
+
+# Infrastructure
 redis
 celery
-secedgar
-openai
-PyYAML
 authlib>=1.2.0
 python-jose[cryptography]>=3.3.0
 pgvector>=0.4.0
-anthropic>=0.40.0
-flask-admin
-openpyxl
 gunicorn==23.0.0
 psycopg2-binary==2.9.10

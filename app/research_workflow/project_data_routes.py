@@ -68,19 +68,35 @@ def project_summary(project_id):
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
-    # Compile all notes and findings
+    # Compile all notes with step metadata
     all_notes = []
-    for step_index, notes in (project.step_notes or {}).items():
-        step = project.template.get_step(int(step_index))
+    checklist_analyses = {}  # Map step_index -> analysis_id
+
+    for step_index_str, notes in (project.step_notes or {}).items():
+        step_index = int(step_index_str)
+        step = project.template.get_step(step_index)
         if step and notes:
             all_notes.append({
-                'step_name': step['name'],
+                'step_index': step_index,
+                'step_name': step.get('name', f'Step {step_index + 1}'),
+                'step_type': step.get('type', 'research'),
                 'notes': notes
             })
 
+            # Find checklist analysis if this is a checklist step
+            if step.get('type') == 'checklist':
+                analysis = ChecklistAnalysis.query.filter_by(
+                    research_project_id=project.id,
+                    step_index=step_index
+                ).order_by(ChecklistAnalysis.created_at.desc()).first()
+                if analysis:
+                    checklist_analyses[step_index] = analysis.id
+
+    # Sort by step index
+    all_notes.sort(key=lambda x: x['step_index'])
+
     # ═══════════════════════════════════════════════════════════════
     # RESEARCH QUALITY SCORE CALCULATION
-    # Calculate and display quality score for completed research
     # ═══════════════════════════════════════════════════════════════
     quality_score = None
     try:
@@ -95,30 +111,36 @@ def project_summary(project_id):
                           title=f"Summary: {project.subject_display_name}",
                           project=project,
                           all_notes=all_notes,
+                          checklist_analyses=checklist_analyses,
                           quality_score=quality_score)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/save-decision', methods=['POST'])
 @login_required
 def save_project_decision(project_id):
-    """Save investment decision for a project"""
+    """Save investment decision for a project (supports both form and AJAX)"""
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
+        if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
     try:
-        # Get form data
+        # Get form data (works for both form and AJAX)
         decision = request.form.get('decision')  # invest, pass, watchlist
         decision_summary = request.form.get('decision_summary', '').strip()
-        decision_confidence = request.form.get('decision_confidence', type=int)
+        confidence = request.form.get('confidence') or request.form.get('decision_confidence')
+        decision_confidence = int(confidence) if confidence else None
 
         green_flags_raw = request.form.get('green_flags', '')
         red_flags_raw = request.form.get('red_flags', '')
-        
+
         # Validate decision
         if decision not in ['invest', 'pass', 'watchlist']:
+            if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
+                return jsonify({'success': False, 'error': 'Invalid decision type'}), 400
             flash('Invalid decision type', 'error')
             return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
@@ -129,7 +151,7 @@ def save_project_decision(project_id):
         project.decision_date = now_utc()
         project.green_flags = [f.strip() for f in green_flags_raw.split('\n') if f.strip()]
         project.red_flags = [f.strip() for f in red_flags_raw.split('\n') if f.strip()]
-        
+
         # Mark as completed if not already
         if project.status != 'completed':
             project.status = 'completed'
@@ -137,10 +159,17 @@ def save_project_decision(project_id):
 
         db.session.commit()
 
-        # Different messages based on decision
+        # AJAX response
+        if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
+            return jsonify({
+                'success': True,
+                'decision': decision,
+                'message': f'Decision saved: {decision.title()}'
+            })
+
+        # Traditional form submission - redirect with flash
         if decision == 'invest':
             flash(f'Decision recorded: Investing in {project.subject_display_name}! 🎯', 'success')
-            # Redirect to portfolio if company exists
             if project.company_id:
                 flash('Add a transaction to start tracking your investment.', 'info')
                 return redirect(url_for('portfolio.add_transaction', company_id=project.company_id))
@@ -153,6 +182,8 @@ def save_project_decision(project_id):
 
     except Exception as e:
         db.session.rollback()
+        if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
+            return jsonify({'success': False, 'error': str(e)}), 500
         flash(f'Error saving decision: {str(e)}', 'error')
         return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 

@@ -8,11 +8,14 @@
 #}
 
 <!-- Bias Check Card -->
-<div class="project-stats-card" id="biasCheckCard" style="margin-top: 1.5rem;">
-    <h3 class="font-poppins d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-brain me-2"></i>Thesis Reflection</span>
+<div class="summary-ai-card bias-check" id="biasCheckCard">
+    <div class="summary-ai-card-header">
+        <div>
+            <div class="summary-ai-card-title">Thesis Reflection</div>
+            <div class="summary-ai-card-subtitle">Cognitive bias analysis</div>
+        </div>
         <span class="badge bg-secondary" id="biasCheckBadge" style="display: none;">--</span>
-    </h3>
+    </div>
 
     <!-- Loading State -->
     <div id="biasCheckLoading" style="display: none;">
@@ -30,7 +33,7 @@
         <div id="biasCheckPreview" class="mb-3">
             <!-- Stats will be loaded here -->
         </div>
-        <button class="btn btn-outline-primary w-100" onclick="BiasCheck.run()" id="runBiasCheckBtn">
+        <button class="btn btn-outline-primary btn-sm w-100" onclick="BiasCheck.run()" id="runBiasCheckBtn">
             <i class="bi bi-play-circle me-1"></i> Run Bias Check
         </button>
     </div>
@@ -38,46 +41,48 @@
     <!-- Result State -->
     <div id="biasCheckResult" style="display: none;">
         <!-- Score Display -->
-        <div class="text-center my-3">
-            <div id="biasScoreValue" style="font-size: 2.5rem; font-weight: 700;">--</div>
-            <div class="text-muted small">Reflection Score</div>
-            <div id="biasScoreLevel" class="mt-1 small"></div>
-        </div>
+        <div class="summary-ai-card-body">
+            <div class="summary-ai-score">
+                <span class="summary-ai-score-value" id="biasScoreValue">--</span>
+                <span class="summary-ai-score-label">Reflection Score</span>
+            </div>
+            <div id="biasScoreLevel" class="text-center mb-3"></div>
 
-        <!-- Quick Stats -->
-        <div class="row text-center mb-3">
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <div class="fw-bold" id="biasExcitementScore">--</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">Excitement</div>
+            <!-- Quick Stats -->
+            <div class="row text-center mb-3">
+                <div class="col-6">
+                    <div class="p-2 bg-light rounded">
+                        <div class="fw-bold" id="biasExcitementScore">--</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Excitement</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 bg-light rounded">
+                        <div class="fw-bold" id="biasBullBearRatio">--</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Bull/Bear</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-6">
-                <div class="p-2 bg-light rounded">
-                    <div class="fw-bold" id="biasBullBearRatio">--</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">Bull/Bear</div>
-                </div>
+
+            <!-- Detected Biases -->
+            <div id="biasDetectedList" class="mb-3">
+                <!-- Bias items will be inserted here -->
             </div>
-        </div>
 
-        <!-- Detected Biases -->
-        <div id="biasDetectedList" class="mb-3">
-            <!-- Bias items will be inserted here -->
-        </div>
+            <!-- Actions -->
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="BiasCheck.showModal()">
+                    <i class="bi bi-eye me-1"></i> View Full Analysis
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="BiasCheck.run()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Re-run Check
+                </button>
+            </div>
 
-        <!-- Actions -->
-        <div class="d-grid gap-2">
-            <button class="btn btn-outline-primary btn-sm" onclick="BiasCheck.showModal()">
-                <i class="bi bi-eye me-1"></i> View Full Analysis
-            </button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="BiasCheck.run()">
-                <i class="bi bi-arrow-clockwise me-1"></i> Re-run Check
-            </button>
-        </div>
-
-        <!-- Last Checked -->
-        <div class="text-muted text-center mt-2" style="font-size: 0.75rem;">
-            <span id="biasLastChecked"></span>
+            <!-- Last Checked -->
+            <div class="text-muted text-center mt-2" style="font-size: 0.75rem;">
+                <span id="biasLastChecked"></span>
+            </div>
         </div>
     </div>
 </div>

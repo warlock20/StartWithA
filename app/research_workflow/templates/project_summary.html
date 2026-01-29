@@ -3,292 +3,188 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <div class="summary-page-header">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h1 class="summary-page-title">{{ project.project_name }}</h1>
-                <p class="summary-page-subtitle">
-                    {% if project.company %}
-                    {{ project.company.name }}
-                    {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
-                    {% endif %}
-                    • Make your final investment decision
-                </p>
+    <header class="summary-header">
+        <div class="summary-company-info">
+            <div class="summary-company-logo">
+                {{ (project.company.name if project.company else project.project_name)[:2]|upper }}
             </div>
-            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn-portfolio-modern">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Reseach Worflow
-            </a>
+            <div class="summary-company-details">
+                <h1>{{ project.project_name }}</h1>
+                <div class="summary-company-meta">
+                    {% if project.company and project.company.ticker_symbol %}
+                    <span class="summary-ticker-badge">{{ project.company.ticker_symbol }}</span>
+                    {% endif %}
+                    {% if project.company and project.company.sector %}
+                    <span>{{ project.company.sector.display_name }}</span>
+                    {% endif %}
+                    <span class="summary-decision-badge {{ project.decision or 'pending' }}">
+                        {% if project.decision == 'invest' %}
+                        <i class="bi bi-check-circle-fill"></i> Invested
+                        {% elif project.decision == 'pass' %}
+                        <i class="bi bi-x-circle-fill"></i> Passed
+                        {% elif project.decision == 'watchlist' %}
+                        <i class="bi bi-eye-fill"></i> Watchlist
+                        {% else %}
+                        <i class="bi bi-clock"></i> Pending
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
         </div>
-    </div>
+        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Research
+        </a>
+    </header>
 
     <!-- Main Content Grid -->
-    <div class="row g-4">
-
-        <!-- Decision Form Column -->
-        <div class="col-lg-8">
-
-            <!-- Investment Decision Card -->
-            <div class="decision-card">
-                <div class="decision-card-header">
-                    <div class="decision-card-icon">
-                        <i class="bi bi-clipboard-check"></i>
-                    </div>
-                    <div class="decision-card-title">
-                        <h2>Investment Decision</h2>
-                        <p>Based on {{ project.total_hours_spent|round(1) }} hours of research</p>
+    <div class="summary-content-grid">
+        <!-- Research Section (Left Column) -->
+        <div class="summary-research-section">
+            <!-- Investment Thesis Card -->
+            <div class="summary-section-card">
+                <div class="summary-section-header">
+                    <h2 class="summary-section-title">
+                        <div class="summary-section-icon thesis">
+                            <i class="bi bi-lightbulb"></i>
+                        </div>
+                        Investment Thesis
+                    </h2>
+                    {% for note in all_notes if note.step_type == 'thesis_writing' %}
+                    <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=note.step_index) }}"
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="summary-section-body">
+                    <div class="summary-thesis-content">
+                        {% if project.investment_thesis %}
+                            {{ project.investment_thesis|markdown|safe }}
+                        {% else %}
+                            {% for note in all_notes if note.step_type == 'thesis_writing' %}
+                                {{ note.notes|blocknote_to_html|safe }}
+                            {% else %}
+                                <p class="text-muted"><em>No investment thesis written yet.</em></p>
+                            {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
-
-                <form method="POST" action="{{ url_for('research_workflow.save_project_decision', project_id=project.id) }}">
-
-                    <!-- Decision Options -->
-                    <div class="mb-4">
-                        <label class="form-label fw-bold mb-3">Your Decision:</label>
-                        <div class="decision-options">
-                            <div class="decision-option invest">
-                                <input type="radio" name="decision" id="decision_invest" value="invest"
-                                       {% if project.decision == 'invest' %}checked{% endif %} required>
-                                <label for="decision_invest">
-                                    <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
-                                    Invest
-                                </label>
-                            </div>
-                            <div class="decision-option pass">
-                                <input type="radio" name="decision" id="decision_pass" value="pass"
-                                       {% if project.decision == 'pass' %}checked{% endif %}>
-                                <label for="decision_pass">
-                                    <i class="bi bi-x-circle-fill text-danger d-block mb-2" style="font-size: 2rem;"></i>
-                                    Pass
-                                </label>
-                            </div>
-                            <div class="decision-option watchlist">
-                                <input type="radio" name="decision" id="decision_watchlist" value="watchlist"
-                                       {% if project.decision == 'watchlist' %}checked{% endif %}>
-                                <label for="decision_watchlist">
-                                    <i class="bi bi-eye-fill text-warning d-block mb-2" style="font-size: 2rem;"></i>
-                                    Watchlist
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Confidence Level -->
-                    <div class="confidence-section mb-4">
-                        <div class="confidence-display">
-                            <label class="form-label fw-bold mb-0">Confidence Level:</label>
-                            <span class="confidence-value" id="confidenceDisplay">{{ project.decision_confidence or 5 }}</span>
-                        </div>
-                        <input type="range" class="form-range confidence-slider" min="1" max="10" step="1"
-                               id="confidence" name="confidence" value="{{ project.decision_confidence or 5 }}"
-                               oninput="document.getElementById('confidenceDisplay').textContent = this.value">
-                        <div class="d-flex justify-content-between text-muted small mt-2">
-                            <span>Low Confidence</span>
-                            <span>High Confidence</span>
-                        </div>
-                    </div>
-
-                    <!-- Key Positives and Risks -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <label for="green_flags" class="form-label fw-bold">
-                                <i class="bi bi-plus-circle-fill text-success me-2"></i>Key Positives:
-                            </label>
-                            <textarea class="form-control" name="green_flags" rows="4"
-                                      placeholder="One finding per line...">{% if project.green_flags %}{{ project.green_flags|join('\n') }}{% endif %}</textarea>
-                            <small class="text-muted">One per line</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="red_flags" class="form-label fw-bold">
-                                <i class="bi bi-dash-circle-fill text-danger me-2"></i>Key Risks:
-                            </label>
-                            <textarea class="form-control" name="red_flags" rows="4"
-                                      placeholder="One risk per line...">{% if project.red_flags %}{{ project.red_flags|join('\n') }}{% endif %}</textarea>
-                            <small class="text-muted">One per line</small>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-check-circle-fill"></i> Save Final Decision
-                        </button>
-                    </div>
-                </form>
             </div>
 
-            <!-- Research Notes Card -->
-            <div class="research-notes-card">
-                <div class="research-notes-header">
-                    <div class="research-notes-icon">
-                        <i class="bi bi-journal-text"></i>
-                    </div>
-                    <div class="decision-card-title">
-                        <h2>Research Steps</h2>
-                        <p>Review and edit your detailed findings from each step</p>
-                    </div>
+            <!-- Research Steps Card -->
+            <div class="summary-section-card">
+                <div class="summary-section-header">
+                    <h2 class="summary-section-title">
+                        <div class="summary-section-icon steps">
+                            <i class="bi bi-list-check"></i>
+                        </div>
+                        Research Steps
+                    </h2>
+                    <span class="text-muted small">{{ project.completed_steps|length }} of {{ project.template.step_count }} completed</span>
                 </div>
-
-                {% if all_notes %}
-                <div class="accordion" id="notesAccordion">
+                <div class="summary-section-body">
+                    {% if all_notes %}
                     {% for note in all_notes %}
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#note-{{ loop.index0 }}">
-                                <i class="bi bi-journal-check me-2"></i>
-                                {{ note.step_name }}
-                                {% if note.step_type == 'checklist' %}
-                                <span class="badge bg-primary ms-2">Checklist</span>
-                                {% elif note.step_type == 'thesis_writing' %}
-                                <span class="badge bg-success ms-2">Thesis</span>
-                                {% elif note.step_type == 'model' %}
-                                <span class="badge bg-purple ms-2">Mental Model</span>
-                                {% elif note.step_type == 'valuation' %}
-                                <span class="badge bg-info ms-2">Valuation</span>
-                                {% elif note.step_type == 'competitor_analysis' %}
-                                <span class="badge bg-warning ms-2">Competitor Analysis</span>
-                                {% elif note.step_type == 'custom' %}
-                                <span class="badge bg-secondary ms-2">Custom</span>
-                                {% endif %}
-                            </button>
-                        </h2>
-                        <div id="note-{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
-                             data-bs-parent="#notesAccordion">
-                            <div class="accordion-body">
-                                <div class="step-notes-content">
-                                    {% if note.step_type == 'thesis_writing' %}
-                                        <!-- Display thesis - use blocknote_to_html for BlockNote JSON format -->
-                                        {% if project.investment_thesis %}
-                                            {{ project.investment_thesis|markdown|safe }}
-                                        {% else %}
-                                            {{ note.notes|blocknote_to_html|safe }}
-                                        {% endif %}
-                                    {% else %}
-                                        {{ note.notes|blocknote_to_html|safe }}
-                                    {% endif %}
-                                </div>
-
-                                <!-- Action buttons for different step types -->
-                                {% if note.step_type == 'checklist' and checklist_analyses and checklist_analyses[note.step_index] %}
-                                <div class="mt-3 pt-3 border-top">
-                                    <div class="d-flex gap-2">
-                                        <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[note.step_index]) }}"
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-file-text"></i> View Full Checklist Summary
-                                        </a>
-                                        <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[note.step_index]) }}"
-                                           class="btn btn-sm btn-outline-success">
-                                            <i class="bi bi-download"></i> Export Checklist
-                                        </a>
-                                    </div>
-                                </div>
-                                {% elif note.step_type == 'thesis_writing' %}
-                                <div class="mt-3 pt-3 border-top">
-                                    <div class="d-flex gap-2">
-                                        <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=note.step_index) }}"
-                                           class="btn btn-sm btn-outline-success">
-                                            <i class="bi bi-pencil"></i> Edit Investment Thesis
-                                        </a>
-                                    </div>
-                                </div>
-                                {% endif %}
+                    <div class="summary-step-item {% if loop.first %}expanded{% endif %}" data-step-index="{{ loop.index0 }}">
+                        <div class="summary-step-header" onclick="SummaryPage.toggleStep(this)">
+                            <div class="summary-step-info">
+                                <div class="summary-step-number">{{ loop.index }}</div>
+                                <span class="summary-step-name">{{ note.step_name }}</span>
+                                <span class="summary-step-badge {{ note.step_type }}">
+                                    {% if note.step_type == 'checklist' %}Checklist
+                                    {% elif note.step_type == 'thesis_writing' %}Thesis
+                                    {% elif note.step_type == 'model' %}Model
+                                    {% elif note.step_type == 'valuation' %}Valuation
+                                    {% elif note.step_type == 'competitor_analysis' %}Competitor
+                                    {% else %}{{ note.step_type|title }}{% endif %}
+                                </span>
                             </div>
+                            <i class="bi bi-chevron-down summary-step-toggle"></i>
+                        </div>
+                        <div class="summary-step-content">
+                            {% if note.step_type == 'thesis_writing' %}
+                                {% if project.investment_thesis %}
+                                    {{ project.investment_thesis|markdown|safe }}
+                                {% else %}
+                                    {{ note.notes|blocknote_to_html|safe }}
+                                {% endif %}
+                            {% else %}
+                                {{ note.notes|blocknote_to_html|safe }}
+                            {% endif %}
+
+                            {% if note.step_type == 'checklist' and checklist_analyses and checklist_analyses[note.step_index] %}
+                            <div class="mt-3 pt-3 border-top">
+                                <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[note.step_index]) }}"
+                                   class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="bi bi-file-text"></i> View Full Checklist
+                                </a>
+                                <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[note.step_index]) }}"
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-download"></i> Export
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
+                    {% else %}
+                    <div class="alert alert-info border-0 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No research steps were recorded for this project.
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div class="alert alert-info border-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    No research steps were recorded for this project.
-                </div>
-                {% endif %}
             </div>
         </div>
 
-        <!-- Sidebar Column -->
-        <div class="col-lg-4">
-
-            <!-- Project Stats Card -->
-            <div class="project-stats-card">
-                <h3 class="font-poppins">Project Summary</h3>
-                <div>
-                    <div class="project-stat-item">
-                        <span class="project-stat-label">
-                            Company:
-                        </span>
-                        <span class="project-stat-value">
-                            {{ project.subject_display_name }}
-                        </span>
-                    </div>
-                    <div class="project-stat-item">
-                        <span class="project-stat-label">Template:</span>
-                        <span class="project-stat-value">{{ project.template.name }}</span>
-                    </div>
-                    <div class="project-stat-item">
-                        <span class="project-stat-label">Steps Completed:</span>
-                        <span class="project-stat-value">{{ project.completed_steps|length }} / {{ project.template.step_count }}</span>
-                    </div>
-                    <div class="project-stat-item">
-                        <span class="project-stat-label">Time Invested:</span>
-                        <span class="project-stat-value">{{ project.total_hours_spent|round(1) }} hours</span>
-                    </div>
-                    <div class="project-stat-item">
-                        <span class="project-stat-label">Completed On:</span>
-                        <span class="project-stat-value">
-                            {{ project.completed_at.strftime('%B %d, %Y') if project.completed_at else 'Today' }}
-                        </span>
-                    </div>
-                </div>
+        <!-- AI Insights Section (Right Column) -->
+        <div class="summary-ai-section">
+            <div class="summary-ai-label">
+                <i class="bi bi-stars"></i> AI Research Insights
             </div>
 
-            <!-- Research Quality Score -->
-            {% include 'partials/_quality_score_card.html' %}
-
-            <!-- Bias Check (Cognitive Bias Analysis) -->
+            <!-- Bias Check Card -->
             {% include 'partials/_bias_check_card.html' %}
 
-            <!-- Key Findings Card -->
-            {% if project.green_flags or project.red_flags %}
-            <div class="research-summary-card">
-                <h4>
-                    <i class="bi bi-flag me-2"></i>Key Findings So Far
-                </h4>
-                {% if project.green_flags %}
-                <div class="mb-3">
-                    <strong class="text-success"><i class="bi bi-plus-circle-fill me-1"></i> Green Flags:</strong>
-                    <ul class="mb-0 mt-2">
-                        {% for flag in project.green_flags %}
-                        <li class="small">{{ flag }}</li>
-                        {% endfor %}
-                    </ul>
+            <!-- Quality Score Card -->
+            {% include 'partials/_quality_score_card.html' %}
+
+            <!-- Project Stats Card -->
+            <div class="summary-stats-card">
+                <div class="summary-stats-title">Project Stats</div>
+                <div class="summary-stats-grid">
+                    <div>
+                        <div class="summary-stat-value">{{ project.total_hours_spent|round(1) }}</div>
+                        <div class="summary-stat-label">Hours</div>
+                    </div>
+                    <div>
+                        <div class="summary-stat-value">{{ project.completed_steps|length }}</div>
+                        <div class="summary-stat-label">Steps</div>
+                    </div>
+                    <div>
+                        <div class="summary-stat-value">{{ checklist_analyses|length if checklist_analyses else 0 }}</div>
+                        <div class="summary-stat-label">Checklists</div>
+                    </div>
+                    <div>
+                        <div class="summary-stat-value">
+                            {{ project.completed_at.strftime('%m/%d') if project.completed_at else 'Today' }}
+                        </div>
+                        <div class="summary-stat-label">Completed</div>
+                    </div>
                 </div>
-                {% endif %}
-                {% if project.red_flags %}
-                <div>
-                    <strong class="text-danger"><i class="bi bi-dash-circle-fill me-1"></i> Red Flags:</strong>
-                    <ul class="mb-0 mt-2">
-                        {% for flag in project.red_flags %}
-                        <li class="small">{{ flag }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
             </div>
-            {% endif %}
 
             <!-- Quick Actions -->
-            <div class="project-stats-card">
-                <h3 class="font-poppins">Quick Actions</h3>
+            <div class="summary-stats-card">
+                <div class="summary-stats-title">Quick Actions</div>
                 <div class="d-grid gap-2">
                     <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                       class="btn btn-outline-primary">
+                       class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-arrow-left"></i> Back to Dashboard
                     </a>
                     {% if project.company %}
                     <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}"
-                       class="btn btn-outline-secondary">
+                       class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-building"></i> Company Profile
                     </a>
                     {% endif %}
@@ -297,4 +193,175 @@
         </div>
     </div>
 </div>
+
+<!-- Expanded Panel (Green/Red Flags) -->
+<div class="summary-expanded-panel" id="summaryExpandedPanel">
+    <div class="summary-flags-grid">
+        <div class="summary-flag-section">
+            <label class="green">
+                <i class="bi bi-plus-circle-fill"></i> Key Positives
+            </label>
+            <textarea id="greenFlagsInput" placeholder="One finding per line...">{% if project.green_flags %}{{ project.green_flags|join('\n') }}{% endif %}</textarea>
+            <div class="summary-flag-hint">One per line</div>
+        </div>
+        <div class="summary-flag-section">
+            <label class="red">
+                <i class="bi bi-dash-circle-fill"></i> Key Risks
+            </label>
+            <textarea id="redFlagsInput" placeholder="One risk per line...">{% if project.red_flags %}{{ project.red_flags|join('\n') }}{% endif %}</textarea>
+            <div class="summary-flag-hint">One per line</div>
+        </div>
+    </div>
+</div>
+
+<!-- Sticky Decision Bar -->
+<div class="summary-decision-bar">
+    <div class="summary-decision-bar-content">
+        <div class="summary-decision-buttons">
+            <button type="button" class="summary-decision-btn invest {% if project.decision == 'invest' %}selected{% endif %}"
+                    onclick="SummaryPage.selectDecision(this, 'invest')">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Invest</span>
+            </button>
+            <button type="button" class="summary-decision-btn pass {% if project.decision == 'pass' %}selected{% endif %}"
+                    onclick="SummaryPage.selectDecision(this, 'pass')">
+                <i class="bi bi-x-circle-fill"></i>
+                <span>Pass</span>
+            </button>
+            <button type="button" class="summary-decision-btn watchlist {% if project.decision == 'watchlist' %}selected{% endif %}"
+                    onclick="SummaryPage.selectDecision(this, 'watchlist')">
+                <i class="bi bi-eye-fill"></i>
+                <span>Watchlist</span>
+            </button>
+        </div>
+
+        <div class="summary-confidence-control">
+            <span class="summary-confidence-label">Confidence:</span>
+            <div class="summary-confidence-slider-wrap">
+                <input type="range" class="summary-confidence-slider" min="1" max="10"
+                       value="{{ project.decision_confidence or 5 }}" id="confidenceSlider"
+                       oninput="document.getElementById('confidenceValue').textContent = this.value">
+                <span class="summary-confidence-value" id="confidenceValue">{{ project.decision_confidence or 5 }}</span>
+            </div>
+        </div>
+
+        <button type="button" class="summary-expand-btn" onclick="SummaryPage.toggleExpand()">
+            <i class="bi bi-chevron-up" id="expandIcon"></i> Details
+        </button>
+
+        <button type="button" class="summary-save-btn" onclick="SummaryPage.saveDecision()" id="saveDecisionBtn">
+            <i class="bi bi-check-lg"></i> Save Decision
+        </button>
+    </div>
+</div>
+
+<script>
+const SummaryPage = {
+    projectId: {{ project.id }},
+    currentDecision: '{{ project.decision or "" }}',
+
+    // Toggle research step expansion
+    toggleStep(header) {
+        const item = header.closest('.summary-step-item');
+        item.classList.toggle('expanded');
+    },
+
+    // Select decision
+    selectDecision(btn, decision) {
+        document.querySelectorAll('.summary-decision-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        this.currentDecision = decision;
+    },
+
+    // Toggle expanded panel
+    toggleExpand() {
+        const panel = document.getElementById('summaryExpandedPanel');
+        const icon = document.getElementById('expandIcon');
+        panel.classList.toggle('show');
+        icon.classList.toggle('bi-chevron-up');
+        icon.classList.toggle('bi-chevron-down');
+    },
+
+    // Save decision via AJAX
+    async saveDecision() {
+        const saveBtn = document.getElementById('saveDecisionBtn');
+        const originalHtml = saveBtn.innerHTML;
+
+        if (!this.currentDecision) {
+            alert('Please select a decision (Invest, Pass, or Watchlist)');
+            return;
+        }
+
+        // Get form data
+        const confidence = document.getElementById('confidenceSlider').value;
+        const greenFlags = document.getElementById('greenFlagsInput').value;
+        const redFlags = document.getElementById('redFlagsInput').value;
+
+        // Show loading
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
+
+        try {
+            const response = await fetch(`{{ url_for('research_workflow.save_project_decision', project_id=project.id) }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    decision: this.currentDecision,
+                    confidence: confidence,
+                    green_flags: greenFlags,
+                    red_flags: redFlags
+                })
+            });
+
+            if (response.ok) {
+                // Update the badge in header
+                const badge = document.querySelector('.summary-decision-badge');
+                badge.className = 'summary-decision-badge ' + this.currentDecision;
+
+                const badgeContent = {
+                    'invest': '<i class="bi bi-check-circle-fill"></i> Invested',
+                    'pass': '<i class="bi bi-x-circle-fill"></i> Passed',
+                    'watchlist': '<i class="bi bi-eye-fill"></i> Watchlist'
+                };
+                badge.innerHTML = badgeContent[this.currentDecision];
+
+                // Show success
+                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Saved!';
+                saveBtn.style.background = 'var(--success-500)';
+
+                // Close expanded panel
+                document.getElementById('summaryExpandedPanel').classList.remove('show');
+
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalHtml;
+                    saveBtn.style.background = '';
+                    saveBtn.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error('Failed to save');
+            }
+        } catch (error) {
+            console.error('Error saving decision:', error);
+            saveBtn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error';
+            saveBtn.style.background = 'var(--danger-500)';
+
+            setTimeout(() => {
+                saveBtn.innerHTML = originalHtml;
+                saveBtn.style.background = '';
+                saveBtn.disabled = false;
+            }, 2000);
+        }
+    }
+};
+
+// Add spin animation for loading
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
