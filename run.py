@@ -2,6 +2,7 @@ from app import create_app, db
 from celery_app import celery # Import the celery instance
 from app.models import (User, Checklist, ChecklistItem, Company,
                         ChecklistAnalysis, ChecklistAnswer, CompanyDocument)
+from sqlalchemy import text
 
 # 1. Create the Flask app instance FIRST.
 app = create_app()
@@ -26,6 +27,16 @@ def make_shell_context():
 def init_db_command():
     """Clears existing data and creates new tables."""
     with app.app_context():
+        # 1. Enable the vector extension first
+        try:
+            db.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            db.session.commit()
+            print("✅ Enabled pgvector extension")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not enable pgvector. Ensure your DB supports it. Error: {e}")
+            db.session.rollback()
+
+        # 2. Now it's safe to create tables that use the VECTOR type
         db.drop_all()
         db.create_all()
     print("Initialized the database.")
