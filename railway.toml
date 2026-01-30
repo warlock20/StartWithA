@@ -1,19 +1,13 @@
 # Railway Build Configuration
 # https://docs.railway.com/reference/config-as-code
 
+# Using Dockerfile for build (no nixpacks config needed)
 [build]
-builder = "nixpacks"
-
-[build.nixpacks]
-# Python version
-python = "3.12"
-
-# Install system dependencies for psycopg2
-aptPkgs = ["libpq-dev"]
+builder = "dockerfile"
 
 [deploy]
-# Start command (uses Procfile by default, but explicit is better)
-startCommand = "gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+# No startCommand - using Dockerfile CMD instead
+# The Dockerfile uses: CMD gunicorn --bind 0.0.0.0:$PORT run:app
 
 # Health check
 healthcheckPath = "/health"
