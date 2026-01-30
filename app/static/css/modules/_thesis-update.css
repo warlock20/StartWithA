@@ -1,208 +1,664 @@
-/* Thesis Update Form Styles - Option 3: Compact Sticky Sidebar */
-/* Matches mockup design exactly with minimal, clean styling */
+/* =============================================================================
+   THESIS UPDATE PAGE
+   Full-width layout with optional sidebar for current thesis reference
+   ============================================================================= */
 
-.update-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 40px 20px;
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+.thesis-update-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
 }
 
-.layout-grid {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 24px;
+.thesis-update-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
 }
 
-.sidebar {
-    position: sticky;
-    top: 24px;
-    height: fit-content;
+.thesis-update-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
 }
 
-.reference-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    margin-bottom: 16px;
+.thesis-update-title-group h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    letter-spacing: -0.02em;
 }
 
-.reference-card-header {
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e9ecef;
-    margin-bottom: 12px;
+.thesis-update-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
 }
 
-.version-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.75rem;
+.thesis-update-ticker {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: var(--primary-50);
+    color: var(--primary-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+
+.thesis-update-version-badge {
+    background: var(--success-50);
+    color: var(--success-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
     font-weight: 600;
-    background-color: #6c757d;
+    font-size: var(--font-size-xs);
+}
+
+.thesis-update-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* =============================================================================
+   BUTTONS
+   ============================================================================= */
+.thesis-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-medium);
+    background: var(--background-white);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.thesis-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--text-primary);
+}
+
+.thesis-btn.primary {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
     color: white;
 }
 
-.quick-stat {
+.thesis-btn.primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
+}
+
+/* =============================================================================
+   MAIN CONTENT LAYOUT
+   ============================================================================= */
+.thesis-update-content {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--space-xl);
+}
+
+/* When no sidebar (no current thesis) */
+.thesis-update-content:has(.thesis-update-form-section:only-child) {
+    grid-template-columns: 1fr;
+}
+
+/* =============================================================================
+   FORM SECTION
+   ============================================================================= */
+.thesis-update-form-section {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    padding: var(--space-xl);
+}
+
+.thesis-form-group {
+    margin-bottom: var(--space-lg);
+}
+
+.thesis-form-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.thesis-form-label .required {
+    color: var(--danger-500);
+}
+
+.thesis-form-label i {
+    margin-right: var(--space-xs);
+}
+
+.thesis-form-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-xs);
+}
+
+/* Two/Three column row for smaller fields */
+.thesis-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+/* Conviction control */
+.thesis-conviction-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.thesis-conviction-control .form-range {
+    flex: 1;
+}
+
+.thesis-conviction-display {
+    display: flex;
+    align-items: baseline;
+    gap: 0.15rem;
+    min-width: 60px;
+}
+
+.thesis-conviction-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--primary-600);
+}
+
+.thesis-conviction-max {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+/* Bull/Bear Cases Row */
+.thesis-cases-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--border-light);
+}
+
+.thesis-case-section {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+}
+
+.thesis-case-section.bull {
+    border-left: 3px solid var(--success-500);
+}
+
+.thesis-case-section.bear {
+    border-left: 3px solid var(--danger-500);
+}
+
+.thesis-case-section.bull .thesis-form-label {
+    color: var(--success-600);
+}
+
+.thesis-case-section.bear .thesis-form-label {
+    color: var(--danger-600);
+}
+
+.bull-case-item,
+.bear-case-item {
+    margin-bottom: var(--space-sm);
+}
+
+.thesis-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    background: transparent;
+    border: 1px dashed var(--border-medium);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-top: var(--space-sm);
+}
+
+.thesis-add-btn:hover {
+    border-color: var(--primary-600);
+    color: var(--primary-600);
+    background: var(--primary-50);
+}
+
+/* Form Actions */
+.thesis-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--border-light);
+}
+
+/* =============================================================================
+   SIDEBAR
+   ============================================================================= */
+.thesis-update-sidebar {
+    position: sticky;
+    top: var(--space-lg);
+    height: fit-content;
+}
+
+.thesis-reference-card {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+}
+
+.thesis-reference-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f3f5;
+    margin-bottom: var(--space-sm);
 }
 
-.quick-stat:last-child {
-    border-bottom: none;
-}
-
-.stat-label {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-
-.stat-value {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.thesis-preview {
-    background-color: #f8f9fa;
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    border-left: 3px solid #6c757d;
-    max-height: 150px;
-    overflow-y: auto;
-}
-
-.case-compact {
-    margin-top: 12px;
-}
-
-.case-compact:first-child {
-    margin-top: 0;
-}
-
-.case-header {
-    font-size: 0.75rem;
+.thesis-reference-label {
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
 }
 
-.case-header.bull {
-    color: #28a745;
+.thesis-reference-version {
+    background: var(--gray-600);
+    color: white;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
 }
 
-.case-header.bear {
-    color: #dc3545;
+.thesis-reference-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-md) 0;
+    line-height: 1.4;
 }
 
-.case-list {
+.thesis-reference-stats {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: var(--space-md);
+}
+
+.thesis-stat {
+    text-align: center;
+    flex: 1;
+}
+
+.thesis-stat-value {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.thesis-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.thesis-reference-content {
+    margin-bottom: var(--space-md);
+}
+
+.thesis-reference-content p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.5;
     margin: 0;
-    padding-left: 16px;
-    font-size: 0.8rem;
-    line-height: 1.6;
 }
 
-.case-list li {
-    margin-bottom: 3px;
+.thesis-reference-cases {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
 }
 
-/* Custom expand button - NOT Bootstrap button */
-.expand-btn {
+.thesis-case-preview {
+    flex: 1;
+    padding: var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+}
+
+.thesis-case-preview.bull {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+.thesis-case-preview.bear {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
+.thesis-case-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.thesis-view-btn {
     width: 100%;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 0.85rem;
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    background: var(--gray-50);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
-    color: inherit;
-    text-align: center;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
 }
 
-.expand-btn:hover {
-    background-color: #e9ecef;
+.thesis-view-btn:hover {
+    background: var(--gray-100);
+    border-color: var(--border-medium);
 }
 
-/* Copy button - styled like expand-btn for consistency */
-.copy-thesis-btn {
-    width: 100%;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: inherit;
-    text-align: center;
+.thesis-tip-card {
+    background: var(--info-50);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    display: flex;
+    gap: var(--space-sm);
+    align-items: flex-start;
 }
 
-.copy-thesis-btn:hover {
-    background-color: #e9ecef;
+.thesis-tip-card i {
+    color: var(--info-500);
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
 }
 
-.form-section {
-    background: white;
-    border-radius: 12px;
-    padding: 32px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+.thesis-tip-card p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
 }
 
-.conviction-bar {
-    height: 4px;
-    background-color: #e9ecef;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 4px;
-}
-
-.conviction-fill {
-    height: 100%;
-    border-radius: 10px;
-    background: linear-gradient(90deg, #ffc107, #fd7e14);
-}
-
-.detail-modal {
+/* =============================================================================
+   MODAL
+   ============================================================================= */
+.thesis-detail-modal {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    padding: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    padding: var(--space-xl);
     overflow-y: auto;
 }
 
-.detail-modal.show {
+.thesis-detail-modal.show {
     display: flex;
     justify-content: center;
-    align-items: start;
+    align-items: flex-start;
 }
 
-.modal-content-custom {
-    background: white;
-    border-radius: 12px;
-    padding: 32px;
+.thesis-modal-content {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
     max-width: 700px;
     width: 100%;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-heavy);
+    margin-top: var(--space-xl);
 }
 
-@media (max-width: 992px) {
-    .layout-grid {
+.thesis-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.thesis-modal-header h3 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.thesis-modal-header p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: var(--space-xs) 0 0 0;
+}
+
+.thesis-modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-lg);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--space-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.thesis-modal-close:hover {
+    background: var(--gray-100);
+    color: var(--text-primary);
+}
+
+.thesis-modal-body {
+    padding: var(--space-lg);
+}
+
+.thesis-modal-section {
+    margin-bottom: var(--space-lg);
+}
+
+.thesis-modal-section h4 {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.thesis-modal-section p {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.thesis-modal-stats {
+    display: flex;
+    gap: var(--space-lg);
+    padding: var(--space-md);
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+}
+
+.thesis-modal-stat {
+    text-align: center;
+}
+
+.thesis-modal-stat .label {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.thesis-modal-stat .value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.thesis-modal-cases {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.thesis-modal-case {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+}
+
+.thesis-modal-case.bull {
+    background: var(--success-50);
+}
+
+.thesis-modal-case.bear {
+    background: var(--danger-50);
+}
+
+.thesis-modal-case h5 {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    margin: 0 0 var(--space-sm) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.thesis-modal-case.bull h5 {
+    color: var(--success-600);
+}
+
+.thesis-modal-case.bear h5 {
+    color: var(--danger-600);
+}
+
+.thesis-modal-case ul {
+    margin: 0;
+    padding-left: var(--space-lg);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+}
+
+.thesis-modal-case.bull ul {
+    color: var(--success-700);
+}
+
+.thesis-modal-case.bear ul {
+    color: var(--danger-700);
+}
+
+.thesis-modal-trigger {
+    background: var(--info-50);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--info-700);
+}
+
+.thesis-modal-trigger i {
+    color: var(--info-500);
+    margin-right: var(--space-xs);
+}
+
+.thesis-modal-footer {
+    padding: var(--space-md) var(--space-lg);
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+@media (max-width: 1024px) {
+    .thesis-update-content {
         grid-template-columns: 1fr;
     }
 
-    .sidebar {
+    .thesis-update-sidebar {
         position: relative;
         top: 0;
+        order: -1;
+    }
+
+    .thesis-form-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .thesis-update-header {
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+
+    .thesis-update-actions {
+        width: 100%;
+    }
+
+    .thesis-update-actions .thesis-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .thesis-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .thesis-cases-row {
+        grid-template-columns: 1fr;
+    }
+
+    .thesis-modal-cases {
+        grid-template-columns: 1fr;
     }
 }

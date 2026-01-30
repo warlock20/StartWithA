@@ -84,6 +84,7 @@ All complex components have been fully modularized.
 @import url('modules/_company-dashboard.css');    /* Company dashboard page */
 @import url('modules/_portfolio.css');            /* Portfolio & transaction management */
 @import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
+@import url('modules/_position-detail.css');      /* Position detail page */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */
 @import url('learning-insights.css');             /* Learning insights from portfolio */
 @import url('intelligence-hub.css');              /* Investment intelligence hub */

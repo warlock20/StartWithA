@@ -64,70 +64,72 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-xl);
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: var(--space-md);
 }
 
 .dashboard-title {
-    font-size: 2.5rem;
+    font-size: var(--font-size-2xl);
     font-weight: 700;
-    color: #111827;
-    margin-bottom: 0.25rem;
+    color: var(--gray-900);
+    margin-bottom: var(--space-xs);
+    letter-spacing: -0.02em;
 }
 
 .dashboard-subtitle {
-    font-size: 1.125rem;
-    color: #6b7280;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
     margin: 0;
 }
 
 .dashboard-header-actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--space-sm);
     flex-wrap: wrap;
 }
 
 /* Section Title */
 .section-title {
-    font-size: 1.75rem;
+    font-size: var(--font-size-xl);
     font-weight: 700;
-    color: #111827;
-    margin-bottom: 1rem;
+    color: var(--gray-900);
+    margin-bottom: var(--space-md);
+    letter-spacing: -0.02em;
 }
 
 /* Priority Lane - Priority Cards with Colored Borders */
 .priority-lane-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-2xl);
 }
 
 .priority-lane-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
+    gap: var(--space-lg);
 }
 
 .priority-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e5e7eb;
-    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
 }
 
 .priority-card:hover {
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-medium);
     transform: translateY(-4px);
 }
 
-.priority-card-ideas { border-left: 4px solid #f59e0b; }
-.priority-card-research { border-left: 4px solid #3b82f6; }
-.priority-card-monitoring { border-left: 4px solid #10b981; }
-.priority-card-warning { border-left: 4px solid #ef4444; }
+.priority-card-ideas { border-left: 4px solid var(--warning-500); }
+.priority-card-research { border-left: 4px solid var(--info-500); }
+.priority-card-monitoring { border-left: 4px solid var(--success-500); }
+.priority-card-warning { border-left: 4px solid var(--danger-500); }
 
 .priority-card-content {
-    padding: 1.25rem;
+    padding: var(--space-lg);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -137,84 +139,84 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-sm);
 }
 
 .priority-card-title {
-    font-size: 1.125rem;
+    font-size: var(--font-size-lg);
     font-weight: 700;
-    color: #111827;
+    color: var(--gray-900);
     margin: 0;
 }
 
 .priority-card-number {
-    font-size: 2rem;
+    font-size: var(--font-size-3xl);
     font-weight: 700;
     line-height: 1;
 }
 
-.priority-number-yellow { color: #f59e0b; }
-.priority-number-blue { color: #3b82f6; }
-.priority-number-green { color: #10b981; }
-.priority-number-red { color: #ef4444; }
+.priority-number-yellow { color: var(--warning-500); }
+.priority-number-blue { color: var(--info-500); }
+.priority-number-green { color: var(--success-500); }
+.priority-number-red { color: var(--danger-500); }
 
 .priority-card-description {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin: 0.5rem 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: var(--space-sm) 0;
     flex-grow: 1;
     line-height: 1.5;
 }
 
 .priority-card-link {
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--primary-600);
     text-decoration: none;
-    margin-top: 1rem;
+    margin-top: var(--space-md);
     display: inline-block;
-    transition: color 0.2s ease;
+    transition: color var(--transition-fast);
 }
 
 .priority-card-link:hover {
-    color: #4338ca;
+    color: var(--primary-700);
 }
 
 /* Priority Card Children (used in decision journal stats) */
 .priority-card .card-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: linear-gradient(145deg, #ffffff, #f9fafb);
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
+    background: linear-gradient(145deg, var(--background-white), var(--gray-50));
 }
 
 .priority-card .card-header i {
-    font-size: 1.25rem;
-    color: #6b7280;
+    font-size: var(--font-size-xl);
+    color: var(--text-secondary);
 }
 
 .priority-card .card-label {
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #6b7280;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .priority-card .card-value {
-    font-size: 2.5rem;
+    font-size: var(--font-size-2xl);
     font-weight: 700;
-    color: #111827;
-    padding: 1.5rem 1.25rem 1rem;
+    color: var(--gray-900);
+    padding: var(--space-lg) var(--space-lg) var(--space-md);
     line-height: 1;
 }
 
 .priority-card .card-footer {
-    font-size: 0.75rem;
-    color: #9ca3af;
-    padding: 0 1.25rem 1.25rem;
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    padding: 0 var(--space-lg) var(--space-lg);
     font-weight: 500;
 }
 

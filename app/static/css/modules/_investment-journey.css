@@ -1,419 +1,713 @@
-/*
-=============================================================================
-Investment Journey Timeline Module
-=============================================================================
-Professional timeline view combining thesis evolution, destination checkpoints,
-and market events in a unified chronological interface.
-*/
+/* =============================================================================
+   INVESTMENT JOURNEY - Timeline View
+   Combines thesis evolution, checkpoints, and transactions in unified timeline
+   ============================================================================= */
 
-/* Journey Statistics Header */
-.journey-stats {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
-    margin-top: 24px;
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+.journey-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
 }
 
-.stat-box {
-    text-align: center;
-    padding: 16px;
-    background-color: var(--color-surface-secondary, #f8f9fa);
-    border-radius: 8px;
+.journey-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
 }
 
-.stat-value {
-    font-size: 1.5rem;
+.journey-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
     font-weight: 700;
-    color: var(--color-text-primary, #212529);
+    color: white;
+    flex-shrink: 0;
 }
 
-.stat-label {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary, #6c757d);
+.journey-title-group h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.journey-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.journey-ticker {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: var(--primary-50);
+    color: var(--primary-600);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+
+.journey-header-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* Buttons */
+.journey-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-medium);
+    background: var(--background-white);
+    color: var(--text-secondary);
+}
+
+.journey-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--text-primary);
+}
+
+.journey-btn.primary {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+}
+
+.journey-btn.primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
+}
+
+/* =============================================================================
+   STATS STRIP
+   ============================================================================= */
+.journey-stats-strip {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--space-xl);
+}
+
+.journey-stat {
+    flex: 1;
+    text-align: center;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+}
+
+.journey-stat.gain {
+    background: var(--success-50);
+}
+
+.journey-stat.loss {
+    background: var(--danger-50);
+}
+
+.journey-stat-value {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.journey-stat.gain .journey-stat-value {
+    color: var(--success-600);
+}
+
+.journey-stat.loss .journey-stat-value {
+    color: var(--danger-600);
+}
+
+.journey-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 4px;
+    letter-spacing: 0.05em;
+    margin-top: var(--space-xs);
 }
 
-/* Timeline Structure */
+/* =============================================================================
+   FILTER TABS
+   ============================================================================= */
+.journey-filter-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-xl);
+    padding: var(--space-xs);
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.journey-filter-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-secondary);
+}
+
+.journey-filter-tab:hover {
+    background: var(--gray-100);
+    color: var(--text-primary);
+}
+
+.journey-filter-tab.active {
+    background: var(--primary-600);
+    color: white;
+}
+
+.journey-tab-count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+}
+
+.journey-filter-tab:not(.active) .journey-tab-count {
+    background: var(--gray-200);
+    color: var(--text-secondary);
+}
+
+/* =============================================================================
+   TIMELINE STRUCTURE
+   ============================================================================= */
 .journey-timeline {
     position: relative;
-    padding: 20px 0;
+    padding: var(--space-lg) 0;
 }
 
 .journey-timeline::before {
     content: '';
     position: absolute;
-    left: 50%;
+    left: 24px;
     top: 0;
     bottom: 0;
-    width: 4px;
-    background: linear-gradient(180deg, var(--color-primary, #0d6efd) 0%, var(--color-border, #6c757d) 100%);
-    transform: translateX(-50%);
+    width: 3px;
+    background: linear-gradient(180deg, var(--primary-600) 0%, var(--gray-300) 100%);
+    border-radius: var(--radius-pill);
 }
 
 /* Timeline Items */
 .journey-item {
-    margin-bottom: 50px;
     position: relative;
-}
-
-.journey-item:nth-child(odd) .journey-content {
-    margin-left: calc(50% + 50px);
-}
-
-.journey-item:nth-child(even) .journey-content {
-    margin-right: calc(50% + 50px);
+    margin-bottom: var(--space-xl);
+    padding-left: 60px;
 }
 
 /* Timeline Dots */
 .journey-dot {
     position: absolute;
-    left: 50%;
+    left: 14px;
     top: 0;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
-    background-color: #fff;
-    border: 4px solid var(--color-primary, #0d6efd);
-    transform: translateX(-50%);
+    background: var(--background-white);
+    border: 3px solid var(--primary-600);
     z-index: 10;
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
 }
 
 .journey-dot.current {
-    border-color: var(--color-success, #28a745);
-    box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2), 0 0 20px rgba(40, 167, 69, 0.4);
-    animation: journey-pulse 2s infinite;
+    border-color: var(--success-500);
+    box-shadow: 0 0 0 4px var(--success-100), 0 0 15px var(--success-200);
+    animation: pulse-dot 2s infinite;
 }
 
 .journey-dot.checkpoint {
-    border-color: var(--color-warning, #ffc107);
-    width: 20px;
-    height: 20px;
+    border-color: var(--warning-500);
+    width: 18px;
+    height: 18px;
+    left: 16px;
 }
 
 .journey-dot.checkpoint.met {
-    border-color: var(--color-success, #28a745);
-    background-color: var(--color-success, #28a745);
+    border-color: var(--success-500);
+    background: var(--success-500);
 }
 
 .journey-dot.checkpoint.not-met {
-    border-color: var(--color-danger, #dc3545);
-    background-color: var(--color-danger, #dc3545);
+    border-color: var(--danger-500);
+    background: var(--danger-500);
 }
 
 .journey-dot.event {
-    border-color: var(--color-border, #6c757d);
-    width: 16px;
-    height: 16px;
+    border-color: var(--gray-400);
+    width: 14px;
+    height: 14px;
+    left: 18px;
 }
 
-@keyframes journey-pulse {
+@keyframes pulse-dot {
     0%, 100% {
-        box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2), 0 0 20px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 0 0 4px var(--success-100), 0 0 15px var(--success-200);
     }
     50% {
-        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0.1), 0 0 30px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 0 0 8px var(--success-50), 0 0 25px var(--success-200);
     }
 }
 
 /* Timeline Content Cards */
 .journey-content {
-    background: var(--color-surface-primary, #ffffff);
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    transition: all 0.3s ease;
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
 }
 
 .journey-content:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    box-shadow: var(--shadow-medium);
     transform: translateY(-2px);
 }
 
-.journey-item:nth-child(even) .journey-content {
-    text-align: left;
+.journey-content.checkpoint-content {
+    border-left: 3px solid var(--warning-500);
 }
 
-/* Item Type Badges */
+.journey-content.checkpoint-content.met {
+    border-left-color: var(--success-500);
+    background: linear-gradient(to right, var(--success-50), var(--background-white));
+}
+
+.journey-content.checkpoint-content.not-met {
+    border-left-color: var(--danger-500);
+    background: linear-gradient(to right, var(--danger-50), var(--background-white));
+}
+
+/* =============================================================================
+   EVENT CONTENT STYLES
+   ============================================================================= */
+.journey-event-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
 .journey-badge {
     display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    margin-bottom: 12px;
 }
 
 .journey-badge.thesis {
-    background-color: var(--color-primary, #0d6efd);
+    background: var(--primary-100);
+    color: var(--primary-700);
+}
+
+.journey-badge.current {
+    background: var(--success-500);
     color: white;
 }
 
 .journey-badge.checkpoint {
-    background-color: var(--color-warning, #ffc107);
-    color: #000;
+    background: var(--warning-100);
+    color: var(--warning-700);
 }
 
-.journey-badge.event {
-    background-color: var(--color-border, #6c757d);
-    color: white;
+.journey-badge.transaction {
+    background: var(--gray-200);
+    color: var(--gray-700);
 }
 
-.journey-badge.current {
-    background-color: var(--color-success, #28a745);
-    color: white;
+.journey-badge.transaction.buy {
+    background: var(--success-100);
+    color: var(--success-700);
 }
 
-/* Checkpoint Specific Styling */
-.checkpoint-content {
-    border-left: 4px solid var(--color-warning, #ffc107);
+.journey-badge.transaction.sell {
+    background: var(--danger-100);
+    color: var(--danger-700);
 }
 
-.checkpoint-content.met {
-    border-left-color: var(--color-success, #28a745);
-    background-color: rgba(40, 167, 69, 0.05);
-}
-
-.checkpoint-content.not-met {
-    border-left-color: var(--color-danger, #dc3545);
-    background-color: rgba(220, 53, 69, 0.05);
-}
-
-.checkpoint-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
+.journey-position-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    margin-left: 8px;
 }
 
-.checkpoint-status.met {
-    background-color: rgba(40, 167, 69, 0.15);
-    color: var(--color-success-dark, #0f5132);
+.journey-position-badge.starter {
+    background: var(--warning-100);
+    color: var(--warning-700);
 }
 
-.checkpoint-status.not-met {
-    background-color: rgba(220, 53, 69, 0.15);
-    color: var(--color-danger-dark, #842029);
+.journey-position-badge.half {
+    background: var(--info-100);
+    color: var(--info-700);
 }
 
-.checkpoint-status.pending {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: var(--color-warning-dark, #856404);
+.journey-position-badge.full {
+    background: var(--success-100);
+    color: var(--success-700);
 }
 
-/* Conviction Meter */
-.conviction-meter {
-    height: 8px;
-    background-color: var(--color-surface-secondary, #e9ecef);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 8px;
+.journey-position-badge.oversized {
+    background: var(--danger-100);
+    color: var(--danger-700);
 }
 
-.conviction-fill {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.3s ease;
-}
-
-.conviction-fill.high {
-    background: linear-gradient(90deg, var(--color-success, #28a745), #20c997);
-}
-
-.conviction-fill.medium {
-    background: linear-gradient(90deg, var(--color-warning, #ffc107), #fd7e14);
-}
-
-.conviction-fill.low {
-    background: linear-gradient(90deg, var(--color-danger, #dc3545), #e83e8c);
-}
-
-/* Position Sizing Badges */
-.position-sizing-badge {
-    padding: 8px 16px;
-    border-radius: 8px;
+.journey-event-title {
+    font-size: var(--font-size-lg);
     font-weight: 600;
-    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-xs) 0;
 }
 
-.position-sizing-badge.starter {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: var(--color-warning-dark, #856404);
+.journey-event-date {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0 0 var(--space-md) 0;
 }
 
-.position-sizing-badge.half {
-    background-color: rgba(13, 110, 253, 0.15);
-    color: var(--color-primary-dark, #084298);
+.journey-event-date i {
+    margin-right: var(--space-xs);
 }
 
-.position-sizing-badge.full {
-    background-color: rgba(40, 167, 69, 0.15);
-    color: var(--color-success-dark, #0f5132);
+.journey-event-body {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-md);
 }
 
-.position-sizing-badge.oversized {
-    background-color: rgba(220, 53, 69, 0.15);
-    color: var(--color-danger-dark, #842029);
-}
-
-/* Bull/Bear Case Section */
-.bull-bear-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 16px;
-}
-
-.bull-case, .bear-case {
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-}
-
-.bull-case {
-    background-color: rgba(40, 167, 69, 0.1);
-    border-left: 4px solid var(--color-success, #28a745);
-}
-
-.bear-case {
-    background-color: rgba(220, 53, 69, 0.1);
-    border-left: 4px solid var(--color-danger, #dc3545);
-}
-
-.bull-case h6, .bear-case h6 {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.bull-case ul, .bear-case ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-/* Metrics Row */
-.journey-metrics {
+.journey-trigger-alert {
     display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--color-border-light, #e9ecef);
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    background: var(--info-50);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--info-700);
+    margin-bottom: var(--space-md);
 }
 
-.journey-metric {
+.journey-trigger-alert i {
+    color: var(--info-500);
+    flex-shrink: 0;
+}
+
+/* Metrics */
+.journey-event-metrics {
+    display: flex;
+    gap: var(--space-lg);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.journey-event-metric {
     flex: 1;
     min-width: 120px;
 }
 
-.journey-metric-label {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary, #6c757d);
+.journey-event-metric-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-xs);
 }
 
-.journey-metric-value {
-    font-size: 1.1rem;
+.journey-event-metric-value {
+    font-size: var(--font-size-lg);
     font-weight: 600;
-    color: var(--color-text-primary, #212529);
+    color: var(--text-primary);
 }
 
-/* Event Icon Styling */
-.event-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+/* Conviction Meter */
+.conviction-meter {
+    height: 6px;
+    background: var(--gray-200);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-top: var(--space-xs);
+}
+
+.conviction-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    transition: width var(--transition-normal);
+}
+
+.conviction-fill.high {
+    background: linear-gradient(90deg, var(--success-500), var(--success-400));
+}
+
+.conviction-fill.medium {
+    background: linear-gradient(90deg, var(--warning-500), var(--warning-400));
+}
+
+.conviction-fill.low {
+    background: linear-gradient(90deg, var(--danger-500), var(--danger-400));
+}
+
+/* Bull/Bear Cases */
+.journey-bull-bear {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+.journey-case {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+}
+
+.journey-case.bull {
+    background: var(--success-50);
+    border-left: 3px solid var(--success-500);
+}
+
+.journey-case.bear {
+    background: var(--danger-50);
+    border-left: 3px solid var(--danger-500);
+}
+
+.journey-case h6 {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-sm) 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    margin-bottom: 12px;
+    gap: var(--space-xs);
 }
 
-.event-icon.earnings {
-    background-color: rgba(40, 167, 69, 0.15);
-    color: var(--color-success-dark, #0f5132);
+.journey-case.bull h6 {
+    color: var(--success-600);
 }
 
-.event-icon.market {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: var(--color-warning-dark, #997404);
+.journey-case.bear h6 {
+    color: var(--danger-600);
 }
 
-.event-icon.news {
-    background-color: rgba(13, 110, 253, 0.15);
-    color: var(--color-primary-dark, #084298);
+.journey-case ul {
+    margin: 0;
+    padding-left: var(--space-md);
+    line-height: 1.6;
 }
 
-/* Filter Tabs */
-.journey-filter-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 30px;
-    padding: 8px;
-    background: var(--color-surface-primary, #ffffff);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+.journey-case.bull ul {
+    color: var(--success-700);
 }
 
-.journey-filter-tab {
-    flex: 1;
-    padding: 12px 20px;
-    border: none;
-    background: transparent;
-    border-radius: 8px;
+.journey-case.bear ul {
+    color: var(--danger-700);
+}
+
+/* Checkpoint Specific */
+.journey-checkpoint-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: var(--color-text-primary, #212529);
 }
 
-.journey-filter-tab:hover {
-    background-color: var(--color-surface-secondary, #f8f9fa);
+.journey-checkpoint-status.met {
+    background: var(--success-100);
+    color: var(--success-700);
 }
 
-.journey-filter-tab.active {
-    background-color: var(--color-primary, #0d6efd);
-    color: white;
+.journey-checkpoint-status.not-met {
+    background: var(--danger-100);
+    color: var(--danger-700);
 }
 
-.journey-filter-tab .badge {
-    margin-left: 6px;
+.journey-checkpoint-status.pending {
+    background: var(--warning-100);
+    color: var(--warning-700);
 }
 
-/* Responsive Design */
+.journey-checkpoint-details {
+    background: var(--gray-50);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+}
+
+.journey-checkpoint-expectation {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.journey-checkpoint-outcome {
+    font-size: var(--font-size-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px dashed var(--border-light);
+}
+
+.journey-checkpoint-outcome.met {
+    color: var(--success-600);
+}
+
+.journey-checkpoint-outcome.not-met {
+    color: var(--danger-600);
+}
+
+.journey-checkpoint-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+}
+
+.journey-checkpoint-alert.success {
+    background: var(--success-50);
+    color: var(--success-700);
+}
+
+.journey-checkpoint-alert.danger {
+    background: var(--danger-50);
+    color: var(--danger-700);
+}
+
+.journey-checkpoint-alert i {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+/* Transaction Specific */
+.journey-transaction-details {
+    background: var(--gray-50);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+}
+
+.journey-transaction-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.journey-transaction-total .label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.journey-transaction-total .value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.journey-transaction-notes {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.journey-transaction-notes i {
+    margin-right: var(--space-xs);
+}
+
+/* =============================================================================
+   EMPTY STATE
+   ============================================================================= */
+.journey-empty-state {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-xl);
+    background: var(--gray-50);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-light);
+}
+
+.journey-empty-state i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--space-md);
+}
+
+.journey-empty-state h4 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.journey-empty-state p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0 0 var(--space-lg) 0;
+}
+
+.journey-empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
 @media (max-width: 768px) {
-    .journey-timeline::before {
-        left: 30px;
+    .journey-header {
+        flex-direction: column;
+        gap: var(--space-md);
     }
 
-    .journey-dot {
-        left: 30px;
+    .journey-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
     }
 
-    .journey-item:nth-child(odd) .journey-content,
-    .journey-item:nth-child(even) .journey-content {
-        margin-left: 60px;
-        margin-right: 0;
-        text-align: left;
+    .journey-header-actions .journey-btn {
+        flex: 1;
+        justify-content: center;
     }
 
-    .bull-bear-section {
-        grid-template-columns: 1fr;
+    .journey-stats-strip {
+        flex-wrap: wrap;
     }
 
-    .journey-stats {
-        grid-template-columns: repeat(2, 1fr);
+    .journey-stat {
+        flex: 1 1 45%;
     }
 
     .journey-filter-tabs {
@@ -423,10 +717,12 @@ and market events in a unified chronological interface.
     .journey-filter-tab {
         flex: 1 1 45%;
     }
-}
 
-@media (max-width: 576px) {
-    .journey-stats {
+    .journey-filter-tab span:not(.journey-tab-count) {
+        display: none;
+    }
+
+    .journey-bull-bear {
         grid-template-columns: 1fr;
     }
 }

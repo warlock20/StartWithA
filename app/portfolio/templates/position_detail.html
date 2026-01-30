@@ -4,369 +4,334 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Header -->
-    <div class="dashboard-header mb-4">
-
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="text-primary"></i>{{ company.ticker_symbol }} - {{ company.name }}
-            </h1>
-            <p class="dashboard-subtitle">Activites for <span
-                    class="fw-semibold text-dark">{{ company.name }} ({{ company.ticker_symbol }}) {% if company.sector
-                    %}{{ company.sector.name }}{% endif %}
-                    {% if company.industry %} / {{ company.industry }}{% endif %}</span></p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Portfolio Dashboard
-            </a>
-        </div>
-
-    </div>
-
-    <!-- Expected vs Actual Alert (if expectations were set) -->
-    {% if decision_journal and decision_journal.expected_return and position.unrealized_gain_loss_pct %}
-    <div
-        class="alert {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}alert-success{% else %}alert-warning{% endif %} border mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <strong><i class="bi bi-bullseye me-2"></i>Performance vs Expectations</strong>
-                <div class="mt-2">
-                    <span class="me-3">Expected: <strong>{{ "%.1f"|format(decision_journal.expected_return)
-                            }}%</strong></span>
-                    <span class="me-3">Actual: <strong
-                            class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
-                            "%.1f"|format(position.unrealized_gain_loss_pct) }}%
-                        </strong></span>
-                    <span>Difference: <strong
-                            class="{% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}text-success{% else %}text-danger{% endif %}">
-                            {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{
-                            "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
-                        </strong></span>
+    <!-- ====================================================
+         HEADER - Company identity + Key metrics consolidated
+         ==================================================== -->
+    <div class="position-header">
+        <div class="position-header-top">
+            <div class="position-identity">
+                <div class="position-logo">
+                    {{ (company.name)[:2]|upper }}
+                </div>
+                <div class="position-title-group">
+                    <h1>
+                        {{ company.name }}
+                        <span class="position-ticker-badge">{{ company.ticker_symbol }}</span>
+                    </h1>
+                    <div class="position-meta">
+                        {% if company.sector %}<span>{{ company.sector.name }}</span>{% endif %}
+                        {% if company.industry %}<span>{{ company.industry }}</span>{% endif %}
+                        <span>Held {{ position.days_held }} days</span>
+                    </div>
                 </div>
             </div>
-            <div class="text-end">
-                {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}
-                <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
-                <div class="small">Met Target</div>
-                {% else %}
-                <i class="bi bi-x-circle-fill text-warning" style="font-size: 2rem;"></i>
-                <div class="small">Below Target</div>
+            <div class="position-header-actions">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Portfolio
+                </a>
+                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="position-btn primary">
+                    <i class="bi bi-plus"></i> Add Transaction
+                </a>
+            </div>
+        </div>
+
+        <!-- Metrics Strip - All key numbers in one row -->
+        <div class="position-metrics-strip">
+            <div class="position-metric">
+                <div class="position-metric-label">Shares</div>
+                <div class="position-metric-value">{{ position.total_shares }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Avg Cost</div>
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Current Price</div>
+                <div class="position-metric-value">
+                    {% if position.current_price %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                {% if position.last_price_update %}
+                <div class="position-metric-subtext">Updated {{ position.last_price_update.strftime('%H:%M') }}</div>
                 {% endif %}
             </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Position Overview Cards -->
-    <div class="row mb-4">
-        <div class="col-md-2 d-flex">
-            <div class="card h-100 w-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Shares Owned</h6>
-                    <h4 class="card-title mb-0">{{ position.total_shares }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2 d-flex">
-            <div class="card h-100 w-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Avg Cost Basis</h6>
-                    <h4 class="card-title mb-0">${{ "%.2f"|format(position.average_cost_basis) }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2 d-flex">
-            <div class="card h-100 w-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Current Price</h6>
-                    <h4 class="card-title mb-0">
-                        {% if position.current_price %}
-                        ${{ "%.2f"|format(position.current_price) }}
-                        {% else %}
-                        <span class="text-muted">--</span>
-                        {% endif %}
-                    </h4>
-                    {% if position.last_price_update %}
-                    <small class="text-muted">Updated: {{ position.last_price_update.strftime('%H:%M') }}</small>
+            <div class="position-metric">
+                <div class="position-metric-label">Market Value</div>
+                <div class="position-metric-value">
+                    {% if position.current_value %}
+                    {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost) }}</div>
             </div>
-        </div>
-        <div class="col-md-3 d-flex">
-            <div class="card h-100 w-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
-                    <h4 class="card-title mb-0">
-                        {% if position.current_value %}
-                        ${{ "%.2f"|format(position.current_value) }}
-                        {% else %}
-                        <span class="text-muted">--</span>
-                        {% endif %}
-                    </h4>
-                    <small class="text-muted">Cost: ${{ "%.2f"|format(position.total_cost) }}</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 d-flex">
-            <div
-                class="card h-100 w-100 {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}border-success{% else %}border-danger{% endif %}{% endif %}">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Unrealized Gain/Loss</h6>
-                    <h4
-                        class="card-title mb-0 {% if position.unrealized_gain_loss %}{% if position.unrealized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}{% endif %}">
-                        {% if position.unrealized_gain_loss %}
-                        {% if position.unrealized_gain_loss >= 0 %}+{% endif %}${{
-                        "%.2f"|format(position.unrealized_gain_loss) }}
-                        {% else %}
-                        <span class="text-muted">--</span>
-                        {% endif %}
-                    </h4>
-                    {% if position.unrealized_gain_loss_pct %}
-                    <small
-                        class="{% if position.unrealized_gain_loss_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
-                        "%.2f"|format(position.unrealized_gain_loss_pct) }}%
-                    </small>
+            <div class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                <div class="position-metric-label">Unrealized P&L</div>
+                <div class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                    {% if position.unrealized_gain_loss %}
+                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.unrealized_gain_loss) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
+                {% if position.unrealized_gain_loss_pct %}
+                <div class="position-metric-subtext">
+                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                </div>
+                {% endif %}
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Realized P&L</div>
+                <div class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.realized_gain_loss) }}
+                </div>
             </div>
         </div>
+
+        <!-- Expectation Bar (conditional) -->
+        {% if decision_journal and decision_journal.expected_return and position.unrealized_gain_loss_pct %}
+        <div class="position-expectation-bar {% if position.unrealized_gain_loss_pct < decision_journal.expected_return %}below{% endif %}">
+            <div class="position-expectation-icon">
+                {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}
+                <i class="bi bi-check-lg"></i>
+                {% else %}
+                <i class="bi bi-exclamation"></i>
+                {% endif %}
+            </div>
+            <div class="position-expectation-content">
+                <div class="position-expectation-title">Performance vs Expectations</div>
+                <div class="position-expectation-details">
+                    <span>Expected: <strong>+{{ "%.0f"|format(decision_journal.expected_return) }}%</strong></span>
+                    <span>Actual: <strong class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}" style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    </strong></span>
+                    <span>Difference: <strong style="color: {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                        {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
+                    </strong></span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Additional Metrics -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <span>Days Held</span>
-                        <strong>{{ position.days_held }} days</strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <span>First Purchase</span>
-                        <strong>{{ position.first_purchase_date.strftime('%Y-%m-%d') if position.first_purchase_date
-                            else '--' }}</strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <span>Realized Gain/Loss</span>
-                        <strong
-                            class="{% if position.realized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if position.realized_gain_loss >= 0 %}+{% endif %}${{
-                            "%.2f"|format(position.realized_gain_loss) }}
-                        </strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Left Column: Transactions & Decision Journal -->
-        <div class="col-lg-8">
+    <!-- ====================================================
+         MAIN CONTENT
+         ==================================================== -->
+    <div class="position-content">
+        <!-- Left Column - Transactions & Journal -->
+        <div class="main-column">
             <!-- Transaction History -->
-            <div class="portfolio-table-section mb-4">
-                <div class="portfolio-table-section-header">
-                    <h2 class="portfolio-table-section-title">Transaction History</h2>
-                    <div class="portfolio-table-controls">
-                        <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}"
-                            class="btn-portfolio-modern primary">
-                            <i class="bi bi-plus"></i>
-                            Add Transaction
-                        </a>
-                    </div>
+            <div class="position-card">
+                <div class="position-card-header">
+                    <h2 class="position-card-title">
+                        <i class="bi bi-arrow-left-right"></i>
+                        Transaction History
+                    </h2>
+                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="position-link-btn">
+                        <i class="bi bi-plus"></i> Add
+                    </a>
                 </div>
                 <div id="position-transactions-table"></div>
             </div>
 
             <!-- Decision Journal -->
             {% if decision_journal %}
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Decision Journal</h5>
-                    <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}"
-                        class="btn btn-sm btn-outline-primary">
-                        View Full Journal
+            <div class="position-card">
+                <div class="position-card-header">
+                    <h2 class="position-card-title">
+                        <i class="bi bi-journal-text"></i>
+                        Decision Journal
+                    </h2>
+                    <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-link-btn">
+                        View Full <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
-                <div class="card-body">
+                <div class="position-card-body">
                     <!-- Source Badge -->
+                    {% if decision_journal.non_research_source %}
                     <div class="mb-3">
-                        {% if decision_journal.non_research_source %}
                         <span class="badge bg-warning text-dark">
                             {{ decision_journal.non_research_source.replace('_', ' ').title() }}
                         </span>
                         <small class="text-muted d-block mt-1">Purchase without platform research</small>
-                        {% elif decision_journal.linked_research_id %}
-                        <span class="badge bg-success">Platform Research</span>
-                        {% endif %}
                     </div>
-
-                    <!-- Investment Thesis -->
-                    {% if decision_journal.investment_thesis %}
-                    <h6>Investment Thesis</h6>
-                    <p>{{ decision_journal.investment_thesis[:200] }}{% if decision_journal.investment_thesis|length >
-                        200 %}...{% endif %}</p>
-                    {% if decision_journal.thesis_word_count %}
-                    <small class="text-muted">{{ decision_journal.thesis_word_count }} words</small>
-                    {% endif %}
+                    {% elif decision_journal.linked_research_id %}
+                    <div class="mb-3">
+                        <span class="badge bg-success">Platform Research</span>
+                    </div>
                     {% endif %}
 
-                    <!-- Confidence & Expectations -->
-                    <div class="row mt-3">
+                    <div class="position-journal-summary">
+                        {% if decision_journal.investment_thesis %}
+                        <div class="position-journal-thesis">
+                            <p>{{ decision_journal.investment_thesis[:300] }}{% if decision_journal.investment_thesis|length > 300 %}...{% endif %}</p>
+                        </div>
+                        {% endif %}
+
                         {% if decision_journal.confidence_score %}
-                        <div class="col-6">
-                            <div class="small text-muted">Confidence</div>
-                            <strong>{{ decision_journal.confidence_score }}/10</strong>
+                        <div class="position-journal-stat">
+                            <div class="position-journal-stat-value">{{ decision_journal.confidence_score }}/10</div>
+                            <div class="position-journal-stat-label">Confidence</div>
                         </div>
                         {% endif %}
 
                         {% if decision_journal.expected_return %}
-                        <div class="col-6">
-                            <div class="small text-muted">Expected Return</div>
-                            <strong>{{ decision_journal.expected_return }}%</strong>
-                            {% if decision_journal.expected_timeframe %}
-                            <small class="text-muted d-block">{{ decision_journal.expected_timeframe }}mo</small>
-                            {% endif %}
+                        <div class="position-journal-stat">
+                            <div class="position-journal-stat-value">+{{ decision_journal.expected_return }}%</div>
+                            <div class="position-journal-stat-label">Expected Return</div>
                         </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
             {% else %}
-            <div class="card mb-4">
-                <div class="card-body text-center">
-                    <i class="bi bi-journal-x text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2 mb-0">No decision journal recorded</p>
+            <div class="position-card">
+                <div class="position-card-body">
+                    <div class="position-empty-state">
+                        <i class="bi bi-journal-x"></i>
+                        <p>No decision journal recorded</p>
+                    </div>
                 </div>
             </div>
             {% endif %}
         </div>
 
-        <!-- Right Column: Destination Checkpoints & Research -->
-        <div class="col-lg-4">
-            <!-- Destination Checkpoints -->
-            {% if checkpoints %}
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Thesis Checkpoints</h5>
-                    <span class="badge bg-primary">{{ checkpoints|length }}</span>
+        <!-- Right Column - Sidebar -->
+        <div class="sidebar-column">
+            <!-- Thesis Checkpoints - Always visible -->
+            <div class="position-sidebar-section">
+                <div class="position-sidebar-header">
+                    <span class="position-sidebar-title">
+                        <i class="bi bi-flag"></i>
+                        Thesis Checkpoints
+                    </span>
+                    {% if checkpoints %}
+                    <span class="position-sidebar-badge">{{ checkpoints|length }}</span>
+                    {% endif %}
                 </div>
-                <div class="card-body">
+                <div class="position-sidebar-body">
+                    {% if checkpoints %}
                     {% for checkpoint in checkpoints[:5] %}
                     {% set days_until = (checkpoint.target_date - today).days %}
-                    <div class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="flex-grow-1">
-                                <strong class="d-block">{{ checkpoint.metric }}</strong>
-                                <small class="text-muted">{{ checkpoint.expectation[:60] }}{% if
-                                    checkpoint.expectation|length > 60 %}...{% endif %}</small>
-                            </div>
-                            <span class="badge ms-2
-                                {% if checkpoint.status == 'Met' %}bg-success
-                                {% elif checkpoint.status == 'Not Met' %}bg-danger
-                                {% elif checkpoint.status == 'Active' %}bg-primary
-                                {% else %}bg-secondary
-                                {% endif %}">
+                    <div class="position-checkpoint">
+                        <div class="position-checkpoint-header">
+                            <span class="position-checkpoint-metric">{{ checkpoint.metric }}</span>
+                            <span class="position-checkpoint-status {% if checkpoint.status == 'Met' %}met{% elif checkpoint.status == 'Not Met' %}not-met{% else %}active{% endif %}">
                                 {{ checkpoint.status }}
                             </span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-calendar3"></i> {{ checkpoint.target_date.strftime('%b %d, %Y') }}
-                                {% if checkpoint.status == 'Active' %}
-                                {% if days_until < 0 %} <span class="badge bg-danger ms-1">{{ days_until|abs }} days
-                                    overdue</span>
-                                    {% elif days_until <= 7 %} <span class="badge bg-warning text-dark ms-1">{{
-                                        days_until }} days</span>
-                                        {% endif %}
-                                        {% endif %}
-                            </small>
+                        <div class="position-checkpoint-expectation">
+                            {{ checkpoint.expectation[:60] }}{% if checkpoint.expectation|length > 60 %}...{% endif %}
+                        </div>
+                        <div class="position-checkpoint-footer">
+                            <span class="position-checkpoint-date">
+                                <i class="bi bi-calendar3"></i>
+                                {{ checkpoint.target_date.strftime('%b %d, %Y') }}
+                                {% if checkpoint.status == 'Active' and days_until < 0 %}
+                                <span class="badge bg-danger ms-1">{{ days_until|abs }}d overdue</span>
+                                {% elif checkpoint.status == 'Active' and days_until <= 7 %}
+                                <span class="badge bg-warning text-dark ms-1">{{ days_until }}d</span>
+                                {% endif %}
+                            </span>
                             {% if checkpoint.status == 'Active' %}
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-success btn-sm"
+                            <div class="position-checkpoint-actions">
+                                <button type="button" class="position-checkpoint-btn success"
                                     onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Met')" title="Mark as Met">
-                                    <i class="bi bi-check-circle"></i>
+                                    <i class="bi bi-check"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm"
-                                    onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Not Met')"
-                                    title="Mark as Not Met">
-                                    <i class="bi bi-x-circle"></i>
+                                <button type="button" class="position-checkpoint-btn danger"
+                                    onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Not Met')" title="Mark as Not Met">
+                                    <i class="bi bi-x"></i>
                                 </button>
                             </div>
                             {% endif %}
                         </div>
                     </div>
                     {% endfor %}
-                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
-                        class="btn btn-sm btn-outline-primary w-100">
-                        <i class="bi bi-eye me-2"></i>View All Checkpoints
-                    </a>
-                </div>
-            </div>
-            {% endif %}
 
-            <!-- Research Project Link -->
-            {% if research_project %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Research</h5>
-                </div>
-                <div class="card-body">
-                    <p class="mb-3">Research project created on {{ research_project.created_at.strftime('%Y-%m-%d') }}
-                    </p>
-                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}"
-                        class="btn btn-outline-primary w-100">
-                        View Research Project
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Quick Actions -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}"
-                        class="btn btn-outline-primary w-100 mb-2">
-                        <i class="bi bi-map me-2"></i>View Investment Journey
-                    </a>
-                    <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}"
-                        class="btn btn-outline-primary w-100 mb-2">
-                        <i class="bi bi-lightbulb me-2"></i>Update Thesis
-                    </a>
-                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}"
-                        class="btn btn-outline-primary w-100 mb-2">
-                        <i class="bi bi-plus-circle me-2"></i>Add Transaction
-                    </a>
-                    {% if decision_journal %}
-                    <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}"
-                        class="btn btn-outline-primary w-100 mb-2">
-                        <i class="bi bi-journal-text me-2"></i>View Decision Journal
-                    </a>
-                    <a href="{{ url_for('portfolio.thesis_reality') }}" class="btn btn-outline-primary w-100 mb-2">
-                        <i class="bi bi-clipboard-check me-1"></i>Compare All Positions
+                    {% if checkpoints|length > 5 %}
+                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-link-btn" style="display: block; text-align: center; margin-top: var(--space-md);">
+                        View all {{ checkpoints|length }} checkpoints <i class="bi bi-arrow-right"></i>
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
-                        class="btn btn-outline-primary w-100">
-                        <i class="bi bi-flag me-2"></i>Manage Checkpoints
+                    {% else %}
+                    <div class="position-empty-state-compact">
+                        <p>No checkpoints set for this position</p>
+                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-link-btn">
+                            <i class="bi bi-plus"></i> Add Checkpoints
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="position-sidebar-section">
+                <div class="position-sidebar-header">
+                    <span class="position-sidebar-title">
+                        <i class="bi bi-lightning"></i>
+                        Quick Actions
+                    </span>
+                </div>
+                <div class="position-sidebar-body">
+                    <div class="position-quick-actions">
+                        <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-map"></i>
+                            Investment Journey
+                        </a>
+                        <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-lightbulb"></i>
+                            Update Thesis
+                        </a>
+                        {% if decision_journal %}
+                        <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-quick-action">
+                            <i class="bi bi-journal-text"></i>
+                            Decision Journal
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-flag"></i>
+                            Checkpoints
+                        </a>
+                        {% if decision_journal %}
+                        <a href="{{ url_for('portfolio.thesis_reality') }}" class="position-quick-action span-full">
+                            <i class="bi bi-clipboard-check"></i>
+                            Compare All Positions
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Research Section - Always visible -->
+            <div class="position-sidebar-section">
+                <div class="position-sidebar-header">
+                    <span class="position-sidebar-title">
+                        <i class="bi bi-file-earmark-text"></i>
+                        Research
+                    </span>
+                </div>
+                <div class="position-sidebar-body">
+                    {% if research_project %}
+                    <p style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: var(--space-md);">
+                        Research project created on {{ research_project.created_at.strftime('%b %d, %Y') }}
+                    </p>
+                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}" class="position-quick-action highlight span-full">
+                        <i class="bi bi-arrow-right"></i>
+                        View Research Project
                     </a>
+                    {% else %}
+                    <div class="position-empty-state-compact">
+                        <p>No linked research project</p>
+                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="position-link-btn">
+                            <i class="bi bi-arrow-right"></i> View Company Page
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -387,120 +352,121 @@
         // Transaction data
         const transactionsData = [
             {% for txn in transactions %}
-        {
-            id: {{ txn.id }},
-        date: "{{ txn.date.strftime('%Y-%m-%d') }}",
-        type: "{{ txn.type }}",
-        shares: {{ txn.quantity }},
-        price: {{ txn.price_per_share }},
-        total: {{ txn.total_value }},
-        notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
-        }{{ ',' if not loop.last else '' }}
-        {% endfor %}
-    ];
+            {
+                id: {{ txn.id }},
+                date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+                type: "{{ txn.type }}",
+                shares: {{ txn.quantity }},
+                price: {{ txn.price_per_share }},
+                total: {{ txn.total_value }},
+                notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
+            }{{ ',' if not loop.last else '' }}
+            {% endfor %}
+        ];
 
-    // Create the table
-    positionTransactionsTable = new Tabulator("#position-transactions-table", {
-        data: transactionsData,
-        layout: "fitColumns",
-        responsiveLayout: "collapse",
-        pagination: false,
-        layoutColumnsOnNewData: true,
-        columns: [
-            {
-                title: "Date",
-                field: "date",
-                sorter: "date",
-                hozAlign: "right",
-                minWidth: 110,
-                widthGrow: 1
-            },
-            {
-                title: "Type",
-                field: "type",
-                sorter: "string",
-                hozAlign: "right",
-                formatter: function (cell) {
-                    const type = cell.getValue();
-                    let badgeClass = 'bg-secondary';
-                    if (type === 'BUY') badgeClass = 'bg-primary';
-                    else if (type === 'SELL') badgeClass = 'bg-danger';
-                    else if (type === 'DIVIDEND') badgeClass = 'bg-success';
-                    else if (type === 'SPLIT') badgeClass = 'bg-info';
-                    return `<span class="badge ${badgeClass}">${type}</span>`;
+        // Create the table
+        positionTransactionsTable = new Tabulator("#position-transactions-table", {
+            data: transactionsData,
+            layout: "fitColumns",
+            responsiveLayout: "collapse",
+            pagination: false,
+            layoutColumnsOnNewData: true,
+            columns: [
+                {
+                    title: "Date",
+                    field: "date",
+                    sorter: "date",
+                    hozAlign: "left",
+                    minWidth: 100,
+                    widthGrow: 1
                 },
-                minWidth: 100,
-                widthGrow: 1
-            },
-            {
-                title: "Shares",
-                field: "shares",
-                sorter: "number",
-                hozAlign: "right",
-                formatter: function (cell) {
-                    return cell.getValue().toLocaleString();
+                {
+                    title: "Type",
+                    field: "type",
+                    sorter: "string",
+                    hozAlign: "left",
+                    formatter: function (cell) {
+                        const type = cell.getValue();
+                        let typeClass = '';
+                        if (type === 'BUY') typeClass = 'buy';
+                        else if (type === 'SELL') typeClass = 'sell';
+                        else if (type === 'DIVIDEND') typeClass = 'dividend';
+                        else if (type === 'SPLIT') typeClass = 'split';
+                        return `<span class="position-txn-type ${typeClass}">${type}</span>`;
+                    },
+                    minWidth: 90,
+                    widthGrow: 1
                 },
-                minWidth: 80,
-                widthGrow: 1
-            },
-            {
-                title: "Price",
-                field: "price",
-                sorter: "number",
-                hozAlign: "right",
-                formatter: function (cell) {
-                    return currencySymbol + cell.getValue().toFixed(2);
+                {
+                    title: "Shares",
+                    field: "shares",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function (cell) {
+                        const val = cell.getValue();
+                        return val ? val.toLocaleString() : '—';
+                    },
+                    minWidth: 80,
+                    widthGrow: 1
                 },
-                minWidth: 100,
-                widthGrow: 1
-            },
-            {
-                title: "Total",
-                field: "total",
-                sorter: "number",
-                hozAlign: "right",
-                formatter: function (cell) {
-                    return '<strong>' + currencySymbol + cell.getValue().toFixed(2) + '</strong>';
+                {
+                    title: "Price",
+                    field: "price",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function (cell) {
+                        return currencySymbol + cell.getValue().toFixed(2);
+                    },
+                    minWidth: 90,
+                    widthGrow: 1
                 },
-                minWidth: 100,
-                widthGrow: 1.5
-            },
-            {
-                title: "Notes",
-                field: "notes",
-                sorter: "string",
-                hozAlign: "right",
-                formatter: function (cell) {
-                    const notes = cell.getValue();
-                    if (!notes) return '<span class="text-muted">--</span>';
-                    if (notes.length > 30) {
-                        return `<span title="${notes}">${notes.substring(0, 30)}...</span>`;
-                    }
-                    return notes;
+                {
+                    title: "Total",
+                    field: "total",
+                    sorter: "number",
+                    hozAlign: "right",
+                    formatter: function (cell) {
+                        return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
+                    },
+                    minWidth: 100,
+                    widthGrow: 1.5
                 },
-                minWidth: 120,
-                widthGrow: 2
-            },
-            {
-                title: "Actions",
-                field: "id",
-                headerSort: false,
-                hozAlign: "right",
-                formatter: function (cell) {
-                    const id = cell.getValue();
-                    return `<a href="/portfolio/transaction/${id}/edit" class="portfolio-btn-icon" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </a>`;
+                {
+                    title: "Notes",
+                    field: "notes",
+                    sorter: "string",
+                    hozAlign: "left",
+                    formatter: function (cell) {
+                        const notes = cell.getValue();
+                        if (!notes) return '<span class="position-text-muted">—</span>';
+                        if (notes.length > 25) {
+                            return `<span title="${notes}">${notes.substring(0, 25)}...</span>`;
+                        }
+                        return notes;
+                    },
+                    minWidth: 100,
+                    widthGrow: 2
                 },
-                minWidth: 80,
-                widthGrow: 1
-            }
-        ],
-        initialSort: [
-            { column: "date", dir: "desc" }
-        ]
+                {
+                    title: "",
+                    field: "id",
+                    headerSort: false,
+                    hozAlign: "center",
+                    formatter: function (cell) {
+                        const id = cell.getValue();
+                        return `<a href="/portfolio/transaction/${id}/edit" class="position-link-btn" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>`;
+                    },
+                    minWidth: 50,
+                    widthGrow: 0.5
+                }
+            ],
+            initialSort: [
+                { column: "date", dir: "desc" }
+            ]
+        });
     });
-});
 
     function updateCheckpointStatus(checkpointId, newStatus) {
         if (!confirm(`Mark this checkpoint as "${newStatus}"?`)) {
@@ -517,7 +483,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Reload the page to show updated status
                     location.reload();
                 } else {
                     alert('Error updating checkpoint: ' + (data.error || 'Unknown error'));
