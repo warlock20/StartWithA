@@ -21,4 +21,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy only the code (the .dockerignore will skip the .venv bloat)
 COPY . .
 
-CMD gunicorn --bind 0.0.0.0:$PORT run:app
+# Set Flask app for migrations
+ENV FLASK_APP=run.py
+
+# Make entrypoint executable
+RUN chmod +x docker-entrypoint.sh
+
+# Run migrations and start server
+# PORT is set by Railway automatically
+ENTRYPOINT ["./docker-entrypoint.sh"]
