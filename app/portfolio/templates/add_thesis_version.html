@@ -3,134 +3,43 @@
 {% block title %}Add Thesis Version - {{ company.ticker_symbol }}{% endblock %}
 
 {% block content %}
-<div class="update-container">
+<div class="dashboard-container">
     <!-- Header -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-1">Update Investment Thesis</h2>
-                    <p class="text-muted mb-0">{{ company.ticker_symbol }} - {{ company.name }}</p>
+    <header class="thesis-update-header">
+        <div class="thesis-update-identity">
+            <div class="thesis-update-logo">
+                {{ (company.name)[:2]|upper }}
+            </div>
+            <div class="thesis-update-title-group">
+                <h1>Update Investment Thesis</h1>
+                <div class="thesis-update-meta">
+                    <span class="thesis-update-ticker">{{ company.ticker_symbol }}</span>
+                    <span>{{ company.name }}</span>
+                    <span class="thesis-update-version-badge">Creating V{{ next_version }}</span>
                 </div>
-                <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-x"></i> Cancel
-                </a>
             </div>
         </div>
-    </div>
-
-    <!-- Main Layout -->
-    <div class="layout-grid">
-        <!-- LEFT: Compact Sticky Sidebar -->
-        <div class="sidebar">
+        <div class="thesis-update-actions">
+            <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="thesis-btn">
+                <i class="bi bi-arrow-left"></i> Back to Journey
+            </a>
             {% if current_thesis %}
-            <!-- Quick Reference Card -->
-            <div class="reference-card">
-                <div class="reference-card-header">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <small class="text-muted fw-semibold">CURRENT THESIS</small>
-                        <span class="version-badge">V{{ current_thesis.version }}</span>
-                    </div>
-                    <h6 class="mb-0 small">{{ current_thesis.change_summary }}</h6>
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="quick-stat">
-                    <span class="stat-label">Conviction</span>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="stat-value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
-                        <div class="conviction-bar" style="width: 40px;">
-                            <div class="conviction-fill" style="width: {{ (current_thesis.conviction_level or 0) * 10 }}%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                {% if current_thesis.position_sizing %}
-                <div class="quick-stat">
-                    <span class="stat-label">Position</span>
-                    <span class="stat-value">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</span>
-                </div>
-                {% endif %}
-
-                {% if current_thesis.target_price %}
-                <div class="quick-stat">
-                    <span class="stat-label">Target</span>
-                    <span class="stat-value">${{ "%.2f"|format(current_thesis.target_price) }}</span>
-                </div>
-                {% endif %}
-
-                <div class="quick-stat">
-                    <span class="stat-label">Updated</span>
-                    <span class="stat-value small">{{ current_thesis.created_at.strftime('%b %d, %Y') }}</span>
-                </div>
-
-                <!-- Expand Button -->
-                <button class="expand-btn mt-3" type="button" onclick="showDetailModal()">
-                    <i class="bi bi-eye me-1"></i> View Full Thesis
-                </button>
-            </div>
-
-            <!-- Compact Bull/Bear -->
-            <div class="reference-card">
-                {% if current_thesis.bull_case %}
-                <div class="case-compact">
-                    <div class="case-header bull">
-                        <i class="bi bi-graph-up me-1"></i>Bull Case ({{ current_thesis.bull_case|length }})
-                    </div>
-                    <ul class="case-list">
-                        {% for point in current_thesis.bull_case[:3] %}
-                        <li>{{ point }}</li>
-                        {% endfor %}
-                        {% if current_thesis.bull_case|length > 3 %}
-                        <li>+{{ current_thesis.bull_case|length - 3 }} more...</li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                {% if current_thesis.bear_case %}
-                <div class="case-compact">
-                    <div class="case-header bear">
-                        <i class="bi bi-graph-down me-1"></i>Bear Case ({{ current_thesis.bear_case|length }})
-                    </div>
-                    <ul class="case-list">
-                        {% for point in current_thesis.bear_case[:3] %}
-                        <li>{{ point }}</li>
-                        {% endfor %}
-                        {% if current_thesis.bear_case|length > 3 %}
-                        <li>+{{ current_thesis.bear_case|length - 3 }} more...</li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                <button class="expand-btn mt-3" type="button" onclick="showDetailModal()">
-                    <i class="bi bi-list-ul me-1"></i> See All Details
-                </button>
-            </div>
-
-            <!-- Copy Button -->
-            <button class="copy-thesis-btn" type="button" onclick="copyCurrentThesis()">
-                <i class="bi bi-clipboard me-1"></i> Copy Current Thesis
+            <button type="button" class="thesis-btn" onclick="copyCurrentThesis()">
+                <i class="bi bi-clipboard"></i> Copy Current
             </button>
             {% endif %}
-
-            <!-- Tip Card -->
-            <div class="alert alert-info mb-0 small {% if current_thesis %}mt-3{% endif %}">
-                <i class="bi bi-lightbulb me-1"></i>
-                <strong>Tip:</strong> Reference your current thesis while updating
-            </div>
         </div>
+    </header>
 
-        <!-- RIGHT: Form -->
-        <div class="form-section">
-            <h5 class="mb-4">New Thesis - Version {{ next_version }}</h5>
-
+    <!-- Main Layout -->
+    <div class="thesis-update-content">
+        <!-- Form Section (Main) -->
+        <div class="thesis-update-form-section">
             <form method="POST" action="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" id="thesisForm">
                 <!-- Thesis Title -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">
-                        Thesis Title <span class="text-danger">*</span>
+                <div class="thesis-form-group">
+                    <label class="thesis-form-label">
+                        Thesis Title <span class="required">*</span>
                     </label>
                     <input type="text"
                            class="form-control"
@@ -142,9 +51,9 @@
                 </div>
 
                 <!-- Investment Thesis -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">
-                        Investment Thesis <span class="text-danger">*</span>
+                <div class="thesis-form-group">
+                    <label class="thesis-form-label">
+                        Investment Thesis <span class="required">*</span>
                     </label>
                     <textarea class="form-control"
                               id="thesis"
@@ -155,8 +64,8 @@
                 </div>
 
                 <!-- Change Trigger -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">What Triggered This Update?</label>
+                <div class="thesis-form-group">
+                    <label class="thesis-form-label">What Triggered This Update?</label>
                     <input type="text"
                            class="form-control"
                            id="change_trigger"
@@ -165,13 +74,13 @@
                            maxlength="200">
                 </div>
 
-                <!-- Conviction Level -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">
-                        Conviction Level <span class="text-danger">*</span>
-                    </label>
-                    <div class="row align-items-center">
-                        <div class="col-8">
+                <!-- Two Column: Conviction + Position Sizing -->
+                <div class="thesis-form-row">
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">
+                            Conviction Level <span class="required">*</span>
+                        </label>
+                        <div class="thesis-conviction-control">
                             <input type="range"
                                    class="form-range"
                                    id="conviction_level"
@@ -180,183 +89,244 @@
                                    max="10"
                                    value="{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}"
                                    oninput="document.getElementById('conviction_value').textContent = this.value">
-                        </div>
-                        <div class="col-4">
-                            <span class="fs-3 fw-bold" id="conviction_value">{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span> / 10
-                            {% if current_thesis and current_thesis.conviction_level %}
-                            <small class="d-block text-muted">Previous: {{ current_thesis.conviction_level }}</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Position Sizing -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Position Sizing Intent</label>
-                    <select class="form-select" id="position_sizing" name="position_sizing">
-                        <option value="">Select position size...</option>
-                        <option value="starter" {% if current_thesis and current_thesis.position_sizing == 'starter' %}selected{% endif %}>Starter (5-15% of portfolio)</option>
-                        <option value="half" {% if current_thesis and current_thesis.position_sizing == 'half' %}selected{% endif %}>Half Position (15-25%)</option>
-                        <option value="full" {% if current_thesis and current_thesis.position_sizing == 'full' %}selected{% endif %}>Full Position (25-30%)</option>
-                        <option value="oversized" {% if current_thesis and current_thesis.position_sizing == 'oversized' %}selected{% endif %}>Oversized (30%+)</option>
-                    </select>
-                    {% if current_thesis and current_thesis.position_sizing %}
-                    <div class="form-text">Currently: {{ current_thesis.position_sizing|replace('_', ' ')|title }}</div>
-                    {% endif %}
-                </div>
-
-                <!-- Target Price -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Target Price</label>
-                    <div class="input-group" style="max-width: 250px;">
-                        <span class="input-group-text">$</span>
-                        <input type="number"
-                               class="form-control"
-                               id="target_price"
-                               name="target_price"
-                               step="0.01"
-                               {% if current_thesis and current_thesis.target_price %}value="{{ current_thesis.target_price }}"{% endif %}
-                               placeholder="0.00">
-                    </div>
-                    {% if current_thesis and current_thesis.target_price %}
-                    <div class="form-text">Previous: ${{ "%.2f"|format(current_thesis.target_price) }}</div>
-                    {% endif %}
-                </div>
-
-                <hr class="my-4">
-
-                <!-- Bull Case -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-success">
-                        <i class="bi bi-graph-up me-2"></i>Bull Case (Optional)
-                    </label>
-                    <div id="bull-case-container">
-                        <div class="bull-case-item mb-2">
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control"
-                                       name="bull_case_1"
-                                       placeholder="e.g., AI integration moat">
-                                <button type="button" class="btn btn-outline-danger" onclick="removeBullCase(this)" style="display: none;">
-                                    <i class="bi bi-x"></i>
-                                </button>
+                            <div class="thesis-conviction-display">
+                                <span class="thesis-conviction-value" id="conviction_value">{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span>
+                                <span class="thesis-conviction-max">/ 10</span>
                             </div>
                         </div>
+                        {% if current_thesis and current_thesis.conviction_level %}
+                        <div class="thesis-form-hint">Previous: {{ current_thesis.conviction_level }}/10</div>
+                        {% endif %}
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addBullCase()">
-                        <i class="bi bi-plus"></i> Add Point
-                    </button>
+
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">Position Sizing Intent</label>
+                        <select class="form-select" id="position_sizing" name="position_sizing">
+                            <option value="">Select position size...</option>
+                            <option value="starter" {% if current_thesis and current_thesis.position_sizing == 'starter' %}selected{% endif %}>Starter (5-15%)</option>
+                            <option value="half" {% if current_thesis and current_thesis.position_sizing == 'half' %}selected{% endif %}>Half (15-25%)</option>
+                            <option value="full" {% if current_thesis and current_thesis.position_sizing == 'full' %}selected{% endif %}>Full (25-30%)</option>
+                            <option value="oversized" {% if current_thesis and current_thesis.position_sizing == 'oversized' %}selected{% endif %}>Oversized (30%+)</option>
+                        </select>
+                        {% if current_thesis and current_thesis.position_sizing %}
+                        <div class="thesis-form-hint">Currently: {{ current_thesis.position_sizing|replace('_', ' ')|title }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">Target Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number"
+                                   class="form-control"
+                                   id="target_price"
+                                   name="target_price"
+                                   step="0.01"
+                                   {% if current_thesis and current_thesis.target_price %}value="{{ current_thesis.target_price }}"{% endif %}
+                                   placeholder="0.00">
+                        </div>
+                        {% if current_thesis and current_thesis.target_price %}
+                        <div class="thesis-form-hint">Previous: ${{ "%.2f"|format(current_thesis.target_price) }}</div>
+                        {% endif %}
+                    </div>
                 </div>
 
-                <hr class="my-4">
-
-                <!-- Bear Case -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-danger">
-                        <i class="bi bi-graph-down me-2"></i>Bear Case (Optional)
-                    </label>
-                    <div id="bear-case-container">
-                        <div class="bear-case-item mb-2">
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control"
-                                       name="bear_case_1"
-                                       placeholder="e.g., Valuation concerns">
-                                <button type="button" class="btn btn-outline-danger" onclick="removeBearCase(this)" style="display: none;">
-                                    <i class="bi bi-x"></i>
-                                </button>
+                <!-- Bull/Bear Cases -->
+                <div class="thesis-cases-row">
+                    <!-- Bull Case -->
+                    <div class="thesis-case-section bull">
+                        <label class="thesis-form-label">
+                            <i class="bi bi-graph-up"></i> Bull Case
+                        </label>
+                        <div id="bull-case-container">
+                            <div class="bull-case-item">
+                                <div class="input-group">
+                                    <input type="text"
+                                           class="form-control"
+                                           name="bull_case_1"
+                                           placeholder="e.g., AI integration moat">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="removeBullCase(this)" style="display: none;">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                        <button type="button" class="thesis-add-btn" onclick="addBullCase()">
+                            <i class="bi bi-plus"></i> Add Point
+                        </button>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="addBearCase()">
-                        <i class="bi bi-plus"></i> Add Risk
-                    </button>
+
+                    <!-- Bear Case -->
+                    <div class="thesis-case-section bear">
+                        <label class="thesis-form-label">
+                            <i class="bi bi-graph-down"></i> Bear Case
+                        </label>
+                        <div id="bear-case-container">
+                            <div class="bear-case-item">
+                                <div class="input-group">
+                                    <input type="text"
+                                           class="form-control"
+                                           name="bear_case_1"
+                                           placeholder="e.g., Valuation concerns">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="removeBearCase(this)" style="display: none;">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="thesis-add-btn" onclick="addBearCase()">
+                            <i class="bi bi-plus"></i> Add Risk
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Submit -->
-                <div class="d-flex justify-content-end gap-2 mt-4">
-                    <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle me-2"></i>Save Version {{ next_version }}
+                <div class="thesis-form-actions">
+                    <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="thesis-btn">Cancel</a>
+                    <button type="submit" class="thesis-btn primary">
+                        <i class="bi bi-check-circle"></i> Save Version {{ next_version }}
                     </button>
                 </div>
             </form>
         </div>
+
+        <!-- Sidebar (Current Thesis Reference) -->
+        {% if current_thesis %}
+        <div class="thesis-update-sidebar">
+            <div class="thesis-reference-card">
+                <div class="thesis-reference-header">
+                    <span class="thesis-reference-label">Current Thesis</span>
+                    <span class="thesis-reference-version">V{{ current_thesis.version }}</span>
+                </div>
+                <h4 class="thesis-reference-title">{{ current_thesis.change_summary }}</h4>
+
+                <div class="thesis-reference-stats">
+                    <div class="thesis-stat">
+                        <span class="thesis-stat-value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
+                        <span class="thesis-stat-label">Conviction</span>
+                    </div>
+                    {% if current_thesis.position_sizing %}
+                    <div class="thesis-stat">
+                        <span class="thesis-stat-value">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</span>
+                        <span class="thesis-stat-label">Position</span>
+                    </div>
+                    {% endif %}
+                    {% if current_thesis.target_price %}
+                    <div class="thesis-stat">
+                        <span class="thesis-stat-value">${{ "%.0f"|format(current_thesis.target_price) }}</span>
+                        <span class="thesis-stat-label">Target</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="thesis-reference-content">
+                    <p>{{ current_thesis.thesis[:200] }}{% if current_thesis.thesis|length > 200 %}...{% endif %}</p>
+                </div>
+
+                {% if current_thesis.bull_case or current_thesis.bear_case %}
+                <div class="thesis-reference-cases">
+                    {% if current_thesis.bull_case %}
+                    <div class="thesis-case-preview bull">
+                        <span class="thesis-case-label"><i class="bi bi-graph-up"></i> {{ current_thesis.bull_case|length }} bull points</span>
+                    </div>
+                    {% endif %}
+                    {% if current_thesis.bear_case %}
+                    <div class="thesis-case-preview bear">
+                        <span class="thesis-case-label"><i class="bi bi-graph-down"></i> {{ current_thesis.bear_case|length }} bear points</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <button type="button" class="thesis-view-btn" onclick="showDetailModal()">
+                    <i class="bi bi-eye"></i> View Full Thesis
+                </button>
+            </div>
+
+            <div class="thesis-tip-card">
+                <i class="bi bi-lightbulb"></i>
+                <p>Reference your current thesis while updating. Click "Copy Current" to start with existing content.</p>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 {% if current_thesis %}
 <!-- Detail Modal -->
-<div class="detail-modal" id="detailModal" onclick="hideDetailModal(event)">
-    <div class="modal-content-custom" onclick="event.stopPropagation()">
-        <div class="d-flex justify-content-between align-items-start mb-4">
+<div class="thesis-detail-modal" id="detailModal" onclick="hideDetailModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()">
+        <div class="thesis-modal-header">
             <div>
-                <h4 class="mb-1">Current Thesis - Version {{ current_thesis.version }}</h4>
-                <p class="text-muted mb-0">{{ current_thesis.change_summary }}</p>
+                <h3>Current Thesis - Version {{ current_thesis.version }}</h3>
+                <p>{{ current_thesis.change_summary }}</p>
             </div>
-            <button type="button" class="btn-close" onclick="hideDetailModal()"></button>
+            <button type="button" class="thesis-modal-close" onclick="hideDetailModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
 
-        <div class="thesis-preview" style="max-height: none; border-left-width: 4px;">
-            {{ current_thesis.thesis }}
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-4">
-                <small class="text-muted d-block">Conviction</small>
-                <strong class="fs-5">{{ current_thesis.conviction_level or 'N/A' }}/10</strong>
+        <div class="thesis-modal-body">
+            <div class="thesis-modal-section">
+                <h4>Investment Thesis</h4>
+                <p>{{ current_thesis.thesis }}</p>
             </div>
-            {% if current_thesis.position_sizing %}
-            <div class="col-4">
-                <small class="text-muted d-block">Position Sizing</small>
-                <strong class="fs-6">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</strong>
+
+            <div class="thesis-modal-stats">
+                <div class="thesis-modal-stat">
+                    <span class="label">Conviction</span>
+                    <span class="value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
+                </div>
+                {% if current_thesis.position_sizing %}
+                <div class="thesis-modal-stat">
+                    <span class="label">Position</span>
+                    <span class="value">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</span>
+                </div>
+                {% endif %}
+                {% if current_thesis.target_price %}
+                <div class="thesis-modal-stat">
+                    <span class="label">Target</span>
+                    <span class="value">${{ "%.2f"|format(current_thesis.target_price) }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if current_thesis.bull_case or current_thesis.bear_case %}
+            <div class="thesis-modal-cases">
+                {% if current_thesis.bull_case %}
+                <div class="thesis-modal-case bull">
+                    <h5><i class="bi bi-graph-up"></i> Bull Case</h5>
+                    <ul>
+                        {% for point in current_thesis.bull_case %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if current_thesis.bear_case %}
+                <div class="thesis-modal-case bear">
+                    <h5><i class="bi bi-graph-down"></i> Bear Case</h5>
+                    <ul>
+                        {% for point in current_thesis.bear_case %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
-            {% if current_thesis.target_price %}
-            <div class="col-4">
-                <small class="text-muted d-block">Target Price</small>
-                <strong class="fs-5">${{ "%.2f"|format(current_thesis.target_price) }}</strong>
+
+            {% if current_thesis.change_trigger %}
+            <div class="thesis-modal-trigger">
+                <i class="bi bi-lightning-charge"></i>
+                <strong>Trigger:</strong> {{ current_thesis.change_trigger }}
             </div>
             {% endif %}
         </div>
 
-        <hr class="my-4">
-
-        <div class="row">
-            {% if current_thesis.bull_case %}
-            <div class="col-6">
-                <h6 class="text-success mb-3">
-                    <i class="bi bi-graph-up me-2"></i>Bull Case
-                </h6>
-                <ul class="mb-0">
-                    {% for point in current_thesis.bull_case %}
-                    <li>{{ point }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-            {% if current_thesis.bear_case %}
-            <div class="col-6">
-                <h6 class="text-danger mb-3">
-                    <i class="bi bi-graph-down me-2"></i>Bear Case
-                </h6>
-                <ul class="mb-0">
-                    {% for point in current_thesis.bear_case %}
-                    <li>{{ point }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
+        <div class="thesis-modal-footer">
+            <button type="button" class="thesis-btn" onclick="hideDetailModal()">Close</button>
         </div>
-
-        {% if current_thesis.change_trigger %}
-        <div class="alert alert-info mt-4 mb-0">
-            <i class="bi bi-lightning-charge me-2"></i>
-            <strong>Trigger:</strong> {{ current_thesis.change_trigger }}
-        </div>
-        {% endif %}
-
-        <button class="btn btn-secondary w-100 mt-4" onclick="hideDetailModal()">Close</button>
     </div>
 </div>
 {% endif %}
@@ -371,43 +341,36 @@ let bearCaseCount = 1;
 // Modal functions
 function showDetailModal() {
     document.getElementById('detailModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
 
 function hideDetailModal(event) {
-    if (!event || event.target.id === 'detailModal' || event.target.classList.contains('btn-close') || event.target.classList.contains('btn-secondary')) {
+    if (!event || event.target.id === 'detailModal' || event.target.closest('.thesis-modal-close') || event.target.closest('.thesis-modal-footer')) {
         document.getElementById('detailModal').classList.remove('show');
+        document.body.style.overflow = '';
     }
 }
 
 // Copy current thesis to form
 function copyCurrentThesis() {
     {% if current_thesis %}
-    // Copy title
     document.getElementById('change_summary').value = '{{ current_thesis.change_summary|safe }}';
-
-    // Copy thesis
     document.getElementById('thesis').value = `{{ current_thesis.thesis|safe }}`;
-
-    // Copy trigger
     {% if current_thesis.change_trigger %}
     document.getElementById('change_trigger').value = '{{ current_thesis.change_trigger|safe }}';
     {% endif %}
 
-    // Bull cases
     {% if current_thesis.bull_case %}
     const bullContainer = document.getElementById('bull-case-container');
     bullContainer.innerHTML = '';
     const bullCases = {{ current_thesis.bull_case|tojson }};
     bullCases.forEach((point, index) => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'bull-case-item mb-2';
+        itemDiv.className = 'bull-case-item';
         itemDiv.innerHTML = `
             <div class="input-group">
-                <input type="text"
-                       class="form-control"
-                       name="bull_case_${index + 1}"
-                       value="${point.replace(/"/g, '&quot;')}">
-                <button type="button" class="btn btn-outline-danger" onclick="removeBullCase(this)" ${bullCases.length > 1 ? '' : 'style="display: none;"'}>
+                <input type="text" class="form-control" name="bull_case_${index + 1}" value="${point.replace(/"/g, '&quot;')}">
+                <button type="button" class="btn btn-outline-secondary" onclick="removeBullCase(this)" ${bullCases.length > 1 ? '' : 'style="display: none;"'}>
                     <i class="bi bi-x"></i>
                 </button>
             </div>
@@ -418,21 +381,17 @@ function copyCurrentThesis() {
     updateBullCaseRemoveButtons();
     {% endif %}
 
-    // Bear cases
     {% if current_thesis.bear_case %}
     const bearContainer = document.getElementById('bear-case-container');
     bearContainer.innerHTML = '';
     const bearCases = {{ current_thesis.bear_case|tojson }};
     bearCases.forEach((point, index) => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'bear-case-item mb-2';
+        itemDiv.className = 'bear-case-item';
         itemDiv.innerHTML = `
             <div class="input-group">
-                <input type="text"
-                       class="form-control"
-                       name="bear_case_${index + 1}"
-                       value="${point.replace(/"/g, '&quot;')}">
-                <button type="button" class="btn btn-outline-danger" onclick="removeBearCase(this)" ${bearCases.length > 1 ? '' : 'style="display: none;"'}>
+                <input type="text" class="form-control" name="bear_case_${index + 1}" value="${point.replace(/"/g, '&quot;')}">
+                <button type="button" class="btn btn-outline-secondary" onclick="removeBearCase(this)" ${bearCases.length > 1 ? '' : 'style="display: none;"'}>
                     <i class="bi bi-x"></i>
                 </button>
             </div>
@@ -442,121 +401,87 @@ function copyCurrentThesis() {
     bearCaseCount = bearCases.length;
     updateBearCaseRemoveButtons();
     {% endif %}
-
-    // Show confirmation
-    alert('Current thesis copied! You can now modify it as needed.');
     {% endif %}
 }
 
-// Add Bull Case Point
 function addBullCase() {
     bullCaseCount++;
     const container = document.getElementById('bull-case-container');
-
     const itemDiv = document.createElement('div');
-    itemDiv.className = 'bull-case-item mb-2';
+    itemDiv.className = 'bull-case-item';
     itemDiv.innerHTML = `
         <div class="input-group">
-            <input type="text"
-                   class="form-control"
-                   name="bull_case_${bullCaseCount}"
-                   placeholder="e.g., Another bullish point">
-            <button type="button" class="btn btn-outline-danger" onclick="removeBullCase(this)">
+            <input type="text" class="form-control" name="bull_case_${bullCaseCount}" placeholder="Another bullish point">
+            <button type="button" class="btn btn-outline-secondary" onclick="removeBullCase(this)">
                 <i class="bi bi-x"></i>
             </button>
         </div>
     `;
-
     container.appendChild(itemDiv);
     updateBullCaseRemoveButtons();
 }
 
-// Remove Bull Case Point
 function removeBullCase(button) {
-    const item = button.closest('.bull-case-item');
-    item.remove();
+    button.closest('.bull-case-item').remove();
     updateBullCaseRemoveButtons();
     renumberBullCases();
 }
 
-// Update visibility of remove buttons (show only if more than 1 item)
 function updateBullCaseRemoveButtons() {
     const items = document.querySelectorAll('.bull-case-item');
-    items.forEach((item, index) => {
-        const removeBtn = item.querySelector('.btn-outline-danger');
-        if (items.length > 1) {
-            removeBtn.style.display = 'block';
-        } else {
-            removeBtn.style.display = 'none';
-        }
+    items.forEach(item => {
+        const btn = item.querySelector('.btn-outline-secondary');
+        btn.style.display = items.length > 1 ? 'block' : 'none';
     });
 }
 
-// Renumber bull case inputs after removal
 function renumberBullCases() {
     const items = document.querySelectorAll('.bull-case-item');
     items.forEach((item, index) => {
-        const input = item.querySelector('input');
-        input.name = `bull_case_${index + 1}`;
+        item.querySelector('input').name = `bull_case_${index + 1}`;
     });
     bullCaseCount = items.length;
 }
 
-// Add Bear Case Risk
 function addBearCase() {
     bearCaseCount++;
     const container = document.getElementById('bear-case-container');
-
     const itemDiv = document.createElement('div');
-    itemDiv.className = 'bear-case-item mb-2';
+    itemDiv.className = 'bear-case-item';
     itemDiv.innerHTML = `
         <div class="input-group">
-            <input type="text"
-                   class="form-control"
-                   name="bear_case_${bearCaseCount}"
-                   placeholder="e.g., Another risk factor">
-            <button type="button" class="btn btn-outline-danger" onclick="removeBearCase(this)">
+            <input type="text" class="form-control" name="bear_case_${bearCaseCount}" placeholder="Another risk factor">
+            <button type="button" class="btn btn-outline-secondary" onclick="removeBearCase(this)">
                 <i class="bi bi-x"></i>
             </button>
         </div>
     `;
-
     container.appendChild(itemDiv);
     updateBearCaseRemoveButtons();
 }
 
-// Remove Bear Case Risk
 function removeBearCase(button) {
-    const item = button.closest('.bear-case-item');
-    item.remove();
+    button.closest('.bear-case-item').remove();
     updateBearCaseRemoveButtons();
     renumberBearCases();
 }
 
-// Update visibility of remove buttons (show only if more than 1 item)
 function updateBearCaseRemoveButtons() {
     const items = document.querySelectorAll('.bear-case-item');
-    items.forEach((item, index) => {
-        const removeBtn = item.querySelector('.btn-outline-danger');
-        if (items.length > 1) {
-            removeBtn.style.display = 'block';
-        } else {
-            removeBtn.style.display = 'none';
-        }
+    items.forEach(item => {
+        const btn = item.querySelector('.btn-outline-secondary');
+        btn.style.display = items.length > 1 ? 'block' : 'none';
     });
 }
 
-// Renumber bear case inputs after removal
 function renumberBearCases() {
     const items = document.querySelectorAll('.bear-case-item');
     items.forEach((item, index) => {
-        const input = item.querySelector('input');
-        input.name = `bear_case_${index + 1}`;
+        item.querySelector('input').name = `bear_case_${index + 1}`;
     });
     bearCaseCount = items.length;
 }
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateBullCaseRemoveButtons();
     updateBearCaseRemoveButtons();

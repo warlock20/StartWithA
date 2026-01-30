@@ -1,228 +1,188 @@
 {% extends "main/_base.html" %}
 
+{% block title %}Destination Analysis - {{ company.ticker_symbol }}{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header mb-4">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-geo-alt-fill me-3 text-primary"></i>Destination Analysis
-            </h1>
-            <p class="dashboard-subtitle">Tracking the long-term investment thesis for <span
-                    class="fw-semibold text-dark">{{ company.name }} ({{ company.ticker_symbol }})</span></p>
+    <header class="destination-header">
+        <div class="destination-identity">
+            <div class="destination-logo">
+                {{ (company.name)[:2]|upper }}
+            </div>
+            <div class="destination-title-group">
+                <h1>Destination Analysis</h1>
+                <div class="destination-meta">
+                    <span class="destination-ticker">{{ company.ticker_symbol }}</span>
+                    <span>{{ company.name }}</span>
+                    <span>Investment Thesis Tracking</span>
+                </div>
+            </div>
         </div>
-        <div class="dashboard-header-actions">
-            {% with btn_class='btn btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+        <div class="destination-header-actions">
+            <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="destination-btn">
+                <i class="bi bi-clock-history"></i> Journey
+            </a>
+            <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="destination-btn">
+                <i class="bi bi-arrow-left"></i> Position
+            </a>
         </div>
     </header>
 
-    <!-- Add New Checkpoint Card -->
-    <div class="card add-checkpoint-card border-0 shadow-sm mb-5">
-        <div class="card-header bg-transparent border-0 pt-4">
-            <h5 class="mb-0 fw-bold text-primary">
-                <i class="bi bi-plus-circle-fill me-2"></i>Set New Investment Checkpoint
-            </h5>
-            <p class="text-muted small mb-0 mt-2">Define key metrics and milestones to track your investment thesis</p>
+    <!-- Stats Strip -->
+    {% if checkpoints %}
+    <div class="destination-stats-strip">
+        <div class="destination-stat success">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Met') | list | length }}</div>
+            <div class="destination-stat-label">Met</div>
         </div>
-        <div class="card-body px-4 pb-4">
-            <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="metric" class="form-label fw-semibold text-dark">
-                            <i class="bi bi-graph-up me-1"></i>Metric
-                        </label>
-                        <input type="text" class="form-control" id="metric" name="metric"
-                            placeholder="e.g., Data Center Revenue Growth" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="expectation" class="form-label fw-semibold text-dark">
-                            <i class="bi bi-bullseye me-1"></i>Expectation / Target
-                        </label>
-                        <input type="text" class="form-control" id="expectation" name="expectation"
-                            placeholder="e.g., > 30% YoY" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="target_date" class="form-label fw-semibold text-dark">
-                            <i class="bi bi-calendar-event me-1"></i>Target Date
-                        </label>
-                        <input type="date" class="form-control" id="target_date" name="target_date" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label d-none d-md-block">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary w-100 fw-semibold">
-                            <i class="bi bi-plus-lg me-1"></i> Add Checkpoint
-                        </button>
-                    </div>
-                </div>
-            </form>
+        <div class="destination-stat warning">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Active') | list | length }}</div>
+            <div class="destination-stat-label">Active</div>
+        </div>
+        <div class="destination-stat danger">
+            <div class="destination-stat-value">{{ checkpoints | selectattr('status', 'equalto', 'Not Met') | list | length }}</div>
+            <div class="destination-stat-label">Missed</div>
+        </div>
+        <div class="destination-stat">
+            <div class="destination-stat-value">{{ checkpoints | length }}</div>
+            <div class="destination-stat-label">Total</div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Checkpoints Timeline -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="h4 fw-bold font-poppins mb-0">
-            <i class="bi bi-signpost-split me-2 text-primary"></i>Investment Journey Timeline
-        </h3>
-        {% if checkpoints %}
-        <div class="d-flex gap-3 text-sm">
-            <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
-                <i class="bi bi-check-circle-fill me-1"></i>
-                {{ checkpoints | selectattr('status', 'equalto', 'Met') | list | length }} Met
-            </span>
-            <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2">
-                <i class="bi bi-clock-fill me-1"></i>
-                {{ checkpoints | selectattr('status', 'equalto', 'Active') | list | length }} Active
-            </span>
-            <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2">
-                <i class="bi bi-x-circle-fill me-1"></i>
-                {{ checkpoints | selectattr('status', 'equalto', 'Not Met') | list | length }} Missed
-            </span>
+    <!-- Add Checkpoint Card -->
+    <div class="destination-add-card">
+        <div class="destination-add-header">
+            <i class="bi bi-plus-circle"></i>
+            <div>
+                <h3>Add Investment Checkpoint</h3>
+                <p>Define key metrics and milestones to track your thesis</p>
+            </div>
         </div>
-        {% endif %}
+        <form method="POST" action="{{ url_for('companies.add_checkpoint', company_id=company.id) }}" class="destination-add-form">
+            <div class="destination-form-row">
+                <div class="destination-form-group">
+                    <label for="metric">Metric</label>
+                    <input type="text" class="form-control" id="metric" name="metric"
+                        placeholder="e.g., Data Center Revenue Growth" required>
+                </div>
+                <div class="destination-form-group">
+                    <label for="expectation">Target / Expectation</label>
+                    <input type="text" class="form-control" id="expectation" name="expectation"
+                        placeholder="e.g., > 30% YoY" required>
+                </div>
+                <div class="destination-form-group small">
+                    <label for="target_date">Target Date</label>
+                    <input type="date" class="form-control" id="target_date" name="target_date" required>
+                </div>
+                <div class="destination-form-group action">
+                    <button type="submit" class="destination-btn primary">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Checkpoints Section -->
+    <div class="destination-section-header">
+        <h2><i class="bi bi-signpost-split"></i> Investment Checkpoints</h2>
     </div>
 
     {% if checkpoints %}
-    <div class="destination-timeline">
+    <div class="destination-checkpoints">
         {% for cp in checkpoints %}
-        {% set status_class = 'timeline-item-active' %}
-        {% set dot_class = 'timeline-dot-active' %}
-        {% set bg_class = 'bg-warning-subtle' %}
-        {% set border_class = 'border-warning' %}
-        {% set text_class = 'text-warning' %}
-        {% set icon_class = 'bi-clock-fill' %}
-
+        {% set status_class = 'active' %}
         {% if cp.status == 'Met' %}
-        {% set status_class = 'timeline-item-completed' %}
-        {% set dot_class = 'timeline-dot-completed' %}
-        {% set bg_class = 'bg-success-subtle' %}
-        {% set border_class = 'border-success' %}
-        {% set text_class = 'text-success' %}
-        {% set icon_class = 'bi-check-circle-fill' %}
+        {% set status_class = 'met' %}
         {% elif cp.status == 'Not Met' %}
-        {% set status_class = 'timeline-item-missed' %}
-        {% set dot_class = 'timeline-dot-missed' %}
-        {% set bg_class = 'bg-danger-subtle' %}
-        {% set border_class = 'border-danger' %}
-        {% set text_class = 'text-danger' %}
-        {% set icon_class = 'bi-x-circle-fill' %}
+        {% set status_class = 'not-met' %}
         {% endif %}
 
-        <div class="timeline-item {{ status_class }}">
-            <div class="timeline-dot {{ dot_class }}"></div>
-            <div class="timeline-date">
-                {{ cp.target_date.strftime('%b %d, %Y') }}
+        <div class="destination-checkpoint {{ status_class }}">
+            <div class="destination-checkpoint-indicator">
+                <div class="destination-checkpoint-dot {{ status_class }}">
+                    {% if cp.status == 'Met' %}
+                    <i class="bi bi-check"></i>
+                    {% elif cp.status == 'Not Met' %}
+                    <i class="bi bi-x"></i>
+                    {% endif %}
+                </div>
+                <div class="destination-checkpoint-date">{{ cp.target_date.strftime('%b %d, %Y') }}</div>
             </div>
-            <div class="card shadow-sm" style="clear: both;">
-                <div class="card-body p-4">
-                    <!-- Checkpoint Header -->
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="flex-grow-1">
-                            <h5 class="fw-bold mb-2 text-dark">
-                                <i class="bi bi-graph-up-arrow me-2 text-primary"></i>{{ cp.metric }}
-                            </h5>
+
+            <div class="destination-checkpoint-card">
+                <div class="destination-checkpoint-header">
+                    <h4>{{ cp.metric }}</h4>
+                    <span class="destination-status-badge {{ status_class }}">
+                        {% if cp.status == 'Met' %}
+                        <i class="bi bi-check-circle-fill"></i> Met
+                        {% elif cp.status == 'Not Met' %}
+                        <i class="bi bi-x-circle-fill"></i> Not Met
+                        {% else %}
+                        <i class="bi bi-clock-fill"></i> Active
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="destination-checkpoint-body">
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-bullseye"></i> Target</span>
+                        <span class="value">{{ cp.expectation }}</span>
+                    </div>
+                    {% if cp.outcome_notes %}
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-clipboard-check"></i> Outcome</span>
+                        <span class="value">{{ cp.outcome_notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Update Form -->
+                <div class="destination-checkpoint-update">
+                    <form method="POST" action="{{ url_for('companies.update_checkpoint', checkpoint_id=cp.id) }}">
+                        <div class="destination-update-row">
+                            <div class="destination-update-field">
+                                <textarea name="outcome_notes" rows="2" class="form-control"
+                                    placeholder="Document progress or results...">{{ cp.outcome_notes if cp.outcome_notes }}</textarea>
+                            </div>
+                            <div class="destination-update-field small">
+                                <select name="status" class="form-select">
+                                    <option value="Active" {% if cp.status=='Active' %}selected{% endif %}>Active</option>
+                                    <option value="Met" {% if cp.status=='Met' %}selected{% endif %}>Met</option>
+                                    <option value="Not Met" {% if cp.status=='Not Met' %}selected{% endif %}>Not Met</option>
+                                </select>
+                            </div>
+                            <div class="destination-update-field action">
+                                <button type="submit" class="destination-btn primary sm">Update</button>
+                            </div>
                         </div>
-                        <span class="badge {{ bg_class }} {{ text_class }} border {{ border_class }} px-3 py-2 fs-6">
-                            <i class="bi {{ icon_class }} me-1"></i>
-                            {% if cp.status == 'Met' %}
-                            Met
-                            {% elif cp.status == 'Not Met' %}
-                            Not Met
-                            {% else %}
-                            Active
-                            {% endif %}
-                        </span>
-                    </div>
+                    </form>
+                </div>
 
-                    <!-- Checkpoint Details -->
-                    <div class="p-3 {{ bg_class }} rounded-3 border {{ border_class }} mb-3">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-start">
-                                    <i class="bi bi-bullseye {{ text_class }} me-2 mt-1"></i>
-                                    <div>
-                                        <small class="text-uppercase fw-semibold {{ text_class }} d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">Target</small>
-                                        <p class="mb-0 fw-semibold text-dark">{{ cp.expectation }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {% if cp.outcome_notes %}
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-start">
-                                    <i class="bi bi-clipboard-check {{ text_class }} me-2 mt-1"></i>
-                                    <div>
-                                        <small class="text-uppercase fw-semibold {{ text_class }} d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">Outcome</small>
-                                        <p class="mb-0 text-dark">{{ cp.outcome_notes }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Update Form -->
-                    <div class="border-top pt-3 mt-3">
-                        <form method="POST" action="{{ url_for('companies.update_checkpoint', checkpoint_id=cp.id) }}">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-6">
-                                    <label for="outcome_notes_{{cp.id}}" class="form-label fw-semibold small mb-2">
-                                        <i class="bi bi-pencil-square me-1"></i>Update Outcome Notes
-                                    </label>
-                                    <textarea name="outcome_notes" id="outcome_notes_{{cp.id}}"
-                                        class="form-control" rows="2"
-                                        placeholder="Document progress, results, or insights...">{{ cp.outcome_notes if cp.outcome_notes }}</textarea>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="status_{{cp.id}}" class="form-label fw-semibold small mb-2">
-                                        <i class="bi bi-flag-fill me-1"></i>Status
-                                    </label>
-                                    <select name="status" id="status_{{cp.id}}" class="form-select">
-                                        <option value="Active" {% if cp.status=='Active' %}selected{% endif %}>
-                                            <i class="bi bi-clock"></i> Active
-                                        </option>
-                                        <option value="Met" {% if cp.status=='Met' %}selected{% endif %}>
-                                            <i class="bi bi-check-circle"></i> Met
-                                        </option>
-                                        <option value="Not Met" {% if cp.status=='Not Met' %}selected{% endif %}>
-                                            <i class="bi bi-x-circle"></i> Not Met
-                                        </option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
-                                        <i class="bi bi-check-lg me-1"></i>Update
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="mt-3 pt-3 border-top d-flex gap-2">
-                        <a href="{{ url_for('companies.edit_checkpoint', checkpoint_id=cp.id) }}"
-                            class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil-fill"></i> Edit Details
-                        </a>
-                        <form method="POST" action="{{ url_for('companies.delete_checkpoint', checkpoint_id=cp.id) }}"
-                            style="display: inline;" class="ms-auto">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Are you sure you want to delete this checkpoint? This action cannot be undone.');">
-                                <i class="bi bi-trash-fill"></i> Delete
-                            </button>
-                        </form>
-                    </div>
+                <!-- Actions -->
+                <div class="destination-checkpoint-actions">
+                    <a href="{{ url_for('companies.edit_checkpoint', checkpoint_id=cp.id) }}" class="destination-action-btn">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <form method="POST" action="{{ url_for('companies.delete_checkpoint', checkpoint_id=cp.id) }}" class="d-inline">
+                        <button type="submit" class="destination-action-btn danger"
+                            onclick="return confirm('Delete this checkpoint?');">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="timeline-empty-state">
+    <div class="destination-empty-state">
         <i class="bi bi-signpost-2"></i>
-        <h5 class="fw-bold text-dark mb-2">No Checkpoints Yet</h5>
-        <p class="text-muted mb-1">Start tracking your investment thesis for {{ company.name }}</p>
-        <p class="text-muted small">Add your first checkpoint above to begin your investment journey</p>
+        <h4>No Checkpoints Yet</h4>
+        <p>Start tracking your investment thesis for {{ company.name }}</p>
+        <p class="hint">Add your first checkpoint above to begin your investment journey</p>
     </div>
     {% endif %}
 </div>
