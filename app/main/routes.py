@@ -1,6 +1,11 @@
-from flask import redirect, url_for, flash, render_template
+from flask import redirect, url_for, flash, render_template, jsonify
 from flask_login import login_required, current_user
 from app.main import bp # Assuming your blueprint is 'bp'
+
+@bp.route('/health')
+def health_check():
+    """Health check endpoint for Railway/load balancers"""
+    return jsonify({"status": "healthy", "service": "investment-platform"}), 200
 
 @bp.route('/') # 'bp' is your main blueprint instance
 def index():
