@@ -72,9 +72,8 @@ def auth0_callback():
             flash('Failed to get user information from Auth0.', 'error')
             return redirect(url_for('auth.login'))
 
-        # Inside your callback function
-        user_info = oauth.auth0.get('userinfo').data
-        if not is_authorized(user_info['email']):
+        # Check if user is authorized (allowlist)
+        if not is_authorized(userinfo.get('email')):
             flash("This is currently a private beta. Please contact the admin for access.", "warning")
             return redirect(url_for('main.public_home'))
         
