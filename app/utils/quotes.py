@@ -10,9 +10,12 @@ from flask import session
 def load_quotes():
     """Load quotes from YAML file"""
     quotes_file = Path(__file__).parent.parent.parent / 'data' / 'investor_quotes.yaml'
-    with open(quotes_file, 'r') as f:
-        data = yaml.safe_load(f)
-    return data.get('quotes', [])
+    try:
+        with open(quotes_file, 'r') as f:
+            data = yaml.safe_load(f)
+        return data.get('quotes', [])
+    except FileNotFoundError:
+        return []
 
 
 def get_session_quote():

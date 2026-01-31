@@ -36,9 +36,12 @@ instance/uploads/
 *.docx
 *.csv
 *.xlsx
-data/
+data/*.csv
+data/*.xlsx
+data/*.pdf
 docs/
 
 # Tests
 unittests/
+
 tests/
