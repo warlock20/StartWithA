@@ -247,7 +247,7 @@ class MistakeLog(db.Model):
 
     # Context
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
-    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
+    decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id', name='fk_mistake_log_decision_id', use_alter=True))
     occurred_date = db.Column(db.Date)
 
     # Root cause analysis
