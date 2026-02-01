@@ -77,7 +77,7 @@ def api_search_companies():
             if not existing:
                 info = service.get_ticker_info(normalized_ticker)
 
-                if info is not None and hasattr(info, 'get') and info.get('name'):
+                if info and info.get('name'):
                     yahoo_suggestions.append({
                         'ticker_symbol': normalized_ticker,
                         'name': info.get('name'),
@@ -230,7 +230,7 @@ def api_lookup_ticker(ticker):
         service = get_financial_service()
         info = service.get_ticker_info(normalized_ticker)
 
-        if info is not None and hasattr(info, 'get') and info.get('name'):
+        if info and info.get('name'):
             company_info = {
                 'name': info.get('name'),
                 'ticker_symbol': normalized_ticker,

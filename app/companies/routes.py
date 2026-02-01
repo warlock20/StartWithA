@@ -54,7 +54,7 @@ def get_company_market_data(ticker):
     try:
         service = get_financial_service()
         info = service.get_ticker_info(ticker)
-        if info is not None and hasattr(info, 'get'):
+        if info:
             return {
                 'marketCap': info.get('market_cap'),
             }
