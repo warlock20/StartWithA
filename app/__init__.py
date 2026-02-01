@@ -1,12 +1,15 @@
 # In app/__init__.py
+import logging
+
 from flask import Flask, session, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from config import Config
 from flask_caching import Cache
+
+from config import Config
 from celery_app import celery
 
 db = SQLAlchemy()
@@ -15,6 +18,7 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
 cache = Cache()
+# Limiter initialized without storage - will be configured via init_app with app.config
 limiter = Limiter(key_func=get_remote_address)
 
 def create_app(config_class=Config):
@@ -22,7 +26,6 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # Configure logging
-    import logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -38,7 +41,12 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     cache.init_app(app)
+
+    # Initialize rate limiter with storage from config
+    # Uses Redis if REDIS_URL is set, otherwise in-memory (for local dev)
     limiter.init_app(app)
+    storage_uri = app.config.get('RATELIMIT_STORAGE_URI', 'memory://')
+    app.logger.info(f"Rate limiter initialized with storage: {storage_uri.split('://')[0]}")
 
     # Configure Celery with Flask app config
     celery.conf.update(

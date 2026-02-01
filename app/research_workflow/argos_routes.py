@@ -5,6 +5,7 @@ Endpoints for Argos intelligent research assistant.
 """
 
 import logging
+
 from flask import jsonify, request, render_template
 from flask_login import current_user, login_required
 
