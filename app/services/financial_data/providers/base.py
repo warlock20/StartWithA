@@ -148,3 +148,22 @@ class FinancialDataProvider(ABC):
             True if provider is ready to use
         """
         pass
+
+    @abstractmethod
+    def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:
+        """
+        Search for companies by name or ticker.
+
+        Args:
+            query: Search query (company name or partial ticker)
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of company info dicts, each containing:
+            - ticker_symbol: Stock ticker
+            - name: Company name
+            - exchange: Exchange name (optional)
+            - sector: Sector (optional)
+            - industry: Industry (optional)
+        """
+        pass

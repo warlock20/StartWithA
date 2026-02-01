@@ -44,14 +44,11 @@ class PortfolioImporter:
 
         try:
             info = self.financial_service.get_ticker_info(ticker)
-            if info is not None:
-                if hasattr(info, 'get'):
-                    company_name = info.get('name')
-                    industry = info.get('industry')
-                    if company_name:
-                        logger.info(f"Fetched company info for {ticker}: {company_name}")
-                else:
-                    logger.warning(f"Unexpected ticker info format for {ticker}: {type(info)}")
+            if info:
+                company_name = info.get('name')
+                industry = info.get('industry')
+                if company_name:
+                    logger.info(f"Fetched company info for {ticker}: {company_name}")
         except Exception as e:
             logger.warning(f"Could not fetch company info for {ticker}: {e}")
 
