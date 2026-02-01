@@ -1036,12 +1036,21 @@ def add_competitor(company_id):
         abort(403) # Use abort for unauthorized actions
 
     competitor_id = request.form.get('competitor_id', type=int)
-    if competitor_id:
-        competitor = Company.query.get_or_404(competitor_id)
-        if competitor.user_id == current_user.id and competitor not in company.competitors:
-            company.competitors.append(competitor)
-            db.session.commit()
-            flash(f'"{competitor.name}" added as a competitor.', 'success')
+    if not competitor_id:
+        flash('No competitor selected.', 'error')
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    competitor = Company.query.get_or_404(competitor_id)
+
+    if competitor.user_id != current_user.id:
+        abort(403)
+
+    if competitor in company.competitors:
+        flash(f'"{competitor.name}" is already a competitor.', 'warning')
+    else:
+        company.competitors.append(competitor)
+        db.session.commit()
+        flash(f'"{competitor.name}" added as a competitor.', 'success')
 
     return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
