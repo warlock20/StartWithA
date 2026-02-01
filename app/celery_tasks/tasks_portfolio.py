@@ -9,7 +9,7 @@ import logging
 from app import db, create_app
 from celery_app import celery
 from app.models import BackgroundTask, PortfolioUIInsight, PortfolioPosition
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 
 logger = logging.getLogger(__name__)
@@ -84,11 +84,7 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
                     metadata = result.get('metadata', {})
                     last_txn_str = metadata.get('last_transaction_date')
                     if last_txn_str:
-                        from datetime import datetime
-                        try:
-                            last_txn_date = datetime.strptime(last_txn_str, '%Y-%m-%d').date()
-                        except (ValueError, TypeError):
-                            pass
+                        last_txn_date = parse_date_to_date_object(last_txn_str)
 
                 PortfolioUIInsight.save_analysis(
                     user_id=user_id,

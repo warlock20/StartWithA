@@ -1178,7 +1178,19 @@ def analytics_history():
         JSON list of historical analyses (summaries only, not full insights)
     """
     template_name = request.args.get('template', None)
-    limit = min(request.args.get('limit', 10, type=int), 50)
+
+    limit_raw = request.args.get('limit')
+    if limit_raw is None:
+        limit = 10
+    else:
+        try:
+            limit = int(limit_raw)
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'error': "Invalid 'limit' parameter; it must be an integer."
+            }), 400
+    limit = min(limit, 50)
 
     history = PortfolioUIInsight.get_history(
         user_id=current_user.id,
@@ -1235,7 +1247,19 @@ def analytics_trends():
         JSON with trend data points
     """
     template_name = request.args.get('template', 'portfolio_raw_trade_analysis')
-    limit = min(request.args.get('limit', 10, type=int), 50)
+
+    limit_raw = request.args.get('limit')
+    if limit_raw is None:
+        limit = 10
+    else:
+        try:
+            limit = int(limit_raw)
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'error': "Invalid 'limit' parameter; it must be an integer."
+            }), 400
+    limit = min(limit, 50)
 
     history = PortfolioUIInsight.get_history(
         user_id=current_user.id,
