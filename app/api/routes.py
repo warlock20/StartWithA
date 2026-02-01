@@ -14,6 +14,7 @@ from app.utils.time_utils import now_utc
 
 
 @api_bp.route('/server-time')
+@login_required
 def server_time():
     """Return current server time for timer synchronization"""
     return jsonify({
@@ -182,6 +183,7 @@ def should_show_tour():
 
 
 @api_bp.route('/dismiss-quote-banner', methods=['POST'])
+@login_required
 def dismiss_quote_banner():
     """Dismiss the quote banner for the current session"""
     try:
