@@ -1,9 +1,13 @@
+import logging
 import pandas as pd
 from decimal import Decimal
 from app import db
 from app.models.user import User
 from app.models.company import Company
 from app.models.portfolio import Transaction, update_portfolio_position_for_company
+from app.services.financial_data import FinancialDataService
+
+logger = logging.getLogger(__name__)
 
 class PortfolioImportError(Exception):
     """Custom exception for import validation failures"""
@@ -30,18 +34,37 @@ class PortfolioImporter:
         ticker = ticker.upper().strip()
         if ticker in self.company_cache:
             return self.company_cache[ticker]
-        
-        # Create new company if it doesn't exist
-        # Note: In a real app, you might want to fetch sector/industry from an API here
+
+        # Try to fetch company info from financial data service
+        company_name = None
+        industry = None
+
+        try:
+            service = FinancialDataService()
+            info = service.get_ticker_info(ticker)
+            if info:
+                company_name = info.get('name')
+                industry = info.get('industry')
+                logger.info(f"Fetched company info for {ticker}: {company_name}")
+        except Exception as e:
+            logger.warning(f"Could not fetch company info for {ticker}: {e}")
+
+        # Fallback to ticker if lookup failed
+        if not company_name:
+            company_name = f"{ticker} (Imported)"
+            logger.info(f"Using fallback name for {ticker}")
+
+        # Create new company
         new_company = Company(
-            name=f"{ticker} (Imported)",
+            name=company_name,
             ticker_symbol=ticker,
             user_id=self.user.id,
-            is_in_portfolio=True
+            is_in_portfolio=True,
+            industry=industry
         )
         db.session.add(new_company)
-        db.session.flush() # Flush to get the ID
-        
+        db.session.flush()  # Flush to get the ID
+
         self.company_cache[ticker] = new_company.id
         return new_company.id
     
