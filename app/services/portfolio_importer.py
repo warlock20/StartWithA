@@ -18,11 +18,14 @@ class PortfolioImporter:
         self.user = User.query.get(user_id)
         if not self.user:
             raise ValueError(f"User {user_id} not found")
-        
+
         # Cache for company lookups to reduce DB hits
         # Format: {'TICKER': company_id}
-        self.company_cache = {} 
+        self.company_cache = {}
         self._load_company_cache()
+
+        # Reusable financial data service for company lookups
+        self.financial_service = FinancialDataService()
 
     def _load_company_cache(self):
         companies = Company.query.filter_by(user_id=self.user.id).all()
@@ -40,8 +43,7 @@ class PortfolioImporter:
         industry = None
 
         try:
-            service = FinancialDataService()
-            info = service.get_ticker_info(ticker)
+            info = self.financial_service.get_ticker_info(ticker)
             if info:
                 company_name = info.get('name')
                 industry = info.get('industry')
