@@ -2,13 +2,14 @@
 API routes for portfolio-related AJAX calls.
 '''
 import logging
-from flask import  request, jsonify
+from flask import request, jsonify
 from flask_login import login_required, current_user
 from app.services.intelligence_engine import IntelligenceEngine
 
 from app.portfolio import portfolio_bp
 from app.models import Company
-from app import db
+from app import db, limiter
+from app.constants import RATELIMIT_AI
 
 from app.services.intelligence_engine import check_sell_warnings
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
@@ -151,6 +152,7 @@ def check_sell_transaction_warnings():
 
 @portfolio_bp.route('/api/analyze-thesis', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AI)
 def analyze_investment_thesis():
     """
     API endpoint to analyze investment thesis quality.

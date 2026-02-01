@@ -12,8 +12,9 @@ import logging
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
-from app import db
+from app import db, limiter
 from app.research_workflow import research_workflow_bp
+from app.constants import RATELIMIT_AI
 from app.models import ResearchProject, BiasCheckResult, BackgroundTask
 from app.services.background_tasks import BackgroundTaskService
 from app.services.research_data_service import ResearchDataService
@@ -29,6 +30,7 @@ ESTIMATED_TOKENS = 3000
 
 @research_workflow_bp.route('/api/bias-check/<int:project_id>', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AI)
 def run_bias_check(project_id):
     """
     Start cognitive bias analysis on a project's research.

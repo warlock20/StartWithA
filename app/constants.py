@@ -139,6 +139,24 @@ PRICE_CACHE_TTL_MINUTES = 15
 """How long to cache stock prices before refreshing"""
 
 # ============================================================================
+# RATE LIMITING
+# ============================================================================
+RATELIMIT_DEFAULT = "200 per minute"
+"""Default rate limit for all routes"""
+
+RATELIMIT_API = "100 per minute"
+"""Rate limit for API endpoints"""
+
+RATELIMIT_AUTH = "10 per minute"
+"""Rate limit for authentication endpoints (login, register)"""
+
+RATELIMIT_AUTH_REGISTER = "5 per minute"
+"""Rate limit for registration endpoint (stricter)"""
+
+RATELIMIT_AI = "20 per minute"
+"""Rate limit for AI-consuming endpoints"""
+
+# ============================================================================
 # NOTE: Intelligence engine thresholds moved to database configuration
 # ============================================================================
 # These values are now stored in the database via SystemConfig table
