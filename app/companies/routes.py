@@ -1,6 +1,6 @@
 import os
 import uuid
-import yfinance as yf
+import logging
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from itertools import groupby
@@ -16,6 +16,19 @@ from app.services.sector_service import SectorService
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 from app.utils.ticker_validator import TickerValidator
+from app.services.financial_data import FinancialDataService
+
+logger = logging.getLogger(__name__)
+
+# Module-level singleton for financial data lookups
+_financial_service = None
+
+def get_financial_service():
+    """Lazy initialization of FinancialDataService singleton."""
+    global _financial_service
+    if _financial_service is None:
+        _financial_service = FinancialDataService()
+    return _financial_service
 
 # You can define this dictionary at the top of your routes.py file
 EXCHANGES = {
@@ -34,20 +47,21 @@ EXCHANGES = {
 @cache.memoize(timeout=900)
 def get_company_market_data(ticker):
     """
-    Fetches market data for a given ticker using yfinance.
+    Fetches market data for a given ticker using FinancialDataService.
     The results of this function will be cached.
     """
-    print(f"--- MAKING LIVE API CALL for {ticker} ---") # This will only print if not cached
+    logger.debug(f"Fetching market data for {ticker}")
     try:
-        ticker_info = yf.Ticker(ticker).info
-        # We only need a few key pieces of data
-        market_cap = ticker_info.get('marketCap')
-        # You could also get other data like 'currentPrice', 'dayHigh', 'dayLow' here
-        return {
-            'marketCap': market_cap,
-        }
+        service = get_financial_service()
+        info = service.get_ticker_info(ticker)
+        if info is not None and hasattr(info, 'get'):
+            return {
+                'marketCap': info.get('market_cap'),
+            }
+        return {'marketCap': None}
     except Exception as e:
-        print(f"yfinance lookup failed for {ticker}: {e}")
+        logger.warning(f"Market data lookup failed for {ticker}: {e}")
+        return {'marketCap': None}
 
 @companies_bp.route('/', methods=['GET'])
 @login_required

@@ -1,12 +1,24 @@
 import logging
-import yfinance as yf
 from flask import request, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (Company)
 from app.services.sector_service import SectorService
+from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
+
+logger = logging.getLogger(__name__)
+
+# Module-level singleton for financial data lookups
+_financial_service = None
+
+def get_financial_service():
+    """Lazy initialization of FinancialDataService singleton."""
+    global _financial_service
+    if _financial_service is None:
+        _financial_service = FinancialDataService()
+    return _financial_service
 
 @companies_bp.route('/api/companies/search')
 @login_required
@@ -49,11 +61,9 @@ def api_search_companies():
             'source': 'existing'
         })
 
-    # Suppress yfinance HTTP errors
-    logging.getLogger('yfinance').setLevel(logging.CRITICAL)
-
-    # Try Yahoo Finance lookup - both by ticker AND by company name
+    # Try financial data service lookup - both by ticker AND by company name
     yahoo_suggestions = []
+    service = get_financial_service()
 
     # 1. If query is a valid ticker, look it up directly
     if normalized_ticker:
@@ -65,17 +75,16 @@ def api_search_companies():
             ).first()
 
             if not existing:
-                company_ticker = yf.Ticker(normalized_ticker)
-                info = company_ticker.info
+                info = service.get_ticker_info(normalized_ticker)
 
-                if info and info.get('longName'):
+                if info is not None and hasattr(info, 'get') and info.get('name'):
                     yahoo_suggestions.append({
                         'ticker_symbol': normalized_ticker,
-                        'name': info.get('longName'),
-                        'industry': info.get('industry', ''),
-                        'sector': info.get('sector', ''),
-                        'summary': info.get('longBusinessSummary', ''),
-                        'source': 'yahoo_finance'
+                        'name': info.get('name'),
+                        'industry': info.get('industry') or '',
+                        'sector': info.get('sector') or '',
+                        'summary': '',
+                        'source': 'financial_data_service'
                     })
         except Exception:
             # Silently fail - expected for partial/invalid tickers during typing
@@ -84,45 +93,31 @@ def api_search_companies():
     # 2. Search by company name (if not a ticker or no results from ticker search)
     if len(query) >= 3 and len(yahoo_suggestions) == 0:
         try:
-            # Use yfinance search functionality
-            search_results = yf.Search(query, max_results=5, news_count=0)
-            logging.debug(f'Yahoo Finance search for "{query}": {len(search_results.quotes) if search_results and hasattr(search_results, "quotes") else 0} results')
+            search_results = service.search_companies(query, max_results=5)
 
-            if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
-                for result in search_results.quotes[:3]:
-                    ticker_symbol = result.get('symbol')
+            for result in search_results[:3]:
+                ticker_symbol = result.get('ticker_symbol')
 
-                    if not ticker_symbol:
-                        continue
+                if not ticker_symbol:
+                    continue
 
-                    # Skip if user already has this company
-                    existing = Company.query.filter_by(
-                        ticker_symbol=ticker_symbol,
-                        user_id=current_user.id
-                    ).first()
+                # Skip if user already has this company
+                existing = Company.query.filter_by(
+                    ticker_symbol=ticker_symbol,
+                    user_id=current_user.id
+                ).first()
 
-                    if not existing:
-                        # Extract name from various possible fields
-                        company_name = (
-                            result.get('longname') or
-                            result.get('shortname') or
-                            result.get('name') or
-                            result.get('longName') or
-                            result.get('shortName') or
-                            ticker_symbol
-                        )
-
-                        yahoo_suggestions.append({
-                            'ticker_symbol': ticker_symbol,
-                            'name': company_name,
-                            'industry': result.get('industry') or result.get('industryDisp') or '',
-                            'sector': result.get('sector') or result.get('sectorDisp') or '',
-                            'summary': result.get('longBusinessSummary') or '',
-                            'source': 'yahoo_finance'
-                        })
+                if not existing:
+                    yahoo_suggestions.append({
+                        'ticker_symbol': ticker_symbol,
+                        'name': result.get('name') or ticker_symbol,
+                        'industry': result.get('industry') or '',
+                        'sector': result.get('sector') or '',
+                        'summary': '',
+                        'source': 'financial_data_service'
+                    })
         except Exception as e:
-            # Silently fail - expected for searches that don't return results
-            logging.debug(f'Yahoo Finance name search failed: {e}')
+            logger.debug(f'Company search failed: {e}')
             pass
 
     return jsonify({
@@ -217,7 +212,7 @@ def api_create_company():
 @companies_bp.route('/api/lookup/<ticker>')
 @login_required
 def api_lookup_ticker(ticker):
-    """AJAX endpoint for looking up company info via yfinance"""
+    """AJAX endpoint for looking up company info via FinancialDataService"""
     try:
         ticker_input = ticker.upper().strip()
         if not ticker_input:
@@ -228,21 +223,21 @@ def api_lookup_ticker(ticker):
         if not validation['is_valid']:
             return jsonify({'success': False, 'error': validation['errors'][0]})
 
-        # Use normalized ticker for yfinance lookup
+        # Use normalized ticker for lookup
         normalized_ticker = validation['normalized_ticker']
 
-        # Try yfinance lookup
-        company_ticker = yf.Ticker(normalized_ticker)
-        info = company_ticker.info
+        # Try financial data service lookup
+        service = get_financial_service()
+        info = service.get_ticker_info(normalized_ticker)
 
-        if info and info.get('longName'):
+        if info is not None and hasattr(info, 'get') and info.get('name'):
             company_info = {
-                'name': info.get('longName'),
+                'name': info.get('name'),
                 'ticker_symbol': normalized_ticker,
-                'summary': info.get('longBusinessSummary', ''),
-                'sector': info.get('sector', ''),
-                'industry': info.get('industry', ''),
-                'source': 'yfinance',
+                'summary': '',
+                'sector': info.get('sector') or '',
+                'industry': info.get('industry') or '',
+                'source': 'financial_data_service',
                 'exchange': validation['exchange_name']
             }
 

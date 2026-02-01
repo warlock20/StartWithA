@@ -225,3 +225,55 @@ class YahooFinanceProvider(FinancialDataProvider):
         except Exception as e:
             logger.error(f"Error fetching ticker info for {ticker}: {str(e)}")
             return None
+
+    def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:
+        """
+        Search for companies by name or ticker using Yahoo Finance.
+
+        Args:
+            query: Search query (company name or partial ticker)
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of company info dicts
+        """
+        results = []
+
+        try:
+            # Suppress yfinance HTTP errors during search
+            logging.getLogger('yfinance').setLevel(logging.CRITICAL)
+
+            search_results = yf.Search(query, max_results=max_results, news_count=0)
+
+            if search_results and hasattr(search_results, 'quotes') and search_results.quotes:
+                for result in search_results.quotes[:max_results]:
+                    ticker_symbol = result.get('symbol')
+                    if not ticker_symbol:
+                        continue
+
+                    # Extract name from various possible fields
+                    company_name = (
+                        result.get('longname') or
+                        result.get('shortname') or
+                        result.get('name') or
+                        result.get('longName') or
+                        result.get('shortName') or
+                        ticker_symbol
+                    )
+
+                    results.append({
+                        'ticker_symbol': ticker_symbol,
+                        'name': company_name,
+                        'exchange': result.get('exchange') or result.get('exchDisp'),
+                        'sector': result.get('sector') or result.get('sectorDisp'),
+                        'industry': result.get('industry') or result.get('industryDisp'),
+                    })
+
+            # Restore logging level
+            logging.getLogger('yfinance').setLevel(logging.WARNING)
+
+        except Exception as e:
+            logger.error(f"Error searching for '{query}': {str(e)}")
+            logging.getLogger('yfinance').setLevel(logging.WARNING)
+
+        return results

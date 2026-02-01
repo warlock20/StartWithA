@@ -179,6 +179,19 @@ class CachedFinancialDataProvider(FinancialDataProvider):
         """
         return self.provider.get_ticker_info(ticker)
 
+    def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:
+        """
+        Search for companies (NOT cached - results can change).
+
+        Args:
+            query: Search query
+            max_results: Maximum results to return
+
+        Returns:
+            List of company info dicts from provider
+        """
+        return self.provider.search_companies(query, max_results)
+
     # ============================================================
     # Cache Management (Private)
     # ============================================================
