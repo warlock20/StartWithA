@@ -8,8 +8,8 @@ import json
 import logging
 from app import db, create_app
 from celery_app import celery
-from app.models import BackgroundTask
-from app.utils.time_utils import now_utc
+from app.models import BackgroundTask, PortfolioUIInsight, PortfolioPosition
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,38 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
                 logger.info(f"TASK {self.request.id}: Incremented {tokens_used} tokens for user {user_id}")
             else:
                 logger.warning(f"TASK {self.request.id}: User {user_id} not found for token tracking")
+
+            # Save to historical insights table for trend tracking
+            try:
+                # Get portfolio context at time of analysis
+                positions = PortfolioPosition.query.filter_by(
+                    user_id=user_id,
+                    is_active=True
+                ).all()
+                portfolio_value = sum(p.current_value or 0 for p in positions)
+                position_count = len(positions)
+
+                # Get last transaction date from result metadata if available
+                last_txn_date = None
+                if result and isinstance(result, dict):
+                    metadata = result.get('metadata', {})
+                    last_txn_str = metadata.get('last_transaction_date')
+                    if last_txn_str:
+                        last_txn_date = parse_date_to_date_object(last_txn_str)
+
+                PortfolioUIInsight.save_analysis(
+                    user_id=user_id,
+                    template_name=template_name,
+                    insights=result,
+                    tokens_used=tokens_used,
+                    portfolio_value=portfolio_value,
+                    position_count=position_count,
+                    last_transaction_date=last_txn_date
+                )
+                logger.info(f"TASK {self.request.id}: Saved insights to history table")
+            except Exception as save_error:
+                logger.warning(f"TASK {self.request.id}: Failed to save to history: {save_error}")
+                # Don't fail the task if history save fails
 
             # Task completed successfully
             logger.info(f"TASK {self.request.id}: Completed successfully")

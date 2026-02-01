@@ -99,6 +99,9 @@ from .ai_research_feedback import (
 from .bias_check import (
     BiasCheckResult,
 )
+from .portfolio_insight import (
+    PortfolioUIInsight,
+)
 
 
 
@@ -195,4 +198,6 @@ __all__ = [
     'AIResearchFeedback',
     # Bias Check models
     'BiasCheckResult',
+    # Portfolio Insight models
+    'PortfolioUIInsight',
 ]
