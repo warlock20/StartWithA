@@ -11,7 +11,8 @@ from app import db
 logger = logging.getLogger(__name__)
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
-    ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome,BackgroundTask
+    ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome,
+    BackgroundTask, PortfolioUIInsight
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
@@ -1157,4 +1158,112 @@ def intelligence_hub():
                           checkpoints=checkpoints,
                           thesis=thesis,
                           learning=learning)
+
+
+#############################
+#### Analytics History API  ####
+#############################
+
+@portfolio_bp.route('/api/analytics/history')
+@login_required
+def analytics_history():
+    """
+    Get historical portfolio analyses for trend tracking.
+
+    Query params:
+        template: Filter by template name (optional)
+        limit: Max records to return (default 10, max 50)
+
+    Returns:
+        JSON list of historical analyses (summaries only, not full insights)
+    """
+    template_name = request.args.get('template', None)
+    limit = min(request.args.get('limit', 10, type=int), 50)
+
+    history = PortfolioUIInsight.get_history(
+        user_id=current_user.id,
+        template_name=template_name,
+        limit=limit
+    )
+
+    return jsonify({
+        'success': True,
+        'count': len(history),
+        'analyses': [h.to_summary_dict() for h in history]
+    })
+
+
+@portfolio_bp.route('/api/analytics/history/<int:insight_id>')
+@login_required
+def get_historical_analysis(insight_id):
+    """
+    Get a specific historical analysis with full insights.
+
+    Args:
+        insight_id: The PortfolioUIInsight ID
+
+    Returns:
+        JSON with full analysis data
+    """
+    insight = PortfolioUIInsight.query.get(insight_id)
+
+    if not insight:
+        return jsonify({'success': False, 'error': 'Analysis not found'}), 404
+
+    if insight.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    return jsonify({
+        'success': True,
+        'analysis': insight.to_dict()
+    })
+
+
+@portfolio_bp.route('/api/analytics/trends')
+@login_required
+def analytics_trends():
+    """
+    Get trend data from historical analyses for visualization.
+
+    Extracts key metrics over time for trend charts.
+
+    Query params:
+        template: Filter by template name (optional)
+        limit: Max records to analyze (default 10)
+
+    Returns:
+        JSON with trend data points
+    """
+    template_name = request.args.get('template', 'portfolio_raw_trade_analysis')
+    limit = min(request.args.get('limit', 10, type=int), 50)
+
+    history = PortfolioUIInsight.get_history(
+        user_id=current_user.id,
+        template_name=template_name,
+        limit=limit
+    )
+
+    # Extract trend data points
+    trends = {
+        'dates': [],
+        'portfolio_values': [],
+        'position_counts': [],
+        'tokens_used': []
+    }
+
+    for insight in reversed(history):  # Oldest first for charts
+        trends['dates'].append(
+            insight.generated_at.isoformat() if insight.generated_at else None
+        )
+        trends['portfolio_values'].append(
+            float(insight.portfolio_value) if insight.portfolio_value else None
+        )
+        trends['position_counts'].append(insight.position_count)
+        trends['tokens_used'].append(insight.tokens_used)
+
+    return jsonify({
+        'success': True,
+        'data_points': len(history),
+        'trends': trends
+    })
 
