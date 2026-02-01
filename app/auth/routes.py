@@ -1,11 +1,13 @@
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, current_user, logout_user, login_required
-from app import db
+from app import db, limiter
 from app.models import User
 from app.auth import auth_bp # Import the blueprint from this package's __init__.py
+from app.constants import RATELIMIT_AUTH, RATELIMIT_AUTH_REGISTER
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit(RATELIMIT_AUTH_REGISTER)
 def register():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -51,6 +53,7 @@ def register():
     return render_template('register.html', title="Register")
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit(RATELIMIT_AUTH)
 def login():
     if current_user.is_authenticated: # If user is already logged in, redirect them
         flash('You are already logged in.', 'info')

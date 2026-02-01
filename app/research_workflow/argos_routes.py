@@ -4,13 +4,14 @@ Argos API Routes
 Endpoints for Argos intelligent research assistant.
 """
 
+import logging
 from flask import jsonify, request, render_template
 from flask_login import current_user, login_required
 
+from app import limiter
 from app.research_workflow import research_workflow_bp
 from app.services.argos import ArgosService, argos_check
-
-import logging
+from app.constants import RATELIMIT_AI
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ def argos_test_page():
 
 @research_workflow_bp.route('/api/argos/check', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AI)
 def argos_check_endpoint():
     """
     Perform Argos Check for current research context.

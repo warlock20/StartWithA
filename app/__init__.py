@@ -1,8 +1,10 @@
 # In app/__init__.py
-from flask import Flask, session
+from flask import Flask, session, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import Config
 from flask_caching import Cache
 from celery_app import celery
@@ -13,6 +15,7 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
 cache = Cache()
+limiter = Limiter(key_func=get_remote_address)
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -35,6 +38,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     cache.init_app(app)
+    limiter.init_app(app)
 
     # Configure Celery with Flask app config
     celery.conf.update(
@@ -155,19 +159,27 @@ def create_app(config_class=Config):
     # Custom error handlers
     @app.errorhandler(404)
     def not_found_error(error):
-        from flask import render_template
         return render_template('errors/404.html'), 404
 
     @app.errorhandler(500)
     def internal_error(error):
-        from flask import render_template
         db.session.rollback()  # Rollback any failed database transactions
         app.logger.error(f'Server Error: {error}')
         return render_template('errors/500.html'), 500
 
     @app.errorhandler(403)
     def forbidden_error(error):
-        from flask import render_template
         return render_template('errors/403.html'), 403
+
+    @app.errorhandler(429)
+    def ratelimit_error(error):
+        # Return JSON for API requests, HTML for browser requests
+        if request.path.startswith('/api/') or request.accept_mimetypes.best == 'application/json':
+            return jsonify({
+                'success': False,
+                'error': 'Rate limit exceeded. Please slow down.',
+                'retry_after': error.description
+            }), 429
+        return render_template('errors/429.html'), 429
 
     return app
