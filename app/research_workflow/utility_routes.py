@@ -50,9 +50,6 @@ def intelligent_routing():
         status='completed'
     ).all()
 
-    # Check for existing financial data
-    has_financial_data = company.company_documents.filter_by(doc_type='financial_data').first() is not None
-
     # Intelligent routing logic
     if active_projects:
         # User has active projects - redirect to most recent one

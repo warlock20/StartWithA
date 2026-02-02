@@ -49,7 +49,8 @@
             You currently have {{ current_trades }} completed trades.
         </p>
         <div class="insights-progress">
-            <div class="insights-progress-bar" style="width: {{ (current_trades / min_trades_needed * 100)|int }}%"></div>
+            <div class="insights-progress-bar" style="width: {{ (current_trades / min_trades_needed * 100)|int }}%">
+            </div>
         </div>
         <p class="text-muted small">{{ current_trades }} / {{ min_trades_needed }} trades</p>
         <a href="{{ url_for('portfolio.add_transaction') }}" class="btn-portfolio-modern primary">
@@ -102,14 +103,14 @@
             <div class="portfolio-stat-trend">Average holding period</div>
         </div>
     </div>
-    
+
     <!-- Quick Actions -->
     <div class="insights-quick-actions">
         <h3><i class="bi bi-lightning me-2"></i>Based on Your Insights</h3>
         <div class="insights-action-buttons">
             {% if has_quality_edge %}
-            <a href="{{ url_for('research_workflow.active_projects') }}" class="btn btn-success">
-                <i class="bi bi-search me-1"></i>Start New Research
+            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-circle-fill"></i> Start New Research
             </a>
             {% endif %}
             {% if has_holding_insight %}
@@ -127,7 +128,7 @@
             </a>
         </div>
     </div>
-    
+
     <!-- Insights by Category -->
     {% if insights_by_category.edge %}
     <div class="category-section">
@@ -159,7 +160,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% if insights_by_category.winning_pattern %}
     <div class="category-section">
         <div class="category-header">
@@ -190,7 +191,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% if insights_by_category.warning %}
     <div class="category-section">
         <div class="category-header">
@@ -221,7 +222,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% if insights_by_category.improvement %}
     <div class="category-section">
         <div class="category-header">
@@ -252,8 +253,9 @@
         </div>
     </div>
     {% endif %}
-    
-    {% if not insights_by_category.edge and not insights_by_category.winning_pattern and not insights_by_category.warning and not insights_by_category.improvement %}
+
+    {% if not insights_by_category.edge and not insights_by_category.winning_pattern and not
+    insights_by_category.warning and not insights_by_category.improvement %}
     <div class="insights-empty-state">
         <i class="bi bi-search"></i>
         <h3>Analyzing Your Data</h3>

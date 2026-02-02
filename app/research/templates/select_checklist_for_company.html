@@ -7,8 +7,8 @@
         <p class="text-muted mb-0">Research has been moved to the new workflow system</p>
     </div>
     {% with btn_class='btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+    {% include 'components/smart_back_button.html' %}
+    {% endwith %}
 </div>
 
 <div class="row justify-content-center">
@@ -25,8 +25,8 @@
                 </p>
 
                 <div class="d-grid gap-2 col-6 mx-auto">
-                    <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary btn-lg">
-                        <i class="bi bi-play-circle"></i> Start New Research
+                    <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle-fill"></i> Start New Research
                     </a>
                     <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
                         <i class="bi bi-list-task"></i> View My Research Projects
