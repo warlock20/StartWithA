@@ -137,6 +137,18 @@ class DuplicateDetector {
                     </small>
                 </div>
             `;
+        } else if (data.type === 'promote_existing_company' && data.company) {
+            actionButtons = `
+                <div class="mt-2">
+                    <a href="/research/workflow/intelligent-routing?company_id=${data.company.id}&source=duplicate_detection"
+                       class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-rocket-takeoff"></i> Start Research
+                    </a>
+                    <a href="/companies/${data.company.id}" class="btn btn-sm btn-outline-secondary ms-2">
+                        <i class="bi bi-building"></i> View Company
+                    </a>
+                </div>
+            `;
         }
 
         alertDiv.innerHTML = `

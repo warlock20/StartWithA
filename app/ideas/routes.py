@@ -19,10 +19,20 @@ from app.utils.time_utils import now_utc
 @login_required
 def inbox():
     """Display the user's idea inbox - ideas waiting to be evaluated"""
-    # Query for ideas that are in the inbox, being evaluated (killing), or survived but not promoted
+    # Query for ideas that are in the inbox, being evaluated (killing), survived,
+    # or promoted but without a research project (orphaned)
+    from sqlalchemy import or_, and_
+
     ideas = IdeaPipeline.query.filter(
         IdeaPipeline.user_id == current_user.id,
-        IdeaPipeline.status.in_(['inbox', 'killing', 'survived'])
+        or_(
+            IdeaPipeline.status.in_(['inbox', 'killing', 'survived']),
+            # Include promoted ideas that don't have an associated research project
+            and_(
+                IdeaPipeline.status == 'promoted',
+                IdeaPipeline.research_project == None
+            )
+        )
     ).order_by(IdeaPipeline.created_at.desc()).all()
 
     default_kill_checklist = KillChecklist.query.filter_by(
@@ -69,6 +79,7 @@ def add_idea():
         source = request.form.get('source')
         thesis = request.form.get('thesis_summary')
         notes = request.form.get('initial_notes')
+        submit_action = request.form.get('submit_action', 'inbox')  # 'inbox' or 'start_research'
 
         # Validation
         if not name:
@@ -163,11 +174,18 @@ def add_idea():
             elif suggestion['type'] == 'promote_existing_company':
                 flash(f"Suggestion: {suggestion['message']}", 'info')
 
+        # Set status based on action - 'start_research' skips inbox/kill room
+        initial_status = 'promoted' if submit_action == 'start_research' else 'inbox'
+
         new_idea = IdeaPipeline(
             author=current_user, name=name, idea_type=idea_type, idea_purpose=idea_purpose,
             ticker_symbol=ticker_symbol, company_id=company_id, source=source, thesis_summary=thesis,
-            initial_notes=notes, status='inbox'
+            initial_notes=notes, status=initial_status
         )
+
+        # If starting research immediately, set promoted timestamp
+        if submit_action == 'start_research':
+            new_idea.promoted_at = now_utc()
 
         try:
             db.session.add(new_idea)
@@ -176,8 +194,14 @@ def add_idea():
                 current_user.id,
                 'idea_captured',
                 idea_id=new_idea.id,
-                details={'source': source, 'type': idea_type}
+                details={'source': source, 'type': idea_type, 'action': submit_action}
             )
+
+            # Handle "Start Research" flow - redirect to promote page for template selection
+            if submit_action == 'start_research':
+                flash(f'"{name}" captured! Now select a research template.', 'success')
+                return redirect(url_for('ideas.promote_idea', idea_id=new_idea.id))
+
             flash(f'"{name}" added to your idea inbox!', 'success')
             return redirect(url_for('ideas.inbox'))
         except Exception as e:

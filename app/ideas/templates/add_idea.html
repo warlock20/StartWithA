@@ -179,9 +179,13 @@
                     </div>
 
                     <!-- Submit Buttons -->
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn quick-capture-submit {% if from_start == 'true' %}highlight-button pulse-animation{% endif %}" id="submitBtn">
+                    <input type="hidden" name="submit_action" id="submit_action" value="inbox">
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                        <button type="submit" class="btn quick-capture-submit flex-grow-1 {% if from_start == 'true' %}highlight-button pulse-animation{% endif %}" id="submitBtn" onclick="document.getElementById('submit_action').value='inbox'">
                             <i class="bi bi-inbox-fill me-2" id="submitIcon"></i> <span id="submitText">Add to Inbox</span>
+                        </button>
+                        <button type="submit" class="btn btn-success flex-grow-1" id="startResearchBtn" onclick="document.getElementById('submit_action').value='start_research'">
+                            <i class="bi bi-rocket-takeoff me-2"></i> Start Research
                         </button>
                         <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
                             Cancel

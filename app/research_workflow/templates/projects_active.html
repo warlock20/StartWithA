@@ -12,8 +12,8 @@
             {% with btn_class='btn btn-outline-secondary me-2' %}
                 {% include 'components/smart_back_button.html' %}
             {% endwith %}
-            <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Start New Research
+            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle-fill"></i> Start New Research
             </a>
         </div>
     </header>
@@ -237,7 +237,7 @@
         <p class="empty-state-description">
             You don't have any active research projects. Start a new research project to begin your systematic analysis.
         </p>
-        <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary btn-lg">
+        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
             <i class="bi bi-plus-circle-fill"></i> Start New Research
         </a>
     </div>
