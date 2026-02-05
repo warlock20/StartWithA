@@ -533,40 +533,63 @@ def promote_idea(idea_id):
             if not template_id:
                 flash('Please select a research template', 'error')
                 return redirect(request.url)
-            
+
             # Verify template ownership
             template = ResearchTemplate.query.get_or_404(template_id)
             if template.user_id != current_user.id:
                 flash('Access denied', 'error')
                 return redirect(url_for('ideas.inbox'))
 
-            # For company ideas, ensure promoted_to_company is set correctly
-            if idea.idea_type == 'company' and idea.company and not idea.promoted_to_company:
-                idea.promoted_to_company = idea.company
+            # Get or create company for research project
+            company_for_project = idea.promoted_to_company or idea.company
+
+            # If no company exists, create one automatically
+            if not company_for_project and idea.idea_type == 'company':
+                # Check for existing company with same ticker
+                if idea.ticker_symbol:
+                    existing = Company.query.filter_by(
+                        ticker_symbol=idea.ticker_symbol,
+                        user_id=current_user.id
+                    ).first()
+                    if existing:
+                        company_for_project = existing
+                        idea.promoted_to_company = existing
+
+                # Create new company if none found
+                if not company_for_project:
+                    new_company = Company(
+                        name=idea.name,
+                        ticker_symbol=idea.ticker_symbol,
+                        creator=current_user,
+                        summary=idea.thesis_summary
+                    )
+                    db.session.add(new_company)
+                    db.session.flush()
+                    company_for_project = new_company
+                    idea.promoted_to_company = new_company
 
             # ENFORCE CONSTRAINT: ONE RESEARCH PROJECT PER COMPANY
-            company_for_constraint_check = idea.promoted_to_company or idea.company
-            if idea.idea_type == 'company' and company_for_constraint_check:
+            if idea.idea_type == 'company' and company_for_project:
                 existing_project = ResearchProject.query.filter_by(
                     user_id=current_user.id,
-                    company_id=company_for_constraint_check.id
+                    company_id=company_for_project.id
                 ).filter(
                     ResearchProject.status.in_(['active', 'paused'])
                 ).first()
 
                 if existing_project:
-                    flash(f'You already have a research project for {company_for_constraint_check.name}. Only one project per company is allowed.', 'error')
+                    flash(f'You already have a research project for {company_for_project.name}. Only one project per company is allowed.', 'error')
                     return redirect(url_for('research_workflow.project_dashboard', project_id=existing_project.id))
 
-            # Create research project (company-only)
-            if not company_for_constraint_check:
+            # Ensure we have a company for the research project
+            if not company_for_project:
                 flash('Company selection is required for research projects', 'error')
                 return redirect(url_for('ideas.promote_idea', idea_id=idea.id))
 
             project = ResearchProject(
                 researcher=current_user,
                 template=template,
-                company_id=company_for_constraint_check.id,
+                company_id=company_for_project.id,
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,
@@ -600,11 +623,10 @@ def promote_idea(idea_id):
     # Get available templates for the GET request
     templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
     
-    return render_template('promote_idea.html', 
-                          title=f"Promote {idea.idea_type.title()}: {idea.name}", 
-                          idea=idea, 
-                          templates=templates,
-                          datetime=datetime)
+    return render_template('promote_idea.html',
+                          title=f"Start Research: {idea.name}",
+                          idea=idea,
+                          templates=templates)
 
 @ideas_bp.route('/<int:idea_id>/edit', methods=['GET', 'POST'])
 @login_required
