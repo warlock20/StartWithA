@@ -3,38 +3,8 @@
    Performance metrics and decision intelligence dashboard styles
    ============================================================================= */
 
-/* Analytics Container */
-.analytics-container {
-    width: 100%;
-    padding: var(--space-xl);
-}
-
-@media (max-width: 768px) {
-    .analytics-container {
-        padding: var(--space-md);
-    }
-}
-
-/* Analytics Header */
-.analytics-header {
-    padding: var(--space-xl) 0 var(--space-2xl) 0;
-    margin-bottom: 2rem;
-}
-
-.analytics-title {
-    font-family: 'Poppins', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0 0 0.5rem 0;
-    letter-spacing: -0.02em;
-}
-
-.analytics-subtitle {
-    color: var(--gray-600);
-    font-size: 1rem;
-    margin-bottom: 1rem;
-}
+/* (analytics-container, analytics-header, analytics-title
+   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
 
 .analytics-nav-link {
     display: inline-flex;

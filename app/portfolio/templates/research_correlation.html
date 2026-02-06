@@ -7,33 +7,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="portfolio-container">
+<div class="dashboard-container">
 
     <!-- Page Header -->
-    <div class="portfolio-page-header">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-            <div>
-                <h1 class="portfolio-page-title">
-                    <i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation
-                </h1>
-                <div class="portfolio-page-meta">
-                    <div class="portfolio-meta-item">
-                        <span>Discover how your research quality impacts investment outcomes</span>
-                    </div>
-                </div>
-            </div>
-            <div class="portfolio-header-actions">
-                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Intelligence Hub
-                </a>
-                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="btn-portfolio-modern primary">
-                    <i class="bi bi-brain"></i>
-                    Decision Intelligence
-                </a>
-            </div>
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation
+            </h1>
+            <p class="dashboard-subtitle">Discover how your research quality impacts investment outcomes</p>
         </div>
-    </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i>
+                Back to Intelligence Hub
+            </a>
+            <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
+                <i class="bi bi-brain"></i>
+                Decision Intelligence
+            </a>
+        </div>
+    </header>
 
     {% if not correlation_data.has_sufficient_data %}
     <!-- Not Enough Data State -->

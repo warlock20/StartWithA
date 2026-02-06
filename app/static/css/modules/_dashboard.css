@@ -702,6 +702,70 @@
 }
 
 /* =============================================================================
+   DASHBOARD HEADER EXTENSIONS - Unified header pattern for all pages
+   ============================================================================= */
+
+/* Header card wrapper - white card for headers that contain metrics */
+.dashboard-header-card {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.dashboard-header-card .dashboard-header {
+    margin-bottom: var(--space-lg);
+}
+
+/* Identity wrapper - flex row for logo + title (optional, per-company pages) */
+.dashboard-header-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+/* Logo square - 56px gradient (optional, per-company pages) */
+.dashboard-header-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+/* Metrics strip - auto-fit grid with border-top separator */
+.dashboard-metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-md);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--border-light);
+}
+
+@media (max-width: 768px) {
+    .dashboard-metrics-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-header-card {
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-metrics-strip {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* =============================================================================
    TEMPLATE LIST COMPONENTS
    ============================================================================= */
 

@@ -3,33 +3,27 @@
 {% block title %}Checkpoint Reminders{% endblock %}
 
 {% block content %}
-<div class="portfolio-container">
+<div class="dashboard-container">
 
     <!-- Page Header -->
-    <div class="portfolio-page-header">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-            <div>
-                <h1 class="portfolio-page-title">
-                    <i class="bi bi-calendar-check me-2"></i>Checkpoint Reminders
-                </h1>
-                <div class="portfolio-page-meta">
-                    <div class="portfolio-meta-item">
-                        <span>Track your investment milestones and stay accountable to your thesis</span>
-                    </div>
-                </div>
-            </div>
-            <div class="portfolio-header-actions">
-                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Intelligence Hub
-                </a>
-                <a href="{{ url_for('portfolio.research_correlation') }}" class="btn-portfolio-modern primary">
-                    <i class="bi bi-graph-up-arrow"></i>
-                    Research Correlation
-                </a>
-            </div>
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">
+                <i class="bi bi-calendar-check me-2"></i>Checkpoint Reminders
+            </h1>
+            <p class="dashboard-subtitle">Track your investment milestones and stay accountable to your thesis</p>
         </div>
-    </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i>
+                Back to Intelligence Hub
+            </a>
+            <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn primary">
+                <i class="bi bi-graph-up-arrow"></i>
+                Research Correlation
+            </a>
+        </div>
+    </header>
 
     <!-- Stats Grid -->
     <div class="portfolio-stats-grid">

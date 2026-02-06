@@ -5,58 +5,59 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="journey-header">
-        <div class="journey-identity">
-            <div class="journey-logo">
-                {{ (company.name)[:2]|upper }}
-            </div>
-            <div class="journey-title-group">
-                <h1>Investment Journey</h1>
-                <div class="journey-meta">
-                    <span class="journey-ticker">{{ company.ticker_symbol }}</span>
-                    <span>{{ company.name }}</span>
-                    {% if company.sector %}<span>{{ company.sector.name }}</span>{% endif %}
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
+                    {{ (company.name)[:2]|upper }}
+                </div>
+                <div>
+                    <h1 class="dashboard-title font-poppins">Investment Journey</h1>
+                    <p class="dashboard-subtitle">
+                        <span class="journey-ticker">{{ company.ticker_symbol }}</span>
+                        {{ company.name }}{% if company.sector %} · {{ company.sector.name }}{% endif %}
+                    </p>
                 </div>
             </div>
-        </div>
-        <div class="journey-header-actions">
-            <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="journey-btn primary">
-                <i class="bi bi-plus-circle"></i> Update Thesis
-            </a>
-            <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="journey-btn">
-                <i class="bi bi-flag"></i> Checkpoints
-            </a>
-            <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="journey-btn">
-                <i class="bi bi-arrow-left"></i> Position
-            </a>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-btn primary">
+                    <i class="bi bi-plus-circle"></i> Update Thesis
+                </a>
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn">
+                    <i class="bi bi-flag"></i> Checkpoints
+                </a>
+                <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Position
+                </a>
+            </div>
+        </header>
 
-    <!-- Journey Stats Strip -->
-    <div class="journey-stats-strip">
-        <div class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
-            <div class="journey-stat-value">
-                {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+        <!-- Journey Stats Strip -->
+        <div class="dashboard-metrics-strip">
+            <div class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
+                <div class="journey-stat-value">
+                    {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                </div>
+                <div class="journey-stat-label">Total Return</div>
             </div>
-            <div class="journey-stat-label">Total Return</div>
-        </div>
-        <div class="journey-stat">
-            <div class="journey-stat-value">{{ journey_stats.thesis_updates }}</div>
-            <div class="journey-stat-label">Thesis Updates</div>
-        </div>
-        <div class="journey-stat">
-            <div class="journey-stat-value">
-                {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.thesis_updates }}</div>
+                <div class="journey-stat-label">Thesis Updates</div>
             </div>
-            <div class="journey-stat-label">Checkpoints Met</div>
-        </div>
-        <div class="journey-stat">
-            <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
-            <div class="journey-stat-label">Days Held</div>
-        </div>
-        <div class="journey-stat">
-            <div class="journey-stat-value">{{ journey_stats.current_conviction }}/10</div>
-            <div class="journey-stat-label">Conviction</div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">
+                    {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+                </div>
+                <div class="journey-stat-label">Checkpoints Met</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
+                <div class="journey-stat-label">Days Held</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.current_conviction }}/10</div>
+                <div class="journey-stat-label">Conviction</div>
+            </div>
         </div>
     </div>
 
@@ -269,10 +270,10 @@
             <h4>No Journey Events Yet</h4>
             <p>Thesis updates, checkpoints, and transactions will appear here as your investment evolves.</p>
             <div class="journey-empty-actions">
-                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="journey-btn primary">
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn primary">
                     <i class="bi bi-flag"></i> Add Checkpoints
                 </a>
-                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="journey-btn">
+                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="position-btn">
                     <i class="bi bi-plus-circle"></i> Add Transaction
                 </a>
             </div>

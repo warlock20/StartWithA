@@ -7,25 +7,25 @@
     <!-- ====================================================
          HEADER - Company identity + Key metrics consolidated
          ==================================================== -->
-    <div class="position-header">
-        <div class="position-header-top">
-            <div class="position-identity">
-                <div class="position-logo">
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
                     {{ (company.name)[:2]|upper }}
                 </div>
-                <div class="position-title-group">
-                    <h1>
+                <div>
+                    <h1 class="dashboard-title font-poppins">
                         {{ company.name }}
                         <span class="position-ticker-badge">{{ company.ticker_symbol }}</span>
                     </h1>
-                    <div class="position-meta">
-                        {% if company.sector %}<span>{{ company.sector.name }}</span>{% endif %}
-                        {% if company.industry %}<span>{{ company.industry }}</span>{% endif %}
-                        <span>Held {{ position.days_held }} days</span>
-                    </div>
+                    <p class="dashboard-subtitle">
+                        {% if company.sector %}{{ company.sector.name }}{% endif %}
+                        {% if company.industry %} · {{ company.industry }}{% endif %}
+                        · Held {{ position.days_held }} days
+                    </p>
                 </div>
             </div>
-            <div class="position-header-actions">
+            <div class="dashboard-header-actions">
                 <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Portfolio
                 </a>
@@ -33,10 +33,10 @@
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
             </div>
-        </div>
+        </header>
 
         <!-- Metrics Strip - All key numbers in one row -->
-        <div class="position-metrics-strip">
+        <div class="dashboard-metrics-strip">
             <div class="position-metric">
                 <div class="position-metric-label">Shares</div>
                 <div class="position-metric-value">{{ position.total_shares }}</div>

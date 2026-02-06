@@ -3,53 +3,8 @@
    Consolidated layout with metrics strip and efficient sidebar
    ============================================================================= */
 
-/* =============================================================================
-   HEADER - Company identity + metrics in one card
-   ============================================================================= */
-.position-header {
-    background: var(--background-white);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    padding: var(--space-lg);
-    margin-bottom: var(--space-lg);
-}
-
-.position-header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-lg);
-}
-
-.position-identity {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-
-.position-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-}
-
-.position-title-group h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin: 0;
-}
+/* (position-header, position-header-top, position-identity, position-logo
+   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
 
 .position-ticker-badge {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -71,11 +26,6 @@
     content: "•";
     margin: 0 0.5rem;
     color: var(--text-muted);
-}
-
-.position-header-actions {
-    display: flex;
-    gap: var(--space-sm);
 }
 
 .position-btn {
@@ -111,16 +61,8 @@
 }
 
 /* =============================================================================
-   METRICS STRIP - All stats in one compact row
+   METRIC CONTENT STYLES - Used inside dashboard-metrics-strip
    ============================================================================= */
-.position-metrics-strip {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: var(--space-md);
-    padding-top: var(--space-lg);
-    border-top: 1px solid var(--border-light);
-}
-
 .position-metric {
     text-align: center;
 }
@@ -639,12 +581,6 @@
 /* =============================================================================
    RESPONSIVE
    ============================================================================= */
-@media (max-width: 1200px) {
-    .position-metrics-strip {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
 @media (max-width: 992px) {
     .position-content {
         grid-template-columns: 1fr;
@@ -652,24 +588,6 @@
 }
 
 @media (max-width: 768px) {
-    .position-header-top {
-        flex-direction: column;
-        gap: var(--space-md);
-    }
-
-    .position-header-actions {
-        width: 100%;
-    }
-
-    .position-header-actions .position-btn {
-        flex: 1;
-        justify-content: center;
-    }
-
-    .position-metrics-strip {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .position-quick-actions {
         grid-template-columns: 1fr;
     }
