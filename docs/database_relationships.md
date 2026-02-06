@@ -180,7 +180,7 @@ RESEARCH_SESSION ──┬── user_id → USER
                    ├── company_id → COMPANY
                    └── checklist_id → CHECKLIST
 
-RESEARCH_ANSWER ────┬── research_session_id → RESEARCH_SESSION
+RESEARCH_ANSWER ────┬── checklist_analysis_id → RESEARCH_SESSION
                     └── checklist_item_id → CHECKLIST_ITEM
 
 FINANCIAL_DATA ──────── company_id → COMPANY

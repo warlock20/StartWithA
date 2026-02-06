@@ -4,25 +4,17 @@
 {% block title %}Portfolio{% endblock %}
 
 {% block content %}
-<div class="portfolio-container">
+<div class="dashboard-container">
     <!-- ====================================================
          HEADER - Consolidated card with metrics strip
          ==================================================== -->
-    <div class="portfolio-page-header">
-        <div class="portfolio-header-top">
-            <div class="portfolio-identity">
-                <div class="portfolio-logo">
-                    <i class="bi bi-pie-chart-fill"></i>
-                </div>
-                <div class="portfolio-title-group">
-                    <h1 class="portfolio-page-title">Portfolio</h1>
-                    <div class="portfolio-page-meta">
-                        <span>{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }}</span>
-                        <span>Updated {{ updated_time if updated_time else 'recently' }}</span>
-                    </div>
-                </div>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Portfolio</h1>
+                <p class="dashboard-subtitle">{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }} · Updated {{ updated_time if updated_time else 'recently' }}</p>
             </div>
-            <div class="portfolio-header-actions">
+            <div class="dashboard-header-actions">
                 <a href="{{ url_for('portfolio.transactions') }}" class="position-btn">
                     <i class="bi bi-list-ul"></i> Transactions
                 </a>
@@ -50,10 +42,10 @@
                     </button>
                 </form>
             </div>
-        </div>
+        </header>
 
         <!-- Metrics Strip - All key numbers in one row -->
-        <div class="portfolio-metrics-strip">
+        <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue">
                     <i class="bi bi-cash-stack"></i>

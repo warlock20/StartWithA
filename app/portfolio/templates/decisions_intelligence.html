@@ -3,20 +3,20 @@
 {% block title %}Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="analytics-container">
+<div class="dashboard-container">
     <!-- Header -->
-    <div class="analytics-header">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-            <div>
-                <h1 class="analytics-title">Decision Intelligence Dashboard</h1>
-                <p class="analytics-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
-            </div>
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="btn-portfolio-modern">
+    <header class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title font-poppins">Decision Intelligence Dashboard</h1>
+            <p class="dashboard-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i>
                     Back to Intelligence Hub
             </a>
         </div>
-    </div>
+    </header>
 
     <!-- Research vs Non-Research Comparison -->
     <div class="analytics-chart-container">

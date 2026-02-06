@@ -3,55 +3,10 @@
    Combines thesis evolution, checkpoints, and transactions in unified timeline
    ============================================================================= */
 
-/* =============================================================================
-   HEADER
-   ============================================================================= */
-.journey-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-lg);
-    padding-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-light);
-}
+/* (journey-header, journey-identity, journey-logo, journey-btn, journey-stats-strip
+   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
 
-.journey-identity {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-
-.journey-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-}
-
-.journey-title-group h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-    letter-spacing: -0.02em;
-}
-
-.journey-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-top: var(--space-xs);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
+/* Journey ticker badge - kept for subtitle use */
 .journey-ticker {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     background: var(--primary-50);
@@ -61,57 +16,9 @@
     font-weight: 500;
 }
 
-.journey-header-actions {
-    display: flex;
-    gap: var(--space-sm);
-}
-
-/* Buttons */
-.journey-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    text-decoration: none;
-    transition: all var(--transition-fast);
-    border: 1px solid var(--border-medium);
-    background: var(--background-white);
-    color: var(--text-secondary);
-}
-
-.journey-btn:hover {
-    background: var(--gray-50);
-    border-color: var(--gray-400);
-    color: var(--text-primary);
-}
-
-.journey-btn.primary {
-    background: var(--primary-600);
-    border-color: var(--primary-600);
-    color: white;
-}
-
-.journey-btn.primary:hover {
-    background: var(--primary-700);
-    border-color: var(--primary-700);
-}
-
 /* =============================================================================
-   STATS STRIP
+   STAT CONTENT STYLES - Used inside dashboard-metrics-strip
    ============================================================================= */
-.journey-stats-strip {
-    display: flex;
-    gap: var(--space-md);
-    padding: var(--space-lg);
-    background: var(--background-white);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    margin-bottom: var(--space-xl);
-}
-
 .journey-stat {
     flex: 1;
     text-align: center;
@@ -687,25 +594,6 @@
    RESPONSIVE
    ============================================================================= */
 @media (max-width: 768px) {
-    .journey-header {
-        flex-direction: column;
-        gap: var(--space-md);
-    }
-
-    .journey-header-actions {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .journey-header-actions .journey-btn {
-        flex: 1;
-        justify-content: center;
-    }
-
-    .journey-stats-strip {
-        flex-wrap: wrap;
-    }
-
     .journey-stat {
         flex: 1 1 45%;
     }

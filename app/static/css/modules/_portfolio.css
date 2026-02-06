@@ -40,160 +40,8 @@
     color: white;
 }
 
-/* =============================================================================
-   PORTFOLIO CONTAINER
-   ============================================================================= */
-.portfolio-container {
-    width: 100%;
-    padding: var(--space-xl);
-}
-
-@media (max-width: 768px) {
-    .portfolio-container {
-        padding: var(--space-md);
-    }
-}
-
-/* =============================================================================
-   PAGE HEADER - Consolidated card like position detail
-   ============================================================================= */
-.portfolio-page-header {
-    background: var(--background-white);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    padding: var(--space-lg);
-    margin-bottom: var(--space-lg);
-}
-
-.portfolio-header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-lg);
-}
-
-.portfolio-identity {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-
-.portfolio-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-    flex-shrink: 0;
-}
-
-.portfolio-title-group h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-}
-
-.portfolio-page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-}
-
-.portfolio-page-meta {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    margin-top: 0.25rem;
-    display: flex;
-    gap: 0;
-}
-
-.portfolio-page-meta span + span::before {
-    content: "•";
-    margin: 0 0.5rem;
-    color: var(--text-muted);
-}
-
-.portfolio-meta-item {
-    display: inline;
-}
-
-.portfolio-meta-value {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.portfolio-header-actions {
-    display: flex;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-}
-
-@media (max-width: 992px) {
-    .portfolio-header-top {
-        flex-direction: column;
-        gap: var(--space-md);
-    }
-
-    .portfolio-header-actions {
-        width: 100%;
-    }
-}
-
-@media (max-width: 768px) {
-    .portfolio-page-title {
-        font-size: var(--font-size-xl);
-    }
-
-    .portfolio-header-actions {
-        flex-wrap: wrap;
-    }
-
-    .portfolio-header-actions > * {
-        flex: 1 1 calc(50% - var(--space-sm));
-    }
-}
-
-/* =============================================================================
-   COMPACT BUTTONS - Matches position detail style
-   ============================================================================= */
-.portfolio-page-header .position-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    text-decoration: none;
-    transition: all var(--transition-fast);
-    border: 1px solid var(--border-medium);
-    background: var(--background-white);
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.portfolio-page-header .position-btn:hover {
-    background: var(--gray-50);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-}
-
-.portfolio-page-header .position-btn.primary {
-    background: var(--primary-600);
-    border-color: var(--primary-600);
-    color: white;
-}
-
-.portfolio-page-header .position-btn.primary:hover {
-    background: var(--primary-700);
-    border-color: var(--primary-700);
-}
+/* (portfolio-container, portfolio-page-header, and related header styles
+   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
 
 /* =============================================================================
    MODERN BUTTONS - Option 5 Style (Legacy)
@@ -236,15 +84,8 @@
 }
 
 /* =============================================================================
-   METRICS STRIP - Compact horizontal stats (matches position detail)
+   METRIC CONTENT STYLES - Used inside dashboard-metrics-strip
    ============================================================================= */
-.portfolio-metrics-strip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-md);
-    padding-top: var(--space-lg);
-    border-top: 1px solid var(--border-light);
-}
 
 .portfolio-metric {
     text-align: center;
@@ -424,17 +265,7 @@
     gap: 0.25rem;
 }
 
-@media (max-width: 992px) {
-    .portfolio-metrics-strip {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
 @media (max-width: 576px) {
-    .portfolio-metrics-strip {
-        grid-template-columns: 1fr 1fr;
-    }
-
     .portfolio-stats-grid {
         grid-template-columns: 1fr;
     }
