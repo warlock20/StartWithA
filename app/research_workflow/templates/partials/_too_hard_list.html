@@ -10,26 +10,37 @@
             {% else %}
             <div class="decision-badge decision-pending"><i class="bi bi-clipboard-check-fill"></i> Full Analysis</div>
             {% endif %}
+            {% if item.sector %}
+            <span class="badge bg-light text-dark" style="font-size: 0.7rem; font-weight: 500;">{{ item.sector }}</span>
+            {% endif %}
         </div>
 
         <div class="completed-project-content">
             <h3 class="completed-project-title font-poppins">
                 {{ item.company_name }}
-                {% if item.ticker %}<span class="badge bg-secondary ms-2 small">{{ item.ticker }}</span>{% endif %}
+                {% if item.ticker %}<span class="ticker-badge">{{ item.ticker }}</span>{% endif %}
             </h3>
-            <div class="completed-stats-row">
-                <div class="stat-item">
-                    <i class="bi bi-clock text-muted"></i>
-                    <span class="stat-value">{{ "%.1f"|format(item.time_invested_hours or 0) }}h</span>
+
+            <div class="too-hard-meta">
+                <div class="meta-item">
+                    <i class="bi bi-clock"></i>
+                    <span>{{ "%.1f"|format(item.time_invested_hours or 0) }}h</span>
                 </div>
-                <div class="stat-item">
-                    <i class="bi bi-calendar-check text-muted"></i>
-                    <span class="stat-value">{{ item.rejection_date.strftime('%b %d') if item.rejection_date else '-' }}</span>
+                <div class="meta-item">
+                    <i class="bi bi-calendar3"></i>
+                    <span>{{ item.rejection_date.strftime('%b %d, %Y') if item.rejection_date else 'No date' }}</span>
                 </div>
+                {% if item.within_coc %}
+                <div class="meta-item">
+                    <i class="bi bi-bullseye"></i>
+                    <span>{{ 'Within CoC' if item.within_coc == 'yes' else ('Outside CoC' if item.within_coc == 'no' else 'CoC Unsure') }}</span>
+                </div>
+                {% endif %}
             </div>
+
             {% if item.reason %}
-            <div class="mt-2">
-                <p class="text-muted small mb-0">{{ item.reason[:150] }}...</p>
+            <div class="too-hard-reason">
+                <p>{{ item.reason[:180] }}{% if item.reason|length > 180 %}...{% endif %}</p>
             </div>
             {% endif %}
         </div>
@@ -37,7 +48,7 @@
         <div class="completed-project-actions">
             {% if item.company_id %}
             <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
-                <i class="bi bi-building"></i> Dashboard
+                <i class="bi bi-building"></i> View Company
             </a>
             {% endif %}
         </div>

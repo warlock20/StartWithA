@@ -30,12 +30,6 @@
                             Weekly Review
                         </a>
                     </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('learning.pattern_recognition') }}">
-                            <i class="bi bi-diagram-3 text-info me-2"></i>
-                            Find Patterns
-                        </a>
-                    </li>
                 </ul>
             </div>
         </div>
@@ -188,32 +182,6 @@
             </div>
 
             <!-- Recent Patterns Card -->
-            {% if recent_patterns %}
-            <div class="learning-content-card">
-                <div class="learning-card-header">
-                    <h5 class="learning-card-title">Identified Patterns</h5>
-                    <a href="{{ url_for('learning.pattern_recognition') }}" class="learning-card-link">
-                        View All <i class="bi bi-arrow-right-short"></i>
-                    </a>
-                </div>
-                <div class="learning-card-body">
-                    <div class="patterns-grid">
-                        {% for pattern in recent_patterns[:4] %}
-                        <div class="pattern-card">
-                            <h6 class="pattern-name">{{ pattern.pattern_name }}</h6>
-                            <p class="pattern-description">{{ pattern.description }}</p>
-                            <div class="pattern-badges">
-                                <span class="pattern-type-badge pattern-{{ pattern.pattern_type }}">
-                                    {{ pattern.pattern_type|replace('_', ' ')|title }}
-                                </span>
-                                <span class="pattern-count-badge">{{ pattern.occurrences }}x</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Mistakes Sidebar -->
@@ -280,15 +248,6 @@
                             <div class="quick-action-content">
                                 <div class="quick-action-title">Log Mistake</div>
                                 <div class="quick-action-description">Document a learning moment</div>
-                            </div>
-                        </a>
-                        <a href="{{ url_for('learning.pattern_recognition') }}" class="quick-action-item">
-                            <div class="quick-action-icon bg-info">
-                                <i class="bi bi-diagram-3"></i>
-                            </div>
-                            <div class="quick-action-content">
-                                <div class="quick-action-title">Find Patterns</div>
-                                <div class="quick-action-description">Identify trends</div>
                             </div>
                         </a>
                         <a href="{{ url_for('learning.learning_paths') }}" class="quick-action-item">

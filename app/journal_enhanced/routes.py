@@ -7,9 +7,7 @@ from app.models import (JournalEntry, ThesisEvolution, LearningNote,
 from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        get_review_queue, update_thesis_version,
-                                       calculate_next_review_date, search_journal,
-                                      get_all_user_tags,
-                                       get_journal_statistics, create_default_templates)
+                                       calculate_next_review_date, create_default_templates)
 from app.utils.time_utils import now_utc
 from datetime import datetime, timedelta
 import os
@@ -406,35 +404,6 @@ def new_thesis_version(company_id):
                          title=f"Update Thesis: {company.name}",
                          company=company,
                          current_thesis=current_thesis)
-
-@journal_enhanced_bp.route('/learning-notes')
-@login_required
-def learning_notes():
-   """View and manage learning notes"""
-   # Get all learning notes
-   notes = current_user.learning_notes.order_by(
-       LearningNote.importance.desc(),
-       LearningNote.created_at.desc()
-   ).all()
-   
-   # Categorize notes
-   categories = {}
-   for note in notes:
-       category = note.category or 'Uncategorized'
-       if category not in categories:
-           categories[category] = []
-       categories[category].append(note)
-   
-   # Get notes due for review
-   due_for_review = current_user.learning_notes.filter(
-       LearningNote.next_review_date <= now_utc().date()
-   ).count()
-   
-   return render_template('learning_notes.html',
-                         title="Learning Notes",
-                         notes=notes,
-                         categories=categories,
-                         due_for_review=due_for_review)
 
 @journal_enhanced_bp.route('/learning-notes/new', methods=['GET', 'POST'])
 @login_required

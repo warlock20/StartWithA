@@ -5,7 +5,7 @@ from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
                        PatternRecognition, LearningPath, DecisionJournal,
                        Company, LearningNote, Sector, SectorAnalysis)
 from app.learning import learning_bp
-from app.learning.utils import (get_weekly_metrics, identify_patterns,
+from app.learning.utils import (get_weekly_metrics,
                                calculate_learning_score, get_review_schedule,
                                generate_learning_recommendations)
 from app.utils.time_utils import now_utc, ensure_timezone_aware
@@ -100,11 +100,6 @@ def learning_dashboard():
     # Get active learning paths
     active_paths = current_user.learning_paths.filter_by(status='active').all()
 
-    # Get recent patterns
-    recent_patterns = current_user.patterns.order_by(
-        PatternRecognition.identified_date.desc()
-    ).limit(5).all()
-
     # Calculate improvement metrics
     today = now_utc().date()
     recent_decisions = current_user.decision_journals.filter(
@@ -145,7 +140,6 @@ def learning_dashboard():
                           recent_mistakes=recent_mistakes,
                           recommendations=recommendations,
                           active_paths=active_paths,
-                          recent_patterns=recent_patterns,
                           improvement_data=improvement_data,
                           now=now_utc())
 
@@ -506,82 +500,6 @@ def view_postmortem(postmortem_id):
    return render_template('view_postmortem.html',
                          title="Investment Postmortem",
                          postmortem=postmortem)
-
-@learning_bp.route('/patterns')
-@login_required
-def pattern_recognition():
-   """View and manage recognized patterns"""
-   # Get existing patterns
-   patterns = current_user.patterns.order_by(
-       PatternRecognition.impact_score.desc()
-   ).all()
-   
-   # Run pattern identification
-   new_patterns = identify_patterns(current_user.id)
-   
-   # Check if patterns already exist
-   for pattern_data in new_patterns:
-       existing = PatternRecognition.query.filter_by(
-           user_id=current_user.id,
-           pattern_name=pattern_data['name']
-       ).first()
-       
-       if not existing:
-           pattern = PatternRecognition(
-               user=current_user,
-               pattern_name=pattern_data['name'],
-               pattern_type=pattern_data['type'],
-               description=pattern_data['description'],
-               occurrences=pattern_data['occurrences'],
-               confidence_level=5,
-               identified_date=date.today()
-           )
-           db.session.add(pattern)
-           patterns.append(pattern)
-       else:
-           # Update occurrences
-           existing.occurrences = pattern_data['occurrences']
-           existing.last_observed = date.today()
-   
-   try:
-       db.session.commit()
-   except:
-       db.session.rollback()
-   
-   # Categorize patterns
-   success_patterns = [p for p in patterns if p.pattern_type == 'success_pattern']
-   failure_patterns = [p for p in patterns if p.pattern_type == 'failure_pattern']
-   behavioral_patterns = [p for p in patterns if p.pattern_type == 'behavioral']
-   
-   return render_template('pattern_recognition.html',
-                         title="Pattern Recognition",
-                         patterns=patterns,
-                         success_patterns=success_patterns,
-                         failure_patterns=failure_patterns,
-                         behavioral_patterns=behavioral_patterns)
-
-@learning_bp.route('/patterns/<int:pattern_id>/update', methods=['POST'])
-@login_required
-def update_pattern(pattern_id):
-   """Update pattern details"""
-   pattern = PatternRecognition.query.get_or_404(pattern_id)
-   
-   if pattern.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
-   
-   data = request.json
-   pattern.impact_score = data.get('impact_score', pattern.impact_score)
-   pattern.confidence_level = data.get('confidence_level', pattern.confidence_level)
-   pattern.how_to_leverage = data.get('how_to_leverage', pattern.how_to_leverage)
-   pattern.how_to_avoid = data.get('how_to_avoid', pattern.how_to_avoid)
-   pattern.financial_impact = data.get('financial_impact', pattern.financial_impact)
-   
-   try:
-       db.session.commit()
-       return jsonify({'success': True})
-   except Exception as e:
-       db.session.rollback()
-       return jsonify({'error': str(e)}), 500
 
 @learning_bp.route('/learning-paths')
 @login_required
