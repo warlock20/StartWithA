@@ -61,14 +61,14 @@
 .capture-hero-subtitle {
     font-size: 1.125rem;
     color: var(--gray-500);
-    max-width: 500px;
+    max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
 }
 
 /* Main Form Container */
 .capture-form-container {
-    width: min(90%, 840px);
+    width: min(90%, 1020px);
     margin: 0 auto;
 }
 

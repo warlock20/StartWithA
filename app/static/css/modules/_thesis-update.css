@@ -4,78 +4,6 @@
    ============================================================================= */
 
 /* =============================================================================
-   HEADER
-   ============================================================================= */
-.thesis-update-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-xl);
-    padding-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-light);
-}
-
-.thesis-update-identity {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-
-.thesis-update-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--primary-600), var(--info-500));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-}
-
-.thesis-update-title-group h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-    letter-spacing: -0.02em;
-}
-
-.thesis-update-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-top: var(--space-xs);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-.thesis-update-ticker {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    background: var(--primary-50);
-    color: var(--primary-600);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-sm);
-    font-weight: 500;
-}
-
-.thesis-update-version-badge {
-    background: var(--success-50);
-    color: var(--success-600);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-sm);
-    font-weight: 600;
-    font-size: var(--font-size-xs);
-}
-
-.thesis-update-actions {
-    display: flex;
-    gap: var(--space-sm);
-}
-
-/* =============================================================================
    BUTTONS
    ============================================================================= */
 .thesis-btn {
@@ -636,20 +564,6 @@
 }
 
 @media (max-width: 768px) {
-    .thesis-update-header {
-        flex-direction: column;
-        gap: var(--space-md);
-    }
-
-    .thesis-update-actions {
-        width: 100%;
-    }
-
-    .thesis-update-actions .thesis-btn {
-        flex: 1;
-        justify-content: center;
-    }
-
     .thesis-form-row {
         grid-template-columns: 1fr;
     }

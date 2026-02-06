@@ -43,6 +43,7 @@ All complex components have been fully modularized.
 @import url('modules/_public-home.css');          /* Public homepage */
 @import url('modules/_idea-capture.css');         /* Idea capture page */
 @import url('modules/_idea-promote.css');         /* Idea promote page */
+@import url('modules/_action-page.css');          /* Action/create/edit pages - centered editorial layout */
 @import url('modules/_dashboard.css');            /* Dashboard components */
 @import url('modules/_pipeline-flow.css');        /* Investment pipeline flow visualization */
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */

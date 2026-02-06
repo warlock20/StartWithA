@@ -56,14 +56,14 @@
 .promote-hero-subtitle {
     font-size: 1.0625rem;
     color: var(--gray-500);
-    max-width: 480px;
+    max-width: 600px;
     margin: 0 auto;
     line-height: 1.5;
 }
 
 /* Main Container */
 .promote-form-container {
-    width: min(90%, 840px);
+    width: min(90%, 1020px);
     margin: 0 auto;
 }
 

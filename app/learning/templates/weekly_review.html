@@ -1,147 +1,152 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">📝 Weekly Review</h1>
-            <p class="dashboard-subtitle">Week of {{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}</p>
+<div class="action-page">
+    <div class="action-container action-container--lg">
+        <!-- Editorial Hero -->
+        <div class="action-hero">
+            <div class="action-hero-badge">
+                <i class="bi bi-calendar-check"></i>
+                <span>Weekly Review</span>
+            </div>
+            <h1>Weekly Review</h1>
+            <p class="action-hero-subtitle">Week of {{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}</p>
         </div>
-    </header>
 
-    <!-- Week Metrics -->
-    <div class="week-metrics-section">
-        <div class="week-metrics-grid">
-            <div class="week-metric-card metric-ideas">
-                <div class="week-metric-value">{{ metrics.ideas_captured }}</div>
-                <div class="week-metric-label">Ideas Captured</div>
-            </div>
-            <div class="week-metric-card metric-killed">
-                <div class="week-metric-value">{{ metrics.ideas_killed }}</div>
-                <div class="week-metric-label">Ideas Killed</div>
-            </div>
-            <div class="week-metric-card metric-hours">
-                <div class="week-metric-value">{{ metrics.research_hours }}h</div>
-                <div class="week-metric-label">Research Hours</div>
-            </div>
-            <div class="week-metric-card metric-decisions">
-                <div class="week-metric-value">{{ metrics.decisions_made }}</div>
-                <div class="week-metric-label">Decisions Made</div>
+        <!-- Week Metrics -->
+        <div class="week-metrics-section">
+            <div class="week-metrics-grid">
+                <div class="week-metric-card metric-ideas">
+                    <div class="week-metric-value">{{ metrics.ideas_captured }}</div>
+                    <div class="week-metric-label">Ideas Captured</div>
+                </div>
+                <div class="week-metric-card metric-killed">
+                    <div class="week-metric-value">{{ metrics.ideas_killed }}</div>
+                    <div class="week-metric-label">Ideas Killed</div>
+                </div>
+                <div class="week-metric-card metric-hours">
+                    <div class="week-metric-value">{{ metrics.research_hours }}h</div>
+                    <div class="week-metric-label">Research Hours</div>
+                </div>
+                <div class="week-metric-card metric-decisions">
+                    <div class="week-metric-value">{{ metrics.decisions_made }}</div>
+                    <div class="week-metric-label">Decisions Made</div>
+                </div>
             </div>
         </div>
-    </div>
 
-<form method="POST" action="{{ url_for('learning.save_weekly_review') }}">
-    <input type="hidden" name="week_start" value="{{ week_start }}">
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">📈 Reflections</h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label for="biggest_win" class="form-label">Biggest Win This Week</label>
-                <textarea class="form-control" id="biggest_win" name="biggest_win" rows="2"
-                          placeholder="What went really well?"></textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label for="biggest_challenge" class="form-label">Biggest Challenge</label>
-                <textarea class="form-control" id="biggest_challenge" name="biggest_challenge" rows="2"
-                          placeholder="What was difficult?"></textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label for="key_learnings" class="form-label">Key Learnings</label>
-                <textarea class="form-control" id="key_learnings" name="key_learnings" rows="3"
-                          placeholder="What did you learn? (one per line)"></textarea>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">🌍 Market Observations</h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label for="market_thoughts" class="form-label">Market Thoughts</label>
-                <textarea class="form-control" id="market_thoughts" name="market_thoughts" rows="3"
-                          placeholder="What's happening in the markets?"></textarea>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <label for="opportunities_identified" class="form-label">Opportunities Identified</label>
-                    <textarea class="form-control" id="opportunities_identified" name="opportunities_identified" rows="3"
-                              placeholder="Potential opportunities (one per line)"></textarea>
-                </div>
-                <div class="col-md-6">
-                    <label for="risks_identified" class="form-label">Risks Identified</label>
-                    <textarea class="form-control" id="risks_identified" name="risks_identified" rows="3"
-                              placeholder="Potential risks (one per line)"></textarea>
-                </div>
-            </div>
-            
-            <div class="row mt-3">
-                <div class="col-md-6">
-                    <label for="confidence_level" class="form-label">Your Confidence Level (1-10)</label>
-                    <input type="range" class="form-range" id="confidence_level" name="confidence_level" 
-                           min="1" max="10" value="5">
-                    <div class="text-center"><span id="confidenceValue">5</span></div>
-                </div>
-                <div class="col-md-6">
-                    <label for="market_sentiment" class="form-label">Market Sentiment</label>
-                    <select class="form-select" id="market_sentiment" name="market_sentiment">
-                        <option value="bullish">🐂 Bullish</option>
-                        <option value="neutral" selected>😐 Neutral</option>
-                        <option value="bearish">🐻 Bearish</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">🎯 Next Week Planning</h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label for="next_week_priorities" class="form-label">Top Priorities for Next Week</label>
-                <textarea class="form-control" id="next_week_priorities" name="next_week_priorities" rows="4"
-                          placeholder="What will you focus on? (one per line)"></textarea>
-            </div>
-        </div>
-    </div>
-    
-    <div class="d-flex justify-content-between">
-        <a href="{{ url_for('learning.learning_dashboard') }}" class="btn btn-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary btn-lg">Complete Review</button>
-    </div>
-</form>
+        <form method="POST" action="{{ url_for('learning.save_weekly_review') }}" id="weeklyReviewForm">
+            <input type="hidden" name="week_start" value="{{ week_start }}">
 
-<!-- Past Reviews Reference -->
-{% if past_reviews %}
-<div class="card mt-4">
-    <div class="card-header">
-        <h6 class="mb-0">📚 Past Reviews for Reference</h6>
-    </div>
-    <div class="card-body">
-        <div class="list-group list-group-flush">
-            {% for review in past_reviews %}
-            <a href="{{ url_for('learning.view_weekly_review', review_id=review.id) }}" 
-               class="list-group-item list-group-item-action">
-                <strong>Week of {{ review.week_start.strftime('%b %d') }}</strong>
-                - Confidence: {{ review.confidence_level }}/10
-                - {{ review.ideas_captured }} ideas, {{ review.research_hours }}h research
-            </a>
-            {% endfor %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Reflections</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="biggest_win" class="form-label">Biggest Win This Week</label>
+                        <textarea class="form-control" id="biggest_win" name="biggest_win" rows="2"
+                                  placeholder="What went really well?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="biggest_challenge" class="form-label">Biggest Challenge</label>
+                        <textarea class="form-control" id="biggest_challenge" name="biggest_challenge" rows="2"
+                                  placeholder="What was difficult?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="key_learnings" class="form-label">Key Learnings</label>
+                        <textarea class="form-control" id="key_learnings" name="key_learnings" rows="3"
+                                  placeholder="What did you learn? (one per line)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Market Observations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="market_thoughts" class="form-label">Market Thoughts</label>
+                        <textarea class="form-control" id="market_thoughts" name="market_thoughts" rows="3"
+                                  placeholder="What's happening in the markets?"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="opportunities_identified" class="form-label">Opportunities Identified</label>
+                            <textarea class="form-control" id="opportunities_identified" name="opportunities_identified" rows="3"
+                                      placeholder="Potential opportunities (one per line)"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="risks_identified" class="form-label">Risks Identified</label>
+                            <textarea class="form-control" id="risks_identified" name="risks_identified" rows="3"
+                                      placeholder="Potential risks (one per line)"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="confidence_level" class="form-label">Your Confidence Level (1-10)</label>
+                            <input type="range" class="form-range" id="confidence_level" name="confidence_level"
+                                   min="1" max="10" value="5">
+                            <div class="text-center"><span id="confidenceValue">5</span></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="market_sentiment" class="form-label">Market Sentiment</label>
+                            <select class="form-select" id="market_sentiment" name="market_sentiment">
+                                <option value="bullish">Bullish</option>
+                                <option value="neutral" selected>Neutral</option>
+                                <option value="bearish">Bearish</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Next Week Planning</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="next_week_priorities" class="form-label">Top Priorities for Next Week</label>
+                        <textarea class="form-control" id="next_week_priorities" name="next_week_priorities" rows="4"
+                                  placeholder="What will you focus on? (one per line)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-footer-row">
+                <button type="submit" class="btn btn-primary btn-lg">Complete Review</button>
+                <a href="{{ return_url or url_for('learning.learning_dashboard') }}" class="action-cancel-link">Cancel</a>
+            </div>
+        </form>
+
+        <!-- Past Reviews Reference -->
+        {% if past_reviews %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">Past Reviews for Reference</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for review in past_reviews %}
+                    <a href="{{ url_for('learning.view_weekly_review', review_id=review.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <strong>Week of {{ review.week_start.strftime('%b %d') }}</strong>
+                        - Confidence: {{ review.confidence_level }}/10
+                        - {{ review.ideas_captured }} ideas, {{ review.research_hours }}h research
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
