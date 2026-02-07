@@ -170,7 +170,7 @@
             </div>
 
             <div class="research-status-footer">
-                <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="research-status-link">
+                <a href="{{ url_for('research_workflow.too_hard_basket', return_url=url_for('research_workflow.my_projects'), context_label='My Projects') }}" class="research-status-link">
                     Review "Too Hard" List <i class="bi bi-arrow-right"></i>
                 </a>
             </div>

@@ -9,23 +9,9 @@
             <p class="dashboard-subtitle">Your research notes and curated wisdom</p>
         </div>
         <div class="dashboard-header-actions">
-            <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    Add New
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
-                            <i class="bi bi-journal-text me-2"></i>Research Note
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_learning_note') }}">
-                            <i class="bi bi-lightbulb me-2"></i>Curated Insight
-                        </a>
-                    </li>
-                </ul>
-            </div>
+            <a class="btn btn-primary" href="{{ url_for('journal_enhanced.new_entry') }}">
+                <i class="bi bi-journal-plus me-2"></i>Create New Entry
+            </a>
         </div>
     </header>
 
@@ -33,19 +19,19 @@
     <div class="knowledge-hub-pills-section">
         <div class="content-type-pills">
             <a href="?type=all{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-               class="type-pill {{ 'active' if content_type == 'all' else '' }}">
+                class="type-pill {{ 'active' if content_type == 'all' else '' }}">
                 <i class="bi bi-grid-3x3"></i>
                 <span>All Items</span>
                 <span class="pill-count">{{ stats.total_items }}</span>
             </a>
             <a href="?type=wisdom{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-               class="type-pill {{ 'active' if content_type == 'wisdom' else '' }}">
+                class="type-pill {{ 'active' if content_type == 'wisdom' else '' }}">
                 <i class="bi bi-lightbulb-fill"></i>
                 <span>Curated Wisdom</span>
                 <span class="pill-count">{{ stats.curated_insights }}</span>
             </a>
             <a href="?type=research{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-               class="type-pill {{ 'active' if content_type == 'research' else '' }}">
+                class="type-pill {{ 'active' if content_type == 'research' else '' }}">
                 <i class="bi bi-journal-text"></i>
                 <span>Research Notes</span>
                 <span class="pill-count">{{ stats.research_notes }}</span>
@@ -61,11 +47,8 @@
                 <input type="hidden" name="group_by" value="{{ group_by }}">
                 <div class="search-input-wrapper">
                     <i class="bi bi-search search-icon"></i>
-                    <input type="text"
-                           name="q"
-                           class="form-control search-input"
-                           placeholder="Search knowledge base..."
-                           value="{{ search_query }}">
+                    <input type="text" name="q" class="form-control search-input" placeholder="Search knowledge base..."
+                        value="{{ search_query }}">
                     {% if search_query %}
                     <button type="button" class="search-clear" onclick="clearSearch()">
                         <i class="bi bi-x"></i>
@@ -77,17 +60,18 @@
             <div class="grouping-controls">
                 <label class="control-label">Group by:</label>
                 <select class="form-select grouping-select" onchange="changeGrouping(this.value)">
-                    <option value="company" {{ 'selected' if group_by == 'company' else '' }}>Company</option>
-                    <option value="topic" {{ 'selected' if group_by == 'topic' else '' }}>Topic</option>
-                    <option value="type" {{ 'selected' if group_by == 'type' else '' }}>Content Type</option>
-                    <option value="date" {{ 'selected' if group_by == 'date' else '' }}>Date</option>
+                    <option value="company" {{ 'selected' if group_by=='company' else '' }}>Company</option>
+                    <option value="topic" {{ 'selected' if group_by=='topic' else '' }}>Topic</option>
+                    <option value="type" {{ 'selected' if group_by=='type' else '' }}>Content Type</option>
+                    <option value="date" {{ 'selected' if group_by=='date' else '' }}>Date</option>
                 </select>
             </div>
         </div>
 
         <!-- Advanced Filters (Collapsible) -->
         <div class="advanced-filters-toggle">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                data-bs-target="#advancedFilters">
                 <i class="bi bi-funnel"></i> Advanced Filters
             </button>
         </div>
@@ -99,36 +83,36 @@
 
     <!-- Grouped Results -->
     {% if grouped_results %}
-        <div class="grouped-knowledge-results">
-            {% for group_name, items in grouped_results.items() %}
-            <div class="knowledge-group">
-                <div class="knowledge-group-header" onclick="toggleGroup(this)">
-                    <div class="group-title">
-                        <i class="bi bi-chevron-down group-toggle-icon"></i>
-                        <span class="group-name">{{ group_name }}</span>
-                        <span class="group-count">{{ items|length }} item{{ 's' if items|length != 1 else '' }}</span>
-                    </div>
-                </div>
-                <div class="knowledge-group-content">
-                    <div class="knowledge-grid">
-                        {% for result in items %}
-                            {% include 'knowledge_hub/_unified_card.html' %}
-                        {% endfor %}
-                    </div>
+    <div class="grouped-knowledge-results">
+        {% for group_name, items in grouped_results.items() %}
+        <div class="knowledge-group">
+            <div class="knowledge-group-header" onclick="toggleGroup(this)">
+                <div class="group-title">
+                    <i class="bi bi-chevron-down group-toggle-icon"></i>
+                    <span class="group-name">{{ group_name }}</span>
+                    <span class="group-count">{{ items|length }} item{{ 's' if items|length != 1 else '' }}</span>
                 </div>
             </div>
-            {% endfor %}
+            <div class="knowledge-group-content">
+                <div class="knowledge-grid">
+                    {% for result in items %}
+                    {% include 'knowledge_hub/_unified_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
         </div>
+        {% endfor %}
+    </div>
     {% else %}
-        <div class="knowledge-empty-state">
-            <div class="knowledge-empty-icon">
-                <i class="bi bi-search"></i>
-            </div>
-            <h3 class="knowledge-empty-title">No items found</h3>
-            <p class="knowledge-empty-description">
-                Try adjusting your search or filters
-            </p>
+    <div class="knowledge-empty-state">
+        <div class="knowledge-empty-icon">
+            <i class="bi bi-search"></i>
         </div>
+        <h3 class="knowledge-empty-title">No items found</h3>
+        <p class="knowledge-empty-description">
+            Try adjusting your search or filters
+        </p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}
@@ -136,47 +120,47 @@
 {% block scripts %}
 {{ super() }}
 <script>
-// Auto-submit filters on change
-document.querySelectorAll('.filter-select').forEach(select => {
-    select.addEventListener('change', function() {
-        this.closest('form').submit();
+    // Auto-submit filters on change
+    document.querySelectorAll('.filter-select').forEach(select => {
+        select.addEventListener('change', function () {
+            this.closest('form').submit();
+        });
     });
-});
 
-// Group toggling
-function toggleGroup(header) {
-    const content = header.nextElementSibling;
-    const icon = header.querySelector('.group-toggle-icon');
+    // Group toggling
+    function toggleGroup(header) {
+        const content = header.nextElementSibling;
+        const icon = header.querySelector('.group-toggle-icon');
 
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        icon.style.transform = 'rotate(0deg)';
-    } else {
-        content.style.display = 'none';
-        icon.style.transform = 'rotate(-90deg)';
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.style.transform = 'rotate(0deg)';
+        } else {
+            content.style.display = 'none';
+            icon.style.transform = 'rotate(-90deg)';
+        }
     }
-}
 
-// Grouping change
-function changeGrouping(value) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('group_by', value);
-    window.location.href = url.toString();
-}
-
-// Clear search
-function clearSearch() {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('q');
-    window.location.href = url.toString();
-}
-
-// Search on enter
-document.querySelector('.search-input')?.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        this.closest('form').submit();
+    // Grouping change
+    function changeGrouping(value) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('group_by', value);
+        window.location.href = url.toString();
     }
-});
+
+    // Clear search
+    function clearSearch() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('q');
+        window.location.href = url.toString();
+    }
+
+    // Search on enter
+    document.querySelector('.search-input')?.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.closest('form').submit();
+        }
+    });
 </script>
 {% endblock %}

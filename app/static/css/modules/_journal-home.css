@@ -129,7 +129,7 @@
 }
 
 .journal-stat-card.stat-total {
-    border-left: 4px solid #4f46e5;
+    border-left: 4px solid var(--accent-color);
 }
 
 .journal-stat-card.stat-recent {
@@ -501,7 +501,7 @@
 /* Review Queue Count Badge */
 .review-queue-count {
     padding: 0.5rem 1.25rem;
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-500) 100%);
     color: white;
     border-radius: var(--radius-pill);
     font-size: 1rem;

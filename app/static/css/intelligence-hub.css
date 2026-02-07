@@ -239,7 +239,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: var(--primary, #3b82f6);
+    color: var(--primary, var(--accent-color));
     text-decoration: none;
     font-weight: 500;
     font-size: 0.9rem;

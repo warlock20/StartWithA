@@ -157,7 +157,7 @@ Inspired by modern workflow builder with visual timeline
     border: 3px solid var(--primary-500);
     border-radius: 50%;
     z-index: 2;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
 }
 
 .timeline-line {
@@ -227,7 +227,7 @@ Inspired by modern workflow builder with visual timeline
     height: 4px;
     background: var(--primary-500);
     border-radius: 2px;
-    box-shadow: 0 0 8px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 0 8px rgba(45, 106, 79, 0.4);
 }
 
 .workflow-step.drag-over-bottom::after {
@@ -239,7 +239,7 @@ Inspired by modern workflow builder with visual timeline
     height: 4px;
     background: var(--primary-500);
     border-radius: 2px;
-    box-shadow: 0 0 8px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 0 8px rgba(45, 106, 79, 0.4);
 }
 
 /* Step Icon Badge */
@@ -260,7 +260,7 @@ Inspired by modern workflow builder with visual timeline
 }
 
 .step-badge-blue {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.15) 100%);
+    background: linear-gradient(135deg, rgba(45, 106, 79, 0.1) 0%, rgba(45, 106, 79, 0.15) 100%);
     color: var(--primary-600);
 }
 
@@ -444,7 +444,7 @@ Inspired by modern workflow builder with visual timeline
 }
 
 .step-icon-blue {
-    background-color: rgba(79, 70, 229, 0.1);
+    background-color: rgba(45, 106, 79, 0.1);
     color: var(--primary-600);
 }
 
@@ -507,7 +507,7 @@ Inspired by modern workflow builder with visual timeline
 }
 
 .text-indigo {
-    color: #6366f1;
+    color: var(--accent-500);
 }
 
 .text-cyan {
@@ -529,8 +529,8 @@ Inspired by modern workflow builder with visual timeline
 }
 
 .step-badge-indigo {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.15) 100%);
-    color: #6366f1;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.15) 100%);
+    color: var(--accent-500);
 }
 
 .step-badge-cyan {
@@ -555,8 +555,8 @@ Inspired by modern workflow builder with visual timeline
 }
 
 .step-icon-indigo {
-    background-color: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background-color: rgba(34, 197, 94, 0.1);
+    color: var(--accent-500);
 }
 
 .step-icon-cyan {

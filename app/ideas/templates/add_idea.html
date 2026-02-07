@@ -1,7 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="idea-capture-page">
+<div class="action-page idea-capture-page">
     <div class="container">
         <!-- Hero Section -->
         <div class="capture-hero">
@@ -236,7 +236,7 @@
                                 <i class="bi bi-inbox-fill" id="submit-icon"></i>
                                 <span id="submit-text">Add to Inbox</span>
                             </button>
-                            <a href="{{ url_for('ideas.inbox') }}" class="capture-cancel-link">Cancel</a>
+                            <a href="{{ return_url or url_for('ideas.inbox') }}" class="capture-cancel-link">Cancel</a>
                         </div>
                         <p class="capture-submit-hint">
                             Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit

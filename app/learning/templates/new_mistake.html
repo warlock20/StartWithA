@@ -1,147 +1,152 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>❌ Log New Mistake</h1>
-        <p class="text-muted mb-0">Document a mistake to transform it into learning</p>
-    </div>
-    <a href="{{ url_for('learning.mistake_log') }}" class="btn btn-outline-secondary">
-        ← Back to Mistake Log
-    </a>
-</div>
+<div class="action-page" style="--action-accent-from: #dc2626; --action-accent-to: #ef4444;">
+    <div class="action-container action-container--lg">
+        <!-- Editorial Hero -->
+        <div class="action-hero">
+            <div class="action-hero-badge">
+                <i class="bi bi-journal-x"></i>
+                <span>Mistake Log</span>
+            </div>
+            <h1>Log New Mistake</h1>
+            <p class="action-hero-subtitle">Document a mistake to transform it into learning</p>
+        </div>
 
-<div class="card">
-    <div class="card-body">
-        <form method="POST">
-            <div class="row">
-                <!-- Left Column -->
-                <div class="col-md-6">
-                    <h5 class="mb-3">Mistake Details</h5>
-
-                    <div class="mb-3">
-                        <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="title" name="title" required
-                               placeholder="Brief description of the mistake">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="description" name="description" rows="4" required
-                                  placeholder="What exactly happened? Provide context and details."></textarea>
-                    </div>
-
+        <div class="action-card">
+            <div class="action-card-body">
+                <form method="POST" id="mistakeForm">
                     <div class="row">
+                        <!-- Left Column -->
                         <div class="col-md-6">
+                            <h5 class="mb-3">Mistake Details</h5>
+
                             <div class="mb-3">
-                                <label for="mistake_type" class="form-label">Mistake Type</label>
-                                <select class="form-select" id="mistake_type" name="mistake_type">
-                                    <option value="">Select type</option>
-                                    <option value="analysis_error">Analysis Error</option>
-                                    <option value="emotional_decision">Emotional Decision</option>
-                                    <option value="timing_error">Timing Error</option>
-                                    <option value="process_failure">Process Failure</option>
-                                    <option value="risk_management">Risk Management</option>
-                                    <option value="research_gap">Research Gap</option>
-                                    <option value="other">Other</option>
+                                <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="title" name="title" required
+                                       placeholder="Brief description of the mistake">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="description" name="description" rows="4" required
+                                          placeholder="What exactly happened? Provide context and details."></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="mistake_type" class="form-label">Mistake Type</label>
+                                        <select class="form-select" id="mistake_type" name="mistake_type">
+                                            <option value="">Select type</option>
+                                            <option value="analysis_error">Analysis Error</option>
+                                            <option value="emotional_decision">Emotional Decision</option>
+                                            <option value="timing_error">Timing Error</option>
+                                            <option value="process_failure">Process Failure</option>
+                                            <option value="risk_management">Risk Management</option>
+                                            <option value="research_gap">Research Gap</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="severity" class="form-label">Severity (1-10)</label>
+                                        <input type="number" class="form-control" id="severity" name="severity"
+                                               min="1" max="10" value="5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cost_estimate" class="form-label">Cost Estimate ($)</label>
+                                        <input type="number" class="form-control" id="cost_estimate" name="cost_estimate"
+                                               step="0.01" placeholder="Financial impact if applicable">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="occurred_date" class="form-label">Date Occurred</label>
+                                        <input type="date" class="form-control" id="occurred_date" name="occurred_date">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="company_id" class="form-label">Related Company</label>
+                                <select class="form-select" id="company_id" name="company_id">
+                                    <option value="">Select company (optional)</option>
+                                    {% for company in companies %}
+                                    <option value="{{ company.id }}">{{ company.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Right Column -->
                         <div class="col-md-6">
+                            <h5 class="mb-3">Analysis & Learning</h5>
+
                             <div class="mb-3">
-                                <label for="severity" class="form-label">Severity (1-10)</label>
-                                <input type="number" class="form-control" id="severity" name="severity"
-                                       min="1" max="10" value="5">
+                                <label for="root_cause" class="form-label">Root Cause</label>
+                                <textarea class="form-control" id="root_cause" name="root_cause" rows="3"
+                                          placeholder="What was the fundamental cause of this mistake?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="contributing_factors" class="form-label">Contributing Factors</label>
+                                <textarea class="form-control" id="contributing_factors" name="contributing_factors" rows="3"
+                                          placeholder="List factors that contributed to this mistake (one per line)"></textarea>
+                                <small class="text-muted">Enter each factor on a separate line</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="lesson_learned" class="form-label">Lesson Learned <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="lesson_learned" name="lesson_learned" rows="3" required
+                                          placeholder="What key insight did you gain from this mistake?"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="prevention_steps" class="form-label">Prevention Steps</label>
+                                <textarea class="form-control" id="prevention_steps" name="prevention_steps" rows="3"
+                                          placeholder="List specific steps to prevent this mistake in the future (one per line)"></textarea>
+                                <small class="text-muted">Enter each step on a separate line</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="process_changes" class="form-label">Process Changes</label>
+                                <textarea class="form-control" id="process_changes" name="process_changes" rows="2"
+                                          placeholder="What changes will you make to your investment process?"></textarea>
                             </div>
                         </div>
                     </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="cost_estimate" class="form-label">Cost Estimate ($)</label>
-                                <input type="number" class="form-control" id="cost_estimate" name="cost_estimate"
-                                       step="0.01" placeholder="Financial impact if applicable">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="occurred_date" class="form-label">Date Occurred</label>
-                                <input type="date" class="form-control" id="occurred_date" name="occurred_date">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="company_id" class="form-label">Related Company</label>
-                        <select class="form-select" id="company_id" name="company_id">
-                            <option value="">Select company (optional)</option>
-                            {% for company in companies %}
-                            <option value="{{ company.id }}">{{ company.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Right Column -->
-                <div class="col-md-6">
-                    <h5 class="mb-3">Analysis & Learning</h5>
-
-                    <div class="mb-3">
-                        <label for="root_cause" class="form-label">Root Cause</label>
-                        <textarea class="form-control" id="root_cause" name="root_cause" rows="3"
-                                  placeholder="What was the fundamental cause of this mistake?"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="contributing_factors" class="form-label">Contributing Factors</label>
-                        <textarea class="form-control" id="contributing_factors" name="contributing_factors" rows="3"
-                                  placeholder="List factors that contributed to this mistake (one per line)"></textarea>
-                        <small class="text-muted">Enter each factor on a separate line</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="lesson_learned" class="form-label">Lesson Learned <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="lesson_learned" name="lesson_learned" rows="3" required
-                                  placeholder="What key insight did you gain from this mistake?"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="prevention_steps" class="form-label">Prevention Steps</label>
-                        <textarea class="form-control" id="prevention_steps" name="prevention_steps" rows="3"
-                                  placeholder="List specific steps to prevent this mistake in the future (one per line)"></textarea>
-                        <small class="text-muted">Enter each step on a separate line</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="process_changes" class="form-label">Process Changes</label>
-                        <textarea class="form-control" id="process_changes" name="process_changes" rows="2"
-                                  placeholder="What changes will you make to your investment process?"></textarea>
-                    </div>
-                </div>
+                </form>
             </div>
 
-            <hr>
-
-            <div class="d-flex justify-content-between">
-                <a href="{{ url_for('learning.mistake_log') }}" class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn btn-success">Log Mistake</button>
+            <!-- Footer -->
+            <div class="action-footer">
+                <div class="action-footer-row">
+                    <button type="submit" form="mistakeForm" class="btn btn-success">Log Mistake</button>
+                    <a href="{{ return_url or url_for('learning.mistake_log') }}" class="action-cancel-link">Cancel</a>
+                </div>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
 
-<!-- Help Card -->
-<div class="card mt-4 border-info">
-    <div class="card-body">
-        <h6 class="card-title">💡 Tips for Effective Mistake Logging</h6>
-        <ul class="mb-0">
-            <li><strong>Be Honest:</strong> Don't sugar-coat what happened</li>
-            <li><strong>Focus on Learning:</strong> What can you do differently next time?</li>
-            <li><strong>Be Specific:</strong> Vague lessons aren't actionable</li>
-            <li><strong>Include Process:</strong> How will you change your approach?</li>
-            <li><strong>Review Regularly:</strong> Come back to reinforce the lesson</li>
-        </ul>
+        <!-- Help Card -->
+        <div class="card mt-4 border-info">
+            <div class="card-body">
+                <h6 class="card-title">Tips for Effective Mistake Logging</h6>
+                <ul class="mb-0">
+                    <li><strong>Be Honest:</strong> Don't sugar-coat what happened</li>
+                    <li><strong>Focus on Learning:</strong> What can you do differently next time?</li>
+                    <li><strong>Be Specific:</strong> Vague lessons aren't actionable</li>
+                    <li><strong>Include Process:</strong> How will you change your approach?</li>
+                    <li><strong>Review Regularly:</strong> Come back to reinforce the lesson</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

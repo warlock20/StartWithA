@@ -817,6 +817,11 @@
     background: var(--background-light);
     border-bottom: 1px solid var(--border-light);
     border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .decision-badge {
@@ -910,6 +915,65 @@
 
 .completed-project-actions .btn-sm {
     font-weight: 500;
+}
+
+/* Too Hard Basket Card Enhancements */
+.ticker-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    margin-left: 0.5rem;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.025em;
+}
+
+.too-hard-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.875rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-300);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--gray-700);
+}
+
+.meta-item i {
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    width: 16px;
+    flex-shrink: 0;
+}
+
+.meta-item span {
+    font-weight: 500;
+}
+
+.too-hard-reason {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.too-hard-reason p {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--gray-600);
+    margin: 0;
+    font-style: italic;
 }
 
 /* Dropdown Form Styling */

@@ -1,25 +1,57 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-    <!-- Header Section -->
-    <section class="py-5 bg-white border-bottom">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10 text-center">
-                    <h1 class="display-4 fw-bold text-dark mb-4">Mental Models & Investment Framework</h1>
-                    <p class="lead mb-3 text-dark">
-                        <strong>Every great investor needs their own systematic approach.</strong>
-                    </p>
-                    <p class="fs-5 text-muted mb-4">
-                        Transform proven mental models into personalized, actionable checklists that evolve with your experience and prevent costly mistakes.
-                    </p>
-                    
-                    <div class="card border shadow-sm mt-4">
-                        <div class="card-body p-4">
-                            <h4 class="text-dark mb-3">The Core Philosophy</h4>
-                            <p class="text-muted mb-0">
-                                This platform helps you create and refine your <strong>personal investment checklist</strong> - a living document that captures your investment principles, lessons learned, and systematic approach to evaluating opportunities.
-                            </p>
+
+    <!-- Walkthrough Hero -->
+    <section class="walkthrough-hero">
+        <div class="walkthrough-hero-inner">
+            <p class="landing-eyebrow">How It Works</p>
+            <h1 class="walkthrough-hero-title font-poppins">Your Research Process, Systematized</h1>
+            <p class="walkthrough-hero-subtitle">See how the platform turns scattered research into a disciplined investment framework</p>
+        </div>
+    </section>
+
+    <!-- Feature 1: Research Templates & Workflow -->
+    <section class="walkthrough-section walkthrough-section--alt">
+        <div class="walkthrough-section-inner">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">01</span>
+                <h2 class="font-poppins">Research Templates & Workflow</h2>
+                <p>Design your own repeatable research process with structured templates. Each step guides you through critical due diligence so nothing falls through the cracks.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Design workflows that match your investment style</li>
+                    <li><i class="bi bi-check2"></i> Step-by-step process for thorough analysis</li>
+                    <li><i class="bi bi-check2"></i> Never miss critical due diligence again</li>
+                </ul>
+            </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">Research Template</span>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-step mockup-step--done">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>Company Overview</span>
+                        </div>
+                        <div class="mockup-step mockup-step--done">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>Financial Health</span>
+                        </div>
+                        <div class="mockup-step mockup-step--active">
+                            <i class="bi bi-circle"></i>
+                            <span>Competitive Position</span>
+                        </div>
+                        <div class="mockup-step">
+                            <i class="bi bi-circle"></i>
+                            <span>Management Quality</span>
+                        </div>
+                        <div class="mockup-step">
+                            <i class="bi bi-circle"></i>
+                            <span>Valuation Analysis</span>
                         </div>
                     </div>
                 </div>
@@ -27,161 +59,207 @@
         </div>
     </section>
 
-    <div class="container py-5">
-        <!-- Tool 1: Personal Investment Checklist -->
-        <section class="mb-6">
-            <div class="row align-items-center">
-                <div class="col-md-7">
-                    <h2 class="h1 text-dark mb-3">1. Personal Investment Checklist</h2>
-                    <p class="text-muted mb-3">Inspired by Charlie Munger's systematic approach</p>
-                    <p class="mb-4"><strong>This is your core tool.</strong> Your personalized checklist enforces discipline and ensures you evaluate every opportunity through your unique investment lens. It captures your hard-won lessons and prevents repeating past mistakes.</p>
-                    
-                    <div class="mb-4">
-                        <h5 class="text-dark mb-3">What makes YOUR checklist special:</h5>
-                        <ul class="list-unstyled">
-                            <li class="mb-2">• <strong>Personalized items</strong> based on your investment style</li>
-                            <li class="mb-2">• <strong>Evolving content</strong> that grows from your mistakes and wins</li>
-                            <li class="mb-2">• <strong>Quick reference</strong> for consistent decision-making</li>
-                            <li class="mb-2">• <strong>Defense mechanism</strong> against emotional investing</li>
-                        </ul>
+    <!-- Feature 2: Kill Checklists -->
+    <section class="walkthrough-section">
+        <div class="walkthrough-section-inner walkthrough-section-inner--reverse">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">02</span>
+                <h2 class="font-poppins">Kill Checklists — Filter Ruthlessly</h2>
+                <p>Use inversion to eliminate bad ideas before they consume your research time. A disciplined kill process saves your capital and your attention for what truly matters.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Eliminate bad ideas in minutes, not hours</li>
+                    <li><i class="bi bi-check2"></i> Customize criteria to your investment philosophy</li>
+                    <li><i class="bi bi-check2"></i> Discipline over emotion, every time</li>
+                </ul>
+            </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup walkthrough-mockup--danger">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">Kill Checklist</span>
                     </div>
-                    
-                    <div class="d-flex gap-3 flex-wrap">
-                        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-dark">
-                            Build Your Checklist →
-                        </a>
-                        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-outline-dark">
-                            Test on New Idea →
-                        </a>
+                    <div class="mockup-body">
+                        <div class="mockup-kill-item mockup-kill-item--fail">
+                            <i class="bi bi-x-circle-fill"></i>
+                            <span>Excessive debt-to-equity ratio</span>
+                        </div>
+                        <div class="mockup-kill-item mockup-kill-item--pass">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>Positive free cash flow</span>
+                        </div>
+                        <div class="mockup-kill-item mockup-kill-item--fail">
+                            <i class="bi bi-x-circle-fill"></i>
+                            <span>Key-person dependency risk</span>
+                        </div>
+                        <div class="mockup-kill-item mockup-kill-item--pass">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>Understandable business model</span>
+                        </div>
+                        <div class="mockup-verdict">
+                            <i class="bi bi-shield-x"></i>
+                            <span>2 deal-breakers found — Killed</span>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-5">
-                    <div class="card border">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="card-title mb-0 text-dark">Your Checklist in Action</h5>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature 3: AI Research Assistant -->
+    <section class="walkthrough-section walkthrough-section--alt">
+        <div class="walkthrough-section-inner">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">03</span>
+                <h2 class="font-poppins">AI Research Assistant</h2>
+                <p>Supercharge your analysis with AI that reads financial documents, parses earnings transcripts, and surfaces insights in seconds — without losing your systematic approach.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Analyze 10-Ks and earnings calls instantly</li>
+                    <li><i class="bi bi-check2"></i> Extract key insights from financial documents</li>
+                    <li><i class="bi bi-check2"></i> Ask questions about any uploaded document</li>
+                </ul>
+            </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup walkthrough-mockup--ai">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">AI Assistant</span>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-chat-user">
+                            <span>Summarize key risks from the latest 10-K filing</span>
                         </div>
-                        <div class="card-body">
-                            <p class="card-text mb-3">Your personalized Tesla evaluation might include:</p>
-                            <div class="bg-light p-3 rounded mb-3">
-                                <small><strong>Supply Chain Risk:</strong><br>
-                                <em>"Assess dependence on key battery suppliers - learned from my 2021 chip shortage losses"</em></small>
+                        <div class="mockup-chat-ai">
+                            <span><strong>Key risks identified:</strong><br>
+                            1. Revenue concentration (45% from top 3 clients)<br>
+                            2. Pending regulatory changes in EU market<br>
+                            3. Rising input costs — margins under pressure</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature 4: Continuous Analysis & Feedback -->
+    <section class="walkthrough-section">
+        <div class="walkthrough-section-inner walkthrough-section-inner--reverse">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">04</span>
+                <h2 class="font-poppins">Continuous Analysis & Feedback</h2>
+                <p>Track your research patterns, identify cognitive biases, and improve your process with AI-driven feedback loops that evolve as you grow.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Identify patterns in your research behavior</li>
+                    <li><i class="bi bi-check2"></i> Spot biases before they cost you money</li>
+                    <li><i class="bi bi-check2"></i> Analytics that improve your process over time</li>
+                </ul>
+            </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">Research Analytics</span>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-stat-row">
+                            <div class="mockup-stat">
+                                <span class="mockup-stat-value">87%</span>
+                                <span class="mockup-stat-label">Process Adherence</span>
                             </div>
-                            <div class="bg-light p-3 rounded mb-3">
-                                <small><strong>CEO Risk:</strong><br>
-                                <em>"Evaluate key-person dependency - added after my Twitter acquisition concerns"</em></small>
+                            <div class="mockup-stat">
+                                <span class="mockup-stat-value">12</span>
+                                <span class="mockup-stat-label">Ideas Filtered</span>
                             </div>
-                            <p class="card-text text-muted"><small>Each item reflects YOUR experience and learning.</small></p>
+                        </div>
+                        <div class="mockup-insight">
+                            <i class="bi bi-lightbulb"></i>
+                            <span>You tend to skip financial analysis on tech stocks. Consider adding it to your template.</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- Tool 2: Strategic Frameworks -->
-        <section class="mb-6 border-top pt-5">
-            <div class="row align-items-center">
-                <div class="col-md-5 order-md-last">
-                    <h2 class="h1 text-dark mb-3">2. Strategic Frameworks</h2>
-                    <p class="text-muted mb-3">SWOT Analysis & Porter's Five Forces</p>
-                    <p class="mb-4">After initial data gathering, use these models to understand the company's strategic position (SWOT) and the competitive dynamics of its industry (Porter's Five Forces). This builds a deeper, qualitative understanding around the numbers.</p>
-                    <a href="{{ url_for('companies.companies_dashboard') }}" class="btn btn-outline-dark">Analyze a Company →</a>
-                </div>
-                <div class="col-md-7">
-                    <div class="card border">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="card-title mb-0 text-dark">Example: Apple (AAPL)</h5>
+    <!-- Feature 5: Knowledge Hub & Journal -->
+    <section class="walkthrough-section walkthrough-section--alt">
+        <div class="walkthrough-section-inner">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">05</span>
+                <h2 class="font-poppins">Knowledge Hub & Journal</h2>
+                <p>Capture thoughts, connect ideas, and build a personal library of investment wisdom. Every insight you record becomes searchable institutional knowledge.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Log investment thoughts and observations</li>
+                    <li><i class="bi bi-check2"></i> Connect ideas across companies and themes</li>
+                    <li><i class="bi bi-check2"></i> Build an ever-growing wisdom repository</li>
+                </ul>
+            </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">Knowledge Hub</span>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-note">
+                            <div class="mockup-note-tag">Insight</div>
+                            <p>Companies with >20% insider ownership tend to outperform when management incentives are aligned.</p>
+                            <span class="mockup-note-meta">3 connected ideas &middot; 2 companies</span>
                         </div>
-                        <div class="card-body">
-                            <ul class="list-unstyled mb-0">
-                                <li class="mb-2"><strong>Strength (SWOT):</strong> Its powerful brand and closed ecosystem.</li>
-                                <li class="mb-2"><strong>Threat (SWOT):</strong> Increasing antitrust regulation globally.</li>
-                                <li class="mb-0"><strong>Bargaining Power of Buyers (Porter's):</strong> Relatively low, due to high switching costs and brand loyalty.</li>
-                            </ul>
+                        <div class="mockup-note">
+                            <div class="mockup-note-tag mockup-note-tag--lesson">Lesson</div>
+                            <p>Never average down on a broken thesis. Re-evaluate from scratch first.</p>
+                            <span class="mockup-note-meta">From: NFLX mistake log</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- Tool 3: Long-Term Monitoring -->
-        <section class="mb-6 border-top pt-5">
-            <div class="row align-items-center">
-                <div class="col-md-7">
-                    <h2 class="h1 text-dark mb-3">3. Destination Analysis</h2>
-                    <p class="text-muted mb-3">Long-term thesis tracking (Inspired by Nick Sleep & Qais Zakaria)</p>
-                    <p class="mb-4">For companies in your portfolio or on your watchlist. Instead of focusing on the next quarter, you set multi-year "checkpoints" for your thesis. This model forces you to think about a company's enduring competitive advantages and long-term trajectory.</p>
-                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-dark">View Checkpoints Timeline →</a>
-                </div>
-                <div class="col-md-5">
-                    <div class="card border">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="card-title mb-0 text-dark">Example: Amazon (AMZN)</h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="card-text mb-3">A 2-year checkpoint might be:</p>
-                            <ul class="list-unstyled mb-3">
-                                <li class="mb-2"><strong>Metric:</strong> AWS Revenue Growth</li>
-                                <li class="mb-0"><strong>Expectation:</strong> Maintain >25% year-over-year growth</li>
-                            </ul>
-                            <p class="card-text text-muted mb-0"><small>You would then review this in two years to see if your thesis is on track.</small></p>
-                        </div>
-                    </div>
-                </div>
+    <!-- Feature 6: Continuous Learning -->
+    <section class="walkthrough-section">
+        <div class="walkthrough-section-inner walkthrough-section-inner--reverse">
+            <div class="walkthrough-text">
+                <span class="walkthrough-step-label">06</span>
+                <h2 class="font-poppins">Continuous Learning</h2>
+                <p>Every mistake becomes a lesson. Every lesson feeds back into your checklists and templates. Your investment framework improves with each decision.</p>
+                <ul class="walkthrough-points">
+                    <li><i class="bi bi-check2"></i> Structured mistake logging with root cause analysis</li>
+                    <li><i class="bi bi-check2"></i> Lessons automatically feed into your checklists</li>
+                    <li><i class="bi bi-check2"></i> Compound your wisdom, not just your returns</li>
+                </ul>
             </div>
-        </section>
-
-        <!-- Tool 4: Learning System -->
-        <section class="mb-6 border-top pt-5">
-            <div class="row align-items-center">
-                <div class="col-md-5 order-md-last">
-                    <h2 class="h1 text-dark mb-3">4. Learning System</h2>
-                    <p class="text-muted mb-3">Digital Scuttlebutt & Mistake Log (Inspired by Philip Fisher & Charlie Munger)</p>
-                    <p class="mb-4">Investing is a process of constant learning. Use the Digital Scuttlebutt tool to stay on top of the current narrative, and the Mistake Log to permanently embed lessons from your own and others' failures into your future process.</p>
-                    <a href="{{ url_for('learning.mistake_log') }}" class="btn btn-outline-dark">Go to Mistake Log →</a>
-                </div>
-                <div class="col-md-7">
-                    <div class="card border">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="card-title mb-0 text-dark">How to Use It</h5>
-                        </div>
-                        <div class="card-body">
-                             <p class="card-text mb-3">For <strong>Digital Scuttlebutt</strong>, the AI might analyze news for <strong>NVIDIA (NVDA)</strong> and find a <em>Bear Case</em>: "New export restrictions to China."</p>
-                             <p class="card-text mb-0">For the <strong>Mistake Log</strong>, you might log the lesson: <em>"Avoid companies with high customer concentration."</em> and then click a button to add this permanently to your "Initial Screening" checklist.</p>
-                        </div>
+            <div class="walkthrough-visual">
+                <div class="walkthrough-mockup walkthrough-mockup--learn">
+                    <div class="mockup-header">
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-dot"></span>
+                        <span class="mockup-title">Learning Loop</span>
                     </div>
-                </div>
-            </div>
-        </section>
-    </div>
-    
-    <!-- Call to Action Section -->
-    <section class="py-5 bg-light border-top">
-        <div class="container text-center">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <h2 class="h1 text-dark mb-4">Ready to Build Your Investment System?</h2>
-                    <p class="lead mb-4 text-muted">Every successful investor has a systematic approach. Yours should be unique to your experience, lessons, and investment philosophy.</p>
-                    
-                    <div class="row justify-content-center">
-                        <div class="col-md-8">
-                            <div class="card border shadow-sm">
-                                <div class="card-body p-4">
-                                    <h4 class="text-dark mb-3">Start Your Journey</h4>
-                                    <p class="card-text text-muted mb-4">Begin with our proven mental models, then customize them based on your experience. Your checklist will become more valuable with every investment decision.</p>
-                                    
-                                    <div class="d-grid gap-2">
-                                        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-dark btn-lg">
-                                            Create My First Checklist
-                                        </a>
-                                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-dark btn-lg">
-                                            Start with an Idea
-                                        </a>
-                                    </div>
-                                    
-                                    <p class="text-muted mt-3 mb-0">
-                                        <small>Join thousands of investors who've systematized their decision-making process</small>
-                                    </p>
-                                </div>
+                    <div class="mockup-body">
+                        <div class="mockup-loop">
+                            <div class="mockup-loop-step">
+                                <span class="mockup-loop-icon"><i class="bi bi-exclamation-triangle"></i></span>
+                                <span>Mistake logged</span>
+                            </div>
+                            <div class="mockup-loop-arrow"><i class="bi bi-arrow-down"></i></div>
+                            <div class="mockup-loop-step">
+                                <span class="mockup-loop-icon"><i class="bi bi-lightbulb"></i></span>
+                                <span>Lesson extracted</span>
+                            </div>
+                            <div class="mockup-loop-arrow"><i class="bi bi-arrow-down"></i></div>
+                            <div class="mockup-loop-step">
+                                <span class="mockup-loop-icon"><i class="bi bi-shield-check"></i></span>
+                                <span>Checklist updated</span>
                             </div>
                         </div>
                     </div>
@@ -190,19 +268,16 @@
         </div>
     </section>
 
-    <!-- Custom Styles -->
-    <style>
-        .mb-6 {
-            margin-bottom: 4rem !important;
-        }
-        
-        .card {
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
+    <!-- CTA -->
+    <section class="walkthrough-cta">
+        <div class="walkthrough-cta-inner">
+            <h2 class="font-poppins">Start building your investment framework</h2>
+            <p>Turn scattered research into a disciplined, evolving process.</p>
+            <div class="walkthrough-cta-buttons">
+                <a href="{{ url_for('auth.auth0_login') }}" class="btn-accent">Get Started Free</a>
+                <a href="{{ url_for('main.index') }}" class="btn-subtle">Back to Home</a>
+            </div>
+        </div>
+    </section>
 
 {% endblock %}

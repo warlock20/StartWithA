@@ -3,252 +3,247 @@
 {% block title %}Add Thesis Version - {{ company.ticker_symbol }}{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Header -->
-    <header class="thesis-update-header">
-        <div class="thesis-update-identity">
-            <div class="thesis-update-logo">
-                {{ (company.name)[:2]|upper }}
+<div class="action-page">
+    <div class="action-container action-container--xl">
+        <!-- Editorial Hero -->
+        <div class="action-hero">
+            <div class="action-hero-badge">
+                <i class="bi bi-journal-text"></i>
+                <span>{{ company.ticker_symbol }}</span>
             </div>
-            <div class="thesis-update-title-group">
-                <h1>Update Investment Thesis</h1>
-                <div class="thesis-update-meta">
-                    <span class="thesis-update-ticker">{{ company.ticker_symbol }}</span>
-                    <span>{{ company.name }}</span>
-                    <span class="thesis-update-version-badge">Creating V{{ next_version }}</span>
-                </div>
-            </div>
-        </div>
-        <div class="thesis-update-actions">
-            <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="thesis-btn">
-                <i class="bi bi-arrow-left"></i> Back to Journey
-            </a>
-            {% if current_thesis %}
-            <button type="button" class="thesis-btn" onclick="copyCurrentThesis()">
-                <i class="bi bi-clipboard"></i> Copy Current
-            </button>
-            {% endif %}
-        </div>
-    </header>
-
-    <!-- Main Layout -->
-    <div class="thesis-update-content">
-        <!-- Form Section (Main) -->
-        <div class="thesis-update-form-section">
-            <form method="POST" action="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" id="thesisForm">
-                <!-- Thesis Title -->
-                <div class="thesis-form-group">
-                    <label class="thesis-form-label">
-                        Thesis Title <span class="required">*</span>
-                    </label>
-                    <input type="text"
-                           class="form-control"
-                           id="change_summary"
-                           name="change_summary"
-                           placeholder="e.g., AI Services Momentum + Vision Pro Validation"
-                           required
-                           maxlength="200">
-                </div>
-
-                <!-- Investment Thesis -->
-                <div class="thesis-form-group">
-                    <label class="thesis-form-label">
-                        Investment Thesis <span class="required">*</span>
-                    </label>
-                    <textarea class="form-control"
-                              id="thesis"
-                              name="thesis"
-                              rows="6"
-                              placeholder="What has changed in your thinking? What new information influenced this update?"
-                              required></textarea>
-                </div>
-
-                <!-- Change Trigger -->
-                <div class="thesis-form-group">
-                    <label class="thesis-form-label">What Triggered This Update?</label>
-                    <input type="text"
-                           class="form-control"
-                           id="change_trigger"
-                           name="change_trigger"
-                           placeholder="e.g., Q1 2025 earnings beat + iOS 18 AI features announcement"
-                           maxlength="200">
-                </div>
-
-                <!-- Two Column: Conviction + Position Sizing -->
-                <div class="thesis-form-row">
-                    <div class="thesis-form-group">
-                        <label class="thesis-form-label">
-                            Conviction Level <span class="required">*</span>
-                        </label>
-                        <div class="thesis-conviction-control">
-                            <input type="range"
-                                   class="form-range"
-                                   id="conviction_level"
-                                   name="conviction_level"
-                                   min="1"
-                                   max="10"
-                                   value="{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}"
-                                   oninput="document.getElementById('conviction_value').textContent = this.value">
-                            <div class="thesis-conviction-display">
-                                <span class="thesis-conviction-value" id="conviction_value">{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span>
-                                <span class="thesis-conviction-max">/ 10</span>
-                            </div>
-                        </div>
-                        {% if current_thesis and current_thesis.conviction_level %}
-                        <div class="thesis-form-hint">Previous: {{ current_thesis.conviction_level }}/10</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="thesis-form-group">
-                        <label class="thesis-form-label">Position Sizing Intent</label>
-                        <select class="form-select" id="position_sizing" name="position_sizing">
-                            <option value="">Select position size...</option>
-                            <option value="starter" {% if current_thesis and current_thesis.position_sizing == 'starter' %}selected{% endif %}>Starter (5-15%)</option>
-                            <option value="half" {% if current_thesis and current_thesis.position_sizing == 'half' %}selected{% endif %}>Half (15-25%)</option>
-                            <option value="full" {% if current_thesis and current_thesis.position_sizing == 'full' %}selected{% endif %}>Full (25-30%)</option>
-                            <option value="oversized" {% if current_thesis and current_thesis.position_sizing == 'oversized' %}selected{% endif %}>Oversized (30%+)</option>
-                        </select>
-                        {% if current_thesis and current_thesis.position_sizing %}
-                        <div class="thesis-form-hint">Currently: {{ current_thesis.position_sizing|replace('_', ' ')|title }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="thesis-form-group">
-                        <label class="thesis-form-label">Target Price</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number"
-                                   class="form-control"
-                                   id="target_price"
-                                   name="target_price"
-                                   step="0.01"
-                                   {% if current_thesis and current_thesis.target_price %}value="{{ current_thesis.target_price }}"{% endif %}
-                                   placeholder="0.00">
-                        </div>
-                        {% if current_thesis and current_thesis.target_price %}
-                        <div class="thesis-form-hint">Previous: ${{ "%.2f"|format(current_thesis.target_price) }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Bull/Bear Cases -->
-                <div class="thesis-cases-row">
-                    <!-- Bull Case -->
-                    <div class="thesis-case-section bull">
-                        <label class="thesis-form-label">
-                            <i class="bi bi-graph-up"></i> Bull Case
-                        </label>
-                        <div id="bull-case-container">
-                            <div class="bull-case-item">
-                                <div class="input-group">
-                                    <input type="text"
-                                           class="form-control"
-                                           name="bull_case_1"
-                                           placeholder="e.g., AI integration moat">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="removeBullCase(this)" style="display: none;">
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="thesis-add-btn" onclick="addBullCase()">
-                            <i class="bi bi-plus"></i> Add Point
-                        </button>
-                    </div>
-
-                    <!-- Bear Case -->
-                    <div class="thesis-case-section bear">
-                        <label class="thesis-form-label">
-                            <i class="bi bi-graph-down"></i> Bear Case
-                        </label>
-                        <div id="bear-case-container">
-                            <div class="bear-case-item">
-                                <div class="input-group">
-                                    <input type="text"
-                                           class="form-control"
-                                           name="bear_case_1"
-                                           placeholder="e.g., Valuation concerns">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="removeBearCase(this)" style="display: none;">
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="thesis-add-btn" onclick="addBearCase()">
-                            <i class="bi bi-plus"></i> Add Risk
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Submit -->
-                <div class="thesis-form-actions">
-                    <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="thesis-btn">Cancel</a>
-                    <button type="submit" class="thesis-btn primary">
-                        <i class="bi bi-check-circle"></i> Save Version {{ next_version }}
-                    </button>
-                </div>
-            </form>
+            <h1>Update Investment Thesis</h1>
+            <p class="action-hero-subtitle">
+                {{ company.name }} &middot; Creating V{{ next_version }}
+            </p>
         </div>
 
-        <!-- Sidebar (Current Thesis Reference) -->
         {% if current_thesis %}
-        <div class="thesis-update-sidebar">
-            <div class="thesis-reference-card">
-                <div class="thesis-reference-header">
-                    <span class="thesis-reference-label">Current Thesis</span>
-                    <span class="thesis-reference-version">V{{ current_thesis.version }}</span>
-                </div>
-                <h4 class="thesis-reference-title">{{ current_thesis.change_summary }}</h4>
-
-                <div class="thesis-reference-stats">
-                    <div class="thesis-stat">
-                        <span class="thesis-stat-value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
-                        <span class="thesis-stat-label">Conviction</span>
-                    </div>
-                    {% if current_thesis.position_sizing %}
-                    <div class="thesis-stat">
-                        <span class="thesis-stat-value">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</span>
-                        <span class="thesis-stat-label">Position</span>
-                    </div>
-                    {% endif %}
-                    {% if current_thesis.target_price %}
-                    <div class="thesis-stat">
-                        <span class="thesis-stat-value">${{ "%.0f"|format(current_thesis.target_price) }}</span>
-                        <span class="thesis-stat-label">Target</span>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="thesis-reference-content">
-                    <p>{{ current_thesis.thesis[:200] }}{% if current_thesis.thesis|length > 200 %}...{% endif %}</p>
-                </div>
-
-                {% if current_thesis.bull_case or current_thesis.bear_case %}
-                <div class="thesis-reference-cases">
-                    {% if current_thesis.bull_case %}
-                    <div class="thesis-case-preview bull">
-                        <span class="thesis-case-label"><i class="bi bi-graph-up"></i> {{ current_thesis.bull_case|length }} bull points</span>
-                    </div>
-                    {% endif %}
-                    {% if current_thesis.bear_case %}
-                    <div class="thesis-case-preview bear">
-                        <span class="thesis-case-label"><i class="bi bi-graph-down"></i> {{ current_thesis.bear_case|length }} bear points</span>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endif %}
-
-                <button type="button" class="thesis-view-btn" onclick="showDetailModal()">
-                    <i class="bi bi-eye"></i> View Full Thesis
-                </button>
-            </div>
-
-            <div class="thesis-tip-card">
-                <i class="bi bi-lightbulb"></i>
-                <p>Reference your current thesis while updating. Click "Copy Current" to start with existing content.</p>
-            </div>
+        <div class="text-center">
+            <button type="button" class="action-utility-btn" onclick="copyCurrentThesis()">
+                <i class="bi bi-clipboard"></i> Copy Current Thesis
+            </button>
         </div>
         {% endif %}
+
+        <!-- Main Layout -->
+        <div class="thesis-update-content">
+            <!-- Form Section (Main) -->
+            <div class="thesis-update-form-section">
+                <form method="POST" action="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" id="thesisForm">
+                    <!-- Thesis Title -->
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">
+                            Thesis Title <span class="required">*</span>
+                        </label>
+                        <input type="text"
+                               class="form-control"
+                               id="change_summary"
+                               name="change_summary"
+                               placeholder="e.g., AI Services Momentum + Vision Pro Validation"
+                               required
+                               maxlength="200">
+                    </div>
+
+                    <!-- Investment Thesis -->
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">
+                            Investment Thesis <span class="required">*</span>
+                        </label>
+                        <textarea class="form-control"
+                                  id="thesis"
+                                  name="thesis"
+                                  rows="6"
+                                  placeholder="What has changed in your thinking? What new information influenced this update?"
+                                  required></textarea>
+                    </div>
+
+                    <!-- Change Trigger -->
+                    <div class="thesis-form-group">
+                        <label class="thesis-form-label">What Triggered This Update?</label>
+                        <input type="text"
+                               class="form-control"
+                               id="change_trigger"
+                               name="change_trigger"
+                               placeholder="e.g., Q1 2025 earnings beat + iOS 18 AI features announcement"
+                               maxlength="200">
+                    </div>
+
+                    <!-- Two Column: Conviction + Position Sizing -->
+                    <div class="thesis-form-row">
+                        <div class="thesis-form-group">
+                            <label class="thesis-form-label">
+                                Conviction Level <span class="required">*</span>
+                            </label>
+                            <div class="thesis-conviction-control">
+                                <input type="range"
+                                       class="form-range"
+                                       id="conviction_level"
+                                       name="conviction_level"
+                                       min="1"
+                                       max="10"
+                                       value="{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}"
+                                       oninput="document.getElementById('conviction_value').textContent = this.value">
+                                <div class="thesis-conviction-display">
+                                    <span class="thesis-conviction-value" id="conviction_value">{% if current_thesis and current_thesis.conviction_level %}{{ current_thesis.conviction_level }}{% else %}5{% endif %}</span>
+                                    <span class="thesis-conviction-max">/ 10</span>
+                                </div>
+                            </div>
+                            {% if current_thesis and current_thesis.conviction_level %}
+                            <div class="thesis-form-hint">Previous: {{ current_thesis.conviction_level }}/10</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="thesis-form-group">
+                            <label class="thesis-form-label">Position Sizing Intent</label>
+                            <select class="form-select" id="position_sizing" name="position_sizing">
+                                <option value="">Select position size...</option>
+                                <option value="starter" {% if current_thesis and current_thesis.position_sizing == 'starter' %}selected{% endif %}>Starter (5-15%)</option>
+                                <option value="half" {% if current_thesis and current_thesis.position_sizing == 'half' %}selected{% endif %}>Half (15-25%)</option>
+                                <option value="full" {% if current_thesis and current_thesis.position_sizing == 'full' %}selected{% endif %}>Full (25-30%)</option>
+                                <option value="oversized" {% if current_thesis and current_thesis.position_sizing == 'oversized' %}selected{% endif %}>Oversized (30%+)</option>
+                            </select>
+                            {% if current_thesis and current_thesis.position_sizing %}
+                            <div class="thesis-form-hint">Currently: {{ current_thesis.position_sizing|replace('_', ' ')|title }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="thesis-form-group">
+                            <label class="thesis-form-label">Target Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number"
+                                       class="form-control"
+                                       id="target_price"
+                                       name="target_price"
+                                       step="0.01"
+                                       {% if current_thesis and current_thesis.target_price %}value="{{ current_thesis.target_price }}"{% endif %}
+                                       placeholder="0.00">
+                            </div>
+                            {% if current_thesis and current_thesis.target_price %}
+                            <div class="thesis-form-hint">Previous: ${{ "%.2f"|format(current_thesis.target_price) }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bull/Bear Cases -->
+                    <div class="thesis-cases-row">
+                        <!-- Bull Case -->
+                        <div class="thesis-case-section bull">
+                            <label class="thesis-form-label">
+                                <i class="bi bi-graph-up"></i> Bull Case
+                            </label>
+                            <div id="bull-case-container">
+                                <div class="bull-case-item">
+                                    <div class="input-group">
+                                        <input type="text"
+                                               class="form-control"
+                                               name="bull_case_1"
+                                               placeholder="e.g., AI integration moat">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="removeBullCase(this)" style="display: none;">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="thesis-add-btn" onclick="addBullCase()">
+                                <i class="bi bi-plus"></i> Add Point
+                            </button>
+                        </div>
+
+                        <!-- Bear Case -->
+                        <div class="thesis-case-section bear">
+                            <label class="thesis-form-label">
+                                <i class="bi bi-graph-down"></i> Bear Case
+                            </label>
+                            <div id="bear-case-container">
+                                <div class="bear-case-item">
+                                    <div class="input-group">
+                                        <input type="text"
+                                               class="form-control"
+                                               name="bear_case_1"
+                                               placeholder="e.g., Valuation concerns">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="removeBearCase(this)" style="display: none;">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="thesis-add-btn" onclick="addBearCase()">
+                                <i class="bi bi-plus"></i> Add Risk
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="thesis-form-actions">
+                        <a href="{{ return_url or url_for('portfolio.investment_journey', company_id=company.id) }}" class="thesis-btn">Cancel</a>
+                        <button type="submit" class="thesis-btn primary">
+                            <i class="bi bi-check-circle"></i> Save Version {{ next_version }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sidebar (Current Thesis Reference) -->
+            {% if current_thesis %}
+            <div class="thesis-update-sidebar">
+                <div class="thesis-reference-card">
+                    <div class="thesis-reference-header">
+                        <span class="thesis-reference-label">Current Thesis</span>
+                        <span class="thesis-reference-version">V{{ current_thesis.version }}</span>
+                    </div>
+                    <h4 class="thesis-reference-title">{{ current_thesis.change_summary }}</h4>
+
+                    <div class="thesis-reference-stats">
+                        <div class="thesis-stat">
+                            <span class="thesis-stat-value">{{ current_thesis.conviction_level or 'N/A' }}/10</span>
+                            <span class="thesis-stat-label">Conviction</span>
+                        </div>
+                        {% if current_thesis.position_sizing %}
+                        <div class="thesis-stat">
+                            <span class="thesis-stat-value">{{ current_thesis.position_sizing|replace('_', ' ')|title }}</span>
+                            <span class="thesis-stat-label">Position</span>
+                        </div>
+                        {% endif %}
+                        {% if current_thesis.target_price %}
+                        <div class="thesis-stat">
+                            <span class="thesis-stat-value">${{ "%.0f"|format(current_thesis.target_price) }}</span>
+                            <span class="thesis-stat-label">Target</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="thesis-reference-content">
+                        <p>{{ current_thesis.thesis[:200] }}{% if current_thesis.thesis|length > 200 %}...{% endif %}</p>
+                    </div>
+
+                    {% if current_thesis.bull_case or current_thesis.bear_case %}
+                    <div class="thesis-reference-cases">
+                        {% if current_thesis.bull_case %}
+                        <div class="thesis-case-preview bull">
+                            <span class="thesis-case-label"><i class="bi bi-graph-up"></i> {{ current_thesis.bull_case|length }} bull points</span>
+                        </div>
+                        {% endif %}
+                        {% if current_thesis.bear_case %}
+                        <div class="thesis-case-preview bear">
+                            <span class="thesis-case-label"><i class="bi bi-graph-down"></i> {{ current_thesis.bear_case|length }} bear points</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <button type="button" class="thesis-view-btn" onclick="showDetailModal()">
+                        <i class="bi bi-eye"></i> View Full Thesis
+                    </button>
+                </div>
+
+                <div class="thesis-tip-card">
+                    <i class="bi bi-lightbulb"></i>
+                    <p>Reference your current thesis while updating. Click "Copy Current Thesis" above to start with existing content.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 

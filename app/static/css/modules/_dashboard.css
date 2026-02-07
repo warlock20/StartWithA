@@ -484,12 +484,12 @@
 .framework-box-link {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--accent-color);
     text-decoration: none;
 }
 
 .framework-box-link:hover {
-    color: #4338ca;
+    color: var(--primary-600);
 }
 
 /* Activity Feed Components */
@@ -553,7 +553,7 @@
 }
 
 .activity-link:hover {
-    color: #4f46e5;
+    color: var(--accent-color);
 }
 
 .activity-time {
@@ -829,7 +829,7 @@
 }
 
 .template-badge {
-    background: #4f46e5;
+    background: var(--accent-color);
     color: white;
     padding: 0.25rem 0.75rem;
     border-radius: 12px;

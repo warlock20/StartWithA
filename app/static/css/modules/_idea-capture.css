@@ -61,14 +61,14 @@
 .capture-hero-subtitle {
     font-size: 1.125rem;
     color: var(--gray-500);
-    max-width: 500px;
+    max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
 }
 
 /* Main Form Container */
 .capture-form-container {
-    width: min(90%, 840px);
+    width: min(90%, 1020px);
     margin: 0 auto;
 }
 
@@ -179,7 +179,7 @@
     outline: none;
     border-color: var(--primary-600);
     background: white;
-    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.08);
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.08);
 }
 
 .capture-input::placeholder {
@@ -222,7 +222,7 @@
     outline: none;
     border-color: var(--primary-600);
     background-color: white;
-    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.08);
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.08);
 }
 
 /* Grid Layout for Form Rows */
@@ -348,7 +348,7 @@
     outline: none;
     border-color: var(--primary-600);
     background: white;
-    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.08);
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.08);
 }
 
 /* Expandable Section */
@@ -624,13 +624,13 @@
 .capture-submit-btn.btn-primary-submit {
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
     color: white;
-    box-shadow: 0 4px 14px rgba(67, 56, 202, 0.25);
+    box-shadow: 0 4px 14px rgba(71, 85, 105, 0.25);
 }
 
 .capture-submit-btn.btn-primary-submit:hover {
     background: linear-gradient(135deg, var(--primary-700) 0%, #2d2899 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(67, 56, 202, 0.35);
+    box-shadow: 0 6px 20px rgba(71, 85, 105, 0.35);
 }
 
 /* Research mode submit */

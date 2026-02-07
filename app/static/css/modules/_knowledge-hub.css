@@ -57,7 +57,7 @@
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
     border-color: var(--primary-600);
     color: white;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
 }
 
 .type-pill.active:hover {
@@ -129,7 +129,7 @@
 
 .search-input:focus {
     border-color: var(--primary-400);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
     outline: none;
 }
 
@@ -181,7 +181,7 @@
 
 .grouping-select:focus {
     border-color: var(--primary-400);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
     outline: none;
 }
 
@@ -420,7 +420,7 @@
 .knowledge-filter-card .form-control:focus,
 .knowledge-filter-card .form-select:focus {
     border-color: var(--primary-400);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
 }
 
 /* Wisdom Grid (Curated Insights) */

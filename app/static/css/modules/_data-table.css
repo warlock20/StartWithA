@@ -155,7 +155,7 @@
 .data-table-wrapper .tabulator .tabulator-header-filter:focus {
     outline: none;
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 0.2rem rgba(67, 56, 202, 0.15);
+    box-shadow: 0 0 0 0.2rem rgba(71, 85, 105, 0.15);
 }
 
 /* Pagination */
@@ -250,7 +250,7 @@
 
 .data-table-filter-dropdown .form-select:focus {
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 0.2rem rgba(67, 56, 202, 0.15);
+    box-shadow: 0 0 0 0.2rem rgba(71, 85, 105, 0.15);
 }
 
 /* Responsive adjustments */

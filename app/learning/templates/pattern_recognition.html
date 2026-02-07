@@ -266,7 +266,7 @@
                 <h6>Top Success Drivers:</h6>
                 {% if success_patterns %}
                 <ol>
-                    {% for pattern in success_patterns|sort(attribute='occurrences', reverse=true)[:3] %}
+                    {% for pattern in (success_patterns|sort(attribute='occurrences', reverse=true))[:3] %}
                     <li>
                         <strong>{{ pattern.pattern_name }}</strong>
                         <br>
@@ -288,7 +288,7 @@
                 <h6>Top Failure Triggers:</h6>
                 {% if failure_patterns %}
                 <ol>
-                    {% for pattern in failure_patterns|sort(attribute='occurrences', reverse=true)[:3] %}
+                    {% for pattern in (failure_patterns|sort(attribute='occurrences', reverse=true))[:3] %}
                     <li>
                         <strong>{{ pattern.pattern_name }}</strong>
                         <br>

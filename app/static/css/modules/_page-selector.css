@@ -52,13 +52,13 @@
 
 .page-selector-btn:hover {
     border-color: var(--primary-600);
-    box-shadow: 0 2px 8px rgba(67, 56, 202, 0.1);
+    box-shadow: 0 2px 8px rgba(71, 85, 105, 0.1);
 }
 
 .page-selector-btn:focus {
     outline: none;
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1);
 }
 
 .page-selector-btn i.bi-chevron-down {
@@ -131,7 +131,7 @@
 }
 
 .page-dropdown-item.active {
-    background: linear-gradient(90deg, rgba(67, 56, 202, 0.08) 0%, white 100%);
+    background: linear-gradient(90deg, rgba(71, 85, 105, 0.08) 0%, white 100%);
     border-left-color: var(--primary-600);
     color: var(--primary-600);
     font-weight: 600;

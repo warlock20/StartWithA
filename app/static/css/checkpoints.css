@@ -247,7 +247,7 @@
 
 .portfolio-badge.primary {
     background: #ede9fe;
-    color: #7c3aed;
+    color: var(--accent-700);
 }
 
 /* Empty State Customization */

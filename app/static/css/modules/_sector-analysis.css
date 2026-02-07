@@ -213,7 +213,7 @@
     width: 3rem;
     height: 3rem;
     border-radius: 0.75rem;
-    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -262,14 +262,14 @@
 .sector-action-link {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #4338ca;
+    color: var(--primary-600);
     display: flex;
     align-items: center;
     gap: 0.25rem;
 }
 
 .sector-notebook-card:hover .sector-action-link {
-    color: #3730a3;
+    color: var(--primary-700);
 }
 
 /* Sector Create Form */
@@ -283,7 +283,7 @@
 }
 
 .sector-create-form .form-control:focus {
-    border-color: #4338ca;
+    border-color: var(--primary-600);
     box-shadow: none;
 }
 
@@ -311,8 +311,8 @@
 
 .kill-checklists-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
-    gap: 2.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 2rem;
     margin-top: 2.5rem;
 }
 
@@ -338,9 +338,9 @@
 }
 
 .kill-checklist-default {
-    border-color: #4338ca;
+    border-color: var(--primary-600);
     border-width: 2px;
-    box-shadow: 0 6px 16px rgba(67, 56, 202, 0.15);
+    box-shadow: 0 6px 16px rgba(71, 85, 105, 0.15);
 }
 
 .kill-checklist-header {
@@ -383,7 +383,7 @@
 }
 
 .kill-badge-default {
-    background: linear-gradient(135deg, #4338ca, #6366f1);
+    background: linear-gradient(135deg, var(--primary-600), var(--accent-500));
     color: white;
 }
 
@@ -681,7 +681,7 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, #4338ca, #6366f1);
+    background: linear-gradient(135deg, var(--primary-600), var(--accent-500));
     border-radius: 10px;
     flex-shrink: 0;
 }

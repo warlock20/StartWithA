@@ -272,13 +272,23 @@ def too_hard_basket():
 
     pagination = SimplePagination(page, per_page, total_items)
     sectors_list = SectorService.get_user_sectors_list(current_user.id)
-    
+
+    # Smart back button support
+    return_url = request.args.get('return_url') or request.referrer
+    context_label = request.args.get('context_label') or 'My Projects'
+
+    # If coming from my-projects, ensure proper label
+    if return_url and 'my-projects' in return_url:
+        if 'return_url' not in request.args:  # Only auto-set if not explicitly provided
+            return_url = url_for('research_workflow.my_projects')
+            context_label = 'My Projects'
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render_template('partials/_too_hard_list.html', 
-                               too_hard_items=items, 
+        return render_template('partials/_too_hard_list.html',
+                               too_hard_items=items,
                                pagination=pagination,
-                               current_stage=stage_filter)  
-                               
+                               current_stage=stage_filter)
+
     return render_template('too_hard_basket.html',
                           too_hard_items=items,
                           sectors_list=sectors_list,
@@ -292,7 +302,9 @@ def too_hard_basket():
                           total_count=total_count,
                           kill_count=kill_count,
                           mid_research_count=mid_research_count,
-                          full_analysis_count=full_analysis_count)
+                          full_analysis_count=full_analysis_count,
+                          return_url=return_url,
+                          context_label=context_label)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])

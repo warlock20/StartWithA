@@ -35,9 +35,9 @@
 }
 
 .analytics-nav-tabs .nav-link.active {
-    color: #4f46e5;
+    color: var(--accent-color);
     background: white;
-    border-bottom-color: #4f46e5;
+    border-bottom-color: var(--accent-color);
     font-weight: 600;
 }
 
@@ -334,12 +334,12 @@
 .analytics-link-small {
     font-size: 0.813rem;
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--accent-color);
     text-decoration: none;
 }
 
 .analytics-link-small:hover {
-    color: #4338ca;
+    color: var(--primary-600);
 }
 
 .analytics-compact-list {
@@ -406,13 +406,13 @@
 .analytics-section-link {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--accent-color);
     text-decoration: none;
     transition: color 0.2s ease;
 }
 
 .analytics-section-link:hover {
-    color: #4338ca;
+    color: var(--primary-600);
 }
 
 /* Analytics Sources List */
@@ -575,7 +575,7 @@
 
 .analytics-action-card i {
     font-size: 2rem;
-    color: #4f46e5;
+    color: var(--accent-color);
 }
 
 .analytics-action-card span {

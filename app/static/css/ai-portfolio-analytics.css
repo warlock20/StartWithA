@@ -570,7 +570,7 @@
     width: 80px;
     height: 80px;
     border: 8px solid #f3f4f6;
-    border-top: 8px solid #6366f1;
+    border-top: 8px solid var(--accent-500);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -595,7 +595,7 @@
 
 .loading-status {
     font-size: 14px;
-    color: #6366f1;
+    color: var(--accent-500);
     font-weight: 500;
     margin-top: 30px;
     padding: 12px 24px;
@@ -616,7 +616,7 @@
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(90deg, var(--accent-500) 0%, #8b5cf6 100%);
     transition: width 0.3s ease;
     border-radius: 8px;
 }
@@ -643,7 +643,7 @@
 
 .info-item-icon {
     font-size: 32px;
-    color: #6366f1;
+    color: var(--accent-500);
     margin-bottom: 8px;
 }
 
