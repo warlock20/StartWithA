@@ -4,8 +4,8 @@
 
 /* Transaction Type Button Selection */
 .btn-check:checked + .btn-outline-primary {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
     color: white;
 }
 
@@ -23,8 +23,8 @@
 
 /* Hover states for transaction type buttons */
 .btn-outline-primary:hover {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
     color: white;
 }
 
@@ -79,7 +79,7 @@
 .btn-portfolio-modern.primary:hover {
     background: var(--primary-700);
     border-color: var(--primary-700);
-    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3);
+    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
     color: white;
 }
 
@@ -320,7 +320,7 @@
 .portfolio-filter-select:focus {
     outline: none;
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1);
 }
 
 .portfolio-filter-select:hover {

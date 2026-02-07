@@ -62,8 +62,8 @@
 
 .sort-select:focus {
     outline: none;
-    border-color: #4338ca;
-    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.1);
 }
 
 .sort-results-count {

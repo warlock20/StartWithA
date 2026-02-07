@@ -714,7 +714,7 @@
 .stat-row-value {
     font-weight: 700;
     font-size: 1.125rem;
-    color: #4338ca;
+    color: var(--primary-600);
 }
 
 .stat-row-value.stat-success {
@@ -764,14 +764,14 @@
 .preview-card-link {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #4338ca;
+    color: var(--primary-600);
     text-decoration: none;
     display: flex;
     align-items: center;
 }
 
 .preview-card-link:hover {
-    color: #3730a3;
+    color: var(--primary-700);
 }
 
 .preview-card-body {
@@ -859,7 +859,7 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 50%;
-    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
     color: white;
     display: flex;
     align-items: center;

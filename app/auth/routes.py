@@ -3,54 +3,8 @@ from flask_login import login_user, current_user, logout_user, login_required
 from app import db, limiter
 from app.models import User
 from app.auth import auth_bp # Import the blueprint from this package's __init__.py
-from app.constants import RATELIMIT_AUTH, RATELIMIT_AUTH_REGISTER
+from app.constants import RATELIMIT_AUTH
 
-
-@auth_bp.route('/register', methods=['GET', 'POST'])
-@limiter.limit(RATELIMIT_AUTH_REGISTER)
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        password_confirm = request.form.get('password_confirm')
-
-        # Basic Validation
-        if not username or not email or not password or not password_confirm:
-            flash('All fields are required.', 'error')
-            return render_template('register.html', title="Register")
-
-        if password != password_confirm:
-            flash('Passwords do not match.', 'error')
-            return render_template('register.html', title="Register", username=username, email=email)
-
-        # Check if username or email already exists
-        existing_user_by_username = User.query.filter_by(username=username).first()
-        if existing_user_by_username:
-            flash('That username is already taken. Please choose a different one.', 'error')
-            return render_template('register.html', title="Register", email=email) # Keep email if username fails
-
-        existing_user_by_email = User.query.filter_by(email=email).first()
-        if existing_user_by_email:
-            flash('That email address is already registered. Please use a different one or login.', 'error')
-            return render_template('register.html', title="Register", username=username) # Keep username if email fails
-        
-        # If all checks pass, create new user
-        new_user = User(username=username, email=email,subscription_tier=current_app.config['DEFAULT_USER_TIER'])
-        new_user.set_password(password) # Hash the password
-        
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('auth.login')) # Redirect to login page (we'll create this next)
-        except Exception as e:
-            db.session.rollback()
-            flash(f'An error occurred during registration: {str(e)}', 'error')
-            return render_template('register.html', title="Register", username=username, email=email)
-
-    # For GET request, just display the form
-    return render_template('register.html', title="Register")
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit(RATELIMIT_AUTH)

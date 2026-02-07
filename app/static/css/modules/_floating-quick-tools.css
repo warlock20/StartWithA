@@ -18,7 +18,7 @@
     border: none;
     padding: 1rem 1.25rem;
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(67, 56, 202, 0.25);
+    box-shadow: 0 8px 24px rgba(71, 85, 105, 0.25);
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -29,7 +29,7 @@
 }
 
 .quick-tools-pill:hover {
-    box-shadow: 0 12px 32px rgba(67, 56, 202, 0.35);
+    box-shadow: 0 12px 32px rgba(71, 85, 105, 0.35);
     transform: translateX(-4px);
 }
 

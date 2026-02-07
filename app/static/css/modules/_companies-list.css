@@ -152,7 +152,7 @@
 .companies-search-input:focus {
     outline: none;
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.1);
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.1);
 }
 
 /* Companies Grid */
@@ -384,7 +384,7 @@
 .companies-sector-selector:focus {
     outline: none;
     border-color: var(--primary-600);
-    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.1);
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.1);
 }
 
 /* Loading State */

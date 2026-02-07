@@ -318,18 +318,18 @@
    Bootstrap's default button styles. Base .btn styling is in _buttons.css */
 
 .btn-primary {
-    background-color: #4338ca !important;
-    border-color: #4338ca !important;
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
     color: white !important;
-    box-shadow: 0 2px 4px rgba(67, 56, 202, 0.2) !important;
+    box-shadow: 0 2px 4px rgba(71, 85, 105, 0.2) !important;
 }
 
 .btn-primary:hover, .btn-primary:focus {
-    background-color: #3730a3 !important;
-    border-color: #3730a3 !important;
+    background-color: var(--primary-700) !important;
+    border-color: var(--primary-700) !important;
     color: white !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3) !important;
 }
 
 .btn-success {
@@ -466,7 +466,7 @@
 
 .btn-check:focus + .btn {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.25) !important;
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.25) !important;
 }
 
 /* Active state for all button-check labels */

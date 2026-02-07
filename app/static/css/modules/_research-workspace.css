@@ -483,7 +483,7 @@
 .research-tools-sidebar .accordion-button .badge {
     font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, var(--accent-500) 0%, #8b5cf6 100%);
     border: none;
     font-weight: 600;
 }

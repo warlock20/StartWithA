@@ -1,10 +1,486 @@
 /*
 =============================================================================
-MENTAL MODELS ANALYSIS STYLES
+MENTAL MODELS STYLES
 =============================================================================
-Professional styles for mental model analysis pages (SWOT, Porter's 5 Forces, etc.)
-Follows the platform's design system with clean, focused layouts
+1. Public walkthrough page (product tour at /mental-models)
+2. SWOT Analysis (per-company)
+3. Porter's Five Forces (per-company)
 */
+
+/* =============================================================================
+   WALKTHROUGH PAGE STYLES — Product tour at /mental-models
+   ============================================================================= */
+
+/* Hero */
+.walkthrough-hero {
+    padding: 5rem 1.5rem 3rem;
+    text-align: center;
+    background: var(--public-bg);
+}
+
+.walkthrough-hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.walkthrough-hero-title {
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-weight: 700;
+    color: var(--public-text);
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+}
+
+.walkthrough-hero-subtitle {
+    font-size: 1.0625rem;
+    color: var(--public-text-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Sections */
+.walkthrough-section {
+    padding: 4rem 1.5rem;
+    background: var(--public-surface);
+}
+
+.walkthrough-section--alt {
+    background: var(--public-bg);
+}
+
+.walkthrough-section-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+.walkthrough-section-inner--reverse {
+    direction: rtl;
+}
+
+.walkthrough-section-inner--reverse > * {
+    direction: ltr;
+}
+
+.walkthrough-step-label {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--public-accent);
+    background: var(--public-accent-light);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+}
+
+.walkthrough-text h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--public-text);
+    margin-bottom: 0.75rem;
+    line-height: 1.25;
+}
+
+.walkthrough-text p {
+    font-size: 0.9375rem;
+    color: var(--public-text-muted);
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+
+.walkthrough-points {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.walkthrough-points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--public-text);
+    margin-bottom: 0.5rem;
+}
+
+.walkthrough-points li i {
+    color: var(--public-accent);
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+/* Mockup cards */
+.walkthrough-visual {
+    display: flex;
+    justify-content: center;
+}
+
+.walkthrough-mockup {
+    width: 100%;
+    max-width: 400px;
+    background: var(--public-surface);
+    border: 1px solid var(--public-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.mockup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.75rem 1rem;
+    background: var(--primary-50);
+    border-bottom: 1px solid var(--public-border);
+}
+
+.mockup-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-300);
+}
+
+.mockup-title {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-600);
+}
+
+.mockup-body {
+    padding: 1rem;
+}
+
+/* Research template mockup */
+.mockup-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--primary-400);
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+}
+
+.mockup-step i {
+    font-size: 0.875rem;
+}
+
+.mockup-step--done {
+    color: var(--public-accent);
+}
+
+.mockup-step--done i {
+    color: var(--public-accent);
+}
+
+.mockup-step--active {
+    background: var(--public-accent-light);
+    color: var(--public-accent);
+    font-weight: 600;
+}
+
+/* Kill checklist mockup */
+.walkthrough-mockup--danger .mockup-header {
+    background: #fef2f2;
+}
+
+.walkthrough-mockup--danger .mockup-dot {
+    background: #fca5a5;
+}
+
+.walkthrough-mockup--danger .mockup-title {
+    color: var(--danger-600);
+}
+
+.mockup-kill-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+}
+
+.mockup-kill-item--fail {
+    color: var(--danger-500);
+}
+
+.mockup-kill-item--fail i {
+    color: var(--danger-500);
+}
+
+.mockup-kill-item--pass {
+    color: var(--success-500);
+}
+
+.mockup-kill-item--pass i {
+    color: var(--success-500);
+}
+
+.mockup-verdict {
+    margin-top: 0.75rem;
+    padding: 0.625rem;
+    background: #fef2f2;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--danger-600);
+}
+
+/* AI mockup */
+.walkthrough-mockup--ai .mockup-header {
+    background: var(--accent-50);
+}
+
+.walkthrough-mockup--ai .mockup-dot {
+    background: var(--accent-300);
+}
+
+.walkthrough-mockup--ai .mockup-title {
+    color: var(--public-accent);
+}
+
+.mockup-chat-user {
+    background: var(--primary-100);
+    border-radius: 10px 10px 10px 2px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--public-text);
+    margin-bottom: 0.75rem;
+}
+
+.mockup-chat-ai {
+    background: var(--accent-50);
+    border-radius: 10px 10px 2px 10px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--public-text);
+    line-height: 1.5;
+}
+
+/* Analytics mockup */
+.mockup-stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.mockup-stat {
+    background: var(--primary-50);
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.mockup-stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--public-accent);
+}
+
+.mockup-stat-label {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--public-text-muted);
+    margin-top: 0.125rem;
+}
+
+.mockup-insight {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: var(--warning-50);
+    border-radius: 8px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--warning-600);
+    line-height: 1.4;
+}
+
+.mockup-insight i {
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+/* Knowledge mockup */
+.mockup-note {
+    background: var(--primary-50);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.mockup-note p {
+    font-size: 0.8125rem;
+    color: var(--public-text);
+    line-height: 1.5;
+    margin: 0.375rem 0 0.25rem;
+}
+
+.mockup-note-tag {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--public-accent-light);
+    color: var(--public-accent);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+}
+
+.mockup-note-tag--lesson {
+    background: var(--warning-50);
+    color: var(--warning-600);
+}
+
+.mockup-note-meta {
+    font-size: 0.6875rem;
+    color: var(--public-text-muted);
+}
+
+/* Learning loop mockup */
+.walkthrough-mockup--learn .mockup-header {
+    background: var(--accent-50);
+}
+
+.walkthrough-mockup--learn .mockup-dot {
+    background: var(--accent-300);
+}
+
+.walkthrough-mockup--learn .mockup-title {
+    color: var(--public-accent);
+}
+
+.mockup-loop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0;
+}
+
+.mockup-loop-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--public-text);
+    width: 100%;
+}
+
+.mockup-loop-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--public-accent-light);
+    color: var(--public-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.mockup-loop-arrow {
+    color: var(--primary-400);
+    font-size: 0.875rem;
+}
+
+/* Walkthrough CTA */
+.walkthrough-cta {
+    background: var(--primary-800);
+    padding: 4rem 1.5rem;
+    text-align: center;
+}
+
+.walkthrough-cta-inner {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.walkthrough-cta h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.75rem;
+}
+
+.walkthrough-cta p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.0625rem;
+    margin-bottom: 2rem;
+}
+
+.walkthrough-cta-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.walkthrough-cta .btn-subtle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.walkthrough-cta .btn-subtle:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Walkthrough responsive */
+@media (max-width: 768px) {
+    .walkthrough-section-inner,
+    .walkthrough-section-inner--reverse {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        direction: ltr;
+    }
+
+    .walkthrough-visual {
+        order: -1;
+    }
+
+    .walkthrough-hero {
+        padding: 3rem 1.5rem 2rem;
+    }
+
+    .walkthrough-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .walkthrough-cta {
+        padding: 3rem 1.5rem;
+    }
+
+    .walkthrough-cta-buttons {
+        flex-direction: column;
+    }
+}
+
+
+/* =============================================================================
+   SWOT & PORTER'S ANALYSIS STYLES (per-company pages)
+   ============================================================================= */
 
 /* Mental Models Container - Uses dashboard-container from _dashboard.css */
 /* Override for mental models pages to enable scrolling */
@@ -175,7 +651,7 @@ Follows the platform's design system with clean, focused layouts
 .swot-quadrant-textarea:focus {
     outline: none;
     border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
 }
 
 .swot-quadrant-textarea::placeholder {
@@ -312,7 +788,7 @@ Follows the platform's design system with clean, focused layouts
 .porters-force-textarea:focus {
     outline: none;
     border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
 }
 
 .porters-force-textarea::placeholder {

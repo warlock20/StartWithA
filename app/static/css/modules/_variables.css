@@ -3,11 +3,30 @@
    ============================================================================= */
 
 :root {
-    /* Modern Investment Platform Color Palette */
-    --primary-600: #4338ca;      /* Indigo - main brand */
-    --primary-700: #3730a3;      /* Indigo hover state */
-    --primary-50: #eff6ff;       /* Very light blue for backgrounds */
-    --primary-100: #dbeafe;      /* Light blue for subtle highlights */
+    /* Primary - Slate */
+    --primary-50: #f8fafc;
+    --primary-100: #f1f5f9;
+    --primary-200: #e2e8f0;
+    --primary-300: #cbd5e1;
+    --primary-400: #94a3b8;
+    --primary-500: #64748b;
+    --primary-600: #475569;
+    --primary-700: #334155;
+    --primary-800: #1e293b;
+    --primary-900: #0f172a;
+
+    /* Accent - Forest Green */
+    --accent-color: #2d6a4f;
+    --accent-50: #f0fdf4;
+    --accent-100: #dcfce7;
+    --accent-200: #bbf7d0;
+    --accent-300: #86efac;
+    --accent-400: #4ade80;
+    --accent-500: #22c55e;
+    --accent-600: #2d6a4f;
+    --accent-700: #1b4332;
+    --accent-800: #14532d;
+    --accent-900: #052e16;
 
     /* Refined Secondary Colors */
     --gray-50: #f7f8fc;          /* Cooler, modern light gray */
@@ -43,9 +62,17 @@
     --sage-teal-light: #14b8a6;  /* Lighter sage teal */
     --warm-amber: #d97706;       /* Primary warm amber for attention themes */
     --warm-amber-light: #f59e0b; /* Lighter warm amber */
-    --accent-color: #4f46e5;     /* Indigo accent */
     --charcoal: #374151;         /* Primary charcoal text */
     --warm-stone: #6b7280;       /* Warm stone for secondary text */
+
+    /* Public pages */
+    --public-bg: #fafaf8;
+    --public-surface: #ffffff;
+    --public-text: #1e293b;
+    --public-text-muted: #64748b;
+    --public-border: #e2e8f0;
+    --public-accent: #2d6a4f;
+    --public-accent-light: #d1fae5;
 
     /* Legacy variable mappings for backwards compatibility */
     --primary-color: var(--primary-600);
@@ -113,4 +140,14 @@
     --transition-fast: 0.15s ease;
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
+
+    /* Bootstrap color overrides — align with our palette */
+    --bs-primary: var(--accent-color);
+    --bs-primary-rgb: 45, 106, 79;
+    --bs-info: var(--sage-teal);
+    --bs-info-rgb: 15, 118, 110;
+    --bs-link-color: var(--accent-color);
+    --bs-link-color-rgb: 45, 106, 79;
+    --bs-link-hover-color: var(--accent-700);
+    --bs-link-hover-color-rgb: 27, 67, 50;
 }

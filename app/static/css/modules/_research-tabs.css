@@ -40,7 +40,7 @@
 .research-tabs .nav-link.active {
     color: #1f2937;
     background: white;
-    border-bottom-color: #6366f1;
+    border-bottom-color: var(--accent-500);
     box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.02);
 }
 
@@ -51,7 +51,7 @@
 .research-tabs .badge {
     font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, var(--accent-500) 0%, #8b5cf6 100%);
     border: none;
     font-weight: 600;
 }
@@ -156,7 +156,7 @@
 
 .ai-insight-footer a {
     font-size: 0.75rem;
-    color: #3b82f6;
+    color: var(--accent-color);
     text-decoration: none;
 }
 
@@ -209,7 +209,7 @@
 }
 
 #sources-table a.text-primary:hover {
-    color: #2563eb !important;
+    color: var(--accent-700) !important;
     text-decoration: underline;
 }
 
@@ -390,7 +390,7 @@
 }
 
 .snippet-category-management {
-    background: linear-gradient(135deg, #6366f1, #818cf8);
+    background: linear-gradient(135deg, var(--accent-500), #818cf8);
     color: white;
 }
 

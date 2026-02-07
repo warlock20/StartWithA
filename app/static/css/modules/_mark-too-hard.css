@@ -118,7 +118,7 @@
 .coc-option input[type="radio"]:checked + .coc-label {
     border-color: var(--primary-600);
     background: var(--primary-50);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 4px 12px rgba(45, 106, 79, 0.15);
 }
 
 /* Current Sector Display */
