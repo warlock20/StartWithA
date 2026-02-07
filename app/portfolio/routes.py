@@ -495,6 +495,59 @@ def refresh_prices():
 #### Analytics Related ####
 ###########################
 
+
+def _get_cached_chart_data(user_id, time_periods):
+    """Get chart data from cache or start a background task to compute it.
+
+    Returns:
+        (chart_data, chart_task_id) — chart_data is None if no cache yet,
+        chart_task_id is set when a background task is running/just started.
+    """
+    from app.services.config_service import get_config, ConfigKeys
+    from datetime import timedelta
+
+    task_type = f'chart_data:{time_periods}'
+
+    # 1. Check for a running task — don't start another
+    running = BackgroundTask.query.filter_by(
+        user_id=user_id,
+        task_type=task_type,
+        status='running'
+    ).first()
+
+    if running:
+        return None, running.id
+
+    # 2. Check for completed task within TTL
+    ttl_hours = get_config(ConfigKeys.CHART_DATA_CACHE_TTL_HOURS, default=24)
+    try:
+        ttl_hours = float(ttl_hours)
+    except (TypeError, ValueError):
+        ttl_hours = 24
+
+    latest = BackgroundTask.query.filter_by(
+        user_id=user_id,
+        task_type=task_type,
+        status='completed'
+    ).order_by(BackgroundTask.completed_at.desc()).first()
+
+    if latest and latest.result and latest.completed_at:
+        age = now_utc() - latest.completed_at
+        if age < timedelta(hours=ttl_hours):
+            # Fresh cache — serve it
+            result = json.loads(latest.result)
+            return result.get('chart_data'), None
+        else:
+            # Stale — serve stale data but kick off a refresh
+            stale_data = json.loads(latest.result).get('chart_data')
+            task_id = BackgroundTaskService.start_chart_data_task(user_id, time_periods)
+            return stale_data, task_id
+
+    # 3. No cache at all — start background task
+    task_id = BackgroundTaskService.start_chart_data_task(user_id, time_periods)
+    return None, task_id
+
+
 @portfolio_bp.route('/analytics')
 @login_required
 def analytics():
@@ -510,7 +563,7 @@ def analytics():
     force_refresh = request.args.get('refresh', 'false').lower() == 'true'
     template_name = 'portfolio_raw_trade_analysis'  # Using deep behavioral analysis
 
-    # Calculate chart data (always available, no AI needed)
+    # Chart data — served from cache, computed in background
     time_period = request.args.get('period', '12')
     try:
         time_periods = int(time_period)
@@ -519,9 +572,7 @@ def analytics():
     except (ValueError, TypeError):
         time_periods = 12
 
-    extractor = PortfolioDataExtractor(user_id=current_user.id)
-    transactions = Transaction.query.filter_by(user_id=current_user.id).all()
-    chart_data = extractor.calculate_performance_chart_data(transactions, time_periods=time_periods)
+    chart_data, chart_task_id = _get_cached_chart_data(current_user.id, time_periods)
 
     # 1. HIGHEST PRIORITY: Check if there's a running task
     # Always show loading page if task is running, even if old cache exists
@@ -536,6 +587,7 @@ def analytics():
         return render_template('portfolio_analytics_loading.html',
                               task_id=running_task.id,
                               chart_data=chart_data,
+                              chart_task_id=chart_task_id,
                               selected_period=time_periods)
 
     # 2. Check for latest completed task in database (cache)
@@ -602,6 +654,7 @@ def analytics():
         return render_template('portfolio_analytics_loading.html',
                               task_id=task_id,
                               chart_data=chart_data,
+                              chart_task_id=chart_task_id,
                               selected_period=time_periods)
 
     # 4. No completed analysis, no running task, no refresh requested - show placeholder

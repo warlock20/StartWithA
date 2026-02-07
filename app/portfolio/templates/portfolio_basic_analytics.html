@@ -165,7 +165,7 @@
         <div class="ai-content">
             <!-- Overview Panel -->
             <div class="ai-content-panel active" id="panel-overview">
-                <!-- Performance Chart (No AI Required) -->
+                <!-- Performance Chart -->
                 <div class="bg-white rounded-3 border shadow-sm p-4 mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -189,7 +189,7 @@
                                     class="btn btn-sm {% if selected_period == 36 %}btn-primary{% else %}btn-outline-secondary{% endif %}">3Y</a>
                             </div>
                             <!-- Legend -->
-                            <div class="d-flex gap-3">
+                            <div class="d-flex gap-3" id="chartLegend" {% if not chart_data %}style="display:none"{% endif %}>
                                 <span class="d-flex align-items-center small">
                                     <span class="me-2"
                                         style="width: 12px; height: 12px; border-radius: 50%; background: #4f46e5;"></span>
@@ -204,7 +204,15 @@
                         </div>
                     </div>
                     <div style="position: relative; height: 280px;">
+                        {% if chart_data %}
                         <canvas id="performanceChart"></canvas>
+                        {% else %}
+                        <div id="chartLoading" class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                            <span class="small">Loading chart data...</span>
+                        </div>
+                        <canvas id="performanceChart" style="display:none"></canvas>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -579,84 +587,130 @@
         });
 
         // Performance Chart
-        const ctx = document.getElementById('performanceChart');
-        if (ctx) {
-            const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
+        function renderPerformanceChart(labels, currentValues, totalCosts) {
+            const canvas = document.getElementById('performanceChart');
+            if (!canvas) return;
+
+            // Show canvas, hide loading skeleton
+            canvas.style.display = '';
+            const loading = document.getElementById('chartLoading');
+            if (loading) loading.style.display = 'none';
+            const legend = document.getElementById('chartLegend');
+            if (legend) legend.style.display = '';
+
+            const gradient = canvas.getContext('2d').createLinearGradient(0, 0, 0, 280);
             gradient.addColorStop(0, 'rgba(79, 70, 229, 0.1)');
             gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
 
-            new Chart(ctx, {
+            new Chart(canvas, {
                 type: 'line',
                 data: {
-                    labels: {{ chart_data.labels | tojson }},
-        datasets: [{
-            label: 'Current Value',
-            data: {{ chart_data.current_values | tojson }},
-        borderColor: '#4f46e5',
-        backgroundColor: gradient,
-        borderWidth: 2,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#4f46e5',
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        fill: true,
-        tension: 0.4
+                    labels: labels,
+                    datasets: [{
+                        label: 'Current Value',
+                        data: currentValues,
+                        borderColor: '#4f46e5',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#4f46e5',
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Total Cost',
+                        data: totalCosts,
+                        borderColor: '#cbd5e1',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0.2
+                    }]
                 },
-        {
-            label: 'Total Cost',
-            data: {{ chart_data.total_costs | tojson }},
-        borderColor: '#cbd5e1',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        tension: 0.2
-                }]
-            },
-        options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                backgroundColor: '#1e293b',
-                padding: 12,
-                titleFont: { family: 'Inter', size: 13 },
-                bodyFont: { family: 'Inter', size: 13 },
-                displayColors: false,
-                callbacks: {
-                    label: function (context) {
-                        return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
-                    }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            titleFont: { family: 'Inter', size: 13 },
+                            bodyFont: { family: 'Inter', size: 13 },
+                            displayColors: false,
+                            callbacks: {
+                                label: function (context) {
+                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter' }, color: '#94a3b8' }
+                        },
+                        y: {
+                            grid: { color: '#f1f5f9', borderDash: [5, 5] },
+                            ticks: {
+                                font: { family: 'Inter' },
+                                color: '#94a3b8',
+                                callback: function (value) {
+                                    return '$' + (value / 1000).toFixed(0) + 'k';
+                                }
+                            }
+                        }
+                    },
+                    interaction: { mode: 'index', intersect: false }
                 }
-            }
-        },
-        scales: {
-            x: {
-                grid: { display: false },
-                ticks: { font: { family: 'Inter' }, color: '#94a3b8' }
-            },
-            y: {
-                grid: { color: '#f1f5f9', borderDash: [5, 5] },
-                ticks: {
-                    font: { family: 'Inter' },
-                    color: '#94a3b8',
-                    callback: function (value) {
-                        return '$' + (value / 1000).toFixed(0) + 'k';
-                    }
-                }
-            }
-        },
-        interaction: {
-            mode: 'index',
-            intersect: false,
+            });
         }
-    }
-        });
-    }
+
+        {% if chart_data %}
+        // Chart data available — render immediately
+        renderPerformanceChart(
+            {{ chart_data.labels | tojson }},
+            {{ chart_data.current_values | tojson }},
+            {{ chart_data.total_costs | tojson }}
+        );
+        {% elif chart_task_id %}
+        // Chart data loading in background — poll for completion
+        (function() {
+            const statusUrl = '{{ url_for("portfolio.analytics_status", task_id=chart_task_id) }}';
+            let polls = 0;
+            const maxPolls = 60;
+
+            function pollChartData() {
+                polls++;
+                if (polls > maxPolls) {
+                    const el = document.getElementById('chartLoading');
+                    if (el) el.innerHTML = '<span class="small text-muted">Chart data is taking longer than expected. <a href="">Refresh page</a></span>';
+                    return;
+                }
+
+                fetch(statusUrl)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.state === 'SUCCESS' && data.result && data.result.chart_data) {
+                            const cd = data.result.chart_data;
+                            renderPerformanceChart(cd.labels, cd.current_values, cd.total_costs);
+                        } else if (data.state === 'FAILURE') {
+                            const el = document.getElementById('chartLoading');
+                            if (el) el.innerHTML = '<span class="small text-danger">Failed to load chart data</span>';
+                        } else {
+                            setTimeout(pollChartData, 2000);
+                        }
+                    })
+                    .catch(() => setTimeout(pollChartData, 3000));
+            }
+
+            setTimeout(pollChartData, 1000);
+        })();
+        {% endif %}
 });
 </script>
 {% endblock %}
