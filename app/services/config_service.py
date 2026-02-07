@@ -534,3 +534,6 @@ class ConfigKeys:
     # Similar Mistakes
     SIMILARITY_THRESHOLD = 'similarity_threshold'
     MAX_SIMILAR_RESULTS = 'max_similar_results'
+
+    # Performance
+    CHART_DATA_CACHE_TTL_HOURS = 'chart_data_cache_ttl_hours'

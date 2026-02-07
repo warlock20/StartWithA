@@ -12,6 +12,7 @@ from app.utils.time_utils import now_utc
 import logging
 from app.celery_tasks import competitor_analysis_task
 from app.celery_tasks import portfolio_ai_analysis_task
+from app.celery_tasks import portfolio_chart_data_task
 from app.celery_tasks import bias_check_task
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,45 @@ class BackgroundTaskService:
         celery_task = portfolio_ai_analysis_task.delay(task_id, user_id, template_name)
 
         logger.info(f"Started portfolio analysis task {task_id} (Celery: {celery_task.id}, template: {template_name}) for user {user_id}")
+
+        return task_id
+
+    @staticmethod
+    def start_chart_data_task(user_id, time_periods=12):
+        """Start a chart data computation task in the background.
+
+        Uses composite task_type 'chart_data:{time_periods}'.
+        No AI tokens consumed — purely data retrieval.
+        """
+        task_type = f'chart_data:{time_periods}'
+
+        # Check for existing running task
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Chart data task {existing_task.id} already running for {time_periods}M, reusing it")
+            return existing_task.id
+
+        # Create new task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task
+        celery_task = portfolio_chart_data_task.delay(task_id, user_id, time_periods)
+
+        logger.info(f"Started chart data task {task_id} (Celery: {celery_task.id}, periods: {time_periods}) for user {user_id}")
 
         return task_id
 

@@ -14,6 +14,10 @@ from app.celery_tasks.tasks_portfolio import (
     portfolio_ai_analysis_task,
 )
 
+from app.celery_tasks.tasks_chart_data import (
+    portfolio_chart_data_task,
+)
+
 from app.celery_tasks.tasks_research import (
     competitor_analysis_task,
     fetch_company_news_task,
@@ -29,6 +33,7 @@ from app.celery_tasks.tasks_financial import (
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
+    'portfolio_chart_data_task',
 
     # Research tasks
     'competitor_analysis_task',
