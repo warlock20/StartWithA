@@ -59,6 +59,24 @@ class Config:
     AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
     AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
-    # Use Railway's Public Domain if set
-    AUTH0_CALLBACK_URL = os.environ.get('AUTH0_CALLBACK_URL') or 'http://localhost:5000/auth/callback'
+
+    # Auto-detect callback URL from Railway's PUBLIC_URL or explicit AUTH0_CALLBACK_URL
+    # Railway provides RAILWAY_PUBLIC_DOMAIN and RAILWAY_STATIC_URL
+    _public_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN') or os.environ.get('RAILWAY_STATIC_URL')
+    if _public_domain:
+        # Railway detected — use HTTPS callback
+        _callback_base = f'https://{_public_domain}' if not _public_domain.startswith('http') else _public_domain
+        AUTH0_CALLBACK_URL = os.environ.get('AUTH0_CALLBACK_URL') or f'{_callback_base}/auth/callback'
+    else:
+        # Local development
+        AUTH0_CALLBACK_URL = os.environ.get('AUTH0_CALLBACK_URL') or 'http://localhost:5000/auth/callback'
+
     AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')
+
+    # 10. RATE LIMITING: Protection against brute force and abuse
+    # Uses Redis if available, otherwise in-memory storage
+    # Specific rate limits are defined in app/constants.py
+    RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or 'memory://'
+    RATELIMIT_STRATEGY = 'fixed-window'
+    RATELIMIT_DEFAULT = '200 per minute'
+    RATELIMIT_HEADERS_ENABLED = True
