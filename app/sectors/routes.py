@@ -13,7 +13,8 @@ import re
 from . import sectors_bp
 from .research_templates import get_all_templates, get_template_list, get_template
 from app.services.ai import ai_service
-
+from app.services.sector_service import SectorService
+from app.models.sector import Sector as SectorModel
 
 def get_sector_by_name_or_slug(sector_name, user_id, redirect_to_canonical=False):
     """
@@ -28,7 +29,6 @@ def get_sector_by_name_or_slug(sector_name, user_id, redirect_to_canonical=False
         Sector object or None if not found
         OR (Sector, bool) tuple if redirect_to_canonical=True
     """
-    from app.models.sector import Sector as SectorModel
 
     # Normalize the input to create a potential slug
     potential_slug = SectorModel.make_slug(sector_name)
@@ -127,8 +127,6 @@ def index():
             return redirect(url_for('sectors.index'))
 
         # Find or create the Sector
-        from app.models.sector import Sector as SectorModel
-        from app.services.sector_service import SectorService
         sector = SectorService.find_or_create_sector(current_user.id, sector_name.strip(), auto_create=True)
 
         # Check if an analysis for this sector already exists for the user
