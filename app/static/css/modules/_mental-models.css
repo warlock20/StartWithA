@@ -405,6 +405,99 @@ MENTAL MODELS STYLES
     font-size: 0.875rem;
 }
 
+/* Coming Soon badge */
+.walkthrough-badge-soon {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--warning-50);
+    color: var(--warning-600);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 0.25rem;
+}
+
+.walkthrough-points li .bi-hourglass-split {
+    color: var(--warning-500);
+}
+
+/* Roadmap section */
+.walkthrough-roadmap {
+    max-width: 1000px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.walkthrough-roadmap-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--public-text);
+    margin-bottom: 0.5rem;
+}
+
+.walkthrough-roadmap-subtitle {
+    font-size: 0.9375rem;
+    color: var(--public-text-muted);
+    margin-bottom: 2rem;
+}
+
+.walkthrough-roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    text-align: left;
+}
+
+.walkthrough-roadmap-item {
+    background: var(--public-surface);
+    border: 1px solid var(--public-border);
+    border-radius: 10px;
+    padding: 1.25rem;
+}
+
+.walkthrough-roadmap-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    background: var(--public-accent-light);
+    color: var(--public-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.walkthrough-roadmap-item h4 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--public-text);
+    margin-bottom: 0.375rem;
+}
+
+.walkthrough-roadmap-item p {
+    font-size: 0.8125rem;
+    color: var(--public-text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .walkthrough-roadmap-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .walkthrough-roadmap-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Walkthrough CTA */
 .walkthrough-cta {
     background: var(--primary-800);
