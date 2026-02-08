@@ -14,9 +14,11 @@
             <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
                 <i class="bi bi-lightbulb"></i> Tips
             </button>
-            {% with btn_class='btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
+            <a href="{{ url_for('ideas.manage_kill_checklists') }}"
+               class="btn btn-outline-secondary"
+               onclick="return confirm('Your checklist has not been saved yet. Are you sure you want to go back?')">
+                <i class="bi bi-arrow-left"></i> Back to Kill Checklists
+            </a>
         </div>
     </header>
 
@@ -201,10 +203,8 @@ function addCriterion() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Add 5 blank criteria when the page loads to get the user started
-    for (let i = 0; i < 5; i++) {
-        addCriterion();
-    }
+    // Start with one blank criterion
+    addCriterion();
 
     // Event listener for the "Add Criterion" button
     document.getElementById('add-criterion-btn').addEventListener('click', addCriterion);
