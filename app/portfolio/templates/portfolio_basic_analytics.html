@@ -126,13 +126,14 @@
                     <i class="bi bi-diagram-3"></i>
                     <span>Behavioral Patterns</span>
                 </button>
-                <button class="ai-nav-btn" data-panel="risks">
-                    <i class="bi bi-shield-exclamation"></i>
-                    <span>Risk Analysis</span>
+                <hr class="ai-nav-divider">
+                <button class="ai-nav-btn" data-panel="sector-momentum">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Sector Momentum</span>
                 </button>
-                <button class="ai-nav-btn" data-panel="actions">
-                    <i class="bi bi-list-check"></i>
-                    <span>Action Plan</span>
+                <button class="ai-nav-btn" data-panel="tax-optimization">
+                    <i class="bi bi-currency-exchange"></i>
+                    <span>Tax Optimization</span>
                 </button>
             </div>
 
@@ -145,8 +146,8 @@
                 <div class="ai-context-text">
                     {{ insights.ai_summary.quick_insight }}
                 </div>
-                <button class="ai-refresh-btn"
-                    onclick="window.location.href='{{ url_for('portfolio.analytics') }}?refresh=true'">
+                <button class="ai-refresh-btn" id="context-run-btn"
+                    onclick="runActiveAnalysis()">
                     <i class="bi bi-arrow-clockwise"></i>
                     Re-run Analysis
                 </button>
@@ -157,8 +158,8 @@
         <div class="ai-mobile-nav">
             <button class="ai-mobile-nav-btn active" data-panel="overview">Overview</button>
             <button class="ai-mobile-nav-btn" data-panel="patterns">Patterns</button>
-            <button class="ai-mobile-nav-btn" data-panel="risks">Risks</button>
-            <button class="ai-mobile-nav-btn" data-panel="actions">Actions</button>
+<button class="ai-mobile-nav-btn" data-panel="sector-momentum">Sector</button>
+            <button class="ai-mobile-nav-btn" data-panel="tax-optimization">Tax</button>
         </div>
 
         <!-- Content Area -->
@@ -494,67 +495,377 @@
                 {% endif %}
             </div>
 
-            <!-- Risks Panel -->
-            <div class="ai-content-panel" id="panel-risks">
-                {% if insights.analysis.key_risks %}
-                {% for risk in insights.analysis.key_risks %}
-                <div class="narrative-block danger">
+            <!-- Sector Momentum Panel -->
+            <div class="ai-content-panel" id="panel-sector-momentum">
+                {% if sector_momentum %}
+                {# --- Results state --- #}
+                {% set sm = sector_momentum.sector_momentum %}
+
+                {# Disclaimer #}
+                <div class="module-disclaimer">
+                    <i class="bi bi-info-circle"></i>
+                    This analysis is based on AI's knowledge of historical market conditions and may not reflect precise sector performance data.
+                </div>
+
+                {# Momentum Score #}
+                {% if sm.momentum_score %}
+                <div class="narrative-block">
                     <div class="narrative-header">
-                        <div class="narrative-icon red">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div class="narrative-icon {% if sm.momentum_score.score <= 3 %}green{% elif sm.momentum_score.score <= 6 %}blue{% else %}orange{% endif %}">
+                            <i class="bi bi-speedometer2"></i>
                         </div>
                         <div style="flex: 1;">
-                            <h3 class="narrative-title">{{ risk.title }}</h3>
+                            <h3 class="narrative-title">Momentum Score</h3>
                         </div>
-                        <span class="ai-kpi-badge badge-danger">{{ risk.level|upper }}</span>
+                        <span class="momentum-score-badge {% if sm.momentum_score.score <= 3 %}score-low{% elif sm.momentum_score.score <= 6 %}score-mid{% else %}score-high{% endif %}">
+                            {{ sm.momentum_score.score }}/10
+                        </span>
                     </div>
                     <div class="narrative-text">
-                        {{ risk.description|safe }}
-                    </div>
-                    {% if risk.mitigation %}
-                    <div class="action-box">
-                        <div class="action-box-header">
-                            <i class="bi bi-shield-check"></i>
-                            Mitigation Strategy
-                        </div>
-                        <div class="action-box-content">
-                            {{ risk.mitigation }}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-                {% else %}
-                <div class="narrative-block">
-                    <div class="narrative-text">
-                        No significant risks identified. Your portfolio appears well-balanced.
+                        <strong>{{ sm.momentum_score.label }}</strong><br>
+                        {{ sm.momentum_score.description }}
                     </div>
                 </div>
                 {% endif %}
-            </div>
 
-            <!-- Actions Panel -->
-            <div class="ai-content-panel" id="panel-actions">
-                {% if insights.analysis.recommendations %}
-                <div class="action-list">
-                    {% for rec in insights.analysis.recommendations %}
-                    <div class="action-item">
-                        <div
-                            class="action-number {% if rec.priority == 'urgent' %}urgent{% elif rec.priority == 'high' %}high{% endif %}">
-                            {{ loop.index }}
+                {# Summary #}
+                {% if sm.summary %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-clipboard-data"></i>
                         </div>
-                        <div class="action-content">
-                            <div class="action-title">{{ rec.title }}</div>
-                            <div class="action-description">{{ rec.description }}</div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Overview</h3>
+                        </div>
+                    </div>
+                    <div class="narrative-text">{{ sm.summary }}</div>
+                </div>
+                {% endif %}
+
+                {# Chasing Instances #}
+                {% if sm.chasing_instances %}
+                <div class="narrative-block warning">
+                    <div class="narrative-header">
+                        <div class="narrative-icon orange">
+                            <i class="bi bi-lightning-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Momentum Chasing</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-warning">
+                            {{ sm.chasing_instances|length }} instance{% if sm.chasing_instances|length != 1 %}s{% endif %}
+                        </span>
+                    </div>
+                    {% for instance in sm.chasing_instances %}
+                    <div class="module-instance-card">
+                        <div class="module-instance-header">
+                            <strong>{{ instance.sector }}</strong> &mdash; {{ instance.entry_period }}
+                            <span class="confidence-badge confidence-{{ instance.confidence }}">{{ instance.confidence }}</span>
+                        </div>
+                        <div class="module-instance-body">
+                            <p class="mb-1"><strong>Market context:</strong> {{ instance.market_context }}</p>
+                            {% if instance.tickers_bought %}
+                            <p class="mb-1"><strong>Tickers:</strong> {{ instance.tickers_bought|join(', ') }}</p>
+                            {% endif %}
+                            {% if instance.outcome %}
+                            <p class="mb-0"><strong>Outcome:</strong> {{ instance.outcome }}</p>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="narrative-block">
-                    <div class="narrative-text">
-                        No specific actions recommended at this time. Continue monitoring your portfolio.
+                {% endif %}
+
+                {# Contrarian Moves #}
+                {% if sm.contrarian_moves %}
+                <div class="narrative-block success">
+                    <div class="narrative-header">
+                        <div class="narrative-icon green">
+                            <i class="bi bi-trophy-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Contrarian Moves</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-success">
+                            {{ sm.contrarian_moves|length }} move{% if sm.contrarian_moves|length != 1 %}s{% endif %}
+                        </span>
                     </div>
+                    {% for move in sm.contrarian_moves %}
+                    <div class="module-instance-card module-instance-card--success">
+                        <div class="module-instance-header">
+                            <strong>{{ move.sector }}</strong> &mdash; {{ move.entry_period }}
+                            <span class="confidence-badge confidence-{{ move.confidence }}">{{ move.confidence }}</span>
+                        </div>
+                        <div class="module-instance-body">
+                            <p class="mb-1"><strong>Market context:</strong> {{ move.market_context }}</p>
+                            {% if move.tickers_bought %}
+                            <p class="mb-1"><strong>Tickers:</strong> {{ move.tickers_bought|join(', ') }}</p>
+                            {% endif %}
+                            {% if move.outcome %}
+                            <p class="mb-0"><strong>Outcome:</strong> {{ move.outcome }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# Sector Timing Summary Table #}
+                {% if sm.sector_timing_summary %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-table"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Sector Timing Summary</h3>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="evidence-table">
+                            <thead>
+                                <tr>
+                                    <th>Sector</th>
+                                    <th>Entries</th>
+                                    <th>Avg Timing</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in sm.sector_timing_summary %}
+                                <tr>
+                                    <td><strong>{{ s.sector }}</strong></td>
+                                    <td>{{ s.entries_count }}</td>
+                                    <td>
+                                        <span class="timing-badge timing-{{ s.avg_timing_quality }}">
+                                            {{ s.avg_timing_quality }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% else %}
+                {# --- Empty state --- #}
+                <div class="module-empty-state" id="sector-momentum-empty">
+                    <div class="module-empty-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <h4>Sector Momentum Analysis</h4>
+                    <p>Detect whether you tend to chase hot sectors or time entries well.</p>
+                    <button class="ai-refresh-btn" onclick="runModuleAnalysis('sector_momentum_analysis', 'sector-momentum')">
+                        <i class="bi bi-play-fill"></i>
+                        Run Analysis
+                    </button>
+                </div>
+                {# --- Loading state (hidden, shown by JS) --- #}
+                <div class="module-loading-state" id="sector-momentum-loading" style="display:none;">
+                    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                    <span class="small text-muted">Analyzing sector timing patterns...</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tax Optimization Panel -->
+            <div class="ai-content-panel" id="panel-tax-optimization">
+                {% if tax_optimization %}
+                {# --- Results state --- #}
+                {% set tax = tax_optimization.tax_optimization %}
+
+                {# Summary + Estimated Impact #}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-currency-exchange"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Tax Optimization Overview</h3>
+                        </div>
+                        {% if tax.estimated_annual_impact %}
+                        <span class="ai-kpi-badge badge-info">{{ tax.estimated_annual_impact }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="narrative-text">
+                        {{ tax.summary }}
+                    </div>
+                    {% if tax.applicable_rules %}
+                    <div class="module-disclaimer">
+                        <i class="bi bi-bank"></i>
+                        <strong>{{ tax.tax_residence }}</strong> &mdash; {{ tax.applicable_rules }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# Harvest Opportunities #}
+                {% if tax.harvest_opportunities %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon green">
+                            <i class="bi bi-scissors"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Tax-Loss Harvest Opportunities</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-success">
+                            {{ tax.harvest_opportunities|length }} position{% if tax.harvest_opportunities|length != 1 %}s{% endif %}
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="evidence-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Unrealized Loss</th>
+                                    <th>Potential Savings</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for opp in tax.harvest_opportunities %}
+                                <tr>
+                                    <td><strong>{{ opp.ticker }}</strong></td>
+                                    <td class="text-danger">{{ opp.unrealized_loss }}</td>
+                                    <td class="text-success">{{ opp.potential_tax_savings }}</td>
+                                    <td>{{ opp.action }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Holding Period Insights #}
+                {% if tax.holding_period_insights %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Holding Period Insights</h3>
+                        </div>
+                    </div>
+                    {% for item in tax.holding_period_insights %}
+                    <div class="module-instance-card">
+                        <div class="module-instance-header">
+                            <strong>{{ item.ticker }}</strong>
+                            {% if item.current_hold_days %}
+                            <span class="text-muted small">{{ item.current_hold_days }} days held</span>
+                            {% endif %}
+                        </div>
+                        <div class="module-instance-body">
+                            {{ item.observation }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# Wash Sale Patterns #}
+                {% if tax.wash_sale_patterns %}
+                <div class="narrative-block warning">
+                    <div class="narrative-header">
+                        <div class="narrative-icon orange">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Wash Sale / Anti-Avoidance Patterns</h3>
+                        </div>
+                        <span class="ai-kpi-badge badge-warning">
+                            {{ tax.wash_sale_patterns|length }} pattern{% if tax.wash_sale_patterns|length != 1 %}s{% endif %}
+                        </span>
+                    </div>
+                    {% for ws in tax.wash_sale_patterns %}
+                    <div class="module-instance-card module-instance-card--warning">
+                        <div class="module-instance-header">
+                            <strong>{{ ws.ticker }}</strong>
+                            {% if ws.sell_date and ws.rebuy_date %}
+                            <span class="text-muted small">Sold {{ ws.sell_date }} &rarr; Rebought {{ ws.rebuy_date }}{% if ws.days_between %} ({{ ws.days_between }}d){% endif %}</span>
+                            {% endif %}
+                        </div>
+                        <div class="module-instance-body">
+                            {{ ws.risk_description }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# Past Tax Moves #}
+                {% if tax.past_tax_moves %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon purple">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Past Tax Moves</h3>
+                        </div>
+                    </div>
+                    {% for move in tax.past_tax_moves %}
+                    <div class="module-instance-card {% if move.assessment == 'Good move' %}module-instance-card--success{% elif move.assessment == 'Missed opportunity' %}module-instance-card--warning{% endif %}">
+                        <div class="module-instance-header">
+                            <span class="confidence-badge {% if move.assessment == 'Good move' %}confidence-high{% elif move.assessment == 'Missed opportunity' %}confidence-low{% else %}confidence-medium{% endif %}">
+                                {{ move.assessment }}
+                            </span>
+                        </div>
+                        <div class="module-instance-body">
+                            {{ move.description }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# Recommendations #}
+                {% if tax.recommendations %}
+                <div class="narrative-block">
+                    <div class="narrative-header">
+                        <div class="narrative-icon blue">
+                            <i class="bi bi-lightbulb-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 class="narrative-title">Recommendations</h3>
+                        </div>
+                    </div>
+                    <div class="action-list">
+                        {% for rec in tax.recommendations %}
+                        <div class="action-item">
+                            <div class="action-number {% if rec.priority == 'high' %}high{% elif rec.priority == 'medium' %}{% endif %}">
+                                {{ loop.index }}
+                            </div>
+                            <div class="action-content">
+                                <div class="action-title">{{ rec.title }}</div>
+                                <div class="action-description">{{ rec.description }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% else %}
+                {# --- Empty state --- #}
+                <div class="module-empty-state" id="tax-optimization-empty">
+                    <div class="module-empty-icon">
+                        <i class="bi bi-currency-exchange"></i>
+                    </div>
+                    <h4>Tax Optimization Analysis</h4>
+                    <p>Identify tax-loss harvesting opportunities, holding period insights, and wash sale patterns.</p>
+                    <button class="ai-refresh-btn" onclick="runModuleAnalysis('tax_optimization_analysis', 'tax-optimization')">
+                        <i class="bi bi-play-fill"></i>
+                        Run Analysis
+                    </button>
+                </div>
+                {# --- Loading state (hidden, shown by JS) --- #}
+                <div class="module-loading-state" id="tax-optimization-loading" style="display:none;">
+                    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                    <span class="small text-muted">Analyzing tax optimization opportunities...</span>
                 </div>
                 {% endif %}
             </div>
@@ -571,10 +882,20 @@
         // Tab switching functionality
         const navButtons = document.querySelectorAll('.ai-nav-btn, .ai-mobile-nav-btn');
         const panels = document.querySelectorAll('.ai-content-panel');
+        const contextRunBtn = document.getElementById('context-run-btn');
+
+        // Map panel names to module analysis templates
+        const moduleAnalysisMap = {
+            'sector-momentum': 'sector_momentum_analysis',
+            'tax-optimization': 'tax_optimization_analysis'
+        };
+
+        let activePanel = 'overview';
 
         navButtons.forEach(button => {
             button.addEventListener('click', function () {
                 const targetPanel = this.getAttribute('data-panel');
+                activePanel = targetPanel;
 
                 // Remove active class from all buttons and panels
                 navButtons.forEach(btn => btn.classList.remove('active'));
@@ -583,8 +904,29 @@
                 // Add active class to clicked button and target panel
                 this.classList.add('active');
                 document.getElementById('panel-' + targetPanel).classList.add('active');
+
+                // Update sidebar button label based on active tab
+                if (contextRunBtn) {
+                    if (moduleAnalysisMap[targetPanel]) {
+                        contextRunBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Analysis';
+                    } else {
+                        contextRunBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Re-run Analysis';
+                    }
+                }
             });
         });
+
+        // Context-aware run button: runs the right analysis for the active tab
+        window.runActiveAnalysis = function() {
+            const templateName = moduleAnalysisMap[activePanel];
+            if (templateName) {
+                // Module tab — trigger AJAX analysis
+                runModuleAnalysis(templateName, activePanel);
+            } else {
+                // Core tab (overview/patterns/risks/actions) — re-run behavioral
+                window.location.href = '{{ url_for("portfolio.analytics") }}?refresh=true';
+            }
+        };
 
         // Performance Chart
         function renderPerformanceChart(labels, currentValues, totalCosts) {
@@ -711,6 +1053,72 @@
             setTimeout(pollChartData, 1000);
         })();
         {% endif %}
+
+        // --- Modular analysis: AJAX trigger + polling ---
+        function resetRunBtn() {
+            if (contextRunBtn) {
+                contextRunBtn.disabled = false;
+                contextRunBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Analysis';
+            }
+        }
+
+        window.runModuleAnalysis = function(templateName, panelPrefix) {
+            const emptyEl = document.getElementById(panelPrefix + '-empty');
+            const loadingEl = document.getElementById(panelPrefix + '-loading');
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'flex';
+
+            // Disable sidebar Run button while analysis is running
+            if (contextRunBtn) {
+                contextRunBtn.disabled = true;
+                contextRunBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-1" role="status"></div> Running...';
+            }
+
+            fetch('{{ url_for("portfolio.analytics_run_module", template_name="__TEMPLATE__") }}'.replace('__TEMPLATE__', templateName), {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    if (loadingEl) loadingEl.innerHTML = '<span class="small text-danger">' + data.error + '</span>';
+                    resetRunBtn();
+                    return;
+                }
+                // Poll for completion
+                const taskId = data.task_id;
+                let polls = 0;
+                const maxPolls = 120;
+
+                function pollModule() {
+                    polls++;
+                    if (polls > maxPolls) {
+                        if (loadingEl) loadingEl.innerHTML = '<span class="small text-muted">Taking longer than expected. <a href="">Refresh page</a></span>';
+                        resetRunBtn();
+                        return;
+                    }
+                    fetch('{{ url_for("portfolio.analytics_status", task_id="__TASK__") }}'.replace('__TASK__', taskId))
+                        .then(r => r.json())
+                        .then(status => {
+                            if (status.state === 'SUCCESS') {
+                                // Reload page to show cached results
+                                window.location.reload();
+                            } else if (status.state === 'FAILURE') {
+                                if (loadingEl) loadingEl.innerHTML = '<span class="small text-danger">Analysis failed: ' + (status.error || 'Unknown error') + '</span>';
+                                resetRunBtn();
+                            } else {
+                                setTimeout(pollModule, 2000);
+                            }
+                        })
+                        .catch(() => setTimeout(pollModule, 3000));
+                }
+                setTimeout(pollModule, 1500);
+            })
+            .catch(err => {
+                if (loadingEl) loadingEl.innerHTML = '<span class="small text-danger">Failed to start analysis</span>';
+                resetRunBtn();
+            });
+        };
 });
 </script>
 {% endblock %}

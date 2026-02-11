@@ -1,0 +1,163 @@
+# AI Intelligence - Tax Optimization Opportunities
+# Analyzes portfolio for tax-loss harvesting, holding period optimization, and wash sale detection
+# Region-adaptive: applies tax rules based on the investor's tax residence
+
+name: "tax_optimization_analysis"
+description: "Tax optimization analysis adapted to investor's tax residence, with harvest opportunities and wash sale detection"
+version: "1.0"
+category: "portfolio"
+
+preferred_provider: "gemini"
+model: "gemini-3-pro"
+max_tokens: 10000
+temperature: 0.3
+
+last_modified: "2026-02-09"
+
+system_context: |
+  You are an expert in international investment tax law and tax-efficient portfolio management.
+  You have deep knowledge of capital gains taxation across major jurisdictions.
+
+  The investor's tax residence will be provided. Before analyzing, you MUST first identify the
+  applicable tax rules for that jurisdiction:
+  - Capital gains tax rate and structure (flat rate, progressive, etc.)
+  - Tax-free allowances (e.g., German Sparerpauschbetrag, UK CGT allowance)
+  - Loss offset rules (can losses offset gains? carried forward?)
+  - Wash sale or anti-avoidance rules (e.g., US 30-day wash sale rule, or lack thereof)
+  - Short-term vs long-term holding distinctions and rate differences (if any)
+  - Any other jurisdiction-specific rules relevant to portfolio tax optimization
+
+  Apply ONLY the rules that apply to the investor's tax residence. Do not mix rules from
+  different jurisdictions.
+
+template: |
+  Analyze this investor's portfolio for tax optimization opportunities.
+
+  **STEP 1 — Identify applicable tax rules:**
+  The investor's tax residence is: {tax_residence}
+  First, determine the relevant capital gains tax rules for this jurisdiction.
+  State them explicitly in your summary so the investor can verify.
+
+  **STEP 2 — Analyze the portfolio:**
+  1. Identify tax-loss harvesting opportunities from current positions with unrealized losses
+  2. Review past transactions for tax-efficient patterns (or missed opportunities)
+  3. Check for patterns that might violate jurisdiction-specific anti-avoidance rules
+     (e.g., wash sales in the US, or rapid sell-rebuy scrutiny in other countries)
+  4. Assess holding period optimization (only relevant if the jurisdiction distinguishes
+     short-term vs long-term rates)
+  5. Check whether the investor is utilizing any tax-free allowances effectively
+
+  Background:
+  - Tax residence: {tax_residence}
+  - Period covered: {analysis_period}
+  - Number of trades: {transaction_count}
+  - Tickers are in Yahoo Finance format
+
+  Current Active Positions (with unrealized P&L):
+  {current_positions_text}
+
+  Trading History (chronological):
+  {transactions_text}
+
+  Analyze the tax optimization opportunities. Be specific about which positions, amounts, and actions.
+  Respond with a JSON object.
+
+response_schema:
+ {
+  "type": "OBJECT",
+  "properties": {
+    "tax_optimization_analysis": {
+      "type": "OBJECT",
+      "properties": {
+        "summary": {
+          "type": "STRING",
+          "description": "Executive overview including the identified tax rules for this jurisdiction and overall tax efficiency assessment (3-5 sentences)."
+        },
+        "tax_residence": {
+          "type": "STRING",
+          "description": "The investor's tax residence as provided."
+        },
+        "applicable_rules": {
+          "type": "STRING",
+          "description": "Brief summary of the key tax rules being applied (rate, allowances, loss rules, wash sale rules). This helps the investor verify correctness."
+        },
+        "harvest_opportunities": {
+          "type": "ARRAY",
+          "description": "Positions with unrealized losses that could be harvested for tax savings.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "ticker": { "type": "STRING" },
+              "unrealized_loss": { "type": "STRING", "description": "The unrealized loss amount." },
+              "potential_tax_savings": { "type": "STRING", "description": "Estimated tax savings based on applicable rate." },
+              "action": { "type": "STRING", "description": "Recommended action." },
+              "caveat": { "type": "STRING", "description": "Any caveats or jurisdiction-specific risks." }
+            },
+            "required": ["ticker", "unrealized_loss", "potential_tax_savings", "action"]
+          }
+        },
+        "holding_period_insights": {
+          "type": "ARRAY",
+          "description": "Holding period observations. Only include if the jurisdiction has short-term vs long-term rate differences, or if otherwise relevant.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "ticker": { "type": "STRING" },
+              "current_hold_days": { "type": "NUMBER" },
+              "observation": { "type": "STRING", "description": "Insight about this position's holding period in tax context." }
+            },
+            "required": ["ticker", "observation"]
+          }
+        },
+        "wash_sale_patterns": {
+          "type": "ARRAY",
+          "description": "Instances of rapid sell-and-rebuy patterns. Flag based on jurisdiction rules (e.g., US 30-day rule, or general anti-avoidance scrutiny).",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "ticker": { "type": "STRING" },
+              "sell_date": { "type": "STRING" },
+              "rebuy_date": { "type": "STRING" },
+              "days_between": { "type": "NUMBER" },
+              "risk_description": { "type": "STRING", "description": "Assessment of risk under the applicable jurisdiction's rules." }
+            },
+            "required": ["ticker", "sell_date", "risk_description"]
+          }
+        },
+        "past_tax_moves": {
+          "type": "ARRAY",
+          "description": "Notable tax-related patterns found in past transactions.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "description": { "type": "STRING", "description": "What the investor did." },
+              "assessment": { "type": "STRING", "description": "'Good move', 'Missed opportunity', or 'Neutral'." }
+            },
+            "required": ["description", "assessment"]
+          }
+        },
+        "estimated_annual_impact": {
+          "type": "STRING",
+          "description": "Qualitative assessment of potential annual tax savings."
+        },
+        "recommendations": {
+          "type": "ARRAY",
+          "description": "Actionable tax optimization recommendations specific to this jurisdiction.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "title": { "type": "STRING" },
+              "description": { "type": "STRING" },
+              "priority": {
+                "type": "STRING",
+                "enum": ["high", "medium", "low"]
+              }
+            },
+            "required": ["title", "description", "priority"]
+          }
+        }
+      },
+      "required": ["summary", "tax_residence", "applicable_rules", "harvest_opportunities", "wash_sale_patterns", "estimated_annual_impact", "recommendations"]
+    }
+  }
+}

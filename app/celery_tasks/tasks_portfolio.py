@@ -56,6 +56,10 @@ def portfolio_ai_analysis_task(self, task_id, user_id, template_name='portfolio_
 
             if template_name == 'portfolio_raw_trade_analysis':
                 result, tokens_used = analytics.get_deep_behavioral_insights(force_refresh=True)
+            elif template_name == 'sector_momentum_analysis':
+                result, tokens_used = analytics.get_sector_momentum_analysis(force_refresh=True)
+            elif template_name == 'tax_optimization_analysis':
+                result, tokens_used = analytics.get_tax_optimization_analysis(force_refresh=True)
             else:
                 result, tokens_used = analytics.get_quick_insights(force_refresh=True)
 

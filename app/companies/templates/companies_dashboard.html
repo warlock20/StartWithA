@@ -35,7 +35,7 @@
                         <span class="priority-card-number priority-number-green">{{ dashboard_data.portfolio_count }}</span>
                     </div>
                     <p class="priority-card-description">Companies you've invested in.</p>
-                    <a href="{{ url_for('companies.portfolio') }}" class="priority-card-link">
+                    <a href="{{ url_for('portfolio.dashboard') }}" class="priority-card-link">
                         View Portfolio <i class="bi bi-arrow-right-short"></i>
                     </a>
                 </div>
@@ -116,7 +116,7 @@
                 <h3 class="preview-card-title font-poppins">
                     <i class="bi bi-briefcase-fill text-success me-2"></i>Portfolio Preview
                 </h3>
-                <a href="{{ url_for('companies.portfolio') }}" class="preview-card-link">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="preview-card-link">
                     View All <i class="bi bi-arrow-right-short"></i>
                 </a>
             </div>

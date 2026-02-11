@@ -142,18 +142,6 @@ def companies_dashboard():
         title="Companies Overview"
     )
 
-@companies_bp.route('/portfolio')
-@login_required
-def portfolio():
-    """
-    Legacy portfolio route - redirects to new comprehensive portfolio module.
-
-    The old system only tracked which companies were "in portfolio" (boolean flag).
-    The new system tracks actual transactions, positions, prices, and gains/losses.
-    """
-    flash('Redirected to new Portfolio module with transaction tracking', 'info')
-    return redirect(url_for('portfolio.dashboard'))
-
 @companies_bp.route('/watchlist')
 @login_required
 def watchlist():
