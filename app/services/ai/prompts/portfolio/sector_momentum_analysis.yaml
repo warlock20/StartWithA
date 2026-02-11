@@ -1,0 +1,152 @@
+# AI Intelligence - Sector Momentum Chasing Detection
+# Analyzes whether the investor tends to buy into sectors during known rallies or acts as a contrarian
+
+name: "sector_momentum_analysis"
+description: "Detect sector momentum chasing patterns using AI knowledge of historical market conditions"
+version: "1.0"
+category: "portfolio"
+
+preferred_provider: "gemini"
+model: "gemini-3-pro"
+max_tokens: 8000
+temperature: 0.3
+
+last_modified: "2026-02-09"
+
+system_context: |
+  You are an expert in market timing analysis and sector rotation patterns.
+  You have deep knowledge of historical market events, sector rallies, and hype cycles.
+  Your role is to assess whether an investor's sector entry timing suggests momentum chasing
+  or contrarian behavior, based on your knowledge of what was happening in the market at those times.
+
+  IMPORTANT: You do NOT have real-time sector index data. Your assessment is based on your
+  training knowledge of historical market events (tech rallies, energy booms, crypto hype cycles,
+  meme stock phenomena, etc.). Be transparent about your confidence level for each assessment.
+
+  This analysis is OBSERVATIONAL ONLY. Do not prescribe recommendations — just show the investor
+  their timing patterns so they can reflect on their own behavior.
+
+template: |
+  Analyze this investor's sector entry timing to detect momentum chasing vs contrarian behavior.
+
+  **YOUR TASK:**
+  For each sector the investor has traded in, assess whether their entries coincided with
+  known market momentum periods or whether they were early/contrarian.
+
+  **HOW TO ASSESS TIMING (since you lack real-time sector data):**
+  - Use your knowledge of major market events, sector rallies, and hype cycles
+  - Consider the dates of purchases and what was happening in those sectors at that time
+  - Examples: AI/tech rally 2023-2024, meme stock mania 2021, crypto boom late 2020-2021,
+    energy sector rally 2022, EV hype 2020-2021, post-COVID recovery sectors
+  - Assign confidence levels: "high" if you're sure about the market context,
+    "medium" if reasonably confident, "low" if the timing is ambiguous
+
+  **SCORING (1-10 momentum score):**
+  - 1-3: Strong contrarian — consistently enters sectors before or after hype, not during
+  - 4-6: Mixed/neutral — some momentum chasing, some good timing
+  - 7-10: Momentum chaser — consistently enters sectors during or after peak hype
+
+  Background:
+  - Tax residence: {tax_residence}
+  - Period covered: {analysis_period}
+  - Number of trades: {transaction_count}
+  - Tickers are in Yahoo Finance format
+
+  Sector Allocation:
+  {sector_breakdown}
+
+  Trading History (chronological):
+  {transactions_text}
+
+  Analyze the sector timing patterns. For each notable instance, describe the market context
+  at the time of entry and assess whether it was momentum-driven or contrarian.
+
+  Respond with a JSON object. Use natural, conversational descriptions.
+
+response_schema:
+ {
+  "type": "OBJECT",
+  "properties": {
+    "sector_momentum_analysis": {
+      "type": "OBJECT",
+      "properties": {
+        "summary": {
+          "type": "STRING",
+          "description": "Executive overview of the investor's sector timing tendencies (2-3 sentences)."
+        },
+        "momentum_score": {
+          "type": "OBJECT",
+          "properties": {
+            "score": { "type": "NUMBER", "description": "1-10 scale. 1=strong contrarian, 10=pure momentum chaser." },
+            "label": { "type": "STRING", "description": "Short label, e.g. 'Moderate Momentum Tendency' or 'Contrarian Investor'." },
+            "description": { "type": "STRING", "description": "Explanation of the score." }
+          },
+          "required": ["score", "label", "description"]
+        },
+        "chasing_instances": {
+          "type": "ARRAY",
+          "description": "Instances where the investor entered a sector during or after a known rally/hype cycle.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "sector": { "type": "STRING" },
+              "entry_period": { "type": "STRING", "description": "When the investor entered, e.g. 'Q3 2023'." },
+              "market_context": { "type": "STRING", "description": "What was happening in this sector at that time." },
+              "tickers_bought": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" }
+              },
+              "confidence": {
+                "type": "STRING",
+                "description": "How confident you are in this assessment.",
+                "enum": ["high", "medium", "low"]
+              },
+              "outcome": { "type": "STRING", "description": "How this timing worked out for the investor." }
+            },
+            "required": ["sector", "entry_period", "market_context", "tickers_bought", "confidence"]
+          }
+        },
+        "contrarian_moves": {
+          "type": "ARRAY",
+          "description": "Instances where the investor showed good or early timing — entered before hype or during downturns.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "sector": { "type": "STRING" },
+              "entry_period": { "type": "STRING" },
+              "market_context": { "type": "STRING" },
+              "tickers_bought": {
+                "type": "ARRAY",
+                "items": { "type": "STRING" }
+              },
+              "confidence": {
+                "type": "STRING",
+                "enum": ["high", "medium", "low"]
+              },
+              "outcome": { "type": "STRING" }
+            },
+            "required": ["sector", "entry_period", "market_context", "tickers_bought", "confidence"]
+          }
+        },
+        "sector_timing_summary": {
+          "type": "ARRAY",
+          "description": "Per-sector summary of the investor's timing quality.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "sector": { "type": "STRING" },
+              "entries_count": { "type": "NUMBER", "description": "How many times the investor entered this sector." },
+              "avg_timing_quality": {
+                "type": "STRING",
+                "description": "Overall timing assessment for this sector.",
+                "enum": ["early", "mid-cycle", "late", "mixed"]
+              }
+            },
+            "required": ["sector", "entries_count", "avg_timing_quality"]
+          }
+        }
+      },
+      "required": ["summary", "momentum_score", "chasing_instances", "contrarian_moves", "sector_timing_summary"]
+    }
+  }
+}

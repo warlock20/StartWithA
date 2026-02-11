@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, date
 from pathlib import Path
 
-from app.models.portfolio import Transaction
+from app.models.portfolio import Transaction, PortfolioPosition
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
 from app.services.ai.ai_service import AIService
 from app.services.ai.prompt_service import PromptService
@@ -117,6 +117,38 @@ class PortfolioAIAnalytics:
             Tuple of (insights_dict, tokens_used)
         """
         template_name = "portfolio_raw_trade_analysis"
+        return self._run_analysis(template_name, force_refresh)
+
+    def get_sector_momentum_analysis(
+        self, force_refresh: bool = False
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Sector momentum chasing detection.
+        Template: sector_momentum_analysis.yaml
+
+        Uses AI's knowledge of historical market conditions to assess whether
+        sector entries coincided with known rallies or were contrarian.
+
+        Returns:
+            Tuple of (insights_dict, tokens_used)
+        """
+        template_name = "sector_momentum_analysis"
+        return self._run_analysis(template_name, force_refresh)
+
+    def get_tax_optimization_analysis(
+        self, force_refresh: bool = False
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Tax optimization opportunities analysis.
+        Template: tax_optimization_analysis.yaml
+
+        Region-adaptive: applies tax rules based on the investor's tax residence.
+        Identifies harvest opportunities, wash sale patterns, and holding period insights.
+
+        Returns:
+            Tuple of (insights_dict, tokens_used)
+        """
+        template_name = "tax_optimization_analysis"
         return self._run_analysis(template_name, force_refresh)
 
     # ================================================================
@@ -263,10 +295,10 @@ class PortfolioAIAnalytics:
                 logger.warning(f"Failed to save raw response: {e}")
 
             # Normalize AI response structure (handle different wrappers)
-            normalized_insights = self._normalize_ai_response(ai_insights)
+            normalized_insights = self._normalize_ai_response(ai_insights, template_name)
 
             # Format for template
-            formatted_insights = self._format_for_template(normalized_insights, portfolio_data)
+            formatted_insights = self._format_for_template(normalized_insights, portfolio_data, template_name)
 
             return (formatted_insights, tokens_used)
 
@@ -327,8 +359,8 @@ class PortfolioAIAnalytics:
                 ),
             }
 
-        elif template_name == "portfolio_raw_trade_analysis":
-            # Raw transactions for behavioral analysis
+        elif template_name in ("portfolio_raw_trade_analysis", "sector_momentum_analysis", "tax_optimization_analysis"):
+            # Raw transactions for behavioral / sector momentum / tax optimization analysis
             transactions = self.extractor.extract_transactions()
 
             # Get user profile data (tax residence)
@@ -348,15 +380,29 @@ class PortfolioAIAnalytics:
                 analysis_period = f"{first_date} to {last_date}"
             else:
                 analysis_period = "No transactions"
-            
-            return {
+
+            variables = {
                 "tax_residence": tax_residence,
                 "analysis_period": analysis_period,
                 "transaction_count": len(transactions),
                 "transactions_text": self._format_transactions_text(
                     transactions
-                ),  # Human-friendly chronological transactions
+                ),
             }
+
+            # Sector momentum also needs sector breakdown
+            if template_name == "sector_momentum_analysis":
+                variables["sector_breakdown"] = self._format_sectors_text(
+                    portfolio_data["sector_breakdown"]
+                )
+
+            # Tax optimization needs current positions with unrealized P&L
+            if template_name == "tax_optimization_analysis":
+                variables["current_positions_text"] = (
+                    self._format_current_positions_with_pnl()
+                )
+
+            return variables
 
         else:
             raise ValueError(f"Unknown template type: {template_name}")
@@ -492,12 +538,81 @@ class PortfolioAIAnalytics:
 
         return "\n".join(lines)
 
-    def _normalize_ai_response(self, ai_insights: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_current_positions_with_pnl(self) -> str:
+        """Format active positions with unrealized P&L for tax optimization prompt."""
+        positions = (
+            PortfolioPosition.query
+            .filter_by(user_id=self.user_id, is_active=True)
+            .all()
+        )
+
+        if not positions:
+            return "No active positions"
+
+        lines = []
+        for pos in positions:
+            if not pos.company:
+                continue
+            ticker = pos.company.ticker_symbol
+            shares = int(pos.total_shares) if pos.total_shares else 0
+            cost_basis = float(pos.total_cost) if pos.total_cost else 0
+            current_val = float(pos.current_value) if pos.current_value else 0
+            unrealized = float(pos.unrealized_gain_loss) if pos.unrealized_gain_loss else 0
+            unrealized_pct = float(pos.unrealized_gain_loss_pct) if pos.unrealized_gain_loss_pct else 0
+            hold_days = (
+                (date.today() - pos.first_purchase_date).days
+                if pos.first_purchase_date else 0
+            )
+            purchase_date = (
+                pos.first_purchase_date.isoformat()
+                if pos.first_purchase_date else "Unknown"
+            )
+
+            pnl_sign = "+" if unrealized >= 0 else ""
+            line = (
+                f"- {ticker}: {shares} shares, cost basis ${cost_basis:,.2f}, "
+                f"current value ${current_val:,.2f}, "
+                f"unrealized P&L {pnl_sign}${unrealized:,.2f} ({pnl_sign}{unrealized_pct:.1f}%), "
+                f"held {hold_days} days (since {purchase_date})"
+            )
+            lines.append(line)
+
+        return "\n".join(lines)
+
+    def _normalize_ai_response(self, ai_insights: Dict[str, Any], template_name: str = "") -> Dict[str, Any]:
       """Normalize AI response - handles both schema-based and free-form responses"""
 
       logger.info(f"Normalizing AI response with top-level keys: {list(ai_insights.keys())}")
 
-      # If response follows the new schema structure
+      # Sector momentum analysis — different schema
+      if "sector_momentum_analysis" in ai_insights:
+          logger.info("Detected sector_momentum_analysis response")
+          analysis = ai_insights["sector_momentum_analysis"]
+          return {
+              "summary": analysis.get("summary", ""),
+              "momentum_score": analysis.get("momentum_score", {}),
+              "chasing_instances": analysis.get("chasing_instances", []),
+              "contrarian_moves": analysis.get("contrarian_moves", []),
+              "sector_timing_summary": analysis.get("sector_timing_summary", []),
+          }
+
+      # Tax optimization analysis
+      if "tax_optimization_analysis" in ai_insights:
+          logger.info("Detected tax_optimization_analysis response")
+          analysis = ai_insights["tax_optimization_analysis"]
+          return {
+              "summary": analysis.get("summary", ""),
+              "tax_residence": analysis.get("tax_residence", ""),
+              "applicable_rules": analysis.get("applicable_rules", ""),
+              "harvest_opportunities": analysis.get("harvest_opportunities", []),
+              "holding_period_insights": analysis.get("holding_period_insights", []),
+              "wash_sale_patterns": analysis.get("wash_sale_patterns", []),
+              "past_tax_moves": analysis.get("past_tax_moves", []),
+              "estimated_annual_impact": analysis.get("estimated_annual_impact", ""),
+              "recommendations": analysis.get("recommendations", []),
+          }
+
+      # Behavioral analysis — original schema
       if "investor_behavior_analysis" in ai_insights:
           logger.info("Detected schema-based response structure")
           analysis = ai_insights["investor_behavior_analysis"]
@@ -508,20 +623,42 @@ class PortfolioAIAnalytics:
               "fomo_analysis": self._extract_fomo_analysis(analysis.get("fomo_analysis", {})),
               "investor_evolution": self._extract_evolution(analysis.get("evolution_timeline", [])),
               "repeating_mistakes": self._extract_repeating_mistakes(analysis.get("evolution_metadata", {})),
-              "recommendations": [],  # Will be added if in schema
+              "recommendations": [],
               "key_strengths": analysis.get("key_findings", []),
               "key_risks": []
           }
 
-        # Fallback: Assume free-form response with expected keys
-      else:
-        logger.info("Assuming free-form response structure")
-        return ai_insights    
+      # Fallback: Assume free-form response with expected keys
+      logger.info("Assuming free-form response structure")
+      return ai_insights    
     
     def _format_for_template(
-        self, ai_insights: Dict[str, Any], portfolio_data: Dict[str, Any]
+        self, ai_insights: Dict[str, Any], portfolio_data: Dict[str, Any],
+        template_name: str = ""
     ) -> Dict[str, Any]:
         """Format AI insights and portfolio data for template consumption"""
+
+        # Sector momentum has its own simple structure — wrap with metadata and return
+        if template_name == "sector_momentum_analysis":
+            return {
+                "metadata": {
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "last_transaction_date": self._get_last_transaction_date(),
+                    "error": None,
+                },
+                "sector_momentum": ai_insights,
+            }
+
+        # Tax optimization — wrap with metadata and return
+        if template_name == "tax_optimization_analysis":
+            return {
+                "metadata": {
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "last_transaction_date": self._get_last_transaction_date(),
+                    "error": None,
+                },
+                "tax_optimization": ai_insights,
+            }
 
         summary = portfolio_data["portfolio_summary"]
         patterns = portfolio_data["trading_patterns"]

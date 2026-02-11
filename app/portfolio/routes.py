@@ -17,7 +17,7 @@ from app.models import (
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.services.too_hard_service import TooHardBasketService
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.utils.portfolio_utils import (
      filter_positions_by_performance,
     calculate_holding_period_stats,
@@ -532,7 +532,7 @@ def _get_cached_chart_data(user_id, time_periods):
     ).order_by(BackgroundTask.completed_at.desc()).first()
 
     if latest and latest.result and latest.completed_at:
-        age = now_utc() - latest.completed_at
+        age = now_utc() - ensure_timezone_aware(latest.completed_at)
         if age < timedelta(hours=ttl_hours):
             # Fresh cache — serve it
             result = json.loads(latest.result)
@@ -546,6 +546,30 @@ def _get_cached_chart_data(user_id, time_periods):
     # 3. No cache at all — start background task
     task_id = BackgroundTaskService.start_chart_data_task(user_id, time_periods)
     return None, task_id
+
+
+def _get_cached_module_analysis(user_id, template_name):
+    """Load cached results for a modular analysis (sector momentum, tax optimization, etc.).
+
+    Returns the analysis dict if a completed task exists, otherwise None.
+    """
+    task = BackgroundTask.query.filter_by(
+        user_id=user_id,
+        task_type=f'portfolio_analysis:{template_name}',
+        status='completed'
+    ).order_by(BackgroundTask.completed_at.desc()).first()
+
+    if task and task.result:
+        result = json.loads(task.result)
+        return result.get('analysis')
+    return None
+
+
+# Allowed templates for the AJAX run endpoint
+ALLOWED_ANALYSIS_TEMPLATES = {
+    'sector_momentum_analysis',
+    'tax_optimization_analysis',
+}
 
 
 @portfolio_bp.route('/analytics')
@@ -573,6 +597,10 @@ def analytics():
         time_periods = 12
 
     chart_data, chart_task_id = _get_cached_chart_data(current_user.id, time_periods)
+
+    # Load cached modular analyses (sector momentum, tax optimization, etc.)
+    sector_momentum = _get_cached_module_analysis(current_user.id, 'sector_momentum_analysis')
+    tax_optimization = _get_cached_module_analysis(current_user.id, 'tax_optimization_analysis')
 
     # 1. HIGHEST PRIORITY: Check if there's a running task
     # Always show loading page if task is running, even if old cache exists
@@ -609,7 +637,9 @@ def analytics():
                                       insights=insights,
                                       has_error=has_error,
                                       chart_data=chart_data,
-                                      selected_period=time_periods)
+                                      selected_period=time_periods,
+                                      sector_momentum=sector_momentum,
+                                      tax_optimization=tax_optimization)
 
     # 3. If force_refresh=true, check tokens then start background task
     if force_refresh:
@@ -635,6 +665,8 @@ def analytics():
                                       has_error=False,
                                       chart_data=chart_data,
                                       selected_period=time_periods,
+                                      sector_momentum=sector_momentum,
+                                      tax_optimization=tax_optimization,
                                       show_run_button=False)  # Don't show run button - they're at limit
             else:
                 # No cache and no tokens - show placeholder with error
@@ -646,6 +678,8 @@ def analytics():
                                       has_error=True,
                                       chart_data=chart_data,
                                       selected_period=time_periods,
+                                      sector_momentum=sector_momentum,
+                                      tax_optimization=tax_optimization,
                                       show_run_button=False)
 
         # User has enough tokens - start task
@@ -665,6 +699,8 @@ def analytics():
                           has_error=False,
                           chart_data=chart_data,
                           selected_period=time_periods,
+                          sector_momentum=sector_momentum,
+                          tax_optimization=tax_optimization,
                           show_run_button=True)
 
 
@@ -719,6 +755,36 @@ def analytics_status(task_id):
         response['status'] = f"Task state: {task_status['status']}"
 
     return jsonify(response)
+
+
+@portfolio_bp.route('/analytics/run/<template_name>', methods=['POST'])
+@login_required
+def analytics_run_module(template_name):
+    """
+    Start a modular analysis via AJAX.
+    Returns JSON with task_id for polling via analytics_status.
+    """
+    if template_name not in ALLOWED_ANALYSIS_TEMPLATES:
+        return jsonify({'error': f'Unknown analysis type: {template_name}'}), 400
+
+    # Check for already-running task
+    running = BackgroundTask.query.filter_by(
+        user_id=current_user.id,
+        task_type=f'portfolio_analysis:{template_name}',
+        status='running'
+    ).first()
+    if running:
+        return jsonify({'task_id': running.id, 'status': 'already_running'})
+
+    # Check token budget
+    if not current_user.can_use_ai_tokens(5000):
+        return jsonify({'error': 'AI token limit reached'}), 429
+
+    # Start background task
+    task_id = BackgroundTaskService.start_portfolio_analysis(
+        current_user.id, template_name
+    )
+    return jsonify({'task_id': task_id, 'status': 'started'})
 
 
 @portfolio_bp.route('/analytics/decisions')

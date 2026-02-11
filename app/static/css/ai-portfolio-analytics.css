@@ -982,3 +982,209 @@
     background: #f3e8ff;
     color: #8b5cf6;
 }
+
+/* ========================================================================
+   Modular Analysis Panels (Sector Momentum, Tax Optimization, etc.)
+   ======================================================================== */
+
+/* Nav divider between core and modular analyses */
+.ai-nav-divider {
+    margin: 0.5rem 1rem;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Module empty state */
+.module-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    min-height: 300px;
+}
+
+.module-empty-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 12px;
+    background: var(--accent-50, #f0fdf4);
+    color: var(--accent-color, #2d6a4f);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.module-empty-state h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.module-empty-state p {
+    font-size: 0.875rem;
+    color: #6b7280;
+    max-width: 320px;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+}
+
+/* Module loading state */
+.module-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    min-height: 300px;
+}
+
+/* Module disclaimer */
+.module-disclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: #92400e;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.module-disclaimer i {
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+/* Momentum score badge */
+.momentum-score-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.momentum-score-badge.score-low {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.momentum-score-badge.score-mid {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.momentum-score-badge.score-high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Module instance cards (chasing instances, contrarian moves) */
+.module-instance-card {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    margin-top: 0.75rem;
+    overflow: hidden;
+}
+
+.module-instance-card--success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.module-instance-card--warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.module-instance-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    color: #1f2937;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    flex-wrap: wrap;
+}
+
+.module-instance-body {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: #374151;
+    line-height: 1.6;
+}
+
+.module-instance-body p {
+    margin: 0;
+}
+
+/* Confidence badges */
+.confidence-badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+.confidence-high {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.confidence-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.confidence-low {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Timing badges for sector summary table */
+.timing-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    text-transform: capitalize;
+}
+
+.timing-early {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.timing-mid-cycle {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.timing-late {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.timing-mixed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
