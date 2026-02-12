@@ -19,7 +19,7 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
     3. Default route provided
 
     Args:
-        default_route: Flask route name to use as fallback (e.g., 'companies.companies_dashboard')
+        default_route: Flask route name to use as fallback (e.g., 'companies.list_companies')
         default_kwargs: Dict of kwargs for the default route
 
     Returns:

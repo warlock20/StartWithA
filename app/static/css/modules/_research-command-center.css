@@ -1,0 +1,617 @@
+/* =============================================================================
+   RESEARCH COMMAND CENTER — Company Research unified page
+   ============================================================================= */
+/*
+   Layout, tabs, panels, sidebar, and Tabulator overrides for the
+   consolidated Company Research page (/research/workflow/my-projects).
+
+   Uses platform design tokens from _variables.css throughout.
+   Tabulator overrides are scoped to .rcl-panel so they don't affect
+   other pages that use .data-table-wrapper.
+*/
+
+/* ── TWO-COLUMN LAYOUT ────────────────────────────── */
+
+.rcl-body {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--space-xl);
+    align-items: start;
+    margin-top: var(--space-lg);
+}
+
+.rcl-main {
+    min-width: 0;
+}
+
+/* ── TAB NAVIGATION ───────────────────────────────── */
+
+.rcl-nav-tabs {
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.rcl-nav-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: var(--gray-500);
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 0.85rem var(--space-lg);
+    transition: color var(--transition-fast);
+}
+
+.rcl-nav-tabs .nav-link:hover {
+    color: var(--gray-700);
+    border-color: transparent;
+}
+
+.rcl-nav-tabs .nav-link.active {
+    color: var(--gray-800);
+    font-weight: 700;
+    border-bottom-color: var(--accent-color);
+    background: transparent;
+}
+
+.rcl-tab-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    padding: 0.125rem var(--space-sm);
+    border-radius: 10px;
+    background: var(--gray-100);
+    color: var(--gray-500);
+}
+
+.rcl-nav-tabs .nav-link.active .rcl-tab-badge {
+    background: var(--accent-color);
+    color: white;
+}
+
+/* ── PANEL (table wrapper) ────────────────────────── */
+
+.rcl-panel {
+    background: var(--background-white);
+    border: 1px solid var(--gray-200);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+}
+
+/* Controls bar */
+.rcl-panel-controls {
+    display: flex;
+    gap: 0.75rem;
+    padding: var(--space-md) 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.rcl-search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+}
+
+.rcl-search i {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-400);
+    font-size: var(--font-size-sm);
+    pointer-events: none;
+}
+
+.rcl-search input {
+    width: 100%;
+    padding: var(--space-sm) 0.75rem var(--space-sm) 2.25rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    color: var(--gray-700);
+    font-size: var(--font-size-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rcl-search input::placeholder {
+    color: var(--gray-400);
+}
+
+.rcl-search input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
+}
+
+.rcl-filter-select {
+    padding: var(--space-sm) 2rem var(--space-sm) 0.75rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    color: var(--gray-600);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    transition: border-color 0.2s;
+}
+
+.rcl-filter-select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+/* ── TABLE ACTION BUTTONS ─────────────────────────── */
+
+.rcl-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--gray-500);
+    background: transparent;
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.rcl-action:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.rcl-action--primary {
+    background: var(--accent-50);
+    border-color: transparent;
+    color: var(--accent-color);
+}
+
+.rcl-action--primary:hover {
+    background: var(--accent-100);
+    text-decoration: none;
+}
+
+/* ── EMPTY STATE ──────────────────────────────────── */
+
+.rcl-empty-state {
+    text-align: center;
+    padding: var(--space-2xl) var(--space-xl);
+    color: var(--gray-500);
+    background: var(--background-white);
+    border: 1px solid var(--gray-200);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.rcl-empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-md);
+    display: block;
+    color: var(--gray-300);
+}
+
+.rcl-empty-state h5 {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: var(--space-sm);
+}
+
+.rcl-empty-state p {
+    font-size: var(--font-size-sm);
+    max-width: 360px;
+    margin: 0 auto 1.25rem;
+}
+
+.rcl-empty-actions {
+    display: flex;
+    gap: 0.625rem;
+    justify-content: center;
+}
+
+/* ── SIDEBAR ──────────────────────────────────────── */
+
+.rcl-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.rcl-sidebar-card {
+    background: var(--background-white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+}
+
+.rcl-sidebar-card-header {
+    padding: var(--space-md) 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.rcl-sidebar-card-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--gray-700);
+}
+
+.rcl-sidebar-card-title i {
+    color: var(--gray-400);
+    font-size: var(--font-size-sm);
+}
+
+.rcl-sidebar-card-body {
+    padding: 0.75rem 1.25rem;
+}
+
+/* Activity feed */
+.rcl-activity-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.rcl-activity-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.rcl-activity-item:first-child {
+    padding-top: 0;
+}
+
+.rcl-activity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 0.4rem;
+    flex-shrink: 0;
+}
+
+.rcl-activity-dot.c-accent  { background: var(--accent-color); }
+.rcl-activity-dot.c-success { background: var(--success-500); }
+.rcl-activity-dot.c-warning { background: var(--warning-500); }
+.rcl-activity-dot.c-danger  { background: var(--danger-500); }
+.rcl-activity-dot.c-violet  { background: #8b5cf6; }
+
+.rcl-activity-text {
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+    line-height: 1.45;
+}
+
+.rcl-activity-text strong {
+    color: var(--gray-800);
+    font-weight: 600;
+}
+
+.rcl-activity-time {
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    margin-top: 0.2rem;
+}
+
+.rcl-activity-empty {
+    padding: var(--space-md) 0;
+    text-align: center;
+}
+
+.rcl-activity-empty span {
+    font-size: var(--font-size-sm);
+}
+
+/* Pipeline funnel */
+.rcl-funnel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.rcl-funnel-stage {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.rcl-funnel-label {
+    font-size: var(--font-size-xs);
+    color: var(--gray-500);
+    min-width: 64px;
+    text-align: right;
+}
+
+.rcl-funnel-bar-wrap {
+    flex: 1;
+    height: 24px;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.rcl-funnel-bar {
+    height: 100%;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    padding: 0 0.625rem;
+    font-family: 'Space Mono', monospace;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: white;
+    min-width: 24px;
+    transition: width var(--transition-slow);
+}
+
+.rcl-funnel-bar--ideas     { background: var(--info-500); }
+.rcl-funnel-bar--active    { background: var(--accent-color); }
+.rcl-funnel-bar--watchlist { background: #8b5cf6; }
+.rcl-funnel-bar--passed    { background: var(--danger-500); }
+.rcl-funnel-bar--invested  { background: var(--warning-500); }
+
+/* Quick stats */
+.rcl-quick-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.rcl-quick-stat {
+    text-align: center;
+    padding: 0.75rem var(--space-sm);
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+}
+
+.rcl-quick-stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.rcl-quick-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.125rem;
+}
+
+/* ── TABULATOR OVERRIDES (scoped to .rcl-panel) ───── */
+/*
+   These override Tabulator defaults to match the Proposal B
+   table aesthetic: minimal borders, uppercase headers, generous
+   padding, accent-coloured sort arrows and pagination.
+*/
+
+.rcl-panel .tabulator {
+    background: transparent;
+    border: none;
+    font-size: var(--font-size-sm);
+}
+
+/* Header row */
+.rcl-panel .tabulator .tabulator-header {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.rcl-panel .tabulator .tabulator-header .tabulator-col {
+    background: transparent;
+    border: none;
+    border-right: none;
+    padding: 0.75rem 1.25rem;
+}
+
+.rcl-panel .tabulator .tabulator-header .tabulator-col .tabulator-col-content {
+    padding: 0;
+    color: var(--gray-500);
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.rcl-panel .tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover {
+    background-color: var(--gray-50);
+}
+
+/* Sort arrows */
+.rcl-panel .tabulator .tabulator-col .tabulator-arrow {
+    border-bottom-color: var(--accent-color);
+    border-top-color: var(--accent-color);
+}
+
+/* Table body */
+.rcl-panel .tabulator .tabulator-tableholder {
+    background: transparent;
+}
+
+.rcl-panel .tabulator .tabulator-table {
+    background: transparent;
+    width: 100%;
+}
+
+/* Row styling */
+.rcl-panel .tabulator .tabulator-row {
+    background: transparent;
+    border-bottom: 1px solid var(--gray-200);
+    min-height: auto;
+}
+
+.rcl-panel .tabulator .tabulator-row:hover {
+    background-color: var(--gray-50) !important;
+}
+
+.rcl-panel .tabulator .tabulator-row:last-child {
+    border-bottom: none;
+}
+
+/* Cell styling */
+.rcl-panel .tabulator .tabulator-row .tabulator-cell {
+    border: none;
+    padding: 0.875rem 1.25rem;
+    vertical-align: middle;
+    color: var(--gray-600);
+}
+
+/* Pagination footer */
+.rcl-panel .tabulator .tabulator-footer {
+    background: transparent;
+    border-top: 1px solid var(--gray-200);
+    padding: 0.75rem 1.25rem;
+}
+
+.rcl-panel .tabulator .tabulator-page {
+    background: transparent;
+    color: var(--gray-600);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 0.375rem 0.75rem;
+    font-size: var(--font-size-sm);
+}
+
+.rcl-panel .tabulator .tabulator-page:hover {
+    background-color: var(--gray-50);
+    border-color: var(--accent-color);
+}
+
+.rcl-panel .tabulator .tabulator-page.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Hide the data-table-wrapper header/badge when table is inside .rcl-panel */
+.rcl-panel .data-table-header {
+    display: none;
+}
+
+/* ── TABLE CELL UTILITY CLASSES ───────────────────── */
+/*
+   Reusable classes for inline cell content generated by
+   Tabulator column formatters, avoiding hardcoded styles in JS.
+*/
+
+.rcl-cell-ticker {
+    font-family: monospace;
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    letter-spacing: 0.04em;
+}
+
+.rcl-cell-mono {
+    font-family: 'Space Mono', monospace;
+    font-size: var(--font-size-xs);
+}
+
+.rcl-cell-badge {
+    display: inline-flex;
+    padding: var(--space-xs) 0.625rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.rcl-cell-badge--active   { background: var(--accent-50);  color: var(--accent-600); }
+.rcl-cell-badge--paused   { background: var(--warning-50); color: #b45309; }
+.rcl-cell-badge--research { background: var(--info-50);    color: var(--info-500); }
+.rcl-cell-badge--manual   { background: var(--gray-100);   color: var(--gray-500); }
+.rcl-cell-badge--kill     { background: var(--danger-50);  color: var(--danger-500); }
+.rcl-cell-badge--mid      { background: var(--warning-50); color: #b45309; }
+.rcl-cell-badge--full     { background: #f5f3ff;           color: #8b5cf6; }
+.rcl-cell-badge--default  { background: var(--gray-100);   color: var(--gray-500); }
+
+.rcl-cell-badge--idle {
+    background: var(--danger-50);
+    color: var(--danger-500);
+    font-size: var(--font-size-xs);
+    padding: 0.1rem 0.35rem;
+}
+
+/* Progress bar in table cells */
+.rcl-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rcl-progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.rcl-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+.rcl-progress-label {
+    font-family: 'Space Mono', monospace;
+    font-size: var(--font-size-xs);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── RESPONSIVE ───────────────────────────────────── */
+
+@media (max-width: 1024px) {
+    .rcl-body {
+        grid-template-columns: 1fr;
+    }
+
+    .rcl-sidebar {
+        order: -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--space-md);
+    }
+
+    .rcl-sidebar-card {
+        flex: 1;
+        min-width: 280px;
+    }
+}
+
+@media (max-width: 640px) {
+    .rcl-panel-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rcl-search {
+        min-width: auto;
+    }
+
+    .rcl-sidebar {
+        flex-direction: column;
+    }
+
+    .rcl-sidebar-card {
+        min-width: auto;
+    }
+}

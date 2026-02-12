@@ -1,13 +1,13 @@
 """
 Project Management Routes Module
 
-This module handles all routes related to project listing, filtering, and management including:
-- Project dashboard and listings
-- Active, completed, paused, and "too hard basket" project views
+This module handles the unified Company Research page and project management including:
+- Unified Company Research dashboard (Active Research, Watchlist, Too Hard)
 - Project state management (pause, resume, delete)
-- Project filtering and pagination
+- Legacy route redirects for removed sub-pages
 """
 
+import json
 from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_required
@@ -19,292 +19,163 @@ from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.services.too_hard_service import TooHardBasketService
 from app.services.sector_service import SectorService
 
+
 @research_workflow_bp.route('/my-projects')
 @login_required
 def my_projects():
-    """Dashboard view for all research projects"""
-    # Get counts for different project statuses
-    active_count = current_user.research_projects.filter_by(status='active').count()
-    paused_count = current_user.research_projects.filter_by(status='paused').count()
-    completed_count = current_user.research_projects.filter_by(status='completed').count()
+    """Unified Company Research page — Active Research, Watchlist, Too Hard"""
 
-    # Get Too Hard Basket count (includes: killed ideas and all passed projects)
+    # --- Active Research (active + paused) ---
+    active_projects = current_user.research_projects.filter(
+        ResearchProject.status.in_(['active', 'paused'])
+    ).order_by(ResearchProject.last_worked_at.desc()).all()
+
+    active_data = []
+    for p in active_projects:
+        active_data.append({
+            'id': p.id,
+            'company_name': p.subject_display_name,
+            'ticker': p.company.ticker_symbol if p.company else '',
+            'template_name': p.template.name if p.template else 'Custom',
+            'progress': p.progress_percentage,
+            'status': p.status,
+            'last_worked': p.last_worked_at.isoformat() if p.last_worked_at else None,
+            'hours_spent': round(p.total_hours_spent or 0, 1),
+            'is_overdue': p.is_overdue,
+            'company_id': p.company_id,
+            'dashboard_url': url_for('research_workflow.project_dashboard', project_id=p.id),
+        })
+
+    # --- Watchlist (favorites not in portfolio + watchlist decisions) ---
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
+    portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
+
+    manual_watchlist = [c for c in all_user_companies
+                        if c.id in favorite_ids and c.id not in portfolio_ids]
+
+    watchlist_projects = current_user.research_projects.filter_by(
+        status='completed', decision='watchlist'
+    ).all()
+    watchlist_company_ids = {p.company_id for p in watchlist_projects}
+
+    watchlist_data = []
+    seen_ids = set()
+
+    for c in manual_watchlist:
+        seen_ids.add(c.id)
+        source = 'Research Decision' if c.id in watchlist_company_ids else 'Manual Add'
+        watchlist_data.append({
+            'company_id': c.id,
+            'company_name': c.name,
+            'ticker': c.ticker_symbol or '',
+            'sector': c.sector.name if c.sector else 'N/A',
+            'source': source,
+            'company_url': url_for('companies.company_dashboard', company_id=c.id),
+        })
+
+    for p in watchlist_projects:
+        if p.company_id and p.company_id not in seen_ids:
+            c = p.company
+            if c:
+                seen_ids.add(c.id)
+                watchlist_data.append({
+                    'company_id': c.id,
+                    'company_name': c.name,
+                    'ticker': c.ticker_symbol or '',
+                    'sector': c.sector.name if c.sector else 'N/A',
+                    'source': 'Research Decision',
+                    'company_url': url_for('companies.company_dashboard', company_id=c.id),
+                })
+
+    # --- Too Hard / Passed ---
     all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
-    too_hard_count = len(all_too_hard_items)
+    too_hard_data = []
+    for item in all_too_hard_items:
+        company_url = url_for('companies.company_dashboard', company_id=item.company_id) if item.company_id else None
+        too_hard_data.append({
+            'company_name': item.company_name,
+            'ticker': item.ticker or '',
+            'sector': item.sector or 'N/A',
+            'rejection_stage': item.rejection_stage,
+            'rejection_stage_label': item.rejection_stage.replace('_', ' ').title(),
+            'time_invested': round(item.time_invested_hours, 1),
+            'reason': item.reason or '',
+            'rejection_date': item.rejection_date.isoformat() if item.rejection_date else None,
+            'within_coc': item.within_coc or '',
+            'company_id': item.company_id,
+            'company_url': company_url,
+        })
 
-    # Calculate total time invested
-    total_time_invested = sum(p.total_hours_spent for p in current_user.research_projects.all())
+    # --- Metrics ---
+    active_count = len([p for p in active_data if p['status'] == 'active'])
+    paused_count = len([p for p in active_data if p['status'] == 'paused'])
+    all_projects = current_user.research_projects.all()
+    total_time = sum(p.total_hours_spent or 0 for p in all_projects)
 
-    # Success metrics
-    invest_decisions = current_user.research_projects.filter_by(decision='invest').count()
-    pass_decisions = current_user.research_projects.filter_by(decision='pass').count()
-    watchlist_decisions = current_user.research_projects.filter_by(decision='watchlist').count()
+    invest_count = sum(1 for p in all_projects if p.decision == 'invest')
+    pass_count = sum(1 for p in all_projects if p.decision == 'pass')
+    total_decided = invest_count + pass_count
+    selectivity_rate = round((pass_count / total_decided) * 100, 1) if total_decided > 0 else 0
 
-    # Calculate Too Hard Basket Rate (selectivity metric)
-    # Count projects with invest or pass decisions
-    company_invest_count = current_user.research_projects.filter_by(
-        decision='invest'
-    ).count()
-
-    company_pass_count = current_user.research_projects.filter_by(
-        decision='pass'
-    ).count()
-
-    total_decided_companies = company_invest_count + company_pass_count
-
-    if total_decided_companies > 0:
-        too_hard_rate = (company_pass_count / total_decided_companies) * 100
-    else:
-        too_hard_rate = 0
-
-    # Get recent activity (last 5 projects worked on)
-    recent_activity = current_user.research_projects.order_by(
-        ResearchProject.last_worked_at.desc()
-    ).limit(5).all()
-
-    # Get preview data for each section (top 3)
-    active_preview = current_user.research_projects.filter_by(status='active')\
-        .order_by(ResearchProject.last_worked_at.desc()).limit(3).all()
-
-    completed_preview = current_user.research_projects.filter_by(status='completed')\
-        .order_by(ResearchProject.completed_at.desc()).limit(3).all()
-
-    # Get top 3 too hard items for preview (includes all sources from service)
-    too_hard_preview = all_too_hard_items[:3] if all_too_hard_items else []
-
-    dashboard_data = {
-        'active_count': active_count,
-        'paused_count': paused_count,
-        'completed_count': completed_count,
-        'too_hard_count': too_hard_count,
-        'total_time_invested': round(total_time_invested, 1),
-        'invest_decisions': invest_decisions,
-        'pass_decisions': pass_decisions,
-        'watchlist_decisions': watchlist_decisions,
-        'too_hard_rate': round(too_hard_rate, 1),
-        'total_decided_companies': total_decided_companies,
-        'company_invest_count': company_invest_count,
-        'company_pass_count': company_pass_count,
-        'recent_activity': recent_activity,
-        'active_preview': active_preview,
-        'completed_preview': completed_preview,
-        'too_hard_preview': too_hard_preview
-    }
+    # --- Pipeline (sidebar) ---
+    idea_count = IdeaPipeline.query.filter_by(user_id=current_user.id).count()
+    total_companies_researched = len(active_data) + len(watchlist_data) + len(too_hard_data) + invest_count
+    avg_time = round(total_time / total_companies_researched, 1) if total_companies_researched > 0 else 0
+    invest_rate = round((invest_count / total_companies_researched) * 100, 1) if total_companies_researched > 0 else 0
 
     return render_template('projects_dashboard.html',
-                          title="Investment Research",
-                          dashboard_data=dashboard_data)
+                          title="Company Research",
+                          active_data=active_data,
+                          active_data_json=json.dumps(active_data),
+                          watchlist_data=watchlist_data,
+                          watchlist_data_json=json.dumps(watchlist_data),
+                          too_hard_data=too_hard_data,
+                          too_hard_data_json=json.dumps(too_hard_data),
+                          metrics={
+                              'active_count': active_count,
+                              'paused_count': paused_count,
+                              'watchlist_count': len(watchlist_data),
+                              'too_hard_count': len(too_hard_data),
+                              'selectivity_rate': selectivity_rate,
+                              'total_time': round(total_time, 1),
+                          },
+                          pipeline={
+                              'idea_count': idea_count,
+                              'active_count': active_count + paused_count,
+                              'watchlist_count': len(watchlist_data),
+                              'passed_count': len(too_hard_data),
+                              'invested_count': invest_count,
+                          },
+                          quick_stats={
+                              'total_time': round(total_time, 1),
+                              'avg_time': avg_time,
+                              'invested_count': invest_count,
+                              'invest_rate': invest_rate,
+                          })
 
+
+# --- Legacy route redirects ---
 
 @research_workflow_bp.route('/my-projects/active')
 @login_required
 def active_projects():
-    """Detailed view of active research projects with pagination and filters"""
-    # Get query parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    search_query = request.args.get('search', '', type=str).strip()
-    type_filter = request.args.get('type', '', type=str).strip()
-
-    # Base query for active projects
-    query = current_user.research_projects.filter_by(status='active')
-
-    # Apply search filter
-    if search_query:
-        # Search in company name or project name
-        query = query.filter(
-            db.or_(
-                ResearchProject.project_name.ilike(f'%{search_query}%'),
-                ResearchProject.company.has(Company.name.ilike(f'%{search_query}%'))
-            )
-        )
-
-    # Type filter removed - all projects are company projects now
-
-    # Order by last worked date
-    query = query.order_by(ResearchProject.last_worked_at.desc())
-
-    # Paginate
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    active_projects = pagination.items
-
-    # Flag overdue projects
-    overdue_projects = [p for p in active_projects if p.is_overdue]
-
-    # Get paused projects (no pagination for this smaller section)
-    paused_projects = current_user.research_projects.filter_by(status='paused')\
-        .order_by(ResearchProject.created_at.desc()).all()
-
-    # All projects are company type now
-    types = ['company']
-
-    return render_template('projects_active.html',
-                          title="Active Research Projects",
-                          active_projects=active_projects,
-                          pagination=pagination,
-                          paused_projects=paused_projects,
-                          overdue_projects=overdue_projects,
-                          project_types=types,
-                          current_search=search_query,
-                          current_type=type_filter,
-                          current_per_page=per_page)
+    """Redirect to unified Company Research page"""
+    return redirect(url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/my-projects/completed')
 @login_required
 def completed_projects():
-    """Detailed view of completed research projects"""
-    # Get pagination and filter parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    search_query = request.args.get('search', '', type=str).strip()
-    decision_filter = request.args.get('decision', '', type=str).strip()
-
-    # Start with base query - only show projects with a final decision
-    query = current_user.research_projects.filter(ResearchProject.status == 'completed')
-
-    # Apply search filter
-    if search_query:
-        query = query.join(Company, ResearchProject.company_id == Company.id, isouter=True)\
-            .filter(
-                db.or_(
-                    Company.name.ilike(f'%{search_query}%'),
-                    Company.ticker_symbol.ilike(f'%{search_query}%')
-                )
-            )
-
-    # Apply decision filter
-    if decision_filter:
-        query = query.filter(ResearchProject.decision == decision_filter)
-
-    # Order by completed time (most recent first)
-    query = query.order_by(ResearchProject.completed_at.desc())
-
-    # Paginate
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    completed_projects = pagination.items
-
-    # Get unique decisions for filter dropdown
-    all_decisions = db.session.query(ResearchProject.decision)\
-        .filter(
-            ResearchProject.user_id == current_user.id,
-            ResearchProject.status == 'completed',
-            ResearchProject.decision.isnot(None)
-        ).distinct().all()
-    decisions = [d[0] for d in all_decisions if d[0]]
-
-    return render_template('projects_completed.html',
-                          title="Completed Research Projects",
-                          completed_projects=completed_projects,
-                          pagination=pagination,
-                          current_search=search_query,
-                          current_decision=decision_filter,
-                          current_per_page=per_page,
-                          decisions=decisions)
+    """Redirect to unified Company Research page"""
+    return redirect(url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/my-projects/too-hard-basket')
 @login_required
 def too_hard_basket():
-    """View all rejected companies (unified Too Hard Basket)"""
-    from app.services.too_hard_service import TooHardBasketService
-
-    # Get filter parameters
-    stage_filter = request.args.get('stage')
-    search_query = request.args.get('search', '').strip()
-    sector_filter = request.args.get('sector')
-    coc_filter = request.args.get('coc')
-    sort_by = request.args.get('sort', 'date_desc')
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-
-    # Build filters dict
-    filters = {}
-    if stage_filter:
-        filters['rejection_stage'] = stage_filter
-    if search_query:
-        filters['search'] = search_query
-    if sector_filter:
-        filters['sector'] = sector_filter
-    if coc_filter:
-        filters['within_coc'] = coc_filter
-
-    # Get all too hard companies
-    all_items = TooHardBasketService.get_all_too_hard_companies(
-        user_id=current_user.id,
-        filters=filters
-    )
-
-    # Sort items
-    if sort_by == 'date_desc':
-        all_items.sort(key=lambda x: x.rejection_date or datetime.min, reverse=True)
-    elif sort_by == 'date_asc':
-        all_items.sort(key=lambda x: x.rejection_date or datetime.min)
-    elif sort_by == 'time_desc':
-        all_items.sort(key=lambda x: x.time_invested_hours, reverse=True)
-    elif sort_by == 'name_asc':
-        all_items.sort(key=lambda x: x.company_name.lower())
-
-    # Calculate stage counts (without filters for accurate counts)
-    all_unfiltered = TooHardBasketService.get_all_too_hard_companies(current_user.id)
-    total_count = len(all_unfiltered)
-    kill_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'kill_checklist')
-    mid_research_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'mid_research')
-    full_analysis_count = sum(1 for item in all_unfiltered if item.rejection_stage == 'full_analysis')
-
-    # Paginate results
-    total_items = len(all_items)
-    start_idx = (page - 1) * per_page
-    end_idx = start_idx + per_page
-    items = all_items[start_idx:end_idx]
-
-    # Create pagination object
-    class SimplePagination:
-        def __init__(self, page, per_page, total):
-            self.page = page
-            self.per_page = per_page
-            self.total = total
-            self.pages = (total + per_page - 1) // per_page
-            self.has_prev = page > 1
-            self.has_next = page < self.pages
-            self.prev_num = page - 1 if self.has_prev else None
-            self.next_num = page + 1 if self.has_next else None
-
-    pagination = SimplePagination(page, per_page, total_items)
-    sectors_list = SectorService.get_user_sectors_list(current_user.id)
-
-    # Smart back button support
-    return_url = request.args.get('return_url') or request.referrer
-    context_label = request.args.get('context_label') or 'My Projects'
-
-    # If coming from my-projects, ensure proper label
-    if return_url and 'my-projects' in return_url:
-        if 'return_url' not in request.args:  # Only auto-set if not explicitly provided
-            return_url = url_for('research_workflow.my_projects')
-            context_label = 'My Projects'
-
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render_template('partials/_too_hard_list.html',
-                               too_hard_items=items,
-                               pagination=pagination,
-                               current_stage=stage_filter)
-
-    return render_template('too_hard_basket.html',
-                          too_hard_items=items,
-                          sectors_list=sectors_list,
-                          pagination=pagination,
-                          search_query=search_query,
-                          current_stage=stage_filter,
-                          current_sector=sector_filter,
-                          current_coc=coc_filter,
-                          sort_by=sort_by,
-                          current_per_page=per_page,
-                          total_count=total_count,
-                          kill_count=kill_count,
-                          mid_research_count=mid_research_count,
-                          full_analysis_count=full_analysis_count,
-                          return_url=return_url,
-                          context_label=context_label)
+    """Redirect to unified Company Research page (Too Hard tab)"""
+    return redirect(url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])

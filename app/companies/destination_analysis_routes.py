@@ -12,7 +12,7 @@ def add_checkpoint(company_id):
     # Authorization check
     if company.user_id != current_user.id:
         flash("You are not authorized to modify this company.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     metric = request.form.get('metric')
     expectation = request.form.get('expectation')
@@ -51,7 +51,7 @@ def destination_analysis(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     checkpoints = company.destination_checkpoints.order_by(DestinationCheckpoint.target_date.asc()).all()
 
@@ -70,7 +70,7 @@ def update_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to update this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     # Get data from the form
     new_status = request.form.get('status')
@@ -98,7 +98,7 @@ def delete_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to delete this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     company_id = checkpoint.company_id # Store for redirect before deleting
     try:
@@ -119,7 +119,7 @@ def edit_checkpoint(checkpoint_id):
     # Authorization check
     if checkpoint.user_id != current_user.id:
         flash("You are not authorized to edit this checkpoint.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     if request.method == 'POST':
         # Handle the form submission for updating

@@ -45,7 +45,7 @@ def select_checklist_for_company(company_id):
     if company.user_id != current_user.id:
     # Or if company.creator != current_user: (if using the backref)
         flash('You are not authorized to access this company.', 'error')
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     user_checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
     
@@ -666,7 +666,7 @@ def select_model(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this company.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     # NEW: Check if there is at least one completed research session for this company
     has_completed_research = ChecklistAnalysis.query.filter_by(

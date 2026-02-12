@@ -107,7 +107,7 @@ def start_project():
     except Exception as e:
         db.session.rollback()
         flash(f'Error starting project: {str(e)}', 'error')
-        return redirect(request.referrer or url_for('companies.companies_dashboard'))
+        return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>')
