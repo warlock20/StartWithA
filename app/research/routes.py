@@ -45,7 +45,7 @@ def select_checklist_for_company(company_id):
     if company.user_id != current_user.id:
     # Or if company.creator != current_user: (if using the backref)
         flash('You are not authorized to access this company.', 'error')
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     user_checklists = Checklist.query.filter_by(user_id=current_user.id).order_by(Checklist.name).all()
     
@@ -140,7 +140,7 @@ def research_step(analysis_id, item_id):
 
     if request.method == 'POST':
         answer_text = request.form.get('answer_text')
-        satisfaction_status_from_form = request.form.get('satisfaction_status') # Get the new status
+        satisfaction_status_from_form = request.form.get('satisfaction_status') or 'neutral'
         if research_answer:
             research_answer.answer_text = answer_text
             research_answer.answered_at = now_utc()
@@ -179,6 +179,10 @@ def research_step(analysis_id, item_id):
     # Check for research workflow context
     research_context = flask_session.get('research_context')
 
+    # Build answers map for checklist sidebar (status dots for all items)
+    all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
+    answers_map = {ans.checklist_item_id: ans for ans in all_answers}
+
     return render_template(
         'research_step.html',
         title=f"Research: {session.company.ticker_symbol} - Item {current_item_index + 1}/{len(all_items_in_order)}",
@@ -190,8 +194,79 @@ def research_step(analysis_id, item_id):
         progress_percent=progress_percent,
         previous_item_id=previous_item_id,
         company_documents=company_documents_for_llm,
-        research_context=research_context  # Pass research workflow context
+        research_context=research_context,
+        all_items_in_order=all_items_in_order,
+        answers_map=answers_map
     )
+
+@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
+@login_required
+def research_step_json(analysis_id, item_id):
+    """
+    AJAX endpoint: returns item data as JSON for smooth sidebar navigation.
+    """
+    session = ChecklistAnalysis.query.get_or_404(analysis_id)
+    if session.researcher != current_user:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    current_item = ChecklistItem.query.get_or_404(item_id)
+    if current_item.checklist_id != session.checklist_id:
+        return jsonify({'error': 'Invalid item'}), 400
+
+    all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+
+    current_item_index = -1
+    for index, item_obj in enumerate(all_items_in_order):
+        if item_obj.id == current_item.id:
+            current_item_index = index
+            break
+
+    if current_item_index == -1:
+        return jsonify({'error': 'Item not found in order'}), 400
+
+    # Fetch answer
+    research_answer = ChecklistAnswer.query.filter_by(
+        checklist_analysis_id=session.id,
+        checklist_item_id=current_item.id
+    ).first()
+
+    # Previous item
+    previous_item_id = None
+    if current_item_index > 0:
+        previous_item_id = all_items_in_order[current_item_index - 1].id
+
+    # All answers for sidebar status update
+    all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
+    answers_map = {}
+    for ans in all_answers:
+        answers_map[ans.checklist_item_id] = ans.satisfaction_status or 'neutral'
+
+    # Status counts
+    status_counts = {'satisfied': 0, 'not_satisfied': 0, 'needs_attention': 0, 'neutral': 0, 'pending': 0}
+    for item in all_items_in_order:
+        st = answers_map.get(item.id)
+        if st and st in status_counts:
+            status_counts[st] += 1
+        else:
+            status_counts['pending'] += 1
+
+    return jsonify({
+        'item_id': current_item.id,
+        'item_number': current_item_index + 1,
+        'total_items': len(all_items_in_order),
+        'text': current_item.text,
+        'description': current_item.description,
+        'parent_text': current_item.parent.text if current_item.parent else None,
+        'has_llm_prompt': bool(current_item.llm_prompt),
+        'answer_text': research_answer.answer_text if research_answer else '',
+        'satisfaction_status': research_answer.satisfaction_status if research_answer else 'pending',
+        'previous_item_id': previous_item_id,
+        'autosave_url': url_for('research.autosave_research_answer', analysis_id=session.id, item_id=current_item.id),
+        'form_action_url': url_for('research.research_step', analysis_id=session.id, item_id=current_item.id),
+        'answers_map': answers_map,
+        'status_counts': status_counts
+    })
+
 
 @research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
 @login_required
@@ -591,7 +666,7 @@ def select_model(company_id):
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to access this company.", "error")
-        return redirect(url_for('companies.companies_dashboard'))
+        return redirect(url_for('companies.list_companies'))
 
     # NEW: Check if there is at least one completed research session for this company
     has_completed_research = ChecklistAnalysis.query.filter_by(

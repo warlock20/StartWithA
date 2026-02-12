@@ -99,3 +99,5 @@ All complex components have been fully modularized.
 @import url('modules/_hashtag-autocomplete.css'); /* Hashtag autocomplete component */
 @import url('modules/_warnings-widget.css');      /* Intelligence warnings widget */
 @import url('modules/_free-research.css');        /* Free research step */
+@import url('modules/_checklist-verification.css'); /* Checklist verification cockpit */
+@import url('modules/_research-command-center.css'); /* Research command center - unified Company Research page */

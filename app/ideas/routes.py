@@ -297,7 +297,7 @@ def kill_room(idea_id):
             details={'reason': current_criterion.question}
         )
             flash(f'"{idea.name}" has been killed. Reason: {current_criterion.question}', 'info')
-            return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
+            return redirect(url_for('research_workflow.my_projects'))
 
         db.session.commit()
 
@@ -678,7 +678,7 @@ def edit_idea(idea_id):
             flash('Idea updated successfully', 'success')
             # Route back to the appropriate page
             if return_to == 'graveyard':
-                return redirect(url_for('research_workflow.too_hard_basket', stage='kill_checklist'))
+                return redirect(url_for('research_workflow.my_projects'))
             else:
                 return redirect(url_for('ideas.inbox'))
         except Exception as e:

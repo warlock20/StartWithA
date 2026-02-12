@@ -2,354 +2,329 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1>Research: {{ session.company.name }} ({{ session.company.ticker_symbol }})</h1>
-                <p class="text-muted mb-0">Using Checklist: "{{ session.checklist.name }}" • Progress: Item {{
-                    current_item_number }} of {{ total_items }}</p>
-            </div>
-            <div class="d-flex align-items-center">
-                {% with btn_class='btn btn-secondary me-2' %}
+    <!-- ================================================================
+         PROGRESS HEADER — Segmented bar + legend
+         ================================================================ -->
+    <div class="cl-progress-header">
+        <div class="cl-progress-header-top">
+            <h2 class="cl-progress-title">
+                {{ session.company.name }} <span>({{ session.company.ticker_symbol }})</span>
+            </h2>
+            <div class="d-flex align-items-center gap-3">
+                <div class="cl-progress-count">
+                    <strong>{{ current_item_number }}</strong> of <strong>{{ total_items }}</strong> items
+                </div>
+                {% with btn_class='btn btn-outline-secondary btn-sm' %}
                     {% include 'components/smart_back_button.html' %}
                 {% endwith %}
+            </div>
+        </div>
+
+        {# Compute status counts from answers_map #}
+        {% set ns = namespace(satisfied=0, not_satisfied=0, needs_attention=0, neutral_count=0, pending=0) %}
+        {% for item in all_items_in_order %}
+            {% set ans = answers_map.get(item.id) %}
+            {% if ans %}
+                {% if ans.satisfaction_status == 'satisfied' %}
+                    {% set ns.satisfied = ns.satisfied + 1 %}
+                {% elif ans.satisfaction_status == 'not_satisfied' %}
+                    {% set ns.not_satisfied = ns.not_satisfied + 1 %}
+                {% elif ans.satisfaction_status == 'needs_attention' %}
+                    {% set ns.needs_attention = ns.needs_attention + 1 %}
+                {% else %}
+                    {% set ns.neutral_count = ns.neutral_count + 1 %}
+                {% endif %}
+            {% else %}
+                {% set ns.pending = ns.pending + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="cl-progress-bar">
+            {% if ns.satisfied > 0 %}
+            <div class="cl-progress-segment satisfied" style="width: {{ (ns.satisfied / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.not_satisfied > 0 %}
+            <div class="cl-progress-segment not-satisfied" style="width: {{ (ns.not_satisfied / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.needs_attention > 0 %}
+            <div class="cl-progress-segment needs-attention" style="width: {{ (ns.needs_attention / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+            {% if ns.neutral_count > 0 %}
+            <div class="cl-progress-segment neutral" style="width: {{ (ns.neutral_count / total_items * 100)|round(1) }}%"></div>
+            {% endif %}
+        </div>
+
+        <div class="cl-progress-legend">
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot satisfied"></span>
+                <span class="cl-progress-legend-count">{{ ns.satisfied }}</span> Satisfied
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot not-satisfied"></span>
+                <span class="cl-progress-legend-count">{{ ns.not_satisfied }}</span> Not Satisfied
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot needs-attention"></span>
+                <span class="cl-progress-legend-count">{{ ns.needs_attention }}</span> Needs Attention
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot neutral"></span>
+                <span class="cl-progress-legend-count">{{ ns.neutral_count }}</span> Neutral
+            </div>
+            <div class="cl-progress-legend-item">
+                <span class="cl-progress-legend-dot pending"></span>
+                <span class="cl-progress-legend-count">{{ ns.pending }}</span> Pending
             </div>
         </div>
     </div>
 
     <div class="row">
+        <!-- ================================================================
+             MAIN CONTENT (col-lg-8)
+             ================================================================ -->
         <main class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-start">
-                    <h4 class="mb-0">Question {{ current_item_number }}: {{ current_item.text }}</h4>
+            <form method="POST" id="answerForm"
+                action="{{ url_for('research.research_step', analysis_id=session.id, item_id=current_item.id) }}">
+
+                <!-- Question Card -->
+                {% set current_status = answer.satisfaction_status if answer and answer.satisfaction_status else 'pending' %}
+                <div class="cl-question-card status-{{ current_status }}" id="questionCard">
+                    <div class="cl-question-header">
+                        <div class="cl-question-number">{{ current_item_number }}</div>
+                        <div class="cl-question-content">
+                            <h4 class="cl-question-text">{{ current_item.text }}</h4>
+                            <div class="cl-question-meta">
+                                {% if current_item.parent %}
+                                <span class="parent-label">
+                                    <i class="bi bi-diagram-3"></i> {{ current_item.parent.text }}
+                                </span>
+                                {% endif %}
+                                {% if current_item.description %}
+                                <button type="button" class="cl-description-toggle" onclick="toggleDescription()">
+                                    <i class="bi bi-info-circle"></i> <span id="descToggleText">Show details</span>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
                     {% if current_item.description %}
-                    <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#descriptionCollapse" aria-expanded="false" aria-controls="descriptionCollapse">
-                        <i class="bi bi-info-circle"></i> <span class="desc-toggle-text">Show Details</span>
-                    </button>
+                    <div class="cl-question-description" id="questionDescription" style="display: none;">
+                        <div class="cl-question-description-content">
+                            {{ current_item.description }}
+                        </div>
+                    </div>
                     {% endif %}
-                </div>
-                {% if current_item.description %}
-                <div class="collapse" id="descriptionCollapse">
-                    <div class="card-body py-2 bg-light border-top">
-                        <p class="mb-0">{{ current_item.description }}</p>
+
+                    <!-- Verdict Buttons -->
+                    <div class="cl-verdict-section">
+                        <div class="cl-verdict-label">Your Verdict</div>
+                        <div class="cl-verdict-buttons">
+                            <button type="button" class="cl-verdict-btn satisfied {{ 'active' if current_status == 'satisfied' }}"
+                                    onclick="setVerdict('satisfied')">
+                                <i class="bi bi-check-circle-fill"></i> Satisfied
+                            </button>
+                            <button type="button" class="cl-verdict-btn not-satisfied {{ 'active' if current_status == 'not_satisfied' }}"
+                                    onclick="setVerdict('not_satisfied')">
+                                <i class="bi bi-x-circle-fill"></i> Not Satisfied
+                            </button>
+                            <button type="button" class="cl-verdict-btn needs-attention {{ 'active' if current_status == 'needs_attention' }}"
+                                    onclick="setVerdict('needs_attention')">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Needs Attention
+                            </button>
+                            <button type="button" class="cl-verdict-btn neutral {{ 'active' if answer and current_status == 'neutral' }}"
+                                    onclick="setVerdict('neutral')">
+                                <i class="bi bi-info-circle"></i> Neutral
+                            </button>
+                        </div>
+                        <!-- Hidden input: empty when no answer exists yet, so no false verdict -->
+                        <input type="hidden" id="satisfaction_status" name="satisfaction_status"
+                               value="{{ current_status if current_status != 'pending' else '' }}">
                     </div>
                 </div>
-                {% endif %}
-                {% if current_item.parent %}
-                <div class="card-body py-2">
-                    <p class="text-muted mb-0">Sub-item of: {{ current_item.parent.text }}</p>
+
+                <!-- Answer / Synthesis Area -->
+                <div class="cl-answer-section">
+                    <div class="cl-answer-header">
+                        <h6><i class="bi bi-pencil-square"></i> Notes & Synthesis</h6>
+                        <span id="autoSaveStatus" class="text-muted" style="font-size: 0.75rem;"></span>
+                    </div>
+                    <div class="cl-answer-body">
+                        <div id="answerEditor" class="cl-answer-editor blocknote-editor-wrapper"></div>
+                        <textarea class="form-control d-none" id="answer_text" name="answer_text" rows="8"
+                            placeholder="Synthesize your findings...">{{ answer.answer_text if answer else '' }}</textarea>
+                    </div>
                 </div>
-                {% endif %}
-            </div>
 
-
-            <!-- Unified AI Research Assistant -->
-            <div class="accordion mb-4" id="aiResearchAccordion">
-                <div class="accordion-item border-primary">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#collapseAIResearch">
-                            <i class="bi bi-robot me-2"></i> <strong>AI Research Assistant</strong>
-                            <span class="badge bg-primary ms-2">{% if current_item.llm_prompt %}4{% else %}3{% endif %} AI Tools Available</span>
+                <!-- Navigation -->
+                <div class="cl-nav-bar">
+                    <div>
+                        {% if previous_item_id %}
+                        <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-list-check"></i> Summary
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            Save & Next <i class="bi bi-arrow-right"></i>
                         </button>
-                    </h2>
-                    <div id="collapseAIResearch" class="accordion-collapse collapse" data-bs-parent="#aiResearchAccordion">
-                        <div class="accordion-body">
-                            <p class="text-muted mb-3">
-                                <i class="bi bi-lightbulb me-1"></i>
-                                Use AI to strengthen your analysis, challenge your reasoning, or extract insights from documents
-                            </p>
+                    </div>
+                </div>
+            </form>
 
-                            <!-- AI Modes Grid -->
-                            <div class="row g-3 mb-3">
-                                <!-- Challenge Mode -->
-                                <div class="col-md-6 col-lg-3">
-                                    <div class="card h-100 ai-mode-card border-danger" style="cursor: pointer;"
-                                         onclick="triggerAIMode('challenge')"
-                                         data-bs-toggle="tooltip"
-                                         data-bs-placement="top"
-                                         title="Devil's Advocate: AI will challenge your reasoning with counter-arguments and alternative perspectives to help you identify blind spots in your analysis.">
-                                        <div class="card-body text-center p-3">
-                                            <div class="mb-2">
-                                                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem;"></i>
-                                            </div>
-                                            <h6 class="mb-1">Challenge</h6>
-                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
-                                            <p class="small text-muted mb-0">Get counter-arguments to test your reasoning</p>
-                                        </div>
-                                    </div>
-                                </div>
+            <!-- AI Tools (compact, collapsible) -->
+            <div class="cl-ai-tools" id="aiToolsPanel">
+                <div class="cl-ai-tools-header" onclick="toggleAITools()">
+                    <h6><i class="bi bi-robot"></i> AI Research Assistant</h6>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="cl-ai-tools-body">
+                    <div class="cl-ai-mode-buttons">
+                        <button type="button" class="cl-ai-mode-btn challenge" onclick="triggerAIMode('challenge')">
+                            <i class="bi bi-exclamation-triangle"></i> Challenge
+                        </button>
+                        <button type="button" class="cl-ai-mode-btn elaborate" onclick="triggerAIMode('elaboration')">
+                            <i class="bi bi-question-circle"></i> Elaboration
+                        </button>
+                        <button type="button" class="cl-ai-mode-btn factcheck" onclick="triggerAIMode('factcheck')">
+                            <i class="bi bi-shield-check"></i> Fact-Check
+                        </button>
+                    </div>
 
-                                <!-- Elaboration Mode -->
-                                <div class="col-md-6 col-lg-3">
-                                    <div class="card h-100 ai-mode-card border-primary" style="cursor: pointer;"
-                                         onclick="triggerAIMode('elaboration')"
-                                         data-bs-toggle="tooltip"
-                                         data-bs-placement="top"
-                                         title="Deep Dive: AI will suggest follow-up questions to help you explore areas you might have overlooked and deepen your research.">
-                                        <div class="card-body text-center p-3">
-                                            <div class="mb-2">
-                                                <i class="bi bi-question-circle text-primary" style="font-size: 2rem;"></i>
-                                            </div>
-                                            <h6 class="mb-1">Elaboration</h6>
-                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
-                                            <p class="small text-muted mb-0">Get follow-up questions to deepen analysis</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Fact-Check Mode -->
-                                <div class="col-md-6 col-lg-3">
-                                    <div class="card h-100 ai-mode-card border-warning" style="cursor: pointer;"
-                                         onclick="triggerAIMode('factcheck')"
-                                         data-bs-toggle="tooltip"
-                                         data-bs-placement="top"
-                                         title="Verify Claims: AI will identify specific claims in your answer that should be verified with sources or data, helping ensure accuracy.">
-                                        <div class="card-body text-center p-3">
-                                            <div class="mb-2">
-                                                <i class="bi bi-shield-check text-warning" style="font-size: 2rem;"></i>
-                                            </div>
-                                            <h6 class="mb-1">Fact-Check</h6>
-                                            <span class="badge bg-success mb-2" style="font-size: 0.7rem;">NEW</span>
-                                            <p class="small text-muted mb-0">Verify claims and request evidence</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Document Analysis (if available) -->
-                                {% if current_item.llm_prompt %}
-                                <div class="col-md-6 col-lg-3">
-                                    <div class="card h-100 ai-mode-card border-secondary disabled">
-                                        <div class="card-body text-center p-3">
-                                            <div class="mb-2">
-                                                <i class="bi bi-file-earmark-text text-secondary" style="font-size: 2rem;"></i>
-                                            </div>
-                                            <h6 class="mb-1">Document Analysis</h6>
-                                            <span class="badge bg-secondary mb-2" style="font-size: 0.7rem;">COMING SOON</span>
-                                            <p class="small text-muted mb-0">Extract insights from uploaded documents</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
+                    <!-- AI Response Area -->
+                    <div id="aiResponseArea" style="display: none;">
+                        <div id="aiLoadingSpinner" class="text-center py-4" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
                             </div>
+                            <p class="mt-2 text-muted">AI is analyzing...</p>
+                        </div>
 
-                            <!-- AI Response Area (initially hidden) -->
-                            <div id="aiResponseArea" style="display: none;">
-                                <!-- Loading spinner -->
-                                <div id="aiLoadingSpinner" class="text-center py-4" style="display: none;">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">AI is thinking...</p>
+                        <!-- Challenge Response -->
+                        <div id="aiResponseChallenge" class="ai-response-content" style="display: none;">
+                            <div class="alert alert-danger border-start border-danger border-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-exclamation-diamond me-2" style="font-size: 1.2rem;"></i>
+                                    <strong>Challenge</strong>
                                 </div>
+                                <div id="aiResponseChallengeText"></div>
+                            </div>
+                        </div>
 
-                                <!-- Challenge Response -->
-                                <div id="aiResponseChallenge" class="ai-response-content" style="display: none;">
-                                    <div class="alert alert-danger border-start border-danger border-4">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <i class="bi bi-exclamation-diamond me-2" style="font-size: 1.5rem;"></i>
-                                            <strong>Challenge Mode</strong>
-                                        </div>
-                                        <div id="aiResponseChallengeText"></div>
-                                    </div>
-                                    <div class="ai-feedback-buttons"></div>
+                        <!-- Elaboration Response -->
+                        <div id="aiResponseElaboration" class="ai-response-content" style="display: none;">
+                            <div class="alert alert-primary border-start border-primary border-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-chat-dots me-2" style="font-size: 1.2rem;"></i>
+                                    <strong>Elaboration</strong>
                                 </div>
+                                <div id="aiResponseElaborationText"></div>
+                            </div>
+                        </div>
 
-                                <!-- Elaboration Response -->
-                                <div id="aiResponseElaboration" class="ai-response-content" style="display: none;">
-                                    <div class="alert alert-primary border-start border-primary border-4">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <i class="bi bi-chat-dots me-2" style="font-size: 1.5rem;"></i>
-                                            <strong>Elaboration Mode</strong>
-                                        </div>
-                                        <div id="aiResponseElaborationText"></div>
-                                    </div>
-                                    <div class="ai-feedback-buttons d-flex gap-2 justify-content-end mt-2">
-                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="submitFeedback('helpful')">
-                                            <i class="bi bi-hand-thumbs-up me-1"></i> Helpful
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="submitFeedback('not_helpful')">
-                                            <i class="bi bi-hand-thumbs-down me-1"></i> Not Helpful
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissAI()">
-                                            <i class="bi bi-x-lg me-1"></i> Dismiss
-                                        </button>
-                                    </div>
+                        <!-- Fact-Check Response -->
+                        <div id="aiResponseFactcheck" class="ai-response-content" style="display: none;">
+                            <div class="alert alert-warning border-start border-warning border-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-shield-exclamation me-2" style="font-size: 1.2rem;"></i>
+                                    <strong>Fact-Check</strong>
                                 </div>
-
-                                <!-- Fact-Check Response -->
-                                <div id="aiResponseFactcheck" class="ai-response-content" style="display: none;">
-                                    <div class="alert alert-warning border-start border-warning border-4">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <i class="bi bi-shield-exclamation me-2" style="font-size: 1.5rem;"></i>
-                                            <strong>Fact-Check Mode</strong>
-                                        </div>
-                                        <div id="aiResponseFactcheckText"></div>
-                                    </div>
-                                    <div class="ai-feedback-buttons"></div>
-                                </div>
-
-                                <!-- Document Analysis Response -->
-                                {% if current_item.llm_prompt %}
-                                <div id="aiResponseDocuments" class="ai-response-content" style="display: none;">
-                                    <div class="border rounded p-3" style="background: #f8f9fa;">
-                                        <h6 class="mb-3"><i class="bi bi-files me-2"></i>Document Analysis</h6>
-
-                                        <p class="text-muted small mb-2">Select documents to analyze with the question prompt:</p>
-                                        <div class="document-list border rounded p-2 mb-3" style="max-height: 150px; overflow-y: auto; background: white;">
-                                            {% if company_documents %}
-                                            {% for doc in company_documents %}
-                                            <div class="form-check">
-                                                <input class="form-check-input doc-checkbox" type="checkbox" id="doc{{ doc.id }}" value="{{ doc.id }}" checked>
-                                                <label class="form-check-label small" for="doc{{ doc.id }}">
-                                                    {{ doc.document_title or doc.original_filename }}
-                                                </label>
-                                            </div>
-                                            {% endfor %}
-                                            {% else %}
-                                            <div class="text-muted small">No documents uploaded yet</div>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="alert alert-light mb-2">
-                                            <small><strong>AI Prompt:</strong> <em>{{ current_item.llm_prompt }}</em></small>
-                                        </div>
-
-                                        <button class="btn btn-secondary btn-sm" onclick="runDocumentAnalysis()">
-                                            <i class="bi bi-robot"></i> Run Document Analysis
-                                        </button>
-
-                                        <div id="documentAnalysisResult" class="mt-3" style="display: none;"></div>
-                                    </div>
-                                </div>
-                                {% endif %}
+                                <div id="aiResponseFactcheckText"></div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Your Answer & Synthesis</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" id="answerForm"
-                        action="{{ url_for('research.research_step', analysis_id=session.id, item_id=current_item.id) }}">
-                        <div class="mb-3">
-                            <label for="answer_text" class="form-label">Synthesize your findings, incorporating your
-                                research and insights.</label>
-                            <!-- BlockNote Editor Container -->
-                            <div id="answerEditor" class="blocknote-editor-wrapper border rounded"></div>
-                            <!-- Hidden textarea for form submission -->
-                            <textarea class="form-control d-none" id="answer_text" name="answer_text" rows="12"
-                                placeholder="Start writing your analysis...">{{ answer.answer_text if answer else '' }}</textarea>
-                        </div>
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <label for="satisfaction_status" class="form-label">Status for this item:</label>
-                                <select id="satisfaction_status" name="satisfaction_status" class="form-select">
-                                    <option value="neutral" {% if not answer or not answer.satisfaction_status or
-                                        answer.satisfaction_status=='neutral' %}selected{% endif %}>Neutral /
-                                        Informational</option>
-                                    <option value="satisfied" {% if answer and answer.satisfaction_status=='satisfied'
-                                        %}selected{% endif %}>✅ Satisfied / Met</option>
-                                    <option value="not_satisfied" {% if answer and
-                                        answer.satisfaction_status=='not_satisfied' %}selected{% endif %}>❌ Not
-                                        Satisfied / Not Met</option>
-                                    <option value="needs_attention" {% if answer and
-                                        answer.satisfaction_status=='needs_attention' %}selected{% endif %}>⚠️ Needs
-                                        Attention</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 text-end">
-                                {% if previous_item_id %}
-                                <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
-                                    class="btn btn-secondary">← Previous Item</a>
-                                {% endif %}
-                                <button type="submit" class="btn btn-success">Save and Next →</button>
-                            </div>
-                        </div>
-                    </form>
                 </div>
             </div>
         </main>
 
-        <aside class="col-lg-4 context-sidebar">
-            <div class="sticky-top">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ session.company.name }} ({{ session.company.ticker_symbol }})</h5>
-                        {% if session.company.sector %}
-                        <p class="card-text text-muted">{{ session.company.sector.display_name }}</p>
-                        {% endif %}
-                        <p><strong>Research Status:</strong> <span class="badge bg-info">In Progress</span></p>
-                        <div class="progress" style="height: 25px;">
-                            <div class="progress-bar bg-primary" role="progressbar"
-                                style="width: {{ progress_percent }}%;" aria-valuenow="{{ progress_percent }}"
-                                aria-valuemin="0" aria-valuemax="100">
-                                Progress: {{ progress_percent|round(2) }}%
-                            </div>
+        <!-- ================================================================
+             SIDEBAR (col-lg-4)
+             ================================================================ -->
+        <aside class="col-lg-4">
+            <div class="sticky-top" style="top: 1rem;">
+
+                <!-- Progress Stats -->
+                <div class="cl-sidebar-section">
+                    <div class="cl-sidebar-header">
+                        <h6><i class="bi bi-bar-chart-fill"></i> Verification Progress</h6>
+                    </div>
+                    <div class="cl-sidebar-stats">
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value total">{{ total_items }}</div>
+                            <div class="cl-sidebar-stat-label">Total</div>
                         </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value satisfied">{{ ns.satisfied }}</div>
+                            <div class="cl-sidebar-stat-label">Pass</div>
+                        </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value flagged">{{ ns.not_satisfied }}</div>
+                            <div class="cl-sidebar-stat-label">Fail</div>
+                        </div>
+                        <div class="cl-sidebar-stat">
+                            <div class="cl-sidebar-stat-value attention">{{ ns.needs_attention }}</div>
+                            <div class="cl-sidebar-stat-label">Watch</div>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Map -->
+                    <div class="cl-map-list" id="checklistMap">
+                        {% for item in all_items_in_order %}
+                            {% set item_ans = answers_map.get(item.id) %}
+                            {% set item_status = item_ans.satisfaction_status if item_ans and item_ans.satisfaction_status else 'pending' %}
+                            {% set is_current = (item.id == current_item.id) %}
+
+                            <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=item.id) }}"
+                               class="cl-map-item {{ 'current' if is_current }} {{ 'sub-item' if item.parent_id }}"
+                               data-item-id="{{ item.id }}"
+                               data-item-index="{{ loop.index }}">
+                                <span class="cl-map-item-number {{ item_status if item_status != 'pending' else '' }} {{ 'current-item' if is_current and item_status == 'pending' }}">
+                                    {% if item_status == 'satisfied' %}
+                                        <i class="bi bi-check"></i>
+                                    {% elif item_status == 'not_satisfied' %}
+                                        <i class="bi bi-x"></i>
+                                    {% elif item_status == 'needs_attention' %}
+                                        <i class="bi bi-exclamation"></i>
+                                    {% elif item_status == 'neutral' %}
+                                        <i class="bi bi-dash"></i>
+                                    {% else %}
+                                        {{ loop.index }}
+                                    {% endif %}
+                                </span>
+                                <span class="cl-map-item-text">{{ item.text|truncate(45) }}</span>
+                            </a>
+                        {% endfor %}
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="bi bi-files"></i> Relevant Documents</h6>
+                <!-- Documents (minimal) -->
+                {% if company_documents %}
+                <div class="cl-sidebar-section">
+                    <div class="cl-sidebar-header">
+                        <h6><i class="bi bi-file-earmark-text"></i> Documents ({{ company_documents|length }})</h6>
                     </div>
-                    <ul class="list-group list-group-flush">
-                        {% if company_documents %}
-                        {% for doc in company_documents %}
+                    <div class="cl-documents-list">
+                        {% for doc in company_documents[:5] %}
                         <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
-                            class="list-group-item list-group-item-action" target="_blank">
+                           target="_blank">
                             {{ doc.document_title or doc.original_filename }}
                         </a>
                         {% endfor %}
-                        {% else %}
-                        <div class="list-group-item text-muted">
-                            <i class="bi bi-info-circle"></i> No documents uploaded yet
-                        </div>
-                        {% endif %}
-                        <a href="{{ url_for('companies.company_dashboard', company_id=session.company.id) }}"
-                            class="list-group-item list-group-item-action text-primary">
-                            <i class="bi bi-plus-circle"></i> Upload New Document
+                        {% if company_documents|length > 5 %}
+                        <a href="{{ url_for('companies.company_dashboard', company_id=session.company.id) }}">
+                            View all {{ company_documents|length }} documents...
                         </a>
-                    </ul>
+                        {% endif %}
+                    </div>
                 </div>
+                {% endif %}
 
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="bi bi-lightning-charge"></i> Quick Actions</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
-                                class="btn btn-primary btn-sm">
-                                <i class="bi bi-clipboard-data"></i> Session Summary
-                            </a>
-                            <button class="btn btn-outline-primary btn-sm" onclick="performSearch()"
-                                title="Smart Search (Ctrl+S)">
-                                <i class="bi bi-search"></i> Smart Search
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="searchFinancials()">
-                                <i class="bi bi-graph-up"></i> Financial Data
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="searchNews()">
-                                <i class="bi bi-newspaper"></i> Latest News
-                            </button>
-                            <a href="{{ url_for('journal_enhanced.knowledge_hub', company_id=session.company.id) }}"
-                                class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-journal-text"></i> View Journal Entries
-                            </a>
-                            <a href="{{ url_for('journal_enhanced.new_entry', company_id=session.company.id) }}"
-                                class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-journal-plus"></i> New Journal Entry
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
         </aside>
     </div>
@@ -358,38 +333,70 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/research_interactions.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
 
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
 <script>
-    // Main answer editor instance
+    // =========================================================================
+    // Verdict Buttons
+    // =========================================================================
+    function setVerdict(status) {
+        // Update hidden input
+        document.getElementById('satisfaction_status').value = status;
+
+        // Update button states
+        document.querySelectorAll('.cl-verdict-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // Update question card border color
+        const card = document.getElementById('questionCard');
+        card.className = card.className.replace(/status-\S+/, '');
+        card.classList.add('status-' + status);
+
+        // Update the current item in the sidebar map
+        const currentMapItem = document.querySelector('.cl-map-item.current .cl-map-item-number');
+        if (currentMapItem) {
+            currentMapItem.className = 'cl-map-item-number ' + status.replace('_', '-');
+            const iconMap = {
+                'satisfied': '<i class="bi bi-check"></i>',
+                'not_satisfied': '<i class="bi bi-x"></i>',
+                'needs_attention': '<i class="bi bi-exclamation"></i>',
+                'neutral': '<i class="bi bi-dash"></i>'
+            };
+            currentMapItem.innerHTML = iconMap[status] || '{{ current_item_number }}';
+        }
+    }
+
+    // =========================================================================
+    // Description Toggle
+    // =========================================================================
+    function toggleDescription() {
+        const desc = document.getElementById('questionDescription');
+        const toggleText = document.getElementById('descToggleText');
+        if (desc) {
+            const isHidden = desc.style.display === 'none';
+            desc.style.display = isHidden ? 'block' : 'none';
+            toggleText.textContent = isHidden ? 'Hide details' : 'Show details';
+        }
+    }
+
+    // =========================================================================
+    // AI Tools Toggle
+    // =========================================================================
+    function toggleAITools() {
+        document.getElementById('aiToolsPanel').classList.toggle('expanded');
+    }
+
+    // =========================================================================
+    // BlockNote Editor
+    // =========================================================================
     let answerEditorRoot = null;
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Set progress bar width from data attribute
-        const progressFill = document.querySelector('.progress-fill');
-        if (progressFill) {
-            const progress = progressFill.getAttribute('data-progress');
-            progressFill.style.width = progress + '%';
-        }
-
-        // Toggle description button text
-        const descCollapse = document.getElementById('descriptionCollapse');
-        if (descCollapse) {
-            descCollapse.addEventListener('shown.bs.collapse', function () {
-                document.querySelector('.desc-toggle-text').textContent = 'Hide Details';
-            });
-            descCollapse.addEventListener('hidden.bs.collapse', function () {
-                document.querySelector('.desc-toggle-text').textContent = 'Show Details';
-            });
-        }
-
-        // Initialize BlockNote editor
         initializeAnswerEditor();
 
-        // Handle form submission to sync BlockNote content to hidden textarea
+        // Sync BlockNote content on form submit
         const answerForm = document.getElementById('answerForm');
         if (answerForm) {
             answerForm.addEventListener('submit', function(e) {
@@ -399,35 +406,39 @@
                 }
             });
         }
+
+        // Initialize AI assistant
+        initializeAIAssistant();
+
+        // Scroll current item into view in the sidebar map
+        const currentMapItem = document.querySelector('.cl-map-item.current');
+        if (currentMapItem) {
+            currentMapItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
     });
 
     function initializeAnswerEditor() {
         try {
-            // Check if BlockNote is loaded
             if (!window.initBlockNoteEditor) {
                 throw new Error('BlockNote library not loaded');
             }
 
-            // Get existing content from the hidden textarea
             const existingContent = document.getElementById('answer_text').value || '';
 
             answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
                 initialContent: existingContent,
-                placeholder: 'Start writing your analysis... Type "/" for commands',
+                placeholder: 'Add your synthesis notes here... Type "/" for commands',
                 saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
                 onSave: (data) => {
-                    // Update save indicator when auto-save succeeds
-                    showSaveIndicator('saved');
-                    console.log('Auto-save successful');
+                    const indicator = document.getElementById('autoSaveStatus');
+                    if (indicator) {
+                        indicator.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+                        setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                    }
                 }
             });
-
-            console.log('BlockNote editor initialized with auto-save');
-
         } catch (error) {
             console.error('Error initializing BlockNote editor:', error);
-
-            // Show the fallback textarea if BlockNote fails
             const editorElement = document.getElementById('answerEditor');
             const textareaElement = document.getElementById('answer_text');
             if (editorElement && textareaElement) {
@@ -437,531 +448,10 @@
         }
     }
 
-    // Save indicator function
-    function showSaveIndicator(status) {
-        // Remove existing indicator if any
-        let indicator = document.getElementById('autoSaveIndicator');
-        if (!indicator) {
-            // Create indicator element
-            indicator = document.createElement('div');
-            indicator.id = 'autoSaveIndicator';
-            document.body.appendChild(indicator);
-        }
-
-        // Update indicator based on status
-        if (status === 'saving') {
-            indicator.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
-            indicator.className = 'auto-save-indicator saving';
-            indicator.style.opacity = '1';
-        } else if (status === 'saved') {
-            indicator.innerHTML = '<i class="bi bi-check-circle-fill"></i> Saved';
-            indicator.className = 'auto-save-indicator saved';
-            indicator.style.opacity = '1';
-
-            // Fade out after 2 seconds
-            setTimeout(() => {
-                indicator.style.opacity = '0';
-            }, 2000);
-        } else if (status === 'error') {
-            indicator.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Save failed';
-            indicator.className = 'auto-save-indicator error';
-            indicator.style.opacity = '1';
-
-            // Fade out after 3 seconds
-            setTimeout(() => {
-                indicator.style.opacity = '0';
-            }, 3000);
-        }
-    }
-
-    // Research Tools Functionality
-    const researchTools = {
-        savedItems: JSON.parse(localStorage.getItem('research_saved_items_{{ session.id }}') || '[]'),
-        notes: JSON.parse(localStorage.getItem('research_notes_{{ session.id }}') || '{}'),
-        session: {
-            id: {{ session.id }},
-            companyName: '{{ session.company.name }}',
-            ticker: '{{ session.company.ticker_symbol }}',
-            currentItemId: {{ current_item.id }}
-        }
-    };
-
-    function performSearch() {
-        const questionText = document.querySelector('.card-header h4').textContent.trim();
-        const searchTerms = `${researchTools.session.companyName} ${researchTools.session.ticker} ${questionText}`;
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`;
-        window.open(searchUrl, '_blank');
-        console.log(`Research: Searched for "${searchTerms}"`);
-    }
-
-    function searchDocs() {
-        const aiSection = document.querySelector('#collapseAI');
-        if (aiSection) {
-            const collapseElement = new bootstrap.Collapse(aiSection, { show: true });
-        } else {
-            alert('No document analysis available for this item.');
-        }
-    }
-
-    function searchFinancials() {
-        const ticker = researchTools.session.ticker;
-        if (!ticker) {
-            alert('No ticker symbol available for financial search.');
-            return;
-        }
-
-        const sites = [
-            `https://finance.yahoo.com/quote/${ticker}`,
-            `https://www.sec.gov/edgar/search/#/q=${ticker}`,
-            `https://finviz.com/quote.ashx?t=${ticker}`
-        ];
-
-        sites.forEach(url => window.open(url, '_blank'));
-        console.log(`Research: Opened financial data for ${ticker}`);
-    }
-
-    function searchNews() {
-        const companyName = researchTools.session.companyName;
-        const searchTerms = `${companyName} news`;
-
-        const newsUrls = [
-            `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}&tbm=nws`,
-            `https://finance.yahoo.com/quote/${researchTools.session.ticker}/news`
-        ];
-
-        newsUrls.forEach(url => window.open(url, '_blank'));
-        console.log(`Research: Searched news for ${companyName}`);
-    }
-
-    // Global variables for BlockNote editor
-    let researchEditor = null;
-    let currentSources = [];
-
-    function openNotesModal() {
-        try {
-            console.log('Opening notes modal...');
-
-            const questionText = document.querySelector('.card-header h4').textContent.trim();
-            const itemId = researchTools.session.currentItemId;
-            const existingNotes = researchTools.notes[itemId] || '';
-            const existingSources = researchTools.notes[itemId + '_sources'] || [];
-            currentSources = [...existingSources];
-
-            console.log('Modal data:', { questionText, itemId, existingNotes: existingNotes.length, sources: currentSources.length });
-
-            const modalHTML = `
-        <div class="modal fade" id="researchNotesModal" tabindex="-1">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-journal-text"></i> Research Notes
-                            <small class="text-muted ms-2">${questionText}</small>
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <div class="research-editor">
-                            <!-- BlockNote Editor Container -->
-                            <div id="researchEditorContent" class="blocknote-editor-wrapper border rounded" style="min-height: 350px;"></div>
-
-                            <!-- Source Manager -->
-                            <div class="source-manager">
-                                <h6 class="mb-2"><i class="bi bi-link"></i> Sources & References</h6>
-                                <div class="source-input-group">
-                                    <input type="url" class="source-input" id="sourceUrlInput" placeholder="Add source URL (e.g., https://example.com/article)">
-                                    <input type="text" class="source-input" id="sourceTitleInput" placeholder="Source title (optional)">
-                                    <button type="button" class="source-btn" onclick="addSource()">
-                                        <i class="bi bi-plus"></i> Add Source
-                                    </button>
-                                </div>
-                                <div class="sources-list" id="sourcesList"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary" onclick="saveResearchNotes()">
-                            <i class="bi bi-save"></i> Save Notes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existingModal = document.getElementById('researchNotesModal');
-            if (existingModal) existingModal.remove();
-
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-            // Initialize BlockNote editor
-            initializeResearchEditor(existingNotes);
-
-            // Render existing sources
-            renderSources();
-
-            const modal = new bootstrap.Modal(document.getElementById('researchNotesModal'));
-            modal.show();
-
-        } catch (error) {
-            console.error('Error opening notes modal:', error);
-            showToast('Error opening notes modal. Check console for details.', 'error');
-        }
-    }
-
-    // Initialize BlockNote editor for research notes modal
-    function initializeResearchEditor(existingContent) {
-        try {
-            console.log('Initializing BlockNote editor...');
-
-            // Check if BlockNote is loaded
-            if (!window.initBlockNoteEditor) {
-                throw new Error('BlockNote library not loaded');
-            }
-
-            // Store editor root reference for cleanup
-            researchEditor = window.initBlockNoteEditor('researchEditorContent', {
-                initialContent: existingContent || '',
-                placeholder: 'Start your research notes here... Type "/" for commands',
-                onSave: null // We handle save manually via the Save button
-            });
-
-            // Store reference to get content later
-            window.researchEditorRoot = researchEditor;
-
-            console.log('BlockNote editor initialized successfully');
-
-        } catch (error) {
-            console.error('Error initializing BlockNote editor:', error);
-
-            // Fallback to simple textarea
-            const editorElement = document.getElementById('researchEditorContent');
-            if (editorElement) {
-                editorElement.innerHTML = `
-                <textarea class="form-control" rows="15" placeholder="Rich editor failed to load. Using fallback textarea..."
-                          id="fallbackTextarea">${existingContent || ''}</textarea>
-            `;
-            }
-
-            showToast('Rich editor failed to load, using simple text editor', 'warning');
-        }
-    }
-
-    // Source management functions
-    function addSource() {
-        const urlInput = document.getElementById('sourceUrlInput');
-        const titleInput = document.getElementById('sourceTitleInput');
-        const url = urlInput.value.trim();
-        const title = titleInput.value.trim();
-
-        if (!url) {
-            showToast('Please enter a URL', 'warning');
-            return;
-        }
-
-        // Auto-fetch title if not provided
-        const finalTitle = title || url;
-
-        const source = {
-            url: url,
-            title: finalTitle,
-            timestamp: new Date().toISOString(),
-            id: Date.now() // Simple ID generation
-        };
-
-        currentSources.push(source);
-        urlInput.value = '';
-        titleInput.value = '';
-
-        renderSources();
-        showToast('Source added successfully', 'success');
-    }
-
-    function removeSource(sourceId) {
-        currentSources = currentSources.filter(source => source.id !== sourceId);
-        renderSources();
-        showToast('Source removed', 'info');
-    }
-
-    function renderSources() {
-        const sourcesList = document.getElementById('sourcesList');
-        if (!sourcesList) return;
-
-        if (currentSources.length === 0) {
-            sourcesList.innerHTML = '<p class="text-muted small mb-0">No sources added yet</p>';
-            return;
-        }
-
-        sourcesList.innerHTML = currentSources.map(source => `
-        <div class="source-item">
-            <a href="${source.url}" target="_blank" class="source-link" title="${source.url}">
-                ${source.title}
-            </a>
-            <button type="button" class="source-remove" onclick="removeSource(${source.id})" title="Remove source">
-                ×
-            </button>
-        </div>
-    `).join('');
-    }
-
-    function saveResearchNotes() {
-        const itemId = researchTools.session.currentItemId;
-        let editorContent = '';
-
-        // Try to get content from BlockNote editor first
-        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
-            // Get JSON content from BlockNote
-            const blocks = window.blockNoteEditorInstance.editor.document;
-            editorContent = JSON.stringify(blocks);
-        } else {
-            // Fallback to textarea if BlockNote failed
-            const fallbackTextarea = document.getElementById('fallbackTextarea');
-            if (fallbackTextarea) {
-                editorContent = fallbackTextarea.value;
-            } else {
-                showToast('No editor content found', 'error');
-                return;
-            }
-        }
-
-        // Save both notes and sources
-        researchTools.notes[itemId] = editorContent;
-        researchTools.notes[itemId + '_sources'] = currentSources;
-
-        localStorage.setItem('research_notes_{{ session.id }}', JSON.stringify(researchTools.notes));
-
-        const modal = bootstrap.Modal.getInstance(document.getElementById('researchNotesModal'));
-        modal.hide();
-
-        showToast('Research notes and sources saved successfully!', 'success');
-
-        // Cleanup BlockNote editor instance
-        if (window.researchEditorRoot && window.researchEditorRoot.unmount) {
-            window.researchEditorRoot.unmount();
-        }
-        window.researchEditorRoot = null;
-        window.blockNoteEditorInstance = null;
-        researchEditor = null;
-    }
-
-    function saveLater() {
-        const questionText = document.querySelector('.card-header h4').textContent.trim();
-        const itemId = researchTools.session.currentItemId;
-
-        const savedItem = {
-            itemId: itemId,
-            text: questionText,
-            timestamp: new Date().toISOString(),
-            sessionId: researchTools.session.id,
-            company: researchTools.session.companyName
-        };
-
-        const existingIndex = researchTools.savedItems.findIndex(item => item.itemId === itemId);
-        if (existingIndex >= 0) {
-            researchTools.savedItems.splice(existingIndex, 1);
-            showToast('Removed from saved items', 'info');
-        } else {
-            researchTools.savedItems.push(savedItem);
-            showToast('Saved for later review', 'success');
-        }
-
-        localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
-        updateSaveLaterButton();
-    }
-
-    function updateSaveLaterButton() {
-        const button = document.querySelector('[onclick="saveLater()"]');
-        if (button) {
-            const itemId = researchTools.session.currentItemId;
-            const isSaved = researchTools.savedItems.some(item => item.itemId === itemId);
-            if (isSaved) {
-                button.classList.remove('btn-outline-dark');
-                button.classList.add('btn-warning');
-                button.innerHTML = '<i class="bi bi-bookmark-fill"></i> Saved <small class="d-block text-muted">Bookmark question</small>';
-            } else {
-                button.classList.remove('btn-warning');
-                button.classList.add('btn-outline-dark');
-                button.innerHTML = '<i class="bi bi-bookmark"></i> Save Later <small class="d-block text-muted">Bookmark question</small>';
-            }
-        }
-    }
-
-    function showSavedItems() {
-        const savedItems = researchTools.savedItems;
-        if (savedItems.length === 0) {
-            showToast('No saved items yet. Use the "Save Later" button on questions to bookmark them.', 'info');
-            return;
-        }
-
-        let modalHTML = `
-        <div class="modal fade" id="savedItemsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-bookmarks"></i> Saved Questions</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="list-group">`;
-
-        savedItems.forEach((item, index) => {
-            const timestamp = new Date(item.timestamp).toLocaleDateString();
-            modalHTML += `
-            <div class="list-group-item d-flex justify-content-between align-items-start">
-                <div>
-                    <h6 class="mb-1">${item.text}</h6>
-                    <small class="text-muted">Saved on ${timestamp}</small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeSavedItem(${index})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>`;
-        });
-
-        modalHTML += `
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-
-        const existingModal = document.getElementById('savedItemsModal');
-        if (existingModal) existingModal.remove();
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        const modal = new bootstrap.Modal(document.getElementById('savedItemsModal'));
-        modal.show();
-    }
-
-    function removeSavedItem(index) {
-        researchTools.savedItems.splice(index, 1);
-        localStorage.setItem('research_saved_items_{{ session.id }}', JSON.stringify(researchTools.savedItems));
-        showToast('Item removed from saved list', 'info');
-        updateSaveLaterButton();
-
-        const modal = bootstrap.Modal.getInstance(document.getElementById('savedItemsModal'));
-        modal.hide();
-        setTimeout(() => showSavedItems(), 300);
-    }
-
-
-    function showToast(message, type = 'info') {
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1055';
-            document.body.appendChild(toastContainer);
-        }
-
-        const toastId = 'toast-' + Date.now();
-        const toastHTML = `
-        <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'secondary'} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-
-        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-        const toast = new bootstrap.Toast(document.getElementById(toastId));
-        toast.show();
-
-        document.getElementById(toastId).addEventListener('hidden.bs.toast', function () {
-            this.remove();
-        });
-    }
-
-    // Enhanced research tools integration
-    function captureCurrentPageAsSource() {
-        const currentUrl = window.location.href;
-        const currentTitle = document.title;
-
-        // Auto-populate source fields if modal is open
-        const urlInput = document.getElementById('sourceUrlInput');
-        const titleInput = document.getElementById('sourceTitleInput');
-
-        if (urlInput && titleInput) {
-            urlInput.value = currentUrl;
-            titleInput.value = currentTitle;
-            showToast('Current page captured as source', 'info');
-        }
-    }
-
-    function enhanceResearchTools() {
-        // Add source capture to existing research tools
-        const originalPerformSearch = window.performSearch;
-        window.performSearch = function () {
-            originalPerformSearch();
-            setTimeout(() => captureCurrentPageAsSource(), 1000);
-        };
-
-        const originalSearchNews = window.searchNews;
-        window.searchNews = function () {
-            originalSearchNews();
-            setTimeout(() => captureCurrentPageAsSource(), 1000);
-        };
-
-        const originalSearchFinancials = window.searchFinancials;
-        window.searchFinancials = function () {
-            originalSearchFinancials();
-            setTimeout(() => captureCurrentPageAsSource(), 1000);
-        };
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function (e) {
-        // Global shortcuts (when not in editor)
-        if (e.ctrlKey && !e.target.matches('input, textarea, select, .bn-editor *, .research-content *')) {
-            switch (e.key.toLowerCase()) {
-                case 's':
-                    e.preventDefault();
-                    performSearch();
-                    break;
-                case 'd':
-                    e.preventDefault();
-                    searchDocs();
-                    break;
-                case 'r':
-                    e.preventDefault();
-                    openNotesModal();
-                    break;
-            }
-        }
-
-        // Source input shortcut - Ctrl+Enter to add source
-        if (e.ctrlKey && e.key === 'Enter' && document.getElementById('researchNotesModal')) {
-            const sourceUrlInput = document.getElementById('sourceUrlInput');
-            if (document.activeElement === sourceUrlInput || document.activeElement === document.getElementById('sourceTitleInput')) {
-                e.preventDefault();
-                addSource();
-            }
-        }
-    });
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function () {
-        updateSaveLaterButton();
-        enhanceResearchTools();
-        initializeAIAssistant();
-    });
-
-    // =============================================================================
-    // AI Research Assistant - Module Initialization
-    // =============================================================================
-
-    /**
-     * Initialize AI Research Assistant Module
-     * Creates a reusable instance that can be used across the platform
-     */
+    // =========================================================================
+    // AI Research Assistant
+    // =========================================================================
     function initializeAIAssistant() {
-        // Helper function to get answer text from BlockNote editor
         function getAnswerText() {
             const editorContainer = document.getElementById('answerEditor');
             if (editorContainer) {
@@ -988,11 +478,9 @@
                     return fallbackTextarea.value.trim();
                 }
             }
-
             return '';
         }
 
-        // Initialize AI Assistant with configuration
         window.aiAssistant = new AIResearchAssistant({
             apiEndpoint: '/research/ai_assist',
             feedbackEndpoint: '/research/ai_assist/feedback',
@@ -1005,19 +493,15 @@
                 question_text: {{ current_item.text|tojson }}
             }
         });
-
-        console.log('AI Research Assistant initialized');
     }
 
-    // =============================================================================
-    // Wrapper Functions for HTML onclick handlers
-    // =============================================================================
-
-    /**
-     * Trigger AI mode from HTML onclick
-     * Wraps the module's triggerMode method
-     */
     function triggerAIMode(mode) {
+        // Auto-expand AI tools panel if collapsed
+        const panel = document.getElementById('aiToolsPanel');
+        if (!panel.classList.contains('expanded')) {
+            panel.classList.add('expanded');
+        }
+
         if (window.aiAssistant) {
             window.aiAssistant.triggerMode(mode);
         } else {
@@ -1025,15 +509,340 @@
         }
     }
 
-    /**
-     * Run Document Analysis (existing feature - placeholder)
-     * TODO: Integrate with existing document analysis functionality
-     */
-    function runDocumentAnalysis() {
-        alert('Document Analysis feature integration coming soon!');
-        console.log('Document Analysis triggered');
-        // TODO: Call existing document analysis code
-    }
-</script>
+    // =========================================================================
+    // AJAX Smooth Navigation
+    // =========================================================================
+    const ANALYSIS_ID = {{ session.id }};
+    let isNavigating = false;
 
+    // Intercept sidebar map clicks
+    document.addEventListener('DOMContentLoaded', function() {
+        const mapList = document.getElementById('checklistMap');
+        if (mapList) {
+            mapList.addEventListener('click', function(e) {
+                const mapItem = e.target.closest('.cl-map-item');
+                if (!mapItem) return;
+
+                e.preventDefault();
+                const itemId = mapItem.dataset.itemId;
+                if (itemId && !isNavigating) {
+                    navigateToItem(parseInt(itemId), mapItem.href);
+                }
+            });
+        }
+    });
+
+    async function navigateToItem(itemId, fallbackUrl) {
+        if (isNavigating) return;
+        isNavigating = true;
+
+        // Auto-save current answer before navigating
+        await autoSaveCurrentAnswer();
+
+        // Fade out main content
+        const mainContent = document.querySelector('main.col-lg-8');
+        mainContent.classList.add('cl-fade-out');
+
+        try {
+            const response = await fetch(`/research/checklist/${ANALYSIS_ID}/item/${itemId}/json`);
+            if (!response.ok) throw new Error('Failed to fetch item');
+            const data = await response.json();
+
+            // Wait for fade out to complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Update all content
+            updateQuestionCard(data);
+            updateVerdictButtons(data);
+            updateAnswerEditor(data);
+            updateNavigation(data);
+            updateSidebarMap(data);
+            updateProgressHeader(data);
+            updateAIContext(data);
+
+            // Update URL without reload
+            const newUrl = `/research/checklist/${ANALYSIS_ID}/item/${itemId}`;
+            history.pushState({ itemId }, '', newUrl);
+
+            // Update form action
+            document.getElementById('answerForm').action = data.form_action_url;
+
+            // Fade in
+            mainContent.classList.remove('cl-fade-out');
+            mainContent.classList.add('cl-fade-in');
+            setTimeout(() => mainContent.classList.remove('cl-fade-in'), 300);
+
+            // Scroll map item into view
+            const currentMapItem = document.querySelector('.cl-map-item.current');
+            if (currentMapItem) {
+                currentMapItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+
+        } catch (error) {
+            console.error('AJAX navigation failed, falling back:', error);
+            mainContent.classList.remove('cl-fade-out');
+            window.location.href = fallbackUrl;
+        } finally {
+            isNavigating = false;
+        }
+    }
+
+    async function autoSaveCurrentAnswer() {
+        try {
+            let content = '';
+            if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                const blocks = window.blockNoteEditorInstance.editor.document;
+                content = JSON.stringify(blocks);
+            } else {
+                content = document.getElementById('answer_text').value || '';
+            }
+
+            const status = document.getElementById('satisfaction_status').value;
+            const formAction = document.getElementById('answerForm').action;
+            // Derive autosave URL from form action
+            const autosaveUrl = formAction + '/autosave';
+
+            await fetch(autosaveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, satisfaction_status: status })
+            });
+        } catch (e) {
+            console.warn('Auto-save before navigation failed:', e);
+        }
+    }
+
+    function updateQuestionCard(data) {
+        const status = data.satisfaction_status === 'pending' ? 'pending' : data.satisfaction_status;
+
+        // Update card border
+        const card = document.getElementById('questionCard');
+        card.className = card.className.replace(/status-\S+/, '');
+        card.classList.add('status-' + status);
+
+        // Update number
+        document.querySelector('.cl-question-number').textContent = data.item_number;
+
+        // Update text
+        document.querySelector('.cl-question-text').textContent = data.text;
+
+        // Update meta (parent + description toggle)
+        const meta = document.querySelector('.cl-question-meta');
+        let metaHtml = '';
+        if (data.parent_text) {
+            metaHtml += `<span class="parent-label"><i class="bi bi-diagram-3"></i> ${data.parent_text}</span> `;
+        }
+        if (data.description) {
+            metaHtml += `<button type="button" class="cl-description-toggle" onclick="toggleDescription()">
+                <i class="bi bi-info-circle"></i> <span id="descToggleText">Show details</span>
+            </button>`;
+        }
+        meta.innerHTML = metaHtml;
+
+        // Update description
+        const descWrapper = document.getElementById('questionDescription');
+        if (descWrapper) {
+            if (data.description) {
+                descWrapper.querySelector('.cl-question-description-content').textContent = data.description;
+                descWrapper.style.display = 'none';
+            } else {
+                descWrapper.style.display = 'none';
+            }
+        } else if (data.description) {
+            // Create description element if it doesn't exist
+            const header = document.querySelector('.cl-question-header');
+            const descHtml = `<div class="cl-question-description" id="questionDescription" style="display: none;">
+                <div class="cl-question-description-content">${data.description}</div>
+            </div>`;
+            header.insertAdjacentHTML('afterend', descHtml);
+        }
+
+        // Update progress count
+        document.querySelector('.cl-progress-count').innerHTML =
+            `<strong>${data.item_number}</strong> of <strong>${data.total_items}</strong> items`;
+    }
+
+    function updateVerdictButtons(data) {
+        const isPending = data.satisfaction_status === 'pending';
+        const status = isPending ? '' : data.satisfaction_status;
+        document.getElementById('satisfaction_status').value = status;
+        document.querySelectorAll('.cl-verdict-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (isPending) return; // No answer yet — no button active
+            const btnStatus = btn.classList.contains('satisfied') ? 'satisfied'
+                : btn.classList.contains('not-satisfied') ? 'not_satisfied'
+                : btn.classList.contains('needs-attention') ? 'needs_attention'
+                : 'neutral';
+            if (btnStatus === status) btn.classList.add('active');
+        });
+    }
+
+    function updateAnswerEditor(data) {
+        // Destroy old editor instance
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.unmount) {
+            window.blockNoteEditorInstance.unmount();
+        }
+        window.blockNoteEditorInstance = null;
+
+        // Clear editor container
+        const editorWrapper = document.getElementById('answerEditor');
+        editorWrapper.innerHTML = '';
+        editorWrapper.style.display = '';
+
+        // Update hidden textarea
+        const textarea = document.getElementById('answer_text');
+        textarea.value = data.answer_text || '';
+        textarea.classList.add('d-none');
+
+        // Re-initialize BlockNote editor
+        try {
+            if (window.initBlockNoteEditor) {
+                answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
+                    initialContent: data.answer_text || '',
+                    placeholder: 'Add your synthesis notes here... Type "/" for commands',
+                    saveResearchNotesUrl: data.autosave_url,
+                    onSave: () => {
+                        const indicator = document.getElementById('autoSaveStatus');
+                        if (indicator) {
+                            indicator.innerHTML = '<i class="bi bi-check-circle"></i> Saved';
+                            setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                        }
+                    }
+                });
+            } else {
+                throw new Error('BlockNote not available');
+            }
+        } catch (error) {
+            console.error('Editor re-init failed:', error);
+            editorWrapper.style.display = 'none';
+            textarea.classList.remove('d-none');
+        }
+    }
+
+    function updateNavigation(data) {
+        const navBar = document.querySelector('.cl-nav-bar');
+        const prevContainer = navBar.querySelector('div:first-child');
+
+        if (data.previous_item_id) {
+            prevContainer.innerHTML = `<a href="/research/checklist/${ANALYSIS_ID}/item/${data.previous_item_id}"
+                class="btn btn-outline-secondary" data-ajax-nav="${data.previous_item_id}">
+                <i class="bi bi-arrow-left"></i> Previous
+            </a>`;
+            // Wire up previous button for AJAX too
+            const prevBtn = prevContainer.querySelector('a');
+            prevBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                navigateToItem(data.previous_item_id, this.href);
+            });
+        } else {
+            prevContainer.innerHTML = '';
+        }
+    }
+
+    function updateSidebarMap(data) {
+        // Update current highlight
+        document.querySelectorAll('.cl-map-item').forEach(item => {
+            item.classList.remove('current');
+            if (parseInt(item.dataset.itemId) === data.item_id) {
+                item.classList.add('current');
+            }
+        });
+
+        // Update all status dots from answers_map
+        const iconMap = {
+            'satisfied': '<i class="bi bi-check"></i>',
+            'not_satisfied': '<i class="bi bi-x"></i>',
+            'needs_attention': '<i class="bi bi-exclamation"></i>',
+            'neutral': '<i class="bi bi-dash"></i>'
+        };
+
+        document.querySelectorAll('.cl-map-item').forEach(item => {
+            const itemId = parseInt(item.dataset.itemId);
+            const itemIndex = item.dataset.itemIndex;
+            const numberEl = item.querySelector('.cl-map-item-number');
+            const status = data.answers_map[itemId];
+            const isCurrent = itemId === data.item_id;
+
+            if (status && iconMap[status]) {
+                numberEl.className = 'cl-map-item-number ' + status.replace('_', '-');
+                numberEl.innerHTML = iconMap[status];
+            } else {
+                numberEl.className = 'cl-map-item-number' + (isCurrent ? ' current-item' : '');
+                numberEl.textContent = itemIndex;
+            }
+        });
+
+        // Update sidebar stats
+        const counts = data.status_counts;
+        document.querySelector('.cl-sidebar-stat-value.satisfied').textContent = counts.satisfied;
+        document.querySelector('.cl-sidebar-stat-value.flagged').textContent = counts.not_satisfied;
+        document.querySelector('.cl-sidebar-stat-value.attention').textContent = counts.needs_attention;
+    }
+
+    function updateProgressHeader(data) {
+        const counts = data.status_counts;
+        const total = data.total_items;
+
+        // Update segments
+        const bar = document.querySelector('.cl-progress-bar');
+        let barHtml = '';
+        if (counts.satisfied > 0) barHtml += `<div class="cl-progress-segment satisfied" style="width: ${(counts.satisfied / total * 100).toFixed(1)}%"></div>`;
+        if (counts.not_satisfied > 0) barHtml += `<div class="cl-progress-segment not-satisfied" style="width: ${(counts.not_satisfied / total * 100).toFixed(1)}%"></div>`;
+        if (counts.needs_attention > 0) barHtml += `<div class="cl-progress-segment needs-attention" style="width: ${(counts.needs_attention / total * 100).toFixed(1)}%"></div>`;
+        if (counts.neutral > 0) barHtml += `<div class="cl-progress-segment neutral" style="width: ${(counts.neutral / total * 100).toFixed(1)}%"></div>`;
+        bar.innerHTML = barHtml;
+
+        // Update legend counts
+        const legendItems = document.querySelectorAll('.cl-progress-legend-item');
+        const legendOrder = ['satisfied', 'not_satisfied', 'needs_attention', 'neutral', 'pending'];
+        const countMap = { ...counts };
+        legendItems.forEach((item, i) => {
+            if (legendOrder[i]) {
+                const key = legendOrder[i] === 'neutral' ? 'neutral' : legendOrder[i];
+                item.querySelector('.cl-progress-legend-count').textContent = countMap[key] || 0;
+            }
+        });
+    }
+
+    function updateAIContext(data) {
+        // Update AI assistant context for new item
+        if (window.aiAssistant) {
+            window.aiAssistant.context.item_id = data.item_id;
+            window.aiAssistant.context.question_text = data.text;
+        }
+
+        // Hide any existing AI responses
+        document.getElementById('aiResponseArea').style.display = 'none';
+        document.querySelectorAll('.ai-response-content').forEach(el => el.style.display = 'none');
+
+        // Collapse AI tools panel
+        document.getElementById('aiToolsPanel').classList.remove('expanded');
+    }
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(e) {
+        if (e.state && e.state.itemId) {
+            navigateToItem(e.state.itemId, window.location.href);
+        } else {
+            window.location.reload();
+        }
+    });
+
+    // =========================================================================
+    // Keyboard Shortcuts
+    // =========================================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && !e.target.matches('input, textarea, select, .bn-editor *, .research-content *')) {
+            switch (e.key.toLowerCase()) {
+                case 's':
+                    e.preventDefault();
+                    // Smart search
+                    const questionText = document.querySelector('.cl-question-text').textContent.trim();
+                    const searchTerms = `{{ session.company.name }} {{ session.company.ticker_symbol }} ${questionText}`;
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`, '_blank');
+                    break;
+            }
+        }
+    });
+</script>
 {% endblock %}

@@ -2,227 +2,693 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">📊 {{title}}</h1>
-            <p class="dashboard-subtitle">Your pipeline from initial analysis to final decision</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <a href="{{ url_for('research_workflow.template_list') }}" class="btn btn-outline-primary me-2">
-                <i class="bi bi-layout-text-sidebar"></i> Templates
-            </a>
-            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Start New Research
-            </a>
-        </div>
-    </header>
 
-    <!-- Project Status Navigation Cards -->
-    <div class="research-status-grid">
-
-        <!-- Active Research Card -->
-        <div class="research-status-card status-card-active">
-            <div class="research-status-header">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="research-status-title font-poppins">🔥 Active Research</h2>
-                    <span class="research-status-badge badge-blue">{{ dashboard_data.active_count }}</span>
-                </div>
-                <p class="research-status-description">Projects currently in your analysis workflow</p>
+    <!-- ════════════════════════════════════════════════
+         HERO HEADER (Proposal A style)
+         ════════════════════════════════════════════════ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">{{ title }}</h1>
+                <p class="dashboard-subtitle">Your investment research pipeline — track, filter, decide.</p>
             </div>
-
-            <div class="research-status-body">
-                {% if dashboard_data.active_preview %}
-                <div class="research-preview-list">
-                    {% for project in dashboard_data.active_preview[:3] %}
-                    <div class="research-preview-item">
-                        <div class="research-preview-info">
-                            <h4 class="research-preview-name">{{ project.subject_display_name }}</h4>
-                            <p class="research-preview-meta">{{ project.template.name }}</p>
-                        </div>
-                        <div class="research-progress-container">
-                            <div class="research-progress-bar">
-                                <div class="research-progress-fill bg-primary" style="width: {{ project.progress_percentage }}%"></div>
-                            </div>
-                            <span class="research-progress-text">{{ project.progress_percentage }}%</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="research-empty-state">
-                    <i class="bi bi-inbox" style="font-size: 2rem; color: var(--text-muted);"></i>
-                    <p class="text-muted mb-0">No active projects</p>
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="research-status-footer">
-                <a href="{{ url_for('research_workflow.active_projects') }}" class="research-status-link">
-                    View All Active Projects <i class="bi bi-arrow-right"></i>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
+                    <i class="bi bi-lightbulb"></i> Idea Inbox
+                </a>
+                <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle-fill"></i> Start Research
                 </a>
             </div>
-        </div>
+        </header>
 
-        <!-- Completed Analyses Card -->
-        <div class="research-status-card status-card-completed">
-            <div class="research-status-header">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="research-status-title font-poppins">✅ Completed Analyses</h2>
-                    <span class="research-status-badge badge-green">{{ dashboard_data.completed_count }}</span>
-                </div>
-                <p class="research-status-description">Your archive of finished research and investment decisions</p>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--accent-600);">{{ metrics.active_count }}</div>
+                <div class="portfolio-metric-label">Active</div>
             </div>
-
-            <div class="research-status-body">
-                {% if dashboard_data.completed_preview %}
-                <div class="research-decision-summary">
-                    <div class="decision-stat">
-                        <span class="decision-stat-number text-success fw-bold">{{ dashboard_data.invest_decisions }}</span>
-                        <span class="decision-stat-label">Invested</span>
-                    </div>
-                    <div class="decision-stat">
-                        <span class="decision-stat-number text-danger fw-bold">{{ dashboard_data.pass_decisions }}</span>
-                        <span class="decision-stat-label">Passed</span>
-                    </div>
-                    <div class="decision-stat">
-                        <span class="decision-stat-number text-warning fw-bold">{{ dashboard_data.watchlist_decisions }}</span>
-                        <span class="decision-stat-label">Watchlist</span>
-                    </div>
-                </div>
-
-                <div class="research-recent-list mt-3">
-                    {% for project in dashboard_data.completed_preview[:2] %}
-                    <div class="research-recent-item">
-                        <div class="d-flex align-items-center gap-2">
-                            {% if project.decision == 'invest' %}
-                            <span class="decision-indicator bg-success"></span>
-                            {% elif project.decision == 'pass' %}
-                            <span class="decision-indicator bg-danger"></span>
-                            {% else %}
-                            <span class="decision-indicator bg-warning"></span>
-                            {% endif %}
-                            <span class="research-recent-name">{{ project.subject_display_name }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="research-empty-state">
-                    <i class="bi bi-archive" style="font-size: 2rem; color: var(--text-muted);"></i>
-                    <p class="text-muted mb-0">No completed projects</p>
-                </div>
-                {% endif %}
+            {% if metrics.paused_count > 0 %}
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--warning-500);">{{ metrics.paused_count }}</div>
+                <div class="portfolio-metric-label">Paused</div>
             </div>
-
-            <div class="research-status-footer">
-                <a href="{{ url_for('research_workflow.completed_projects') }}" class="research-status-link">
-                    View Completed Archive <i class="bi bi-arrow-right"></i>
-                </a>
+            {% endif %}
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ metrics.watchlist_count }}</div>
+                <div class="portfolio-metric-label">Watchlist</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--danger-500);">{{ metrics.too_hard_count }}</div>
+                <div class="portfolio-metric-label">Too Hard</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--success-500);">{{ metrics.selectivity_rate }}%</div>
+                <div class="portfolio-metric-label">Selectivity</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ metrics.total_time }}h</div>
+                <div class="portfolio-metric-label">Time Invested</div>
             </div>
         </div>
+    </div>
 
-        <!-- "Too Hard" Bucket Card -->
-        <div class="research-status-card status-card-too-hard">
-            <div class="research-status-header">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="research-status-title font-poppins">🧺 "Too Hard" Bucket</h2>
-                    <span class="research-status-badge badge-gray">{{ dashboard_data.too_hard_count }}</span>
-                </div>
-                <p class="research-status-description">Projects you decided to pass on during research</p>
-            </div>
+    <!-- ════════════════════════════════════════════════
+         MAIN BODY — TWO COLUMNS
+         ════════════════════════════════════════════════ -->
+    <div class="rcl-body">
 
-            <div class="research-status-body">
-                {% if dashboard_data.too_hard_preview %}
-                <div class="too-hard-insight">
-                    <div class="insight-label">Filter Rate</div>
-                    <div class="insight-value-large">{{ dashboard_data.too_hard_rate|round(0) }}%</div>
-                    <div class="insight-subtext">
-                        {% if dashboard_data.too_hard_rate >= 70 %}
-                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Highly Selective</span>
-                        {% elif dashboard_data.too_hard_rate >= 40 %}
-                        <span class="text-warning"><i class="bi bi-dash-circle-fill"></i> Moderately Selective</span>
-                        {% else %}
-                        <span class="text-info"><i class="bi bi-info-circle-fill"></i> Building Experience</span>
+        <!-- LEFT: TABS + TABLES -->
+        <div class="rcl-main">
+
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs rcl-nav-tabs" id="researchTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="active-tab" data-bs-toggle="tab"
+                            data-bs-target="#activePanel" type="button" role="tab">
+                        <i class="bi bi-lightning-charge"></i>
+                        Active Research
+                        {% if active_data %}
+                        <span class="rcl-tab-badge">{{ active_data|length }}</span>
                         {% endif %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="watchlist-tab" data-bs-toggle="tab"
+                            data-bs-target="#watchlistPanel" type="button" role="tab">
+                        <i class="bi bi-eye"></i>
+                        Watchlist
+                        {% if watchlist_data %}
+                        <span class="rcl-tab-badge">{{ watchlist_data|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="toohard-tab" data-bs-toggle="tab"
+                            data-bs-target="#toohardPanel" type="button" role="tab">
+                        <i class="bi bi-x-octagon"></i>
+                        Too Hard / Passed
+                        {% if too_hard_data %}
+                        <span class="rcl-tab-badge">{{ too_hard_data|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="researchTabContent">
+
+                <!-- ═══ TAB 1: ACTIVE RESEARCH ═══════════════════ -->
+                <div class="tab-pane fade show active" id="activePanel" role="tabpanel">
+                    {% if active_data %}
+                    <div class="rcl-panel">
+                        <div class="rcl-panel-controls">
+                            <div class="rcl-search">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="active-search" placeholder="Search company or ticker...">
+                            </div>
+                            <select id="active-status-filter" class="rcl-filter-select">
+                                <option value="all">All Status</option>
+                                <option value="active">Active Only</option>
+                                <option value="paused">Paused Only</option>
+                            </select>
+                        </div>
+                        <div id="active-research-table"></div>
                     </div>
+                    {% else %}
+                    <div class="rcl-empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <h5>No active research</h5>
+                        <p>Start by picking a company from your Idea Inbox or start new research directly.</p>
+                        <div class="rcl-empty-actions">
+                            <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
+                                <i class="bi bi-lightbulb"></i> Idea Inbox
+                            </a>
+                            <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-circle-fill"></i> Start Research
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
-                <div class="research-recent-list mt-3">
-                    {% for item in dashboard_data.too_hard_preview[:2] %}
-                    <div class="research-recent-item">
-                        <span class="research-recent-name">{{ item.company_name }}</span>
-                        <span class="research-recent-meta text-muted" style="font-size: 0.75rem;">
-                            {{ item.rejection_stage.replace('_', ' ').title() }}
-                        </span>
+                <!-- ═══ TAB 2: WATCHLIST ═════════════════════════ -->
+                <div class="tab-pane fade" id="watchlistPanel" role="tabpanel">
+                    {% if watchlist_data %}
+                    <div class="rcl-panel">
+                        <div class="rcl-panel-controls">
+                            <div class="rcl-search">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="watchlist-search" placeholder="Search watchlist...">
+                            </div>
+                            <select id="watchlist-source-filter" class="rcl-filter-select">
+                                <option value="all">All Sources</option>
+                                <option value="Research Decision">Research Decision</option>
+                                <option value="Manual Add">Manual Add</option>
+                            </select>
+                        </div>
+                        <div id="watchlist-table"></div>
                     </div>
-                    {% endfor %}
+                    {% else %}
+                    <div class="rcl-empty-state">
+                        <i class="bi bi-eye-slash"></i>
+                        <h5>Your watchlist is empty</h5>
+                        <p>Companies you're monitoring will appear here. Add companies from the Company Directory or they'll arrive here after a "watchlist" research decision.</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div class="research-empty-state">
-                    <i class="bi bi-basket" style="font-size: 2rem; color: var(--text-muted);"></i>
-                    <p class="text-muted mb-0">No passed projects yet</p>
-                </div>
-                {% endif %}
-            </div>
 
-            <div class="research-status-footer">
-                <a href="{{ url_for('research_workflow.too_hard_basket', return_url=url_for('research_workflow.my_projects'), context_label='My Projects') }}" class="research-status-link">
-                    Review "Too Hard" List <i class="bi bi-arrow-right"></i>
-                </a>
+                <!-- ═══ TAB 3: TOO HARD / PASSED ═════════════════ -->
+                <div class="tab-pane fade" id="toohardPanel" role="tabpanel">
+                    {% if too_hard_data %}
+                    <div class="rcl-panel">
+                        <div class="rcl-panel-controls">
+                            <div class="rcl-search">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="toohard-search" placeholder="Search passed companies...">
+                            </div>
+                            <select id="toohard-stage-filter" class="rcl-filter-select">
+                                <option value="all">All Stages</option>
+                                <option value="Kill Checklist">Kill Checklist</option>
+                                <option value="Mid Research">Mid Research</option>
+                                <option value="Full Analysis">Full Analysis</option>
+                            </select>
+                        </div>
+                        <div id="too-hard-table"></div>
+                    </div>
+                    {% else %}
+                    <div class="rcl-empty-state">
+                        <i class="bi bi-basket"></i>
+                        <h5>No companies passed yet</h5>
+                        <p>This will fill up as you make research decisions. A high selectivity rate means strong filtering — that's good!</p>
+                    </div>
+                    {% endif %}
+                </div>
+
             </div>
         </div>
+
+        <!-- ════════════════════════════════════════════════
+             SIDEBAR
+             ════════════════════════════════════════════════ -->
+        <aside class="rcl-sidebar">
+
+            <!-- Recent Activity -->
+            <div class="rcl-sidebar-card">
+                <div class="rcl-sidebar-card-header">
+                    <span class="rcl-sidebar-card-title"><i class="bi bi-activity"></i> Recent Activity</span>
+                </div>
+                <div class="rcl-sidebar-card-body" id="recent-activity-feed">
+                    <div class="rcl-activity-empty">
+                        <span class="text-muted">No recent activity yet.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Research Pipeline -->
+            <div class="rcl-sidebar-card">
+                <div class="rcl-sidebar-card-header">
+                    <span class="rcl-sidebar-card-title"><i class="bi bi-funnel"></i> Research Pipeline</span>
+                </div>
+                <div class="rcl-sidebar-card-body">
+                    {% set max_pipeline = [pipeline.idea_count, pipeline.active_count, pipeline.watchlist_count, pipeline.passed_count, pipeline.invested_count] | max %}
+                    {% set max_val = max_pipeline if max_pipeline > 0 else 1 %}
+                    <div class="rcl-funnel">
+                        <div class="rcl-funnel-stage">
+                            <span class="rcl-funnel-label">Ideas</span>
+                            <div class="rcl-funnel-bar-wrap">
+                                <div class="rcl-funnel-bar rcl-funnel-bar--ideas" style="width:{{ (pipeline.idea_count / max_val * 100)|round }}%">{{ pipeline.idea_count }}</div>
+                            </div>
+                        </div>
+                        <div class="rcl-funnel-stage">
+                            <span class="rcl-funnel-label">Active</span>
+                            <div class="rcl-funnel-bar-wrap">
+                                <div class="rcl-funnel-bar rcl-funnel-bar--active" style="width:{{ (pipeline.active_count / max_val * 100)|round }}%">{{ pipeline.active_count }}</div>
+                            </div>
+                        </div>
+                        <div class="rcl-funnel-stage">
+                            <span class="rcl-funnel-label">Watchlist</span>
+                            <div class="rcl-funnel-bar-wrap">
+                                <div class="rcl-funnel-bar rcl-funnel-bar--watchlist" style="width:{{ (pipeline.watchlist_count / max_val * 100)|round }}%">{{ pipeline.watchlist_count }}</div>
+                            </div>
+                        </div>
+                        <div class="rcl-funnel-stage">
+                            <span class="rcl-funnel-label">Passed</span>
+                            <div class="rcl-funnel-bar-wrap">
+                                <div class="rcl-funnel-bar rcl-funnel-bar--passed" style="width:{{ (pipeline.passed_count / max_val * 100)|round }}%">{{ pipeline.passed_count }}</div>
+                            </div>
+                        </div>
+                        <div class="rcl-funnel-stage">
+                            <span class="rcl-funnel-label">Invested</span>
+                            <div class="rcl-funnel-bar-wrap">
+                                <div class="rcl-funnel-bar rcl-funnel-bar--invested" style="width:{{ (pipeline.invested_count / max_val * 100)|round }}%">{{ pipeline.invested_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="rcl-sidebar-card">
+                <div class="rcl-sidebar-card-header">
+                    <span class="rcl-sidebar-card-title"><i class="bi bi-bar-chart"></i> Quick Stats</span>
+                </div>
+                <div class="rcl-sidebar-card-body">
+                    <div class="rcl-quick-stats">
+                        <div class="rcl-quick-stat">
+                            <div class="rcl-quick-stat-value">{{ quick_stats.total_time }}h</div>
+                            <div class="rcl-quick-stat-label">Total Time</div>
+                        </div>
+                        <div class="rcl-quick-stat">
+                            <div class="rcl-quick-stat-value">{{ quick_stats.avg_time }}h</div>
+                            <div class="rcl-quick-stat-label">Avg / Company</div>
+                        </div>
+                        <div class="rcl-quick-stat">
+                            <div class="rcl-quick-stat-value">{{ quick_stats.invested_count }}</div>
+                            <div class="rcl-quick-stat-label">Invested</div>
+                        </div>
+                        <div class="rcl-quick-stat">
+                            <div class="rcl-quick-stat-value">{{ quick_stats.invest_rate }}%</div>
+                            <div class="rcl-quick-stat-label">Invest Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
 
     </div>
-
-    <!-- Recent Activity (if exists) -->
-    {% if dashboard_data.recent_activity %}
-    <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 font-poppins">🔥 Recent Activity</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="list-group list-group-flush">
-                {% for project in dashboard_data.recent_activity[:5] %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1">{{ project.subject_display_name }}</h6>
-                        <small class="text-muted">{{ project.template.name }} • Company</small>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-muted">
-                            {% if project.last_worked_at %}
-                                {{ project.last_worked_at.strftime('%b %d') }}
-                            {% else %}
-                                Never
-                            {% endif %}
-                        </small>
-                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}"
-                           class="btn btn-sm btn-outline-primary ms-2">Continue</a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
 </div>
+{% endblock %}
 
-<!-- Tips Modal -->
-{% set tips_title = "Research Project Best Practices" %}
-{% set tips_intro = "Make the most of your systematic research workflow:" %}
-{% set tips = [
-    "Focus on one project at a time to maintain quality and momentum",
-    "High selectivity (>70% pass rate) indicates strong filtering - that's good!",
-    "Track time spent on each step to improve future time estimates",
-    "Don't skip steps in your template - systematic process prevents blind spots",
-    "Review completed projects to refine your templates over time",
-    "If a project is taking too long, it might belong in the 'too hard' basket"
-] %}
-{% include 'main/_tips_modal.html' %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
 
+    // =========================================================================
+    // Active Research Table
+    // =========================================================================
+    const activeData = {{ active_data_json|safe }};
+    let activeTable = null;
+
+    if (activeData.length > 0) {
+        activeTable = createDataTable('#active-research-table', {
+            data: activeData,
+            columns: [
+                {
+                    title: "Company",
+                    field: "company_name",
+                    sorter: "string",
+                    minWidth: 180,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
+                        const overdue = row.is_overdue ? ' <span class="rcl-cell-badge rcl-cell-badge--idle">Idle</span>' : '';
+                        return `<strong>${cell.getValue()}</strong>${overdue}${ticker}`;
+                    }
+                },
+                {
+                    title: "Template",
+                    field: "template_name",
+                    sorter: "string",
+                    minWidth: 120,
+                },
+                {
+                    title: "Progress",
+                    field: "progress",
+                    sorter: "number",
+                    hozAlign: "center",
+                    minWidth: 150,
+                    formatter: function(cell) {
+                        const val = cell.getValue() || 0;
+                        const color = val >= 65 ? 'var(--success-500)' : val >= 35 ? 'var(--warning-500)' : 'var(--info-500)';
+                        return `<div class="rcl-progress-wrap">
+                            <div class="rcl-progress-track">
+                                <div class="rcl-progress-fill" style="width:${val}%;background:${color};"></div>
+                            </div>
+                            <span class="rcl-progress-label">${val}%</span>
+                        </div>`;
+                    }
+                },
+                {
+                    title: "Status",
+                    field: "status",
+                    sorter: "string",
+                    hozAlign: "center",
+                    minWidth: 90,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const modifiers = { 'active': 'active', 'paused': 'paused' };
+                        const mod = modifiers[val] || 'default';
+                        return `<span class="rcl-cell-badge rcl-cell-badge--${mod}">${val}</span>`;
+                    }
+                },
+                {
+                    title: "Last Worked",
+                    field: "last_worked",
+                    sorter: "date",
+                    minWidth: 110,
+                    formatter: ColumnFormatters.date('short')
+                },
+                {
+                    title: "Hours",
+                    field: "hours_spent",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 70,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        return val ? `<span class="rcl-cell-mono">${val}</span>` : '<span class="table-cell-muted">--</span>';
+                    }
+                },
+                {
+                    title: "",
+                    field: "dashboard_url",
+                    headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 140,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const url = cell.getValue();
+                        const label = row.status === 'paused' ? 'Resume' : 'Continue';
+                        const icon = row.status === 'paused' ? 'bi-play-circle' : 'bi-arrow-right-circle';
+                        return `<a href="${url}" class="rcl-action rcl-action--primary"><i class="bi ${icon}"></i> ${label}</a>`;
+                    }
+                }
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "last_worked", dir: "desc" }],
+                pagination: activeData.length > 25,
+            }
+        });
+
+        // Search filter
+        document.getElementById('active-search').addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase();
+            if (!val) {
+                activeTable.clearFilter();
+            } else {
+                activeTable.setFilter(function(data) {
+                    return data.company_name.toLowerCase().includes(val) ||
+                           (data.ticker && data.ticker.toLowerCase().includes(val)) ||
+                           (data.template_name && data.template_name.toLowerCase().includes(val));
+                });
+            }
+        });
+
+        // Status filter
+        document.getElementById('active-status-filter').addEventListener('change', function(e) {
+            const val = e.target.value;
+            if (val === 'all') {
+                activeTable.clearFilter();
+            } else {
+                activeTable.setFilter("status", "=", val);
+            }
+            const searchVal = document.getElementById('active-search').value;
+            if (searchVal) {
+                document.getElementById('active-search').dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    // =========================================================================
+    // Watchlist Table
+    // =========================================================================
+    const watchlistData = {{ watchlist_data_json|safe }};
+    let watchlistTable = null;
+
+    if (watchlistData.length > 0) {
+        watchlistTable = createDataTable('#watchlist-table', {
+            data: watchlistData,
+            columns: [
+                {
+                    title: "Company",
+                    field: "company_name",
+                    sorter: "string",
+                    minWidth: 180,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
+                        return `<strong>${cell.getValue()}</strong>${ticker}`;
+                    }
+                },
+                {
+                    title: "Sector",
+                    field: "sector",
+                    sorter: "string",
+                    minWidth: 120,
+                },
+                {
+                    title: "Source",
+                    field: "source",
+                    sorter: "string",
+                    hozAlign: "center",
+                    minWidth: 140,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const modifiers = { 'Research Decision': 'research', 'Manual Add': 'manual' };
+                        const mod = modifiers[val] || 'default';
+                        return `<span class="rcl-cell-badge rcl-cell-badge--${mod}">${val}</span>`;
+                    }
+                },
+                {
+                    title: "",
+                    field: "company_url",
+                    headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 180,
+                    formatter: function(cell) {
+                        const url = cell.getValue();
+                        return `<a href="${url}" class="rcl-action rcl-action--primary"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+                            <a href="${url}" class="rcl-action"><i class="bi bi-file-earmark-text"></i> Notes</a>`;
+                    }
+                }
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "company_name", dir: "asc" }],
+                pagination: watchlistData.length > 25,
+            }
+        });
+
+        // Search filter
+        document.getElementById('watchlist-search').addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase();
+            if (!val) {
+                watchlistTable.clearFilter();
+            } else {
+                watchlistTable.setFilter(function(data) {
+                    return data.company_name.toLowerCase().includes(val) ||
+                           (data.ticker && data.ticker.toLowerCase().includes(val)) ||
+                           (data.sector && data.sector.toLowerCase().includes(val));
+                });
+            }
+        });
+
+        // Source filter
+        document.getElementById('watchlist-source-filter').addEventListener('change', function(e) {
+            const val = e.target.value;
+            if (val === 'all') {
+                watchlistTable.clearFilter();
+            } else {
+                watchlistTable.setFilter("source", "=", val);
+            }
+            const searchVal = document.getElementById('watchlist-search').value;
+            if (searchVal) {
+                document.getElementById('watchlist-search').dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    // =========================================================================
+    // Too Hard / Passed Table
+    // =========================================================================
+    const tooHardData = {{ too_hard_data_json|safe }};
+    let tooHardTable = null;
+
+    if (tooHardData.length > 0) {
+        tooHardTable = createDataTable('#too-hard-table', {
+            data: tooHardData,
+            columns: [
+                {
+                    title: "Company",
+                    field: "company_name",
+                    sorter: "string",
+                    minWidth: 160,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
+                        return `<strong>${cell.getValue()}</strong>${ticker}`;
+                    }
+                },
+                {
+                    title: "Stage",
+                    field: "rejection_stage_label",
+                    sorter: "string",
+                    hozAlign: "center",
+                    minWidth: 130,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const modifiers = {
+                            'Kill Checklist': 'kill',
+                            'Mid Research': 'mid',
+                            'Full Analysis': 'full',
+                        };
+                        const mod = modifiers[val] || 'default';
+                        return `<span class="rcl-cell-badge rcl-cell-badge--${mod}">${val}</span>`;
+                    }
+                },
+                {
+                    title: "Sector",
+                    field: "sector",
+                    sorter: "string",
+                    minWidth: 100,
+                },
+                {
+                    title: "Time",
+                    field: "time_invested",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 70,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        return val ? `<span class="rcl-cell-mono">${val}h</span>` : '<span class="table-cell-muted">--</span>';
+                    }
+                },
+                {
+                    title: "Reason",
+                    field: "reason",
+                    sorter: "string",
+                    minWidth: 180,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        if (!val) return '<span class="table-cell-muted">--</span>';
+                        const truncated = val.length > 60 ? val.substring(0, 60) + '...' : val;
+                        return `<span title="${val}">${truncated}</span>`;
+                    },
+                },
+                {
+                    title: "Date",
+                    field: "rejection_date",
+                    sorter: "date",
+                    minWidth: 100,
+                    formatter: ColumnFormatters.date('short')
+                },
+                {
+                    title: "",
+                    field: "company_url",
+                    headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 120,
+                    formatter: function(cell) {
+                        const url = cell.getValue();
+                        if (!url) return '';
+                        return `<a href="${url}" class="rcl-action"><i class="bi bi-grid-1x2"></i> View</a>`;
+                    }
+                },
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "rejection_date", dir: "desc" }],
+                pagination: tooHardData.length > 25,
+            }
+        });
+
+        // Search filter
+        document.getElementById('toohard-search').addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase();
+            if (!val) {
+                tooHardTable.clearFilter();
+            } else {
+                tooHardTable.setFilter(function(data) {
+                    return data.company_name.toLowerCase().includes(val) ||
+                           (data.ticker && data.ticker.toLowerCase().includes(val)) ||
+                           (data.sector && data.sector.toLowerCase().includes(val)) ||
+                           (data.reason && data.reason.toLowerCase().includes(val));
+                });
+            }
+        });
+
+        // Stage filter
+        document.getElementById('toohard-stage-filter').addEventListener('change', function(e) {
+            const val = e.target.value;
+            if (val === 'all') {
+                tooHardTable.clearFilter();
+            } else {
+                tooHardTable.setFilter("rejection_stage_label", "=", val);
+            }
+            const searchVal = document.getElementById('toohard-search').value;
+            if (searchVal) {
+                document.getElementById('toohard-search').dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    // =========================================================================
+    // Recent Activity Feed (built from existing data)
+    // =========================================================================
+    const activityFeed = document.getElementById('recent-activity-feed');
+    const events = [];
+
+    // From active research (last worked)
+    activeData.forEach(p => {
+        if (p.last_worked) {
+            const label = p.status === 'paused' ? 'Paused research on' : 'Worked on';
+            const dotClass = p.status === 'paused' ? 'c-warning' : 'c-accent';
+            events.push({
+                date: new Date(p.last_worked),
+                text: `${label} <strong>${p.company_name}${p.ticker ? ' (' + p.ticker + ')' : ''}</strong>`,
+                dotClass: dotClass,
+            });
+        }
+    });
+
+    // From too-hard (rejection date)
+    tooHardData.forEach(item => {
+        if (item.rejection_date) {
+            events.push({
+                date: new Date(item.rejection_date),
+                text: `Passed on <strong>${item.company_name}${item.ticker ? ' (' + item.ticker + ')' : ''}</strong> at ${item.rejection_stage_label.toLowerCase()}`,
+                dotClass: 'c-danger',
+            });
+        }
+    });
+
+    // Sort by date descending
+    events.sort((a, b) => b.date - a.date);
+
+    // Render top 5
+    const topEvents = events.slice(0, 5);
+    if (topEvents.length > 0) {
+        const timeAgo = (d) => {
+            const now = new Date();
+            const diffMs = now - d;
+            const diffDays = Math.floor(diffMs / 86400000);
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+
+        activityFeed.innerHTML = topEvents.map(ev => `
+            <div class="rcl-activity-item">
+                <div class="rcl-activity-dot ${ev.dotClass}"></div>
+                <div>
+                    <div class="rcl-activity-text">${ev.text}</div>
+                    <div class="rcl-activity-time">${timeAgo(ev.date)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+});
+</script>
 {% endblock %}

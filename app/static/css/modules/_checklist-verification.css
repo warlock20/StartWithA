@@ -1,0 +1,776 @@
+/* =============================================================================
+   CHECKLIST VERIFICATION - The Verification Cockpit
+   Purpose-built styles for the checklist step page.
+   Prefix: cl-  (checklist)
+   ============================================================================= */
+
+/* =============================================================================
+   PROGRESS HEADER
+   Segmented progress bar showing verification status breakdown
+   ============================================================================= */
+
+.cl-progress-header {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg) var(--space-xl);
+    box-shadow: var(--shadow-light);
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--border-light);
+}
+
+.cl-progress-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+.cl-progress-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.cl-progress-title span {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.cl-progress-count {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.cl-progress-count strong {
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+}
+
+/* Segmented progress bar */
+.cl-progress-bar {
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--gray-100);
+    overflow: hidden;
+    display: flex;
+    margin-bottom: var(--space-md);
+}
+
+.cl-progress-segment {
+    height: 100%;
+    transition: width var(--transition-normal);
+}
+
+.cl-progress-segment.satisfied {
+    background: var(--success-500);
+}
+
+.cl-progress-segment.not-satisfied {
+    background: var(--danger-500);
+}
+
+.cl-progress-segment.needs-attention {
+    background: var(--warning-500);
+}
+
+.cl-progress-segment.neutral {
+    background: var(--info-500);
+}
+
+/* Progress legend */
+.cl-progress-legend {
+    display: flex;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+}
+
+.cl-progress-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.cl-progress-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cl-progress-legend-dot.satisfied { background: var(--success-500); }
+.cl-progress-legend-dot.not-satisfied { background: var(--danger-500); }
+.cl-progress-legend-dot.needs-attention { background: var(--warning-500); }
+.cl-progress-legend-dot.neutral { background: var(--info-500); }
+.cl-progress-legend-dot.pending { background: var(--gray-300); }
+
+.cl-progress-legend-count {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* =============================================================================
+   QUESTION CARD
+   Main content area for the current checklist item
+   ============================================================================= */
+
+.cl-question-card {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    overflow: hidden;
+    border-left: 4px solid var(--gray-300);
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--border-light);
+    border-left: 4px solid var(--gray-300);
+}
+
+.cl-question-card.status-satisfied {
+    border-left-color: var(--success-500);
+}
+
+.cl-question-card.status-not_satisfied {
+    border-left-color: var(--danger-500);
+}
+
+.cl-question-card.status-needs_attention {
+    border-left-color: var(--warning-500);
+}
+
+.cl-question-card.status-neutral {
+    border-left-color: var(--info-500);
+}
+
+.cl-question-header {
+    padding: var(--space-lg) var(--space-xl);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+}
+
+.cl-question-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary-600);
+    color: var(--text-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+}
+
+.cl-question-content {
+    flex: 1;
+}
+
+.cl-question-text {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-xs) 0;
+    line-height: 1.4;
+}
+
+.cl-question-meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.cl-question-meta .parent-label {
+    background: var(--gray-100);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.cl-question-description {
+    padding: 0 var(--space-xl) var(--space-md);
+    margin-left: 52px; /* align with text after number badge */
+}
+
+.cl-question-description-content {
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    border: 1px solid var(--border-light);
+}
+
+.cl-description-toggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.cl-description-toggle:hover {
+    color: var(--primary-600);
+    background: var(--gray-100);
+}
+
+/* =============================================================================
+   VERDICT BUTTONS
+   The primary action: status verdict selection
+   ============================================================================= */
+
+.cl-verdict-section {
+    padding: var(--space-md) var(--space-xl);
+    border-top: 1px solid var(--border-light);
+    background: var(--gray-50);
+}
+
+.cl-verdict-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: var(--space-sm);
+}
+
+.cl-verdict-buttons {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.cl-verdict-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 0.6rem var(--space-md);
+    border-radius: var(--radius-md);
+    border: 2px solid;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    background: var(--background-white);
+    flex: 1;
+    justify-content: center;
+    min-width: 120px;
+}
+
+.cl-verdict-btn i {
+    font-size: var(--font-size-base);
+}
+
+/* Satisfied */
+.cl-verdict-btn.satisfied {
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.cl-verdict-btn.satisfied:hover,
+.cl-verdict-btn.satisfied.active {
+    background: var(--success-50);
+    border-color: var(--success-500);
+}
+
+.cl-verdict-btn.satisfied.active {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    font-weight: 600;
+}
+
+/* Not Satisfied */
+.cl-verdict-btn.not-satisfied {
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.cl-verdict-btn.not-satisfied:hover,
+.cl-verdict-btn.not-satisfied.active {
+    background: var(--danger-50);
+    border-color: var(--danger-500);
+}
+
+.cl-verdict-btn.not-satisfied.active {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    font-weight: 600;
+}
+
+/* Needs Attention */
+.cl-verdict-btn.needs-attention {
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.cl-verdict-btn.needs-attention:hover,
+.cl-verdict-btn.needs-attention.active {
+    background: var(--warning-50);
+    border-color: var(--warning-500);
+}
+
+.cl-verdict-btn.needs-attention.active {
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    font-weight: 600;
+}
+
+/* Neutral */
+.cl-verdict-btn.neutral {
+    border-color: var(--border-light);
+    color: var(--text-muted);
+}
+
+.cl-verdict-btn.neutral:hover,
+.cl-verdict-btn.neutral.active {
+    background: var(--info-50);
+    border-color: var(--info-500);
+    color: #1e40af;
+}
+
+.cl-verdict-btn.neutral.active {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    font-weight: 600;
+}
+
+/* =============================================================================
+   ANSWER / SYNTHESIS AREA
+   BlockNote editor for notes, compact by default
+   ============================================================================= */
+
+.cl-answer-section {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--border-light);
+}
+
+.cl-answer-header {
+    padding: var(--space-md) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cl-answer-header h6 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.cl-answer-body {
+    padding: var(--space-md) var(--space-xl);
+}
+
+.cl-answer-editor {
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    min-height: 160px;
+    background: var(--background-white);
+    transition: border-color var(--transition-fast);
+}
+
+.cl-answer-editor:focus-within {
+    border-color: var(--primary-400);
+}
+
+/* =============================================================================
+   AI TOOLS - Compact Inline Pattern
+   ============================================================================= */
+
+.cl-ai-tools {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.cl-ai-tools-header {
+    padding: var(--space-md) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.cl-ai-tools-header:hover {
+    background: var(--gray-50);
+}
+
+.cl-ai-tools-header h6 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.cl-ai-tools-header .bi-chevron-down {
+    transition: transform var(--transition-fast);
+    color: var(--text-muted);
+}
+
+.cl-ai-tools.expanded .cl-ai-tools-header .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.cl-ai-tools-body {
+    padding: 0 var(--space-xl) var(--space-md);
+    display: none;
+}
+
+.cl-ai-tools.expanded .cl-ai-tools-body {
+    display: block;
+}
+
+.cl-ai-mode-buttons {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-md);
+}
+
+.cl-ai-mode-btn {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: none;
+}
+
+.cl-ai-mode-btn.challenge {
+    background: var(--danger-50);
+    border-color: #fecaca;
+    color: var(--danger-600);
+}
+
+.cl-ai-mode-btn.challenge:hover {
+    background: #fee2e2;
+}
+
+.cl-ai-mode-btn.elaborate {
+    background: var(--info-50);
+    border-color: #bfdbfe;
+    color: var(--info-600);
+}
+
+.cl-ai-mode-btn.elaborate:hover {
+    background: #dbeafe;
+}
+
+.cl-ai-mode-btn.factcheck {
+    background: var(--warning-50);
+    border-color: #fde68a;
+    color: var(--warning-600);
+}
+
+.cl-ai-mode-btn.factcheck:hover {
+    background: #fef3c7;
+}
+
+/* AI Response within the tools section */
+.cl-ai-response {
+    margin-top: var(--space-md);
+    padding: var(--space-md);
+    background: var(--background-white);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary-600);
+    display: none;
+}
+
+.cl-ai-response.visible {
+    display: block;
+    animation: clSlideDown 0.3s ease;
+}
+
+@keyframes clSlideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================================================================
+   NAVIGATION BAR
+   Previous / Save & Next buttons
+   ============================================================================= */
+
+.cl-nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-xl);
+}
+
+.cl-nav-bar .btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* =============================================================================
+   CHECKLIST MAP (Sidebar)
+   All items with status dots - the bird's eye view
+   ============================================================================= */
+
+.cl-sidebar-section {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-light);
+    margin-bottom: var(--space-md);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.cl-sidebar-header {
+    padding: var(--space-md) var(--space-md);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cl-sidebar-header h6 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Progress stats in sidebar */
+.cl-sidebar-stats {
+    display: flex;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cl-sidebar-stat {
+    flex: 1;
+    text-align: center;
+    padding: var(--space-sm) var(--space-xs);
+    border-radius: var(--radius-sm);
+    background: var(--gray-50);
+}
+
+.cl-sidebar-stat-value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+}
+
+.cl-sidebar-stat-value.total { color: var(--primary-600); }
+.cl-sidebar-stat-value.satisfied { color: var(--success-500); }
+.cl-sidebar-stat-value.flagged { color: var(--danger-500); }
+.cl-sidebar-stat-value.attention { color: var(--warning-500); }
+
+.cl-sidebar-stat-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Checklist map items */
+.cl-map-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: var(--space-xs) 0;
+}
+
+.cl-map-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 0.5rem var(--space-md);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    text-decoration: none;
+    color: inherit;
+    border-left: 3px solid transparent;
+    font-size: var(--font-size-sm);
+}
+
+.cl-map-item:hover {
+    background: var(--gray-50);
+}
+
+.cl-map-item.current {
+    background: var(--primary-50);
+    border-left-color: var(--primary-600);
+    font-weight: 600;
+}
+
+.cl-map-item.sub-item {
+    padding-left: calc(var(--space-md) + 1rem);
+}
+
+.cl-map-item-number {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    color: var(--text-white);
+    background: var(--gray-300);
+}
+
+.cl-map-item-number.satisfied { background: var(--success-500); }
+.cl-map-item-number.not-satisfied { background: var(--danger-500); }
+.cl-map-item-number.needs-attention { background: var(--warning-500); }
+.cl-map-item-number.neutral { background: var(--info-500); }
+.cl-map-item-number.current-item { background: var(--primary-600); }
+
+.cl-map-item-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.cl-map-item.current .cl-map-item-text {
+    color: var(--text-primary);
+}
+
+/* Status icon in map */
+.cl-map-item-status {
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+}
+
+.cl-map-item-status.satisfied { color: var(--success-500); }
+.cl-map-item-status.not-satisfied { color: var(--danger-500); }
+.cl-map-item-status.needs-attention { color: var(--warning-500); }
+.cl-map-item-status.neutral { color: var(--info-500); }
+
+/* =============================================================================
+   DOCUMENTS (Sidebar, collapsed)
+   ============================================================================= */
+
+.cl-documents-list {
+    padding: var(--space-sm) var(--space-md);
+}
+
+.cl-documents-list a {
+    display: block;
+    padding: var(--space-sm) 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-light);
+    transition: color var(--transition-fast);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cl-documents-list a:last-child {
+    border-bottom: none;
+}
+
+.cl-documents-list a:hover {
+    color: var(--primary-600);
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 991px) {
+    .cl-verdict-buttons {
+        flex-direction: column;
+    }
+
+    .cl-verdict-btn {
+        min-width: auto;
+    }
+
+    .cl-progress-legend {
+        gap: var(--space-sm);
+    }
+
+    .cl-sidebar-stats {
+        flex-wrap: wrap;
+    }
+
+    .cl-sidebar-stat {
+        min-width: 45%;
+    }
+}
+
+@media (max-width: 767px) {
+    .cl-progress-header {
+        padding: var(--space-md);
+    }
+
+    .cl-question-header {
+        padding: var(--space-md);
+    }
+
+    .cl-verdict-section {
+        padding: var(--space-md);
+    }
+
+    .cl-answer-header,
+    .cl-answer-body {
+        padding: var(--space-md);
+    }
+}
+
+/* Custom scrollbar for map */
+.cl-map-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.cl-map-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.cl-map-list::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: var(--radius-pill);
+}
+
+.cl-map-list::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
+/* =============================================================================
+   AJAX TRANSITION ANIMATIONS
+   Smooth fade for content swaps during sidebar navigation
+   ============================================================================= */
+
+.cl-fade-out {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.cl-fade-in {
+    animation: clFadeIn 0.3s ease;
+}
+
+@keyframes clFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}

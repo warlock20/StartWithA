@@ -60,7 +60,7 @@
                 <i class="bi bi-lightbulb"></i>
                 Sector Insights
             </h2>
-            <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="recommendations-view-all">
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="recommendations-view-all">
                 View Analysis <i class="bi bi-arrow-right"></i>
             </a>
         </div>
@@ -279,7 +279,7 @@
                 <div class="basket-value">{{ too_hard_total_count }}</div>
                 <div class="basket-meta">{{ too_hard_rate|int }}% filter rate</div>
                 <div class="basket-description">Companies rejected at any stage (early screening or mid-research)</div>
-                <a href="{{ url_for('research_workflow.too_hard_basket') }}" class="basket-link">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="basket-link">
                     View All Passes <i class="bi bi-arrow-right ms-1"></i>
                 </a>
             </div>
