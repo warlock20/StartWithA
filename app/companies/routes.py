@@ -63,18 +63,6 @@ def get_company_market_data(ticker):
         logger.warning(f"Market data lookup failed for {ticker}: {e}")
         return {'marketCap': None}
 
-@companies_bp.route('/', methods=['GET'])
-@login_required
-def companies_dashboard():
-    """Redirect to unified Company Research page"""
-    return redirect(url_for('research_workflow.my_projects'))
-
-@companies_bp.route('/watchlist')
-@login_required
-def watchlist():
-    """Redirect to unified Company Research page (Watchlist tab)"""
-    return redirect(url_for('research_workflow.my_projects'))
-
 @companies_bp.route('/list')
 @login_required
 def list_companies():
@@ -154,17 +142,39 @@ def list_companies():
                          current_per_page=per_page,
                          title="All Companies")
 
-@companies_bp.route('/research')
-@login_required
-def research():
-    """Research projects subpage - redirect to research workflow"""
-    return redirect(url_for('research_workflow.my_projects'))
 
-@companies_bp.route('/new')
+@companies_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new_company():
-    """Redirect to company directory"""
-    return redirect(url_for('companies.list_companies'))
+    """Add a new company — ticker lookup form, then confirmation."""
+    if request.method == 'POST':
+        base_ticker = request.form.get('base_ticker', '').strip().upper()
+        exchange_suffix = request.form.get('exchange_suffix', '')
+        full_ticker = f"{base_ticker}{exchange_suffix}"
+
+        if not base_ticker:
+            flash('Please enter a ticker symbol.', 'error')
+            return redirect(url_for('companies.new_company'))
+
+        validator = TickerValidator()
+        result = validator.validate_ticker(full_ticker)
+
+        if not result.get('valid'):
+            flash(f'Could not find company for ticker "{full_ticker}". {result.get("error", "")}', 'error')
+            return redirect(url_for('companies.new_company'))
+
+        return render_template('confirm_company.html',
+                               name=result.get('name', full_ticker),
+                               ticker=full_ticker,
+                               summary=result.get('summary', ''),
+                               sector=result.get('sector', ''),
+                               industry=result.get('industry', ''),
+                               title="Confirm Company")
+
+    return render_template('new_company.html',
+                           exchanges=EXCHANGES,
+                           title="Add New Company")
+
 
 @companies_bp.route('/add_confirmed', methods=['POST'])
 @login_required

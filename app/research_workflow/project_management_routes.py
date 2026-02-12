@@ -155,29 +155,6 @@ def my_projects():
                           })
 
 
-# --- Legacy route redirects ---
-
-@research_workflow_bp.route('/my-projects/active')
-@login_required
-def active_projects():
-    """Redirect to unified Company Research page"""
-    return redirect(url_for('research_workflow.my_projects'))
-
-
-@research_workflow_bp.route('/my-projects/completed')
-@login_required
-def completed_projects():
-    """Redirect to unified Company Research page"""
-    return redirect(url_for('research_workflow.my_projects'))
-
-
-@research_workflow_bp.route('/my-projects/too-hard-basket')
-@login_required
-def too_hard_basket():
-    """Redirect to unified Company Research page (Too Hard tab)"""
-    return redirect(url_for('research_workflow.my_projects'))
-
-
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
 @login_required
 def delete_research_project(project_id):
