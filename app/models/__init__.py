@@ -48,6 +48,7 @@ from .research import (
     ResearchMetrics,
     ResearchLog,
     FreeResearchQuestion,
+    ResearchSettings,
 )
 from .sector import (
     Sector,
@@ -155,6 +156,7 @@ __all__ = [
     'ResearchMetrics',
     'ResearchLog',
     'FreeResearchQuestion',
+    'ResearchSettings',
     # Sector models
     'Sector',
     'SectorAnalysis',
