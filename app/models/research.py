@@ -536,3 +536,42 @@ class ModelQuestion(db.Model):
 
     def __repr__(self):
         return f'<ModelQuestion {self.id}: {self.question_text[:50]}...>'
+
+
+class ResearchSettings(db.Model):
+    """
+    Per-user tunable parameters for the research priority scoring algorithm.
+    One row per user, created with defaults on first access (get-or-create).
+    """
+    __tablename__ = 'research_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+
+    # Focus limits
+    active_project_limit = db.Column(db.Integer, default=3)
+
+    # Scoring weights (must sum to 100)
+    weight_momentum = db.Column(db.Integer, default=40)
+    weight_proximity = db.Column(db.Integer, default=25)
+    weight_staleness = db.Column(db.Integer, default=20)
+    weight_signal = db.Column(db.Integer, default=15)
+
+    # Tuning knobs
+    momentum_half_life_days = db.Column(db.Integer, default=3)
+    staleness_peak_days = db.Column(db.Integer, default=10)
+    stale_warning_days = db.Column(db.Integer, default=14)
+    stale_warning_min_progress = db.Column(db.Integer, default=30)
+
+    def __repr__(self):
+        return f'<ResearchSettings for User {self.user_id}>'
+
+    @staticmethod
+    def get_or_create(user_id):
+        """Get existing settings or create with defaults."""
+        settings = ResearchSettings.query.filter_by(user_id=user_id).first()
+        if not settings:
+            settings = ResearchSettings(user_id=user_id)
+            db.session.add(settings)
+            db.session.commit()
+        return settings
