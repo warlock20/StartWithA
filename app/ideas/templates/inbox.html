@@ -2,190 +2,247 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">💡 Idea Inbox</h1>
-            <p class="dashboard-subtitle">Quick capture, quick kill. Don't let ideas linger.</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Quick Capture
-            </a>
-        </div>
-    </header>
 
-    <!-- Priority Cards for Stats -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid three-column">
-            <!-- Ideas Waiting -->
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Ideas Waiting</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ ideas|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Ideas ready for screening.</p>
-                </div>
+    <!-- ════════════════════════════════════════════════
+         HEADER CARD (unified dashboard pattern)
+         ════════════════════════════════════════════════ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Idea Inbox</h1>
+                <p class="dashboard-subtitle">Quick capture, quick kill. Don't let ideas linger.</p>
             </div>
-
-            <!-- Time to Clear -->
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Time to Clear</h3>
-                        <span class="priority-card-number priority-number-blue">
-                            {% if ideas|length > 0 %}
-                            {{ ((ideas|length) * 5) }}m
-                            {% else %}
-                            0m
-                            {% endif %}
-                        </span>
-                    </div>
-                    <p class="priority-card-description">Est. 5 min per idea.</p>
-                </div>
+            <div class="dashboard-header-actions">
+                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('ideas.add_idea') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                    <i class="bi bi-plus-circle-fill"></i> Quick Capture
+                </a>
             </div>
+        </header>
 
-            <!-- Days Since Oldest -->
-            <div class="priority-card {% if days_since_oldest is not none %}priority-card-warning{% else %}priority-card-monitoring{% endif %}">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Days Since Oldest</h3>
-                        <span class="priority-card-number {% if days_since_oldest is not none %}priority-number-red{% else %}priority-number-green{% endif %}">
-                            {% if days_since_oldest is not none %}
-                            {{ days_since_oldest }}d
-                            {% else %}
-                            ✨
-                            {% endif %}
-                        </span>
-                    </div>
-                    <p class="priority-card-description">
-                        {% if days_since_oldest is not none %}
-                        Don't let ideas age.
-                        {% else %}
-                        Inbox clear!
-                        {% endif %}
-                    </p>
+        <div class="dashboard-metrics-strip">
+            <div class="inbox-metric">
+                <div class="inbox-metric-value metric-warning">{{ waiting_count }}</div>
+                <div class="inbox-metric-label">Ideas Waiting</div>
+            </div>
+            <div class="inbox-metric">
+                <div class="inbox-metric-value metric-danger">{{ killing_count }}</div>
+                <div class="inbox-metric-label">In Kill Room</div>
+            </div>
+            <div class="inbox-metric">
+                <div class="inbox-metric-value metric-success">{{ ready_count }}</div>
+                <div class="inbox-metric-label">Ready to Promote</div>
+            </div>
+            <div class="inbox-metric">
+                <div class="inbox-metric-value metric-info">
+                    {% if ideas|length > 0 %}{{ (ideas|length) * 5 }}m{% else %}0m{% endif %}
                 </div>
+                <div class="inbox-metric-label">Time to Clear</div>
+            </div>
+            <div class="inbox-metric">
+                <div class="inbox-metric-value {% if days_since_oldest is not none %}metric-danger{% else %}metric-success{% endif %}">
+                    {% if days_since_oldest is not none %}{{ days_since_oldest }}d{% else %}&check;{% endif %}
+                </div>
+                <div class="inbox-metric-label">Oldest Idea</div>
             </div>
         </div>
     </div>
 
-    <!-- Ideas Section -->
     {% if ideas %}
-    <div class="ideas-section">
-        <h2 class="section-title font-poppins">Your Ideas</h2>
-        <div class="ideas-grid">
-            {% for idea in ideas %}
-            <div class="idea-card">
-                <div class="idea-card-header">
-                    <div class="idea-card-title-row">
-                        <h3 class="idea-card-title">
-                            {{ idea.name }}
-                            {% if idea.ticker_symbol %}
-                            <span class="badge bg-secondary">{{ idea.ticker_symbol }}</span>
-                            {% endif %}
-                        </h3>
-                        <small class="text-muted">{{ idea.created_at.strftime('%b %d') }}</small>
-                    </div>
-                    <div class="idea-badges">
-                        {% if idea.idea_purpose == 'learning' %}
-                        <span class="badge bg-info">📚 Learning</span>
-                        {% elif idea.idea_purpose == 'research' %}
-                        <span class="badge bg-primary">🔍 Research</span>
-                        {% else %}
-                        <span class="badge bg-warning">🎯 Investment</span>
-                        {% endif %}
-                        <span class="badge {% if idea.status == 'survived' %}bg-success{% else %}bg-light text-dark{% endif %}">
-                            {{ idea.idea_type|capitalize }}
-                        </span>
-                        {% if idea.status == 'killing' %}
-                        <span class="badge bg-danger">⚡ In Kill Room</span>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="idea-card-body">
-                    {% if idea.thesis_summary %}
-                    <p class="idea-thesis">
-                        <strong>Thesis:</strong> {{ idea.thesis_summary|truncate(150) }}
-                    </p>
-                    {% endif %}
-
-                    {% if idea.source %}
-                    <p class="idea-source">
-                        <i class="bi bi-lightbulb"></i> Source: {{ idea.source }}
-                    </p>
-                    {% endif %}
-                </div>
-
-                <div class="idea-card-actions">
-                    {% if idea.status == 'killing' %}
-                    <!-- Idea is currently in kill room - allow user to continue -->
-                    <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="btn btn-warning flex-grow-1">
-                        <i class="bi bi-arrow-clockwise"></i> Continue Kill Room
-                    </a>
-                    {% elif idea.status == 'promoted' %}
-                    <!-- Promoted but no research project yet - go to template selection -->
-                    <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="btn btn-success flex-grow-1">
-                        <i class="bi bi-rocket-takeoff"></i> Select Research Template
-                    </a>
-                    {% elif idea.status == 'survived' or idea.idea_purpose in ['learning', 'research'] %}
-                    <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="btn btn-success flex-grow-1">
-                        {% if idea.idea_purpose == 'learning' %}
-                        <i class="bi bi-book"></i> Start Learning Project
-                        {% elif idea.idea_purpose == 'research' %}
-                        <i class="bi bi-search"></i> Start Research Project
-                        {% elif idea.idea_type == 'company' %}
-                        <i class="bi bi-arrow-up-circle"></i> Promote to Company
-                        {% elif idea.idea_type == 'sector' %}
-                        <i class="bi bi-journal-plus"></i> Open Sector Notebook
-                        {% else %}
-                        <i class="bi bi-search"></i> Start Research Project
-                        {% endif %}
-                    </a>
-                    {% elif idea.idea_type == 'sector' %}
-                    <!-- Sector ideas skip kill room and go directly to notebook -->
-                    <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="btn btn-primary flex-grow-1">
-                        <i class="bi bi-journal-plus"></i> Open Sector Notebook
-                    </a>
-                    {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and default_kill_checklist %}
-                    <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="btn btn-danger flex-grow-1">
-                        <i class="bi bi-shield-x"></i> Enter Kill Room
-                    </a>
-                    {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and all_kill_checklists %}
-                    <div class="btn-group flex-grow-1">
-                        <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown">
-                            Select Checklist to Kill
-                        </button>
-                        <ul class="dropdown-menu">
-                            {% for checklist in all_kill_checklists %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('ideas.kill_room', idea_id=idea.id, checklist_id=checklist.id) }}">
-                                    {{ checklist.name }}
-                                </a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% else %}
-                    <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-warning flex-grow-1">
-                        <i class="bi bi-plus-circle"></i> Create Kill Checklist First
-                    </a>
-                    {% endif %}
-                    <a href="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-pencil"></i>
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
+    <!-- ════════════════════════════════════════════════
+         TOOLBAR: FILTERS + SEARCH
+         ════════════════════════════════════════════════ -->
+    <div class="inbox-toolbar">
+        <div class="inbox-filters">
+            <button class="inbox-filter-btn active" data-filter="all">
+                All <span class="inbox-filter-count">{{ ideas|length }}</span>
+            </button>
+            <button class="inbox-filter-btn" data-filter="waiting">
+                <i class="bi bi-hourglass-split"></i> Waiting
+                <span class="inbox-filter-count">{{ waiting_count }}</span>
+            </button>
+            <button class="inbox-filter-btn" data-filter="killing">
+                <i class="bi bi-shield-x"></i> In Kill Room
+                <span class="inbox-filter-count">{{ killing_count }}</span>
+            </button>
+            <button class="inbox-filter-btn" data-filter="ready">
+                <i class="bi bi-rocket-takeoff"></i> Ready
+                <span class="inbox-filter-count">{{ ready_count }}</span>
+            </button>
+        </div>
+        <div class="inbox-search">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Search ideas..." id="inboxSearchInput">
         </div>
     </div>
+
+    <!-- ════════════════════════════════════════════════
+         TABLE
+         ════════════════════════════════════════════════ -->
+    <div class="inbox-panel">
+        <table class="inbox-table">
+            <thead>
+                <tr>
+                    <th>Idea</th>
+                    <th>Purpose</th>
+                    <th>State</th>
+                    <th>Age</th>
+                    <th>Thesis</th>
+                    <th>Source</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for idea in ideas %}
+                {# Determine the display state for this idea #}
+                {% if idea.status == 'killing' %}
+                    {% set display_state = 'killing' %}
+                {% elif idea.status in ('survived', 'promoted') %}
+                    {% set display_state = 'ready' %}
+                {% else %}
+                    {% set display_state = 'waiting' %}
+                {% endif %}
+
+                {# Age in days (pre-computed in route for timezone safety) #}
+                {% set age_days = idea_ages.get(idea.id, 0) %}
+
+                <tr data-state="{{ display_state }}">
+                    <!-- Idea name + ticker -->
+                    <td>
+                        <div class="idea-name-cell">
+                            <span class="idea-name-primary">{{ idea.name }}</span>
+                            {% if idea.ticker_symbol %}
+                            <span class="idea-name-ticker">{{ idea.ticker_symbol }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Purpose badge -->
+                    <td>
+                        {% if idea.idea_purpose == 'learning' %}
+                        <span class="idea-purpose-badge purpose-learning">Learning</span>
+                        {% elif idea.idea_purpose == 'research' %}
+                        <span class="idea-purpose-badge purpose-research">Research</span>
+                        {% else %}
+                        <span class="idea-purpose-badge purpose-investment">Investment</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- State pill -->
+                    <td>
+                        {% if display_state == 'killing' %}
+                        <span class="idea-state state-killing">In Kill Room</span>
+                        {% elif display_state == 'ready' %}
+                        <span class="idea-state state-ready">Ready</span>
+                        {% else %}
+                        <span class="idea-state state-waiting">Waiting</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Age -->
+                    <td>
+                        <span class="idea-age {% if age_days >= 7 %}age-stale{% elif age_days >= 4 %}age-moderate{% endif %}">{{ age_days }}d</span>
+                    </td>
+
+                    <!-- Thesis preview -->
+                    <td class="idea-thesis-cell">
+                        {{ idea.thesis_summary|truncate(80) if idea.thesis_summary else '—' }}
+                    </td>
+
+                    <!-- Source -->
+                    <td class="idea-source-cell">
+                        {{ idea.source if idea.source else '—' }}
+                    </td>
+
+                    <!-- Actions -->
+                    <td>
+                        <div class="idea-actions" style="justify-content: flex-end;">
+                            {% if idea.status == 'killing' %}
+                            {# Continue paused kill room session #}
+                            <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="idea-action-btn action-continue">
+                                <i class="bi bi-arrow-clockwise"></i> Continue
+                            </a>
+
+                            {% elif idea.status == 'promoted' %}
+                            {# Promoted but no research project yet #}
+                            <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="idea-action-btn action-promote">
+                                <i class="bi bi-rocket-takeoff"></i> Template
+                            </a>
+
+                            {% elif idea.status == 'survived' or idea.idea_purpose in ['learning', 'research'] %}
+                            {# Survived or learning/research purpose — promote #}
+                            <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="idea-action-btn action-promote">
+                                {% if idea.idea_purpose == 'learning' %}
+                                <i class="bi bi-book"></i> Start
+                                {% elif idea.idea_purpose == 'research' %}
+                                <i class="bi bi-search"></i> Start
+                                {% elif idea.idea_type == 'company' %}
+                                <i class="bi bi-arrow-up-circle"></i> Promote
+                                {% elif idea.idea_type == 'sector' %}
+                                <i class="bi bi-journal-plus"></i> Notebook
+                                {% else %}
+                                <i class="bi bi-search"></i> Start
+                                {% endif %}
+                            </a>
+
+                            {% elif idea.idea_type == 'sector' %}
+                            {# Sector ideas skip kill room #}
+                            <a href="{{ url_for('ideas.promote_idea', idea_id=idea.id) }}" class="idea-action-btn action-promote">
+                                <i class="bi bi-journal-plus"></i> Notebook
+                            </a>
+
+                            {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and default_kill_checklist %}
+                            {# Investment company with default checklist — enter kill room #}
+                            <a href="{{ url_for('ideas.kill_room', idea_id=idea.id) }}" class="idea-action-btn action-kill">
+                                <i class="bi bi-shield-x"></i> Kill Room
+                            </a>
+
+                            {% elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and all_kill_checklists %}
+                            {# Multiple checklists — dropdown #}
+                            <div class="btn-group">
+                                <button type="button" class="idea-action-btn action-kill dropdown-toggle" data-bs-toggle="dropdown">
+                                    Kill Room
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% for checklist in all_kill_checklists %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('ideas.kill_room', idea_id=idea.id, checklist_id=checklist.id) }}">
+                                            {{ checklist.name }}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+
+                            {% else %}
+                            {# No kill checklist — prompt to create one #}
+                            <a href="{{ url_for('ideas.create_kill_checklist') }}" class="idea-action-btn action-continue">
+                                <i class="bi bi-plus-circle"></i> Create Checklist
+                            </a>
+                            {% endif %}
+
+                            <a href="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}" class="idea-action-btn action-edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="inbox-table-footer">
+            <span class="inbox-table-footer-count" id="inboxVisibleCount">{{ ideas|length }} idea{{ 's' if ideas|length != 1 }}</span>
+            <span class="inbox-table-footer-hint">
+                <i class="bi bi-info-circle"></i> Est. 5 min per idea for kill room screening
+            </span>
+        </div>
+    </div>
+
     {% else %}
-    <!-- Empty State -->
+    <!-- Empty State (reusing existing component from _idea-pipeline.css) -->
     <div class="empty-state">
         <i class="bi bi-inbox"></i>
         <h3>Your inbox is clear!</h3>
@@ -193,11 +250,12 @@
             Capture ideas as they come. Read something interesting? Heard a tip?
             Notice a trend? Don't let good ideas slip away.
         </p>
-        <a href="{{ url_for('ideas.add_idea') }}" class="btn btn-primary btn-lg">
+        <a href="{{ url_for('ideas.add_idea') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color); font-size: 1rem; padding: 0.75rem 1.5rem;">
             <i class="bi bi-plus-circle-fill"></i> Capture Your First Idea
         </a>
     </div>
     {% endif %}
+
 </div>
 
 <!-- Tips Modal -->
@@ -211,4 +269,46 @@
     "If an idea survives screening, promote it to start proper research"
 ] %}
 {% include 'main/_tips_modal.html' %}
+
+{% if ideas %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var filters = document.querySelectorAll('.inbox-filter-btn');
+    var rows = document.querySelectorAll('.inbox-table tbody tr');
+    var searchInput = document.getElementById('inboxSearchInput');
+    var countEl = document.getElementById('inboxVisibleCount');
+
+    filters.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            filters.forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            applyFilters();
+        });
+    });
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+
+    function applyFilters() {
+        var activeBtn = document.querySelector('.inbox-filter-btn.active');
+        var filterVal = activeBtn ? activeBtn.dataset.filter : 'all';
+        var searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        var visible = 0;
+
+        rows.forEach(function(row) {
+            var stateMatch = (filterVal === 'all') || (row.dataset.state === filterVal);
+            var searchMatch = !searchVal || row.textContent.toLowerCase().indexOf(searchVal) !== -1;
+            var show = stateMatch && searchMatch;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        if (countEl) {
+            countEl.textContent = visible + ' idea' + (visible !== 1 ? 's' : '');
+        }
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

@@ -1,6 +1,6 @@
 # app/ideas/routes.py
 
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import current_user, login_required
 from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
@@ -13,7 +13,8 @@ from app.sectors.routes import initialize_default_sections
 from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
+from sqlalchemy import or_, and_
 
 @ideas_bp.route('/inbox')
 @login_required
@@ -21,8 +22,6 @@ def inbox():
     """Display the user's idea inbox - ideas waiting to be evaluated"""
     # Query for ideas that are in the inbox, being evaluated (killing), survived,
     # or promoted but without a research project (orphaned)
-    from sqlalchemy import or_, and_
-
     ideas = IdeaPipeline.query.filter(
         IdeaPipeline.user_id == current_user.id,
         or_(
@@ -41,24 +40,35 @@ def inbox():
     ).first()
     all_kill_checklists = KillChecklist.query.filter_by(user_id=current_user.id).all()
 
-    # Calculate days since oldest idea (handle timezone awareness)
+    # Calculate days since oldest idea and per-idea ages
+    current_time = now_utc()
     days_since_oldest = None
+    idea_ages = {}
+    for idea in ideas:
+        if idea.created_at:
+            aware_dt = ensure_timezone_aware(idea.created_at)
+            age = (current_time - aware_dt).days
+            idea_ages[idea.id] = age
+        else:
+            idea_ages[idea.id] = 0
     if ideas:
-        oldest_idea = min(ideas, key=lambda x: x.created_at)
-        if oldest_idea.created_at:
-            from app.utils.time_utils import ensure_timezone_aware
-            oldest_date_aware = ensure_timezone_aware(oldest_idea.created_at)
-            current_time = now_utc()
-            days_since_oldest = (current_time - oldest_date_aware).days
+        days_since_oldest = max(idea_ages.values())
 
-    from flask import make_response
+    # State counts for metrics strip and filter buttons
+    waiting_count = sum(1 for i in ideas if i.status == 'inbox')
+    killing_count = sum(1 for i in ideas if i.status == 'killing')
+    ready_count = sum(1 for i in ideas if i.status in ('survived', 'promoted'))
+
     response = make_response(render_template('inbox.html',
                           title="Idea Inbox",
                           ideas=ideas,
                           default_kill_checklist=default_kill_checklist,
                           all_kill_checklists=all_kill_checklists,
-                          now=now_utc(),
-                          days_since_oldest=days_since_oldest
+                          days_since_oldest=days_since_oldest,
+                          waiting_count=waiting_count,
+                          killing_count=killing_count,
+                          ready_count=ready_count,
+                          idea_ages=idea_ages
                           ))
     # Prevent caching to ensure fresh data is always loaded
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
