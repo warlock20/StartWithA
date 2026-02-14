@@ -8,8 +8,9 @@ Flask-Admin based admin interface for managing:
 - Analytics
 """
 
-from flask import Blueprint
-from flask_admin import Admin
+import os
+
+from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_login import current_user
 from flask import redirect, url_for, request
@@ -26,18 +27,28 @@ from app.models import (
 )
 
 
+class SecureAdminIndexView(AdminIndexView):
+    """Admin index page — requires is_admin."""
+    @expose('/')
+    def index(self):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login', next=request.url))
+        if not current_user.is_admin:
+            return redirect(url_for('portfolio.dashboard'))
+        return super().index()
+
+
 class SecureModelView(ModelView):
     """
     Base ModelView that requires admin authentication.
     """
     def is_accessible(self):
-        # TODO: Add proper admin role check
-        # For now, just check if user is authenticated
-        return current_user.is_authenticated
+        return current_user.is_authenticated and current_user.is_admin
 
     def inaccessible_callback(self, name, **kwargs):
-        # Redirect to login page if not authenticated
-        return redirect(url_for('auth.login', next=request.url))
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login', next=request.url))
+        return redirect(url_for('portfolio.dashboard'))
 
 
 class SystemConfigView(SecureModelView):
@@ -200,15 +211,36 @@ class AIResearchFeedbackView(SecureModelView):
     }
 
 
+def _sync_admin_emails(app):
+    """Promote/demote users based on ADMIN_EMAILS env var (comma-separated)."""
+    raw = os.environ.get('ADMIN_EMAILS', '')
+    if not raw:
+        return
+    admin_emails = {e.strip().lower() for e in raw.split(',') if e.strip()}
+    with app.app_context():
+        changed = False
+        for user in User.query.all():
+            should_be_admin = user.email.lower() in admin_emails
+            if user.is_admin != should_be_admin:
+                user.is_admin = should_be_admin
+                changed = True
+                app.logger.info(f"Admin {'granted' if should_be_admin else 'revoked'}: {user.email}")
+        if changed:
+            db.session.commit()
+
+
 def init_admin(app):
     """
     Initialize Flask-Admin with the app.
 
     Call this from create_app() or app/__init__.py
     """
+    _sync_admin_emails(app)
+
     admin = Admin(
         app,
-        name='Investment Platform Admin'
+        name='Investment Platform Admin',
+        index_view=SecureAdminIndexView(),
     )
 
     # Add model views

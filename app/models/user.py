@@ -43,6 +43,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
         "DestinationCheckpoint", backref="creator", lazy="dynamic"
     )
     subscription_tier  = db.Column(db.String(50), nullable=False, default="free")
+    is_admin = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
 
     # AI Token Usage Tracking
     ai_tokens_used = db.Column(db.Integer, nullable=False, default=0, index=True)
