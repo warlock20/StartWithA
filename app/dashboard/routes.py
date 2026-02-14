@@ -3,6 +3,7 @@ from flask import render_template
 from flask_login import current_user, login_required
 from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, Checklist, KillChecklist, ResearchTemplate
 from app.services.too_hard_service import TooHardBasketService
+from app.services.research_priority import ResearchPriorityService
 from . import dashboard_bp
 from datetime import datetime, timedelta
 from app.utils.time_utils import now_utc, ensure_timezone_aware
@@ -17,10 +18,9 @@ def index():
         IdeaPipeline.status.in_(['inbox', 'killing'])
     ).count()
 
-    # Get the top 5 active research projects
-    active_projects = current_user.research_projects.filter_by(status='active')\
-                                                    .order_by(ResearchProject.last_worked_at.desc())\
-                                                    .limit(5).all()
+    # Get prioritized research recommendation
+    focus_recommendation = ResearchPriorityService.get_focus_recommendation(current_user)
+    active_projects = [s.project for s in ([focus_recommendation.hero] + focus_recommendation.runners_up) if s]
 
     # Get the number of companies in the active portfolio
     portfolio_count = current_user.companies.filter_by(is_in_portfolio=True).count()
@@ -94,6 +94,7 @@ def index():
     return render_template(
         'dashboard.html',
         title='Dashboard',
+        focus_recommendation=focus_recommendation,
         inbox_count=inbox_count,
         active_projects_count=len(active_projects),
         active_projects_list=active_projects,

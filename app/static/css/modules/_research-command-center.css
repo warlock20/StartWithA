@@ -403,7 +403,7 @@
 .rcl-panel .tabulator {
     background: transparent;
     border: none;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
 }
 
 /* Header row */
@@ -512,21 +512,21 @@
 
 .rcl-cell-ticker {
     font-family: monospace;
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     color: var(--gray-400);
     letter-spacing: 0.04em;
 }
 
 .rcl-cell-mono {
     font-family: 'Space Mono', monospace;
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
 }
 
 .rcl-cell-badge {
     display: inline-flex;
     padding: var(--space-xs) 0.625rem;
     border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -542,8 +542,8 @@
 .rcl-cell-badge--default  { background: var(--gray-100);   color: var(--gray-500); }
 
 .rcl-cell-badge--idle {
-    background: var(--danger-50);
-    color: var(--danger-500);
+    background: var(--warning-50);
+    color: #b45309;
     font-size: var(--font-size-xs);
     padding: 0.1rem 0.35rem;
 }
@@ -572,7 +572,7 @@
 
 .rcl-progress-label {
     font-family: 'Space Mono', monospace;
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     min-width: 36px;
     text-align: right;
 }

@@ -9,15 +9,16 @@ This module handles the unified Company Research page and project management inc
 
 import json
 from datetime import datetime
-from flask import render_template, request, redirect, url_for, flash, current_app
+from flask import render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (ResearchTemplate, ResearchProject, Company,
+from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, Company,
                        ResearchLog, JournalEntry, IdeaPipeline)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from app.services.too_hard_service import TooHardBasketService
 from app.services.sector_service import SectorService
+from app.services.research_priority import ResearchPriorityService
 
 
 @research_workflow_bp.route('/my-projects')
@@ -29,6 +30,10 @@ def my_projects():
     active_projects = current_user.research_projects.filter(
         ResearchProject.status.in_(['active', 'paused'])
     ).order_by(ResearchProject.last_worked_at.desc()).all()
+
+    # Score and rank active projects
+    ranked_scores = ResearchPriorityService.rank_projects(current_user)
+    score_by_project_id = {s.project.id: s for s in ranked_scores}
 
     active_data = []
     for p in active_projects:
@@ -44,6 +49,52 @@ def my_projects():
             'is_overdue': p.is_overdue,
             'company_id': p.company_id,
             'dashboard_url': url_for('research_workflow.project_dashboard', project_id=p.id),
+            'priority_score': round(score_by_project_id[p.id].total, 1) if p.id in score_by_project_id else 0,
+            'priority_label': score_by_project_id[p.id].label if p.id in score_by_project_id else '',
+            'days_idle': score_by_project_id[p.id].days_idle if p.id in score_by_project_id else 0,
+            'staleness_tier': score_by_project_id[p.id].staleness_tier if p.id in score_by_project_id else 0,
+            'mark_too_hard_url': url_for('research_workflow.mark_too_hard', project_id=p.id),
+        })
+
+    # Sort by priority score by default
+    sort_by = request.args.get('sort', 'priority')
+    if sort_by == 'priority':
+        active_data.sort(key=lambda x: x['priority_score'], reverse=True)
+    elif sort_by == 'last_worked':
+        active_data.sort(key=lambda x: x['last_worked'] or '', reverse=True)
+    elif sort_by == 'progress':
+        active_data.sort(key=lambda x: x['progress'], reverse=True)
+
+    # --- Build alerts for the header alerts strip ---
+    settings = ResearchSettings.get_or_create(current_user.id)
+    active_count = len([p for p in active_data if p['status'] == 'active'])
+    alerts = []
+
+    # Staleness Tier 2 nudges (sorted by days_idle desc -- most urgent first)
+    tier2_projects = sorted(
+        [p for p in active_data if p['staleness_tier'] == 2],
+        key=lambda x: x['days_idle'],
+        reverse=True,
+    )
+    for p in tier2_projects:
+        alerts.append({
+            'type': 'stale_nudge',
+            'project_id': p['id'],
+            'company_name': p['company_name'],
+            'days_idle': p['days_idle'],
+            'progress': p['progress'],
+            'mark_too_hard_url': p['mark_too_hard_url'],
+            'touch_url': url_for('research_workflow.touch_project', project_id=p['id']),
+        })
+
+    # Over-limit warning
+    if active_count > settings.active_project_limit:
+        over_by = active_count - settings.active_project_limit
+        alerts.append({
+            'type': 'over_limit',
+            'active_count': active_count,
+            'project_limit': settings.active_project_limit,
+            'over_by': over_by,
         })
 
     # --- Watchlist (favorites not in portfolio + watchlist decisions) ---
@@ -108,7 +159,6 @@ def my_projects():
         })
 
     # --- Metrics ---
-    active_count = len([p for p in active_data if p['status'] == 'active'])
     paused_count = len([p for p in active_data if p['status'] == 'paused'])
     all_projects = current_user.research_projects.all()
     total_time = sum(p.total_hours_spent or 0 for p in all_projects)
@@ -139,7 +189,10 @@ def my_projects():
                               'too_hard_count': len(too_hard_data),
                               'selectivity_rate': selectivity_rate,
                               'total_time': round(total_time, 1),
+                              'project_limit': settings.active_project_limit,
                           },
+                          alerts=alerts,
+                          alerts_json=json.dumps(alerts),
                           pipeline={
                               'idea_count': idea_count,
                               'active_count': active_count + paused_count,
@@ -152,7 +205,8 @@ def my_projects():
                               'avg_time': avg_time,
                               'invested_count': invest_count,
                               'invest_rate': invest_rate,
-                          })
+                          },
+                          current_sort=sort_by)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
@@ -197,3 +251,18 @@ def delete_research_project(project_id):
              flash(f'An unexpected error occurred while deleting the project.', 'error')
 
     return redirect(url_for('research_workflow.my_projects'))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/touch', methods=['POST'])
+@login_required
+def touch_project(project_id):
+    """Reset the idle clock — user acknowledged the staleness nudge."""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'ok': False, 'error': 'Access denied'}), 403
+
+    project.last_worked_at = now_utc()
+    db.session.commit()
+
+    return jsonify({'ok': True})
