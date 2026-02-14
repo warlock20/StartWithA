@@ -49,7 +49,71 @@
                 <div class="portfolio-metric-value">{{ metrics.total_time }}h</div>
                 <div class="portfolio-metric-label">Time Invested</div>
             </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ quick_stats.avg_time }}h</div>
+                <div class="portfolio-metric-label">Avg / Company</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ quick_stats.invested_count }}</div>
+                <div class="portfolio-metric-label">Invested</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value" style="color: var(--accent-600);">{{ quick_stats.invest_rate }}%</div>
+                <div class="portfolio-metric-label">Invest Rate</div>
+            </div>
         </div>
+
+        {% if alerts %}
+        <div class="dashboard-alerts-strip" id="alerts-strip">
+            {% set first = alerts[0] %}
+            <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ first.project_id or 'limit' }}">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span class="dashboard-alert-card__text">
+                    {% if first.type == 'stale_nudge' %}
+                        <strong>{{ first.company_name }}</strong> idle {{ first.days_idle }}d &middot; {{ first.progress }}% done &mdash; Still pursuing?
+                    {% elif first.type == 'over_limit' %}
+                        {{ first.active_count }} active projects &mdash; your focus limit is {{ first.project_limit }}. Consider pausing or killing {{ first.over_by }}.
+                    {% endif %}
+                </span>
+                {% if first.type == 'stale_nudge' %}
+                <div class="dashboard-alert-card__actions">
+                    <a href="{{ first.mark_too_hard_url }}" class="position-btn">Too Hard</a>
+                    <button class="position-btn" onclick="touchProject({{ first.project_id }}, '{{ first.touch_url }}')">I'll work on it</button>
+                </div>
+                {% endif %}
+                {% if alerts|length > 1 %}
+                <div class="dashboard-alerts-more">
+                    +{{ alerts|length - 1 }} more
+                    <button onclick="toggleAlerts()">Show all</button>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if alerts|length > 1 %}
+            <div class="dashboard-alerts-expanded" id="alerts-expanded">
+                {% for alert in alerts[1:] %}
+                <div class="dashboard-alert-card dashboard-alert-card--warning" id="alert-{{ alert.project_id or 'limit' }}">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span class="dashboard-alert-card__text">
+                        {% if alert.type == 'stale_nudge' %}
+                            <strong>{{ alert.company_name }}</strong> idle {{ alert.days_idle }}d &middot; {{ alert.progress }}% done &mdash; Still pursuing?
+                        {% elif alert.type == 'over_limit' %}
+                            {{ alert.active_count }} active projects &mdash; your focus limit is {{ alert.project_limit }}. Consider pausing or killing {{ alert.over_by }}.
+                        {% endif %}
+                    </span>
+                    {% if alert.type == 'stale_nudge' %}
+                    <div class="dashboard-alert-card__actions">
+                        <a href="{{ alert.mark_too_hard_url }}" class="position-btn">Too Hard</a>
+                        <button class="position-btn" onclick="touchProject({{ alert.project_id }}, '{{ alert.touch_url }}')">I'll work on it</button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <button class="dashboard-alerts-more" onclick="toggleAlerts()" style="align-self: flex-start;">Collapse</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <!-- ════════════════════════════════════════════════
@@ -110,6 +174,11 @@
                                 <option value="all">All Status</option>
                                 <option value="active">Active Only</option>
                                 <option value="paused">Paused Only</option>
+                            </select>
+                            <select id="active-sort" class="rcl-filter-select" onchange="window.location.href='?sort=' + this.value">
+                                <option value="priority" {{ 'selected' if current_sort == 'priority' }}>Sort: Priority</option>
+                                <option value="last_worked" {{ 'selected' if current_sort == 'last_worked' }}>Sort: Last Worked</option>
+                                <option value="progress" {{ 'selected' if current_sort == 'progress' }}>Sort: Progress</option>
                             </select>
                         </div>
                         <div id="active-research-table"></div>
@@ -247,32 +316,6 @@
                 </div>
             </div>
 
-            <!-- Quick Stats -->
-            <div class="rcl-sidebar-card">
-                <div class="rcl-sidebar-card-header">
-                    <span class="rcl-sidebar-card-title"><i class="bi bi-bar-chart"></i> Quick Stats</span>
-                </div>
-                <div class="rcl-sidebar-card-body">
-                    <div class="rcl-quick-stats">
-                        <div class="rcl-quick-stat">
-                            <div class="rcl-quick-stat-value">{{ quick_stats.total_time }}h</div>
-                            <div class="rcl-quick-stat-label">Total Time</div>
-                        </div>
-                        <div class="rcl-quick-stat">
-                            <div class="rcl-quick-stat-value">{{ quick_stats.avg_time }}h</div>
-                            <div class="rcl-quick-stat-label">Avg / Company</div>
-                        </div>
-                        <div class="rcl-quick-stat">
-                            <div class="rcl-quick-stat-value">{{ quick_stats.invested_count }}</div>
-                            <div class="rcl-quick-stat-label">Invested</div>
-                        </div>
-                        <div class="rcl-quick-stat">
-                            <div class="rcl-quick-stat-value">{{ quick_stats.invest_rate }}%</div>
-                            <div class="rcl-quick-stat-label">Invest Rate</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
         </aside>
 
@@ -306,8 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: function(cell) {
                         const row = cell.getRow().getData();
                         const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
-                        const overdue = row.is_overdue ? ' <span class="rcl-cell-badge rcl-cell-badge--idle">Idle</span>' : '';
-                        return `<strong>${cell.getValue()}</strong>${overdue}${ticker}`;
+                        return `<strong>${cell.getValue()}</strong>${ticker}`;
                     }
                 },
                 {
@@ -338,12 +380,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "status",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 90,
+                    minWidth: 120,
                     formatter: function(cell) {
+                        const row = cell.getRow().getData();
                         const val = cell.getValue();
                         const modifiers = { 'active': 'active', 'paused': 'paused' };
                         const mod = modifiers[val] || 'default';
-                        return `<span class="rcl-cell-badge rcl-cell-badge--${mod}">${val}</span>`;
+                        let html = `<span class="rcl-cell-badge rcl-cell-badge--${mod}">${val}</span>`;
+                        if (row.staleness_tier >= 1 && row.days_idle > 0) {
+                            html += ` <span class="rcl-cell-badge rcl-cell-badge--idle">Idle ${row.days_idle}d</span>`;
+                        }
+                        return html;
+                    }
+                },
+                {
+                    title: "Priority",
+                    field: "priority_label",
+                    minWidth: 130,
+                    formatter: function(cell) {
+                        var label = cell.getValue();
+                        if (!label) return '';
+                        var cls = 'research-focus-badge ';
+                        if (label === 'Continue next') cls += 'research-focus-badge-continue-next';
+                        else if (label === 'Needs attention') cls += 'research-focus-badge-needs-attention';
+                        else cls += 'research-focus-badge-consider-pausing';
+                        return '<span class="' + cls + '">' + label + '</span>';
+                    },
+                    headerSort: true,
+                    sorter: function(a, b, aRow, bRow) {
+                        var aScore = aRow.getData().priority_score || 0;
+                        var bScore = bRow.getData().priority_score || 0;
+                        return aScore - bScore;
                     }
                 },
                 {
@@ -688,6 +755,50 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `).join('');
     }
+
+    // =========================================================================
+    // Staleness Nudge Actions
+    // =========================================================================
+
+    window.touchProject = function(projectId, touchUrl) {
+        fetch(touchUrl, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    // Remove the alert card
+                    const alertEl = document.getElementById('alert-' + projectId);
+                    if (alertEl) {
+                        alertEl.style.transition = 'opacity 0.3s';
+                        alertEl.style.opacity = '0';
+                        setTimeout(() => alertEl.remove(), 300);
+                    }
+
+                    // Update the table row — reset staleness tier
+                    if (activeTable) {
+                        const row = activeTable.getRows().find(r => r.getData().id === projectId);
+                        if (row) {
+                            row.update({ staleness_tier: 0, days_idle: 0 });
+                        }
+                    }
+
+                    // Check if alerts strip should be removed
+                    setTimeout(() => {
+                        const remaining = document.querySelectorAll('.dashboard-alert-card').length;
+                        if (remaining === 0) {
+                            const strip = document.getElementById('alerts-strip');
+                            if (strip) strip.remove();
+                        }
+                    }, 400);
+                }
+            });
+    };
+
+    window.toggleAlerts = function() {
+        const expanded = document.getElementById('alerts-expanded');
+        if (expanded) {
+            expanded.classList.toggle('is-open');
+        }
+    };
 
 });
 </script>

@@ -561,6 +561,7 @@ class ResearchSettings(db.Model):
     momentum_half_life_days = db.Column(db.Integer, default=3)
     staleness_peak_days = db.Column(db.Integer, default=10)
     stale_warning_days = db.Column(db.Integer, default=14)
+    stale_nudge_days = db.Column(db.Integer, default=21, server_default='21')
     stale_warning_min_progress = db.Column(db.Integer, default=30)
 
     def __repr__(self):
@@ -573,5 +574,8 @@ class ResearchSettings(db.Model):
         if not settings:
             settings = ResearchSettings(user_id=user_id)
             db.session.add(settings)
+            db.session.commit()
+        elif settings.stale_nudge_days is None:
+            settings.stale_nudge_days = 21
             db.session.commit()
         return settings

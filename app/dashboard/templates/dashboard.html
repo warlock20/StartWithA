@@ -95,21 +95,88 @@
         <div class="priorities-section-sidebar">
             <h2 class="section-title font-poppins mb-4">Today's Priorities</h2>
             <div class="priorities-list">
-                {% if active_projects_list %}
-                {% for project in active_projects_list[:3] %}
-                <div class="priority-task">
-                    <div class="priority-task-checkbox">
-                        <i class="bi bi-circle"></i>
-                    </div>
-                    <div class="priority-task-content">
-                        <p class="priority-task-title">
-                            Continue research on <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}">{{ project.company.name }}</a>
-                        </p>
-                        <p class="priority-task-meta">Step {{ project.current_step_index + 1 }}/{{ project.template.workflow_steps|length }} • {{ project.progress_percentage }}% complete</p>
-                    </div>
-                </div>
-                {% endfor %}
-                {% endif %}
+<!-- Research Focus Recommendation -->
+{% if focus_recommendation and focus_recommendation.hero %}
+<div class="research-focus-card">
+    <div class="research-focus-header">
+        <span class="research-focus-label">Research Focus</span>
+    </div>
+    <div class="research-focus-hero">
+        <h3 class="research-focus-hero-title">
+            Pick up {{ focus_recommendation.hero.project.subject_display_name }}
+        </h3>
+        <p class="research-focus-hero-meta">
+            {% set current_step = focus_recommendation.hero.project.current_step %}
+            {% if current_step %}{{ current_step.get('name', 'Step ' ~ (focus_recommendation.hero.project.current_step_index + 1)) }} &mdash; {% endif %}{{ focus_recommendation.hero.project.progress_percentage }}% complete
+        </p>
+        <p class="research-focus-hero-detail">
+            {% if focus_recommendation.hero.days_idle == 0 %}
+                Worked on today
+            {% elif focus_recommendation.hero.days_idle == 1 %}
+                Last worked: yesterday
+            {% else %}
+                Last worked: {{ focus_recommendation.hero.days_idle }}d ago
+            {% endif %}
+             &middot; {{ focus_recommendation.hero.project.total_hours_spent|round(1) }} hrs invested
+        </p>
+        <a href="{{ url_for('research_workflow.project_dashboard', project_id=focus_recommendation.hero.project.id) }}" class="position-btn btn-primary-accent">
+            <i class="bi bi-arrow-right-circle"></i> Continue Research
+        </a>
+    </div>
+
+    {% if focus_recommendation.runners_up %}
+    <div class="research-focus-runners">
+        <p class="research-focus-runners-label">Also active:</p>
+        {% for runner in focus_recommendation.runners_up[:4] %}
+        <div class="research-focus-runner-row">
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=runner.project.id) }}" class="research-focus-runner-link">
+                {{ runner.project.subject_display_name }}
+            </a>
+            <span class="research-focus-runner-meta">
+                {{ runner.project.progress_percentage }}%
+                {% if runner.days_idle > 0 %} &middot; {{ runner.days_idle }}d idle{% endif %}
+            </span>
+            <span class="research-focus-badge research-focus-badge-{{ runner.label|lower|replace(' ', '-') }}">{{ runner.label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% for warning in focus_recommendation.warnings %}
+    <div class="research-focus-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        {{ warning.message }}
+    </div>
+    {% endfor %}
+</div>
+{% elif active_projects_list %}
+{# Fallback: show old-style list if service returned nothing #}
+{% for project in active_projects_list[:3] %}
+<div class="priority-task">
+    <div class="priority-task-checkbox"><i class="bi bi-circle"></i></div>
+    <div class="priority-task-content">
+        <p class="priority-task-title">
+            Continue research on <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}">{{ project.company.name }}</a>
+        </p>
+        <p class="priority-task-meta">Step {{ project.current_step_index + 1 }}/{{ project.template.workflow_steps|length }} &middot; {{ project.progress_percentage }}% complete</p>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="priority-task">
+    <div class="priority-task-checkbox"><i class="bi bi-lightbulb"></i></div>
+    <div class="priority-task-content">
+        <p class="priority-task-title">No active research projects</p>
+        <p class="priority-task-meta">
+            {% if inbox_count > 0 %}
+                <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }} waiting</a> in your inbox
+            {% else %}
+                Capture an idea to get started
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}
 
                 {% if inbox_count > 0 %}
                 <div class="priority-task">
