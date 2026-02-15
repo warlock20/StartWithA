@@ -52,13 +52,8 @@ from . import portfolio_bp
 @login_required
 def dashboard():
     """Portfolio dashboard showing all positions and metrics"""
-    # Get filter and sort parameters
-    filter_status = request.args.get('filter_status', 'all')  # all, gains, losses
-    sort_by = request.args.get('sort_by', 'company')  # company, value, gain_loss, percent, days
-    sort_order = request.args.get('sort_order', 'asc')  # asc, desc
-
-    # Get all active positions with eager loading (unfiltered for stats)
-    all_positions = PortfolioPosition.query.filter_by(
+    # Get all active positions with eager loading
+    positions = PortfolioPosition.query.filter_by(
         user_id=current_user.id,
         is_active=True
     ).options(
@@ -66,94 +61,46 @@ def dashboard():
     ).all()
 
     # Update prices if needed
-    for position in all_positions:
+    for position in positions:
         if PriceService.should_update_price(position):
             PriceService.update_position_price(position)
-
-    # Apply filters for display (keep all_positions unfiltered for stats)
-    positions = filter_positions_by_performance(all_positions, filter_status)
-
-    # Apply sorting
-    reverse = (sort_order == 'desc')
-    if sort_by == 'company':
-        positions.sort(key=lambda p: p.company.ticker_symbol.lower(), reverse=reverse)
-    elif sort_by == 'shares':
-        positions.sort(key=lambda p: p.total_shares or 0, reverse=reverse)
-    elif sort_by == 'value':
-        positions.sort(key=lambda p: p.current_value or 0, reverse=reverse)
-    elif sort_by == 'gain_loss':
-        positions.sort(key=lambda p: p.unrealized_gain_loss or 0, reverse=reverse)
-    elif sort_by == 'percent':
-        positions.sort(key=lambda p: p.unrealized_gain_loss_pct or 0, reverse=reverse)
-    elif sort_by == 'days':
-        positions.sort(key=lambda p: p.days_held or 0, reverse=reverse)
 
     # Calculate portfolio totals
     portfolio_value = PriceService.get_portfolio_value(current_user.id)
 
     # Calculate gains and losses counts using utility
-    status_counts = count_positions_by_status(all_positions)
+    status_counts = count_positions_by_status(positions)
     gains_count = status_counts['winning']
     losses_count = status_counts['losing']
-
-    # Get recent transactions
-    recent_transactions = Transaction.query.filter_by(
-        user_id=current_user.id
-    ).order_by(Transaction.date.desc()).limit(RECENT_TRANSACTIONS_LIMIT).all()
-
-    # Get upcoming checkpoints for portfolio companies
-    # Get company IDs from active positions
-    portfolio_company_ids = [pos.company_id for pos in all_positions]
-
-    # Query upcoming checkpoints (Active status, future dates or recent past)
-    today = now_utc().date()
-    upcoming_checkpoints = DestinationCheckpoint.query.filter(
-        DestinationCheckpoint.user_id == current_user.id,
-        DestinationCheckpoint.company_id.in_(portfolio_company_ids),
-        DestinationCheckpoint.status == 'Active'
-    ).order_by(DestinationCheckpoint.target_date.asc()).limit(UPCOMING_CHECKPOINTS_LIMIT).all() if portfolio_company_ids else []
-
-    # Calculate Too Hard Basket rate (research discipline metric)
-    too_hard_items = TooHardBasketService.get_all_too_hard_companies(user_id=current_user.id)
-    total_researched = ResearchProject.query.filter_by(user_id=current_user.id).count()
-    too_hard_rate = (len(too_hard_items) / total_researched * 100) if total_researched > 0 else 0
-
-    # Calculate inbox count (incomplete research projects)
-    inbox_count = ResearchProject.query.filter_by(
-        user_id=current_user.id,
-        status='in_progress'
-    ).count()
-
-    # Calculate portfolio count (number of active positions)
-    portfolio_count = len(all_positions)
 
     # Get user currency settings
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    intelligence_service = PortfolioIntelligenceService(current_user.id)
-    checkpoint_summary = intelligence_service.get_checkpoint_summary()
-    checkpoints_preview = intelligence_service.get_upcoming_checkpoints(days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
-    
+    # Serialize positions for Tabulator
+    holdings_json = json.dumps([{
+        'ticker': pos.company.ticker_symbol,
+        'name': pos.company.name,
+        'shares': float(pos.total_shares) if pos.total_shares else 0,
+        'avg_cost': float(round(pos.average_cost_basis, 2)) if pos.average_cost_basis else None,
+        'current_price': float(round(pos.current_price, 2)) if pos.current_price else None,
+        'current_value': float(round(pos.current_value)) if pos.current_value else None,
+        'gain_loss': float(round(pos.unrealized_gain_loss)) if pos.unrealized_gain_loss else None,
+        'gain_loss_pct': float(round(pos.unrealized_gain_loss_pct, 1)) if pos.unrealized_gain_loss_pct else None,
+        'days_held': pos.days_held or 0,
+        'company_id': pos.company_id,
+        'position_url': url_for('portfolio.position_detail', company_id=pos.company_id),
+        'add_tx_url': url_for('portfolio.add_transaction', company_id=pos.company_id),
+    } for pos in positions])
+
     return render_template('portfolio_dashboard.html',
                           positions=positions,
+                          holdings_json=holdings_json,
                           portfolio_value=portfolio_value,
-                          recent_transactions=recent_transactions,
-                          upcoming_checkpoints=upcoming_checkpoints,
-                          today=today,
                           gains_count=gains_count,
                           losses_count=losses_count,
                           updated_time='just now',
-                          filter_status=filter_status,
-                          sort_by=sort_by,
-                          sort_order=sort_order,
-                          user_currency=user_currency,
-                          currency_symbol=currency_symbol,
-                          too_hard_rate=too_hard_rate,
-                          inbox_count=inbox_count,
-                          portfolio_count=portfolio_count,
-                          checkpoint_summary = checkpoint_summary,
-                          checkpoints_preview = checkpoints_preview)
+                          currency_symbol=currency_symbol)
 
 ############################
 #### Postion Related ########

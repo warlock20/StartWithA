@@ -10,11 +10,12 @@ from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
 from app.sectors.routes import initialize_default_sections
-from datetime import datetime, timedelta, timezone
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from sqlalchemy import or_, and_
+import json
+from sqlalchemy import func
 
 @ideas_bp.route('/inbox')
 @login_required
@@ -59,16 +60,75 @@ def inbox():
     killing_count = sum(1 for i in ideas if i.status == 'killing')
     ready_count = sum(1 for i in ideas if i.status in ('survived', 'promoted'))
 
+    # Serialize ideas for Tabulator (pre-compute actions to avoid complex JS logic)
+    ideas_data = []
+    for idea in ideas:
+        # Determine display state
+        if idea.status == 'killing':
+            display_state = 'killing'
+        elif idea.status in ('survived', 'promoted'):
+            display_state = 'ready'
+        else:
+            display_state = 'waiting'
+
+        # Pre-compute primary action
+        action = {}
+        if idea.status == 'killing':
+            action = {'type': 'continue', 'url': url_for('ideas.kill_room', idea_id=idea.id),
+                      'label': 'Continue', 'icon': 'bi-arrow-clockwise'}
+        elif idea.status == 'promoted':
+            action = {'type': 'promote', 'url': url_for('ideas.promote_idea', idea_id=idea.id),
+                      'label': 'Template', 'icon': 'bi-rocket-takeoff'}
+        elif idea.status == 'survived' or idea.idea_purpose in ('learning', 'research'):
+            lbl, icon = 'Start', 'bi-search'
+            if idea.idea_purpose == 'learning':
+                icon = 'bi-book'
+            elif idea.idea_purpose == 'research':
+                icon = 'bi-search'
+            elif idea.idea_type == 'company':
+                lbl, icon = 'Promote', 'bi-arrow-up-circle'
+            elif idea.idea_type == 'sector':
+                lbl, icon = 'Notebook', 'bi-journal-plus'
+            action = {'type': 'promote', 'url': url_for('ideas.promote_idea', idea_id=idea.id),
+                      'label': lbl, 'icon': icon}
+        elif idea.idea_type == 'sector':
+            action = {'type': 'promote', 'url': url_for('ideas.promote_idea', idea_id=idea.id),
+                      'label': 'Notebook', 'icon': 'bi-journal-plus'}
+        elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and default_kill_checklist:
+            action = {'type': 'kill', 'url': url_for('ideas.kill_room', idea_id=idea.id),
+                      'label': 'Kill Room', 'icon': 'bi-shield-x'}
+        elif idea.idea_purpose == 'investment' and idea.idea_type == 'company' and all_kill_checklists:
+            action = {'type': 'kill_dropdown', 'label': 'Kill Room',
+                      'checklists': [{'id': c.id, 'name': c.name,
+                                      'url': url_for('ideas.kill_room', idea_id=idea.id, checklist_id=c.id)}
+                                     for c in all_kill_checklists]}
+        else:
+            action = {'type': 'create', 'url': url_for('ideas.create_kill_checklist'),
+                      'label': 'Create Checklist', 'icon': 'bi-plus-circle'}
+
+        ideas_data.append({
+            'id': idea.id,
+            'name': idea.name,
+            'ticker': idea.ticker_symbol or '',
+            'purpose': idea.idea_purpose or 'investment',
+            'state': display_state,
+            'age_days': idea_ages.get(idea.id, 0),
+            'thesis': (idea.thesis_summary[:80] + '...') if idea.thesis_summary and len(idea.thesis_summary) > 80 else (idea.thesis_summary or ''),
+            'source': idea.source or '',
+            'action': action,
+            'edit_url': url_for('ideas.edit_idea', idea_id=idea.id),
+        })
+    ideas_json = json.dumps(ideas_data)
+
     response = make_response(render_template('inbox.html',
                           title="Idea Inbox",
                           ideas=ideas,
-                          default_kill_checklist=default_kill_checklist,
-                          all_kill_checklists=all_kill_checklists,
+                          ideas_json=ideas_json,
                           days_since_oldest=days_since_oldest,
                           waiting_count=waiting_count,
                           killing_count=killing_count,
                           ready_count=ready_count,
-                          idea_ages=idea_ages
+                          idea_count=len(ideas),
                           ))
     # Prevent caching to ensure fresh data is always loaded
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -354,7 +414,6 @@ def manage_kill_checklists():
         query = query.order_by(KillChecklist.name)
     elif sort == 'criteria':
         # Sort by number of criteria
-        from sqlalchemy import func
         query = query.outerjoin(KillCriterion).group_by(KillChecklist.id)\
                      .order_by(func.count(KillCriterion.id).desc())
     elif sort == 'oldest':
@@ -615,7 +674,6 @@ def promote_idea(idea_id):
                 idea.promoted_at = now_utc()
                 db.session.commit()
                 
-                from app.analytics.utils import log_research_activity
                 log_research_activity(
                     current_user.id,
                     'research_started',

@@ -1,13 +1,12 @@
 {% extends "main/_base.html" %}
-{% from 'components/data_table.html' import data_table, filter_select %}
 
 {% block title %}Portfolio{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- ====================================================
-         HEADER - Consolidated card with metrics strip
-         ==================================================== -->
+    <!-- ════════════════════════════════════════════════
+         HEADER CARD with metrics strip
+         ════════════════════════════════════════════════ -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
             <div>
@@ -34,7 +33,6 @@
                 <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
-                <!-- Developer Zone -->
                 <form action="{{ url_for('portfolio.reset_portfolio') }}" method="POST" class="d-inline"
                     onsubmit="return confirm('Are you absolutely sure you want to delete all transactions? This cannot be undone.');">
                     <button type="submit" class="position-btn" style="color: var(--danger-500); border-color: var(--danger-500);" title="Developer: Reset Portfolio">
@@ -44,7 +42,6 @@
             </div>
         </header>
 
-        <!-- Metrics Strip - All key numbers in one row -->
         <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue">
@@ -78,223 +75,204 @@
                 </div>
                 <div class="portfolio-metric-label">Positions</div>
                 <div class="portfolio-metric-value">{{ portfolio_value.positions_count }}</div>
-                <div class="portfolio-metric-subtext">{{ gains_count }} gaining • {{ losses_count }} losing</div>
+                <div class="portfolio-metric-subtext">{{ gains_count }} gaining · {{ losses_count }} losing</div>
             </div>
         </div>
     </div>
 
-    <!-- Holdings Table -->
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">Holdings</h2>
-            <div class="portfolio-table-controls">
-                <select id="holdings-filter" class="portfolio-filter-select">
-                    <option value="all" {% if filter_status=='all' %}selected{% endif %}>All Positions</option>
-                    <option value="gains" {% if filter_status=='gains' %}selected{% endif %}>Gains Only</option>
-                    <option value="losses" {% if filter_status=='losses' %}selected{% endif %}>Losses Only</option>
-                </select>
-                <button class="portfolio-btn-export" onclick="holdingsTable.download('csv', 'portfolio-holdings.csv')">
-                    <i class="bi bi-download"></i>
-                    Export
-                </button>
+    {% if positions %}
+    <!-- ════════════════════════════════════════════════
+         HOLDINGS TABLE (rcl-panel pattern)
+         ════════════════════════════════════════════════ -->
+    <div class="rcl-panel">
+        <div class="rcl-panel-controls">
+            <div class="rcl-search">
+                <i class="bi bi-search"></i>
+                <input type="text" id="holdings-search" placeholder="Search ticker or company...">
             </div>
+            <select id="holdings-filter" class="rcl-filter-select">
+                <option value="all">All Positions</option>
+                <option value="gains">Gains Only</option>
+                <option value="losses">Losses Only</option>
+            </select>
         </div>
         <div id="holdings-table"></div>
     </div>
 
-    <!-- Checkpoint Widget -->
-    {% include '_checkpoint_widget.html' %}
+    {% else %}
+    <div class="rcl-empty-state">
+        <i class="bi bi-briefcase"></i>
+        <h5>No positions yet</h5>
+        <p>Add your first transaction to start tracking your portfolio.</p>
+        <div class="rcl-empty-actions">
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <i class="bi bi-plus"></i> Add Transaction
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+{% if positions %}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
-    // Initialize Holdings Table with Tabulator
-    let holdingsTable;
+document.addEventListener('DOMContentLoaded', function() {
 
-    // User's currency symbol from backend
     const currencySymbol = "{{ currency_symbol }}";
+    const holdingsData = {{ holdings_json|safe }};
+    let holdingsTable = null;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        // Portfolio holdings data
-        const holdingsData = [
-            {% for position in positions %}
-            {
-                ticker: "{{ position.company.ticker_symbol }}",
-                name: "{{ position.company.name }}",
-                shares: {{ position.total_shares }},
-                avgCost: {{ position.average_cost_basis }},
-                currentPrice: {{ position.current_price if position.current_price else 'null' }},
-                currentValue: {{ position.current_value if position.current_value else 'null' }},
-                gainLoss: {{ position.unrealized_gain_loss if position.unrealized_gain_loss else 'null' }},
-                gainLossPct: {{ position.unrealized_gain_loss_pct if position.unrealized_gain_loss_pct else 'null' }},
-                daysHeld: {{ position.days_held }},
-                companyId: {{ position.company_id }}
-            }{{ ',' if not loop.last else '' }}
-            {% endfor %}
-        ];
-
-        // Create the table
-        holdingsTable = new Tabulator("#holdings-table", {
+    if (holdingsData.length > 0) {
+        holdingsTable = createDataTable('#holdings-table', {
             data: holdingsData,
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: true,
-            paginationSize: 10,
-            paginationSizeSelector: [10, 25, 50, 100],
-            layoutColumnsOnNewData: true,
             columns: [
                 {
                     title: "Company",
                     field: "ticker",
                     sorter: "string",
-                    formatter: function (cell) {
-                        const data = cell.getRow().getData();
-                        return `<div>
-                            <div class="portfolio-company-ticker">${data.ticker}</div>
-                            <div class="portfolio-company-name">${data.name}</div>
-                        </div>`;
-                    },
-                    minWidth: 180,
-                    widthGrow: 2
+                    minWidth: 160,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        var row = cell.getRow().getData();
+                        return '<strong>' + row.ticker + '</strong><br><span class="rcl-cell-ticker">' + row.name + '</span>';
+                    }
                 },
                 {
                     title: "Shares",
                     field: "shares",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        return cell.getValue().toLocaleString();
-                    },
                     minWidth: 80,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        return '<span class="rcl-cell-mono">' + val.toLocaleString() + '</span>';
+                    }
                 },
                 {
                     title: "Avg Cost",
-                    field: "avgCost",
+                    field: "avg_cost",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const value = cell.getValue();
-                        if (value === null || value === undefined) return '--';
-                        return currencySymbol + value.toFixed(2);
-                    },
                     minWidth: 90,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === null) return '<span class="table-cell-muted">--</span>';
+                        return currencySymbol + val.toFixed(2);
+                    }
                 },
                 {
                     title: "Price",
-                    field: "currentPrice",
+                    field: "current_price",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const value = cell.getValue();
-                        if (value === null || value === undefined) return '--';
-                        return currencySymbol + value.toFixed(2);
-                    },
                     minWidth: 90,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === null) return '<span class="table-cell-muted">--</span>';
+                        return currencySymbol + val.toFixed(2);
+                    }
                 },
                 {
                     title: "Value",
-                    field: "currentValue",
+                    field: "current_value",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const value = cell.getValue();
-                        if (value === null || value === undefined) return '--';
-                        return '<strong>' + currencySymbol + value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong>';
-                    },
                     minWidth: 100,
-                    widthGrow: 1.5
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === null) return '<span class="table-cell-muted">--</span>';
+                        return '<strong>' + currencySymbol + val.toLocaleString() + '</strong>';
+                    }
                 },
                 {
                     title: "P/L",
-                    field: "gainLoss",
+                    field: "gain_loss",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const value = cell.getValue();
-                        if (value === null || value === undefined) return '--';
-                        const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
-                        const sign = value >= 0 ? '+' : '';
-                        return `<span class="${className}">${sign}${currencySymbol}${Math.abs(value).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>`;
-                    },
                     minWidth: 100,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === null) return '<span class="table-cell-muted">--</span>';
+                        var cls = val >= 0 ? 'table-cell-success' : 'table-cell-danger';
+                        var sign = val >= 0 ? '+' : '';
+                        return '<span class="' + cls + '">' + sign + currencySymbol + Math.abs(val).toLocaleString() + '</span>';
+                    }
                 },
                 {
                     title: "Return",
-                    field: "gainLossPct",
+                    field: "gain_loss_pct",
                     sorter: "number",
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const value = cell.getValue();
-                        if (value === null || value === undefined) return '--';
-                        const className = value >= 0 ? 'portfolio-value-positive' : 'portfolio-value-negative';
-                        const sign = value >= 0 ? '+' : '';
-                        return `<span class="${className}">${sign}${value.toFixed(1)}%</span>`;
-                    },
                     minWidth: 80,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (val === null) return '<span class="table-cell-muted">--</span>';
+                        var cls = val >= 0 ? 'table-cell-success' : 'table-cell-danger';
+                        var sign = val >= 0 ? '+' : '';
+                        return '<span class="' + cls + '">' + sign + val.toFixed(1) + '%</span>';
+                    }
                 },
                 {
                     title: "Days",
-                    field: "daysHeld",
+                    field: "days_held",
                     sorter: "number",
-                    hozAlign: "right",
-                    formatter: function (cell) {
-                        return `<span class="portfolio-badge-modern">${cell.getValue()}d</span>`;
-                    },
+                    hozAlign: "center",
                     minWidth: 70,
-                    widthGrow: 0.8
+                    formatter: function(cell) {
+                        return '<span class="rcl-cell-mono">' + cell.getValue() + 'd</span>';
+                    }
                 },
                 {
                     title: "",
-                    field: "companyId",
+                    field: "position_url",
                     headerSort: false,
                     hozAlign: "right",
-                    formatter: function (cell) {
-                        const companyId = cell.getValue();
-                        return `<a href="/portfolio/position/${companyId}" class="portfolio-btn-icon" title="View Details">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="/portfolio/transaction/add?company_id=${companyId}" class="portfolio-btn-icon" title="Add Transaction">
-                                    <i class="bi bi-plus"></i>
-                                </a>`;
-                    },
-                    minWidth: 90,
-                    widthGrow: 1
+                    minWidth: 140,
+                    formatter: function(cell) {
+                        var row = cell.getRow().getData();
+                        return '<a href="' + row.position_url + '" class="rcl-action rcl-action--primary"><i class="bi bi-eye"></i> Details</a>' +
+                               ' <a href="' + row.add_tx_url + '" class="rcl-action"><i class="bi bi-plus"></i> Txn</a>';
+                    }
                 }
             ],
-            initialSort: [
-                { column: "currentValue", dir: "desc" }
-            ]
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "current_value", dir: "desc" }],
+                pagination: holdingsData.length > 25,
+            }
         });
 
-        // Filter functionality
-        const filterSelect = document.getElementById('holdings-filter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', function (e) {
-                const value = e.target.value;
-                if (value === 'all') {
-                    holdingsTable.clearFilter();
-                } else if (value === 'gains') {
-                    holdingsTable.setFilter('gainLoss', '>', 0);
-                } else if (value === 'losses') {
-                    holdingsTable.setFilter('gainLoss', '<', 0);
-                }
-            });
+        // Search
+        document.getElementById('holdings-search').addEventListener('input', function() {
+            applyFilters();
+        });
 
-            // Apply initial filter if set
-            const initialFilter = '{{ filter_status }}';
-            if (initialFilter === 'gains') {
-                holdingsTable.setFilter('gainLoss', '>', 0);
-            } else if (initialFilter === 'losses') {
-                holdingsTable.setFilter('gainLoss', '<', 0);
-            }
+        // Gains/losses filter
+        document.getElementById('holdings-filter').addEventListener('change', function() {
+            applyFilters();
+        });
+
+        function applyFilters() {
+            var searchVal = document.getElementById('holdings-search').value.toLowerCase().trim();
+            var filterVal = document.getElementById('holdings-filter').value;
+
+            holdingsTable.setFilter(function(data) {
+                var searchMatch = !searchVal ||
+                    data.ticker.toLowerCase().indexOf(searchVal) !== -1 ||
+                    data.name.toLowerCase().indexOf(searchVal) !== -1;
+
+                var filterMatch = true;
+                if (filterVal === 'gains') filterMatch = data.gain_loss > 0;
+                else if (filterVal === 'losses') filterMatch = data.gain_loss < 0;
+
+                return searchMatch && filterMatch;
+            });
         }
-    });
+    }
+});
 </script>
+{% endif %}
 {% endblock %}

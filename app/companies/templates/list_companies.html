@@ -2,328 +2,220 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Header -->
+
+    <!-- ════════════════════════════════════════════════
+         HEADER
+         ════════════════════════════════════════════════ -->
     <header class="dashboard-header">
         <div>
             <h1 class="dashboard-title font-poppins">Company Directory</h1>
-            <p class="dashboard-subtitle">{{ pagination.total }} compan{{ 'ies' if pagination.total != 1 else 'y' }} across all research</p>
+            <p class="dashboard-subtitle">{{ company_count }} compan{{ 'ies' if company_count != 1 else 'y' }} across all research</p>
         </div>
         <div class="dashboard-header-actions">
-            {% with btn_class='btn btn-outline-secondary me-2' %}
+            {% with btn_class='position-btn' %}
                 {% include 'components/smart_back_button.html' %}
             {% endwith %}
-            <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('companies.new_company') }}'">
+            <a href="{{ url_for('companies.new_company') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                 <i class="bi bi-plus-circle-fill"></i> Add Company
-            </button>
+            </a>
         </div>
     </header>
 
-    <!-- View Toggle and Search Bar -->
-    <div class="card mb-4">
-        <div class="card-body p-4">
-            <!-- View Toggle -->
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0 text-muted">View Options</h6>
-                <div class="btn-group" role="group" aria-label="View toggle">
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-cards" data-view="cards">
-                        <i class="bi bi-grid-3x2"></i> Cards
-                    </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-table" data-view="table">
-                        <i class="bi bi-table"></i> Table
-                    </button>
-                </div>
+    {% if company_count > 0 %}
+    <!-- ════════════════════════════════════════════════
+         TABLE / CARD VIEW (rcl-panel pattern)
+         ════════════════════════════════════════════════ -->
+    <div class="rcl-panel">
+        <div class="rcl-panel-controls">
+            <div class="rcl-search">
+                <i class="bi bi-search"></i>
+                <input type="text" id="companies-search" placeholder="Search company or ticker...">
             </div>
+            <select id="companies-sector-filter" class="rcl-filter-select">
+                <option value="all">All Sectors</option>
+                {% for sector in sectors %}
+                <option value="{{ sector }}">{{ sector }}</option>
+                {% endfor %}
+            </select>
+            <select id="companies-status-filter" class="rcl-filter-select">
+                <option value="all">All Status</option>
+                <option value="Portfolio">Portfolio</option>
+                <option value="Watchlist">Watchlist</option>
+                <option value="Tracked">Tracked</option>
+            </select>
+            <div class="rcl-view-toggle">
+                <button type="button" class="rcl-action" id="view-table" title="Table view">
+                    <i class="bi bi-table"></i>
+                </button>
+                <button type="button" class="rcl-action" id="view-cards" title="Card view">
+                    <i class="bi bi-grid-3x2"></i>
+                </button>
+            </div>
+        </div>
 
-            <form method="GET" action="{{ url_for('companies.list_companies') }}">
-                <div class="row g-3">
-                    <!-- Search Box -->
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <span class="input-group-text bg-white">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" class="form-control border-start-0" name="search"
-                                   placeholder="Search by company name or ticker..."
-                                   value="{{ current_search }}">
+        <!-- Table View -->
+        <div id="companies-table-view">
+            <div id="companies-table"></div>
+        </div>
+
+        <!-- Card View -->
+        <div id="companies-card-view" style="display: none;">
+            <div class="completed-projects-grid" style="padding: 1.25rem;">
+                {% for data in companies_data_list %}
+                {% set company = data.company_obj %}
+                {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
+
+                <div class="completed-project-card {% if company.id in portfolio_ids %}decision-invest{% elif company.id in favorite_ids %}decision-watchlist{% endif %}"
+                     data-name="{{ company.name|lower }}"
+                     data-ticker="{{ company.ticker_symbol|lower if company.ticker_symbol else '' }}"
+                     data-sector="{{ company.sector.display_name if company.sector else '' }}"
+                     data-status="{% if company.id in portfolio_ids %}Portfolio{% elif company.id in favorite_ids %}Watchlist{% else %}Tracked{% endif %}">
+                    <div class="decision-header">
+                        {% if company.id in portfolio_ids %}
+                        <div class="decision-badge decision-invest">
+                            <i class="bi bi-briefcase-fill"></i> Portfolio
+                        </div>
+                        {% elif company.id in favorite_ids %}
+                        <div class="decision-badge decision-watchlist">
+                            <i class="bi bi-star-fill"></i> Watchlist
+                        </div>
+                        {% else %}
+                        <div class="decision-badge decision-pending">
+                            <i class="bi bi-building"></i> Tracked
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="completed-project-content">
+                        <h3 class="completed-project-title font-poppins">{{ company.name }}</h3>
+                        <p class="completed-project-meta">
+                            <span class="project-type-badge">{{ company.ticker_symbol }}</span>
+                            {% if company.sector %}
+                            <span class="text-muted">&bull;</span>
+                            <span class="text-muted">{{ company.sector.display_name }}</span>
+                            {% endif %}
+                        </p>
+
+                        <div class="completed-stats-row">
+                            <div class="stat-item">
+                                <i class="bi bi-folder text-muted"></i>
+                                <span class="stat-value">
+                                    {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
+                                    {{ project_count }} project{{ 's' if project_count != 1 else '' }}
+                                </span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="bi bi-file-text text-muted"></i>
+                                <span class="stat-value">
+                                    {% set doc_count = company.documents.count() %}
+                                    {{ doc_count }} doc{{ 's' if doc_count != 1 else '' }}
+                                </span>
+                            </div>
+                            {% if active_project %}
+                            <div class="stat-item">
+                                <i class="bi bi-activity text-success"></i>
+                                <span class="stat-value text-success">{{ active_project.progress_percentage }}%</span>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
 
-                    <!-- Sector Filter -->
-                    <div class="col-md-3">
-                        <select class="form-select" name="sector">
-                            <option value="">All Sectors</option>
-                            {% for sector in sectors %}
-                            <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>
-                                {{ sector }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Per Page Selector -->
-                    <div class="col-md-1">
-                        <select class="form-select" name="per_page">
-                            <option value="12" {% if current_per_page == 12 %}selected{% endif %}>12</option>
-                            <option value="24" {% if current_per_page == 24 %}selected{% endif %}>24</option>
-                            <option value="48" {% if current_per_page == 48 %}selected{% endif %}>48</option>
-                        </select>
-                    </div>
-
-                    <!-- Filter Button -->
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-funnel"></i> Filter
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Active Filters Display -->
-                {% if current_search or current_sector %}
-                <div class="mt-3">
-                    <small class="text-muted me-2">Active filters:</small>
-                    {% if current_search %}
-                    <span class="badge bg-primary me-2">
-                        <i class="bi bi-search"></i> "{{ current_search }}"
-                    </span>
-                    {% endif %}
-                    {% if current_sector %}
-                    <span class="badge bg-primary me-2">
-                        <i class="bi bi-building"></i> {{ current_sector }}
-                    </span>
-                    {% endif %}
-                    <a href="{{ url_for('companies.list_companies') }}" class="badge bg-secondary text-decoration-none">
-                        <i class="bi bi-x-circle"></i> Clear All
-                    </a>
-                </div>
-                {% endif %}
-            </form>
-        </div>
-    </div>
-
-    <!-- Companies Grid/Table Views -->
-    {% if companies_data_list %}
-
-    <!-- Card View -->
-    <div id="companies-card-view" class="completed-projects-grid">
-        {% for data in companies_data_list %}
-        {% set company = data.company_obj %}
-        {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
-
-        <!-- Company Card -->
-        <div class="completed-project-card {% if company.id in portfolio_ids %}decision-invest{% elif company.id in favorite_ids %}decision-watchlist{% endif %}">
-            <!-- Status Badge Header -->
-            <div class="decision-header">
-                {% if company.id in portfolio_ids %}
-                <div class="decision-badge decision-invest">
-                    <i class="bi bi-briefcase-fill"></i> Portfolio
-                </div>
-                {% elif company.id in favorite_ids %}
-                <div class="decision-badge decision-watchlist">
-                    <i class="bi bi-star-fill"></i> Watchlist
-                </div>
-                {% else %}
-                <div class="decision-badge decision-pending">
-                    <i class="bi bi-building"></i> Tracked
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Card Content -->
-            <div class="completed-project-content">
-                <h3 class="completed-project-title font-poppins">{{ company.name }}</h3>
-                <p class="completed-project-meta">
-                    <span class="project-type-badge">{{ company.ticker_symbol }}</span>
-                    {% if company.sector %}
-                    <span class="text-muted">•</span>
-                    <span class="text-muted">{{ company.sector.display_name }}</span>
-                    {% endif %}
-                </p>
-
-                <!-- Stats Row -->
-                <div class="completed-stats-row">
-                    <div class="stat-item">
-                        <i class="bi bi-folder text-muted"></i>
-                        <span class="stat-value">
-                            {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
-                            {{ project_count }} project{{ 's' if project_count != 1 else '' }}
-                        </span>
-                    </div>
-                    <div class="stat-item">
-                        <i class="bi bi-file-text text-muted"></i>
-                        <span class="stat-value">
-                            {% set doc_count = company.documents.count() %}
-                            {{ doc_count }} doc{{ 's' if doc_count != 1 else '' }}
-                        </span>
-                    </div>
-                    {% if active_project %}
-                    <div class="stat-item">
-                        <i class="bi bi-activity text-success"></i>
-                        <span class="stat-value text-success">{{ active_project.progress_percentage }}%</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Actions Footer -->
-            <div class="completed-project-actions">
-                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
-                   class="btn btn-outline-primary btn-sm flex-grow-1">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-
-                {% if data.has_destination_analysis %}
-                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
-                   class="btn btn-outline-success btn-sm">
-                    <i class="bi bi-bullseye"></i> Destination
-                </a>
-                {% endif %}
-
-                <div class="btn-group">
-                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}">
-                                <i class="bi bi-clipboard-check"></i> Quick Checklist
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub', company_id=company.id) }}">
-                                <i class="bi bi-journal-text"></i> Research Journal
-                            </a>
-                        </li>
-                        {% if data.has_swot %}
-                        <li>
-                            <a class="dropdown-item" href="{{ url_for('companies.swot_analysis', company_id=company.id) }}">
-                                <i class="bi bi-lightbulb"></i> SWOT Analysis
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if active_project %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="{{ url_for('research_workflow.project_dashboard', project_id=active_project.id) }}">
-                                <i class="bi bi-graph-up"></i> Continue Research
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}" class="dropdown-form">
-                                <button type="submit" class="dropdown-item">
-                                    {% if company.id in portfolio_ids %}
-                                    <i class="bi bi-box-arrow-right"></i> Remove from Portfolio
-                                    {% else %}
-                                    <i class="bi bi-folder-plus"></i> Add to Portfolio
-                                    {% endif %}
-                                </button>
-                            </form>
-                        </li>
-                        <li>
-                            <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}" class="dropdown-form">
-                                <button type="submit" class="dropdown-item">
-                                    {% if company.id in favorite_ids %}
-                                    <i class="bi bi-star"></i> Remove from Watchlist
-                                    {% else %}
-                                    <i class="bi bi-star-fill"></i> Add to Watchlist
-                                    {% endif %}
-                                </button>
-                            </form>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
-                                  onsubmit="return confirm('⚠️ Delete {{ company.name }}?\n\nThis will permanently delete all associated research and documents. This action cannot be undone.');" class="dropdown-form">
-                                <button type="submit" class="dropdown-item text-danger">
-                                    <i class="bi bi-trash"></i> Delete Company
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Table View -->
-    <div id="companies-table-view" class="portfolio-table-section" style="display: none; max-height: 800px; overflow-y: auto;">
-        <div id="companies-table"></div>
-    </div>
-
-    <!-- Pagination Controls -->
-    {% if pagination.pages > 1 %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            <!-- Previous Button -->
-            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.prev_num, per_page=current_per_page, search=current_search, sector=current_sector, ) }}">
-                    Previous
-                </a>
-            </li>
-
-            <!-- Page Numbers -->
-            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                {% if page_num %}
-                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                        <a class="page-link" href="{{ url_for('companies.list_companies', page=page_num, per_page=current_per_page, search=current_search, sector=current_sector, ) }}">
-                            {{ page_num }}
+                    <div class="completed-project-actions">
+                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                           class="btn btn-outline-primary btn-sm flex-grow-1">
+                            <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-            {% endfor %}
 
-            <!-- Next Button -->
-            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('companies.list_companies', page=pagination.next_num, per_page=current_per_page, search=current_search, sector=current_sector, ) }}">
-                    Next
-                </a>
-            </li>
-        </ul>
+                        {% if data.has_destination_analysis %}
+                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
+                           class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-bullseye"></i> Destination
+                        </a>
+                        {% endif %}
 
-        <!-- Page Info -->
-        <div class="text-center text-muted small mt-3">
-            {% set start = (pagination.page - 1) * pagination.per_page + 1 %}
-            {% set end = pagination.page * pagination.per_page %}
-            {% if end > pagination.total %}{% set end = pagination.total %}{% endif %}
-            Showing {{ start }} to {{ end }} of {{ pagination.total }} companies
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('research.select_checklist_for_company', company_id=company.id) }}">
+                                        <i class="bi bi-clipboard-check"></i> Quick Checklist
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub', company_id=company.id) }}">
+                                        <i class="bi bi-journal-text"></i> Research Journal
+                                    </a>
+                                </li>
+                                {% if data.has_swot %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('companies.swot_analysis', company_id=company.id) }}">
+                                        <i class="bi bi-lightbulb"></i> SWOT Analysis
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if active_project %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('research_workflow.project_dashboard', project_id=active_project.id) }}">
+                                        <i class="bi bi-graph-up"></i> Continue Research
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('companies.toggle_portfolio', company_id=company.id) }}" class="dropdown-form">
+                                        <button type="submit" class="dropdown-item">
+                                            {% if company.id in portfolio_ids %}
+                                            <i class="bi bi-box-arrow-right"></i> Remove from Portfolio
+                                            {% else %}
+                                            <i class="bi bi-folder-plus"></i> Add to Portfolio
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('companies.toggle_favorite', company_id=company.id) }}" class="dropdown-form">
+                                        <button type="submit" class="dropdown-item">
+                                            {% if company.id in favorite_ids %}
+                                            <i class="bi bi-star"></i> Remove from Watchlist
+                                            {% else %}
+                                            <i class="bi bi-star-fill"></i> Add to Watchlist
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
+                                          onsubmit="return confirm('Delete {{ company.name }}?\n\nThis will permanently delete all associated research and documents.');" class="dropdown-form">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash"></i> Delete Company
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-    </nav>
-    {% endif %}
+    </div>
 
     {% else %}
     <!-- Empty State -->
-    <div class="empty-state-container">
-        <div class="empty-state-icon">
-            <i class="bi bi-building"></i>
+    <div class="rcl-empty-state">
+        <i class="bi bi-building"></i>
+        <h5>No Companies Yet</h5>
+        <p>Start building your investment research database by adding your first company.</p>
+        <div class="rcl-empty-actions">
+            <a href="{{ url_for('companies.new_company') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <i class="bi bi-plus-circle-fill"></i> Add Your First Company
+            </a>
         </div>
-        <h3 class="empty-state-title">
-            {% if current_search or current_sector %}
-            No Companies Found
-            {% else %}
-            No Companies Yet
-            {% endif %}
-        </h3>
-        <p class="empty-state-description">
-            {% if current_search or current_sector %}
-            Try adjusting your search or filter criteria to see more results.
-            {% else %}
-            Start building your investment research database by adding your first company.
-            {% endif %}
-        </p>
-        {% if current_search or current_sector %}
-        <a href="{{ url_for('companies.list_companies') }}" class="btn btn-outline-secondary btn-lg">
-            <i class="bi bi-x-circle"></i> Clear Filters
-        </a>
-        {% else %}
-        <a href="{{ url_for('companies.new_company') }}" class="btn btn-primary btn-lg">
-            <i class="bi bi-plus-circle-fill"></i> Add Your First Company
-        </a>
-        {% endif %}
     </div>
     {% endif %}
 
@@ -332,99 +224,63 @@
 
 {% block scripts %}
 {{ super() }}
+{% if company_count > 0 %}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // View toggle functionality
-    const cardView = document.getElementById('companies-card-view');
-    const tableView = document.getElementById('companies-table-view');
-    const cardViewBtn = document.getElementById('view-cards');
-    const tableViewBtn = document.getElementById('view-table');
 
-    // Get saved view preference or default to 'table'
-    // Version check: reset to table if version changed (forces new default)
+    const companiesData = {{ companies_json|safe }};
+    let companiesTable = null;
+
+    // ── View Toggle ──────────────────────────────────
+    const tableView = document.getElementById('companies-table-view');
+    const cardView = document.getElementById('companies-card-view');
+    const tableBtn = document.getElementById('view-table');
+    const cardBtn = document.getElementById('view-cards');
+
     const viewVersion = localStorage.getItem('companiesViewVersion');
-    if (viewVersion !== '2.0') {
+    if (viewVersion !== '3.0') {
         localStorage.setItem('companiesViewPreference', 'table');
-        localStorage.setItem('companiesViewVersion', '2.0');
+        localStorage.setItem('companiesViewVersion', '3.0');
     }
     let currentView = localStorage.getItem('companiesViewPreference') || 'table';
 
-    // Initialize view
     function setView(view) {
         currentView = view;
         localStorage.setItem('companiesViewPreference', view);
 
         if (view === 'cards') {
-            cardView.style.display = 'grid';
             tableView.style.display = 'none';
-            cardViewBtn.classList.add('active');
-            tableViewBtn.classList.remove('active');
+            cardView.style.display = 'block';
+            cardBtn.classList.add('rcl-action--primary');
+            tableBtn.classList.remove('rcl-action--primary');
+            applyCardFilters();
         } else {
-            cardView.style.display = 'none';
             tableView.style.display = 'block';
-            cardViewBtn.classList.remove('active');
-            tableViewBtn.classList.add('active');
-
-            // Initialize table if not already done
-            if (!window.companiesTable) {
-                initializeTable();
-            }
+            cardView.style.display = 'none';
+            tableBtn.classList.add('rcl-action--primary');
+            cardBtn.classList.remove('rcl-action--primary');
         }
     }
 
-    // Set initial view
-    setView(currentView);
+    tableBtn.addEventListener('click', function() { setView('table'); });
+    cardBtn.addEventListener('click', function() { setView('cards'); });
 
-    // View toggle event listeners
-    cardViewBtn.addEventListener('click', () => setView('cards'));
-    tableViewBtn.addEventListener('click', () => setView('table'));
-
-    // Initialize Tabulator table
-    function initializeTable() {
-        const companiesData = [
-            {% for data in companies_data_list %}
-            {% set company = data.company_obj %}
-            {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
-            {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
-            {% set doc_count = company.documents.count() %}
-            {
-                name: "{{ company.name }}",
-                ticker: "{{ company.ticker_symbol }}",
-                sector: "{{ company.sector.display_name if company.sector else '' }}",
-                status: "{% if company.id in portfolio_ids %}Portfolio{% elif company.id in favorite_ids %}Watchlist{% else %}Tracked{% endif %}",
-                projects: {{ project_count }},
-                documents: {{ doc_count }},
-                progress: {{ active_project.progress_percentage if active_project else 0 }},
-                hasDestination: {{ 'true' if data.has_destination_analysis else 'false' }},
-                hasSwot: {{ 'true' if data.has_swot else 'false' }},
-                companyId: {{ company.id }},
-                inPortfolio: {{ 'true' if company.id in portfolio_ids else 'false' }},
-                inWatchlist: {{ 'true' if company.id in favorite_ids else 'false' }}
-            }{{ ',' if not loop.last else '' }}
-            {% endfor %}
-        ];
-
-        window.companiesTable = new Tabulator("#companies-table", {
+    // ── Tabulator Table ──────────────────────────────
+    if (companiesData.length > 0) {
+        companiesTable = createDataTable('#companies-table', {
             data: companiesData,
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: false,
-            layoutColumnsOnNewData: true,
-            height: "700px",
-            initialSort: [
-                {column: "name", dir: "asc"}
-            ],
             columns: [
                 {
                     title: "Company",
                     field: "name",
                     sorter: "string",
-                    minWidth: 200,
-                    widthGrow: 3,
+                    minWidth: 180,
+                    widthGrow: 2,
                     formatter: function(cell) {
-                        const data = cell.getData();
-                        return `<div style="font-weight: 600;">${data.name}</div>
-                                <div style="font-size: 0.875rem; color: #6b7280;">${data.ticker}</div>`;
+                        var row = cell.getRow().getData();
+                        var ticker = row.ticker ? '<br><span class="rcl-cell-ticker">' + row.ticker + '</span>' : '';
+                        return '<strong>' + cell.getValue() + '</strong>' + ticker;
                     }
                 },
                 {
@@ -432,29 +288,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "sector",
                     sorter: "string",
                     minWidth: 120,
-                    widthGrow: 2
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        if (!val) return '<span class="table-cell-muted">&mdash;</span>';
+                        return val;
+                    }
                 },
                 {
                     title: "Status",
                     field: "status",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 100,
-                    widthGrow: 1,
+                    minWidth: 110,
                     formatter: function(cell) {
-                        const value = cell.getValue();
-                        let badgeClass = 'bg-secondary';
-                        let icon = 'bi-building';
-
-                        if (value === 'Portfolio') {
-                            badgeClass = 'bg-success';
-                            icon = 'bi-briefcase-fill';
-                        } else if (value === 'Watchlist') {
-                            badgeClass = 'bg-warning';
-                            icon = 'bi-star-fill';
-                        }
-
-                        return `<span class="badge ${badgeClass}"><i class="bi ${icon}"></i> ${value}</span>`;
+                        var val = cell.getValue();
+                        var map = {
+                            'Portfolio': { cls: 'rcl-cell-badge--active', icon: 'bi-briefcase-fill' },
+                            'Watchlist': { cls: 'rcl-cell-badge--paused', icon: 'bi-star-fill' },
+                            'Tracked':   { cls: 'rcl-cell-badge--default', icon: 'bi-building' }
+                        };
+                        var info = map[val] || map['Tracked'];
+                        return '<span class="rcl-cell-badge ' + info.cls + '"><i class="bi ' + info.icon + '"></i> ' + val + '</span>';
                     }
                 },
                 {
@@ -463,114 +317,118 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "number",
                     hozAlign: "center",
                     minWidth: 80,
-                    widthGrow: 1
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        return '<span class="rcl-cell-mono">' + val + '</span>';
+                    }
                 },
                 {
-                    title: "Documents",
+                    title: "Docs",
                     field: "documents",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 100,
-                    widthGrow: 1
+                    minWidth: 70,
+                    formatter: function(cell) {
+                        var val = cell.getValue();
+                        return '<span class="rcl-cell-mono">' + val + '</span>';
+                    }
                 },
                 {
                     title: "Progress",
                     field: "progress",
                     sorter: "number",
                     hozAlign: "center",
-                    minWidth: 100,
-                    widthGrow: 1,
+                    minWidth: 130,
                     formatter: function(cell) {
-                        const value = cell.getValue();
-                        if (value > 0) {
-                            return `<span class="badge bg-info">${value}%</span>`;
-                        }
-                        return '<span class="text-muted">—</span>';
+                        var val = cell.getValue();
+                        if (!val) return '<span class="table-cell-muted">&mdash;</span>';
+                        var color = val >= 65 ? 'var(--success-500)' : val >= 35 ? 'var(--warning-500)' : 'var(--info-500)';
+                        return '<div class="rcl-progress-wrap">' +
+                            '<div class="rcl-progress-track">' +
+                            '<div class="rcl-progress-fill" style="width:' + val + '%;background:' + color + ';"></div>' +
+                            '</div>' +
+                            '<span class="rcl-progress-label">' + val + '%</span>' +
+                            '</div>';
                     }
                 },
                 {
-                    title: "Actions",
-                    field: "companyId",
-                    hozAlign: "center",
-                    minWidth: 220,
-                    widthGrow: 2,
+                    title: "",
+                    field: "dashboard_url",
                     headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 160,
                     formatter: function(cell) {
-                        const data = cell.getData();
-                        const companyId = cell.getValue();
-
-                        let buttons = `
-                            <a href="/companies/${companyId}/documents" class="btn btn-sm btn-outline-primary" title="Dashboard">
-                                <i class="bi bi-speedometer2"></i>
-                            </a>
-                        `;
-
-                        if (data.hasDestination) {
-                            buttons += `
-                                <a href="/companies/${companyId}/destination-analysis" class="btn btn-sm btn-outline-success" title="Destination">
-                                    <i class="bi bi-bullseye"></i>
-                                </a>
-                            `;
+                        var row = cell.getRow().getData();
+                        var html = '<a href="' + cell.getValue() + '" class="rcl-action rcl-action--primary"><i class="bi bi-speedometer2"></i> Dashboard</a>';
+                        if (row.research_url) {
+                            html += ' <a href="' + row.research_url + '" class="rcl-action"><i class="bi bi-graph-up"></i> Research</a>';
                         }
-
-                        // Add Watchlist button
-                        if (data.status !== 'Watchlist' && data.status !== 'Portfolio') {
-                            buttons += `
-                                <button class="btn btn-sm btn-outline-warning" title="Add to Watchlist" onclick="addToWatchlist(${companyId}, event)">
-                                    <i class="bi bi-star"></i>
-                                </button>
-                            `;
+                        if (row.destination_url) {
+                            html += ' <a href="' + row.destination_url + '" class="rcl-action"><i class="bi bi-bullseye"></i></a>';
                         }
-
-                        // Add Portfolio button
-                        if (data.status !== 'Portfolio') {
-                            buttons += `
-                                <button class="btn btn-sm btn-outline-success" title="Add to Portfolio" onclick="addToPortfolio(${companyId}, event)">
-                                    <i class="bi bi-briefcase"></i>
-                                </button>
-                            `;
-                        }
-
-                        return `<div style="display: flex; gap: 4px; justify-content: center;">${buttons}</div>`;
+                        return html;
                     }
                 }
-            ]
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "name", dir: "asc" }],
+                pagination: companiesData.length > 25,
+            }
         });
     }
 
-    // Function to add company to watchlist
-    window.addToWatchlist = function(companyId, event) {
-        event.preventDefault();
-        event.stopPropagation();
+    // ── Filters ──────────────────────────────────────
+    document.getElementById('companies-search').addEventListener('input', function() { applyFilters(); });
+    document.getElementById('companies-sector-filter').addEventListener('change', function() { applyFilters(); });
+    document.getElementById('companies-status-filter').addEventListener('change', function() { applyFilters(); });
 
-        fetch(`/companies/${companyId}/toggle_favorite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                // Reload the page to reflect changes
-                window.location.reload();
-            } else {
-                alert('Failed to add to watchlist');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred');
+    function applyFilters() {
+        var searchVal = document.getElementById('companies-search').value.toLowerCase().trim();
+        var sectorVal = document.getElementById('companies-sector-filter').value;
+        var statusVal = document.getElementById('companies-status-filter').value;
+
+        // Filter Tabulator
+        if (companiesTable) {
+            companiesTable.setFilter(function(data) {
+                var sectorMatch = (sectorVal === 'all') || (data.sector === sectorVal);
+                var statusMatch = (statusVal === 'all') || (data.status === statusVal);
+                var searchMatch = !searchVal ||
+                    data.name.toLowerCase().indexOf(searchVal) !== -1 ||
+                    (data.ticker && data.ticker.toLowerCase().indexOf(searchVal) !== -1);
+                return sectorMatch && statusMatch && searchMatch;
+            });
+        }
+
+        // Also filter cards if card view is active
+        if (currentView === 'cards') {
+            applyCardFilters();
+        }
+    }
+
+    function applyCardFilters() {
+        var searchVal = document.getElementById('companies-search').value.toLowerCase().trim();
+        var sectorVal = document.getElementById('companies-sector-filter').value;
+        var statusVal = document.getElementById('companies-status-filter').value;
+        var cards = document.querySelectorAll('.completed-project-card');
+
+        cards.forEach(function(card) {
+            var name = card.dataset.name || '';
+            var ticker = card.dataset.ticker || '';
+            var sector = card.dataset.sector || '';
+            var status = card.dataset.status || '';
+
+            var sectorMatch = (sectorVal === 'all') || (sector === sectorVal);
+            var statusMatch = (statusVal === 'all') || (status === statusVal);
+            var searchMatch = !searchVal || name.indexOf(searchVal) !== -1 || ticker.indexOf(searchVal) !== -1;
+
+            card.style.display = (sectorMatch && statusMatch && searchMatch) ? '' : 'none';
         });
-    };
+    }
 
-    // Function to add company to portfolio
-    window.addToPortfolio = function(companyId, event) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        // Redirect to add transaction page
-        window.location.href = `/portfolio/transactions/add?company_id=${companyId}`;
-    };
+    // ── Initialize ───────────────────────────────────
+    setView(currentView);
 });
 </script>
+{% endif %}
 {% endblock %}

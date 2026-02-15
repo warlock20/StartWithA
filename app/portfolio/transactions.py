@@ -1,19 +1,19 @@
 from decimal import Decimal, InvalidOperation
+import json
 import logging
 import datetime
 from flask import request, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 
 from app.portfolio import portfolio_bp
-from app.models import ( 
-                        Company,Transaction, PortfolioPosition, 
+from app.models import (
+                        Company,Transaction, PortfolioPosition,
                         ResearchProject, update_portfolio_position)
 from app import db
-from app.constants import TRANSACTIONS_PER_PAGE
 from app.services.portfolio_importer import PortfolioImporter, PortfolioImportError
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
-from app.constants import TRANSACTIONS_PER_PAGE
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -21,58 +21,38 @@ logger = logging.getLogger(__name__)
 @portfolio_bp.route('/transactions')
 @login_required
 def transactions():
-    """View all transactions with filtering and pagination"""
-    # Get filter parameters
-    company_id = request.args.get('company_id', type=int)
-    transaction_type = request.args.get('type')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    page = request.args.get('page', 1, type=int)
-    per_page = TRANSACTIONS_PER_PAGE
-
-    # Build query
-    query = Transaction.query.filter_by(user_id=current_user.id)
-
-    if company_id:
-        query = query.filter_by(company_id=company_id)
-
-    if transaction_type:
-        query = query.filter_by(type=transaction_type)
-
-    if start_date:
-        try:
-            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-            query = query.filter(Transaction.date >= start_date_obj)
-        except ValueError:
-            pass
-
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-            query = query.filter(Transaction.date <= end_date_obj)
-        except ValueError:
-            pass
-
-    # Get transactions with pagination
-    pagination = query.order_by(Transaction.date.desc()).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False
-    )
-    transactions = pagination.items
-
-    # Get all companies for filter dropdown
-    companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+    """View all transactions with client-side filtering"""
+    # Load all transactions with company eager loading
+    all_transactions = Transaction.query.filter_by(
+        user_id=current_user.id
+    ).options(
+        joinedload(Transaction.company)
+    ).order_by(Transaction.date.desc()).all()
 
     # Get user currency settings
-    user_currency = current_user.base_currency
-    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+    currency_symbol = CurrencyService.get_currency_symbol(current_user.base_currency)
+
+    # Serialize for Tabulator
+    transactions_json = json.dumps([{
+        'id': txn.id,
+        'date': txn.date.strftime('%Y-%m-%d'),
+        'type': txn.type,
+        'ticker': txn.company.ticker_symbol,
+        'company_name': txn.company.name,
+        'company_id': txn.company_id,
+        'shares': float(txn.quantity) if txn.quantity else 0,
+        'price': float(txn.price_per_share) if txn.price_per_share else 0,
+        'fees': float(txn.fees) if txn.fees else 0,
+        'total': float(txn.total_value) if txn.total_value else 0,
+        'notes': txn.notes or '',
+        'bought_without_research': bool(txn.bought_without_research),
+        'edit_url': url_for('portfolio.edit_transaction', transaction_id=txn.id),
+        'delete_url': url_for('portfolio.delete_transaction', transaction_id=txn.id),
+    } for txn in all_transactions])
 
     return render_template('transactions.html',
-                          transactions=transactions,
-                          pagination=pagination,
-                          companies=companies,
-                          user_currency=user_currency,
+                          transactions=all_transactions,
+                          transactions_json=transactions_json,
                           currency_symbol=currency_symbol)
 
 @portfolio_bp.route('/transactions/import', methods=['POST'])
