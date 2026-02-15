@@ -187,6 +187,7 @@ const FreeResearch = {
     questions: [],
     modelQuestions: [],
     editors: {},  // Store BlockNote editor instances
+    focusedQuestionId: null,  // null = normal mode, question ID = focus mode
 
     // API endpoints
     apiBase: '/research/workflow/api',
@@ -199,6 +200,7 @@ const FreeResearch = {
         this.loadQuestions();
         this.loadModelQuestions();
         this.initSortable();
+        this.initKeyboard();
     },
 
     initSortable() {
@@ -211,6 +213,26 @@ const FreeResearch = {
                 onEnd: (evt) => this.handleReorder(evt)
             });
         }
+    },
+
+    initKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (this.focusedQuestionId === null) return;
+            // Don't capture keys if user is typing in an editor or input
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.exitFocus();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                this.focusPrev();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.focusNext();
+            }
+        });
     },
 
     // =============================================================================
@@ -301,6 +323,11 @@ const FreeResearch = {
     async deleteQuestion(questionId) {
         if (!confirm('Delete this question and its answer?')) return;
 
+        // Exit focus mode if deleting the focused question
+        if (this.focusedQuestionId === questionId) {
+            this.exitFocus();
+        }
+
         try {
             const response = await fetch(`${this.apiBase}/questions/${questionId}`, {
                 method: 'DELETE'
@@ -384,6 +411,17 @@ const FreeResearch = {
         // Initialize tooltips for new elements
         const tooltips = container.querySelectorAll('[data-bs-toggle="tooltip"]');
         tooltips.forEach(el => new bootstrap.Tooltip(el));
+
+        // Re-apply focus mode if active
+        if (this.focusedQuestionId !== null) {
+            // Check if focused question still exists
+            const stillExists = this.questions.find(q => q.id === this.focusedQuestionId);
+            if (stillExists) {
+                this.enterFocus(this.focusedQuestionId);
+            } else {
+                this.exitFocus();
+            }
+        }
     },
 
     renderQuestionCard(question, number) {
@@ -400,6 +438,9 @@ const FreeResearch = {
                     <span class="fr-question-status-badge ${statusClass}">
                         <i class="bi bi-${statusIcon} me-1"></i>${statusText}
                     </span>
+                    <button class="fr-focus-btn" onclick="event.stopPropagation(); FreeResearch.enterFocus(${question.id})" title="Focus on this question">
+                        <i class="bi bi-crosshair"></i> Focus
+                    </button>
                     <i class="bi bi-chevron-down fr-question-expand-icon"></i>
                 </div>
                 <div class="fr-question-card-body">
@@ -442,12 +483,26 @@ const FreeResearch = {
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
+
+                    <!-- Focus Navigation -->
+                    <div class="fr-focus-nav">
+                        <button class="fr-focus-nav-btn" onclick="FreeResearch.focusPrev()" id="focusPrev-${question.id}">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <div class="fr-focus-nav-center" id="focusDots-${question.id}"></div>
+                        <button class="fr-focus-nav-btn" onclick="FreeResearch.focusNext()" id="focusNext-${question.id}">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     },
 
     toggleQuestion(questionId) {
+        // In focus mode, clicking the header does nothing (card is always expanded)
+        if (this.focusedQuestionId !== null) return;
+
         const card = document.querySelector(`[data-question-id="${questionId}"]`);
         if (!card) return;
 
@@ -852,6 +907,91 @@ const FreeResearch = {
 
     dismissWarning() {
         document.getElementById('warningBanner').style.display = 'none';
+    },
+
+    // =============================================================================
+    // Focus Mode
+    // =============================================================================
+
+    enterFocus(questionId) {
+        this.focusedQuestionId = questionId;
+        document.body.classList.add('focus-mode-active');
+
+        // Update toolbar
+        const question = this.questions.find(q => q.id === questionId);
+        if (question) {
+            document.getElementById('focusToolbarText').textContent = question.question_text;
+        }
+        document.getElementById('focusToolbar').classList.add('visible');
+
+        // Apply classes to cards
+        document.querySelectorAll('.fr-question-card').forEach(card => {
+            const cardId = parseInt(card.dataset.questionId);
+            card.classList.remove('expanded', 'fr-focused', 'fr-hidden');
+
+            if (cardId === questionId) {
+                card.classList.add('expanded', 'fr-focused');
+                this.initEditorForQuestion(questionId);
+            } else {
+                card.classList.add('fr-hidden');
+            }
+        });
+
+        // Update focus nav dots and prev/next buttons
+        this.updateFocusNav(questionId);
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    exitFocus() {
+        if (this.focusedQuestionId === null) return;
+
+        this.focusedQuestionId = null;
+        document.body.classList.remove('focus-mode-active');
+        document.getElementById('focusToolbar').classList.remove('visible');
+
+        // Remove focus classes from all cards
+        document.querySelectorAll('.fr-question-card').forEach(card => {
+            card.classList.remove('fr-focused', 'fr-hidden');
+        });
+    },
+
+    focusPrev() {
+        if (this.focusedQuestionId === null) return;
+        const currentIndex = this.questions.findIndex(q => q.id === this.focusedQuestionId);
+        if (currentIndex > 0) {
+            this.enterFocus(this.questions[currentIndex - 1].id);
+        }
+    },
+
+    focusNext() {
+        if (this.focusedQuestionId === null) return;
+        const currentIndex = this.questions.findIndex(q => q.id === this.focusedQuestionId);
+        if (currentIndex < this.questions.length - 1) {
+            this.enterFocus(this.questions[currentIndex + 1].id);
+        }
+    },
+
+    updateFocusNav(questionId) {
+        const currentIndex = this.questions.findIndex(q => q.id === questionId);
+
+        // Update dots
+        const dotsContainer = document.getElementById(`focusDots-${questionId}`);
+        if (dotsContainer) {
+            dotsContainer.innerHTML = this.questions.map((q, i) => {
+                let cls = 'fr-focus-nav-dot';
+                if (i === currentIndex) cls += ' current';
+                else if (q.status === 'answered') cls += ' answered';
+                return `<div class="${cls}"></div>`;
+            }).join('');
+        }
+
+        // Update prev/next disabled state
+        const prevBtn = document.getElementById(`focusPrev-${questionId}`);
+        const nextBtn = document.getElementById(`focusNext-${questionId}`);
+        if (prevBtn) prevBtn.disabled = (currentIndex === 0);
+        if (nextBtn) nextBtn.disabled = (currentIndex === this.questions.length - 1);
     },
 
     // =============================================================================
