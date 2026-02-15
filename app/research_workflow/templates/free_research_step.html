@@ -29,6 +29,18 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
+            <!-- Focus Mode Toolbar (hidden by default, shown when a question is focused) -->
+            <div class="fr-focus-toolbar" id="focusToolbar">
+                <div class="fr-focus-toolbar-inner">
+                    <div class="fr-focus-toolbar-icon"><i class="bi bi-crosshair"></i></div>
+                    <span class="fr-focus-toolbar-label">Focused on:</span>
+                    <span class="fr-focus-toolbar-question" id="focusToolbarText"></span>
+                    <button class="fr-focus-toolbar-exit" onclick="FreeResearch.exitFocus()">
+                        Exit Focus <span class="fr-focus-toolbar-kbd">Esc</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Warning Banner (hidden by default) -->
             <div class="free-research-warning" id="warningBanner" style="display: none;">
                 <i class="bi bi-exclamation-triangle-fill"></i>
@@ -402,7 +414,7 @@ const FreeResearch = {
                                 <i class="bi bi-exclamation-triangle"></i> Challenge
                             </button>
                             <button class="fr-ai-mode-btn elaborate" onclick="FreeResearch.triggerAI(${question.id}, 'elaboration')">
-                                <i class="bi bi-question-circle"></i> Elaborate
+                                <i class="bi bi-question-circle"></i> Follow-Up Questions
                             </button>
                             <button class="fr-ai-mode-btn factcheck" onclick="FreeResearch.triggerAI(${question.id}, 'factcheck')">
                                 <i class="bi bi-shield-check"></i> Fact-Check
