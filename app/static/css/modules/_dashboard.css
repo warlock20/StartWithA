@@ -16,7 +16,7 @@
 .dashboard-container {
     /*max-width: 1400px; */
     margin: 0 auto;
-    padding: 0;
+    padding: 1.5rem 2rem;
     background: var(--bg-light);
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(62, 34, 34, 0.05);
@@ -31,22 +31,8 @@
     padding-bottom: 4rem;
 }
 
-.dashboard-container:has(.investment-pipeline-section) > *:last-child {
-    padding-bottom: 4rem;
-}
-
 .dashboard-container > * {
-    padding-left: 2rem;
-    padding-right: 2rem;
     max-width: 100%; /* Ensure children don't overflow */
-}
-
-.dashboard-container > *:first-child {
-    padding-top: 1.5rem;
-}
-
-.dashboard-container > *:last-child {
-    padding-bottom: 1.5rem;
 }
 
 /* Ensure grid layouts within dashboard respect boundaries */
@@ -674,17 +660,8 @@
         border-radius: 0;
     }
 
-    .dashboard-container > * {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .dashboard-container > *:first-child {
-        padding-top: 1rem;
-    }
-
-    .dashboard-container > *:last-child {
-        padding-bottom: 1rem;
+    .dashboard-container {
+        padding: 1rem;
     }
 
     .dashboard-header {

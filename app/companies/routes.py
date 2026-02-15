@@ -1,6 +1,9 @@
 import os
 import uuid
 import logging
+import json
+
+
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from itertools import groupby
@@ -17,6 +20,10 @@ from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
 from app.utils.ticker_validator import TickerValidator
 from app.services.financial_data import FinancialDataService
+from app.services.price_service import PriceService
+from app.models import PortfolioPosition
+from app.services.currency_service import CurrencyService
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,43 +73,12 @@ def get_company_market_data(ticker):
 @companies_bp.route('/list')
 @login_required
 def list_companies():
-    """Show all companies with pagination, search, and sector filtering"""
-    # Get query parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 12, type=int)
-    search_query = request.args.get('search', '', type=str).strip()
-    sector_filter = request.args.get('sector', '', type=str).strip()
-
-    # Base query for user's companies
-    query = Company.query.filter_by(user_id=current_user.id)
-
-    # Get all favorite IDs for template display
-    all_favorite_ids = {c.id for c in current_user.favorites.all()}
-
-    # Apply search filter
-    if search_query:
-        query = query.filter(
-            db.or_(
-                Company.name.ilike(f'%{search_query}%'),
-                Company.ticker_symbol.ilike(f'%{search_query}%')
-            )
-        )
-
-    # Apply sector filter
-    if sector_filter and sector_filter != 'all':
-        query = query.join(Sector, Company.sector_id == Sector.id).filter(
-            Sector.display_name == sector_filter
-        )
-
-    # Order by name
-    query = query.order_by(Company.name)
-
-    # Paginate
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    companies = pagination.items
+    """Show all companies with client-side filtering"""
+    # Load ALL companies (client-side filtering replaces server-side pagination)
+    companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
 
     # Get sets of IDs for categorization
-    favorite_ids = all_favorite_ids
+    favorite_ids = {c.id for c in current_user.favorites.all()}
     portfolio_ids = {c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()}
 
     # Get sets of company IDs that have a specific analysis completed
@@ -110,18 +86,43 @@ def list_companies():
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 
-    # Build the enriched data structure for the template
+    # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
+    companies_json_list = []
     for company in companies:
-        data = {
+        # Counts for table
+        project_count = current_user.research_projects.filter_by(company_id=company.id).count()
+        doc_count = company.documents.count()
+        active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first()
+
+        status = 'Portfolio' if company.id in portfolio_ids else ('Watchlist' if company.id in favorite_ids else 'Tracked')
+
+        # Jinja data (for card view)
+        companies_data_list.append({
             'company_obj': company,
             'has_completed_checklist': company.id in completed_checklist_ids,
             'has_swot': company.id in swot_analysis_ids,
             'has_destination_analysis': company.id in dest_analysis_ids,
             'is_portfolio': company.id in portfolio_ids,
             'is_favorite': company.id in favorite_ids,
+        })
+
+        # JSON data (for Tabulator)
+        json_entry = {
+            'id': company.id,
+            'name': company.name,
+            'ticker': company.ticker_symbol or '',
+            'sector': company.sector.display_name if company.sector else '',
+            'status': status,
+            'projects': project_count,
+            'documents': doc_count,
+            'progress': active_project.progress_percentage if active_project else 0,
+            'dashboard_url': url_for('companies.company_dashboard', company_id=company.id),
+            'has_destination': company.id in dest_analysis_ids,
+            'destination_url': url_for('companies.destination_analysis', company_id=company.id) if company.id in dest_analysis_ids else '',
+            'research_url': url_for('research_workflow.project_dashboard', project_id=active_project.id) if active_project else '',
         }
-        companies_data_list.append(data)
+        companies_json_list.append(json_entry)
 
     # Get all unique sectors for filter dropdown
     all_sectors = db.session.query(Sector.display_name).join(
@@ -133,13 +134,11 @@ def list_companies():
 
     return render_template('list_companies.html',
                          companies_data_list=companies_data_list,
-                         pagination=pagination,
+                         companies_json=json.dumps(companies_json_list),
+                         company_count=len(companies),
                          portfolio_ids=portfolio_ids,
                          favorite_ids=favorite_ids,
                          sectors=sectors,
-                         current_search=search_query,
-                         current_sector=sector_filter,
-                         current_per_page=per_page,
                          title="All Companies")
 
 
@@ -389,7 +388,6 @@ def company_dashboard(company_id):
             intrinsic_display_value = str(val)
 
     # Get user currency settings for display
-    from app.services.currency_service import CurrencyService
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
@@ -580,7 +578,6 @@ def toggle_portfolio(company_id):
         return redirect(url_for('companies.list_companies'))
 
     # Check if already in portfolio (has active position)
-    from app.models import PortfolioPosition
     position = PortfolioPosition.query.filter_by(
         user_id=current_user.id,
         company_id=company_id,
@@ -595,8 +592,7 @@ def toggle_portfolio(company_id):
         # Not in portfolio - redirect to add transaction
         flash(f'To add "{company.name}" to your portfolio, please record a BUY transaction.', 'info')
         return redirect(url_for('portfolio.add_transaction') + f'?company_id={company_id}')
-
-    return redirect(request.referrer or url_for('companies.list_companies'))  
+ 
 
 @companies_bp.route('/<int:company_id>/scuttlebutt')
 @login_required
@@ -942,9 +938,6 @@ def edit_company(company_id):
             changes.append(f'ticker updated to "{ticker_symbol}"')
             # If ticker changed and company is in portfolio, force price update
             if company.is_in_portfolio:
-                from app.services.price_service import PriceService
-                from app.models import PortfolioPosition
-
                 positions = PortfolioPosition.query.filter_by(
                     user_id=current_user.id,
                     company_id=company_id,
