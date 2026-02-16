@@ -332,15 +332,12 @@
             {% endif %}
 
             <!-- Full Source Table -->
-            <div class="portfolio-table-section">
-                <div class="portfolio-table-section-header">
-                    <h2 class="portfolio-table-section-title">Source Leaderboard</h2>
-                    <div class="portfolio-table-controls">
-                        <button class="portfolio-btn-export" onclick="sourcesTable.download('csv', 'idea-sources.csv')">
-                            <i class="bi bi-download"></i>
-                            Export
-                        </button>
-                    </div>
+            <div class="rcl-panel">
+                <div class="rcl-panel-header">
+                    <h2 class="rcl-panel-title">Source Leaderboard</h2>
+                    <button class="position-btn" onclick="if(window.sourcesTable) window.sourcesTable.download('csv', 'idea-sources.csv')">
+                        <i class="bi bi-download"></i> Export
+                    </button>
                 </div>
                 <div id="sources-table"></div>
             </div>
@@ -801,6 +798,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -1233,12 +1231,8 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
 
     if (sourcesData.length > 0) {
-        window.sourcesTable = new Tabulator("#sources-table", {
+        window.sourcesTable = createDataTable('#sources-table', {
             data: sourcesData,
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: false,
-            layoutColumnsOnNewData: true,
             columns: [
                 {
                     title: "Source Name",
@@ -1262,13 +1256,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     formatter: function(cell) {
                         const val = cell.getValue() || 0;
-                        return `<div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="flex: 1; background: #e5e7eb; border-radius: 4px; height: 20px; position: relative; overflow: hidden;">
-                                <div style="background: #10b981; height: 100%; width: ${val}%; transition: width 0.3s;"></div>
-                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #374151;">
-                                    ${val.toFixed(0)}%
-                                </div>
-                            </div>
+                        return `<div class="rcl-progress-wrap">
+                            <div class="rcl-progress-bar" style="width: ${val}%"></div>
+                            <span class="rcl-progress-label">${val.toFixed(0)}%</span>
                         </div>`;
                     },
                     minWidth: 150,
@@ -1280,8 +1270,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "number",
                     hozAlign: "right",
                     formatter: function(cell) {
-                        const val = cell.getValue() || 0;
-                        return val.toFixed(0) + '%';
+                        return (cell.getValue() || 0).toFixed(0) + '%';
                     },
                     minWidth: 130,
                     widthGrow: 1
@@ -1293,16 +1282,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     formatter: function(cell) {
                         const val = cell.getValue();
-                        const badgeClass = val > 0 ? 'bg-success' : 'bg-secondary';
-                        return `<span class="badge ${badgeClass}">${val}</span>`;
+                        const cls = val > 0 ? 'rcl-cell-badge rcl-cell-badge--active' : 'rcl-cell-badge rcl-cell-badge--default';
+                        return `<span class="${cls}">${val}</span>`;
                     },
                     minWidth: 100,
                     widthGrow: 1
                 }
             ],
-            initialSort: [
-                {column: "survival_rate", dir: "desc"}
-            ]
+            customConfig: {
+                initialSort: [{ column: "survival_rate", dir: "desc" }]
+            }
         });
     }
 });
