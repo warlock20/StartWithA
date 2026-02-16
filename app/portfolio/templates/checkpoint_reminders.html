@@ -108,16 +108,15 @@
 
     <!-- Overdue Section -->
     {% if checkpoints.overdue %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
                 Overdue Checkpoints
             </h2>
             <span class="portfolio-badge danger">{{ checkpoints.overdue|length }} need attention</span>
         </div>
-
-        {% for cp in checkpoints.overdue %}
+        <div class="rcl-panel-body">{% for cp in checkpoints.overdue %}
         <div class="checkpoint-card overdue">
             <div class="checkpoint-header">
                 <div class="company-info">
@@ -152,21 +151,21 @@
                 </div>
             </div>
         </div>
-        {% endfor %}
+        {% endfor %}</div>
     </div>
     {% endif %}
 
     <!-- This Week Section -->
     {% if checkpoints.this_week %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-calendar-week text-warning me-2"></i>
                 This Week
             </h2>
             <span class="portfolio-badge warning">{{ checkpoints.this_week|length }} coming up</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for cp in checkpoints.this_week %}
         <div class="checkpoint-card this-week">
             <div class="checkpoint-header">
@@ -200,21 +199,21 @@
             </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- This Month Section -->
     {% if checkpoints.this_month %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-calendar-month text-info me-2"></i>
                 This Month (Next 30 Days)
             </h2>
             <span class="portfolio-badge info">{{ checkpoints.this_month|length }} scheduled</span>
         </div>
-
-        {% for cp in checkpoints.this_month %}
+        <div class="rcl-panel-body">{% for cp in checkpoints.this_month %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
                 <div class="company-info">
@@ -244,20 +243,21 @@
             </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- Next 3 Months Section -->
     {% if checkpoints.next_3_months %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-calendar-range text-success me-2"></i>
                 Next 3 Months (31-90 Days)
             </h2>
             <span class="portfolio-badge success">{{ checkpoints.next_3_months|length }} scheduled</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for cp in checkpoints.next_3_months %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
@@ -288,20 +288,21 @@
             </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- Beyond Section -->
     {% if checkpoints.beyond %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-calendar-plus text-primary me-2"></i>
                 Long-term (Beyond 90 Days)
             </h2>
             <span class="portfolio-badge primary">{{ checkpoints.beyond|length }} scheduled</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for cp in checkpoints.beyond %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
@@ -332,6 +333,7 @@
             </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 

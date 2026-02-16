@@ -93,72 +93,76 @@
     <!-- Needs Attention Section -->
     {% set needs_attention = positions | selectattr('status', 'equalto', 'needs_attention') | list %}
     {% if needs_attention %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
                 Needs Attention
             </h2>
             <span class="portfolio-badge danger">{{ needs_attention|length }} positions</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for position in needs_attention %}
         {% include '_thesis_card.html' %}
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- Behind Section -->
     {% set behind = positions | selectattr('status', 'equalto', 'behind') | list %}
     {% if behind %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-dash-circle-fill text-warning me-2"></i>
                 Behind Plan
             </h2>
             <span class="portfolio-badge warning">{{ behind|length }} positions</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for position in behind %}
         {% include '_thesis_card.html' %}
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- On Track Section -->
     {% set on_track = positions | selectattr('status', 'equalto', 'on_track') | list %}
     {% if on_track %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-check-circle-fill text-success me-2"></i>
                 On Track
             </h2>
             <span class="portfolio-badge success">{{ on_track|length }} positions</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for position in on_track %}
         {% include '_thesis_card.html' %}
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     <!-- Exceeding Section -->
     {% set exceeding = positions | selectattr('status', 'equalto', 'exceeding') | list %}
     {% if exceeding %}
-    <div class="portfolio-table-section">
-        <div class="portfolio-table-section-header">
-            <h2 class="portfolio-table-section-title">
+    <div class="rcl-panel rcl-panel--section">
+        <div class="rcl-panel-header">
+            <h2 class="rcl-panel-title">
                 <i class="bi bi-arrow-up-circle-fill text-primary me-2"></i>
                 Exceeding Expectations
             </h2>
             <span class="portfolio-badge success">{{ exceeding|length }} positions</span>
         </div>
-
+        <div class="rcl-panel-body">
         {% for position in exceeding %}
         {% include '_thesis_card.html' %}
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
