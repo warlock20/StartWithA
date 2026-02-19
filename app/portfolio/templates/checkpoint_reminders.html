@@ -6,87 +6,56 @@
 <div class="dashboard-container">
 
     <!-- Page Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-calendar-check me-2"></i>Checkpoint Reminders
-            </h1>
-            <p class="dashboard-subtitle">Track your investment milestones and stay accountable to your thesis</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                <i class="bi bi-arrow-left"></i>
-                Back to Intelligence Hub
-            </a>
-            <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn primary">
-                <i class="bi bi-graph-up-arrow"></i>
-                Research Correlation
-            </a>
-        </div>
-    </header>
-
-    <!-- Stats Grid -->
-    <div class="portfolio-stats-grid">
-        <!-- Overdue Card -->
-        <div class="portfolio-stat-card {% if checkpoints.overdue %}danger-highlight{% endif %}">
-            <div class="portfolio-stat-icon red">
-                <i class="bi bi-exclamation-circle-fill"></i>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-calendar-check me-2"></i>Checkpoint Reminders
+                </h1>
+                <p class="dashboard-subtitle">Track your investment milestones and stay accountable to your thesis</p>
             </div>
-            <div class="portfolio-stat-label">Overdue</div>
-            <div class="portfolio-stat-value">{{ checkpoints.overdue|length }}</div>
-            <div class="portfolio-stat-trend {% if checkpoints.overdue %}down{% endif %}">
-                {% if checkpoints.overdue %}Need attention{% else %}All caught up{% endif %}
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn primary">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Research Correlation
+                </a>
             </div>
-        </div>
-
-        <!-- This Week Card -->
-        <div class="portfolio-stat-card {% if checkpoints.this_week %}warning-highlight{% endif %}">
-            <div class="portfolio-stat-icon orange">
-                <i class="bi bi-calendar-week"></i>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-exclamation-circle-fill"></i></div>
+                <div class="portfolio-metric-label">Overdue</div>
+                <div class="portfolio-metric-value {% if checkpoints.overdue %}loss{% endif %}">{{ checkpoints.overdue|length }}</div>
             </div>
-            <div class="portfolio-stat-label">This Week</div>
-            <div class="portfolio-stat-value">{{ checkpoints.this_week|length }}</div>
-            <div class="portfolio-stat-trend">Next 7 days</div>
-        </div>
-
-        <!-- This Month Card -->
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon yellow">
-                <i class="bi bi-calendar-month"></i>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-calendar-week"></i></div>
+                <div class="portfolio-metric-label">This Week</div>
+                <div class="portfolio-metric-value">{{ checkpoints.this_week|length }}</div>
             </div>
-            <div class="portfolio-stat-label">This Month</div>
-            <div class="portfolio-stat-value">{{ checkpoints.this_month|length }}</div>
-            <div class="portfolio-stat-trend">Next 30 days</div>
-        </div>
-
-        <!-- Next 3 Months Card -->
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon green">
-                <i class="bi bi-calendar-range"></i>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-calendar-month"></i></div>
+                <div class="portfolio-metric-label">This Month</div>
+                <div class="portfolio-metric-value">{{ checkpoints.this_month|length }}</div>
             </div>
-            <div class="portfolio-stat-label">Next 3 Months</div>
-            <div class="portfolio-stat-value">{{ checkpoints.next_3_months|length }}</div>
-            <div class="portfolio-stat-trend">Within 90 days</div>
-        </div>
-
-        <!-- Beyond Card -->
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon purple">
-                <i class="bi bi-calendar-plus"></i>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-calendar-range"></i></div>
+                <div class="portfolio-metric-label">Next 3 Months</div>
+                <div class="portfolio-metric-value">{{ checkpoints.next_3_months|length }}</div>
             </div>
-            <div class="portfolio-stat-label">Beyond</div>
-            <div class="portfolio-stat-value">{{ checkpoints.beyond|length }}</div>
-            <div class="portfolio-stat-trend">Long-term</div>
-        </div>
-
-        <!-- Total Active Card -->
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon blue">
-                <i class="bi bi-calendar-check"></i>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-calendar-plus"></i></div>
+                <div class="portfolio-metric-label">Beyond</div>
+                <div class="portfolio-metric-value">{{ checkpoints.beyond|length }}</div>
             </div>
-            <div class="portfolio-stat-label">Total Active</div>
-            <div class="portfolio-stat-value">{{ checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length }}</div>
-            <div class="portfolio-stat-trend">All checkpoints</div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-calendar-check"></i></div>
+                <div class="portfolio-metric-label">Total Active</div>
+                <div class="portfolio-metric-value">{{ checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length }}</div>
+            </div>
         </div>
     </div>
 

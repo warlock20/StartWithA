@@ -4,105 +4,7 @@
    Follows the portfolio design system patterns
    ======================================================================== */
 
-/* Health Metrics Bar */
-.hub-health-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-/* Alerts Section */
-.hub-alerts-section {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 2rem;
-}
-
-.hub-alerts-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--text-primary, #111827);
-}
-
-.hub-alerts-header i {
-    color: #f59e0b;
-}
-
-.hub-alert-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem;
-    background: var(--bg-secondary, #f9fafb);
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-    gap: 1rem;
-}
-
-.hub-alert-item:last-child {
-    margin-bottom: 0;
-}
-
-.hub-alert-item.danger {
-    background: #fef2f2;
-    border-left: 3px solid #ef4444;
-}
-
-.hub-alert-item.warning {
-    background: #fffbeb;
-    border-left: 3px solid #f59e0b;
-}
-
-.hub-alert-item.info {
-    background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-}
-
-.hub-alert-item.success {
-    background: #f0fdf4;
-    border-left: 3px solid #10b981;
-}
-
-.hub-alert-text {
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    color: var(--text-secondary, #6b7280);
-}
-
-.hub-alert-action {
-    flex-shrink: 0;
-}
-
-.hub-no-alerts {
-    text-align: center;
-    color: var(--text-muted, #9ca3af);
-    padding: 1.5rem;
-}
-
-.hub-no-alerts i {
-    color: #10b981;
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-/* Intelligence Cards Grid */
-.hub-intel-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 2rem;
-}
+/* Intelligence Cards Grid (uses priority-lane-grid in template) */
 
 .hub-intel-card {
     background: var(--card-bg, #fff);
@@ -279,34 +181,12 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .hub-intel-grid {
+    .priority-lane-grid {
         grid-template-columns: 1fr;
-    }
-
-    .hub-health-bar {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .hub-alert-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .hub-alert-action {
-        width: 100%;
-    }
-
-    .hub-alert-action .btn {
-        width: 100%;
     }
 }
 
 @media (max-width: 480px) {
-    .hub-health-bar {
-        grid-template-columns: 1fr;
-    }
-
     .hub-intel-card-metrics {
         grid-template-columns: 1fr;
     }

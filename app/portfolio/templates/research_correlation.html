@@ -10,24 +10,54 @@
 <div class="dashboard-container">
 
     <!-- Page Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation
-            </h1>
-            <p class="dashboard-subtitle">Discover how your research quality impacts investment outcomes</p>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-graph-up-arrow me-2"></i>Research → Returns Correlation
+                </h1>
+                <p class="dashboard-subtitle">Discover how your research quality impacts investment outcomes</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
+                    <i class="bi bi-brain"></i>
+                    Decision Intelligence
+                </a>
+            </div>
+        </header>
+        {% if correlation_data.has_sufficient_data %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if correlation_data.research_advantage >= 0 %}green{% else %}gray{% endif %}"><i class="bi bi-trophy-fill"></i></div>
+                <div class="portfolio-metric-label">Research Advantage</div>
+                <div class="portfolio-metric-value {% if correlation_data.research_advantage >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if correlation_data.research_advantage >= 0 %}+{% endif %}{{ correlation_data.research_advantage }}%
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-graph-up"></i></div>
+                <div class="portfolio-metric-label">Total Trades</div>
+                <div class="portfolio-metric-value">{{ correlation_data.total_outcomes }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-journal-check"></i></div>
+                <div class="portfolio-metric-label">Researched</div>
+                <div class="portfolio-metric-value">{{ correlation_data.researched_count }}</div>
+            </div>
+            {% if correlation_data.correlation_coefficient is not none %}
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-diagram-3"></i></div>
+                <div class="portfolio-metric-label">Correlation</div>
+                <div class="portfolio-metric-value">{{ correlation_data.correlation_coefficient }}</div>
+            </div>
+            {% endif %}
         </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                <i class="bi bi-arrow-left"></i>
-                Back to Intelligence Hub
-            </a>
-            <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
-                <i class="bi bi-brain"></i>
-                Decision Intelligence
-            </a>
-        </div>
-    </header>
+        {% endif %}
+    </div>
 
     {% if not correlation_data.has_sufficient_data %}
     <!-- Not Enough Data State -->
@@ -53,75 +83,6 @@
     </div>
 
     {% else %}
-
-    <!-- Stats Grid -->
-    <div class="portfolio-stats-grid">
-
-        <!-- Research Advantage Card -->
-        <div class="portfolio-stat-card {% if correlation_data.research_advantage < 0 %}danger-highlight{% elif correlation_data.research_advantage > 10 %}success-highlight{% endif %}">
-            <div class="portfolio-stat-icon {% if correlation_data.research_advantage >= 0 %}green{% else %}red{% endif %}">
-                <i class="bi bi-trophy-fill"></i>
-            </div>
-            <div class="portfolio-stat-label">Research Advantage</div>
-            <div class="portfolio-stat-value">
-                {% if correlation_data.research_advantage >= 0 %}+{% endif %}{{ correlation_data.research_advantage }}%
-            </div>
-            <div class="portfolio-stat-trend {% if correlation_data.research_advantage >= 0 %}up{% else %}down{% endif %}">
-                {% if correlation_data.research_advantage > 0 %}
-                    Researched trades outperform
-                {% elif correlation_data.research_advantage < 0 %}
-                    Room for improvement
-                {% else %}
-                    No clear advantage yet
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Total Outcomes Card -->
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon blue">
-                <i class="bi bi-graph-up"></i>
-            </div>
-            <div class="portfolio-stat-label">Total Trades</div>
-            <div class="portfolio-stat-value">{{ correlation_data.total_outcomes }}</div>
-            <div class="portfolio-stat-trend">Completed positions</div>
-        </div>
-
-        <!-- Researched Trades Card -->
-        <div class="portfolio-stat-card success-highlight">
-            <div class="portfolio-stat-icon green">
-                <i class="bi bi-journal-check"></i>
-            </div>
-            <div class="portfolio-stat-label">Researched</div>
-            <div class="portfolio-stat-value">{{ correlation_data.researched_count }}</div>
-            <div class="portfolio-stat-trend">
-                {% if correlation_data.researched_avg_return >= 0 %}+{% endif %}{{ correlation_data.researched_avg_return }}% avg
-            </div>
-        </div>
-
-        <!-- Correlation Coefficient Card -->
-        {% if correlation_data.correlation_coefficient is not none %}
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon purple">
-                <i class="bi bi-diagram-3"></i>
-            </div>
-            <div class="portfolio-stat-label">Correlation</div>
-            <div class="portfolio-stat-value">{{ correlation_data.correlation_coefficient }}</div>
-            <div class="portfolio-stat-trend">
-                {% if correlation_data.correlation_coefficient > 0.5 %}
-                    Strong positive
-                {% elif correlation_data.correlation_coefficient > 0.2 %}
-                    Moderate positive
-                {% elif correlation_data.correlation_coefficient > -0.2 %}
-                    Weak/no correlation
-                {% else %}
-                    Negative
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-    </div>
 
     <!-- Main Content Grid -->
     <div class="row g-4">
