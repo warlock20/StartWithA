@@ -3,56 +3,38 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Mistake Log</h1>
-            <p class="dashboard-subtitle">Learn from failures to improve your investment process</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Log New Mistake
-            </a>
-        </div>
-    </header>
-
-    <!-- Summary Stats -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Mistakes</h3>
-                        <span class="priority-card-number priority-number-blue">{{ mistakes|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Logged for learning</p>
-                </div>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Mistake Log</h1>
+                <p class="dashboard-subtitle">Learn from failures to improve your investment process</p>
             </div>
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Estimated Cost</h3>
-                        <span class="priority-card-number priority-number-yellow">${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</span>
-                    </div>
-                    <p class="priority-card-description">Total financial impact</p>
-                </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('learning.new_mistake') }}" class="position-btn primary">
+                    <i class="bi bi-plus-circle-fill"></i> Log New Mistake
+                </a>
             </div>
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Most Common</h3>
-                        <span class="priority-card-number priority-number-green">{{ most_common_count }}</span>
-                    </div>
-                    <p class="priority-card-description">{{ most_common_type|replace('_', ' ')|title if most_common_type else 'N/A' }}</p>
-                </div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-journal-x"></i></div>
+                <div class="portfolio-metric-label">Total Mistakes</div>
+                <div class="portfolio-metric-value">{{ mistakes|length }}</div>
             </div>
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Prevented</h3>
-                        <span class="priority-card-number priority-number-blue">{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Lessons applied successfully</p>
-                </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-currency-dollar"></i></div>
+                <div class="portfolio-metric-label">Estimated Cost</div>
+                <div class="portfolio-metric-value loss">${{ "{:,.0f}".format(total_cost) if total_cost else 0 }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-arrow-repeat"></i></div>
+                <div class="portfolio-metric-label">Most Common</div>
+                <div class="portfolio-metric-value">{{ most_common_count }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-shield-check"></i></div>
+                <div class="portfolio-metric-label">Prevented</div>
+                <div class="portfolio-metric-value gain">{{ mistakes|selectattr('prevented_similar', 'gt', 0)|list|length }}</div>
             </div>
         </div>
     </div>

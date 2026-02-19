@@ -10,28 +10,56 @@
 <div class="dashboard-container">
 
     <!-- Page Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-lightbulb me-2"></i>Learning Insights
-            </h1>
-            <p class="dashboard-subtitle">Personalized patterns discovered from your trading history</p>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-lightbulb me-2"></i>Learning Insights
+                </h1>
+                <p class="dashboard-subtitle">Personalized patterns discovered from your trading history</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Research Correlation
+                </a>
+                <a href="{{ url_for('portfolio.thesis_reality') }}" class="position-btn primary">
+                    <i class="bi bi-clipboard-check"></i>
+                    Thesis Reality
+                </a>
+            </div>
+        </header>
+        {% if has_sufficient_data %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-list-check"></i></div>
+                <div class="portfolio-metric-label">Completed Trades</div>
+                <div class="portfolio-metric-value">{{ stats.total_trades }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if stats.win_rate >= 50 %}green{% else %}gray{% endif %}"><i class="bi bi-trophy"></i></div>
+                <div class="portfolio-metric-label">Win Rate</div>
+                <div class="portfolio-metric-value {% if stats.win_rate >= 50 %}gain{% else %}loss{% endif %}">{{ "%.0f"|format(stats.win_rate) }}%</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if stats.avg_return >= 0 %}green{% else %}gray{% endif %}"><i class="bi bi-graph-up-arrow"></i></div>
+                <div class="portfolio-metric-label">Avg Return</div>
+                <div class="portfolio-metric-value {% if stats.avg_return >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if stats.avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(stats.avg_return) }}%
+                </div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-clock-history"></i></div>
+                <div class="portfolio-metric-label">Avg Days Held</div>
+                <div class="portfolio-metric-value">{{ stats.avg_hold_days }}</div>
+            </div>
         </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                <i class="bi bi-arrow-left"></i>
-                Back to Intelligence Hub
-            </a>
-            <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn">
-                <i class="bi bi-graph-up-arrow"></i>
-                Research Correlation
-            </a>
-            <a href="{{ url_for('portfolio.thesis_reality') }}" class="position-btn primary">
-                <i class="bi bi-clipboard-check"></i>
-                Thesis Reality
-            </a>
-        </div>
-    </header>
+        {% endif %}
+    </div>
 
     {% if not has_sufficient_data %}
     <!-- Not Enough Data State -->
@@ -54,49 +82,6 @@
     </div>
 
     {% else %}
-
-    <!-- Stats Overview -->
-    <div class="portfolio-stats-grid">
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon gray">
-                <i class="bi bi-list-check"></i>
-            </div>
-            <div class="portfolio-stat-label">Completed Trades</div>
-            <div class="portfolio-stat-value">{{ stats.total_trades }}</div>
-            <div class="portfolio-stat-trend">Total closed positions</div>
-        </div>
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon {% if stats.win_rate >= 50 %}green{% else %}red{% endif %}">
-                <i class="bi bi-trophy"></i>
-            </div>
-            <div class="portfolio-stat-label">Win Rate</div>
-            <div class="portfolio-stat-value">{{ "%.0f"|format(stats.win_rate) }}%</div>
-            <div class="portfolio-stat-trend {% if stats.win_rate >= 50 %}up{% else %}down{% endif %}">
-                <i class="bi bi-arrow-{% if stats.win_rate >= 50 %}up{% else %}down{% endif %}"></i>
-                {% if stats.win_rate >= 50 %}Above average{% else %}Below average{% endif %}
-            </div>
-        </div>
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon {% if stats.avg_return >= 0 %}green{% else %}red{% endif %}">
-                <i class="bi bi-graph-up-arrow"></i>
-            </div>
-            <div class="portfolio-stat-label">Avg Return</div>
-            <div class="portfolio-stat-value">
-                {% if stats.avg_return >= 0 %}+{% endif %}{{ "%.1f"|format(stats.avg_return) }}%
-            </div>
-            <div class="portfolio-stat-trend {% if stats.avg_return >= 0 %}up{% else %}down{% endif %}">
-                Per completed trade
-            </div>
-        </div>
-        <div class="portfolio-stat-card">
-            <div class="portfolio-stat-icon blue">
-                <i class="bi bi-clock-history"></i>
-            </div>
-            <div class="portfolio-stat-label">Avg Days Held</div>
-            <div class="portfolio-stat-value">{{ stats.avg_hold_days }}</div>
-            <div class="portfolio-stat-trend">Average holding period</div>
-        </div>
-    </div>
 
     <!-- Quick Actions -->
     <div class="insights-quick-actions">

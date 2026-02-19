@@ -5,63 +5,39 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header mb-4">
-        <div>
-            <h1 class="dashboard-title font-poppins">Decision Journal</h1>
-            <p class="dashboard-subtitle">Track your investment decisions and learn from outcomes</p>
-        </div>
-        <!-- <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="btn-portfolio-modern">
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Decision Journal</h1>
+                <p class="dashboard-subtitle">Track your investment decisions and learn from outcomes</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i>
-                    Back to Decision Journal
-            </a>
-        </div> -->
-    </header>
-
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="priority-card">
-                <div class="card-header">
-                    <i class="bi bi-journal-check"></i>
-                    <span class="card-label">Total Decisions</span>
-                </div>
-                <div class="card-value">{{ total_decisions }}</div>
+                    Back to Intelligence Hub
+                </a>
             </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="priority-card">
-                <div class="card-header">
-                    <i class="bi bi-cart-plus"></i>
-                    <span class="card-label">Buy Decisions</span>
-                </div>
-                <div class="card-value">{{ buy_decisions }}</div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-journal-check"></i></div>
+                <div class="portfolio-metric-label">Total Decisions</div>
+                <div class="portfolio-metric-value">{{ total_decisions }}</div>
             </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="priority-card">
-                <div class="card-header">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <span class="card-label">Without Research</span>
-                </div>
-                <div class="card-value">{{ non_research_purchases }}</div>
-                <div class="card-footer">
-                    {% if total_decisions > 0 %}
-                        {{ (non_research_purchases / total_decisions * 100)|round(1) }}% of total
-                    {% else %}
-                        0% of total
-                    {% endif %}
-                </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-cart-plus"></i></div>
+                <div class="portfolio-metric-label">Buy Decisions</div>
+                <div class="portfolio-metric-value">{{ buy_decisions }}</div>
             </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="priority-card">
-                <div class="card-header">
-                    <i class="bi bi-trophy"></i>
-                    <span class="card-label">Win Rate</span>
-                </div>
-                <div class="card-value">{{ win_rate }}%</div>
-                <div class="card-footer">Completed positions</div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="portfolio-metric-label">Without Research</div>
+                <div class="portfolio-metric-value {% if non_research_purchases > 0 %}loss{% endif %}">{{ non_research_purchases }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon {% if win_rate >= 50 %}green{% else %}gray{% endif %}"><i class="bi bi-trophy"></i></div>
+                <div class="portfolio-metric-label">Win Rate</div>
+                <div class="portfolio-metric-value {% if win_rate >= 50 %}gain{% else %}loss{% endif %}">{{ win_rate }}%</div>
             </div>
         </div>
     </div>

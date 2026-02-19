@@ -6,28 +6,54 @@
 <div class="dashboard-container">
 
     <!-- Page Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-clipboard-check me-2"></i>Thesis vs Reality
-            </h1>
-            <p class="dashboard-subtitle">Compare your investment thesis to actual performance</p>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-clipboard-check me-2"></i>Thesis vs Reality
+                </h1>
+                <p class="dashboard-subtitle">Compare your investment thesis to actual performance</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="position-btn">
+                    <i class="bi bi-calendar-check"></i>
+                    Checkpoints
+                </a>
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
+                    <i class="bi bi-brain"></i>
+                    Decision Intelligence
+                </a>
+            </div>
+        </header>
+        {% if positions %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="portfolio-metric-label">Needs Attention</div>
+                <div class="portfolio-metric-value {% if status_counts.needs_attention > 0 %}loss{% endif %}">{{ status_counts.needs_attention }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-dash-circle-fill"></i></div>
+                <div class="portfolio-metric-label">Behind Plan</div>
+                <div class="portfolio-metric-value {% if status_counts.behind > 0 %}loss{% endif %}">{{ status_counts.behind }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="portfolio-metric-label">On Track</div>
+                <div class="portfolio-metric-value gain">{{ status_counts.on_track }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-arrow-up-circle-fill"></i></div>
+                <div class="portfolio-metric-label">Exceeding</div>
+                <div class="portfolio-metric-value gain">{{ status_counts.exceeding }}</div>
+            </div>
         </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                <i class="bi bi-arrow-left"></i>
-                Back to Intelligence Hub
-            </a>
-            <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="position-btn">
-                <i class="bi bi-calendar-check"></i>
-                Checkpoints
-            </a>
-            <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
-                <i class="bi bi-brain"></i>
-                Decision Intelligence
-            </a>
-        </div>
-    </header>
+        {% endif %}
+    </div>
 
     {% if not positions %}
     <!-- Empty State -->
@@ -42,53 +68,6 @@
     </div>
 
     {% else %}
-
-    <!-- Stats Grid -->
-    <div class="portfolio-stats-grid">
-
-        <!-- Needs Attention Card -->
-        <div class="portfolio-stat-card {% if status_counts.needs_attention > 0 %}danger-highlight{% endif %}">
-            <div class="portfolio-stat-icon red">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-            </div>
-            <div class="portfolio-stat-label">Needs Attention</div>
-            <div class="portfolio-stat-value">{{ status_counts.needs_attention }}</div>
-            <div class="portfolio-stat-trend {% if status_counts.needs_attention > 0 %}down{% endif %}">
-                Underperforming
-            </div>
-        </div>
-
-        <!-- Behind Card -->
-        <div class="portfolio-stat-card {% if status_counts.behind > 0 %}warning-highlight{% endif %}">
-            <div class="portfolio-stat-icon orange">
-                <i class="bi bi-dash-circle-fill"></i>
-            </div>
-            <div class="portfolio-stat-label">Behind Plan</div>
-            <div class="portfolio-stat-value">{{ status_counts.behind }}</div>
-            <div class="portfolio-stat-trend">Below expectations</div>
-        </div>
-
-        <!-- On Track Card -->
-        <div class="portfolio-stat-card success-highlight">
-            <div class="portfolio-stat-icon green">
-                <i class="bi bi-check-circle-fill"></i>
-            </div>
-            <div class="portfolio-stat-label">On Track</div>
-            <div class="portfolio-stat-value">{{ status_counts.on_track }}</div>
-            <div class="portfolio-stat-trend">Meeting goals</div>
-        </div>
-
-        <!-- Exceeding Card -->
-        <div class="portfolio-stat-card success-highlight">
-            <div class="portfolio-stat-icon blue">
-                <i class="bi bi-arrow-up-circle-fill"></i>
-            </div>
-            <div class="portfolio-stat-label">Exceeding</div>
-            <div class="portfolio-stat-value">{{ status_counts.exceeding }}</div>
-            <div class="portfolio-stat-trend">Above expectations</div>
-        </div>
-
-    </div>
 
     <!-- Needs Attention Section -->
     {% set needs_attention = positions | selectattr('status', 'equalto', 'needs_attention') | list %}

@@ -213,6 +213,18 @@
     text-decoration: none;
 }
 
+.rcl-action--danger {
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+.rcl-action--danger:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+    text-decoration: none;
+}
+
 /* ── EMPTY STATE ──────────────────────────────────── */
 
 .rcl-empty-state {
