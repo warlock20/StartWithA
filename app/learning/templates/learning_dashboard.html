@@ -3,37 +3,39 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Learning Center</h1>
-            <p class="dashboard-subtitle">Transform experience into expertise through systematic learning</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('learning.review_calendar') }}" class="btn btn-outline-primary me-2">
-                <i class="bi bi-calendar-check"></i> Review Calendar
-            </a>
-            <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle" type="button"
-                        id="learningActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-plus-circle-fill"></i> Quick Action
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="learningActionsDropdown">
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('learning.new_mistake') }}">
-                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                            Log Mistake
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">
-                            <i class="bi bi-journal-text text-primary me-2"></i>
-                            Weekly Review
-                        </a>
-                    </li>
-                </ul>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Learning Center</h1>
+                <p class="dashboard-subtitle">Transform experience into expertise through systematic learning</p>
             </div>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('learning.review_calendar') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-calendar-check"></i> Review Calendar
+                </a>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button"
+                            id="learningActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-plus-circle-fill"></i> Quick Action
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="learningActionsDropdown">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('learning.new_mistake') }}">
+                                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                Log Mistake
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">
+                                <i class="bi bi-journal-text text-primary me-2"></i>
+                                Weekly Review
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+    </div>
 
       <!-- Review Schedule Alert -->
     {% if review_schedule %}

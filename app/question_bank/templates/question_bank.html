@@ -3,26 +3,28 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-bank text-primary me-3"></i>My Question Bank
-            </h1>
-            <p class="dashboard-subtitle">Your personal library of reusable investment questions organized by sector</p>
-            <div class="mt-2">
-                <small class="text-muted">
-                    Also explore:
-                    <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅ Investment Checklists</a> |
-                    <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none fw-semibold">📋 Kill Checklists</a>
-                </small>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-bank text-primary me-3"></i>My Question Bank
+                </h1>
+                <p class="dashboard-subtitle">Your personal library of reusable investment questions organized by sector</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        Also explore:
+                        <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅ Investment Checklists</a> |
+                        <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="text-decoration-none fw-semibold">📋 Kill Checklists</a>
+                    </small>
+                </div>
             </div>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+            </div>
+        </header>
+    </div>
 
     {% if total_questions > 0 %}
     <!-- Summary Stats -->

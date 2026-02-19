@@ -3,27 +3,29 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-pencil-square text-primary me-3"></i>Edit Kill Checklist
-            </h1>
-            <p class="dashboard-subtitle">
-                Refine your criteria: {{ checklist.name }}
-                {% if checklist.is_default %}
-                <span class="badge bg-primary ms-2"><i class="bi bi-star-fill"></i> Default</span>
-                {% endif %}
-            </p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            {% with btn_class='btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-pencil-square text-primary me-3"></i>Edit Kill Checklist
+                </h1>
+                <p class="dashboard-subtitle">
+                    Refine your criteria: {{ checklist.name }}
+                    {% if checklist.is_default %}
+                    <span class="badge bg-primary ms-2"><i class="bi bi-star-fill"></i> Default</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                {% with btn_class='btn-outline-secondary' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
+            </div>
+        </header>
+    </div>
 
     <!-- Performance Stats (if available) -->
     {% if checklist.total_ideas_evaluated > 0 %}

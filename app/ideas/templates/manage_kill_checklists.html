@@ -3,29 +3,31 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">📋 Kill Checklists</h1>
-            <p class="dashboard-subtitle">Design your criteria for eliminating bad ideas quickly</p>
-            <div class="mt-2">
-                <small class="text-muted">
-                    Also explore:
-                    <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅
-                        Investment Checklists</a> |
-                    <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none fw-semibold">❓ Question
-                        Bank</a>
-                </small>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">📋 Kill Checklists</h1>
+                <p class="dashboard-subtitle">Design your criteria for eliminating bad ideas quickly</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        Also explore:
+                        <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅
+                            Investment Checklists</a> |
+                        <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none fw-semibold">❓ Question
+                            Bank</a>
+                    </small>
+                </div>
             </div>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Create New Checklist
-            </a>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('ideas.create_kill_checklist') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle-fill"></i> Create New Checklist
+                </a>
+            </div>
+        </header>
+    </div>
 
     {% if checklists %}
     <!-- Sort Controls -->

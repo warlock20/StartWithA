@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">📚 Learning Paths</h1>
-            <p class="dashboard-subtitle">Structured programs to improve your investment skills</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newPathModal">
-                <i class="bi bi-plus-circle-fill me-2"></i> Create Learning Path
-            </button>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">📚 Learning Paths</h1>
+                <p class="dashboard-subtitle">Structured programs to improve your investment skills</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newPathModal">
+                    <i class="bi bi-plus-circle-fill me-2"></i> Create Learning Path
+                </button>
+            </div>
+        </header>
+    </div>
 
     <!-- Active Learning Paths -->
     {% set active_paths = paths|selectattr('status', 'equalto', 'active')|list %}

@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">{{ title }}</h1>
-            <p class="dashboard-subtitle">Your collection of deep-dive research notebooks for specific industries and sectors.</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">{{ title }}</h1>
+                <p class="dashboard-subtitle">Your collection of deep-dive research notebooks for specific industries and sectors.</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+            </div>
+        </header>
+    </div>
 
     <!-- Create New Sector Card -->
     <div class="card framework-card mb-4">

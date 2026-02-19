@@ -3,19 +3,21 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Select Investment Checklist</h1>
-            <p class="dashboard-subtitle">
-                Step: {{ step.name }} • {{ project.project_name }}
-            </p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Project
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Select Investment Checklist</h1>
+                <p class="dashboard-subtitle">
+                    Step: {{ step.name }} • {{ project.project_name }}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Main Content -->
     <div class="row justify-content-center">

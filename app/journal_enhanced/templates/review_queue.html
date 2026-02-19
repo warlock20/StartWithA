@@ -3,15 +3,17 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Review Queue</h1>
-            <p class="dashboard-subtitle">Items that need your attention</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <span class="review-queue-count">{{ total_items }} items</span>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Review Queue</h1>
+                <p class="dashboard-subtitle">Items that need your attention</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <span class="review-queue-count">{{ total_items }} items</span>
+            </div>
+        </header>
+    </div>
 
     {% if total_items == 0 %}
     <!-- All Caught Up State -->

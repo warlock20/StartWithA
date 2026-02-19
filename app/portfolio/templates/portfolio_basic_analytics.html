@@ -9,21 +9,23 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">AI Portfolio Intelligence</h1>
-            <p class="dashboard-subtitle">
-                AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{
-                insights.metadata.positions_count }} positions
-            </p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                <i class="bi bi-arrow-left"></i>
-                Back to Intelligence Hub
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">AI Portfolio Intelligence</h1>
+                <p class="dashboard-subtitle">
+                    AI-driven analysis of {{ insights.metadata.transactions_count }} transactions across {{
+                    insights.metadata.positions_count }} positions
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Intelligence Hub
+                </a>
+            </div>
+        </header>
+    </div>
 
     {% if has_error %}
     <!-- Error State -->

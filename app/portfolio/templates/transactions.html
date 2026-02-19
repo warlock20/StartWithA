@@ -5,20 +5,22 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Transaction History</h1>
-            <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
-                <i class="bi bi-briefcase"></i> Portfolio
-            </a>
-            <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
-                <i class="bi bi-plus"></i> Add Transaction
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Transaction History</h1>
+                <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
+                    <i class="bi bi-briefcase"></i> Portfolio
+                </a>
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
+                    <i class="bi bi-plus"></i> Add Transaction
+                </a>
+            </div>
+        </header>
+    </div>
 
     {% if transactions %}
     <div class="rcl-panel">

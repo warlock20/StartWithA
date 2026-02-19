@@ -3,22 +3,24 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-plus-circle-fill text-success me-3"></i>Create New Checklist
-            </h1>
-            <p class="dashboard-subtitle">Set up your checklist basics, then build the content in edit mode</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Checklists
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-plus-circle-fill text-success me-3"></i>Create New Checklist
+                </h1>
+                <p class="dashboard-subtitle">Set up your checklist basics, then build the content in edit mode</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Checklists
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Main Form Card -->
     <div class="row justify-content-center mt-4">

@@ -4,27 +4,29 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-eye text-info me-3"></i>{{ checklist.name }}
-            </h1>
-            <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
-            <div class="mt-2">
-                <small class="text-muted">
-                    <span class="badge bg-info">View Mode</span>
-                </small>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-eye text-info me-3"></i>{{ checklist.name }}
+                </h1>
+                <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <span class="badge bg-info">View Mode</span>
+                    </small>
+                </div>
             </div>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-warning me-2">
-                <i class="bi bi-pencil"></i> Edit Mode
-            </a>
-            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Checklists
-            </a>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('checklists.view_checklist', checklist_id=checklist.id) }}" class="btn btn-warning me-2">
+                    <i class="bi bi-pencil"></i> Edit Mode
+                </a>
+                <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Checklists
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Statistics Overview -->
     <div class="priority-lane-section">

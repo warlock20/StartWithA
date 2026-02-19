@@ -3,25 +3,27 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-diagram-3 text-primary me-3"></i>Research Templates
-            </h1>
-            <p class="dashboard-subtitle">Systematic workflows for different investment approaches</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary me-2">
-                <i class="bi bi-folder"></i> My Projects
-            </a>
-            <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle-fill"></i> Create Template
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-diagram-3 text-primary me-3"></i>Research Templates
+                </h1>
+                <p class="dashboard-subtitle">Systematic workflows for different investment approaches</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-folder"></i> My Projects
+                </a>
+                <a href="{{ url_for('research_workflow.create_template') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle-fill"></i> Create Template
+                </a>
+            </div>
+        </header>
+    </div>
 
     {% if templates %}
     <!-- Sort Controls -->

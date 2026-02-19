@@ -34,31 +34,33 @@
 
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <p class="text-primary text-uppercase fw-semibold small mb-2">Value Investing Framework</p>
-            <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
-            <p class="dashboard-subtitle">
-                {% if project.company %}
-                {{ project.company.name }}
-                {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <p class="text-primary text-uppercase fw-semibold small mb-2">Value Investing Framework</p>
+                <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
+                <p class="dashboard-subtitle">
+                    {% if project.company %}
+                    {{ project.company.name }}
+                    {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                {% if project.status == 'active' %}
+                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
+                    <i class="bi bi-archive"></i> Mark as Too Hard
+                </a>
                 {% endif %}
-            </p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            {% if project.status == 'active' %}
-            <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
-                <i class="bi bi-archive"></i> Mark as Too Hard
-            </a>
-            {% endif %}
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to My Projects
-            </a>
-        </div>
-    </header>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to My Projects
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Main Content Grid -->
     <div class="row g-4">

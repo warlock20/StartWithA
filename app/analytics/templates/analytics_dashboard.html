@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">📊 Research Analytics</h1>
-            <p class="dashboard-subtitle">Track your research patterns and improve your investment decision quality</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="btn btn-outline-primary">
-                <i class="bi bi-journal-text"></i> Decision Journal
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">📊 Research Analytics</h1>
+                <p class="dashboard-subtitle">Track your research patterns and improve your investment decision quality</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-journal-text"></i> Decision Journal
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Tab Navigation -->
     <ul class="nav nav-pills analytics-nav-tabs mb-4" id="analyticsTabs" role="tablist">
