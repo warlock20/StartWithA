@@ -9,8 +9,19 @@ Composes existing services:
 
 import logging
 import time
-from typing import List, Optional, Dict, Any
+import numpy as np
 
+from typing import List, Optional, Dict, Any
+from app.services.ai.embedding_service import embed, get_embedding_service
+from app.services.ai import ai_service, AITaskType, prompt_service
+
+from app.services.similar_mistakes import SimilarMistakesService
+from app.models.idea_pipeline import MistakeLog
+from app.models.ai_intelligence import EmbeddingStore
+from app.models.journal import DecisionJournal, PatternRecognition
+
+from app import db
+from app.models import Company
 from app.services.argos.config import (
     THRESHOLDS,
     CONTEXT_RULE_MATRIX,
@@ -26,10 +37,12 @@ from app.services.argos.insights import (
     ArgosCheckResult,
 )
 
+from app.services.argos.companion import CompanionMixin, CompanionContext  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 
-class ArgosService:
+class ArgosService(CompanionMixin):
     """
     Argos - Intelligent Research Assistant
 
@@ -56,7 +69,6 @@ class ArgosService:
     def similar_mistakes_service(self):
         """Lazy load SimilarMistakesService."""
         if self._similar_mistakes_service is None:
-            from app.services.similar_mistakes import SimilarMistakesService
             self._similar_mistakes_service = SimilarMistakesService(user_id=self.user_id)
         return self._similar_mistakes_service
 
@@ -160,6 +172,8 @@ class ArgosService:
             InsightCategory.ACCOUNTING_FLAG: self._gather_accounting_flags,
             InsightCategory.CONSISTENCY: self._gather_consistency_issues,
             InsightCategory.COMPLETENESS: self._gather_completeness_issues,
+            InsightCategory.JOURNAL_INSIGHT: self._gather_journal_insights,
+            InsightCategory.PATTERN_WARNING: self._gather_pattern_warnings,
         }
 
         method = method_map.get(category)
@@ -181,10 +195,6 @@ class ArgosService:
         1. Deterministic: sector match, same company
         2. Semantic: embedding similarity (if current_text provided)
         """
-        from app.models.idea_pipeline import MistakeLog
-        from app.models.ai_intelligence import EmbeddingStore
-        from app.services.ai.embedding_service import embed, get_embedding_service
-
         candidates = []
         checks_passed = []
         checks_failed = []
@@ -249,10 +259,6 @@ class ArgosService:
         """
         Find semantically similar mistake log entries using embeddings.
         """
-        from app.models.ai_intelligence import EmbeddingStore
-        from app.services.ai.embedding_service import embed, get_embedding_service
-        import numpy as np
-
         candidates = []
 
         try:
@@ -305,11 +311,6 @@ class ArgosService:
         """
         Get embedding for mistake from store, or create and store it.
         """
-        from app.models.ai_intelligence import EmbeddingStore
-        from app.services.ai.embedding_service import embed
-        from app import db
-        import numpy as np
-
         # Check if embedding exists
         existing = EmbeddingStore.query.filter_by(
             user_id=self.user_id,
@@ -395,7 +396,6 @@ class ArgosService:
 
     def _get_company_sector(self, company_id: int) -> Optional[str]:
         """Get sector name for a company."""
-        from app.models import Company
         company = Company.query.get(company_id)
         if company and hasattr(company, 'sector') and company.sector:
             return company.sector.name if hasattr(company.sector, 'name') else str(company.sector)
@@ -484,6 +484,134 @@ class ArgosService:
 
         return candidates, checks_passed, checks_failed
 
+    def _gather_journal_insights(
+        self,
+        company,
+        step_context: Dict[str, Any],
+        current_text: Optional[str],
+    ) -> tuple[List[InsightCandidate], List[str], List[str]]:
+        """
+        Find relevant DecisionJournal entries for this company/sector.
+
+        Surfaces: past decisions, outcomes, lessons learned for the same
+        company or sector — so the user sees their own history.
+        """
+
+        candidates = []
+        checks_passed = []
+        checks_failed = []
+
+        # Get journal entries for same company
+        company_journals = DecisionJournal.query.filter_by(
+            user_id=self.user_id,
+            company_id=company.id,
+        ).all()
+
+        for journal in company_journals:
+            candidates.append(InsightCandidate(
+                category=InsightCategory.JOURNAL_INSIGHT,
+                source_type='decision_journal',
+                source_id=journal.id,
+                raw_data={
+                    'id': journal.id,
+                    'decision_type': journal.decision_type,
+                    'decision_date': str(journal.decision_date) if journal.decision_date else None,
+                    'confidence_score': journal.confidence_score,
+                    'investment_thesis': (journal.investment_thesis or '')[:300],
+                    'lessons_learned': (journal.lessons_learned or '')[:300],
+                    'what_went_wrong': (journal.what_went_wrong or '')[:300],
+                    'actual_return': journal.actual_return,
+                    'would_repeat': journal.would_repeat,
+                    'company_name': company.name,
+                },
+                match_reason='same_company',
+                base_confidence=ConfidenceLevel.HIGH,
+            ))
+
+        # Get journal entries for same sector
+        company_sector = self._get_company_sector(company.id)
+        if company_sector:
+            sector_company_ids = [
+                c.id for c in Company.query.filter_by(user_id=self.user_id).all()
+                if self._get_company_sector(c.id) and
+                   self._get_company_sector(c.id).lower() == company_sector.lower() and
+                   c.id != company.id
+            ]
+            if sector_company_ids:
+                sector_journals = DecisionJournal.query.filter(
+                    DecisionJournal.user_id == self.user_id,
+                    DecisionJournal.company_id.in_(sector_company_ids),
+                ).all()
+
+                for journal in sector_journals:
+                    candidates.append(InsightCandidate(
+                        category=InsightCategory.JOURNAL_INSIGHT,
+                        source_type='decision_journal',
+                        source_id=journal.id,
+                        raw_data={
+                            'id': journal.id,
+                            'decision_type': journal.decision_type,
+                            'decision_date': str(journal.decision_date) if journal.decision_date else None,
+                            'confidence_score': journal.confidence_score,
+                            'investment_thesis': (journal.investment_thesis or '')[:300],
+                            'lessons_learned': (journal.lessons_learned or '')[:300],
+                            'actual_return': journal.actual_return,
+                            'company_name': getattr(journal, 'company', None) and journal.company.name or 'Unknown',
+                        },
+                        match_reason='sector_match',
+                        base_confidence=ConfidenceLevel.MEDIUM,
+                        matched_sector=True,
+                    ))
+
+        logger.debug(f"JournalInsight found {len(candidates)} candidates")
+        return candidates, checks_passed, checks_failed
+
+    def _gather_pattern_warnings(
+        self,
+        company,
+        step_context: Dict[str, Any],
+        current_text: Optional[str],
+    ) -> tuple[List[InsightCandidate], List[str], List[str]]:
+        """
+        Surface PatternRecognition entries (failure patterns, behavioral patterns).
+
+        These are user-identified or AI-detected patterns that should be front
+        of mind during research.
+        """
+        candidates = []
+        checks_passed = []
+        checks_failed = []
+
+        # Get failure and behavioral patterns (most relevant during research)
+        patterns = PatternRecognition.query.filter(
+            PatternRecognition.user_id == self.user_id,
+            PatternRecognition.pattern_type.in_(['failure_pattern', 'behavioral']),
+        ).all()
+
+        for pattern in patterns:
+            candidates.append(InsightCandidate(
+                category=InsightCategory.PATTERN_WARNING,
+                source_type='pattern_recognition',
+                source_id=pattern.id,
+                raw_data={
+                    'id': pattern.id,
+                    'pattern_name': pattern.pattern_name,
+                    'pattern_type': pattern.pattern_type,
+                    'description': (pattern.description or '')[:300],
+                    'occurrences': pattern.occurrences,
+                    'impact_score': pattern.impact_score,
+                    'how_to_avoid': (pattern.how_to_avoid or '')[:300],
+                    'confidence_level': pattern.confidence_level,
+                    'last_observed': str(pattern.last_observed) if pattern.last_observed else None,
+                },
+                match_reason='active_pattern',
+                base_confidence=ConfidenceLevel.HIGH if (pattern.impact_score or 0) >= 7 else ConfidenceLevel.MEDIUM,
+                matched_tags=[pattern.pattern_type] if pattern.pattern_type else [],
+            ))
+
+        logger.debug(f"PatternWarning found {len(candidates)} candidates")
+        return candidates, checks_passed, checks_failed
+
     # =========================================================================
     # Context Filtering
     # =========================================================================
@@ -532,9 +660,6 @@ class ArgosService:
         Returns:
             (scored_candidates, llm_was_used)
         """
-        from app.services.ai import ai_service, AITaskType
-        from app.services.ai.prompt_service import prompt_service
-
         max_to_score = LLM_CONFIG['relevance_scoring']['max_insights_to_score']
         candidates_to_score = candidates[:max_to_score]
 
@@ -649,6 +774,12 @@ class ArgosService:
             return raw.get('title', 'Mistake log entry')
         elif candidate.source_type == 'trade_loss':
             return f"Loss on {raw.get('company_name', 'Unknown')}: {raw.get('return_pct', 0):.1f}%"
+        elif candidate.source_type == 'decision_journal':
+            decision_type = raw.get('decision_type', 'unknown')
+            company = raw.get('company_name', 'Unknown')
+            return f"Past {decision_type} decision on {company}"
+        elif candidate.source_type == 'pattern_recognition':
+            return raw.get('pattern_name', 'Behavioral pattern')
         return raw.get('summary', 'Insight')
 
     def _build_source_label(self, candidate: InsightCandidate) -> str:
@@ -657,6 +788,10 @@ class ArgosService:
             return f"Mistake #{candidate.source_id}"
         elif candidate.source_type == 'trade_loss':
             return f"Trade: {candidate.raw_data.get('company_name', 'Unknown')}"
+        elif candidate.source_type == 'decision_journal':
+            return f"Decision Journal #{candidate.source_id}"
+        elif candidate.source_type == 'pattern_recognition':
+            return f"Pattern: {candidate.raw_data.get('pattern_name', 'Unknown')}"
         return f"{candidate.source_type} #{candidate.source_id}"
 
     # =========================================================================
@@ -665,7 +800,6 @@ class ArgosService:
 
     def _get_company(self, company_id: int):
         """Get company by ID."""
-        from app.models import Company
         return Company.query.get(company_id)
 
     def _empty_result(self) -> ArgosCheckResult:

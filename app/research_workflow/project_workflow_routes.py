@@ -203,7 +203,7 @@ def execute_step(project_id, step_index):
 
     # Check for existing active session for this step
     existing_session = WorkSession.query.filter_by(
-        research_project_id=project_id,
+        project_id=project_id,
         user_id=current_user.id,
         step_index=step_index,
         end_time=None

@@ -1,0 +1,42 @@
+name: "session_wrapup"
+description: "Summarize a research session: accomplishments, gaps, next steps"
+version: "1.0"
+category: "companion"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 600
+temperature: 0.3
+
+system_context: |
+  You are summarizing a research session for an investor. Be factual and concise.
+  Focus on what was accomplished, what's still open, and what to focus on next.
+  Never give investment opinions. Report facts about the research progress.
+
+template: |
+  COMPANY: {company_name}
+  STEP: {step_name}
+  SESSION DURATION: {duration_minutes} minutes
+
+  RESEARCH QUESTIONS FOR THIS STEP:
+  {research_questions}
+
+  FINDINGS ADDED THIS SESSION:
+  {session_findings}
+
+  ALL FINDINGS (cumulative):
+  {all_findings}
+
+  COUNTER-EVIDENCE GENERATED:
+  {counter_evidence}
+
+  Summarize this research session:
+  1. ACCOMPLISHED: What questions were addressed this session (1-2 sentences)
+  2. STRONGEST FINDING: The most significant finding from this session
+  3. BIGGEST GAP: The most important unanswered question
+  4. COUNTER-EVIDENCE TO VERIFY: Any counter-evidence that needs follow-up
+  5. NEXT SESSION: What to focus on in the next research session (be specific)
+
+output_format: |
+  Structured text with numbered sections matching the template above.
+  Each section should be 1-2 sentences maximum.

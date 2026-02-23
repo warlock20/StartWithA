@@ -23,6 +23,8 @@ class InsightCategory(Enum):
     ACCOUNTING_FLAG = 'accounting_flag'
     CONSISTENCY = 'consistency'
     COMPLETENESS = 'completeness'
+    JOURNAL_INSIGHT = 'journal_insight'
+    PATTERN_WARNING = 'pattern_warning'
 
 
 # =============================================================================
@@ -60,6 +62,8 @@ CONTEXT_RULE_MATRIX: Dict[str, Dict[str, bool | str]] = {
         InsightCategory.ACCOUNTING_FLAG: 'financial',  # Only for financial sections
         InsightCategory.CONSISTENCY: True,
         InsightCategory.COMPLETENESS: False,  # Only at completion
+        InsightCategory.JOURNAL_INSIGHT: True,
+        InsightCategory.PATTERN_WARNING: True,
     },
     'free_research': {
         InsightCategory.MISTAKE_MATCH: True,
@@ -67,6 +71,8 @@ CONTEXT_RULE_MATRIX: Dict[str, Dict[str, bool | str]] = {
         InsightCategory.ACCOUNTING_FLAG: 'keywords',  # Only if keywords match
         InsightCategory.CONSISTENCY: False,
         InsightCategory.COMPLETENESS: False,
+        InsightCategory.JOURNAL_INSIGHT: True,
+        InsightCategory.PATTERN_WARNING: True,
     },
     'thesis': {
         InsightCategory.MISTAKE_MATCH: True,
@@ -74,6 +80,8 @@ CONTEXT_RULE_MATRIX: Dict[str, Dict[str, bool | str]] = {
         InsightCategory.ACCOUNTING_FLAG: True,
         InsightCategory.CONSISTENCY: False,
         InsightCategory.COMPLETENESS: False,
+        InsightCategory.JOURNAL_INSIGHT: True,
+        InsightCategory.PATTERN_WARNING: True,
     },
     'completion': {
         InsightCategory.MISTAKE_MATCH: True,
@@ -81,6 +89,8 @@ CONTEXT_RULE_MATRIX: Dict[str, Dict[str, bool | str]] = {
         InsightCategory.ACCOUNTING_FLAG: True,
         InsightCategory.CONSISTENCY: False,
         InsightCategory.COMPLETENESS: True,
+        InsightCategory.JOURNAL_INSIGHT: True,
+        InsightCategory.PATTERN_WARNING: True,
     },
 }
 
@@ -155,6 +165,12 @@ CONFIDENCE_RULES = {
     },
     InsightCategory.COMPLETENESS: {
         'base': ConfidenceLevel.LOW,
+    },
+    InsightCategory.JOURNAL_INSIGHT: {
+        'base': ConfidenceLevel.MEDIUM,
+    },
+    InsightCategory.PATTERN_WARNING: {
+        'base': ConfidenceLevel.HIGH,  # User-identified patterns are high value
     },
 }
 

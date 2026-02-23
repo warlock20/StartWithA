@@ -1,21 +1,26 @@
 {#
-  Argos Check Component
+  Argos Insights — Unified Modal Component
+
+  Merges two layers of intelligence into a single modal:
+  1. Research Intelligence (top) — companion warnings from DB queries (free, instant)
+  2. Deep Analysis (bottom) — LLM-powered analysis via async Celery task
 
   Include in research step templates with:
   {% include 'partials/_argos_check.html' %}
 
-  Requires: project.company_id, step_index (or step_type)
+  Requires: project.company_id (or session.company_id), step_index, step.type
+  CSS: modules/_companion.css (already imported via design-system.css)
 #}
 
 <!-- Argos Check Button -->
-<button type="button" class="btn btn-outline-primary" onclick="ArgosCheck.open()">
+<button type="button" class="btn btn-outline-primary" onclick="ArgosInsights.open()">
     <i class="bi bi-eye me-1"></i> Argos Check
     <span class="badge bg-secondary ms-1" id="argosInsightCount" style="display: none;">0</span>
 </button>
 
-<!-- Argos Modal -->
+<!-- Argos Insights Modal -->
 <div class="modal fade" id="argosModal" tabindex="-1" aria-labelledby="argosModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="argosModalLabel">
@@ -24,52 +29,117 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Loading -->
-                <div id="argosLoading" class="text-center py-4">
-                    <div class="spinner-border text-primary"></div>
-                    <p class="mt-2 text-muted">Analyzing your research context...</p>
-                </div>
 
-                <!-- Results -->
-                <div id="argosResults" style="display: none;">
-                    <!-- Summary Stats -->
-                    <div class="row mb-4">
-                        <div class="col-4">
-                            <div class="text-center p-2 bg-light rounded">
-                                <h4 class="mb-0" id="argosTotal">0</h4>
-                                <small class="text-muted">Insights</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center p-2 bg-danger rounded">
-                                <h4 class="mb-0 text-white" id="argosHigh">0</h4>
-                                <small class="text-white-50">High Priority</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center p-2 bg-warning rounded">
-                                <h4 class="mb-0 text-dark" id="argosMedium">0</h4>
-                                <small class="text-dark text-opacity-75">Medium</small>
-                            </div>
-                        </div>
+                <!-- ============================================================
+                     TOP SECTION: Research Intelligence (companion warnings)
+                     ============================================================ -->
+                <div id="argosCompanionSection">
+                    <h6 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-shield-check text-primary"></i>
+                        Research Intelligence
+                        <span class="badge bg-secondary" id="argosCompanionCount" style="display: none;">0</span>
+                    </h6>
+
+                    <!-- Loading -->
+                    <div id="argosCompanionLoading" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <span class="ms-2 text-muted small">Loading warnings...</span>
                     </div>
 
-                    <!-- Insights List -->
-                    <div id="argosInsightsList"></div>
+                    <!-- Results -->
+                    <div id="argosCompanionResults" style="display: none;"></div>
 
-                    <!-- Checks Summary -->
-                    <div id="argosChecks" class="mt-3"></div>
-
-                    <!-- Empty State -->
-                    <div id="argosEmpty" class="text-center py-4" style="display: none;">
-                        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
-                        <h5 class="mt-3">No concerns found</h5>
-                        <p class="text-muted">Argos didn't find any relevant insights from your past experiences.</p>
+                    <!-- Empty -->
+                    <div id="argosCompanionEmpty" style="display: none;" class="text-center py-3">
+                        <i class="bi bi-check-circle text-success" style="font-size: 1.5rem;"></i>
+                        <p class="text-muted small mt-1 mb-0">No warnings found — your research context looks clean.</p>
                     </div>
                 </div>
 
-                <!-- Error -->
-                <div id="argosError" class="alert alert-danger" style="display: none;"></div>
+                <hr>
+
+                <!-- ============================================================
+                     BOTTOM SECTION: Deep Analysis (LLM-powered, async)
+                     ============================================================ -->
+                <div id="argosDeepSection">
+                    <h6 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-cpu text-primary"></i>
+                        Deep Analysis
+                    </h6>
+
+                    <!-- Pre-trigger placeholder -->
+                    <div id="argosDeepPlaceholder">
+                        <p class="text-muted small mb-2">
+                            AI-powered analysis that cross-references your current research with past decisions,
+                            journal entries, and mistake patterns. Uses your research text as context.
+                        </p>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="argosIncludeCompanion" checked>
+                            <label class="form-check-label small" for="argosIncludeCompanion">
+                                Include Research Intelligence warnings as additional context
+                            </label>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="ArgosInsights.runDeepAnalysis()">
+                            <i class="bi bi-lightning-charge me-1"></i> Run Deep Analysis
+                        </button>
+                    </div>
+
+                    <!-- Loading with timer -->
+                    <div id="argosDeepLoading" style="display: none;" class="text-center py-4">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="mt-2 text-muted">Analyzing your research context...</p>
+                        <small class="text-muted" id="argosDeepTimer">0s</small>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="argosDeepResults" style="display: none;">
+                        <!-- Summary Stats -->
+                        <div class="row mb-4">
+                            <div class="col-4">
+                                <div class="text-center p-2 bg-light rounded">
+                                    <h4 class="mb-0" id="argosTotal">0</h4>
+                                    <small class="text-muted">Insights</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-2 bg-danger rounded">
+                                    <h4 class="mb-0 text-white" id="argosHigh">0</h4>
+                                    <small class="text-white-50">High Priority</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-2 bg-warning rounded">
+                                    <h4 class="mb-0 text-dark" id="argosMedium">0</h4>
+                                    <small class="text-dark text-opacity-75">Medium</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Insights List -->
+                        <div id="argosInsightsList"></div>
+
+                        <!-- Checks Summary -->
+                        <div id="argosChecks" class="mt-3"></div>
+
+                        <!-- Empty State -->
+                        <div id="argosEmpty" class="text-center py-4" style="display: none;">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">No concerns found</h5>
+                            <p class="text-muted">Argos didn't find any relevant insights from your past experiences.</p>
+                        </div>
+
+                        <!-- Re-run button -->
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="ArgosInsights.runDeepAnalysis()">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Re-run Analysis
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Error -->
+                    <div id="argosDeepError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+
             </div>
             <div class="modal-footer">
                 <small class="text-muted me-auto" id="argosProcessingTime"></small>
@@ -80,14 +150,52 @@
 </div>
 
 <script>
-const ArgosCheck = {
-    companyId: {{ project.company_id if project.company_id else 'null' }},
-    stepType: '{{ step.type if step else "checklist" }}',
+const ArgosInsights = {
+    companyId: {{ project.company_id if project is defined and project and project.company_id else (session.company_id if session is defined and session and session.company_id else 'null') }},
+    stepType: '{{ step.type if step is defined and step else "checklist" }}',
     stepIndex: {{ step_index if step_index is defined else 0 }},
     modal: null,
+    cacheTTL: 30 * 60 * 1000, // 30 minutes
+    warningsCacheKey: null,
+    deepCacheKey: null,
+    pollInterval: null,
+    timerInterval: null,
+    timerSeconds: 0,
 
     init() {
         this.modal = new bootstrap.Modal(document.getElementById('argosModal'));
+        this.warningsCacheKey = `argos_warnings_${this.companyId}`;
+        this.deepCacheKey = `argos_deep_${this.companyId}`;
+
+        // Restore badge from warnings cache
+        this.restoreBadgeFromCache();
+
+        // Stop polling when modal is hidden
+        document.getElementById('argosModal').addEventListener('hidden.bs.modal', () => {
+            this.stopPolling();
+        });
+    },
+
+    restoreBadgeFromCache() {
+        try {
+            const cached = sessionStorage.getItem(this.warningsCacheKey);
+            if (!cached) return;
+            const { warnings, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp > this.cacheTTL) {
+                sessionStorage.removeItem(this.warningsCacheKey);
+                return;
+            }
+            const count = warnings.length;
+            if (count > 0) {
+                const badge = document.getElementById('argosInsightCount');
+                badge.textContent = count;
+                badge.style.display = 'inline';
+                const hasHigh = warnings.some(w => w.severity === 'high');
+                badge.className = hasHigh ? 'badge bg-danger ms-1' : 'badge bg-warning ms-1';
+            }
+        } catch (e) {
+            console.warn('Argos badge restore failed:', e);
+        }
     },
 
     async open() {
@@ -99,70 +207,244 @@ const ArgosCheck = {
         if (!this.modal) this.init();
         this.modal.show();
 
+        // Always load companion warnings (may use cache)
+        this.loadCompanionWarnings();
+
+        // Restore deep analysis from cache if available
+        this.restoreDeepFromCache();
+    },
+
+    // =================================================================
+    // Companion Warnings (top section)
+    // =================================================================
+
+    async loadCompanionWarnings() {
+        // Check cache first
+        try {
+            const cached = sessionStorage.getItem(this.warningsCacheKey);
+            if (cached) {
+                const { warnings, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp <= this.cacheTTL) {
+                    document.getElementById('argosCompanionLoading').style.display = 'none';
+                    this.displayCompanionWarnings(warnings);
+                    return;
+                }
+            }
+        } catch (e) { /* fall through to fetch */ }
+
         // Show loading
-        document.getElementById('argosLoading').style.display = 'block';
-        document.getElementById('argosResults').style.display = 'none';
-        document.getElementById('argosError').style.display = 'none';
+        document.getElementById('argosCompanionLoading').style.display = 'block';
+        document.getElementById('argosCompanionResults').style.display = 'none';
+        document.getElementById('argosCompanionEmpty').style.display = 'none';
 
         try {
-            // Gather current research text from page
-            const currentText = this.gatherCurrentText();
+            const response = await fetch(`/research/workflow/api/argos/warnings/${this.companyId}`);
+            const data = await response.json();
 
-            const response = await fetch('/research/workflow/api/argos/check', {
+            document.getElementById('argosCompanionLoading').style.display = 'none';
+
+            if (data.success) {
+                const warnings = data.data.warnings;
+                // Cache the warnings
+                try {
+                    sessionStorage.setItem(this.warningsCacheKey, JSON.stringify({
+                        warnings: warnings,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) { console.warn('Argos warnings cache save failed:', e); }
+
+                this.displayCompanionWarnings(warnings);
+            } else {
+                document.getElementById('argosCompanionResults').innerHTML =
+                    '<div class="alert alert-warning small">Failed to load warnings.</div>';
+                document.getElementById('argosCompanionResults').style.display = 'block';
+            }
+        } catch (err) {
+            document.getElementById('argosCompanionLoading').style.display = 'none';
+            document.getElementById('argosCompanionResults').innerHTML =
+                `<div class="alert alert-warning small">${this.escapeHtml(err.message)}</div>`;
+            document.getElementById('argosCompanionResults').style.display = 'block';
+        }
+    },
+
+    displayCompanionWarnings(warnings) {
+        const resultsEl = document.getElementById('argosCompanionResults');
+        const emptyEl = document.getElementById('argosCompanionEmpty');
+        const countBadge = document.getElementById('argosCompanionCount');
+        const buttonBadge = document.getElementById('argosInsightCount');
+
+        if (!warnings || warnings.length === 0) {
+            resultsEl.style.display = 'none';
+            emptyEl.style.display = 'block';
+            countBadge.style.display = 'none';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+
+        // Update count badges
+        countBadge.textContent = warnings.length;
+        countBadge.style.display = 'inline';
+
+        const hasHigh = warnings.some(w => w.severity === 'high');
+        buttonBadge.textContent = warnings.length;
+        buttonBadge.style.display = 'inline';
+        buttonBadge.className = hasHigh ? 'badge bg-danger ms-1' : 'badge bg-warning ms-1';
+
+        // Map warning type to CSS class suffix
+        const typeClassMap = {
+            'pattern_warning': 'pattern',
+            'journal_insight': 'journal',
+            'mistake_history': 'mistake'
+        };
+
+        resultsEl.innerHTML = warnings.map(w => `
+            <div class="companion-alert-item severity-${w.severity}">
+                <div class="companion-alert-icon">
+                    <i class="bi ${this.escapeHtml(w.icon || 'bi-exclamation-triangle')}"></i>
+                </div>
+                <div class="companion-alert-body">
+                    <span class="companion-alert-type type-${typeClassMap[w.type] || 'pattern'}">
+                        ${this.escapeHtml((w.type || '').replace(/_/g, ' '))}
+                    </span>
+                    <div class="companion-alert-title">${this.escapeHtml(w.title)}</div>
+                    <div class="companion-alert-message">${this.escapeHtml(w.message)}</div>
+                    ${w.detail ? `<div class="companion-alert-detail">${this.escapeHtml(w.detail)}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        resultsEl.style.display = 'block';
+    },
+
+    // =================================================================
+    // Deep Analysis (bottom section)
+    // =================================================================
+
+    restoreDeepFromCache() {
+        try {
+            const cached = sessionStorage.getItem(this.deepCacheKey);
+            if (!cached) return;
+            const { result, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp > this.cacheTTL) {
+                sessionStorage.removeItem(this.deepCacheKey);
+                return;
+            }
+            // Show cached results
+            document.getElementById('argosDeepPlaceholder').style.display = 'none';
+            this.displayDeepResults(result);
+        } catch (e) {
+            console.warn('Argos deep cache restore failed:', e);
+        }
+    },
+
+    async runDeepAnalysis() {
+        // Reset UI
+        document.getElementById('argosDeepPlaceholder').style.display = 'none';
+        document.getElementById('argosDeepResults').style.display = 'none';
+        document.getElementById('argosDeepError').style.display = 'none';
+        document.getElementById('argosDeepLoading').style.display = 'block';
+        document.getElementById('argosProcessingTime').textContent = '';
+
+        // Start timer
+        this.timerSeconds = 0;
+        document.getElementById('argosDeepTimer').textContent = '0s';
+        this.timerInterval = setInterval(() => {
+            this.timerSeconds++;
+            document.getElementById('argosDeepTimer').textContent = `${this.timerSeconds}s`;
+        }, 1000);
+
+        const currentText = this.gatherCurrentText();
+        const includeCompanion = document.getElementById('argosIncludeCompanion').checked;
+
+        try {
+            const response = await fetch('/research/workflow/api/argos/deep-analysis', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     company_id: this.companyId,
                     step_type: this.stepType,
                     step_context: { step_index: this.stepIndex },
-                    current_text: currentText
+                    current_text: currentText,
+                    include_companion_warnings: includeCompanion
                 })
             });
 
             const data = await response.json();
 
-            document.getElementById('argosLoading').style.display = 'none';
-
             if (data.success) {
-                this.displayResults(data.result);
+                const taskId = data.data.task_id;
+                this.startPolling(taskId);
             } else {
-                this.showError(data.error || 'Failed to check');
+                this.stopPolling();
+                this.showDeepError(data.error || 'Failed to start deep analysis');
             }
         } catch (err) {
-            document.getElementById('argosLoading').style.display = 'none';
-            this.showError(err.message);
+            this.stopPolling();
+            this.showDeepError(err.message);
         }
     },
 
-    gatherCurrentText() {
-        // Try to gather text from various sources on the page
-        const sources = [];
+    startPolling(taskId) {
+        // Clear any existing poll
+        if (this.pollInterval) clearInterval(this.pollInterval);
 
-        // Textareas
-        document.querySelectorAll('textarea').forEach(ta => {
-            if (ta.value.trim()) sources.push(ta.value);
-        });
+        this.pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/research/workflow/api/argos/deep-analysis/status/${taskId}`);
+                const data = await response.json();
 
-        // BlockNote editors
-        document.querySelectorAll('[class*="blocknote"]').forEach(el => {
-            if (el.textContent.trim()) sources.push(el.textContent);
-        });
+                if (data.state === 'COMPLETED') {
+                    this.stopPolling();
+                    document.getElementById('argosDeepLoading').style.display = 'none';
+                    document.getElementById('argosProcessingTime').textContent = `Completed in ${this.timerSeconds}s`;
 
-        // Notes fields
-        const notes = document.getElementById('notes');
-        if (notes && notes.value) sources.push(notes.value);
+                    // Cache the result
+                    try {
+                        sessionStorage.setItem(this.deepCacheKey, JSON.stringify({
+                            result: data.result,
+                            timestamp: Date.now()
+                        }));
+                    } catch (e) { console.warn('Argos deep cache save failed:', e); }
 
-        return sources.join(' ').substring(0, 2000);
+                    this.displayDeepResults(data.result);
+                } else if (data.state === 'FAILED') {
+                    this.stopPolling();
+                    document.getElementById('argosDeepLoading').style.display = 'none';
+                    this.showDeepError(data.error || 'Analysis failed');
+                }
+                // PENDING / RUNNING — keep polling
+            } catch (err) {
+                this.stopPolling();
+                document.getElementById('argosDeepLoading').style.display = 'none';
+                this.showDeepError('Lost connection while polling: ' + err.message);
+            }
+        }, 2000);
     },
 
-    displayResults(result) {
-        document.getElementById('argosResults').style.display = 'block';
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    },
+
+    displayDeepResults(result) {
+        document.getElementById('argosDeepResults').style.display = 'block';
 
         // Summary
         document.getElementById('argosTotal').textContent = result.summary.total;
         document.getElementById('argosHigh').textContent = result.summary.high;
         document.getElementById('argosMedium').textContent = result.summary.medium;
-        document.getElementById('argosProcessingTime').textContent = `Processed in ${result.meta.processing_time_ms}ms`;
+
+        if (result.meta && result.meta.processing_time_ms) {
+            document.getElementById('argosProcessingTime').textContent =
+                `Processed in ${result.meta.processing_time_ms}ms`;
+        }
 
         // Update badge on button
         const badge = document.getElementById('argosInsightCount');
@@ -199,10 +481,10 @@ const ArgosCheck = {
                             </div>
                         ` : ''}
                         <div class="mt-2">
-                            <button class="btn btn-sm btn-outline-success me-1" onclick="ArgosCheck.feedback('${insight.id}', 'helpful')">
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="ArgosInsights.feedback('${insight.id}', 'helpful')">
                                 <i class="bi bi-hand-thumbs-up"></i> Helpful
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="ArgosCheck.feedback('${insight.id}', 'not_helpful')">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="ArgosInsights.feedback('${insight.id}', 'not_helpful')">
                                 <i class="bi bi-hand-thumbs-down"></i> Not useful
                             </button>
                         </div>
@@ -236,6 +518,41 @@ const ArgosCheck = {
         }
     },
 
+    showDeepError(message) {
+        document.getElementById('argosDeepLoading').style.display = 'none';
+        const errorEl = document.getElementById('argosDeepError');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+
+        // Show re-trigger option
+        document.getElementById('argosDeepPlaceholder').style.display = 'block';
+    },
+
+    // =================================================================
+    // Shared utilities (kept exactly from original)
+    // =================================================================
+
+    gatherCurrentText() {
+        // Try to gather text from various sources on the page
+        const sources = [];
+
+        // Textareas
+        document.querySelectorAll('textarea').forEach(ta => {
+            if (ta.value.trim()) sources.push(ta.value);
+        });
+
+        // BlockNote editors
+        document.querySelectorAll('[class*="blocknote"]').forEach(el => {
+            if (el.textContent.trim()) sources.push(el.textContent);
+        });
+
+        // Notes fields
+        const notes = document.getElementById('notes');
+        if (notes && notes.value) sources.push(notes.value);
+
+        return sources.join(' ').substring(0, 2000);
+    },
+
     async feedback(insightId, feedbackType) {
         try {
             await fetch('/research/workflow/api/argos/feedback', {
@@ -255,11 +572,6 @@ const ArgosCheck = {
         }
     },
 
-    showError(message) {
-        document.getElementById('argosError').textContent = message;
-        document.getElementById('argosError').style.display = 'block';
-    },
-
     getConfidenceBorder(confidence) {
         return confidence === 'high' ? 'border-danger' : confidence === 'medium' ? 'border-warning' : 'border-info';
     },
@@ -274,4 +586,7 @@ const ArgosCheck = {
         return div.innerHTML;
     }
 };
+
+// Auto-init on page load
+document.addEventListener('DOMContentLoaded', function() { ArgosInsights.init(); });
 </script>

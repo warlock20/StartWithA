@@ -156,6 +156,70 @@
                     </div>
                 </div>
 
+                <!-- AI Tools (compact, collapsible) -->
+                <div class="cl-ai-tools" id="aiToolsPanel">
+                    <div class="cl-ai-tools-header" onclick="toggleAITools()">
+                        <h6><i class="bi bi-robot"></i> AI Research Assistant</h6>
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                    <div class="cl-ai-tools-body">
+                        <div class="cl-ai-mode-buttons">
+                            <button type="button" class="cl-ai-mode-btn challenge" onclick="triggerAIMode('challenge')">
+                                <i class="bi bi-exclamation-triangle"></i> Challenge
+                            </button>
+                            <button type="button" class="cl-ai-mode-btn elaborate" onclick="triggerAIMode('elaboration')">
+                                <i class="bi bi-question-circle"></i> Elaboration
+                            </button>
+                            <button type="button" class="cl-ai-mode-btn factcheck" onclick="triggerAIMode('factcheck')">
+                                <i class="bi bi-shield-check"></i> Fact-Check
+                            </button>
+                        </div>
+
+                        <!-- AI Response Area -->
+                        <div id="aiResponseArea" style="display: none;">
+                            <div id="aiLoadingSpinner" class="text-center py-4" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">AI is analyzing...</p>
+                            </div>
+
+                            <!-- Challenge Response -->
+                            <div id="aiResponseChallenge" class="ai-response-content" style="display: none;">
+                                <div class="alert alert-danger border-start border-danger border-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-exclamation-diamond me-2" style="font-size: 1.2rem;"></i>
+                                        <strong>Challenge</strong>
+                                    </div>
+                                    <div id="aiResponseChallengeText"></div>
+                                </div>
+                            </div>
+
+                            <!-- Elaboration Response -->
+                            <div id="aiResponseElaboration" class="ai-response-content" style="display: none;">
+                                <div class="alert alert-primary border-start border-primary border-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-chat-dots me-2" style="font-size: 1.2rem;"></i>
+                                        <strong>Elaboration</strong>
+                                    </div>
+                                    <div id="aiResponseElaborationText"></div>
+                                </div>
+                            </div>
+
+                            <!-- Fact-Check Response -->
+                            <div id="aiResponseFactcheck" class="ai-response-content" style="display: none;">
+                                <div class="alert alert-warning border-start border-warning border-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-shield-exclamation me-2" style="font-size: 1.2rem;"></i>
+                                        <strong>Fact-Check</strong>
+                                    </div>
+                                    <div id="aiResponseFactcheckText"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Navigation -->
                 <div class="cl-nav-bar">
                     <div>
@@ -167,6 +231,7 @@
                         {% endif %}
                     </div>
                     <div class="d-flex gap-2">
+                        {% include 'partials/_argos_check.html' %}
                         <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
                            class="btn btn-outline-secondary">
                             <i class="bi bi-list-check"></i> Summary
@@ -177,70 +242,6 @@
                     </div>
                 </div>
             </form>
-
-            <!-- AI Tools (compact, collapsible) -->
-            <div class="cl-ai-tools" id="aiToolsPanel">
-                <div class="cl-ai-tools-header" onclick="toggleAITools()">
-                    <h6><i class="bi bi-robot"></i> AI Research Assistant</h6>
-                    <i class="bi bi-chevron-down"></i>
-                </div>
-                <div class="cl-ai-tools-body">
-                    <div class="cl-ai-mode-buttons">
-                        <button type="button" class="cl-ai-mode-btn challenge" onclick="triggerAIMode('challenge')">
-                            <i class="bi bi-exclamation-triangle"></i> Challenge
-                        </button>
-                        <button type="button" class="cl-ai-mode-btn elaborate" onclick="triggerAIMode('elaboration')">
-                            <i class="bi bi-question-circle"></i> Elaboration
-                        </button>
-                        <button type="button" class="cl-ai-mode-btn factcheck" onclick="triggerAIMode('factcheck')">
-                            <i class="bi bi-shield-check"></i> Fact-Check
-                        </button>
-                    </div>
-
-                    <!-- AI Response Area -->
-                    <div id="aiResponseArea" style="display: none;">
-                        <div id="aiLoadingSpinner" class="text-center py-4" style="display: none;">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2 text-muted">AI is analyzing...</p>
-                        </div>
-
-                        <!-- Challenge Response -->
-                        <div id="aiResponseChallenge" class="ai-response-content" style="display: none;">
-                            <div class="alert alert-danger border-start border-danger border-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-exclamation-diamond me-2" style="font-size: 1.2rem;"></i>
-                                    <strong>Challenge</strong>
-                                </div>
-                                <div id="aiResponseChallengeText"></div>
-                            </div>
-                        </div>
-
-                        <!-- Elaboration Response -->
-                        <div id="aiResponseElaboration" class="ai-response-content" style="display: none;">
-                            <div class="alert alert-primary border-start border-primary border-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-chat-dots me-2" style="font-size: 1.2rem;"></i>
-                                    <strong>Elaboration</strong>
-                                </div>
-                                <div id="aiResponseElaborationText"></div>
-                            </div>
-                        </div>
-
-                        <!-- Fact-Check Response -->
-                        <div id="aiResponseFactcheck" class="ai-response-content" style="display: none;">
-                            <div class="alert alert-warning border-start border-warning border-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-shield-exclamation me-2" style="font-size: 1.2rem;"></i>
-                                    <strong>Fact-Check</strong>
-                                </div>
-                                <div id="aiResponseFactcheckText"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </main>
 
         <!-- ================================================================

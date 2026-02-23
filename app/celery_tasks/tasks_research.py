@@ -17,6 +17,7 @@ from celery_app import celery
 from app.services.ai import generate_ai_content, ai_service
 from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service
 from app.services.ai.config import AITaskType
+from app.services.argos import ArgosService
 from app.services.research_data_service import ResearchDataService
 from app.utils.time_utils import now_utc
 
@@ -60,7 +61,7 @@ def competitor_analysis_task(self, task_id, company_data):
 
             # Store result in work session
             session = WorkSession.query.filter_by(
-                research_project_id=task.project_id,
+                project_id=task.project_id,
                 user_id=task.user_id,
                 step_index=task.step_index,
                 end_time=None
@@ -342,6 +343,137 @@ def bias_check_task(self, task_id, user_id, project_id):
             logger.error(f"TASK {self.request.id}: Bias check failed - {e}", exc_info=True)
 
             # Update task as failed
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return {"status": "failed", "message": str(e)}
+
+
+# =========================================================================
+# Counter-Evidence Generation (Companion)
+# =========================================================================
+
+@celery.task(bind=True)
+def counter_evidence_task(self, task_id, user_id, project_id, finding_text, research_question, step_index):
+    """
+    Generate counter-evidence for a research finding asynchronously.
+
+    Args:
+        task_id: BackgroundTask ID for status tracking
+        user_id: User ID
+        project_id: ResearchProject ID
+        finding_text: The finding to challenge
+        research_question: The research question context
+        step_index: Current step index
+    """
+    app = create_app()
+    with app.app_context():
+        task = BackgroundTask.query.get(task_id)
+        if not task:
+            logger.error(f"TASK {self.request.id}: Task {task_id} not found")
+            return {"status": "failed", "message": "Task not found"}
+
+        try:
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            argos = ArgosService(user_id=user_id)
+            context = argos.build_research_context(project_id, step_index=step_index)
+            result = argos.generate_counter_evidence(context, finding_text, research_question)
+
+            user = User.query.get(user_id)
+            if user:
+                user.increment_ai_tokens(500)
+
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps({'counter_evidence': result})
+            db.session.commit()
+
+            logger.info(f"TASK {self.request.id}: Counter-evidence generated for project {project_id}")
+            return {"status": "completed", "counter_evidence": result}
+
+        except Exception as e:
+            logger.error(f"TASK {self.request.id}: Counter-evidence failed - {e}", exc_info=True)
+
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return {"status": "failed", "message": str(e)}
+
+
+# =========================================================================
+# Argos Deep Analysis (Background)
+# =========================================================================
+
+@celery.task(bind=True)
+def argos_deep_analysis_task(self, task_id, user_id, company_id, step_type, step_context, current_text, include_companion_warnings):
+    """
+    Run Argos deep analysis asynchronously.
+
+    Args:
+        task_id: BackgroundTask ID for status tracking
+        user_id: User ID
+        company_id: Company ID to analyze
+        step_type: Research step type (checklist, free_research, thesis, completion)
+        step_context: Optional context dict for the step
+        current_text: Current research text for semantic matching
+        include_companion_warnings: Whether to prepend companion warnings to current_text
+    """
+    app = create_app()
+    with app.app_context():
+        task = BackgroundTask.query.get(task_id)
+        if not task:
+            logger.error(f"TASK {self.request.id}: Task {task_id} not found")
+            return {"status": "failed", "message": "Task not found"}
+
+        try:
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            argos = ArgosService(user_id=user_id)
+
+            # Optionally prepend companion warnings to current_text
+            if include_companion_warnings and current_text:
+                warnings = argos.get_warnings_by_company(company_id)
+                if warnings:
+                    warning_summary = "\n".join(
+                        f"- [{w.get('type', 'warning')}] {w.get('message', '')}" for w in warnings
+                    )
+                    current_text = f"[Companion Warnings]\n{warning_summary}\n\n{current_text}"
+
+            result = argos.check(
+                company_id=company_id,
+                step_type=step_type,
+                step_context=step_context or {},
+                current_text=current_text,
+            )
+
+            user = User.query.get(user_id)
+            if user:
+                user.increment_ai_tokens(500)
+
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps(result.to_dict())
+            db.session.commit()
+
+            logger.info(f"TASK {self.request.id}: Argos deep analysis completed for company {company_id}")
+            return {"status": "completed", "result": result.to_dict()}
+
+        except Exception as e:
+            logger.error(f"TASK {self.request.id}: Argos deep analysis failed - {e}", exc_info=True)
+
             task = BackgroundTask.query.get(task_id)
             if task:
                 task.status = 'failed'

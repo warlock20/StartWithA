@@ -53,33 +53,31 @@ This enriched context feeds every companion feature.
 │  │  │             │ │ opinion-ask │ │                      │   │  │
 │  │  └──────┬──────┘ └──────┬──────┘ └──────────┬───────────┘   │  │
 │  │         │               │                    │               │  │
-│  │  ┌──────┴──────┐ ┌──────┴──────┐ ┌──────────┴───────────┐   │  │
-│  │  │  Session    │ │  Quick-     │ │                       │   │  │
-│  │  │  Wrap-Up    │ │  Capture    │ │                       │   │  │
-│  │  │             │ │  API +      │ │                       │   │  │
-│  │  │ Summarizes  │ │  Bookmarklet│ │                       │   │  │
-│  │  │ session,    │ │             │ │                       │   │  │
-│  │  │ gaps, next  │ │ Bridge for  │ │                       │   │  │
-│  │  │ focus       │ │ external    │ │                       │   │  │
-│  │  │             │ │ research    │ │                       │   │  │
-│  │  └──────┬──────┘ └──────┬──────┘ └───────────────────────┘   │  │
+│  │  ┌──────┴──────┐ ┌──────┴──────────────────────────────┐     │  │
+│  │  │  Session    │ │  Quick-Capture API + Bookmarklet    │     │  │
+│  │  │  Wrap-Up    │ │  Bridge for external research       │     │  │
+│  │  └──────┬──────┘ └──────┬──────────────────────────────┘     │  │
 │  └─────────┼───────────────┼────────────────────────────────────┘  │
 │            ▼               ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │              Argos — Context Engine (enriched)               │  │
+│  │          ArgosService (app/services/argos/core.py)           │  │
+│  │                 THE SINGLE ORCHESTRATOR                      │  │
 │  │                                                              │  │
-│  │  Existing: company, step, questions, findings, flags, thesis │  │
-│  │  New: mistake log, journal entries, common patterns          │  │
+│  │  DATA GATHERING (existing + enriched):                       │  │
+│  │  ├── check()                    ← existing entry point       │  │
+│  │  ├── _gather_mistake_matches()  ← existing                  │  │
+│  │  ├── _gather_loss_patterns()    ← existing                  │  │
+│  │  ├── _gather_journal_insights() ← NEW                       │  │
+│  │  ├── _gather_pattern_warnings() ← NEW                       │  │
+│  │  └── _score_with_llm()          ← existing                  │  │
 │  │                                                              │  │
-│  │  Feeds context into every AI call                            │  │
-│  └──────────────────────────┬──────────────────────────────────┘  │
-│                             │                                     │
-│  ┌──────────────────────────┴──────────────────────────────────┐  │
-│  │              Companion Service (new)                          │  │
-│  │       (app/services/research_companion.py)                   │  │
+│  │  COMPANION FEATURES (new):                                   │  │
+│  │  ├── build_research_context()   ← assembles full context    │  │
+│  │  ├── generate_brief()           ← pre-session brief         │  │
+│  │  ├── ask_companion()            ← facts-only chat           │  │
+│  │  ├── generate_counter_evidence()← challenges findings       │  │
+│  │  └── wrap_up_session()          ← session summary           │  │
 │  │                                                              │  │
-│  │  Orchestrates all features, manages session lifecycle        │  │
-│  │  start_session() → brief / ask / capture → wrap_up()        │  │
 │  └──────────────────────────┬──────────────────────────────────┘  │
 │                             │                                     │
 │  ┌──────────────────────────┴──────────────────────────────────┐  │
@@ -195,7 +193,6 @@ This enriched context feeds every companion feature.
 
 | File | Purpose |
 |---|---|
-| `app/services/research_companion.py` | Companion service — orchestrates all features, manages session lifecycle |
 | `app/services/ai/prompts/companion/research_brief.yaml` | Research brief prompt template |
 | `app/services/ai/prompts/companion/counter_evidence.yaml` | Counter-evidence prompt template |
 | `app/services/ai/prompts/companion/session_wrapup.yaml` | Session wrap-up prompt template |
@@ -206,11 +203,66 @@ This enriched context feeds every companion feature.
 | `app/research_workflow/templates/research_clipboard.html` | UI for captures clipboard |
 | `app/static/js/bookmarklet.js` | Bookmarklet source |
 
+## Files Modified
+
+| File | Changes |
+|---|---|
+| `app/services/argos/core.py` | Add companion methods: `build_research_context()`, `generate_brief()`, `ask_companion()`, `generate_counter_evidence()`, `wrap_up_session()`. Add gathering methods: `_gather_journal_insights()`, `_gather_pattern_warnings()` |
+| `app/services/argos/config.py` | Add `JOURNAL_INSIGHT` and `PATTERN_WARNING` to `InsightCategory` enum and `CONTEXT_RULE_MATRIX` |
+
 ## Models Modified
 
 | Model | Changes |
 |---|---|
 | `ResearchProject` | Add `session_history` (JSON array — stores wrap-up summaries per session) |
+
+## UI Integration Strategy (Revised Feb 2026)
+
+### Design Principle: Invisible Infrastructure
+
+The companion is NOT a chatbot. It extends existing UI surfaces with proactive intelligence. No new floating widgets, no separate chat panel. The companion enriches what already exists.
+
+### Two-Layer Cost Model
+
+| Layer | Cost | Trigger | What |
+|-------|------|---------|------|
+| **Free layer** | Zero tokens (DB queries) | Auto on page load | Pattern warnings, journal insights |
+| **Token layer** | LLM call | User clicks button | Research brief, enriched AI responses, counter-evidence |
+
+`_gather_journal_insights()` and `_gather_pattern_warnings()` are pure DB queries — they run on every page load for free.
+
+### 4 Integration Surfaces
+
+#### Surface 1: Project Dashboard — Companion Alerts Sidebar Card
+- **Location:** Right sidebar, between Key Findings and Quick Actions
+- **Content:** Pattern warnings + journal insights (free layer, auto-loaded)
+- **Format:** Card with warning items styled like `_warnings-widget.css` severity pattern
+- **Template:** `_companion_alerts.html` partial included in `project_dashboard.html`
+
+#### Surface 2: Checklist Step — Warning Banner + Enriched AI
+- **Location:** Top of main content area (warning banner), inside AI Research Assistant responses
+- **Warning banner:** Auto-loads free pattern warnings on page load
+- **Enriched AI:** When user clicks Challenge/Elaborate/Fact-Check, existing `AIResearchAssistant` sends additional companion context to the AI endpoint
+- **Template:** `_companion_banner.html` partial included in `research_step.html`
+
+#### Surface 3: Free Research Step — Warning Banner + Enriched AI
+- **Location:** Existing `free-research-warning` banner area at top
+- **Warning banner:** Auto-loads free pattern warnings (follows existing warning banner pattern)
+- **Enriched AI:** Per-question inline AI tools get companion context injected
+- **Template:** `_companion_banner.html` partial included in `free_research_step.html`
+
+#### Surface 4: Generic Step (execute_step.html) — Warning Banner
+- **Location:** Top of main content area
+- **Content:** Pattern warnings + journal insights (free layer)
+- **Template:** `_companion_banner.html` partial
+
+### What Was Removed
+- **Floating chat widget** — deferred to future. The Intercom-style chat prototype (`docs/companion_ui_prototype.html`) is kept as a reference for later.
+- **Separate companion panel** — companion is invisible infrastructure, not a UI component
+- **Full chat interface** — user interacts via existing AI tools, not a new chat input
+
+### New Endpoint: Lightweight Warnings
+`GET /companion/<project_id>/warnings` — returns pattern warnings + journal insights from DB (zero token cost). Called via AJAX on page load for all 4 surfaces.
 
 ## What's Deferred
 
@@ -225,7 +277,7 @@ This enriched context feeds every companion feature.
 
 | Decision | Reasoning |
 |---|---|
-| Extend Argos, don't rebuild | Argos already assembles company/research context — just needs mistake/journal/pattern data |
+| Extend Argos, don't rebuild | Argos already assembles company/research context — just needs mistake/journal/pattern data. Companion features are new methods on ArgosService, not a separate service. One orchestrator, one context assembly, no duplication. |
 | Facts-only companion | Aligns with moat: "better thinking, not better data." Companion surfaces information, user forms opinions |
 | Counter-evidence over quality scoring | Counter-evidence provides actionable facts; quality scoring is subjective and deferred |
 | Bookmarklet over browser extension | Zero friction to build, no app store approval, proves the concept before investing in an extension |

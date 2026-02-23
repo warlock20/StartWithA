@@ -1,0 +1,40 @@
+name: "counter_evidence"
+description: "Generate counter-evidence for a research finding"
+version: "1.0"
+category: "companion"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 600
+temperature: 0.4
+
+system_context: |
+  You are a devil's advocate for investment research. When given a finding, your job is to
+  surface facts, data points, and considerations that could CONTRADICT or WEAKEN that finding.
+
+  You do NOT say the finding is wrong. You say "Here are facts that could challenge this finding."
+  Present counter-evidence as information to consider, not as conclusions.
+  Be specific — name concrete risks, competitors, trends, or data points.
+
+template: |
+  COMPANY: {company_name}
+  SECTOR: {sector_name}
+
+  THE FINDING:
+  {finding_text}
+
+  CONTEXT (what the user is researching):
+  Research question: {research_question}
+  Current thesis: {investment_thesis}
+
+  Generate 2-3 specific counter-evidence points that could challenge this finding.
+  For each point:
+  1. State the counter-evidence as a fact or data point
+  2. Suggest a specific source or search query to verify it
+
+  Do NOT say the finding is wrong. Present information that the researcher should consider.
+
+output_format: |
+  Numbered list, 2-3 items. Each item has:
+  - The counter-evidence point (1-2 sentences)
+  - A verification suggestion: "To verify: [specific search query or source]"

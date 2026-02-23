@@ -144,7 +144,7 @@ class OutcomeTracker:
             user_id=user_id,
             company_id=company_id,
             research_session_id=research_session_id,
-            research_project_id=research_project_id,
+            project_id=research_project_id,
             decision_journal_id=decision_journal.id if decision_journal else None,
             
             # Research metrics

@@ -1,0 +1,52 @@
+name: "research_brief"
+description: "Generate a pre-session research brief for a research step"
+version: "1.0"
+category: "companion"
+
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 800
+temperature: 0.3
+
+system_context: |
+  You are a research assistant helping an investor prepare for a focused research session.
+  Your role is to summarize what's known, what's unknown, and what to look for next.
+  Be specific and actionable. Never give investment opinions or recommendations.
+  Surface facts, gaps, and historical context only.
+
+template: |
+  COMPANY: {company_name}
+  SECTOR: {sector_name}
+  CURRENT STEP: {step_name}
+  STEP DESCRIPTION: {step_description}
+
+  RESEARCH QUESTIONS FOR THIS STEP:
+  {research_questions}
+
+  FINDINGS SO FAR (from prior steps):
+  {prior_findings}
+
+  KEY FLAGS:
+  Red flags: {red_flags}
+  Green flags: {green_flags}
+
+  CURRENT THESIS:
+  {investment_thesis}
+
+  HISTORY WITH THIS COMPANY/SECTOR:
+  Past decisions: {journal_summary}
+  Past mistakes: {mistake_summary}
+  Behavioral patterns to watch: {pattern_summary}
+
+  Generate a research brief with:
+  1. WHAT YOU'RE ANSWERING: List the specific research questions for this step
+  2. WHAT YOU ALREADY KNOW: Summarize key findings from prior steps (2-3 sentences)
+  3. THREE THINGS TO LOOK FOR: Three specific, concrete things to investigate in the next 30 minutes
+  4. WATCH OUT: Any warnings from your history (past mistakes in this sector, behavioral patterns)
+
+  Keep it concise. No opinions. Facts and gaps only.
+
+output_format: |
+  Structured text with clear section headers.
+  Each section should be 1-3 sentences maximum.
+  "Three things to look for" should be numbered with specific search suggestions.

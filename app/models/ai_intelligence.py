@@ -22,7 +22,7 @@ class ResearchOutcome(db.Model):
 
     # Link to research (one of these will be set)
     checklist_analysis_id = db.Column(db.Integer, db.ForeignKey('checklist_analysis.id', ondelete='SET NULL'), nullable=True)
-    research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'), nullable=True)
 
     # Link to decision and portfolio
     decision_journal_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id', ondelete='SET NULL'), nullable=True)

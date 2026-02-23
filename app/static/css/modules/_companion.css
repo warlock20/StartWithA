@@ -1,0 +1,459 @@
+/* =============================================================================
+   RESEARCH COMPANION — Warning Banners & Alerts
+   =============================================================================
+   Proactive companion intelligence surfaces: pattern warnings, journal insights,
+   and mistake history. Auto-loaded on page load via DB queries (zero token cost).
+
+   Components:
+   - .companion-alerts-card — Sidebar card for project dashboard
+   - .companion-banner — Top-of-page warning banner for research step pages
+   ============================================================================= */
+
+/* --- Sidebar Alerts Card (Project Dashboard) --- */
+.companion-alerts-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.companion-alerts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1.125rem;
+    background: linear-gradient(135deg, var(--primary-50) 0%, #fff 100%);
+    border-bottom: 1px solid var(--gray-200);
+    cursor: pointer;
+    transition: background var(--transition-fast, 0.15s);
+}
+
+.companion-alerts-header:hover {
+    background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-50) 100%);
+}
+
+.companion-alerts-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--primary-800);
+}
+
+.companion-alerts-title i {
+    font-size: 1rem;
+    color: var(--accent-color);
+}
+
+.companion-alerts-count {
+    background: var(--accent-color);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+.companion-alerts-count.empty {
+    background: var(--gray-300);
+}
+
+.companion-alerts-chevron {
+    color: var(--gray-400);
+    transition: transform 0.2s;
+    font-size: 0.85rem;
+}
+
+.companion-alerts-header[aria-expanded="false"] .companion-alerts-chevron {
+    transform: rotate(-90deg);
+}
+
+.companion-alerts-body {
+    padding: 0.5rem;
+}
+
+.companion-alerts-empty {
+    padding: 0.75rem;
+    color: var(--gray-400);
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+}
+
+/* Alert items inside the sidebar card */
+.companion-alert-item {
+    display: flex;
+    gap: 0.625rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.375rem;
+    position: relative;
+    transition: background var(--transition-fast, 0.15s);
+}
+
+.companion-alert-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Severity-based styling (matches _warnings-widget.css pattern) */
+.companion-alert-item.severity-high {
+    background: #fef2f2;
+    border-left: 3px solid #ef4444;
+}
+
+.companion-alert-item.severity-medium {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+}
+
+.companion-alert-item.severity-low {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.companion-alert-item.severity-info {
+    background: #f0fdf4;
+    border-left: 3px solid #10b981;
+}
+
+/* Alert icon badge */
+.companion-alert-icon {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.severity-high .companion-alert-icon {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.severity-medium .companion-alert-icon {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.severity-low .companion-alert-icon {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.severity-info .companion-alert-icon {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* Alert content */
+.companion-alert-body {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.companion-alert-title {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--text-primary, #111827);
+    margin-bottom: 0.15rem;
+    line-height: 1.3;
+}
+
+.companion-alert-message {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #4b5563);
+    line-height: 1.4;
+}
+
+.companion-alert-detail {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    margin-top: 0.2rem;
+}
+
+/* Type badge */
+.companion-alert-type {
+    font-size: 0.62rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    display: inline-block;
+    margin-bottom: 0.2rem;
+}
+
+.companion-alert-type.type-pattern {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.companion-alert-type.type-journal {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.companion-alert-type.type-mistake {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Dismiss for sidebar items */
+.companion-alert-dismiss {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    background: none;
+    border: none;
+    color: var(--gray-300);
+    cursor: pointer;
+    padding: 0.15rem;
+    border-radius: 3px;
+    line-height: 1;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
+}
+
+.companion-alert-item:hover .companion-alert-dismiss {
+    opacity: 1;
+}
+
+.companion-alert-dismiss:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--gray-600);
+}
+
+/* Loading state */
+.companion-alerts-loading {
+    text-align: center;
+    padding: 1rem;
+    color: var(--gray-400);
+    font-size: 0.8rem;
+}
+
+.companion-alerts-loading i {
+    animation: companionSpin 1s linear infinite;
+}
+
+@keyframes companionSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Dismiss animation */
+.companion-alert-item.dismissing {
+    animation: companionSlideOut 0.3s ease forwards;
+}
+
+@keyframes companionSlideOut {
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+        height: 0;
+        padding: 0;
+        margin: 0;
+    }
+}
+
+/* --- Top-of-Page Warning Banner (Research Steps) --- */
+.companion-banner {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    background: #fff;
+}
+
+.companion-banner:empty {
+    display: none;
+}
+
+.companion-banner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.875rem;
+    background: linear-gradient(135deg, var(--primary-50) 0%, #fff 100%);
+    border-bottom: 1px solid var(--gray-200);
+    cursor: pointer;
+}
+
+.companion-banner-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--primary-700);
+}
+
+.companion-banner-title i {
+    color: var(--accent-color);
+    font-size: 0.9rem;
+}
+
+.companion-banner-count {
+    background: var(--accent-color);
+    color: white;
+    font-size: 0.65rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.companion-banner-dismiss-all {
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    transition: all var(--transition-fast, 0.15s);
+}
+
+.companion-banner-dismiss-all:hover {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+.companion-banner-items {
+    padding: 0.375rem;
+}
+
+/* Banner items */
+.companion-banner-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+    position: relative;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.companion-banner-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Severity */
+.companion-banner-item.severity-high {
+    background: #fef2f2;
+    border-left: 3px solid #ef4444;
+}
+
+.companion-banner-item.severity-medium {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+}
+
+.companion-banner-item.severity-low {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.companion-banner-item.severity-info {
+    background: #f0fdf4;
+    border-left: 3px solid #10b981;
+}
+
+.companion-banner-item-icon {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    margin-top: 1px;
+}
+
+.severity-high .companion-banner-item-icon { color: #dc2626; }
+.severity-medium .companion-banner-item-icon { color: #d97706; }
+.severity-low .companion-banner-item-icon { color: #2563eb; }
+.severity-info .companion-banner-item-icon { color: #16a34a; }
+
+.companion-banner-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.companion-banner-item-title {
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--text-primary, #111827);
+}
+
+.companion-banner-item-message {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #4b5563);
+}
+
+.companion-banner-item-dismiss {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    background: none;
+    border: none;
+    color: var(--gray-300);
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 0.1rem;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity var(--transition-fast, 0.15s);
+}
+
+.companion-banner-item:hover .companion-banner-item-dismiss {
+    opacity: 1;
+}
+
+.companion-banner-item-dismiss:hover {
+    color: var(--gray-600);
+}
+
+/* Banner collapsed state */
+.companion-banner.collapsed .companion-banner-items {
+    display: none;
+}
+
+.companion-banner.collapsed .companion-banner-header {
+    border-bottom: none;
+}
+
+/* Banner slide-in animation */
+.companion-banner {
+    animation: companionBannerSlideIn 0.3s ease-out;
+}
+
+@keyframes companionBannerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.companion-banner-item.dismissing {
+    animation: companionSlideOut 0.3s ease forwards;
+}
+
+/* --- Argos Modal: companion alerts inside modal context --- */
+#argosModal .companion-alert-item {
+    margin-bottom: 0.5rem;
+}
+
+#argosModal .companion-alert-item:last-child {
+    margin-bottom: 0;
+}
+
+#argosDeepTimer {
+    font-variant-numeric: tabular-nums;
+}
