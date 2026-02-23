@@ -15,6 +15,7 @@ from typing import List, Optional
 import numpy as np
 
 from .base import BaseEmbeddingProvider
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,12 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
     MODELS = {
         'all-MiniLM-L6-v2': 384,           # Fast, good quality
         'all-mpnet-base-v2': 768,           # Better quality
+        'BAAI/bge-base-en-v1.5': 768,       # MTEB benchmark leader, better for domain text
         'multi-qa-MiniLM-L6-cos-v1': 384,   # Optimized for search
         'paraphrase-MiniLM-L6-v2': 384,     # Good for paraphrase detection
     }
-    
-    DEFAULT_MODEL = 'all-MiniLM-L6-v2'
+
+    DEFAULT_MODEL = 'BAAI/bge-base-en-v1.5'
     
     def __init__(self, model: str = None, dimension: int = None):
         model = model or self.DEFAULT_MODEL
@@ -49,14 +51,12 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
     def _load_model(self):
         """Lazy load the model"""
         if self._model_instance is None:
-            from sentence_transformers import SentenceTransformer
             self._model_instance = SentenceTransformer(self.model)
             logger.info(f"Loaded local embedding model: {self.model}")
     
     def is_available(self) -> bool:
         """Check if sentence-transformers is installed"""
         try:
-            from sentence_transformers import SentenceTransformer
             return True
         except ImportError:
             return False
