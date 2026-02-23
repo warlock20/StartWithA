@@ -67,18 +67,20 @@
                         Deep Analysis
                     </h6>
 
+                    <!-- Context toggle (always visible) -->
+                    <div class="form-check mb-3" id="argosIncludeCompanionWrap">
+                        <input class="form-check-input" type="checkbox" id="argosIncludeCompanion" checked>
+                        <label class="form-check-label small" for="argosIncludeCompanion">
+                            Include Research Intelligence warnings as additional context
+                        </label>
+                    </div>
+
                     <!-- Pre-trigger placeholder -->
                     <div id="argosDeepPlaceholder">
                         <p class="text-muted small mb-2">
                             AI-powered analysis that cross-references your current research with past decisions,
                             journal entries, and mistake patterns. Uses your research text as context.
                         </p>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="argosIncludeCompanion" checked>
-                            <label class="form-check-label small" for="argosIncludeCompanion">
-                                Include Research Intelligence warnings as additional context
-                            </label>
-                        </div>
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="ArgosInsights.runDeepAnalysis()">
                             <i class="bi bi-lightning-charge me-1"></i> Run Deep Analysis
                         </button>
