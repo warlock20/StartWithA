@@ -20,7 +20,7 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
-from app.research.routes import get_all_ordered_items_for_checklist
+from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
 from app.services.sector_service import SectorService
 from sqlalchemy.orm.attributes import flag_modified
 import json

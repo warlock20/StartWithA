@@ -689,7 +689,7 @@
 
 .review-actions-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
 }
 
@@ -742,6 +742,10 @@
 }
 
 @media (max-width: 768px) {
+    .review-actions-grid {
+        grid-template-columns: 1fr;
+    }
+
     .quick-entry-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }

@@ -69,8 +69,6 @@ def create_app(config_class=Config):
     app.register_blueprint(checklists_bp) 
     from app.companies import companies_bp 
     app.register_blueprint(companies_bp)
-    from app.research import research_bp 
-    app.register_blueprint(research_bp)
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
     from app.dashboard import dashboard_bp

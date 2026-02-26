@@ -8,7 +8,7 @@ from flask import session as flask_session
 
 from app import db
 from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
-from app.research import research_bp
+from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 
 # Import unified LLM service
@@ -38,7 +38,7 @@ def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
         ordered_items.extend(_get_ordered_checklist_items_recursive(item.id, checklist_id))
     return ordered_items
                                                                              
-@research_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
+@research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
 def select_checklist_for_company(company_id):
     company = Company.query.get_or_404(company_id)
@@ -97,7 +97,7 @@ def select_checklist_for_company(company_id):
                            title=f"Select or Resume Research for {company.name}")
     
 # This is the checklist execution route
-@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>', methods=['GET', 'POST'])
+@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def research_step(analysis_id, item_id):
     session = ChecklistAnalysis.query.get_or_404(analysis_id)
@@ -199,7 +199,7 @@ def research_step(analysis_id, item_id):
         answers_map=answers_map
     )
 
-@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
+@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/json', methods=['GET'])
 @login_required
 def research_step_json(analysis_id, item_id):
     """
@@ -268,7 +268,7 @@ def research_step_json(analysis_id, item_id):
     })
 
 
-@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
+@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/autosave', methods=['POST'])
 @login_required
 def autosave_research_answer(analysis_id, item_id):
     """
@@ -326,7 +326,7 @@ def autosave_research_answer(analysis_id, item_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@research_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
+@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required
 def ai_analyze_item(analysis_id, item_id):
     """
@@ -456,7 +456,7 @@ def ai_analyze_item(analysis_id, item_id):
         'ai_suggestion': ai_suggestion
     })
 
-@research_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
+@research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required
 def view_checklist_session_summary(analysis_id):
     # Fetch the core session object and authorize the user
@@ -558,7 +558,7 @@ def blocknote_to_text(blocknote_json):
         return str(blocknote_json)
 
 
-@research_bp.route('/checklist/<int:analysis_id>/export/txt')
+@research_workflow_bp.route('/checklist/<int:analysis_id>/export/txt')
 @login_required
 def export_session_to_txt(analysis_id):
     # 1. Fetch session and authorize user
@@ -627,7 +627,7 @@ def export_session_to_txt(analysis_id):
     )
 
 
-@research_bp.route('/task_status/<task_id>')
+@research_workflow_bp.route('/task_status/<task_id>')
 @login_required
 def task_status(task_id):
     """
@@ -660,7 +660,7 @@ def task_status(task_id):
 
     return jsonify(response_data)
 
-@research_bp.route('/for_company/<int:company_id>/select_model')
+@research_workflow_bp.route('/for_company/<int:company_id>/select_model')
 @login_required
 def select_model(company_id):
     company = Company.query.get_or_404(company_id)

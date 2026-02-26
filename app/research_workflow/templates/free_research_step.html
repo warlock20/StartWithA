@@ -633,7 +633,7 @@ const FreeResearch = {
         responseArea.classList.add('visible');
 
         try {
-            const response = await fetch('/research/ai_assist', {
+            const response = await fetch('/research/workflow/ai_assist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

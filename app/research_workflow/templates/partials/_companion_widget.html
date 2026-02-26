@@ -1,0 +1,229 @@
+{#
+  Research Companion — Floating Chat Widget
+
+  A floating action button (FAB) + slide-up chat panel for live companion chat.
+  Wired to POST /companion/<project_id>/ask for Q&A during research sessions.
+
+  Include in research step templates with:
+  {% include 'partials/_companion_widget.html' %}
+
+  Requires: project (with .id), step_index, step.type
+  CSS: modules/_companion.css
+#}
+
+{% set _project_id = project.id if project is defined and project and project.id else 0 %}
+{% set _step_index = step_index if step_index is defined else 0 %}
+
+{% if _project_id %}
+<!-- Companion FAB -->
+<button class="companion-fab" id="companionFab" onclick="CompanionChat.toggle()">
+    <i class="bi bi-chat-text" id="companionFabIcon"></i>
+    <span class="companion-fab-badge" id="companionFabBadge" style="display: none;">0</span>
+</button>
+
+<!-- Companion Chat Panel -->
+<div class="companion-panel" id="companionPanel">
+    <!-- Header -->
+    <div class="companion-panel-header">
+        <div class="companion-panel-title">
+            <span class="companion-status-dot"></span>
+            Research Companion
+        </div>
+        <div class="companion-panel-actions">
+            <button title="Minimize" onclick="CompanionChat.toggle()"><i class="bi bi-dash-lg"></i></button>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="companion-messages" id="companionMessages">
+        <div class="c-msg c-msg--system">
+            Companion ready — facts only, opinions are yours.
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="companion-quick-actions">
+        <button class="cqa-btn" onclick="CompanionChat.quickAction('gaps')">
+            <i class="bi bi-search"></i> Gaps?
+        </button>
+        <button class="cqa-btn" onclick="CompanionChat.quickAction('counter')">
+            <i class="bi bi-shield-exclamation"></i> Counter
+        </button>
+        <button class="cqa-btn" onclick="CompanionChat.quickAction('wrapup')">
+            <i class="bi bi-flag"></i> Wrap Up
+        </button>
+    </div>
+
+    <!-- Input -->
+    <div class="companion-input">
+        <textarea rows="1" placeholder="Ask about your research..."
+                  id="companionChatInput"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();CompanionChat.send()}"></textarea>
+        <button class="companion-send-btn" onclick="CompanionChat.send()">
+            <i class="bi bi-send-fill"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+const CompanionChat = {
+    projectId: {{ _project_id }},
+    stepIndex: {{ _step_index }},
+    isOpen: false,
+    conversationHistory: [],
+
+    toggle() {
+        this.isOpen = !this.isOpen;
+        const panel = document.getElementById('companionPanel');
+        const fab = document.getElementById('companionFab');
+        const icon = document.getElementById('companionFabIcon');
+
+        panel.classList.toggle('open', this.isOpen);
+        fab.classList.toggle('active', this.isOpen);
+        icon.className = this.isOpen ? 'bi bi-x-lg' : 'bi bi-chat-text';
+
+        if (this.isOpen) {
+            document.getElementById('companionFabBadge').style.display = 'none';
+            this.scrollToBottom();
+            document.getElementById('companionChatInput').focus();
+        }
+    },
+
+    async send() {
+        const input = document.getElementById('companionChatInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // Add user message
+        this.appendMessage('user', text);
+        this.conversationHistory.push({ role: 'user', content: text });
+        input.value = '';
+
+        // Show typing indicator
+        this.showTyping();
+
+        try {
+            const response = await fetch(`/research/workflow/companion/${this.projectId}/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: text,
+                    conversation_history: this.conversationHistory,
+                    step_index: this.stepIndex
+                })
+            });
+
+            this.hideTyping();
+            const data = await response.json();
+
+            if (data.success) {
+                const answer = data.data.answer;
+                this.appendMessage('assistant', this.escapeHtml(answer));
+                this.conversationHistory.push({ role: 'assistant', content: answer });
+            } else {
+                this.appendMessage('assistant', `<span class="text-danger">Error: ${this.escapeHtml(data.error || 'Failed to get answer')}</span>`);
+            }
+        } catch (err) {
+            this.hideTyping();
+            this.appendMessage('assistant', `<span class="text-danger">Connection error: ${this.escapeHtml(err.message)}</span>`);
+        }
+    },
+
+    quickAction(type) {
+        const input = document.getElementById('companionChatInput');
+        const currentText = this.gatherPageText();
+
+        if (type === 'gaps') {
+            input.value = 'What gaps remain in my research for this step?';
+            this.send();
+        } else if (type === 'counter') {
+            if (currentText) {
+                input.value = `Play devil's advocate on my current findings: "${currentText.substring(0, 200)}"`;
+            } else {
+                input.value = "What counter-evidence should I look for against my current findings?";
+            }
+            this.send();
+        } else if (type === 'wrapup') {
+            this.runWrapup();
+        }
+    },
+
+    async runWrapup() {
+        this.appendMessage('system', 'Generating session wrap-up...');
+        this.showTyping();
+
+        try {
+            const response = await fetch(`/research/workflow/companion/${this.projectId}/wrapup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    step_index: this.stepIndex,
+                    session_findings: this.gatherPageText(),
+                    duration_minutes: 0
+                })
+            });
+
+            this.hideTyping();
+            const data = await response.json();
+
+            if (data.success) {
+                this.appendMessage('assistant',
+                    `<div class="c-msg-wrapup-label"><i class="bi bi-flag-fill me-1"></i> Session Summary</div>${this.escapeHtml(data.data.summary)}`
+                );
+            } else {
+                this.appendMessage('assistant', `<span class="text-danger">Wrap-up failed: ${this.escapeHtml(data.error || 'Unknown error')}</span>`);
+            }
+        } catch (err) {
+            this.hideTyping();
+            this.appendMessage('assistant', `<span class="text-danger">Connection error: ${this.escapeHtml(err.message)}</span>`);
+        }
+    },
+
+    appendMessage(type, html) {
+        const msg = document.createElement('div');
+        msg.className = `c-msg c-msg--${type}`;
+        msg.innerHTML = html;
+        document.getElementById('companionMessages').appendChild(msg);
+        this.scrollToBottom();
+    },
+
+    showTyping() {
+        const msg = document.createElement('div');
+        msg.className = 'c-msg c-msg--typing';
+        msg.id = 'companionTyping';
+        msg.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+        document.getElementById('companionMessages').appendChild(msg);
+        this.scrollToBottom();
+    },
+
+    hideTyping() {
+        const el = document.getElementById('companionTyping');
+        if (el) el.remove();
+    },
+
+    scrollToBottom() {
+        const el = document.getElementById('companionMessages');
+        el.scrollTop = el.scrollHeight;
+    },
+
+    gatherPageText() {
+        const sources = [];
+        document.querySelectorAll('textarea').forEach(ta => {
+            if (ta.value.trim() && ta.id !== 'companionChatInput') sources.push(ta.value);
+        });
+        document.querySelectorAll('[class*="blocknote"]').forEach(el => {
+            if (el.textContent.trim()) sources.push(el.textContent);
+        });
+        const notes = document.getElementById('notes');
+        if (notes && notes.value) sources.push(notes.value);
+        return sources.join(' ').substring(0, 500);
+    },
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+</script>
+{% endif %}

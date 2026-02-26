@@ -84,7 +84,7 @@
              ================================================================ -->
         <main class="col-lg-8">
             <form method="POST" id="answerForm"
-                action="{{ url_for('research.research_step', analysis_id=session.id, item_id=current_item.id) }}">
+                action="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=current_item.id) }}">
 
                 <!-- Question Card -->
                 {% set current_status = answer.satisfaction_status if answer and answer.satisfaction_status else 'pending' %}
@@ -224,7 +224,7 @@
                 <div class="cl-nav-bar">
                     <div>
                         {% if previous_item_id %}
-                        <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
+                        <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
                            class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Previous
                         </a>
@@ -232,7 +232,7 @@
                     </div>
                     <div class="d-flex gap-2">
                         {% include 'partials/_argos_check.html' %}
-                        <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
+                        <a href="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id) }}"
                            class="btn btn-outline-secondary">
                             <i class="bi bi-list-check"></i> Summary
                         </a>
@@ -281,7 +281,7 @@
                             {% set item_status = item_ans.satisfaction_status if item_ans and item_ans.satisfaction_status else 'pending' %}
                             {% set is_current = (item.id == current_item.id) %}
 
-                            <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=item.id) }}"
+                            <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=item.id) }}"
                                class="cl-map-item {{ 'current' if is_current }} {{ 'sub-item' if item.parent_id }}"
                                data-item-id="{{ item.id }}"
                                data-item-index="{{ loop.index }}">
@@ -429,7 +429,7 @@
             answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
                 initialContent: existingContent,
                 placeholder: 'Add your synthesis notes here... Type "/" for commands',
-                saveResearchNotesUrl: '{{ url_for("research.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
+                saveResearchNotesUrl: '{{ url_for("research_workflow.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
                 onSave: (data) => {
                     const indicator = document.getElementById('autoSaveStatus');
                     if (indicator) {
@@ -483,9 +483,9 @@
         }
 
         window.aiAssistant = new AIResearchAssistant({
-            apiEndpoint: '/research/ai_assist',
-            feedbackEndpoint: '/research/ai_assist/feedback',
-            regenerateEndpoint: '/research/ai_assist/regenerate',
+            apiEndpoint: '/research/workflow/ai_assist',
+            feedbackEndpoint: '/research/workflow/ai_assist/feedback',
+            regenerateEndpoint: '/research/workflow/ai_assist/regenerate',
             getAnswerText: getAnswerText,
             context: {
                 analysis_id: {{ session.id }},

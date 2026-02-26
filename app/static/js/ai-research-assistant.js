@@ -16,9 +16,9 @@
  *
  * Configuration:
  * {
- *     apiEndpoint: '/research/ai_assist',           // Backend API endpoint
- *     feedbackEndpoint: '/research/ai_assist/feedback',
- *     regenerateEndpoint: '/research/ai_assist/regenerate',
+ *     apiEndpoint: '/research/workflow/ai_assist',           // Backend API endpoint
+ *     feedbackEndpoint: '/research/workflow/ai_assist/feedback',
+ *     regenerateEndpoint: '/research/workflow/ai_assist/regenerate',
  *     getAnswerText: () => string,                  // Function to get answer text from editor
  *     context: { analysis_id, item_id, company_name, question_text } // Context data
  * }
@@ -28,9 +28,9 @@
 class AIResearchAssistant {
     constructor(config = {}) {
         // Configuration
-        this.apiEndpoint = config.apiEndpoint || '/research/ai_assist';
-        this.feedbackEndpoint = config.feedbackEndpoint || '/research/ai_assist/feedback';
-        this.regenerateEndpoint = config.regenerateEndpoint || '/research/ai_assist/regenerate';
+        this.apiEndpoint = config.apiEndpoint || '/research/workflow/ai_assist';
+        this.feedbackEndpoint = config.feedbackEndpoint || '/research/workflow/ai_assist/feedback';
+        this.regenerateEndpoint = config.regenerateEndpoint || '/research/workflow/ai_assist/regenerate';
         this.getAnswerText = config.getAnswerText || (() => '');
         this.context = config.context || {};
 
