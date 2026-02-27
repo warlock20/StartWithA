@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">🚀 Start New Research</h1>
-            <p class="dashboard-subtitle">Choose your research subject to get started</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Projects
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">🚀 Start New Research</h1>
+                <p class="dashboard-subtitle">Choose your research subject to get started</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Projects
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Subject Type Selection Cards -->
     <div class="start-research-container">

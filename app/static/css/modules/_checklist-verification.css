@@ -695,7 +695,7 @@
    RESPONSIVE
    ============================================================================= */
 
-@media (max-width: 991px) {
+@media (max-width: 991.98px) {
     .cl-verdict-buttons {
         flex-direction: column;
     }

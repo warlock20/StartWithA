@@ -338,7 +338,7 @@ def analyze_checklist_item(project_id, session_id):
     if project.user_id != current_user.id or session.user_id != current_user.id:
         return jsonify({'status': 'error', 'message': 'Access denied'}), 403
 
-    if session.research_project_id != project_id:
+    if session.project_id != project_id:
         return jsonify({'status': 'error', 'message': 'Invalid session for project'}), 400
 
     # Check Gemini API configuration

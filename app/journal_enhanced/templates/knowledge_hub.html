@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Knowledge Hub</h1>
-            <p class="dashboard-subtitle">Your research notes and curated wisdom</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a class="btn btn-primary" href="{{ url_for('journal_enhanced.new_entry') }}">
-                <i class="bi bi-journal-plus me-2"></i>Create New Entry
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Knowledge Hub</h1>
+                <p class="dashboard-subtitle">Your research notes and curated wisdom</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a class="btn btn-primary" href="{{ url_for('journal_enhanced.new_entry') }}">
+                    <i class="bi bi-journal-plus me-2"></i>Create New Entry
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Content Type Pills -->
     <div class="knowledge-hub-pills-section">

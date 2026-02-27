@@ -23,6 +23,7 @@ from app.celery_tasks.tasks_research import (
     fetch_company_news_task,
     analyze_scuttlebutt_task,
     bias_check_task,
+    argos_deep_analysis_task,
 )
 
 from app.celery_tasks.tasks_financial import (
@@ -40,6 +41,7 @@ __all__ = [
     'fetch_company_news_task',
     'analyze_scuttlebutt_task',
     'bias_check_task',
+    'argos_deep_analysis_task',
 
     # Financial tasks
     'fetch_financial_data_task',

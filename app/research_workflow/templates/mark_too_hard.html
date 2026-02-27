@@ -3,22 +3,24 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Mark Company as Too Hard</h1>
-            <p class="dashboard-subtitle">
-                {{ project.company.name if project.company else project.project_name }}
-                {% if project.company and project.company.ticker_symbol %}
-                ({{ project.company.ticker_symbol }})
-                {% endif %}
-            </p>
-        </div>
-        <div class="dashboard-header-actions">
-            {% with btn_class='btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Mark Company as Too Hard</h1>
+                <p class="dashboard-subtitle">
+                    {{ project.company.name if project.company else project.project_name }}
+                    {% if project.company and project.company.ticker_symbol %}
+                    ({{ project.company.ticker_symbol }})
+                    {% endif %}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                {% with btn_class='btn-outline-secondary' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
+            </div>
+        </header>
+    </div>
 
     <!-- Main Content -->
     <div class="row justify-content-center">

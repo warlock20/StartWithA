@@ -3,17 +3,19 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">✏️ Edit Idea</h1>
-            <p class="dashboard-subtitle">Update your idea details and information</p>
-        </div>
-        <div class="dashboard-header-actions">
-            {% with btn_class='btn btn-outline-secondary' %}
-                {% include 'components/smart_back_button.html' %}
-            {% endwith %}
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">✏️ Edit Idea</h1>
+                <p class="dashboard-subtitle">Update your idea details and information</p>
+            </div>
+            <div class="dashboard-header-actions">
+                {% with btn_class='btn btn-outline-secondary' %}
+                    {% include 'components/smart_back_button.html' %}
+                {% endwith %}
+            </div>
+        </header>
+    </div>
 
     <!-- Main Form -->
     <div class="row justify-content-center">

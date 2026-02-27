@@ -16,8 +16,8 @@ from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from app import db
-from app.research import research_bp
-from app.models import ChecklistAnalysis, ChecklistItem, AIResearchFeedback
+from app.research_workflow import research_workflow_bp
+from app.models import ChecklistAnalysis, AIResearchFeedback
 from app.services.ai_research_assistant import ai_research_assistant
 from app.utils.time_utils import now_utc
 from app.utils.decorators import require_ai_tokens
@@ -25,7 +25,7 @@ from app.utils.decorators import require_ai_tokens
 logger = logging.getLogger(__name__)
 
 
-@research_bp.route('/ai_assist', methods=['POST'])
+@research_workflow_bp.route('/ai_assist', methods=['POST'])
 @login_required
 @require_ai_tokens(5000)
 def ai_assist():
@@ -209,7 +209,7 @@ def ai_assist():
         }), 500
 
 
-@research_bp.route('/ai_assist/feedback', methods=['POST'])
+@research_workflow_bp.route('/ai_assist/feedback', methods=['POST'])
 @login_required
 def ai_assist_feedback():
     """
@@ -309,7 +309,7 @@ def ai_assist_feedback():
         }), 500
 
 
-@research_bp.route('/ai_assist/regenerate', methods=['POST'])
+@research_workflow_bp.route('/ai_assist/regenerate', methods=['POST'])
 @login_required
 @require_ai_tokens(5000)
 def ai_assist_regenerate():

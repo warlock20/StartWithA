@@ -21,7 +21,7 @@
                     {% include 'components/smart_back_button.html' %}
                 {% endwith %}
 
-                <a href="{{ url_for('research.export_session_to_txt', analysis_id=session.id) }}"
+                <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=session.id) }}"
                     class="btn btn-outline-primary">
                     <i class="bi bi-download"></i> Export
                 </a>
@@ -146,7 +146,7 @@
                                     {% endif %}
                                 </div>
                                 <div class="answer-actions text-end mt-3">
-                                    <a href="{{ url_for('research.research_step', analysis_id=session.id, item_id=item.id) }}"
+                                    <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=item.id) }}"
                                         class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil"></i> Edit Answer
                                     </a>
@@ -192,7 +192,7 @@
                 {% endif %}
 
                 <form method="POST"
-                    action="{{ url_for('research.view_checklist_session_summary', analysis_id=session.id) }}"
+                    action="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id) }}"
                     class="form-pro">
                     <div class="mb-3">
                         <label for="conclusion" class="form-label fw-bold">Update Conclusion:</label>

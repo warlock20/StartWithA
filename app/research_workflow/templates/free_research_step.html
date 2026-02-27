@@ -7,23 +7,23 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <!-- Page Header -->
-    <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
             <div>
-                <h1 class="h3 mb-1">{{ step.name }}: {{ project.company.name }}</h1>
-                <p class="text-muted mb-0">
+                <h1 class="dashboard-title font-poppins">{{ step.name }}: {{ project.company.name }}</h1>
+                <p class="dashboard-subtitle">
                     Step {{ step_index + 1 }} of {{ project.template.workflow_steps|length }} in "{{ project.template.name }}"
                     <span class="fr-saving-indicator" id="savingIndicator">
                         <span class="spinner-border spinner-border-sm"></span> Saving...
                     </span>
                 </p>
             </div>
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Back to Project
                 </a>
             </div>
-        </div>
+        </header>
     </div>
 
     <div class="row">
@@ -169,6 +169,8 @@
         </div>
     </div>
 </div>
+
+{% include 'partials/_companion_widget.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -633,7 +635,7 @@ const FreeResearch = {
         responseArea.classList.add('visible');
 
         try {
-            const response = await fetch('/research/ai_assist', {
+            const response = await fetch('/research/workflow/ai_assist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

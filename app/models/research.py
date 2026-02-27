@@ -140,6 +140,9 @@ class ResearchProject(db.Model):
     Note: Sector research uses the free-form SectorAnalysis notebook, not this model.
     """
     __tablename__ = 'research_project'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'company_id', name='uq_research_project_user_company'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -198,6 +201,9 @@ class ResearchProject(db.Model):
     key_findings = db.Column(db.JSON, default=list)
     red_flags = db.Column(db.JSON, default=list)
     green_flags = db.Column(db.JSON, default=list)
+
+    # Companion session wrap-up summaries
+    session_history = db.Column(db.JSON, nullable=True)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=now_utc)
@@ -303,7 +309,7 @@ class WorkSession(db.Model):
     __tablename__ = 'work_session'
 
     id = db.Column(db.Integer, primary_key=True)
-    research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     # What was worked on
@@ -326,7 +332,7 @@ class WorkSession(db.Model):
     followup_notes = db.Column(db.Text)
 
     def __repr__(self):
-        return f'<WorkSession {self.id} for Project {self.research_project_id}>'
+        return f'<WorkSession {self.id} for Project {self.project_id}>'
 
 
 class TemplateStep(db.Model):

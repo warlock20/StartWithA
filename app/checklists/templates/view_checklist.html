@@ -4,32 +4,34 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">
-                <i class="bi bi-pencil-square text-warning me-3"></i>{{ checklist.name }}
-            </h1>
-            <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
-            <div class="mt-2">
-                <small class="text-muted">
-                    <span class="badge bg-warning text-dark">Edit Mode</span>
-                </small>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-pencil-square text-warning me-3"></i>{{ checklist.name }}
+                </h1>
+                <p class="dashboard-subtitle">{{ checklist.description if checklist.description else 'Investment analysis checklist' }}</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <span class="badge bg-warning text-dark">Edit Mode</span>
+                    </small>
+                </div>
             </div>
-        </div>
-        <div class="dashboard-header-actions">
-            {% if research_context %}
-                <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success me-2">
-                    <i class="bi bi-arrow-left"></i> Return to Research
+            <div class="dashboard-header-actions">
+                {% if research_context %}
+                    <a href="{{ url_for('research_workflow.return_from_checklist', project_id=research_context.project_id, step_index=research_context.step_index) }}" class="btn btn-success me-2">
+                        <i class="bi bi-arrow-left"></i> Return to Research
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info me-2">
+                    <i class="bi bi-eye"></i> View Mode
                 </a>
-            {% endif %}
-            <a href="{{ url_for('checklists.view_readonly_checklist', checklist_id=checklist.id) }}" class="btn btn-info me-2">
-                <i class="bi bi-eye"></i> View Mode
-            </a>
-            <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Checklists
-            </a>
-        </div>
-    </header>
+                <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Checklists
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Statistics Overview -->
     <div class="priority-lane-section">

@@ -5,18 +5,20 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Decision Intelligence Dashboard</h1>
-            <p class="dashboard-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to Intelligence Hub
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Decision Intelligence Dashboard</h1>
+                <p class="dashboard-subtitle">Learning from patterns, decision quality, and behavioral insights</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                        <i class="bi bi-arrow-left"></i>
+                        Back to Intelligence Hub
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Research vs Non-Research Comparison -->
     <div class="analytics-chart-container">

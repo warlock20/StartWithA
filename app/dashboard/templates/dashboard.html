@@ -3,54 +3,56 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div class="dashboard-header-left">
-            <h1 class="dashboard-title">Dashboard</h1>
-            <p class="dashboard-subtitle">Your investment research command center</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <button class="btn btn-outline-secondary me-2" onclick="startDashboardTour()">
-                <i class="bi bi-question-circle"></i> Take Tour
-            </button>
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
-                <i class="bi bi-lightbulb"></i> Tips
-            </button>
-            <div class="dropdown">
-                <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
-                    id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-                    data-bs-custom-class="tooltip-primary"
-                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Quick Add New Item">
-                    <i class="bi bi-plus-circle-fill me-2"></i> Quick Add
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="quickActionsDropdown">
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
-                            <i class="bi bi-lightbulb text-warning me-2"></i>
-                            New Investment Idea
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('research_workflow.start_new_research') }}">
-                            <i class="bi bi-search text-success me-2"></i>
-                            Start Research Project
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
-                            <i class="bi bi-journal-text text-primary me-2"></i>
-                            New Journal Entry
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
-                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                            New Mistake Log
-                        </a>
-                    </li>
-                </ul>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-left">
+                <h1 class="dashboard-title">Dashboard</h1>
+                <p class="dashboard-subtitle">Your investment research command center</p>
             </div>
-        </div>
-    </header>
+            <div class="dashboard-header-actions">
+                <button class="btn btn-outline-secondary me-2" onclick="startDashboardTour()">
+                    <i class="bi bi-question-circle"></i> Take Tour
+                </button>
+                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                    <i class="bi bi-lightbulb"></i> Tips
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
+                        id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                        data-bs-custom-class="tooltip-primary"
+                        data-bs-toggle="tooltip" data-bs-placement="bottom" title="Quick Add New Item">
+                        <i class="bi bi-plus-circle-fill me-2"></i> Quick Add
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="quickActionsDropdown">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('ideas.add_idea') }}">
+                                <i class="bi bi-lightbulb text-warning me-2"></i>
+                                New Investment Idea
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('research_workflow.start_new_research') }}">
+                                <i class="bi bi-search text-success me-2"></i>
+                                Start Research Project
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('journal_enhanced.new_entry') }}">
+                                <i class="bi bi-journal-text text-primary me-2"></i>
+                                New Journal Entry
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
+                                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                New Mistake Log
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+    </div>
 
     <!-- Recommendations Section -->
     {% if recommendations %}

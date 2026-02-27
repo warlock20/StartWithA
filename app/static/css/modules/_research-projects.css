@@ -312,7 +312,7 @@
 /* Research Status Grid */
 .research-status-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
 }
@@ -582,7 +582,7 @@
 /* Active Projects Grid */
 .active-projects-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -772,7 +772,7 @@
 /* Completed Projects Grid */
 .completed-projects-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -1070,7 +1070,7 @@
 /* Too Hard Projects Grid */
 .too-hard-projects-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -1250,7 +1250,7 @@
 
 .insights-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
 }
 

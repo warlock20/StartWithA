@@ -22,7 +22,7 @@ class ResearchOutcome(db.Model):
 
     # Link to research (one of these will be set)
     checklist_analysis_id = db.Column(db.Integer, db.ForeignKey('checklist_analysis.id', ondelete='SET NULL'), nullable=True)
-    research_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'), nullable=True)
 
     # Link to decision and portfolio
     decision_journal_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id', ondelete='SET NULL'), nullable=True)
@@ -161,8 +161,8 @@ class EmbeddingStore(db.Model):
     entity_type = db.Column(db.String(50), nullable=False, index=True)  # 'thesis', 'mistake', 'research_note', 'company_summary'
     entity_id = db.Column(db.Integer, nullable=False, index=True)
 
-    # The embedding vector (384 dimensions for MiniLM, 1536 for OpenAI)
-    embedding_vector = db.Column(Vector(384), nullable=True)  # Using sentence-transformers default
+    # The embedding vector (768 dimensions for BGE-base, 1536 for OpenAI)
+    embedding_vector = db.Column(Vector(768), nullable=True)  # Using BAAI/bge-base-en-v1.5
 
     # Source text that was embedded
     source_text = db.Column(db.Text, nullable=True)

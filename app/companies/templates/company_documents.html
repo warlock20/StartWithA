@@ -3,19 +3,21 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
-    <header class="dashboard-header">
-        <div class="dashboard-header-content">
-            <h1 class="dashboard-title font-poppins">
-                {{ company.name }}
-                {% if company.ticker_symbol %}
-                <span class="company-ticker-badge">{{ company.ticker_symbol }}</span>
-                {% endif %}
-            </h1>
-        </div>
-        <div class="dashboard-header-actions">
-            {% include 'components/smart_back_button.html' %}
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-content">
+                <h1 class="dashboard-title font-poppins">
+                    {{ company.name }}
+                    {% if company.ticker_symbol %}
+                    <span class="company-ticker-badge">{{ company.ticker_symbol }}</span>
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="dashboard-header-actions">
+                {% include 'components/smart_back_button.html' %}
+            </div>
+        </header>
+    </div>
 
     <!-- Navigation Tabs -->
     <ul class="nav company-nav-tabs" id="companyDashboardTab" role="tablist">

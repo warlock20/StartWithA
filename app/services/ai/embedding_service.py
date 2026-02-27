@@ -24,7 +24,6 @@ Usage:
 
 import logging
 import hashlib
-from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np

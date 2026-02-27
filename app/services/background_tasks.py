@@ -14,6 +14,7 @@ from app.celery_tasks import competitor_analysis_task
 from app.celery_tasks import portfolio_ai_analysis_task
 from app.celery_tasks import portfolio_chart_data_task
 from app.celery_tasks import bias_check_task
+from app.celery_tasks import argos_deep_analysis_task
 
 logger = logging.getLogger(__name__)
 
@@ -234,5 +235,46 @@ class BackgroundTaskService:
         celery_task = bias_check_task.delay(task_id, user_id, project_id)
 
         logger.info(f"Started bias check task {task_id} (Celery: {celery_task.id}) for project {project_id}")
+
+        return task_id
+
+    @staticmethod
+    def start_argos_deep_analysis(user_id, company_id, step_type, step_context, current_text, include_companion_warnings):
+        """Start an Argos deep analysis task in the background.
+
+        Uses task_type 'argos_deep_analysis' to prevent duplicate concurrent tasks.
+        Company-level analysis (no project_id needed).
+        """
+        task_type = 'argos_deep_analysis'
+
+        # Check for existing running task for this user
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Argos deep analysis task {existing_task.id} already running for user {user_id}")
+            return existing_task.id
+
+        # Create new task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task
+        celery_task = argos_deep_analysis_task.delay(
+            task_id, user_id, company_id, step_type, step_context, current_text, include_companion_warnings
+        )
+
+        logger.info(f"Started argos deep analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
 
         return task_id

@@ -1,0 +1,122 @@
+{#
+  Research Companion — Sidebar Alerts Card
+
+  Displays proactive pattern warnings, journal insights, and mistake history
+  in a sidebar card. Auto-loads on page load via AJAX (zero token cost).
+
+  Include in sidebar templates with:
+  {% include 'partials/_companion_alerts.html' %}
+
+  Requires: project (with .id, .company_id)
+  CSS: _companion.css (loaded via design-system.css)
+#}
+
+{% if project and project.company_id %}
+<div class="companion-alerts-card" id="companionAlertsCard">
+    <div class="companion-alerts-header" id="companionAlertsHeader"
+         role="button" aria-expanded="true" aria-controls="companionAlertsBody">
+        <div class="companion-alerts-title">
+            <i class="bi bi-shield-check"></i>
+            Research Intelligence
+            <span class="companion-alerts-count empty" id="companionAlertsCount">0</span>
+        </div>
+        <i class="bi bi-chevron-down companion-alerts-chevron" id="companionAlertsChevron"></i>
+    </div>
+    <div class="companion-alerts-body" id="companionAlertsBody">
+        <div class="companion-alerts-loading" id="companionAlertsLoading">
+            <i class="bi bi-arrow-repeat"></i> Loading insights...
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const projectId = {{ project.id }};
+    const card = document.getElementById('companionAlertsCard');
+    const header = document.getElementById('companionAlertsHeader');
+    const body = document.getElementById('companionAlertsBody');
+    const countBadge = document.getElementById('companionAlertsCount');
+    const chevron = document.getElementById('companionAlertsChevron');
+    const loading = document.getElementById('companionAlertsLoading');
+
+    // Toggle collapse
+    header.addEventListener('click', function() {
+        const expanded = header.getAttribute('aria-expanded') === 'true';
+        header.setAttribute('aria-expanded', !expanded);
+        body.style.display = expanded ? 'none' : 'block';
+        chevron.className = expanded ? 'bi bi-chevron-right companion-alerts-chevron' : 'bi bi-chevron-down companion-alerts-chevron';
+    });
+
+    // Load warnings on page load
+    fetch(`/research/workflow/companion/${projectId}/warnings`)
+        .then(r => r.json())
+        .then(data => {
+            loading.remove();
+
+            if (!data.success || !data.data || !data.data.warnings || data.data.warnings.length === 0) {
+                body.innerHTML = '<div class="companion-alerts-empty">No warnings for this project.</div>';
+                return;
+            }
+
+            const warnings = data.data.warnings;
+            countBadge.textContent = warnings.length;
+            countBadge.classList.remove('empty');
+
+            body.innerHTML = '';
+            warnings.forEach(function(w) {
+                const typeLabel = {
+                    'pattern_warning': 'Pattern',
+                    'journal_insight': 'Journal',
+                    'mistake_history': 'Mistake'
+                }[w.type] || w.type;
+
+                const typeClass = {
+                    'pattern_warning': 'type-pattern',
+                    'journal_insight': 'type-journal',
+                    'mistake_history': 'type-mistake'
+                }[w.type] || '';
+
+                const item = document.createElement('div');
+                item.className = `companion-alert-item severity-${w.severity}`;
+                item.innerHTML =
+                    `<div class="companion-alert-icon"><i class="bi ${w.icon}"></i></div>` +
+                    `<div class="companion-alert-body">` +
+                        `<span class="companion-alert-type ${typeClass}">${typeLabel}</span>` +
+                        `<div class="companion-alert-title">${escapeHtml(w.title)}</div>` +
+                        `<div class="companion-alert-message">${escapeHtml(w.message)}</div>` +
+                        (w.detail ? `<div class="companion-alert-detail">${escapeHtml(w.detail)}</div>` : '') +
+                    `</div>` +
+                    `<button class="companion-alert-dismiss" type="button" title="Dismiss"><i class="bi bi-x"></i></button>`;
+
+                item.querySelector('.companion-alert-dismiss').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    item.classList.add('dismissing');
+                    setTimeout(() => {
+                        item.remove();
+                        // Update count
+                        const remaining = body.querySelectorAll('.companion-alert-item').length;
+                        countBadge.textContent = remaining;
+                        if (remaining === 0) {
+                            countBadge.classList.add('empty');
+                            body.innerHTML = '<div class="companion-alerts-empty">No warnings for this project.</div>';
+                        }
+                    }, 300);
+                });
+
+                body.appendChild(item);
+            });
+        })
+        .catch(err => {
+            console.error('Companion alerts load error:', err);
+            loading.remove();
+            body.innerHTML = '<div class="companion-alerts-empty">Could not load insights.</div>';
+        });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+})();
+</script>
+{% endif %}

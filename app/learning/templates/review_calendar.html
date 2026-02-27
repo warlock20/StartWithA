@@ -2,17 +2,19 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <header class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title font-poppins">Review Calendar</h1>
-            <p class="dashboard-subtitle">Stay on track with scheduled reviews and reflections</p>
-        </div>
-        <div class="dashboard-header-actions">
-            <a href="{{ url_for('learning.weekly_review') }}" class="position-btn">
-                <i class="bi bi-plus-lg"></i> Start Weekly Review
-            </a>
-        </div>
-    </header>
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Review Calendar</h1>
+                <p class="dashboard-subtitle">Stay on track with scheduled reviews and reflections</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('learning.weekly_review') }}" class="position-btn">
+                    <i class="bi bi-plus-lg"></i> Start Weekly Review
+                </a>
+            </div>
+        </header>
+    </div>
 
     <!-- Upcoming Reviews -->
     <div class="card mb-4">
