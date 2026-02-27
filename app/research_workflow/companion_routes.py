@@ -96,34 +96,6 @@ def companion_ask(project_id):
 
 
 # =========================================================================
-# Counter-Evidence
-# =========================================================================
-
-@research_workflow_bp.route('/companion/<int:project_id>/counter-evidence', methods=['POST'])
-@login_required
-def companion_counter_evidence(project_id):
-    """Generate counter-evidence for a finding."""
-    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
-
-    data = request.json or {}
-    finding_text = data.get('finding_text', '').strip()
-    research_question = data.get('research_question', '')
-    step_index = data.get('step_index', project.current_step_index)
-
-    if not finding_text:
-        return json_validation_error('Finding text is required')
-
-    try:
-        argos = ArgosService(user_id=current_user.id)
-        context = argos.build_research_context(project_id, step_index=step_index)
-        counter = argos.generate_counter_evidence(context, finding_text, research_question)
-        return json_success('Counter-evidence generated', data={'counter_evidence': counter})
-    except Exception as e:
-        logger.error(f"Counter-evidence failed: {e}")
-        return json_error(str(e), status_code=500)
-
-
-# =========================================================================
 # Session Wrap-Up
 # =========================================================================
 

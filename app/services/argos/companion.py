@@ -156,27 +156,6 @@ class CompanionMixin:
             logger.error(f"Companion chat failed: {e}")
             return f"Could not process question: {e}"
 
-    def generate_counter_evidence(
-        self,
-        context: CompanionContext,
-        finding_text: str,
-        research_question: str = '',
-    ) -> str:
-        """Generate counter-evidence for a research finding."""
-        try:
-            prompt = prompt_service.get_prompt(
-                'companion', 'counter_evidence',
-                company_name=context.company_name,
-                sector_name=context.sector_name,
-                finding_text=finding_text,
-                research_question=research_question or context.research_questions,
-                investment_thesis=context.investment_thesis,
-            )
-            return ai_service.generate_text(prompt)
-        except Exception as e:
-            logger.error(f"Counter-evidence generation failed: {e}")
-            return f"Could not generate counter-evidence: {e}"
-
     def wrap_up_session(
         self,
         context: CompanionContext,

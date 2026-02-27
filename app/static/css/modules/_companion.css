@@ -465,9 +465,9 @@
 /* --- FAB (Floating Action Button) --- */
 .companion-fab {
     position: fixed;
-    bottom: 1.5rem;
+    bottom: 6rem; /* Above sticky footer (footer ~88px + breathing room) */
     right: 1.5rem;
-    z-index: 1050;
+    z-index: 1060; /* Above footer and other fixed elements */
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -524,11 +524,11 @@
 /* --- Chat Panel --- */
 .companion-panel {
     position: fixed;
-    bottom: 5.5rem;
+    bottom: 10rem; /* Above FAB (FAB at 6rem + FAB height + gap) */
     right: 1.5rem;
     width: 380px;
     max-height: 560px;
-    z-index: 1049;
+    z-index: 1059; /* Below FAB but above other content */
     background: #fff;
     border-radius: var(--radius-xl, 16px);
     box-shadow: 0 12px 48px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06);
@@ -787,5 +787,8 @@
         max-height: 100vh;
         border-radius: 0;
     }
-    .companion-fab { bottom: 1rem; right: 1rem; }
+    .companion-fab {
+        bottom: 5rem; /* Keep above footer on mobile */
+        right: 1rem;
+    }
 }
