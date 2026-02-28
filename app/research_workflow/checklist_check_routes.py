@@ -52,7 +52,7 @@ def select_checklist_for_company(company_id):
     if not user_checklists:
         flash("You don't have any checklists yet. Please create one first.", 'warning')
         # Pass 'next' to redirect back here after creating a checklist
-        return redirect(url_for('checklists.new_checklist', next=url_for('research.select_checklist_for_company', company_id=company_id)))
+        return redirect(url_for('checklists.new_checklist', next=url_for('research_workflow.select_checklist_for_company', company_id=company_id)))
 
     checklists_data = []
     for chk in user_checklists:
@@ -159,14 +159,14 @@ def research_step(analysis_id, item_id):
         # Determine next item
         if current_item_index + 1 < len(all_items_in_order):
             next_item = all_items_in_order[current_item_index + 1]
-            return redirect(url_for('research.research_step', analysis_id=session.id, item_id=next_item.id))
+            return redirect(url_for('research_workflow.research_step', analysis_id=session.id, item_id=next_item.id))
         else:
             # This is the last item
             session.status = 'completed' # Mark session as completed
             db.session.commit()
             flash('Checklist completed! Research session finished.', 'success')
             # Redirect to a summary page or back to the checklist view for now
-            return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id)) # We'll create this route next
+            return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)) # We'll create this route next
 
     # For GET request or if POST needs to re-render
     # progress_percent = ( (current_item_index +1) / len(all_items_in_order) ) * 100 if all_items_in_order else 0
@@ -261,8 +261,8 @@ def research_step_json(analysis_id, item_id):
         'answer_text': research_answer.answer_text if research_answer else '',
         'satisfaction_status': research_answer.satisfaction_status if research_answer else 'pending',
         'previous_item_id': previous_item_id,
-        'autosave_url': url_for('research.autosave_research_answer', analysis_id=session.id, item_id=current_item.id),
-        'form_action_url': url_for('research.research_step', analysis_id=session.id, item_id=current_item.id),
+        'autosave_url': url_for('research_workflow.autosave_research_answer', analysis_id=session.id, item_id=current_item.id),
+        'form_action_url': url_for('research_workflow.research_step', analysis_id=session.id, item_id=current_item.id),
         'answers_map': answers_map,
         'status_counts': status_counts
     })
@@ -474,7 +474,7 @@ def view_checklist_session_summary(analysis_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving conclusion: {str(e)}', 'error')
-        return redirect(url_for('research.view_checklist_session_summary', analysis_id=session.id))
+        return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id))
 
     # --- GET Request Logic ---
     # Prepare all data needed for rendering the template

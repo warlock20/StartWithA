@@ -280,7 +280,7 @@ def execute_step(project_id, step_index):
                                 'workflow_session_id': session.id if session else None
                             }
 
-                            return redirect(url_for('research.research_step',
+                            return redirect(url_for('research_workflow.research_step',
                                                   analysis_id=existing_research_session.id,
                                                   item_id=redirect_to_item_id))
                         else:
@@ -295,7 +295,7 @@ def execute_step(project_id, step_index):
                             'workflow_session_id': session.id if session else None
                         }
                         flash('Investment checklist research already completed. Viewing summary.', 'info')
-                        return redirect(url_for('research.view_checklist_session_summary',
+                        return redirect(url_for('research_workflow.view_checklist_session_summary',
                                               analysis_id=existing_research_session.id))
                 else:
                     # Create new research session
@@ -321,7 +321,7 @@ def execute_step(project_id, step_index):
                                 'workflow_session_id': session.id if session else None
                             }
 
-                            return redirect(url_for('research.research_step',
+                            return redirect(url_for('research_workflow.research_step',
                                                   analysis_id=new_research_session.id,
                                                   item_id=all_items[0].id))
                         else:
