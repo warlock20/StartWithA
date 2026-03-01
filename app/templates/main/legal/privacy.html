@@ -1,0 +1,366 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 800px;">
+    <h1 class="mb-2">Privacy Policy</h1>
+    <p class="text-muted mb-4">Last updated: March 2026</p>
+
+    <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle me-2"></i>
+        As the operator of this platform is based in Germany, this privacy policy complies with
+        the EU General Data Protection Regulation (GDPR / DSGVO) and the German Bundesdatenschutzgesetz (BDSG).
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="mb-5 p-3 bg-light rounded">
+        <strong>Contents</strong>
+        <ol class="mb-0 mt-2">
+            <li><a href="#controller">Data Controller</a></li>
+            <li><a href="#overview">Overview of Data Processing</a></li>
+            <li><a href="#account">Account & Authentication Data</a></li>
+            <li><a href="#research">Research & Investment Data</a></li>
+            <li><a href="#ai">AI-Powered Features & Third-Party Processing</a></li>
+            <li><a href="#hosting">Hosting & Infrastructure</a></li>
+            <li><a href="#cookies">Cookies & Session Data</a></li>
+            <li><a href="#legal-basis">Legal Basis for Processing</a></li>
+            <li><a href="#rights">Your Rights (GDPR Art. 12-23)</a></li>
+            <li><a href="#retention">Data Retention</a></li>
+            <li><a href="#security">Security Measures</a></li>
+            <li><a href="#changes">Changes to This Policy</a></li>
+        </ol>
+    </nav>
+
+    <!-- 1. Data Controller -->
+    <section class="mb-5" id="controller">
+        <h2 class="h4">1. Data Controller</h2>
+        <p>The controller responsible for data processing on this platform is:</p>
+        <!-- TODO: Fill in your real information before launch -->
+        <p>
+            <strong>[Your Full Name]</strong><br>
+            [Street and Number]<br>
+            [Postal Code] [City], Germany<br>
+            Email: <a href="mailto:[your@email.com]">[your@email.com]</a>
+        </p>
+    </section>
+
+    <!-- 2. Overview -->
+    <section class="mb-5" id="overview">
+        <h2 class="h4">2. Overview of Data Processing</h2>
+        <p>
+            This platform is an investment research tool that helps you organize and analyze
+            your own investment research. We process the following categories of personal data:
+        </p>
+        <ul>
+            <li><strong>Account data</strong> — name, email, profile picture (from your authentication provider)</li>
+            <li><strong>Research data</strong> — companies, checklists, notes, journal entries, and analyses you create</li>
+            <li><strong>AI interaction data</strong> — questions and answers exchanged with our AI research assistant</li>
+            <li><strong>Usage data</strong> — preferences, settings, and platform interaction metadata</li>
+            <li><strong>Technical data</strong> — session cookies, IP address (in server logs)</li>
+        </ul>
+    </section>
+
+    <!-- 3. Account & Auth -->
+    <section class="mb-5" id="account">
+        <h2 class="h4">3. Account & Authentication Data</h2>
+        <p>
+            Authentication is handled by <strong>Auth0</strong> (operated by Okta, Inc., USA).
+            When you sign up or log in, the following data is transmitted from Auth0 to our platform:
+        </p>
+        <ul>
+            <li>Full name</li>
+            <li>Email address</li>
+            <li>Profile picture URL</li>
+            <li>Authentication provider (e.g., Google, GitHub, email/password)</li>
+            <li>Unique user identifier</li>
+        </ul>
+        <p>
+            <strong>Auth0's role:</strong> Auth0 acts as a data processor on our behalf. Auth0 may
+            store your authentication credentials (e.g., hashed passwords) on their servers. Auth0
+            is certified under the EU-US Data Privacy Framework. For details, see
+            <a href="https://auth0.com/privacy" target="_blank" rel="noopener">Auth0's Privacy Policy</a>.
+        </p>
+        <p>
+            <strong>Legal basis:</strong> Contract performance (Art. 6(1)(b) GDPR) — processing is
+            necessary to provide you with an account and access to the platform.
+        </p>
+    </section>
+
+    <!-- 4. Research Data -->
+    <section class="mb-5" id="research">
+        <h2 class="h4">4. Research & Investment Data</h2>
+        <p>When you use the platform, you may create and store:</p>
+        <ul>
+            <li>Company profiles and analysis checklists</li>
+            <li>Research notes, investment theses, and journal entries</li>
+            <li>Decision journals and learning notes</li>
+            <li>Research session data and progress tracking</li>
+            <li>Sector analyses and pattern observations</li>
+        </ul>
+        <p>
+            This data is stored in our database and is accessible only to you. We do not share,
+            sell, or analyze your research data for our own purposes. This data exists solely to
+            provide you with the platform's functionality.
+        </p>
+        <p>
+            <strong>Legal basis:</strong> Contract performance (Art. 6(1)(b) GDPR).
+        </p>
+    </section>
+
+    <!-- 5. AI Features -->
+    <section class="mb-5" id="ai">
+        <h2 class="h4">5. AI-Powered Features & Third-Party Processing</h2>
+        <p>
+            This platform includes an AI research assistant that helps challenge your thinking,
+            provide alternative perspectives, and fact-check your research. When you use AI features,
+            portions of your data are sent to third-party AI providers for processing.
+        </p>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="h6 card-title">Google Gemini</h3>
+                <p class="card-text mb-1">
+                    <strong>Data sent:</strong> Your research questions, answers, company context,
+                    and relevant checklist data needed to generate meaningful responses.
+                </p>
+                <p class="card-text mb-1">
+                    <strong>Data processor:</strong> Google LLC, USA (EU-US Data Privacy Framework certified).
+                </p>
+                <p class="card-text mb-0">
+                    <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">
+                        Gemini API Terms of Service</a>
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="h6 card-title">Anthropic Claude</h3>
+                <p class="card-text mb-1">
+                    <strong>Data sent:</strong> Same categories as above, used as an alternative AI provider.
+                </p>
+                <p class="card-text mb-1">
+                    <strong>Data processor:</strong> Anthropic, PBC, USA.
+                </p>
+                <p class="card-text mb-0">
+                    <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">
+                        Anthropic Privacy Policy</a>
+                </p>
+            </div>
+        </div>
+
+        <p>
+            <strong>Important:</strong> AI providers process your data only to generate responses.
+            According to their API terms, data submitted via API is not used to train their models.
+        </p>
+        <p>
+            We also store your AI interactions (questions asked, responses received, and your feedback)
+            in our database to improve prompt quality and enable features like research pattern analysis.
+        </p>
+        <p>
+            <strong>Legal basis:</strong> Consent (Art. 6(1)(a) GDPR) — AI features are optional and
+            you can use the platform without them. By using AI features, you consent to this data processing.
+        </p>
+    </section>
+
+    <!-- 6. Hosting -->
+    <section class="mb-5" id="hosting">
+        <h2 class="h4">6. Hosting & Infrastructure</h2>
+        <p>This platform is hosted on the following infrastructure:</p>
+        <ul>
+            <li>
+                <strong>Railway.app</strong> (Railway Corporation, USA) — Application hosting and
+                PostgreSQL database. Your data is stored on Railway's infrastructure.
+                <a href="https://railway.app/legal/privacy" target="_blank" rel="noopener">Railway Privacy Policy</a>
+            </li>
+        </ul>
+        <p>
+            Server logs may temporarily contain your IP address, browser user agent, and request
+            timestamps for security and debugging purposes. These logs are automatically rotated
+            and not retained beyond 30 days.
+        </p>
+        <p>
+            <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — necessary for
+            platform operation and security.
+        </p>
+    </section>
+
+    <!-- 7. Cookies -->
+    <section class="mb-5" id="cookies">
+        <h2 class="h4">7. Cookies & Session Data</h2>
+        <p>We use the following cookies:</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Cookie</th>
+                        <th>Purpose</th>
+                        <th>Duration</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>session</code></td>
+                        <td>Maintains your login session</td>
+                        <td>1 hour</td>
+                        <td>Strictly necessary</td>
+                    </tr>
+                    <tr>
+                        <td><code>remember_token</code></td>
+                        <td>Keeps you signed in if "Remember me" is selected</td>
+                        <td>30 days</td>
+                        <td>Functional</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            We do <strong>not</strong> use any analytics, tracking, or advertising cookies.
+            All cookies are strictly necessary for platform functionality.
+        </p>
+        <p>
+            <strong>Legal basis:</strong> Legitimate interest (Art. 6(1)(f) GDPR) — session cookies
+            are technically necessary and exempt from consent requirements under § 25(2) TDDDG
+            (German Telecommunications Digital Services Data Protection Act).
+        </p>
+    </section>
+
+    <!-- 8. Legal Basis Summary -->
+    <section class="mb-5" id="legal-basis">
+        <h2 class="h4">8. Legal Basis for Processing</h2>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Processing Activity</th>
+                        <th>Legal Basis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Account creation & authentication</td>
+                        <td>Art. 6(1)(b) — Contract performance</td>
+                    </tr>
+                    <tr>
+                        <td>Storing your research data</td>
+                        <td>Art. 6(1)(b) — Contract performance</td>
+                    </tr>
+                    <tr>
+                        <td>AI-powered research features</td>
+                        <td>Art. 6(1)(a) — Consent</td>
+                    </tr>
+                    <tr>
+                        <td>Session cookies</td>
+                        <td>Art. 6(1)(f) — Legitimate interest</td>
+                    </tr>
+                    <tr>
+                        <td>Server logs (IP, timestamps)</td>
+                        <td>Art. 6(1)(f) — Legitimate interest</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 9. Your Rights -->
+    <section class="mb-5" id="rights">
+        <h2 class="h4">9. Your Rights (GDPR Art. 12-23)</h2>
+        <p>Under the GDPR, you have the following rights regarding your personal data:</p>
+
+        <ul>
+            <li>
+                <strong>Right of access (Art. 15)</strong> — You can request a copy of all personal
+                data we hold about you.
+            </li>
+            <li>
+                <strong>Right to rectification (Art. 16)</strong> — You can request correction of
+                inaccurate personal data.
+            </li>
+            <li>
+                <strong>Right to erasure (Art. 17)</strong> — You can request deletion of your
+                account and all associated data ("right to be forgotten").
+            </li>
+            <li>
+                <strong>Right to restriction (Art. 18)</strong> — You can request that we restrict
+                processing of your data in certain circumstances.
+            </li>
+            <li>
+                <strong>Right to data portability (Art. 20)</strong> — You can request your data in
+                a structured, commonly used, machine-readable format (JSON).
+            </li>
+            <li>
+                <strong>Right to object (Art. 21)</strong> — You can object to processing based on
+                legitimate interest.
+            </li>
+            <li>
+                <strong>Right to withdraw consent (Art. 7(3))</strong> — Where processing is based
+                on consent (e.g., AI features), you can withdraw consent at any time without
+                affecting the lawfulness of prior processing.
+            </li>
+        </ul>
+
+        <p>
+            To exercise any of these rights, contact us at
+            <a href="mailto:[your@email.com]">[your@email.com]</a>.
+            We will respond within 30 days as required by GDPR.
+        </p>
+
+        <p>
+            <strong>Right to lodge a complaint:</strong> You have the right to lodge a complaint with
+            a supervisory authority, in particular in the EU Member State of your habitual residence.
+            The competent authority in Germany depends on your federal state. A list is available at
+            <a href="https://www.bfdi.bund.de/DE/Service/Anschriften/Laender/Laender-node.html"
+               target="_blank" rel="noopener">BfDI — State Data Protection Authorities</a>.
+        </p>
+    </section>
+
+    <!-- 10. Data Retention -->
+    <section class="mb-5" id="retention">
+        <h2 class="h4">10. Data Retention</h2>
+        <ul>
+            <li>
+                <strong>Account data:</strong> Retained as long as your account is active. Deleted
+                upon account deletion request.
+            </li>
+            <li>
+                <strong>Research data:</strong> Retained as long as your account is active. Fully
+                deleted upon account deletion.
+            </li>
+            <li>
+                <strong>AI interaction logs:</strong> Retained for 90 days, then anonymized.
+                Aggregated, non-personal metrics may be retained indefinitely for service improvement.
+            </li>
+            <li>
+                <strong>Server logs:</strong> Automatically deleted after 30 days.
+            </li>
+        </ul>
+    </section>
+
+    <!-- 11. Security -->
+    <section class="mb-5" id="security">
+        <h2 class="h4">11. Security Measures</h2>
+        <p>We implement the following technical and organizational measures to protect your data:</p>
+        <ul>
+            <li>HTTPS/TLS encryption for all data in transit</li>
+            <li>Secure, HttpOnly, SameSite session cookies</li>
+            <li>Authentication via Auth0 (industry-standard security)</li>
+            <li>Access restricted to authorized users only</li>
+            <li>Database access restricted to application layer only</li>
+            <li>API keys and credentials stored as environment variables, never in source code</li>
+        </ul>
+    </section>
+
+    <!-- 12. Changes -->
+    <section class="mb-5" id="changes">
+        <h2 class="h4">12. Changes to This Policy</h2>
+        <p>
+            We may update this privacy policy from time to time to reflect changes in our practices
+            or legal requirements. We will notify registered users of significant changes via email
+            or an in-platform notification. The "last updated" date at the top of this page indicates
+            when the policy was last revised.
+        </p>
+    </section>
+</div>
+{% endblock %}

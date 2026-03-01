@@ -613,6 +613,12 @@ const FreeResearch = {
     // =============================================================================
 
     async triggerAI(questionId, mode) {
+        // Check GDPR consent before sending data to AI providers
+        if (typeof checkAIConsent === 'function') {
+            const consented = await checkAIConsent();
+            if (!consented) return;
+        }
+
         const question = this.questions.find(q => q.id === questionId);
         if (!question) return;
 
@@ -679,6 +685,7 @@ const FreeResearch = {
             <div class="ai-response-text" style="font-size: 0.9rem; line-height: 1.6;">
                 ${this.formatAIResponse(responseText)}
             </div>
+            ${aiDisclaimer()}
             <div class="d-flex gap-2 mt-3 pt-2 border-top">
                 <button class="btn btn-sm btn-outline-success" onclick="FreeResearch.submitAIFeedback(${questionId}, 'helpful')">
                     <i class="bi bi-hand-thumbs-up"></i> Helpful

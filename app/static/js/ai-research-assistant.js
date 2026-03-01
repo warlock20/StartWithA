@@ -90,7 +90,13 @@ class AIResearchAssistant {
      * Call AI Assistant API
      * Makes AJAX POST request to backend
      */
-    callAIAssistant(mode, answerText) {
+    async callAIAssistant(mode, answerText) {
+        // Check GDPR consent before sending data to AI providers
+        if (typeof checkAIConsent === 'function') {
+            const consented = await checkAIConsent();
+            if (!consented) return;
+        }
+
         // Show loading state
         this.showLoading(mode);
 
@@ -317,6 +323,8 @@ class AIResearchAssistant {
                 return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
             }
         }).join('');
+
+        formatted += aiDisclaimer();
 
         return formatted;
     }

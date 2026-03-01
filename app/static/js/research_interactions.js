@@ -115,6 +115,7 @@ async function submitForAIAnalysis() {
                  prettyResponse += '<button type="button" onclick="useAISuggestion()" style="margin-top: 5px;">Use this Suggestion</button>';
             }
         }
+        prettyResponse += aiDisclaimer();
         resultDiv.innerHTML = prettyResponse;
 
     } catch (error) {

@@ -19,4 +19,20 @@ def index():
 @bp.route('/mental-models')
 def mental_models():
     return render_template('main/mental_models.html', title="Mental Models")
+
+@bp.route('/legal/imprint')
+def imprint():
+    return render_template('main/legal/imprint.html', title="Imprint / Impressum")
+
+@bp.route('/legal/privacy')
+def privacy():
+    return render_template('main/legal/privacy.html', title="Privacy Policy")
+
+@bp.route('/legal/terms')
+def terms():
+    return render_template('main/legal/terms.html', title="Terms of Use")
+
+@bp.route('/legal/cookies')
+def cookies():
+    return render_template('main/legal/cookies.html', title="Cookie Policy")
                                                                                                  

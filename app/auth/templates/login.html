@@ -65,9 +65,11 @@
         <div class="auth-footer-text">
             <a href="{{ url_for('main.index') }}">Back to home</a>
             <span class="auth-footer-sep">&middot;</span>
-            <a href="#">Privacy Policy</a>
+            <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>
             <span class="auth-footer-sep">&middot;</span>
-            <a href="#">Terms of Service</a>
+            <a href="{{ url_for('main.terms') }}">Terms of Use</a>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="{{ url_for('main.imprint') }}">Imprint</a>
         </div>
     </div>
 </div>

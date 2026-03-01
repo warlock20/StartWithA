@@ -49,10 +49,11 @@
                         <li class="list-inline-item"><a href="{{ url_for('main.mental_models') }}"
                                 class="text-decoration-none text-muted">Our Philosophy</a>
                         </li>
-                        <li class="list-inline-item mx-2"><a href="#" class="text-decoration-none text-muted">Privacy
-                                Policy</a></li> {# Placeholder #}
-                        <li class="list-inline-item"><a href="#" class="text-decoration-none text-muted">Terms of
-                                Service</a></li> {# Placeholder #}
+                        <li class="list-inline-item mx-2"><a href="{{ url_for('main.privacy') }}" class="text-decoration-none text-muted">Privacy
+                                Policy</a></li>
+                        <li class="list-inline-item"><a href="{{ url_for('main.terms') }}" class="text-decoration-none text-muted">Terms of
+                                Use</a></li>
+                        <li class="list-inline-item mx-2"><a href="{{ url_for('main.imprint') }}" class="text-decoration-none text-muted">Imprint</a></li>
                     </ul>
                 </div>
             </div>
@@ -137,6 +138,15 @@
 
     <!-- SortableJS for drag-and-drop reordering -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <!-- AI disclaimer utility (BaFin compliance) -->
+    <script src="{{ url_for('static', filename='js/ai-disclaimer.js') }}"></script>
+
+    <!-- Cookie information notice -->
+    {% include 'main/_cookie_notice.html' %}
+
+    <!-- AI consent modal (GDPR Art. 6(1)(a)) -->
+    {% include 'main/_ai_consent_modal.html' %}
 
     {% block scripts %}
     <script src="{{ url_for('static', filename='js/my_script.js') }}"></script>
