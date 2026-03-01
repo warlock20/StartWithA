@@ -114,11 +114,11 @@
 
                             {% if note.step_type == 'checklist' and checklist_analyses and checklist_analyses[note.step_index] %}
                             <div class="mt-3 pt-3 border-top">
-                                <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[note.step_index]) }}"
+                                <a href="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=checklist_analyses[note.step_index]) }}"
                                    class="btn btn-sm btn-outline-primary me-2">
                                     <i class="bi bi-file-text"></i> View Full Checklist
                                 </a>
-                                <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[note.step_index]) }}"
+                                <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=checklist_analyses[note.step_index]) }}"
                                    class="btn btn-sm btn-outline-success">
                                     <i class="bi bi-download"></i> Export
                                 </a>

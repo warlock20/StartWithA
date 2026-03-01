@@ -9,3 +9,4 @@ auth_bp = Blueprint('auth', __name__, template_folder='templates', url_prefix='/
 
 from app.auth import routes  # Import routes after blueprint definition to avoid circular imports
 from app.auth import auth0_routes  # Import Auth0 routes to register them with the blueprint
+from app.auth import gdpr_routes  # GDPR data export & account deletion

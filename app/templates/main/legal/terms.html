@@ -1,0 +1,262 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 800px;">
+    <h1 class="mb-2">Terms of Use</h1>
+    <p class="text-muted mb-4">Last updated: March 2026</p>
+
+    <div class="alert alert-warning mb-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Important:</strong> This platform is a research tool, not an investment advisory service.
+        Please read Section 3 carefully.
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="mb-5 p-3 bg-light rounded">
+        <strong>Contents</strong>
+        <ol class="mb-0 mt-2">
+            <li><a href="#scope">Scope & Acceptance</a></li>
+            <li><a href="#service">Description of Service</a></li>
+            <li><a href="#no-advice">No Investment Advice — Important Disclaimer</a></li>
+            <li><a href="#ai">AI-Generated Content</a></li>
+            <li><a href="#account">Your Account</a></li>
+            <li><a href="#user-content">Your Content & Data</a></li>
+            <li><a href="#acceptable-use">Acceptable Use</a></li>
+            <li><a href="#availability">Availability & Changes</a></li>
+            <li><a href="#liability">Limitation of Liability</a></li>
+            <li><a href="#termination">Termination</a></li>
+            <li><a href="#governing-law">Governing Law & Jurisdiction</a></li>
+            <li><a href="#changes">Changes to These Terms</a></li>
+        </ol>
+    </nav>
+
+    <!-- 1. Scope -->
+    <section class="mb-5" id="scope">
+        <h2 class="h4">1. Scope & Acceptance</h2>
+        <p>
+            These Terms of Use govern your access to and use of the Investment Research Platform
+            (the "Platform"). By creating an account or using the Platform, you agree to be bound
+            by these terms. If you do not agree, do not use the Platform.
+        </p>
+        <p>
+            The operator of this Platform is identified in the
+            <a href="{{ url_for('main.imprint') }}">Imprint</a>. Data processing is described in
+            our <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>.
+        </p>
+    </section>
+
+    <!-- 2. Service Description -->
+    <section class="mb-5" id="service">
+        <h2 class="h4">2. Description of Service</h2>
+        <p>The Platform provides tools to help you:</p>
+        <ul>
+            <li>Organize and structure your investment research using checklists and frameworks</li>
+            <li>Track your research process, decisions, and learnings over time</li>
+            <li>Use AI-powered features to challenge your thinking and identify gaps in your analysis</li>
+            <li>Maintain a decision journal and reflect on past investment decisions</li>
+        </ul>
+        <p>
+            The Platform is a <strong>research organization and thinking tool</strong>. It helps you
+            structure your own analysis — it does not tell you what to buy or sell.
+        </p>
+    </section>
+
+    <!-- 3. No Investment Advice -->
+    <section class="mb-5" id="no-advice">
+        <h2 class="h4">3. No Investment Advice — Important Disclaimer</h2>
+        <div class="card border-warning mb-3">
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>This Platform does not provide investment advice.</strong>
+                </p>
+                <p class="mb-2">
+                    Nothing on this Platform — including AI-generated analyses, research frameworks,
+                    checklists, or any other content — constitutes investment advice
+                    (<em>Anlageberatung</em>), a personal recommendation, or an invitation to buy or
+                    sell any financial instrument within the meaning of § 2(8) No. 10 of the German
+                    Securities Trading Act (WpHG) or MiFID II.
+                </p>
+                <p class="mb-2">
+                    The operator of this Platform is <strong>not</strong> a licensed investment advisor
+                    and is <strong>not</strong> registered with or supervised by the German Federal
+                    Financial Supervisory Authority (BaFin) or any equivalent regulatory body.
+                </p>
+                <p class="mb-2">
+                    <strong>You are solely responsible for your own investment decisions.</strong>
+                    The Platform is a tool to help you think — the conclusions you draw and the
+                    actions you take are entirely your own responsibility.
+                </p>
+                <p class="mb-0">
+                    If you need personalized investment advice, consult a licensed financial advisor
+                    (<em>zugelassener Anlageberater</em>) or a financial institution regulated by BaFin.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. AI Content -->
+    <section class="mb-5" id="ai">
+        <h2 class="h4">4. AI-Generated Content</h2>
+        <p>
+            The Platform includes AI-powered features (the "AI Research Assistant") that use
+            third-party large language models (currently Google Gemini and Anthropic Claude) to
+            generate responses.
+        </p>
+        <p><strong>You acknowledge and agree that:</strong></p>
+        <ul>
+            <li>
+                AI-generated content may be <strong>inaccurate, incomplete, or outdated</strong>.
+                AI models can produce plausible-sounding but factually incorrect information
+                ("hallucinations").
+            </li>
+            <li>
+                AI responses are meant to <strong>challenge and complement your own thinking</strong>,
+                not replace independent research, due diligence, or professional advice.
+            </li>
+            <li>
+                You must <strong>independently verify</strong> any facts, figures, or claims generated
+                by AI features before relying on them for any decision.
+            </li>
+            <li>
+                When you use AI features, portions of your research data are sent to third-party
+                AI providers for processing, as described in our
+                <a href="{{ url_for('main.privacy') }}#ai">Privacy Policy</a>.
+            </li>
+            <li>
+                The operator assumes <strong>no liability</strong> for decisions made based on
+                AI-generated content.
+            </li>
+        </ul>
+    </section>
+
+    <!-- 5. Account -->
+    <section class="mb-5" id="account">
+        <h2 class="h4">5. Your Account</h2>
+        <p>
+            To use the Platform, you must create an account. You are responsible for:
+        </p>
+        <ul>
+            <li>Providing accurate account information</li>
+            <li>Maintaining the security of your login credentials</li>
+            <li>All activity that occurs under your account</li>
+        </ul>
+        <p>
+            Access to the Platform is currently by invitation only. The operator reserves the right
+            to revoke access at any time.
+        </p>
+    </section>
+
+    <!-- 6. User Content -->
+    <section class="mb-5" id="user-content">
+        <h2 class="h4">6. Your Content & Data</h2>
+        <p>
+            You retain full ownership of all content you create on the Platform (research notes,
+            checklists, journal entries, etc.). We do not claim any intellectual property rights
+            over your content.
+        </p>
+        <p>
+            You grant us a limited license to store, process, and display your content solely to
+            provide the Platform's functionality to you. This license terminates when you delete
+            your content or your account.
+        </p>
+        <p>
+            For details on how your data is processed, stored, and protected, see our
+            <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>.
+        </p>
+    </section>
+
+    <!-- 7. Acceptable Use -->
+    <section class="mb-5" id="acceptable-use">
+        <h2 class="h4">7. Acceptable Use</h2>
+        <p>You agree not to:</p>
+        <ul>
+            <li>Use the Platform for any illegal purpose</li>
+            <li>Attempt to gain unauthorized access to other users' data or the Platform's infrastructure</li>
+            <li>Use automated tools (bots, scrapers) to access the Platform without permission</li>
+            <li>Abuse AI features by submitting excessive, automated, or malicious requests</li>
+            <li>Redistribute or commercially resell access to the Platform or its AI features</li>
+        </ul>
+    </section>
+
+    <!-- 8. Availability -->
+    <section class="mb-5" id="availability">
+        <h2 class="h4">8. Availability & Changes</h2>
+        <p>
+            We strive to keep the Platform available, but we do not guarantee uninterrupted access.
+            The Platform may be temporarily unavailable due to maintenance, updates, or circumstances
+            beyond our control.
+        </p>
+        <p>
+            We reserve the right to modify, suspend, or discontinue any feature of the Platform at
+            any time. For significant changes that affect your use, we will provide reasonable notice.
+        </p>
+    </section>
+
+    <!-- 9. Liability -->
+    <section class="mb-5" id="liability">
+        <h2 class="h4">9. Limitation of Liability</h2>
+        <p>
+            The Platform is provided <strong>"as is"</strong> without warranties of any kind, either
+            express or implied.
+        </p>
+        <p>To the fullest extent permitted by applicable law:</p>
+        <ul>
+            <li>
+                The operator is <strong>not liable for any investment losses</strong> or financial
+                damages arising from the use of the Platform or reliance on its content, including
+                AI-generated content.
+            </li>
+            <li>
+                The operator is not liable for indirect, incidental, special, or consequential damages.
+            </li>
+            <li>
+                For direct damages, liability is limited to the amount you have paid for the Platform
+                in the 12 months preceding the claim (if applicable).
+            </li>
+        </ul>
+        <p>
+            <strong>Note:</strong> Under German law (§ 309 Nr. 7 BGB), liability for damages arising
+            from injury to life, body, or health, and liability for intentional or grossly negligent
+            conduct, cannot be excluded.
+        </p>
+    </section>
+
+    <!-- 10. Termination -->
+    <section class="mb-5" id="termination">
+        <h2 class="h4">10. Termination</h2>
+        <p>
+            You may stop using the Platform and request account deletion at any time by contacting
+            us. Upon deletion, all your personal data and content will be removed in accordance with
+            our <a href="{{ url_for('main.privacy') }}#retention">data retention policy</a>.
+        </p>
+        <p>
+            We may terminate or suspend your access if you violate these terms, with reasonable
+            notice where possible.
+        </p>
+    </section>
+
+    <!-- 11. Governing Law -->
+    <section class="mb-5" id="governing-law">
+        <h2 class="h4">11. Governing Law & Jurisdiction</h2>
+        <p>
+            These terms are governed by the laws of the Federal Republic of Germany. If you are a
+            consumer within the EU, you also benefit from mandatory consumer protection provisions
+            of your country of residence.
+        </p>
+        <p>
+            For disputes, the place of jurisdiction is the operator's place of business in Germany,
+            unless mandatory consumer protection laws require otherwise.
+        </p>
+    </section>
+
+    <!-- 12. Changes -->
+    <section class="mb-5" id="changes">
+        <h2 class="h4">12. Changes to These Terms</h2>
+        <p>
+            We may update these terms from time to time. We will notify registered users of
+            significant changes via email or in-platform notification. Continued use of the Platform
+            after changes take effect constitutes acceptance of the revised terms.
+        </p>
+    </section>
+</div>
+{% endblock %}

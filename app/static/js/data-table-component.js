@@ -6,6 +6,12 @@
  * Platform-wide table component using Tabulator.
  * Provides consistent styling, filtering, sorting, and export functionality.
  *
+ * Mobile Support (CSS-based, see _dashboard.css):
+ * - Horizontal scrolling enabled on devices ≤768px via CSS overflow
+ * - Visual scroll indicators (gradient shadow) signal more content
+ * - All columns remain visible (no responsive column hiding)
+ * - Native touch/swipe gestures work automatically
+ *
  * Usage:
  * ------
  * const table = createDataTable('#my-table', {
@@ -19,10 +25,12 @@
 /**
  * Default configuration for all data tables
  * These settings ensure consistency across the platform
+ *
+ * Mobile responsiveness handled via CSS (see _dashboard.css MOBILE TABLE section)
+ * Tables use fitData by default; individual tables may override with fitColumns
  */
 const DEFAULT_TABLE_CONFIG = {
     layout: "fitData",              // Columns fit data by default
-    responsiveLayout: "collapse",   // Stack columns on mobile
     pagination: true,               // Enable pagination
     paginationSize: 25,             // 25 rows per page
     paginationSizeSelector: [10, 25, 50, 100],
@@ -104,6 +112,49 @@ function createDataTable(selector, options = {}) {
 
     // Initialize Tabulator
     const table = new Tabulator(selector, config);
+
+    // Add scroll indicator logic for horizontally scrollable tables
+    const tableElement = document.querySelector(selector);
+    if (tableElement) {
+        const wrapper = tableElement.closest('.data-table-wrapper');
+        if (wrapper) {
+            const SCROLL_END_THRESHOLD = 5; // pixels
+
+            table.on("tableBuilt", function() {
+                const tabulatorElement = tableElement.querySelector('.tabulator-tableholder');
+                if (!tabulatorElement) return;
+
+                // Check and update scroll indicator
+                const updateScrollIndicator = () => {
+                    const scrollLeft = tabulatorElement.scrollLeft;
+                    const scrollWidth = tabulatorElement.scrollWidth;
+                    const clientWidth = tabulatorElement.clientWidth;
+                    const isScrolledToEnd = scrollLeft + clientWidth >= scrollWidth - SCROLL_END_THRESHOLD;
+                    wrapper.classList.toggle('scrolled-end', isScrolledToEnd);
+                };
+
+                // Throttled scroll handler using requestAnimationFrame
+                let ticking = false;
+                const scrollHandler = () => {
+                    if (!ticking) {
+                        window.requestAnimationFrame(() => {
+                            updateScrollIndicator();
+                            ticking = false;
+                        });
+                        ticking = true;
+                    }
+                };
+
+                tabulatorElement.addEventListener('scroll', scrollHandler);
+                updateScrollIndicator(); // Initial check
+
+                // Cleanup on destroy to prevent memory leaks
+                table.on("tableDestroyed", () => {
+                    tabulatorElement.removeEventListener('scroll', scrollHandler);
+                });
+            });
+        }
+    }
 
     // Add export functionality if requested
     if (options.exportButtons) {

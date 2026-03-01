@@ -827,7 +827,7 @@
 
 .templates-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 1.5rem;
 }
 
@@ -1606,5 +1606,43 @@
 
     .quick-access-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   MOBILE TABLE SCROLL SUPPORT
+   ============================================================================= */
+
+/* Enable horizontal scrolling for data tables on mobile */
+@media (max-width: 768px) {
+    .data-table-wrapper {
+        position: relative;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Set minimum width so fitColumns doesn't squeeze columns on small screens */
+    .data-table-wrapper .tabulator {
+        min-width: 700px;
+    }
+
+    /* Gradient shadow on right edge signals "more content" */
+    .data-table-wrapper::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 30px;
+        background: linear-gradient(to left, rgba(0,0,0,0.15), transparent);
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+        z-index: 10;
+    }
+
+    /* Hide indicator when user scrolls to end */
+    .data-table-wrapper.scrolled-end::after {
+        opacity: 0;
     }
 }

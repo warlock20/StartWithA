@@ -105,6 +105,11 @@
 
                 body.appendChild(item);
             });
+            // Add single disclaimer after all alerts
+            const disc = document.createElement('div');
+            disc.className = 'px-2 pb-2';
+            disc.innerHTML = aiDisclaimer(true);
+            body.appendChild(disc);
         })
         .catch(err => {
             console.error('Companion alerts load error:', err);

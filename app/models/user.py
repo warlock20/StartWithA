@@ -116,6 +116,10 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     last_fomo_alert = db.Column(db.DateTime)
     fomo_protection_level = db.Column(db.String(20), default='medium')  # low, medium, high
 
+    # GDPR: AI feature consent (Art. 6(1)(a) DSGVO)
+    ai_consent_given = db.Column(db.Boolean, default=False)
+    ai_consent_date = db.Column(db.DateTime, nullable=True)
+
     # Onboarding and tour tracking
     onboarding_completed = db.Column(db.Boolean, default=False)
     onboarding_path_chosen = db.Column(db.String(20))  # 'company' or 'sector'

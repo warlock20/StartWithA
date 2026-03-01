@@ -132,6 +132,12 @@ const CompanionChat = {
         const text = input.value.trim();
         if (!text) return;
 
+        // Check GDPR consent before sending data to AI providers
+        if (typeof checkAIConsent === 'function') {
+            const consented = await checkAIConsent();
+            if (!consented) return;
+        }
+
         // Add user message
         this.appendMessage('user', text);
         this.conversationHistory.push({ role: 'user', content: text });
@@ -262,6 +268,9 @@ const CompanionChat = {
     appendMessage(type, html) {
         const msg = document.createElement('div');
         msg.className = `c-msg c-msg--${type}`;
+        if (type === 'assistant') {
+            html += aiDisclaimer(true);
+        }
         msg.innerHTML = html;
         document.getElementById('companionMessages').appendChild(msg);
         this.scrollToBottom();

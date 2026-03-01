@@ -311,7 +311,7 @@
 
 .kill-checklists-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 2rem;
     margin-top: 2.5rem;
 }
@@ -330,6 +330,7 @@
     border: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .kill-checklist-card:hover {
@@ -447,6 +448,13 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .kill-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
 }
 
 .kill-metric {

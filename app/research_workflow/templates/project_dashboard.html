@@ -129,12 +129,12 @@
                                 <div class="d-flex gap-2">
                                     {% if step.type == 'checklist' and checklist_analyses and checklist_analyses[step_index] %}
                                     <!-- Checklist-specific buttons -->
-                                    <a href="{{ url_for('research.view_checklist_session_summary', analysis_id=checklist_analyses[step_index]) }}"
+                                    <a href="{{ url_for('research_workflow.view_checklist_session_summary', analysis_id=checklist_analyses[step_index]) }}"
                                        class="btn btn-sm btn-outline-primary"
                                        title="View checklist summary">
                                         <i class="bi bi-file-text"></i> Summary
                                     </a>
-                                    <a href="{{ url_for('research.export_session_to_txt', analysis_id=checklist_analyses[step_index]) }}"
+                                    <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=checklist_analyses[step_index]) }}"
                                        class="btn btn-sm btn-outline-success"
                                        title="Export checklist analysis">
                                         <i class="bi bi-download"></i> Export
