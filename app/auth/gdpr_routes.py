@@ -12,11 +12,13 @@ import logging
 
 from flask import request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, logout_user, current_user
-from app import db
+from app import db, limiter
 from app.auth import auth_bp
+from app.constants import RATELIMIT_AUTH
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import serialize_model_to_dict
 from app.utils.db_utils import safe_db_transaction
+from app.utils.audit_logger import log_consent_change, log_data_export, log_account_deletion
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,7 @@ def grant_ai_consent():
         current_user.ai_consent_given = True
         current_user.ai_consent_date = now_utc()
         db.session.commit()
+        log_consent_change(current_user.id, 'ai_features', granted=True)
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -156,6 +159,7 @@ def revoke_ai_consent():
     try:
         current_user.ai_consent_given = False
         db.session.commit()
+        log_consent_change(current_user.id, 'ai_features', granted=False)
         flash('AI feature consent revoked. AI features are now disabled.', 'info')
         return redirect(url_for('auth.account_settings'))
     except Exception as e:
@@ -177,6 +181,7 @@ def ai_consent_status():
 
 @auth_bp.route('/account/export-data', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AUTH)
 def export_data():
     """
     GDPR Art. 15 - Right of access / Data portability (Art. 20).
@@ -185,6 +190,7 @@ def export_data():
     try:
         user_data = _collect_user_data(current_user)
 
+        log_data_export(current_user.id)
         json_str = json.dumps(user_data, indent=2, ensure_ascii=False, default=str)
 
         filename = f"data_export_{current_user.username or current_user.id}_{now_utc().strftime('%Y%m%d')}.json"
@@ -203,6 +209,7 @@ def export_data():
 
 @auth_bp.route('/account/delete', methods=['POST'])
 @login_required
+@limiter.limit(RATELIMIT_AUTH)
 def delete_account():
     """
     GDPR Art. 17 - Right to erasure ("right to be forgotten").
@@ -343,7 +350,7 @@ def delete_account():
         # Log out the now-deleted user
         logout_user()
 
-        logger.info(f"Account deleted: user_id={user_id}")
+        log_account_deletion(user_id)
         flash('Your account and all associated data have been permanently deleted.', 'info')
         return redirect(url_for('main.index'))
 

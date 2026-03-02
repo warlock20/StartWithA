@@ -13,6 +13,7 @@ from datetime import timedelta
 from app import db
 from app.models.prompt_management import PromptUsageLog
 from app.utils.time_utils import now_utc
+from app.utils.audit_logger import log_ai_call
 logger = logging.getLogger(__name__)
 
 
@@ -98,6 +99,16 @@ def log_prompt_usage(
 
         db.session.add(log_entry)
         db.session.commit()
+
+        # GDPR audit trail
+        log_ai_call(
+            user_id=user_id,
+            provider=provider,
+            model=model,
+            task_type=prompt_name,
+            tokens_used=total_tokens,
+            success=success,
+        )
 
         logger.debug(
             f"Logged prompt usage: {prompt_name} v{prompt_version} "

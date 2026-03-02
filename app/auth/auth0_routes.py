@@ -8,6 +8,7 @@ from flask_login import login_user, logout_user, current_user
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
 from app import db
+from app.utils.audit_logger import log_auth_event
 from app.models import User
 from app.auth import auth_bp
 from app.utils.auth_utils import is_authorized
@@ -136,6 +137,7 @@ def auth0_callback():
 
         # Log in the user with Flask-Login
         login_user(user, remember=True)
+        log_auth_event(user.id, 'login_auth0')
 
         # Clear OAuth state from session
         session.pop('oauth_state', None)
@@ -153,6 +155,8 @@ def auth0_callback():
 def auth0_logout():
     """Logout user from both Flask-Login and Auth0"""
     # Clear Flask-Login session
+    if current_user.is_authenticated:
+        log_auth_event(current_user.id, 'logout_auth0')
     logout_user()
 
     # Clear Flask session

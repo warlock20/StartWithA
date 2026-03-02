@@ -4,6 +4,7 @@ from app import db, limiter
 from app.models import User
 from app.auth import auth_bp # Import the blueprint from this package's __init__.py
 from app.constants import RATELIMIT_AUTH
+from app.utils.audit_logger import log_auth_event
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -30,6 +31,7 @@ def login():
 
         if user and user.check_password(password):
             login_user(user, remember=remember) # Log in the user with Flask-Login
+            log_auth_event(user.id, 'login')
             flash('Login successful!', 'success')
 
             # Redirect to the page the user was trying to access, or a default page
@@ -40,6 +42,7 @@ def login():
                 # Redirect to dashboard after login
                 return redirect(url_for('dashboard.index')) 
         else:
+            log_auth_event(None, 'failed_login')
             flash('Invalid username/email or password. Please try again.', 'error')
             return render_template('login.html', title="Login", identifier=identifier)
 
@@ -49,6 +52,7 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    log_auth_event(current_user.id, 'logout')
     logout_user() # Flask-Login function to clear the user session
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login')) # Redirect to login page after logout

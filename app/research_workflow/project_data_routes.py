@@ -84,13 +84,16 @@ def project_summary(project_id):
             })
 
             # Find checklist analysis if this is a checklist step
-            if step.get('type') == 'checklist':
-                analysis = ChecklistAnalysis.query.filter_by(
-                    research_project_id=project.id,
-                    step_index=step_index
-                ).order_by(ChecklistAnalysis.created_at.desc()).first()
-                if analysis:
-                    checklist_analyses[step_index] = analysis.id
+            if step.get('type') == 'checklist' and project.company_id:
+                checklist_id = step.get('config', {}).get('checklist_id')
+                if checklist_id:
+                    analysis = ChecklistAnalysis.query.filter_by(
+                        user_id=current_user.id,
+                        checklist_id=int(checklist_id),
+                        company_id=project.company_id
+                    ).order_by(ChecklistAnalysis.start_date.desc()).first()
+                    if analysis:
+                        checklist_analyses[step_index] = analysis.id
 
     # Sort by step index
     all_notes.sort(key=lambda x: x['step_index'])
