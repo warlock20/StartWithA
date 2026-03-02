@@ -32,6 +32,16 @@ def create_app(config_class=Config):
     )
     app.logger.setLevel(logging.INFO)
 
+    # Dedicated audit logger (GDPR Art. 5(2) accountability)
+    audit = logging.getLogger('audit')
+    audit.setLevel(logging.INFO)
+    if not audit.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - AUDIT - %(message)s'
+        ))
+        audit.addHandler(handler)
+
     # Suppress noisy third-party loggers
     logging.getLogger('yfinance').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -161,6 +171,40 @@ def create_app(config_class=Config):
             return_url=return_url,
             context_label=context_label
         )
+
+    # ── Security headers ──────────────────────────────────────────────
+    @app.after_request
+    def set_security_headers(response):
+        # HTTPS enforcement (Railway terminates TLS at the proxy)
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+        # Prevent clickjacking
+        response.headers['X-Frame-Options'] = 'DENY'
+
+        # Prevent MIME-type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # Referrer policy — send origin only to external sites
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Permissions policy — disable features we don't use
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+
+        # Content Security Policy
+        csp = "; ".join([
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+            "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+            "img-src 'self' data: https:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ])
+        response.headers['Content-Security-Policy'] = csp
+
+        return response
 
     # Custom error handlers
     @app.errorhandler(404)
