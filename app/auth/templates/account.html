@@ -138,6 +138,38 @@
                     <a href="{{ url_for('main.privacy') }}">Privacy Policy</a>.
                 </p>
 
+                <!-- AI Consent Toggle (Art. 6(1)(a) / Art. 7(3)) -->
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong class="small"><i class="bi bi-robot me-1"></i>AI Features</strong>
+                            <div class="small text-muted">
+                                Send data to Gemini/Claude for research assistance
+                            </div>
+                        </div>
+                        {% if user.ai_consent_given %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </div>
+                    {% if user.ai_consent_given %}
+                        <div class="small text-muted mt-1">
+                            Consented: {{ user.ai_consent_date.strftime('%d %b %Y') if user.ai_consent_date else 'N/A' }}
+                        </div>
+                        <form method="POST" action="{{ url_for('auth.revoke_ai_consent') }}" class="mt-2">
+                            <button type="submit" class="btn btn-outline-warning btn-sm w-100"
+                                    onclick="return confirm('This will disable all AI features. You can re-enable them anytime.')">
+                                <i class="bi bi-toggle2-off me-1"></i>Revoke AI Consent
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="small text-muted mt-1">
+                            AI features will ask for consent on first use.
+                        </div>
+                    {% endif %}
+                </div>
+
                 <div class="d-grid gap-2">
                     <!-- Data Export (Art. 15 / Art. 20) -->
                     <form method="POST" action="{{ url_for('auth.export_data') }}">
