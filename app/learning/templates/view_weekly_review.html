@@ -1,0 +1,207 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Week of {{ review.week_start.strftime('%B %d, %Y') }}</h1>
+                <p class="dashboard-subtitle">{{ review.week_start.strftime('%b %d') }} &rarr; {{ review.week_end.strftime('%b %d, %Y') }}</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('learning.weekly_review_list') }}" class="position-btn">
+                    <i class="bi bi-list-ul"></i> All Reviews
+                </a>
+                <a href="{{ url_for('learning.learning_dashboard') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Learning Center
+                </a>
+            </div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-lightbulb"></i></span>
+                <span class="portfolio-metric-label">Ideas Captured</span>
+                <span class="portfolio-metric-value">{{ review.ideas_captured or 0 }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-x-octagon"></i></span>
+                <span class="portfolio-metric-label">Ideas Killed</span>
+                <span class="portfolio-metric-value">{{ review.ideas_killed or 0 }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-clock-history"></i></span>
+                <span class="portfolio-metric-label">Research Hours</span>
+                <span class="portfolio-metric-value">{{ review.research_hours or 0 }}h</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-signpost-split"></i></span>
+                <span class="portfolio-metric-label">Decisions Made</span>
+                <span class="portfolio-metric-value">{{ review.decisions_made or 0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <!-- Left Column: Reflections + Market -->
+        <div class="col-lg-8">
+            <!-- Reflections -->
+            <div class="learning-content-card mb-4">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-chat-quote me-2"></i>Reflections</h5>
+                </div>
+                <div class="learning-card-body">
+                    {% if review.biggest_win %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Biggest Win</label>
+                        <p class="mb-0">{{ review.biggest_win }}</p>
+                    </div>
+                    {% endif %}
+                    {% if review.biggest_challenge %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Biggest Challenge</label>
+                        <p class="mb-0">{{ review.biggest_challenge }}</p>
+                    </div>
+                    {% endif %}
+                    {% if review.key_learnings %}
+                    <div>
+                        <label class="form-label text-muted small mb-1">Key Learnings</label>
+                        <ul class="mb-0 ps-3">
+                            {% for learning in review.key_learnings %}
+                            <li>{{ learning }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if not review.biggest_win and not review.biggest_challenge and not review.key_learnings %}
+                    <p class="text-muted mb-0">No reflections recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Market Observations -->
+            <div class="learning-content-card mb-4">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-graph-up me-2"></i>Market Observations</h5>
+                </div>
+                <div class="learning-card-body">
+                    {% if review.market_thoughts %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Market Thoughts</label>
+                        <p class="mb-0">{{ review.market_thoughts }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        {% if review.opportunities_identified %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small mb-1">Opportunities</label>
+                            <ul class="mb-0 ps-3">
+                                {% for opp in review.opportunities_identified %}
+                                <li>{{ opp }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% if review.risks_identified %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small mb-1">Risks</label>
+                            <ul class="mb-0 ps-3">
+                                {% for risk in review.risks_identified %}
+                                <li>{{ risk }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if not review.market_thoughts and not review.opportunities_identified and not review.risks_identified %}
+                    <p class="text-muted mb-0">No market observations recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Next Week Planning -->
+            {% if review.next_week_priorities %}
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-list-check me-2"></i>Next Week Priorities</h5>
+                </div>
+                <div class="learning-card-body">
+                    <ul class="mb-0 ps-3">
+                        {% for priority in review.next_week_priorities %}
+                        <li>{{ priority }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Sentiment & Meta -->
+        <div class="col-lg-4">
+            <!-- Sentiment Card -->
+            <div class="learning-content-card mb-4">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-speedometer2 me-2"></i>Sentiment</h5>
+                </div>
+                <div class="learning-card-body text-center">
+                    {% if review.confidence_level %}
+                    <div class="mb-3">
+                        <div class="display-4 fw-bold" style="color: {% if review.confidence_level >= 7 %}#10b981{% elif review.confidence_level >= 4 %}#f59e0b{% else %}#ef4444{% endif %};">
+                            {{ review.confidence_level }}<span class="fs-5 text-muted">/10</span>
+                        </div>
+                        <small class="text-muted">Confidence Level</small>
+                    </div>
+                    {% endif %}
+                    {% if review.market_sentiment %}
+                    <div>
+                        <span class="badge fs-6 px-3 py-2" style="background: {% if review.market_sentiment == 'bullish' %}#d1fae5; color: #065f46{% elif review.market_sentiment == 'bearish' %}#fee2e2; color: #991b1b{% else %}#e0e7ff; color: #3730a3{% endif %};">
+                            <i class="bi bi-{% if review.market_sentiment == 'bullish' %}arrow-up-circle{% elif review.market_sentiment == 'bearish' %}arrow-down-circle{% else %}dash-circle{% endif %} me-1"></i>
+                            {{ review.market_sentiment|title }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if not review.confidence_level and not review.market_sentiment %}
+                    <p class="text-muted mb-0">No sentiment recorded</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Goals Achievement -->
+            {% if review.goals_completion_rate is not none %}
+            <div class="learning-content-card mb-4">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-trophy me-2"></i>Goals</h5>
+                </div>
+                <div class="learning-card-body text-center">
+                    <div class="display-5 fw-bold" style="color: {% if review.goals_completion_rate >= 80 %}#10b981{% elif review.goals_completion_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
+                        {{ review.goals_completion_rate }}%
+                    </div>
+                    <small class="text-muted">Completion Rate</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Meta -->
+            <div class="learning-content-card">
+                <div class="learning-card-header">
+                    <h5 class="learning-card-title"><i class="bi bi-info-circle me-2"></i>Details</h5>
+                </div>
+                <div class="learning-card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small class="text-muted">Created</small>
+                        <small>{{ review.created_at.strftime('%b %d, %Y') if review.created_at else '—' }}</small>
+                    </div>
+                    {% if review.completed_at %}
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">Completed</small>
+                        <small>{{ review.completed_at.strftime('%b %d, %Y %H:%M') }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
