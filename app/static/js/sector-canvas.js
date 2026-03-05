@@ -672,21 +672,129 @@ function initializeScrollFadeEffects() {
 
 // ==================== QUICK TOOLS SIDEBAR ====================
 
-function updateAddCompanyAction(selectElement) {
-    const companyId = selectElement.value;
-    const form = document.getElementById('addCompanyForm');
+function getSectorNameFromUrl() {
+    const pathParts = window.location.pathname.split('/');
+    return pathParts[pathParts.indexOf('sectors') + 1];
+}
 
-    if (companyId) {
-        // Get sector name from the URL (it's already URL-encoded)
-        const pathParts = window.location.pathname.split('/');
-        const sectorName = pathParts[pathParts.indexOf('sectors') + 1];
+function addCompanyToSector(companyId, callback) {
+    const sectorName = getSectorNameFromUrl();
+    fetch(`/sectors/${sectorName}/add_company/${companyId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            callback(data.company);
+        } else {
+            showToast(data.error || 'Failed to add company', 'error');
+        }
+    })
+    .catch(() => showToast('Network error', 'error'));
+}
 
-        // Update form action to the add_company route
-        // Don't encode sectorName again - it's already encoded in the URL
-        form.action = `/sectors/${sectorName}/add_company/${companyId}`;
-    } else {
-        form.action = '#';
+function removeCompanyFromSector(companyId, callback) {
+    const sectorName = getSectorNameFromUrl();
+    fetch(`/sectors/${sectorName}/remove_company/${companyId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            callback(data.company);
+        } else {
+            showToast(data.error || 'Failed to remove company', 'error');
+        }
+    })
+    .catch(() => showToast('Network error', 'error'));
+}
+
+function showToast(message, type) {
+    // Use existing flash mechanism or create a simple toast
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+    toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;min-width:250px;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function updateCompanyBadgeCount() {
+    const list = document.getElementById('companiesList');
+    const badge = document.querySelector('#companiesCollapse')
+        ?.closest('.accordion-item')
+        ?.querySelector('.badge');
+    if (badge && list) {
+        badge.textContent = list.querySelectorAll('.tool-item').length;
     }
+}
+
+function appendCompanyToList(company) {
+    const list = document.getElementById('companiesList');
+    if (!list) return;
+    // Remove "No companies tracked" message if present
+    const emptyMsg = list.querySelector('p.text-muted');
+    if (emptyMsg) emptyMsg.remove();
+
+    const item = document.createElement('div');
+    item.className = 'tool-item';
+    item.dataset.companyId = company.id;
+    item.innerHTML = `
+        <div class="tool-item-text">
+            <strong>${company.name}</strong>
+            <small class="d-block text-muted">${company.ticker}</small>
+            ${company.is_in_portfolio ? '<span class="badge bg-info">Portfolio</span>' : ''}
+        </div>
+        <div class="tool-item-actions">
+            <a href="${company.dashboard_url}" class="btn btn-sm btn-link p-0" title="View company">
+                <i class="bi bi-eye"></i>
+            </a>
+            <button type="button" class="btn btn-sm btn-link p-0 text-danger btn-remove-company" data-company-id="${company.id}" data-company-name="${company.name}" title="Remove from sector">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </div>`;
+    list.appendChild(item);
+    updateCompanyBadgeCount();
+}
+
+function removeCompanyFromList(companyId) {
+    const item = document.querySelector(`#companiesList .tool-item[data-company-id="${companyId}"]`);
+    if (item) {
+        item.style.transition = 'opacity 0.2s, transform 0.2s';
+        item.style.opacity = '0';
+        item.style.transform = 'translateX(10px)';
+        setTimeout(() => {
+            item.remove();
+            updateCompanyBadgeCount();
+            // Show empty message if no companies left
+            const list = document.getElementById('companiesList');
+            if (list && !list.querySelector('.tool-item')) {
+                list.innerHTML = '<p class="text-muted small text-center mb-0">No companies tracked</p>';
+            }
+        }, 200);
+    }
+}
+
+function addOptionToSelect(company) {
+    const select = document.getElementById('companySelect');
+    if (!select) return;
+    const opt = document.createElement('option');
+    opt.value = company.id;
+    opt.textContent = company.name;
+    // Insert alphabetically
+    const options = Array.from(select.options).slice(1); // skip "Select..."
+    const insertBefore = options.find(o => o.textContent.localeCompare(company.name) > 0);
+    select.insertBefore(opt, insertBefore || null);
+}
+
+function removeOptionFromSelect(companyId) {
+    const select = document.getElementById('companySelect');
+    if (!select) return;
+    const opt = select.querySelector(`option[value="${companyId}"]`);
+    if (opt) opt.remove();
+    select.value = '';
 }
 
 // ==================== INITIALIZATION ====================
@@ -696,22 +804,61 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNoteCardExpand();
     initializeScrollFadeEffects();
 
+    // Add company form - intercept submit and use fetch
+    const addForm = document.getElementById('addCompanyForm');
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const select = document.getElementById('companySelect');
+            const companyId = select.value;
+            if (!companyId) return;
+
+            const btn = addForm.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+
+            addCompanyToSector(companyId, function(company) {
+                appendCompanyToList(company);
+                removeOptionFromSelect(companyId);
+                showToast(`${company.name} added to sector`, 'success');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-plus"></i>';
+            });
+        });
+    }
+
+    // Remove company - delegate click events on the list
+    const companiesList = document.getElementById('companiesList');
+    if (companiesList) {
+        companiesList.addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-remove-company');
+            if (!btn) return;
+            e.preventDefault();
+
+            const companyId = btn.dataset.companyId;
+            const companyName = btn.dataset.companyName;
+            if (!confirm(`Remove ${companyName} from this sector?`)) return;
+
+            btn.disabled = true;
+            removeCompanyFromSector(companyId, function(company) {
+                removeCompanyFromList(companyId);
+                addOptionToSelect(company);
+                showToast(`${company.name} removed from sector`, 'success');
+            });
+        });
+    }
+
     // Setup New Company button handler
     const newCompanyBtn = document.getElementById('newCompanyBtn');
     if (newCompanyBtn) {
         newCompanyBtn.addEventListener('click', function() {
             if (typeof openCompanyModal === 'function') {
                 openCompanyModal(function(company) {
-                    // Get sector name from URL
-                    const pathParts = window.location.pathname.split('/');
-                    const sectorName = pathParts[pathParts.indexOf('sectors') + 1];
-
-                    // Submit POST request to add company to sector
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = `/sectors/${sectorName}/add_company/${company.id}`;
-                    document.body.appendChild(form);
-                    form.submit();
+                    addCompanyToSector(company.id, function(added) {
+                        appendCompanyToList(added);
+                        removeOptionFromSelect(company.id);
+                        showToast(`${added.name} added to sector`, 'success');
+                    });
                 });
             } else {
                 console.error('Company search component not loaded');

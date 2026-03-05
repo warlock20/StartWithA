@@ -10,9 +10,6 @@
                 <p class="dashboard-subtitle">Transform experience into expertise through systematic learning</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('learning.review_calendar') }}" class="btn btn-outline-primary me-2">
-                    <i class="bi bi-calendar-check"></i> Review Calendar
-                </a>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button"
                             id="learningActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -31,13 +28,43 @@
                                 Weekly Review
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('learning.postmortem_list') }}">
+                                <i class="bi bi-clipboard-data text-success me-2"></i>
+                                Postmortems
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
         </header>
+
+        <!-- Review Discipline Metrics -->
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-journal-check"></i></span>
+                <span class="portfolio-metric-label">Weekly Reviews</span>
+                <span class="portfolio-metric-value">{{ review_discipline.weekly_completed }}/{{ review_discipline.weekly_total }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-clipboard-data"></i></span>
+                <span class="portfolio-metric-label">Postmortems</span>
+                <span class="portfolio-metric-value">{{ review_discipline.postmortems }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-check2-circle"></i></span>
+                <span class="portfolio-metric-label">Mistakes Reviewed</span>
+                <span class="portfolio-metric-value">{{ review_discipline.mistakes_reviewed }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-lightbulb"></i></span>
+                <span class="portfolio-metric-label">Learning Notes</span>
+                <span class="portfolio-metric-value">{{ review_discipline.total_notes }}</span>
+            </div>
+        </div>
     </div>
 
-      <!-- Review Schedule Alert -->
+    <!-- Review Schedule Alert -->
     {% if review_schedule %}
     <div class="learning-alert">
         <div class="learning-alert-icon">
@@ -47,15 +74,14 @@
             <strong>Upcoming Reviews:</strong>
             <div class="learning-alert-badges">
                 {% for item in review_schedule[:3] %}
-                <span class="learning-alert-badge {% if item.status == 'overdue' %}badge-danger{% else %}badge-primary{% endif %}">
+                <a href="{{ url_for(item.route) }}"
+                   class="learning-alert-badge {% if item.status == 'overdue' %}badge-danger{% else %}badge-primary{% endif %}"
+                   style="text-decoration: none;">
                     {{ item.type }} - {{ item.date.strftime('%b %d') }}
-                </span>
+                </a>
                 {% endfor %}
             </div>
         </div>
-        <a href="{{ url_for('learning.review_calendar') }}" class="learning-alert-link">
-            View Full Calendar <i class="bi bi-arrow-right-short"></i>
-        </a>
     </div>
     {% endif %}
 
@@ -142,6 +168,47 @@
                            class="btn btn-sm"
                            style="background-color: #8b5cf6; color: white; border: none;">
                             Review & Learn <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Reviews Card -->
+            <div class="priority-card" style="border-left: 4px solid #3b82f6;">
+                <div class="priority-card-content">
+                    <div class="priority-card-header">
+                        <div>
+                            <h3 class="priority-card-title">
+                                <i class="bi bi-journal-text me-2" style="color: #3b82f6;"></i>
+                                Weekly Reviews
+                            </h3>
+                            <p class="priority-card-description mb-0">
+                                {{ weekly_review_stats.total }} review{{ 's' if weekly_review_stats.total != 1 }}
+                                {% if weekly_review_stats.streak > 0 %}
+                                • <span class="text-success">{{ weekly_review_stats.streak }}-week streak</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        {% if weekly_review_stats.last_review %}
+                            <small class="text-muted">
+                                <i class="bi bi-clock-history"></i>
+                                Last review: {{ weekly_review_stats.last_review.strftime('%b %d, %Y') }}
+                                ({{ ((now - ensure_timezone_aware(weekly_review_stats.last_review)).days) }} days ago)
+                            </small>
+                        {% else %}
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                No reviews yet
+                            </small>
+                        {% endif %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('learning.weekly_review_list') }}"
+                           class="btn btn-sm"
+                           style="background-color: #3b82f6; color: white; border: none;">
+                            Browse Reviews <i class="bi bi-arrow-right"></i>
                         </a>
                     </div>
                 </div>

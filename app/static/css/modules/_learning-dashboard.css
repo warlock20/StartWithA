@@ -320,8 +320,6 @@
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-light);
     border: 1px solid var(--gray-200);
-    overflow: hidden;
-    height: 100%;
 }
 
 .learning-card-header {

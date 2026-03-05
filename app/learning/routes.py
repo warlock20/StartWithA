@@ -89,6 +89,55 @@ def learning_dashboard():
     # Get review schedule
     review_schedule = get_review_schedule(current_user.id)
 
+    # Review discipline metrics (last 12 weeks)
+    twelve_weeks_ago = now_utc().date() - timedelta(weeks=12)
+    weekly_reviews_completed = WeeklyReview.query.filter(
+        WeeklyReview.user_id == current_user.id,
+        WeeklyReview.week_start >= twelve_weeks_ago
+    ).count()
+    postmortems_completed = InvestmentPostMortem.query.filter_by(
+        user_id=current_user.id
+    ).count()
+    mistakes_reviewed = MistakeLog.query.filter(
+        MistakeLog.user_id == current_user.id,
+        MistakeLog.times_reviewed > 0
+    ).count()
+
+    review_discipline = {
+        'weekly_completed': weekly_reviews_completed,
+        'weekly_total': 12,
+        'postmortems': postmortems_completed,
+        'mistakes_reviewed': mistakes_reviewed,
+        'total_notes': total_insights,
+    }
+
+    # Weekly review stats for Knowledge Review Center card
+    total_weekly_reviews = current_user.weekly_reviews.count()
+    last_weekly_review = current_user.weekly_reviews.order_by(
+        WeeklyReview.week_start.desc()
+    ).first()
+
+    # Calculate streak: consecutive weeks with a review
+    weekly_streak = 0
+    if last_weekly_review:
+        check_week = now_utc().date() - timedelta(days=now_utc().date().weekday())
+        while True:
+            has_review = WeeklyReview.query.filter_by(
+                user_id=current_user.id,
+                week_start=check_week
+            ).first()
+            if has_review:
+                weekly_streak += 1
+                check_week -= timedelta(weeks=1)
+            else:
+                break
+
+    weekly_review_stats = {
+        'total': total_weekly_reviews,
+        'last_review': last_weekly_review.completed_at if last_weekly_review else None,
+        'streak': weekly_streak,
+    }
+
     # Get recent mistakes
     recent_mistakes = current_user.mistake_logs.order_by(
         MistakeLog.created_at.desc()
@@ -136,11 +185,14 @@ def learning_dashboard():
                           learning_score=learning_score,
                           curated_wisdom_stats=curated_wisdom_stats,
                           sector_knowledge_stats=sector_knowledge_stats,
+                          weekly_review_stats=weekly_review_stats,
                           review_schedule=review_schedule,
+                          review_discipline=review_discipline,
                           recent_mistakes=recent_mistakes,
                           recommendations=recommendations,
                           active_paths=active_paths,
                           improvement_data=improvement_data,
+                          ensure_timezone_aware=ensure_timezone_aware,
                           now=now_utc())
 
 @learning_bp.route('/mistakes')
@@ -583,20 +635,26 @@ def create_learning_path():
    
    return redirect(url_for('learning.learning_paths'))
 
-@learning_bp.route('/review-calendar')
+@learning_bp.route('/weekly-reviews')
 @login_required
-def review_calendar():
-   """Show review calendar and schedule"""
-   schedule = get_review_schedule(current_user.id)
-   
-   # Get past reviews
-   past_reviews = {
-       'weekly': current_user.weekly_reviews.order_by(WeeklyReview.week_start.desc()).limit(12).all(),
-       'postmortems': current_user.postmortems.order_by(InvestmentPostMortem.created_at.desc()).limit(10).all(),
-       'mistakes': current_user.mistake_logs.order_by(MistakeLog.last_reviewed.desc()).limit(10).all()
-   }
-   
-   return render_template('review_calendar.html',
-                         title="Review Calendar",
-                         schedule=schedule,
-                         past_reviews=past_reviews)
+def weekly_review_list():
+    """List all completed weekly reviews"""
+    reviews = current_user.weekly_reviews.order_by(
+        WeeklyReview.week_start.desc()
+    ).all()
+
+    return render_template('weekly_review_list.html',
+                          title="Weekly Reviews",
+                          reviews=reviews)
+
+@learning_bp.route('/postmortems')
+@login_required
+def postmortem_list():
+    """List all completed investment postmortems"""
+    postmortems = current_user.postmortems.order_by(
+        InvestmentPostMortem.created_at.desc()
+    ).all()
+
+    return render_template('postmortem_list.html',
+                          title="Investment Postmortems",
+                          postmortems=postmortems)

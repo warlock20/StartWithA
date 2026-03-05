@@ -1,0 +1,91 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title font-poppins">Investment Postmortems</h1>
+                <p class="dashboard-subtitle">Learn from closed positions to sharpen your process</p>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('learning.learning_dashboard') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Learning Center
+                </a>
+            </div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-clipboard-data"></i></span>
+                <span class="portfolio-metric-label">Total Postmortems</span>
+                <span class="portfolio-metric-value">{{ postmortems|length }}</span>
+            </div>
+            {% set successes = postmortems|selectattr('outcome', 'equalto', 'success')|list|length %}
+            {% set failures = postmortems|selectattr('outcome', 'equalto', 'failure')|list|length %}
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-check-circle"></i></span>
+                <span class="portfolio-metric-label">Successes</span>
+                <span class="portfolio-metric-value gain">{{ successes }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-x-circle"></i></span>
+                <span class="portfolio-metric-label">Failures</span>
+                <span class="portfolio-metric-value loss">{{ failures }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if postmortems %}
+    <div class="priority-lane-grid">
+        {% for pm in postmortems %}
+        <a href="{{ url_for('learning.view_postmortem', postmortem_id=pm.id) }}" class="priority-card" style="text-decoration: none; border-left: 4px solid {% if pm.outcome == 'success' %}#10b981{% elif pm.outcome == 'failure' %}#ef4444{% else %}#f59e0b{% endif %};">
+            <div class="priority-card-content">
+                <div class="priority-card-header">
+                    <div>
+                        <h3 class="priority-card-title">
+                            {{ pm.company.name if pm.company else 'Unknown' }}
+                        </h3>
+                        <p class="priority-card-description mb-0">
+                            {{ pm.entry_date.strftime('%b %Y') }} &rarr; {{ pm.exit_date.strftime('%b %Y') }}
+                            &middot; {{ pm.holding_period_days }} days
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <span class="badge" style="background: {% if pm.outcome == 'success' %}#d1fae5; color: #065f46{% elif pm.outcome == 'failure' %}#fee2e2; color: #991b1b{% else %}#fef3c7; color: #92400e{% endif %};">
+                        {{ pm.outcome|title if pm.outcome else 'Mixed' }}
+                    </span>
+                    {% if pm.total_return is not none %}
+                    <span class="badge" style="background: {% if pm.total_return >= 0 %}#d1fae5; color: #065f46{% else %}#fee2e2; color: #991b1b{% endif %};">
+                        {{ '{:+.1f}'.format(pm.total_return) }}%
+                    </span>
+                    {% endif %}
+                    {% if pm.thesis_accuracy %}
+                    <span class="badge" style="background: #e0e7ff; color: #3730a3;">
+                        Thesis: {{ pm.thesis_accuracy|replace('_', ' ')|title }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if pm.primary_lesson %}
+                <p class="text-muted small mt-2 mb-0">{{ pm.primary_lesson|truncate(100) }}</p>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="learning-content-card">
+        <div class="learning-card-body">
+            <div class="learning-empty-state">
+                <i class="bi bi-clipboard-data"></i>
+                <p>No postmortems yet</p>
+                <p class="text-muted small">Create a postmortem from a closed decision in your
+                    <a href="{{ url_for('portfolio.decision_journal_list') }}">Decision Journal</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
