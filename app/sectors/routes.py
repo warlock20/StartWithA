@@ -563,7 +563,11 @@ def save_section(section_id):
 def add_company_to_sector(sector_name, company_id):
     """Add a company to this sector"""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not sector:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Sector not found'}), 404
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.index'))
 
@@ -572,12 +576,27 @@ def add_company_to_sector(sector_name, company_id):
 
     # Authorization check
     if company.user_id != current_user.id:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         flash('Access denied', 'error')
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
     # Update company sector
     company.sector_id = sector.id
     db.session.commit()
+
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'company': {
+                'id': company.id,
+                'name': company.name,
+                'ticker': company.ticker_symbol or '',
+                'is_in_portfolio': company.is_in_portfolio,
+                'dashboard_url': url_for('companies.company_dashboard', company_id=company.id),
+                'remove_url': url_for('sectors.remove_company_from_sector', sector_name=sector_name, company_id=company.id),
+            }
+        })
 
     flash(f'{company.name} added to {sector.display_name} sector', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))
@@ -588,7 +607,11 @@ def add_company_to_sector(sector_name, company_id):
 def remove_company_from_sector(sector_name, company_id):
     """Remove a company from this sector"""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not sector:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Sector not found'}), 404
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.index'))
 
@@ -597,12 +620,23 @@ def remove_company_from_sector(sector_name, company_id):
 
     # Authorization check
     if company.user_id != current_user.id:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         flash('Access denied', 'error')
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
     # Clear company sector
     company.sector_id = None
     db.session.commit()
+
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'company': {
+                'id': company.id,
+                'name': company.name,
+            }
+        })
 
     flash(f'{company.name} removed from {sector.display_name} sector', 'success')
     return redirect(url_for('sectors.notebook', sector_name=sector_name))

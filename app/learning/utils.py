@@ -227,37 +227,40 @@ def get_review_schedule(user_id):
         'type': 'Weekly Review',
         'date': next_weekly,
         'status': 'upcoming',
-        'description': 'Review the week\'s activities and learnings'
+        'description': 'Review the week\'s activities and learnings',
+        'route': 'learning.weekly_review',
     })
-    
+
     # Monthly postmortem (first Saturday of each month)
     next_month = today.replace(day=1) + timedelta(days=32)
     next_month = next_month.replace(day=1)
     first_saturday = next_month + timedelta(days=(5 - next_month.weekday()) % 7)
-    
+
     schedule.append({
-        'type': 'Monthly Postmortem',
+        'type': 'Investment Postmortem',
         'date': first_saturday,
         'status': 'upcoming',
-        'description': 'Deep review of investment decisions'
+        'description': 'Review closed positions and capture lessons',
+        'route': 'learning.postmortem_list',
     })
-    
+
     # Quarterly pattern review
     quarter_start = today.replace(day=1, month=((today.month - 1) // 3) * 3 + 1)
     next_quarter = quarter_start + timedelta(days=92)
-    
+
     schedule.append({
         'type': 'Quarterly Pattern Review',
         'date': next_quarter,
         'status': 'upcoming',
-        'description': 'Identify patterns in your investing behavior'
+        'description': 'Identify patterns in your investing behavior',
+        'route': 'learning.learning_paths',
     })
-    
+
     # Check for overdue reviews
     last_weekly = WeeklyReview.query.filter_by(user_id=user_id)\
                                    .order_by(WeeklyReview.week_start.desc())\
                                    .first()
-    
+
     if last_weekly:
         weeks_since = (today - last_weekly.week_start).days // 7
         if weeks_since > 1:
@@ -265,7 +268,8 @@ def get_review_schedule(user_id):
                 'type': 'Overdue Weekly Review',
                 'date': today,
                 'status': 'overdue',
-                'description': f'Last review was {weeks_since} weeks ago'
+                'description': f'Last review was {weeks_since} weeks ago',
+                'route': 'learning.weekly_review',
             })
     
     return sorted(schedule, key=lambda x: x['date'])

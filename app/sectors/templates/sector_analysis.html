@@ -526,9 +526,9 @@
                         <div id="companiesCollapse" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
                             <div class="accordion-body">
                                 {% if other_companies %}
-                                <form method="POST" action="#" class="mb-2" id="addCompanyForm">
+                                <form class="mb-2" id="addCompanyForm">
                                     <div class="input-group input-group-sm">
-                                        <select class="form-select form-select-sm" id="companySelect" name="company_id" required onchange="updateAddCompanyAction(this)">
+                                        <select class="form-select form-select-sm" id="companySelect" name="company_id" required>
                                             <option value="">Select...</option>
                                             {% for company in other_companies %}
                                             <option value="{{ company.id }}">{{ company.name }}</option>
@@ -541,11 +541,11 @@
                                 </form>
                                 {% endif %}
 
-                                <div class="tool-items-list">
+                                <div class="tool-items-list" id="companiesList">
                                     {% if companies_data %}
                                     {% for data in companies_data %}
                                     {% set company = data.company %}
-                                    <div class="tool-item">
+                                    <div class="tool-item" data-company-id="{{ company.id }}">
                                         <div class="tool-item-text">
                                             <strong>{{ company.name }}</strong>
                                             <small class="d-block text-muted">{{ company.ticker_symbol }}</small>
@@ -559,11 +559,9 @@
                                             <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-sm btn-link p-0" title="View company">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <form method="POST" action="{{ url_for('sectors.remove_company_from_sector', sector_name=analysis.sector_name, company_id=company.id) }}" style="display: inline;">
-                                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove {{ company.name }} from this sector?');" title="Remove from sector">
-                                                    <i class="bi bi-x-circle"></i>
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-danger btn-remove-company" data-company-id="{{ company.id }}" data-company-name="{{ company.name }}" title="Remove from sector">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
                                         </div>
                                     </div>
                                     {% endfor %}
