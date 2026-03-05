@@ -8,12 +8,14 @@ Flask-Admin based admin interface for managing:
 - Analytics
 """
 
+import csv
+import io
 import os
 
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_login import current_user
-from flask import redirect, url_for, request
+from flask import flash, redirect, url_for, request
 
 from app import db
 from app.models import (
@@ -24,6 +26,8 @@ from app.models import (
     PromptUsageLog,
     User,
     AIResearchFeedback,
+    MarketSweep,
+    MarketSweepCompany,
 )
 
 
@@ -211,6 +215,97 @@ class AIResearchFeedbackView(SecureModelView):
     }
 
 
+class MarketSweepAdminView(SecureModelView):
+    """Admin view for MarketSweep with CSV/Excel upload support."""
+    column_list = ['id', 'name', 'country', 'total_companies', 'is_active', 'created_at']
+    column_searchable_list = ['name', 'country']
+    column_filters = ['country', 'is_active']
+    column_editable_list = ['is_active']
+    form_columns = ['name', 'country', 'description', 'is_active']
+
+    can_create = True
+    can_edit = True
+    can_delete = True
+
+    edit_template = 'admin/market_sweep_edit.html'
+
+    def on_model_change(self, form, model, is_created):
+        if is_created:
+            model.uploaded_by = current_user.id
+
+    @expose('/upload-companies/<int:sweep_id>', methods=['POST'])
+    def upload_companies(self, sweep_id):
+        """Handle CSV/Excel upload for a sweep."""
+        sweep = MarketSweep.query.get_or_404(sweep_id)
+
+        file = request.files.get('companies_file')
+        if not file:
+            flash('No file selected', 'error')
+            return redirect(self.get_url('.edit_view', id=sweep_id))
+
+        filename = file.filename.lower()
+        rows = []
+
+        # Normalise header names: strip whitespace, lowercase, underscores
+        def _norm(h):
+            if h is None:
+                return ''
+            return str(h).strip().lower().replace(' ', '_')
+
+        try:
+            if filename.endswith('.csv'):
+                content = file.read().decode('utf-8-sig')
+                reader = csv.DictReader(io.StringIO(content))
+                rows = [{_norm(k): v for k, v in r.items()} for r in reader]
+            elif filename.endswith(('.xlsx', '.xls')):
+                import openpyxl
+                wb = openpyxl.load_workbook(file)
+                ws = wb.active
+                headers = [_norm(cell.value) for cell in ws[1]]
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if any(v is not None for v in row):
+                        rows.append(dict(zip(headers, row)))
+            else:
+                flash('Unsupported file format. Use CSV or Excel (.xlsx).', 'error')
+                return redirect(self.get_url('.edit_view', id=sweep_id))
+        except Exception as e:
+            flash(f'Error reading file: {str(e)}', 'error')
+            return redirect(self.get_url('.edit_view', id=sweep_id))
+
+        # Clear existing companies
+        MarketSweepCompany.query.filter_by(sweep_id=sweep_id).delete()
+
+        # Sort alphabetically, assign sort_order
+        rows.sort(key=lambda r: (r.get('company_name') or '').strip().lower())
+
+        if rows:
+            sample_keys = list(rows[0].keys())
+            flash(f'Detected columns: {sample_keys}', 'info')
+
+        count = 0
+        for idx, row in enumerate(rows):
+            name = str(row.get('company_name') or '').strip()
+            if not name:
+                continue
+            company = MarketSweepCompany(
+                sweep_id=sweep_id,
+                company_name=name,
+                ticker=str(row.get('ticker') or '').strip() or None,
+                sector_label=str(row.get('sector') or '').strip() or None,
+                market_cap=str(row.get('market_cap') or '').strip() or None,
+                exchange=str(row.get('exchange') or '').strip() or None,
+                sort_order=idx,
+            )
+            db.session.add(company)
+            count += 1
+
+        sweep.total_companies = count
+        db.session.commit()
+
+        flash(f'Uploaded {count} companies to "{sweep.name}"', 'success')
+        return redirect(self.get_url('.edit_view', id=sweep_id))
+
+
 def _sync_admin_emails(app):
     """Promote/demote users based on ADMIN_EMAILS env var (comma-separated)."""
     raw = os.environ.get('ADMIN_EMAILS', '')
@@ -253,5 +348,8 @@ def init_admin(app):
 
     # User Management & Token Monitoring
     admin.add_view(UserView(User, db.session, name='Users & Tokens', category='User Management'))
+
+    # Market Sweep
+    admin.add_view(MarketSweepAdminView(MarketSweep, db.session, name='Market Sweeps', category='Market Sweep'))
 
     return admin
