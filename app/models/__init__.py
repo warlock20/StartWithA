@@ -103,6 +103,11 @@ from .bias_check import (
 from .portfolio_insight import (
     PortfolioUIInsight,
 )
+from .market_sweep import (
+    MarketSweep,
+    MarketSweepCompany,
+    MarketSweepDecision,
+)
 
 
 
@@ -202,4 +207,8 @@ __all__ = [
     'BiasCheckResult',
     # Portfolio Insight models
     'PortfolioUIInsight',
+    # Market Sweep models
+    'MarketSweep',
+    'MarketSweepCompany',
+    'MarketSweepDecision',
 ]

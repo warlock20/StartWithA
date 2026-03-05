@@ -1,0 +1,37 @@
+{% extends 'admin/model/edit.html' %}
+
+{% block edit_form %}
+    {{ super() }}
+
+    {% if model.id %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Upload Companies (CSV/Excel)</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Upload a CSV or Excel file with columns:
+                <code>company_name</code>, <code>ticker</code>, <code>sector</code>,
+                <code>market_cap</code>, <code>exchange</code>
+            </p>
+            <p class="text-muted small">
+                Only <code>company_name</code> is required. Companies are sorted alphabetically on upload.
+            </p>
+            {% if model.total_companies > 0 %}
+            <div class="alert alert-warning">
+                This sweep already has <strong>{{ model.total_companies }}</strong> companies.
+                Uploading a new file will <strong>replace all existing companies</strong>.
+            </div>
+            {% endif %}
+            <form method="POST" enctype="multipart/form-data"
+                  action="{{ url_for('marketsweep.upload_companies', sweep_id=model.id) }}">
+                <div class="mb-3">
+                    <input type="file" name="companies_file" class="form-control"
+                           accept=".csv,.xlsx,.xls" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload Companies</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
