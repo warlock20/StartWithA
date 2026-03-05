@@ -430,23 +430,14 @@ def save_weekly_review():
 def view_weekly_review(review_id):
    """View a specific weekly review"""
    review = WeeklyReview.query.get_or_404(review_id)
-   
+
    if review.user_id != current_user.id:
        flash('Access denied', 'error')
        return redirect(url_for('learning.learning_dashboard'))
-   
-   metrics = get_weekly_metrics(current_user.id, review.week_start)
-   past_reviews = current_user.weekly_reviews.order_by(
-       WeeklyReview.week_start.desc()
-   ).limit(4).all()
 
-   return render_template('weekly_review.html',
+   return render_template('view_weekly_review.html',
                          title=f"Weekly Review: {review.week_start.strftime('%B %d, %Y')}",
-                         review=review,
-                         week_start=review.week_start,
-                         week_end=review.week_end,
-                         metrics=metrics,
-                         past_reviews=past_reviews)
+                         review=review)
 
 @learning_bp.route('/postmortem/<int:decision_id>', methods=['GET', 'POST'])
 @login_required

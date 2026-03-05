@@ -50,54 +50,91 @@
     </div>
 
     {% if reviews %}
-    <div class="priority-lane-grid">
-        {% for review in reviews %}
-        <a href="{{ url_for('learning.view_weekly_review', review_id=review.id) }}" class="priority-card" style="text-decoration: none; border-left: 4px solid {% if review.market_sentiment == 'bullish' %}#10b981{% elif review.market_sentiment == 'bearish' %}#ef4444{% else %}#6366f1{% endif %};">
-            <div class="priority-card-content">
-                <div class="priority-card-header">
-                    <div>
-                        <h3 class="priority-card-title">
-                            Week of {{ review.week_start.strftime('%b %d, %Y') }}
-                        </h3>
-                        <p class="priority-card-description mb-0">
-                            {{ review.week_start.strftime('%b %d') }} &rarr; {{ review.week_end.strftime('%b %d, %Y') }}
-                        </p>
-                    </div>
-                </div>
-                <div class="mt-2 d-flex gap-2 flex-wrap">
-                    {% if review.market_sentiment %}
-                    <span class="badge" style="background: {% if review.market_sentiment == 'bullish' %}#d1fae5; color: #065f46{% elif review.market_sentiment == 'bearish' %}#fee2e2; color: #991b1b{% else %}#e0e7ff; color: #3730a3{% endif %};">
-                        {{ review.market_sentiment|title }}
-                    </span>
-                    {% endif %}
-                    {% if review.confidence_level %}
-                    <span class="badge" style="background: #f0fdf4; color: #166534;">
-                        Confidence: {{ review.confidence_level }}/10
-                    </span>
-                    {% endif %}
-                    {% if review.research_hours %}
-                    <span class="badge" style="background: #eff6ff; color: #1e40af;">
-                        {{ review.research_hours }}h research
-                    </span>
-                    {% endif %}
-                    {% if review.decisions_made %}
-                    <span class="badge" style="background: #fdf4ff; color: #86198f;">
-                        {{ review.decisions_made }} decision{{ 's' if review.decisions_made != 1 }}
-                    </span>
-                    {% endif %}
-                </div>
-                {% if review.biggest_win %}
-                <p class="text-muted small mt-2 mb-0"><strong>Win:</strong> {{ review.biggest_win|truncate(100) }}</p>
-                {% endif %}
-                {% if review.key_learnings and review.key_learnings|length > 0 %}
-                <p class="text-muted small mt-1 mb-0"><strong>Learnings:</strong> {{ review.key_learnings[0]|truncate(80) }}</p>
-                {% endif %}
-            </div>
-        </a>
-        {% endfor %}
+    <!-- Sort Controls -->
+    <div class="d-flex align-items-center gap-2 mb-3 mt-3">
+        <small class="text-muted">Sort by:</small>
+        <button class="btn btn-sm btn-outline-secondary active" data-sort="date" data-dir="desc" id="sortDate">
+            <i class="bi bi-calendar3"></i> Date <i class="bi bi-arrow-down sort-icon"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" data-sort="confidence" data-dir="desc" id="sortConfidence">
+            <i class="bi bi-speedometer2"></i> Confidence
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" data-sort="sentiment" data-dir="asc" id="sortSentiment">
+            <i class="bi bi-graph-up"></i> Sentiment
+        </button>
+    </div>
+
+    <!-- Reviews Table -->
+    <div class="learning-content-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="reviewsTable">
+                <thead>
+                    <tr>
+                        <th style="min-width: 160px;">Week</th>
+                        <th class="text-center">Confidence</th>
+                        <th class="text-center">Sentiment</th>
+                        <th class="text-center">Research</th>
+                        <th class="text-center">Decisions</th>
+                        <th>Biggest Win</th>
+                        <th style="width: 60px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for review in reviews %}
+                    <tr data-date="{{ review.week_start.isoformat() }}"
+                        data-confidence="{{ review.confidence_level or 0 }}"
+                        data-sentiment="{{ review.market_sentiment or 'neutral' }}"
+                        style="cursor: pointer;"
+                        onclick="window.location='{{ url_for('learning.view_weekly_review', review_id=review.id) }}'">
+                        <td>
+                            <strong>{{ review.week_start.strftime('%b %d, %Y') }}</strong>
+                            <br>
+                            <small class="text-muted">{{ review.week_start.strftime('%b %d') }} &rarr; {{ review.week_end.strftime('%b %d') }}</small>
+                        </td>
+                        <td class="text-center">
+                            {% if review.confidence_level %}
+                            <span class="fw-bold" style="color: {% if review.confidence_level >= 7 %}#10b981{% elif review.confidence_level >= 4 %}#f59e0b{% else %}#ef4444{% endif %};">
+                                {{ review.confidence_level }}/10
+                            </span>
+                            {% else %}
+                            <span class="text-muted">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if review.market_sentiment %}
+                            <span class="badge" style="background: {% if review.market_sentiment == 'bullish' %}#d1fae5; color: #065f46{% elif review.market_sentiment == 'bearish' %}#fee2e2; color: #991b1b{% else %}#e0e7ff; color: #3730a3{% endif %};">
+                                {{ review.market_sentiment|title }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {{ review.research_hours or 0 }}h
+                        </td>
+                        <td class="text-center">
+                            {{ review.decisions_made or 0 }}
+                        </td>
+                        <td>
+                            {% if review.biggest_win %}
+                            <span class="text-muted small">{{ review.biggest_win|truncate(60) }}</span>
+                            {% else %}
+                            <span class="text-muted small">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end" onclick="event.stopPropagation();">
+                            <a href="{{ url_for('learning.view_weekly_review', review_id=review.id) }}" class="btn btn-sm btn-link p-0" title="View review">
+                                <i class="bi bi-arrow-right-circle"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
     {% else %}
-    <div class="learning-content-card">
+    <div class="learning-content-card mt-3">
         <div class="learning-card-body">
             <div class="learning-empty-state">
                 <i class="bi bi-journal-text"></i>
@@ -111,4 +148,64 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if reviews %}
+<script>
+(function() {
+    const sortBtns = document.querySelectorAll('[data-sort]');
+    const tbody = document.querySelector('#reviewsTable tbody');
+    const sentimentOrder = { bullish: 1, neutral: 2, bearish: 3 };
+
+    sortBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const field = this.dataset.sort;
+            const wasActive = this.classList.contains('active');
+
+            // Toggle direction if already active
+            if (wasActive) {
+                this.dataset.dir = this.dataset.dir === 'asc' ? 'desc' : 'asc';
+            }
+
+            // Update active state
+            sortBtns.forEach(b => {
+                b.classList.remove('active');
+                const icon = b.querySelector('.sort-icon');
+                if (icon) icon.remove();
+            });
+            this.classList.add('active');
+
+            const dir = this.dataset.dir;
+            const arrow = document.createElement('i');
+            arrow.className = `bi bi-arrow-${dir === 'asc' ? 'up' : 'down'} sort-icon ms-1`;
+            this.appendChild(arrow);
+
+            // Sort rows
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                let valA, valB;
+                if (field === 'date') {
+                    valA = a.dataset.date;
+                    valB = b.dataset.date;
+                    return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (field === 'confidence') {
+                    valA = parseInt(a.dataset.confidence) || 0;
+                    valB = parseInt(b.dataset.confidence) || 0;
+                    return dir === 'asc' ? valA - valB : valB - valA;
+                } else if (field === 'sentiment') {
+                    valA = sentimentOrder[a.dataset.sentiment] || 2;
+                    valB = sentimentOrder[b.dataset.sentiment] || 2;
+                    return dir === 'asc' ? valA - valB : valB - valA;
+                }
+                return 0;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
