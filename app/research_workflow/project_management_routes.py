@@ -143,7 +143,13 @@ def my_projects():
     all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
     too_hard_data = []
     for item in all_too_hard_items:
-        company_url = url_for('companies.company_dashboard', company_id=item.company_id) if item.company_id else None
+        if item.source_type == 'ResearchProject' and item.source_id:
+            company_url = url_for('research_workflow.project_dashboard', project_id=item.source_id)
+        elif item.company_id:
+            company_url = url_for('companies.company_dashboard', company_id=item.company_id)
+        else:
+            company_url = None
+        reactivate_url = url_for('research_workflow.reactivate_project', project_id=item.source_id) if item.source_type == 'ResearchProject' and item.source_id else None
         too_hard_data.append({
             'company_name': item.company_name,
             'ticker': item.ticker or '',
@@ -156,6 +162,7 @@ def my_projects():
             'within_coc': item.within_coc or '',
             'company_id': item.company_id,
             'company_url': company_url,
+            'reactivate_url': reactivate_url,
         })
 
     # --- Metrics ---

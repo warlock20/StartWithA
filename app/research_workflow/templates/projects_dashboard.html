@@ -653,11 +653,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     field: "company_url",
                     headerSort: false,
                     hozAlign: "right",
-                    minWidth: 120,
+                    minWidth: 200,
                     formatter: function(cell) {
+                        const row = cell.getRow().getData();
                         const url = cell.getValue();
-                        if (!url) return '';
-                        return `<a href="${url}" class="rcl-action"><i class="bi bi-grid-1x2"></i> View</a>`;
+                        let html = '';
+                        if (row.reactivate_url) {
+                            html += `<a href="#" class="rcl-action" onclick="reactivateProject('${row.reactivate_url}', '${row.company_name.replace(/'/g, "\\'")}'); return false;"><i class="bi bi-arrow-counterclockwise"></i> Reactivate</a> `;
+                        }
+                        if (url) {
+                            html += `<a href="${url}" class="rcl-action"><i class="bi bi-grid-1x2"></i> View</a>`;
+                        }
+                        return html;
                     }
                 },
             ],
@@ -791,6 +798,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 400);
                 }
             });
+    };
+
+    window.reactivateProject = function(url, companyName) {
+        if (!confirm(`Reactivate research on ${companyName}?`)) return;
+        // POST via hidden form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        document.body.appendChild(form);
+        form.submit();
     };
 
     window.toggleAlerts = function() {

@@ -16,6 +16,7 @@ html {
     scroll-behavior: smooth;
     position: relative;
     min-height: 100%;
+    overflow-x: hidden;
 }
 
 /* Typography Hierarchy */

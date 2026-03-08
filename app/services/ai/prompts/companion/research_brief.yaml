@@ -4,8 +4,8 @@ version: "1.0"
 category: "companion"
 
 preferred_provider: "gemini"
-model: "gemini-2.5-flash"
-max_tokens: 800
+model: "gemini-3-pro"
+max_tokens: 8000
 temperature: 0.3
 
 system_context: |
