@@ -21,9 +21,9 @@ Environment Variables:
     ANTHROPIC_API_KEY   - Anthropic Claude API key  
     OPENAI_API_KEY      - OpenAI API key (optional)
     
-    AI_DEFAULT_MODEL    - Default model (default: gemini-flash-latest)
+    AI_DEFAULT_MODEL    - Default model (default: gemini-2.5-flash)
     AI_QUALITY_MODEL    - Model for quality tasks (default: gemini-2.5-pro)
-    AI_FAST_MODEL       - Model for fast tasks (default: gemini-flash-latest)
+    AI_FAST_MODEL       - Model for fast tasks (default: gemini-2.5-flash)
     AI_PREFER_CLAUDE    - Use Claude for reasoning tasks (default: true)
 """
 
@@ -92,7 +92,7 @@ class AIModel(Enum):
             model_name: Model identifier string
 
         Returns:
-            Matching AIModel or default (GEMINI_FLASH_LATEST)
+            Matching AIModel or default (GEMINI_FLASH_25)
         """
         model_map = {
             # Gemini 3.x (Latest Preview)
@@ -134,8 +134,8 @@ class AIModel(Enum):
         
         result = model_map.get(model_name.lower())
         if result is None:
-            logger.warning(f"Unknown model '{model_name}', using default GEMINI_FLASH_LATEST")
-            return cls.GEMINI_FLASH_LATEST
+            logger.warning(f"Unknown model '{model_name}', using default GEMINI_FLASH_25")
+            return cls.GEMINI_FLASH_25
         return result
 
 class AITaskType(Enum):
@@ -222,9 +222,9 @@ class AIConfig:
     openai_api_key: Optional[str] = None
     
     # Model configuration
-    default_model: AIModel = AIModel.GEMINI_FLASH_LATEST
+    default_model: AIModel = AIModel.GEMINI_FLASH_25
     quality_model: AIModel = AIModel.GEMINI_PRO_25
-    fast_model: AIModel = AIModel.GEMINI_FLASH_LATEST
+    fast_model: AIModel = AIModel.GEMINI_FLASH_25
     
     # Default generation parameters
     default_temperature: float = 0.7
@@ -264,13 +264,13 @@ class AIConfig:
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         # Load model preferences from environment
-        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-flash-latest')
+        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-2.5-flash')
         config.default_model = AIModel.from_string(default_model_name)
 
         quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-2.5-pro')
         config.quality_model = AIModel.from_string(quality_model_name)
 
-        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-flash-latest')
+        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-2.5-flash')
         config.fast_model = AIModel.from_string(fast_model_name)
 
         # Load routing preferences

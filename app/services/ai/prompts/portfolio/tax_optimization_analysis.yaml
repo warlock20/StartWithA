@@ -8,7 +8,7 @@ version: "1.0"
 category: "portfolio"
 
 preferred_provider: "gemini"
-model: "gemini-3-pro"
+model: "gemini-2.5-pro"
 max_tokens: 10000
 temperature: 0.3
 
