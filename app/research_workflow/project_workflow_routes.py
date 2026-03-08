@@ -470,6 +470,7 @@ def complete_step(project_id):
     if not project.step_notes:
         project.step_notes = {}
     project.step_notes[str(step_index)] = notes
+    flag_modified(project, 'step_notes')
 
     # If this is a thesis_writing step, also update project.investment_thesis
     if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
@@ -698,6 +699,48 @@ def reactivate_project(project_id):
         return redirect(request.referrer or url_for('research_workflow.my_projects'))
 
 
+@research_workflow_bp.route('/projects/<int:project_id>/reopen-step/<int:step_index>', methods=['POST'])
+@login_required
+def reopen_step(project_id, step_index):
+    """Reopen a completed step so the user can redo it"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if project.status != 'active':
+        flash('Can only reopen steps on active projects', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    if step_index not in (project.completed_steps or []):
+        flash('This step is not completed', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    try:
+        # Remove from completed_steps
+        project.completed_steps = [s for s in project.completed_steps if s != step_index]
+
+        # Reset current_step_index to this step if it's earlier
+        if step_index < project.current_step_index:
+            project.current_step_index = step_index
+
+        db.session.commit()
+
+        step_name = 'this step'
+        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
+            step_name = project.template.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
+
+        flash(f'{step_name} has been reopened', 'success')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error reopening step: {str(e)}')
+        flash(f'Error reopening step: {str(e)}', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+
 @research_workflow_bp.route('/projects/<int:project_id>/complete-research-step/<int:step_index>')
 @login_required
 def complete_research_step(project_id, step_index):
@@ -775,6 +818,7 @@ def skip_step(project_id, step_index):
     if not project.step_notes:
         project.step_notes = {}
     project.step_notes[str(step_index)] = "[SKIPPED]"
+    flag_modified(project, 'step_notes')
 
     # Move to next step
     if step_index + 1 < len(project.template.workflow_steps):
@@ -890,6 +934,7 @@ def return_from_checklist(project_id, step_index):
             if not project.step_notes:
                 project.step_notes = {}
             project.step_notes[str(step_index)] = 'Completed via legacy investment checklist'
+            flag_modified(project, 'step_notes')
 
             # Update last worked timestamp
             project.last_worked_at = now_utc()

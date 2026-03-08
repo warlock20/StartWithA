@@ -149,6 +149,18 @@
                                     <button class="btn btn-sm btn-outline-secondary" onclick="showNotes('{{ step_index }}')">
                                         <i class="bi bi-journal-text"></i> Notes
                                     </button>
+                                    {% if project.status == 'active' %}
+                                    <a href="{{ url_for('research_workflow.execute_step', project_id=project.id, step_index=step_index) }}"
+                                       class="btn btn-sm btn-outline-primary" title="Revisit this step">
+                                        <i class="bi bi-arrow-repeat"></i> Revisit
+                                    </a>
+                                    <form method="POST" action="{{ url_for('research_workflow.reopen_step', project_id=project.id, step_index=step_index) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Reopen this step"
+                                                onclick="return confirm('Reopen step {{ loop.index }}? It will become your current step.')">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                 </div>
                             </div>
 

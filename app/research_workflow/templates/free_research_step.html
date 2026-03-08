@@ -904,13 +904,61 @@ const FreeResearch = {
         this.updateStats(stats);
     },
 
+    blocknoteToText(content) {
+        // Extract plain text from BlockNote JSON string
+        if (!content) return '';
+        try {
+            const blocks = JSON.parse(content);
+            if (!Array.isArray(blocks)) return content;
+            const parts = [];
+            for (const block of blocks) {
+                if (!block || typeof block !== 'object') continue;
+                const contentList = block.content;
+                if (Array.isArray(contentList)) {
+                    for (const item of contentList) {
+                        if (item && item.type === 'text' && item.text) {
+                            parts.push(item.text);
+                        }
+                    }
+                }
+                parts.push('\n');
+            }
+            return parts.join('').trim();
+        } catch {
+            // Not JSON — return as-is (might be plain text or HTML)
+            return content.replace(/<[^>]+>/g, '').trim();
+        }
+    },
+
     validateCompletion() {
         const exploring = this.questions.filter(q => q.status === 'exploring').length;
         const total = this.questions.length;
 
         if (total > 0 && exploring > total / 2) {
-            return confirm(`${exploring} of ${total} questions are still "Exploring". Continue anyway?`);
+            if (!confirm(`${exploring} of ${total} questions are still "Exploring". Continue anyway?`)) {
+                return false;
+            }
         }
+
+        // Compile questions into markdown summary for step_notes
+        const notesField = document.querySelector('#completeStepForm input[name="notes"]');
+        if (notesField && this.questions.length > 0) {
+            let md = '';
+            this.questions.forEach((q, i) => {
+                const status = q.status === 'answered' ? 'Answered' : 'Exploring';
+                md += `### Q${i + 1}: ${q.question_text}\n`;
+                md += `**Status:** ${status}\n\n`;
+                if (q.answer_content) {
+                    const text = this.blocknoteToText(q.answer_content);
+                    if (text) {
+                        md += `${text}\n\n`;
+                    }
+                }
+                md += '---\n\n';
+            });
+            notesField.value = md.trim();
+        }
+
         return true;
     },
 
