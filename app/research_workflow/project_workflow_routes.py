@@ -652,6 +652,52 @@ def mark_too_hard(project_id):
         return redirect(request.referrer)
 
 
+@research_workflow_bp.route('/projects/<int:project_id>/reactivate', methods=['POST'])
+@login_required
+def reactivate_project(project_id):
+    """Reactivate a research project that was marked as too hard or passed"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if project.decision != 'pass':
+        flash('This project is not in a passed/too-hard state', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    try:
+        project.status = 'active'
+        project.decision = None
+        project.decision_date = None
+        project.too_hard_reason = None
+        project.too_hard_notes = None
+        project.abandoned_at = None
+        project.last_worked_at = now_utc()
+
+        db.session.commit()
+
+        log_research_activity(
+            current_user.id,
+            'project_reactivated',
+            company_id=project.company_id,
+            project_id=project.id,
+            details={
+                'reactivated_from': 'too_hard'
+            }
+        )
+
+        company_name = project.company.name if project.company else project.project_name
+        flash(f'Research on {company_name} has been reactivated', 'success')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error reactivating project: {str(e)}')
+        flash(f'Error reactivating project: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('research_workflow.my_projects'))
+
+
 @research_workflow_bp.route('/projects/<int:project_id>/complete-research-step/<int:step_index>')
 @login_required
 def complete_research_step(project_id, step_index):

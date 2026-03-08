@@ -54,6 +54,12 @@
                 <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
                     <i class="bi bi-archive"></i> Mark as Too Hard
                 </a>
+                {% elif project.decision == 'pass' %}
+                <form method="POST" action="{{ url_for('research_workflow.reactivate_project', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-outline-success me-2" onclick="return confirm('Reactivate this research project?')">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reactivate Research
+                    </button>
+                </form>
                 {% endif %}
                 <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Back to My Projects
