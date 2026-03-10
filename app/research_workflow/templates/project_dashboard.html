@@ -61,6 +61,9 @@
                     </button>
                 </form>
                 {% endif %}
+                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="btn btn-outline-success me-2">
+                    <i class="bi bi-download"></i> Export
+                </a>
                 <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Back to My Projects
                 </a>
@@ -185,6 +188,27 @@
                                     <p class="mb-0"><em>No notes available for this step.</em></p>
                                 </div>
                                 {% endif %}
+                                {% if step_attachments_map and step_attachments_map[step_index] %}
+                                <div class="mt-2">
+                                    <small class="text-muted fw-semibold"><i class="bi bi-paperclip"></i> Attachments:</small>
+                                    {% for att in step_attachments_map[step_index] %}
+                                    <div class="d-flex justify-content-between align-items-center py-1">
+                                        <a href="{{ url_for('research_workflow.download_attachment', project_id=project.id, attachment_id=att.id) }}"
+                                           class="text-decoration-none small">
+                                            <i class="bi bi-file-earmark-{{ 'pdf' if att.file_type == 'pdf' else 'text' }} me-1"></i>
+                                            {{ att.title }}
+                                        </a>
+                                        {% if project.status == 'active' %}
+                                        <form method="POST" action="{{ url_for('research_workflow.delete_attachment', project_id=project.id, attachment_id=att.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0 p-0" onclick="return confirm('Delete?')">
+                                                <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -305,6 +329,61 @@
                         <i class="bi bi-plus-lg"></i> Red Flag
                     </button>
                 </div>
+            </div>
+
+            <!-- Attachments -->
+            <div class="project-vitals-card mb-4">
+                <h3 class="font-poppins fw-bold mb-3">
+                    <i class="bi bi-paperclip me-2"></i>Attachments
+                </h3>
+                {% if project_attachments %}
+                <div class="mb-3">
+                    {% for att in project_attachments %}
+                    <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <div>
+                            <a href="{{ url_for('research_workflow.download_attachment', project_id=project.id, attachment_id=att.id) }}"
+                               class="text-decoration-none fw-semibold small">
+                                <i class="bi bi-file-earmark-{{ 'pdf' if att.file_type == 'pdf' else 'text' }} me-1"></i>
+                                {{ att.title }}
+                            </a>
+                            <div class="text-muted" style="font-size: 0.7rem;">
+                                {{ att.original_filename }} &middot; {{ (att.file_size / 1024)|round(0)|int }}KB
+                            </div>
+                        </div>
+                        {% if project.status == 'active' %}
+                        <form method="POST" action="{{ url_for('research_workflow.delete_attachment', project_id=project.id, attachment_id=att.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Delete"
+                                    onclick="return confirm('Delete this attachment?')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-3">No files attached yet.</p>
+                {% endif %}
+
+                {% if project.status == 'active' %}
+                <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="collapse" data-bs-target="#uploadAttachmentForm">
+                    <i class="bi bi-plus-lg me-1"></i> Add Attachment
+                </button>
+                <div class="collapse mt-3" id="uploadAttachmentForm">
+                    <form method="POST" action="{{ url_for('research_workflow.upload_attachment', project_id=project.id) }}"
+                          enctype="multipart/form-data">
+                        <div class="mb-2">
+                            <input type="text" name="attachment_title" class="form-control form-control-sm" placeholder="Title (e.g. Annual Report Notes)" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="file" name="attachment_file" class="form-control form-control-sm" accept=".pdf,.txt" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-upload me-1"></i> Upload
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Companion Alerts -->

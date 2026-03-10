@@ -585,3 +585,27 @@ class ResearchSettings(db.Model):
             settings.stale_nudge_days = 21
             db.session.commit()
         return settings
+
+
+class ResearchAttachment(db.Model):
+    """File attachments for research projects (PDFs, text files, etc.)"""
+    __tablename__ = 'research_attachment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    step_index = db.Column(db.Integer, nullable=True)  # null = project-level, integer = step-specific
+
+    title = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    stored_filename = db.Column(db.String(300), nullable=False, unique=True)
+    file_type = db.Column(db.String(50))  # 'pdf', 'txt'
+    file_size = db.Column(db.Integer)  # bytes
+
+    uploaded_at = db.Column(db.DateTime, default=now_utc)
+
+    # Relationships
+    project = db.relationship('ResearchProject', backref=db.backref('attachments', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<ResearchAttachment {self.title} ({self.original_filename})>'

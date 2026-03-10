@@ -31,9 +31,14 @@
                 </div>
             </div>
         </div>
-        <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Back to Research
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-download"></i> Export ZIP
+            </a>
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Back to Research
+            </a>
+        </div>
     </header>
 
     <!-- Main Content Grid -->
