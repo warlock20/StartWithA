@@ -26,46 +26,23 @@
                 </a>
             </div>
         </header>
-    </div>
 
-    <!-- Statistics Overview -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Items</h3>
-                        <span class="priority-card-number priority-number-blue">{{ total_items_count }}</span>
-                    </div>
-                    <p class="priority-card-description">Including sub-items</p>
-                </div>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ total_items_count }}</div>
+                <div class="portfolio-metric-label">Total Items</div>
             </div>
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Main Items</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ items|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Top-level items</p>
-                </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ items|length }}</div>
+                <div class="portfolio-metric-label">Main Items</div>
             </div>
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">AI-Enhanced</h3>
-                        <span class="priority-card-number priority-number-green">{{ items_with_llm }}</span>
-                    </div>
-                    <p class="priority-card-description">Items with LLM prompts</p>
-                </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ items_with_llm }}</div>
+                <div class="portfolio-metric-label">AI-Enhanced</div>
             </div>
-            <div class="priority-card priority-card-portfolio">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Companies</h3>
-                        <span class="priority-card-number priority-number-purple">{{ companies|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Ready for analysis</p>
-                </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-value">{{ companies|length }}</div>
+                <div class="portfolio-metric-label">Companies</div>
             </div>
         </div>
     </div>

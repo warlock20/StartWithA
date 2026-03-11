@@ -69,11 +69,9 @@ def import_transactions():
     
     try:
         importer = PortfolioImporter(current_user.id)
-        count = importer.process_file(file)
-        
-        force_resync()
-        
-        flash(f"Successfully imported {count} transactions!", "success")
+        result = importer.process_file(file)
+
+        flash(f"Successfully imported {result['count']} transactions!", "success")
     except PortfolioImportError as e:
         flash(f"Import Failed: {str(e)}", "error")
     except Exception as e:
@@ -312,6 +310,7 @@ def delete_transaction(transaction_id):
             price_per_share=0
         )
         update_portfolio_position(temp_transaction)
+        db.session.commit()
 
         flash(f'Transaction for {company_ticker} deleted successfully', 'success')
 
