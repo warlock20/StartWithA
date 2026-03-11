@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 
 # Get Redis URL from environment, fallback to localhost for development
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
@@ -9,9 +10,10 @@ celery = Celery('app.celery_tasks',
                 broker=REDIS_URL,
                 backend=REDIS_URL,
                 include=[
-                    'app.celery_tasks.tasks_portfolio',  # Portfolio AI analytics tasks
-                    'app.celery_tasks.tasks_research',   # Research & competitor analysis tasks
-                    'app.celery_tasks.tasks_financial',  # Financial data & SEC filings tasks
+                    'app.celery_tasks.tasks_portfolio',        # Portfolio AI analytics tasks
+                    'app.celery_tasks.tasks_research',         # Research & competitor analysis tasks
+                    'app.celery_tasks.tasks_financial',        # Financial data & SEC filings tasks
+                    'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
                 ]
                 )
 
@@ -24,4 +26,10 @@ celery.conf.update(
     enable_utc=True,
     result_backend=REDIS_URL,
     broker_url=REDIS_URL,
+    beat_schedule={
+        'gdpr-anonymize-ai-interactions': {
+            'task': 'app.celery_tasks.tasks_data_retention.anonymize_ai_interactions',
+            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
+        },
+    },
 )

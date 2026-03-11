@@ -3,20 +3,7 @@ set -e
 
 echo "Running database setup..."
 
-# Safety net: create any missing tables from current SQLAlchemy models.
-# This handles the case where the DB was originally set up outside of Alembic
-# (e.g. via db.create_all()) and some tables from newer code are missing.
-# db.create_all() is idempotent — it creates missing tables, skips existing ones.
-python -c "
-from run import app
-with app.app_context():
-    from app import db
-    db.create_all()
-    print('Database tables verified.')
-"
-
 # If alembic_version is empty/missing, stamp at head so future migrations work.
-# (All tables now exist via create_all above.)
 python -c "
 from run import app
 from sqlalchemy import text

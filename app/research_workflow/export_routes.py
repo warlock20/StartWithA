@@ -14,6 +14,7 @@ from app.models import (ResearchProject, ResearchAttachment,
 from app.research_workflow import research_workflow_bp
 from app.utils.blocknote_utils import blocknote_to_text
 from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
+from app.research_workflow.pdf_report import generate_pdf_report
 import logging
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,13 @@ def export_project(project_id):
         decision_md = _build_decision_file(project)
         if decision_md:
             zf.writestr(f"{folder_name}/decision.md", decision_md)
+
+        # PDF report
+        try:
+            pdf_bytes = generate_pdf_report(project)
+            zf.writestr(f"{folder_name}/Research_Report.pdf", pdf_bytes)
+        except Exception:
+            logger.warning("PDF report generation failed, skipping", exc_info=True)
 
         # Attachments
         all_attachments = ResearchAttachment.query.filter_by(project_id=project.id).all()

@@ -425,6 +425,4 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
             if other_positions == 0:
                 company.is_in_portfolio = False
 
-    db.session.commit()
-
     return position

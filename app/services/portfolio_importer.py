@@ -386,3 +386,5 @@ class PortfolioImporter:
                 last_transaction_date=last_date
             )
             print(f"✓ Updated portfolio for {ticker}")
+
+        db.session.commit()
