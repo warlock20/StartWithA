@@ -36,10 +36,15 @@ from app.celery_tasks.tasks_data_retention import (
     anonymize_ai_interactions,
 )
 
+from app.celery_tasks.tasks_import import (
+    portfolio_import_task,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
     'portfolio_chart_data_task',
+    'portfolio_import_task',
 
     # Research tasks
     'competitor_analysis_task',

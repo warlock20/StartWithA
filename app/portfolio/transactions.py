@@ -1,8 +1,10 @@
+import os
+import tempfile
 from decimal import Decimal, InvalidOperation
 import json
 import logging
 import datetime
-from flask import request, render_template, redirect, url_for, flash
+from flask import request, render_template, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 
@@ -11,7 +13,8 @@ from app.models import (
                         Company,Transaction, PortfolioPosition,
                         ResearchProject, update_portfolio_position)
 from app import db
-from app.services.portfolio_importer import PortfolioImporter, PortfolioImportError
+from app.services.portfolio_importer import PortfolioImportError
+from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
 from app.utils.time_utils import now_utc
@@ -56,28 +59,100 @@ def transactions():
                           currency_symbol=currency_symbol)
 
 @portfolio_bp.route('/transactions/import', methods=['POST'])
+@login_required
 def import_transactions():
     if 'file' not in request.files:
         flash('No file part', 'error')
         return redirect(url_for('portfolio.dashboard'))
-    
+
     file = request.files['file']
-    
+
     if file.filename == '':
         flash('No selected file', 'error')
-        return redirect(url_for('portfolio.index'))
-    
-    try:
-        importer = PortfolioImporter(current_user.id)
-        result = importer.process_file(file)
+        return redirect(url_for('portfolio.dashboard'))
 
-        flash(f"Successfully imported {result['count']} transactions!", "success")
-    except PortfolioImportError as e:
-        flash(f"Import Failed: {str(e)}", "error")
+    original_filename = file.filename
+    if not original_filename.lower().endswith(('.csv', '.xls', '.xlsx')):
+        flash('Unsupported file format. Use CSV or Excel.', 'error')
+        return redirect(url_for('portfolio.dashboard'))
+
+    tmp_path = None
+    try:
+        suffix = os.path.splitext(original_filename)[1]
+        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'imports')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        with tempfile.NamedTemporaryFile(dir=upload_dir, suffix=suffix, delete=False) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
+        task_id = BackgroundTaskService.start_portfolio_import(
+            user_id=current_user.id,
+            file_path=tmp_path
+        )
+
+        return redirect(url_for('portfolio.import_loading', task_id=task_id))
+
     except Exception as e:
-        flash(f"System Error: {str(e)}", "error")
-        
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        flash(f"Failed to start import: {str(e)}", "error")
+        return redirect(url_for('portfolio.dashboard'))
+
+
+@portfolio_bp.route('/import/loading/<task_id>')
+@login_required
+def import_loading(task_id):
+    """Show loading page while import runs in background."""
+    return render_template('import_loading.html', task_id=task_id)
+
+
+@portfolio_bp.route('/import/complete/<task_id>')
+@login_required
+def import_complete(task_id):
+    """Flash the import result and redirect to dashboard."""
+    task_status = BackgroundTaskService.get_task_status(task_id)
+    if task_status and task_status['status'] == 'completed':
+        result = task_status.get('result', {})
+        msg = result.get('message', 'Import completed!') if result else 'Import completed!'
+        flash(msg, 'success')
+    elif task_status and task_status['status'] == 'failed':
+        flash(f"Import failed: {task_status.get('error', 'Unknown error')}", 'error')
     return redirect(url_for('portfolio.dashboard'))
+
+
+@portfolio_bp.route('/import/status/<task_id>')
+@login_required
+def import_status(task_id):
+    """Check the status of a running import task. Returns JSON for AJAX polling."""
+    task_status = BackgroundTaskService.get_task_status(task_id)
+
+    if not task_status:
+        return jsonify({'state': 'NOT_FOUND', 'current': 0, 'total': 100, 'status': 'Task not found'})
+
+    response = {'current': 0, 'total': 100, 'status': ''}
+
+    if task_status['status'] == 'pending':
+        response['state'] = 'PENDING'
+        response['status'] = 'Import queued, waiting to start...'
+        response['current'] = 10
+    elif task_status['status'] == 'running':
+        response['state'] = 'STARTED'
+        response['status'] = 'Importing transactions and fetching company data...'
+        response['current'] = 50
+    elif task_status['status'] == 'completed':
+        response['state'] = 'SUCCESS'
+        response['current'] = 100
+        result = task_status.get('result', {})
+        response['status'] = result.get('message', 'Import completed!') if result else 'Import completed!'
+        response['result'] = result
+    elif task_status['status'] == 'failed':
+        response['state'] = 'FAILURE'
+        response['current'] = 100
+        response['status'] = 'Import failed'
+        response['error'] = task_status.get('error', 'Unknown error')
+
+    return jsonify(response)
 
 @portfolio_bp.route('/transactions/reset', methods=['POST'])
 @login_required
