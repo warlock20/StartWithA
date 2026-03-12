@@ -22,6 +22,11 @@
                         <i class="bi bi-arrow-clockwise"></i> Refresh
                     </button>
                 </form>
+                <form method="POST" action="{{ url_for('portfolio.force_resync') }}" class="d-inline">
+                    <button type="submit" class="position-btn">
+                        <i class="bi bi-arrow-clockwise"></i> Force Resync
+                    </button>
+                </form>
                 <form action="{{ url_for('portfolio.import_transactions') }}" method="post"
                     enctype="multipart/form-data" class="d-inline">
                     <label class="position-btn" style="cursor: pointer; margin: 0;">
