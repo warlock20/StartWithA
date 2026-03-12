@@ -27,5 +27,8 @@ with app.app_context():
 echo "Running migrations..."
 flask db upgrade
 
+echo "Starting Celery worker..."
+celery -A celery_app worker --loglevel=info --concurrency=2 &
+
 echo "Starting application..."
 exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 run:app
