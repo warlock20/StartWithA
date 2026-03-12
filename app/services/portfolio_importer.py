@@ -1,3 +1,4 @@
+import os
 import logging
 import pandas as pd
 from decimal import Decimal
@@ -159,11 +160,9 @@ class PortfolioImporter:
         Accepts a Flask FileStorage object.
         """
         filename = file_storage.filename.lower()
-        
-        # 1. Read File using the stream directly
+
         try:
             if filename.endswith('.csv'):
-                # Reset stream pointer just in case
                 file_storage.seek(0)
                 df = pd.read_csv(file_storage)
             elif filename.endswith(('.xls', '.xlsx')):
@@ -171,58 +170,94 @@ class PortfolioImporter:
                 df = pd.read_excel(file_storage)
             else:
                 raise PortfolioImportError("Unsupported file format. Use CSV or Excel.")
+        except PortfolioImportError:
+            raise
         except Exception as e:
             raise PortfolioImportError(f"Could not read file: {str(e)}")
 
-        # 2. Normalize Columns
+        return self._process_dataframe(df)
+
+    def process_file_from_path(self, file_path):
+        """
+        Process an import file from a disk path (for Celery background tasks).
+        """
+        filename = os.path.basename(file_path).lower()
+
+        try:
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file_path)
+            elif filename.endswith(('.xls', '.xlsx')):
+                df = pd.read_excel(file_path)
+            else:
+                raise PortfolioImportError("Unsupported file format. Use CSV or Excel.")
+        except PortfolioImportError:
+            raise
+        except Exception as e:
+            raise PortfolioImportError(f"Could not read file: {str(e)}")
+
+        return self._process_dataframe(df)
+
+    def _process_dataframe(self, df):
+        """
+        Shared logic for processing a DataFrame of transactions.
+        """
         required_cols = [
-            'Date', 'Type', 'Stock', 'Transacted Units', 'Transacted Price', 
+            'Date', 'Type', 'Stock', 'Transacted Units', 'Transacted Price',
             'Fees', 'Previous Units', 'Cumulative Units'
         ]
-        
+
         missing = [c for c in required_cols if c not in df.columns]
         if missing:
             raise PortfolioImportError(f"Missing columns: {', '.join(missing)}")
 
-        # 3. Process Rows
         df['Date'] = pd.to_datetime(df['Date'])
         df = df.sort_values(by='Date')
-        
+
         created_transactions = []
+        skipped_count = 0
         min_date = None
         max_date = None
-        # Track last transaction date per ticker for efficient portfolio updates
-        ticker_last_dates = {}  # Format: {'TICKER': date}
+        ticker_last_dates = {}
 
         try:
             for index, row in df.iterrows():
                 try:
-                    self._process_single_row(row, index)
-                    ticker = str(row['Stock']).upper()
-                    created_transactions.append(ticker)
+                    was_created = self._process_single_row(row, index)
+                    ticker = self._normalize_ticker(str(row['Stock']).strip().upper())
 
-                    # Track date range
-                    row_date = row['Date'].date()
-                    if not min_date or row_date < min_date: min_date = row_date
-                    if not max_date or row_date > max_date: max_date = row_date
+                    if was_created:
+                        created_transactions.append(ticker)
 
-                    # Track last date per ticker
-                    if ticker not in ticker_last_dates or row_date > ticker_last_dates[ticker]:
-                        ticker_last_dates[ticker] = row_date
+                        row_date = row['Date'].date()
+                        if not min_date or row_date < min_date: min_date = row_date
+                        if not max_date or row_date > max_date: max_date = row_date
+
+                        if ticker not in ticker_last_dates or row_date > ticker_last_dates[ticker]:
+                            ticker_last_dates[ticker] = row_date
+                    else:
+                        skipped_count += 1
                 except Exception as e:
-                    # Reraise with row context
                     raise PortfolioImportError(f"Row {index + 2} Error: {str(e)}")
-            
+
             db.session.commit()
 
-            # Update portfolios with last transaction dates for efficiency
-            self._update_affected_portfolios(set(created_transactions), ticker_last_dates)
-            
-            # Return detailed stats dict instead of just count
+            if created_transactions:
+                self._update_affected_portfolios(set(created_transactions), ticker_last_dates)
+
+            message_parts = []
+            if created_transactions:
+                message_parts.append(f"Imported {len(created_transactions)} transactions for {len(set(created_transactions))} companies")
+            if skipped_count:
+                message_parts.append(f"{skipped_count} duplicates skipped")
+            if not created_transactions and skipped_count:
+                message_parts.insert(0, "No new transactions")
+
             return {
                 'count': len(created_transactions),
+                'skipped': skipped_count,
                 'companies': len(set(created_transactions)),
-                'date_range': f"{min_date} to {max_date}" if min_date else "N/A"
+                'date_range': f"{min_date} to {max_date}" if min_date else "N/A",
+                'message': '. '.join(message_parts) if message_parts else 'Import completed!'
             }
 
         except Exception as e:
@@ -338,7 +373,7 @@ class PortfolioImporter:
         if existing_txn:
             # Skip duplicate - log but don't raise error to allow partial imports
             print(f"⚠️ Skipping duplicate transaction: {ticker} {db_type} on {transaction_date} ({db_quantity} @ ${db_price})")
-            return  # Exit early, don't create duplicate
+            return False  # Exit early, don't create duplicate
 
         # --- F. Detect Currency ---
         # Try to read from CSV first, fallback to ticker-based detection
@@ -360,6 +395,7 @@ class PortfolioImporter:
         )
         
         db.session.add(txn)
+        return True
 
     def _update_affected_portfolios(self, tickers, ticker_last_dates):
         """
