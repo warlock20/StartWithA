@@ -7,8 +7,6 @@ body {
     line-height: 1.6;
     color: var(--text-primary);
     background-color: #f7f8fc;
-    display: flex;
-    flex-direction: column;
     min-height: 100vh;
 }
 

@@ -1,163 +1,61 @@
-<nav class="navbar navbar-expand-lg navbar-dark">
-    <div class="container-fluid">
-        {# This link now correctly points to the dashboard for logged-in users and homepage for visitors #}
+{# ===== TOP BAR ===== #}
+<header class="app-topbar">
+    {% if current_user.is_authenticated %}
+    {# Hamburger for mobile #}
+    <button class="topbar-hamburger topbar-toggle" onclick="toggleMobileSidebar()" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+    </button>
+    {# Sidebar collapse toggle #}
+    <button class="topbar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+        <i class="bi bi-layout-sidebar-inset"></i>
+    </button>
+    {% endif %}
+
+    {# Brand #}
+    {% if current_user.is_authenticated %}
+    <a class="topbar-brand" href="{{ url_for('dashboard.index') }}">
+        <span class="topbar-brand-text">Intelligent Investment Platform</span>
+    </a>
+    {% else %}
+    <a class="topbar-brand" href="{{ url_for('main.index') }}">
+        <span class="topbar-brand-text">Intelligent Investment Platform</span>
+    </a>
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    {# Quote banner in topbar #}
+    {% if show_quote_banner and investor_quote %}
+    <div class="topbar-quote">
+        "{{ investor_quote.quote }}" — {{ investor_quote.author }}
+    </div>
+    {% else %}
+    <div class="topbar-quote"></div>
+    {% endif %}
+    {% endif %}
+
+    {# User menu / Login #}
+    <div class="ms-auto d-flex align-items-center">
         {% if current_user.is_authenticated %}
-        <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">Intelligent Investment Platform</a>
-        {% else %}
-        <a class="navbar-brand" href="{{ url_for('main.index') }}">Intelligent Investment Platform</a>
-        {% endif %}
-
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
-            aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarNavDropdown">
-            {# --- Links for LOGGED-IN USERS --- #}
-            {% if current_user.is_authenticated %}
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <!-- <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
-                </li> -->
-
-                {# 🎯 OPPORTUNITIES & RESEARCH - Complete Investment Workflow #}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarResearchDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        Opportunities & Research
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarResearchDropdown">
-                        <li>
-                            <h6 class="dropdown-header">Research & Analysis</h6>
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('ideas.inbox') }}">Idea Inbox</a></li>
-
-                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.my_projects') }}">Company
-                                Research</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('sectors.index') }}">Sector Research</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('research_workflow.start_with_a') }}">Start with A's</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard') }}">Analytics Dashboard</a>
-                        </li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                </li>
-                <li>
-                    <h6 class="dropdown-header">Tools</h6>
-                </li>
-                <li><a class="dropdown-item" href="{{ url_for('research_workflow.template_list') }}">Research
-                        Templates</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('ideas.manage_kill_checklists') }}">Kill
-                        Checklists</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('checklists.list_checklists') }}">Investment
-                        Checklists</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('question_bank.index') }}">Question Bank</a>
-                </li>
-            </ul>
-            </li>
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarTrackingDropdown" role="button"
-                    data-bs-toggle="dropdown" aria-expanded="false">
-                    Companies & Portfolio
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="navbarTrackingDropdown">
-                    <li>
-                        <h6 class="dropdown-header">Companies</h6>
-                    </li>
-                    <li><a class="dropdown-item" href="{{ url_for('companies.list_companies') }}">Company
-                            Directory</a></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <li>
-                        <h6 class="dropdown-header">Portfolio</h6>
-                    </li>
-
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.dashboard') }}">Portfolio</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.intelligence_hub') }}">Portfolio
-                            Intelligence </a>
-                    </li>
-                    <li><a class="dropdown-item" href="{{ url_for('portfolio.decision_journal_list') }}">Portfolio
-                            Journal</a></li>
-                </ul>
-            </li>
-
-            {# 📚 KNOWLEDGE & LEARNING #}
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarKnowledgeDropdown" role="button"
-                    data-bs-toggle="dropdown" aria-expanded="false">
-                    Knowledge & Learning
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="navbarKnowledgeDropdown">
-                    <li><a class="dropdown-item" href="{{ url_for('journal_enhanced.knowledge_hub') }}">
-                            <i class="bi me-2"></i>Knowledge Hub
-                        </a></li>
-            </li>
-            <li>
-                <hr class="dropdown-divider">
-            </li>
-            <li><a class="dropdown-item" href="{{ url_for('learning.learning_dashboard') }}">Learning
-                    Dashboard</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('learning.learning_paths') }}">Learning
-                    Paths</a></li>
-            <li>
-                <hr class="dropdown-divider">
-            </li>
-            <li><a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">Mistake Log</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('learning.weekly_review') }}">Weekly Review</a>
-            </li>
-            </ul>
-            </li>
-            </ul>
-
-            {# --- Investor Quote in Navbar --- #}
-            {% if show_quote_banner and investor_quote %}
-            <div class="navbar-quote-container">
-                <div class="navbar-quote-wrapper">
-                    <div class="navbar-quote-inner">
-                        <span class="navbar-quote-text">"{{ investor_quote.quote }}" — {{ investor_quote.author
-                            }}</span>
-                        <span class="navbar-quote-text navbar-quote-duplicate">"{{ investor_quote.quote }}" — {{
-                            investor_quote.author }}</span>
-                    </div>
-                </div>
-                <button type="button" class="navbar-quote-close" aria-label="Dismiss quote"
-                    data-action="dismiss-quote-banner">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            {% endif %}
-
-            {% endif %}
-
-            {# --- Links for ALL USERS (Login/Logout, Profile) --- #}
-            <ul class="navbar-nav ms-auto">
-                {% if current_user.is_authenticated %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        {{ current_user.username }}
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">Account Settings</a>
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('profile.profile_settings') }}">Profile
-                                Settings</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
-                    </ul>
-                </li>
-                {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.mental_models') }}">Our Philosophy</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-                </li>
-                {% endif %}
+        <div class="dropdown topbar-dropdown">
+            <button class="topbar-user dropdown-toggle" type="button" id="topbarUserDropdown"
+                data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="topbar-user-avatar">{{ current_user.username[:2]|upper }}</div>
+                <span class="topbar-user-name">{{ current_user.username }}</span>
+                <i class="bi bi-chevron-down" style="font-size: 0.7rem; opacity: 0.6;"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topbarUserDropdown">
+                <li><a class="dropdown-item" href="{{ url_for('auth.account_settings') }}">Account Settings</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('profile.profile_settings') }}">Profile Settings</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
             </ul>
         </div>
+        {% else %}
+        <a class="topbar-user" href="{{ url_for('main.mental_models') }}">Our Philosophy</a>
+        <a class="topbar-user" href="{{ url_for('auth.login') }}">Login</a>
+        {% endif %}
     </div>
-</nav>
+</header>
+
+{# Mobile overlay #}
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
