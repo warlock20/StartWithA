@@ -27,38 +27,46 @@
     {% block head %}{% endblock %}
 </head>
 
-<body>
+<body {% if current_user.is_authenticated %}class="has-sidebar"{% endif %}>
 
-    {% include 'main/_navigation.html' %} {# We will create this new file #}
+    {# Top bar (brand, quote, user menu) + mobile overlay #}
+    {% include 'main/_navigation.html' %}
 
-    <div class="container-fluid pb-5 content-wrapper"> {# Bootstrap container-fluid for full width #}
-        {# Flash messages will be styled by Bootstrap if we add alert classes #}
-        {% include 'main/_flash_messages.html' %}
+    {# App layout: sidebar + main content #}
+    <div class="app-layout">
+        {% include 'main/_sidebar.html' %}
 
-        {% block content %}
-        {% endblock %}
-    </div>
-    <footer class="footer mt-auto py-4 bg-light border-top">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-6 text-center text-md-start">
-                    <span class="text-muted">© 2025 Intelligent Investment Platform</span>
-                </div>
-                <div class="col-md-6 text-center text-md-end">
-                    <ul class="list-inline mb-0">
-                        <li class="list-inline-item"><a href="{{ url_for('main.mental_models') }}"
-                                class="text-decoration-none text-muted">Our Philosophy</a>
-                        </li>
-                        <li class="list-inline-item mx-2"><a href="{{ url_for('main.privacy') }}" class="text-decoration-none text-muted">Privacy
-                                Policy</a></li>
-                        <li class="list-inline-item"><a href="{{ url_for('main.terms') }}" class="text-decoration-none text-muted">Terms of
-                                Use</a></li>
-                        <li class="list-inline-item mx-2"><a href="{{ url_for('main.imprint') }}" class="text-decoration-none text-muted">Imprint</a></li>
-                    </ul>
-                </div>
+        <div class="app-main">
+            <div class="container-fluid pb-5 content-wrapper">
+                {% include 'main/_flash_messages.html' %}
+
+                {% block content %}
+                {% endblock %}
             </div>
+
+            <footer class="footer mt-auto py-4 bg-light border-top">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-6 text-center text-md-start">
+                            <span class="text-muted">&copy; 2025 Intelligent Investment Platform</span>
+                        </div>
+                        <div class="col-md-6 text-center text-md-end">
+                            <ul class="list-inline mb-0">
+                                <li class="list-inline-item"><a href="{{ url_for('main.mental_models') }}"
+                                        class="text-decoration-none text-muted">Our Philosophy</a>
+                                </li>
+                                <li class="list-inline-item mx-2"><a href="{{ url_for('main.privacy') }}" class="text-decoration-none text-muted">Privacy
+                                        Policy</a></li>
+                                <li class="list-inline-item"><a href="{{ url_for('main.terms') }}" class="text-decoration-none text-muted">Terms of
+                                        Use</a></li>
+                                <li class="list-inline-item mx-2"><a href="{{ url_for('main.imprint') }}" class="text-decoration-none text-muted">Imprint</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
-    </footer>
+    </div>
 
     <!-- Modal Block - Modals should be direct children of body for proper Bootstrap positioning -->
     {% block modals %}
@@ -69,7 +77,10 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Auto-dismiss flash messages after 10 seconds -->
+    <!-- Sidebar navigation (toggle, collapse, active state) -->
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+
+    <!-- Auto-dismiss flash messages & Bootstrap tooltips -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.alert-dismissible');
@@ -77,53 +88,12 @@
                 setTimeout(function() {
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();
-                }, 10000); // 10 seconds
+                }, 10000);
             });
 
             // Initialize Bootstrap tooltips globally
             const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
-
-            // Navbar quote scrolling effect - continuous marquee
-            const quoteInner = document.querySelector('.navbar-quote-inner');
-            const quoteText = document.querySelector('.navbar-quote-text');
-            const quoteDuplicate = document.querySelector('.navbar-quote-duplicate');
-
-            if (quoteInner && quoteText) {
-                const quoteWrapper = quoteText.closest('.navbar-quote-wrapper');
-                const textWidth = quoteText.offsetWidth;
-                const containerWidth = quoteWrapper.offsetWidth;
-
-                if (textWidth > containerWidth) {
-                    // Enable continuous marquee scrolling for long quotes
-                    quoteInner.classList.add('scrolling');
-                } else {
-                    // Static display for short quotes - hide duplicate
-                    quoteInner.classList.add('static');
-                    if (quoteDuplicate) {
-                        quoteDuplicate.style.display = 'none';
-                    }
-                }
-            }
-
-            // Handle quote banner dismiss
-            const quoteDismissBtn = document.querySelector('[data-action="dismiss-quote-banner"]');
-            if (quoteDismissBtn) {
-                quoteDismissBtn.addEventListener('click', function() {
-                    const quoteContainer = this.closest('.navbar-quote-container');
-                    if (quoteContainer) {
-                        quoteContainer.style.display = 'none';
-                    }
-
-                    // Send AJAX request to mark as dismissed
-                    fetch('/dismiss-quote-banner', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                });
-            }
         });
     </script>
 

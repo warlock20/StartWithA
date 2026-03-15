@@ -1,0 +1,430 @@
+/* =============================================================================
+   SIDEBAR & TOPBAR NAVIGATION
+   ============================================================================= */
+
+:root {
+    /* Layout dimensions */
+    --sidebar-width: 250px;
+    --sidebar-collapsed-width: 62px;
+    --topbar-height: 42px;
+
+    /* Sidebar dark theme — built from design-system tokens where possible */
+    --sidebar-bg: var(--primary-900);                   /* #0f172a */
+    --sidebar-hover: var(--primary-800);                /* #1e293b */
+    --sidebar-active: var(--primary-700);               /* #334155 */
+    --sidebar-text: rgba(255, 255, 255, 0.7);
+    --sidebar-text-active: var(--text-white);           /* #ffffff */
+    --sidebar-divider: rgba(255, 255, 255, 0.08);
+    --topbar-bg: var(--primary-900);                    /* #0f172a */
+    --sidebar-accent: var(--info-500);                  /* #3b82f6 */
+    --sidebar-transition: var(--transition-normal);     /* 0.3s ease */
+}
+
+/* ========== TOP BAR ========== */
+.app-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--topbar-height);
+    background: var(--topbar-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-md);
+    z-index: 1040;
+    border-bottom: 1px solid var(--sidebar-divider);
+}
+
+.topbar-brand {
+    color: var(--text-white);
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+    white-space: nowrap;
+    margin-right: var(--space-lg);
+}
+
+.topbar-brand:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.topbar-toggle {
+    background: none;
+    border: none;
+    color: var(--sidebar-text);
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    margin-right: var(--space-md);
+    transition: all var(--transition-fast);
+}
+
+.topbar-toggle:hover {
+    color: var(--text-white);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Quote in topbar */
+.topbar-quote {
+    flex: 1;
+    overflow: hidden;
+    margin: 0 var(--space-lg);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* User dropdown in topbar */
+.topbar-user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    padding: var(--space-xs) 0.75rem;
+    border-radius: var(--radius-md);
+    border: none;
+    background: none;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.topbar-user:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+}
+
+.topbar-user-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--sidebar-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-white);
+}
+
+/* Hide Bootstrap dropdown caret — we use our own chevron icon */
+.topbar-user.dropdown-toggle::after {
+    display: none;
+}
+
+/* Topbar dropdown menu positioning */
+.topbar-dropdown .dropdown-menu {
+    min-width: 200px !important;
+    margin-top: var(--space-xs) !important;
+}
+
+/* ========== SIDEBAR ========== */
+.app-sidebar {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width var(--sidebar-transition);
+    z-index: 1030;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.app-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+}
+
+/* Sidebar nav container */
+.sidebar-nav {
+    flex: 1;
+    padding: 0.75rem 0;
+}
+
+/* Sidebar nav items */
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem var(--space-md);
+    margin: 1px var(--space-sm);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+}
+
+.sidebar-item:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-text-active);
+    text-decoration: none;
+}
+
+.sidebar-item.active {
+    background: var(--sidebar-active);
+    color: var(--sidebar-text-active);
+}
+
+.sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--space-sm) * -1);
+    top: 0.35rem;
+    bottom: 0.35rem;
+    width: 3px;
+    background: var(--sidebar-accent);
+    border-radius: 0 3px 3px 0;
+}
+
+.sidebar-item i {
+    font-size: var(--font-size-lg);
+    width: 1.3rem;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.sidebar-item.active i {
+    opacity: 1;
+    color: var(--sidebar-accent);
+}
+
+.sidebar-item-text {
+    transition: opacity var(--sidebar-transition);
+    overflow: hidden;
+}
+
+.sidebar-badge {
+    margin-left: auto;
+    background: var(--sidebar-accent);
+    color: var(--text-white);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+    transition: opacity var(--sidebar-transition);
+}
+
+/* Collapsible section toggle */
+.sidebar-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem var(--space-md);
+    margin: 1px var(--space-sm);
+    color: var(--sidebar-text);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: calc(100% - var(--space-md));
+    text-align: left;
+}
+
+.sidebar-section-toggle:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-text-active);
+}
+
+.sidebar-section-toggle i.section-icon {
+    font-size: var(--font-size-lg);
+    width: 1.3rem;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.sidebar-section-toggle .section-arrow {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    transition: transform var(--transition-fast);
+    opacity: 0.5;
+}
+
+.sidebar-section-toggle.expanded .section-arrow {
+    transform: rotate(90deg);
+}
+
+/* Collapsible sub-items container */
+.sidebar-subitems {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+
+.sidebar-subitems.open {
+    max-height: 500px;
+}
+
+/* Nested sub-section items (e.g., Tools within Research) get extra indent */
+.sidebar-subitems .sidebar-subitems .sidebar-item {
+    padding-left: 2.75rem;
+    font-size: 0.82rem;
+}
+
+/* Sidebar divider */
+.sidebar-divider {
+    height: 1px;
+    background: var(--sidebar-divider);
+    margin: var(--space-sm) var(--space-md);
+}
+
+/* ========== COLLAPSED STATE ========== */
+body.sidebar-collapsed .app-sidebar {
+    width: var(--sidebar-collapsed-width);
+}
+
+body.sidebar-collapsed .sidebar-item-text,
+body.sidebar-collapsed .sidebar-badge,
+body.sidebar-collapsed .section-arrow,
+body.sidebar-collapsed .sidebar-section-toggle .sidebar-item-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+body.sidebar-collapsed .sidebar-subitems {
+    max-height: 0 !important;
+}
+
+body.sidebar-collapsed .sidebar-item,
+body.sidebar-collapsed .sidebar-section-toggle {
+    justify-content: center;
+    padding: 0.6rem;
+    margin: 1px 0.35rem;
+}
+
+body.sidebar-collapsed .sidebar-item i,
+body.sidebar-collapsed .sidebar-section-toggle i.section-icon {
+    margin: 0;
+}
+
+body.sidebar-collapsed .sidebar-item.active::before {
+    left: -0.35rem;
+}
+
+/* Tooltip on hover when collapsed */
+body.sidebar-collapsed .sidebar-item[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(var(--sidebar-collapsed-width) - var(--space-xs));
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--primary-800);
+    color: var(--text-white);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    z-index: 9999;
+    box-shadow: var(--shadow-heavy);
+    pointer-events: none;
+}
+
+/* ========== APP LAYOUT ========== */
+.app-layout {
+    display: flex;
+    min-height: calc(100vh - var(--topbar-height));
+    margin-top: var(--topbar-height);
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0;
+    margin-left: var(--sidebar-width);
+    transition: margin-left var(--sidebar-transition);
+    display: flex;
+    flex-direction: column;
+}
+
+body.sidebar-collapsed .app-main {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+/* No sidebar for non-authenticated users */
+body:not(.has-sidebar) .app-main {
+    margin-left: 0;
+}
+
+/* ========== MOBILE ========== */
+@media (max-width: 768px) {
+    .app-sidebar {
+        transform: translateX(-100%);
+        width: var(--sidebar-width);
+        z-index: 1050;
+    }
+
+    .app-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    .app-main {
+        margin-left: 0 !important;
+    }
+
+    body.sidebar-collapsed .app-sidebar {
+        width: var(--sidebar-width);
+    }
+
+    .mobile-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-height);
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1045;
+    }
+
+    .mobile-overlay.active {
+        display: block;
+    }
+
+    .topbar-brand-text {
+        display: none;
+    }
+
+    .topbar-quote {
+        display: none;
+    }
+
+    .topbar-user-name {
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+    .topbar-hamburger {
+        display: none;
+    }
+
+    .mobile-overlay {
+        display: none !important;
+    }
+}
