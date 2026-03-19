@@ -313,15 +313,19 @@ def _sync_admin_emails(app):
         return
     admin_emails = {e.strip().lower() for e in raw.split(',') if e.strip()}
     with app.app_context():
-        changed = False
-        for user in User.query.all():
-            should_be_admin = user.email.lower() in admin_emails
-            if user.is_admin != should_be_admin:
-                user.is_admin = should_be_admin
-                changed = True
-                app.logger.info(f"Admin {'granted' if should_be_admin else 'revoked'}: {user.email}")
-        if changed:
-            db.session.commit()
+        try:
+            changed = False
+            for user in User.query.all():
+                should_be_admin = user.email.lower() in admin_emails
+                if user.is_admin != should_be_admin:
+                    user.is_admin = should_be_admin
+                    changed = True
+                    app.logger.info(f"Admin {'granted' if should_be_admin else 'revoked'}: {user.email}")
+            if changed:
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Could not sync admin emails (pending migration?): {e}")
 
 
 def init_admin(app):
