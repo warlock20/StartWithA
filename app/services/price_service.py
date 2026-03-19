@@ -5,6 +5,8 @@ from decimal import Decimal
 import yfinance as yf
 from app import db
 from app.models import PortfolioPosition
+from app.models.user import User
+from app.services.currency_service import CurrencyService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 
 class PriceService:
@@ -67,8 +69,6 @@ class PriceService:
             ValueError: If ticker not found
             Exception: For other API errors
         """
-        from app.services.currency_service import CurrencyService
-
         try:
             ticker = yf.Ticker(ticker_symbol)
             info = ticker.info
@@ -125,6 +125,7 @@ class PriceService:
     def update_position_price(position, force=False):
         """
         Update single position with current price from Yahoo Finance.
+        Converts price to user's base currency for consistent P&L calculation.
         Respects 15-minute cache unless force=True.
 
         Args:
@@ -139,14 +140,40 @@ class PriceService:
             return True  # Already up to date
 
         try:
-            # Fetch current price
-            current_price = PriceService.get_current_price(position.company.ticker_symbol)
+            # Fetch current price with currency info
+            price_data = PriceService.get_current_price_with_currency(position.company.ticker_symbol)
+            native_price = Decimal(str(price_data['price']))
+            stock_currency = price_data['currency']
 
-            # Update position market data
-            position.current_price = Decimal(str(current_price))
-            position.current_value = position.total_shares * position.current_price
+            # Auto-set company reporting_currency if not yet set
+            company = position.company
+            if not company.reporting_currency:
+                company.reporting_currency = stock_currency
 
-            # Calculate unrealized gains/losses
+            # Store native price (stock's trading currency)
+            position.current_price = native_price
+
+            # Convert to user's base currency
+            user_base_currency = position.user.base_currency
+            if stock_currency != user_base_currency:
+                exchange_rate = CurrencyService.get_exchange_rate(
+                    from_currency=stock_currency,
+                    to_currency=user_base_currency
+                )
+                current_price_base = native_price * exchange_rate
+                position.current_exchange_rate = exchange_rate
+            else:
+                current_price_base = native_price
+                position.current_exchange_rate = Decimal('1.0')
+
+            position.current_price_base = current_price_base
+            position.last_exchange_rate_update = now_utc()
+
+            # Calculate values in base currency
+            position.current_value = position.total_shares * current_price_base
+            position.current_value_base = position.current_value
+
+            # Calculate unrealized gains/losses (both in base currency now)
             if position.total_cost > 0:
                 position.unrealized_gain_loss = position.current_value - position.total_cost
                 position.unrealized_gain_loss_pct = (
@@ -265,12 +292,18 @@ class PriceService:
         if total_cost > 0:
             total_unrealized_gain_loss_pct = (total_unrealized_gain_loss / total_cost) * 100
 
+        # Include cash balance in total portfolio value
+        user = User.query.get(user_id)
+        cash_balance = Decimal(str(user.cash_balance)) if user and user.cash_balance else Decimal('0.00')
+
         return {
-            'total_value': total_value,
+            'total_value': total_value + cash_balance,
             'total_cost': total_cost,
             'total_unrealized_gain_loss': total_unrealized_gain_loss,
             'total_unrealized_gain_loss_pct': total_unrealized_gain_loss_pct,
-            'positions_count': len(positions)
+            'positions_count': len(positions),
+            'cash_balance': cash_balance,
+            'invested_value': total_value,
         }
 
     @staticmethod
@@ -376,11 +409,35 @@ class PriceService:
                 continue
 
             try:
-                # Update position market data
-                position.current_price = Decimal(str(price))
-                position.current_value = position.total_shares * position.current_price
+                native_price = Decimal(str(price))
+                position.current_price = native_price
 
-                # Calculate unrealized gains/losses
+                # Detect stock currency and convert to base
+                company = position.company
+                stock_currency = company.reporting_currency or CurrencyService.detect_currency_from_ticker(ticker)
+                if not company.reporting_currency:
+                    company.reporting_currency = stock_currency
+
+                user_base_currency = position.user.base_currency
+                if stock_currency != user_base_currency:
+                    exchange_rate = CurrencyService.get_exchange_rate(
+                        from_currency=stock_currency,
+                        to_currency=user_base_currency
+                    )
+                    current_price_base = native_price * exchange_rate
+                    position.current_exchange_rate = exchange_rate
+                else:
+                    current_price_base = native_price
+                    position.current_exchange_rate = Decimal('1.0')
+
+                position.current_price_base = current_price_base
+                position.last_exchange_rate_update = now_utc()
+
+                # Values in base currency
+                position.current_value = position.total_shares * current_price_base
+                position.current_value_base = position.current_value
+
+                # Calculate unrealized gains/losses (both in base currency)
                 if position.total_cost > 0:
                     position.unrealized_gain_loss = position.current_value - position.total_cost
                     position.unrealized_gain_loss_pct = (

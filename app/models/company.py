@@ -15,6 +15,7 @@ class Company(db.Model):
     industry = db.Column(db.String(150), nullable=True)
     intrinsic_value = db.Column(db.BigInteger, nullable=True)
     is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    reporting_currency = db.Column(db.String(3), nullable=True)  # Stock's native trading currency (e.g., USD, EUR)
 
     # Relationships
     sector = db.relationship("Sector", backref="companies")

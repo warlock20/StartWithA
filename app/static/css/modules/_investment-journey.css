@@ -178,6 +178,27 @@
     left: 18px;
 }
 
+.journey-dot.note {
+    border-color: var(--gray-400);
+    width: 14px;
+    height: 14px;
+    left: 18px;
+}
+
+.journey-dot.finding {
+    width: 16px;
+    height: 16px;
+    left: 17px;
+}
+
+.journey-dot.finding.green {
+    border-color: var(--success-500);
+}
+
+.journey-dot.finding.red {
+    border-color: var(--danger-500);
+}
+
 @keyframes pulse-dot {
     0%, 100% {
         box-shadow: 0 0 0 4px var(--success-100), 0 0 15px var(--success-200);
@@ -259,6 +280,27 @@
 }
 
 .journey-badge.transaction.sell {
+    background: var(--danger-100);
+    color: var(--danger-700);
+}
+
+.journey-badge.note {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.journey-badge.finding {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.journey-badge.finding.green {
+    background: var(--success-100);
+    color: var(--success-700);
+}
+
+.journey-badge.finding.red {
     background: var(--danger-100);
     color: var(--danger-700);
 }
@@ -552,6 +594,162 @@
 
 .journey-transaction-notes i {
     margin-right: var(--space-xs);
+}
+
+/* =============================================================================
+   NOTE & FINDING STYLES
+   ============================================================================= */
+.journey-note-sentiment {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+}
+
+.journey-note-sentiment.bullish {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+.journey-note-sentiment.bearish {
+    background: var(--danger-50);
+    color: var(--danger-600);
+}
+
+.journey-note-sentiment.neutral {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+.journey-note-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-top: var(--space-sm);
+}
+
+.journey-note-tag {
+    font-size: var(--font-size-xs);
+    color: var(--primary-600);
+    background: var(--primary-50);
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+}
+
+.journey-content.finding-content.green {
+    border-left: 3px solid var(--success-500);
+}
+
+.journey-content.finding-content.red {
+    border-left: 3px solid var(--danger-500);
+}
+
+/* =============================================================================
+   NOTES LIST VIEW (dedicated card layout, shown when Notes tab active)
+   ============================================================================= */
+.journey-notes-search {
+    margin-bottom: var(--space-lg);
+}
+
+.journey-notes-search-input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    background: var(--background-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 0.75rem center;
+    transition: border-color var(--transition-fast);
+}
+
+.journey-notes-search-input:focus {
+    outline: none;
+    border-color: var(--primary-600);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.journey-note-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-sm);
+    transition: all var(--transition-fast);
+}
+
+.journey-note-card.truncated {
+    cursor: pointer;
+}
+
+.journey-note-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.journey-note-card.expanded {
+    background: var(--primary-50);
+    border-left: 3px solid var(--primary-600);
+}
+
+.journey-note-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-sm);
+}
+
+.journey-note-card-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.journey-note-card-date i {
+    margin-right: var(--space-xs);
+}
+
+.journey-note-card-content {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-sm);
+    white-space: pre-wrap;
+}
+
+.journey-notes-load-more {
+    display: block;
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    margin-top: var(--space-sm);
+    border: 1px dashed var(--border-medium);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--primary-600);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.journey-notes-load-more:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-600);
+}
+
+.journey-notes-empty {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-xl);
+    color: var(--text-muted);
+}
+
+.journey-notes-empty i {
+    font-size: 2.5rem;
+    color: var(--gray-300);
+    display: block;
+    margin-bottom: var(--space-md);
+}
+
+.journey-notes-empty p {
+    font-size: var(--font-size-sm);
+    margin: 0;
 }
 
 /* =============================================================================

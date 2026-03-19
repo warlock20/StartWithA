@@ -58,6 +58,10 @@
                 <div class="journey-stat-value">{{ journey_stats.current_conviction }}/10</div>
                 <div class="journey-stat-label">Conviction</div>
             </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.notes_count }}</div>
+                <div class="journey-stat-label">Notes</div>
+            </div>
         </div>
     </div>
 
@@ -83,9 +87,22 @@
             <span>Transactions</span>
             <span class="journey-tab-count">{{ event_count }}</span>
         </button>
+        <button class="journey-filter-tab" data-filter="note">
+            <i class="bi bi-journal-text"></i>
+            <span>Notes</span>
+            <span class="journey-tab-count">{{ notes_count }}</span>
+        </button>
+        {% if findings_count > 0 %}
+        <button class="journey-filter-tab" data-filter="finding">
+            <i class="bi bi-search"></i>
+            <span>Findings</span>
+            <span class="journey-tab-count">{{ findings_count }}</span>
+        </button>
+        {% endif %}
     </div>
 
-    <!-- Timeline -->
+    <!-- Timeline View (all tabs except Notes) -->
+    <div id="timelineView">
     <div class="journey-timeline">
         {% for event in timeline_events %}
         {% set is_current = (event.type == 'thesis' and current_thesis and event.data.id == current_thesis.id) %}
@@ -98,6 +115,7 @@
                     {% elif event.data.status == 'Not Met' %}not-met
                     {% endif %}
                 {% elif event.type == 'transaction' %}event
+                {% elif event.type == 'finding' %}finding {{ event.data.flag_type }}
                 {% elif is_current %}current
                 {% endif %}">
             </div>
@@ -108,6 +126,7 @@
                     {% if event.data.status == 'Met' %}met
                     {% elif event.data.status == 'Not Met' %}not-met
                     {% endif %}
+                {% elif event.type == 'finding' %}finding-content {{ event.data.flag_type }}
                 {% endif %}">
 
                 <!-- THESIS VERSION -->
@@ -259,6 +278,22 @@
                     <i class="bi bi-chat-text"></i> {{ event.data.notes }}
                 </p>
                 {% endif %}
+
+                <!-- FINDING (Research Red/Green Flag) -->
+                {% elif event.type == 'finding' %}
+                <div class="journey-event-header">
+                    <span class="journey-badge finding {{ event.data.flag_type }}">
+                        {% if event.data.flag_type == 'green' %}
+                        <i class="bi bi-check-circle"></i> Green Flag
+                        {% else %}
+                        <i class="bi bi-exclamation-triangle"></i> Red Flag
+                        {% endif %}
+                    </span>
+                </div>
+                <p class="journey-event-date">
+                    <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+                </p>
+                <div class="journey-event-body">{{ event.data.text }}</div>
                 {% endif %}
             </div>
         </div>
@@ -280,6 +315,23 @@
         </div>
         {% endif %}
     </div>
+    </div>{# end #timelineView #}
+
+    <!-- Notes List View (dedicated, shown when Notes tab active) -->
+    <div id="notesListView" style="display:none;">
+        <div class="journey-notes-search">
+            <input type="text" id="notesSearchInput" class="journey-notes-search-input"
+                placeholder="Search notes by content or #tags..." oninput="debouncedSearch()">
+        </div>
+        <div id="noteCards"></div>
+        <button id="notesLoadMore" class="journey-notes-load-more" style="display:none;" onclick="loadNotes()">
+            Load more <i class="bi bi-chevron-down"></i>
+        </button>
+        <div id="notesEmptyState" class="journey-notes-empty" style="display:none;">
+            <i class="bi bi-journal-text"></i>
+            <p>No notes found</p>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -289,6 +341,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const filterTabs = document.querySelectorAll('.journey-filter-tab');
     const timelineItems = document.querySelectorAll('.journey-item');
+    const timelineView = document.getElementById('timelineView');
+    const notesListView = document.getElementById('notesListView');
+
+    let notesInitialized = false;
 
     filterTabs.forEach(tab => {
         tab.addEventListener('click', function() {
@@ -297,16 +353,129 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const filterType = this.getAttribute('data-filter');
 
-            timelineItems.forEach(item => {
-                const itemType = item.getAttribute('data-type');
-                if (filterType === 'all' || itemType === filterType) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
+            if (filterType === 'note') {
+                // Switch to dedicated notes list view
+                timelineView.style.display = 'none';
+                notesListView.style.display = 'block';
+                if (!notesInitialized) {
+                    loadNotes(true);
+                    notesInitialized = true;
                 }
-            });
+            } else {
+                // Switch to timeline view
+                timelineView.style.display = 'block';
+                notesListView.style.display = 'none';
+
+                timelineItems.forEach(item => {
+                    const itemType = item.getAttribute('data-type');
+                    if (filterType === 'all' || itemType === filterType) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
         });
     });
 });
+
+// ---- Notes List AJAX ----
+const companyId = {{ company.id }};
+let notesOffset = 0;
+let notesTotal = 0;
+let notesSearchQuery = '';
+let searchTimeout = null;
+
+function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        notesSearchQuery = document.getElementById('notesSearchInput').value.trim();
+        loadNotes(true);
+    }, 300);
+}
+
+function loadNotes(reset) {
+    if (reset) {
+        notesOffset = 0;
+        document.getElementById('noteCards').innerHTML = '';
+    }
+
+    const loadMoreBtn = document.getElementById('notesLoadMore');
+    const emptyState = document.getElementById('notesEmptyState');
+    loadMoreBtn.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    let url = `/portfolio/api/notes/${companyId}?offset=${notesOffset}&limit=10`;
+    if (notesSearchQuery) url += `&q=${encodeURIComponent(notesSearchQuery)}`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+
+            notesTotal = data.total;
+            const container = document.getElementById('noteCards');
+
+            if (data.entries.length === 0 && notesOffset === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            data.entries.forEach(entry => {
+                container.insertAdjacentHTML('beforeend', renderNoteCard(entry));
+            });
+
+            notesOffset += data.entries.length;
+
+            if (data.has_more) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.innerHTML = `Load more (${notesOffset} of ${notesTotal}) <i class="bi bi-chevron-down"></i>`;
+            }
+        });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function renderNoteCard(entry) {
+    const full = entry.content;
+    const truncated = full.length > 200 ? full.substring(0, 200) + '...' : full;
+    const isLong = full.length > 200;
+
+    let sentimentHtml = '';
+    if (entry.sentiment) {
+        sentimentHtml = `<span class="journey-note-sentiment ${entry.sentiment}">${entry.sentiment}</span>`;
+    }
+
+    let tagsHtml = '';
+    if (entry.tags && entry.tags.length) {
+        tagsHtml = '<div class="journey-note-tags">' +
+            entry.tags.slice(0, 6).map(t => `<span class="journey-note-tag">#${escapeHtml(t)}</span>`).join('') +
+            '</div>';
+    }
+
+    return `<div class="journey-note-card${isLong ? ' truncated' : ''}"
+                 ${isLong ? `data-full-content="${escapeHtml(full)}" data-truncated="${escapeHtml(truncated)}" onclick="toggleNoteExpand(this)"` : ''}>
+        <div class="journey-note-card-header">
+            <span class="journey-note-card-date"><i class="bi bi-calendar3"></i> ${entry.created_at}</span>
+            ${sentimentHtml}
+        </div>
+        <div class="journey-note-card-content">${escapeHtml(isLong ? truncated : full)}</div>
+        ${tagsHtml}
+    </div>`;
+}
+
+function toggleNoteExpand(card) {
+    card.classList.toggle('expanded');
+    const contentEl = card.querySelector('.journey-note-card-content');
+    if (card.classList.contains('expanded')) {
+        contentEl.textContent = card.dataset.fullContent;
+    } else {
+        contentEl.textContent = card.dataset.truncated;
+    }
+}
 </script>
 {% endblock %}

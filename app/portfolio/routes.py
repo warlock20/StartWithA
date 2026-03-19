@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 from app.models import (
     Transaction, PortfolioPosition, Company, DecisionJournal,
     ResearchProject, DestinationCheckpoint, ThesisEvolution, ResearchOutcome,
-    BackgroundTask, PortfolioUIInsight
+    BackgroundTask, PortfolioUIInsight, JournalEntry
 )
 from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
@@ -39,6 +40,7 @@ from app.services.portfolio_intelligence import (
 from app.services.intelligence_engine import get_portfolio_warnings
 from app.services.portfolio_ai_analytics import PortfolioAIAnalytics
 from app.services.portfolio_data_extractor import PortfolioDataExtractor
+from app.services.cash_service import CashService
 
 import json
 # Import blueprint from current package (avoids circular import)
@@ -93,6 +95,11 @@ def dashboard():
         'add_tx_url': url_for('portfolio.add_transaction', company_id=pos.company_id),
     } for pos in positions])
 
+    # Cash setup: infer initial deposit for existing users who haven't set up cash tracking
+    inferred_deposit = None
+    if not current_user.cash_setup_complete and portfolio_value['positions_count'] > 0:
+        inferred_deposit = float(CashService.infer_initial_deposit(current_user.id))
+
     return render_template('portfolio_dashboard.html',
                           positions=positions,
                           holdings_json=holdings_json,
@@ -100,7 +107,21 @@ def dashboard():
                           gains_count=gains_count,
                           losses_count=losses_count,
                           updated_time='just now',
-                          currency_symbol=currency_symbol)
+                          currency_symbol=currency_symbol,
+                          inferred_deposit=inferred_deposit)
+
+
+@portfolio_bp.route('/cash/setup', methods=['POST'])
+@login_required
+def cash_setup():
+    """One-time initial capital confirmation for cash tracking."""
+    amount = Decimal(request.form.get('initial_capital', '0'))
+    if amount > 0:
+        CashService.create_initial_deposit(current_user.id, amount, current_user.base_currency)
+    current_user.cash_setup_complete = True
+    db.session.commit()
+    flash('Initial capital recorded. Cash tracking is now active!', 'success')
+    return redirect(url_for('portfolio.dashboard'))
 
 ############################
 #### Postion Related ########
@@ -160,6 +181,10 @@ def position_detail(company_id):
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
+    # Stock's native trading currency (for dual-currency display)
+    stock_currency = position.currency or company.reporting_currency or user_currency
+    stock_currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
+
     return render_template('position_detail.html',
                           company=company,
                           position=position,
@@ -169,6 +194,8 @@ def position_detail(company_id):
                           research_project=research_project,
                           user_currency=user_currency,
                           currency_symbol=currency_symbol,
+                          stock_currency=stock_currency,
+                          stock_currency_symbol=stock_currency_symbol,
                           today=now_utc().date())
 
 
@@ -247,6 +274,36 @@ def investment_journey(company_id):
                 'data': txn
             })
 
+    # Notes count only — notes load via AJAX on the dedicated Notes tab
+    notes_count = JournalEntry.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).count()
+
+    # Add research findings (red/green flags)
+    research_project = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).first()
+
+    findings_count = 0
+    if research_project:
+        for flag in (research_project.green_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'green'}
+            })
+        for flag in (research_project.red_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'red'}
+            })
+        findings_count = len(research_project.green_flags or []) + len(research_project.red_flags or [])
+
     # Sort timeline by datetime (most recent first for display)
     timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
 
@@ -273,7 +330,8 @@ def investment_journey(company_id):
         'checkpoints_met': checkpoints_met,
         'total_checkpoints': total_checkpoints,
         'days_held': days_held,
-        'current_conviction': current_conviction
+        'current_conviction': current_conviction,
+        'notes_count': notes_count
     }
 
     # Identify current thesis
@@ -294,7 +352,9 @@ def investment_journey(company_id):
                           current_thesis=current_thesis,
                           thesis_count=len(thesis_versions),
                           checkpoint_count=len(checkpoints),
-                          event_count=len([e for e in timeline_events if e['type'] == 'transaction']))
+                          event_count=len([e for e in timeline_events if e['type'] == 'transaction']),
+                          notes_count=notes_count,
+                          findings_count=findings_count)
 
 
 @portfolio_bp.route('/position/<int:company_id>/thesis/new', methods=['GET', 'POST'])

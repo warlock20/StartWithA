@@ -6,7 +6,10 @@ from app import db
 from app.models.user import User
 from app.models.company import Company
 from app.models.portfolio import Transaction, update_portfolio_position_for_company
+from app.models.journal import DecisionJournal
 from app.services.financial_data import FinancialDataService
+from app.services.cash_service import CashService
+from app.services.currency_service import CurrencyService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +28,12 @@ class PortfolioImporter:
         self.company_cache = {}
         self._load_company_cache()
 
+        # Track companies that already have a BUY decision journal
+        self.companies_with_buy_journal = self._load_existing_buy_journals()
+
+        # User's base currency for conversion
+        self.user_base_currency = self.user.base_currency
+
         # Reusable financial data service for company lookups
         self.financial_service = FinancialDataService()
 
@@ -33,6 +42,15 @@ class PortfolioImporter:
         for c in companies:
             if c.ticker_symbol:  # Skip companies without ticker symbols
                 self.company_cache[c.ticker_symbol.upper()] = c.id
+
+    def _load_existing_buy_journals(self):
+        """Load company IDs that already have a BUY decision journal."""
+        existing = DecisionJournal.query.filter_by(
+            user_id=self.user.id,
+            decision_type='BUY',
+            is_portfolio_decision=True
+        ).with_entities(DecisionJournal.company_id).all()
+        return {row.company_id for row in existing}
 
     def _get_or_create_company(self, ticker):
         ticker = ticker.upper().strip()
@@ -244,6 +262,9 @@ class PortfolioImporter:
             if created_transactions:
                 self._update_affected_portfolios(set(created_transactions), ticker_last_dates)
 
+            # Recalculate cash balance from all transactions
+            CashService.recalculate_cash_balance(self.user.id)
+
             message_parts = []
             if created_transactions:
                 message_parts.append(f"Imported {len(created_transactions)} transactions for {len(set(created_transactions))} companies")
@@ -376,11 +397,20 @@ class PortfolioImporter:
             return False  # Exit early, don't create duplicate
 
         # --- F. Detect Currency ---
-        # Try to read from CSV first, fallback to ticker-based detection
+        # Excel prices are in user's base currency by default, CSV 'Currency' column overrides
         if 'Currency' in row and pd.notna(row['Currency']):
             currency = str(row['Currency']).strip().upper()
         else:
-            currency = self._detect_currency_from_ticker(ticker)
+            currency = self.user_base_currency
+
+        # --- G. Currency Conversion to base ---
+        exchange_rate = CurrencyService.get_exchange_rate(
+            from_currency=currency,
+            to_currency=self.user_base_currency,
+            rate_date=transaction_date
+        )
+        price_per_share_base = db_price * exchange_rate
+        fees_base = fees * exchange_rate
 
         txn = Transaction(
             user_id=self.user.id,
@@ -390,12 +420,65 @@ class PortfolioImporter:
             quantity=db_quantity,
             price_per_share=db_price,
             fees=fees,
+            price_per_share_base=price_per_share_base,
+            fees_base=fees_base,
+            exchange_rate=exchange_rate,
+            exchange_rate_date=transaction_date,
             notes=f"Imported via Bulk Uploader. Row {row_index+2}",
             currency=currency
         )
         
         db.session.add(txn)
+        db.session.flush()
+
+        # Create Decision Journal entry for BUY (first purchase) and SELL
+        self._create_import_decision_journal(
+            company_id=company_id,
+            transaction=txn,
+            db_type=db_type,
+            transaction_date=transaction_date
+        )
+
         return True
+
+    def _create_import_decision_journal(self, company_id, transaction, db_type, transaction_date):
+        """Create a Decision Journal entry for imported transactions."""
+        if db_type == 'BUY':
+            if company_id in self.companies_with_buy_journal:
+                return  # Already has a BUY journal (existing or from earlier row)
+
+            journal = DecisionJournal(
+                user_id=self.user.id,
+                company_id=company_id,
+                decision_type='BUY',
+                decision_date=transaction_date,
+                investment_thesis=f'Imported via bulk uploader',
+                confidence_score=5,
+                expected_return=15.0,
+                expected_timeframe=60,
+                is_portfolio_decision=True,
+                thesis_depth='minimal',
+                non_research_source='other'
+            )
+            db.session.add(journal)
+            db.session.flush()
+            transaction.decision_journal_id = journal.id
+            self.companies_with_buy_journal.add(company_id)
+            logger.info(f"Created BUY Decision Journal for company {company_id} (imported)")
+
+        elif db_type == 'SELL':
+            journal = DecisionJournal(
+                user_id=self.user.id,
+                company_id=company_id,
+                decision_type='SELL',
+                decision_date=transaction_date,
+                investment_thesis=f'Selling {transaction.quantity} shares at ${transaction.price_per_share}',
+                is_portfolio_decision=True
+            )
+            db.session.add(journal)
+            db.session.flush()
+            transaction.decision_journal_id = journal.id
+            logger.info(f"Created SELL Decision Journal for company {company_id} (imported)")
 
     def _update_affected_portfolios(self, tickers, ticker_last_dates):
         """
