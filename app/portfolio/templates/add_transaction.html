@@ -12,7 +12,7 @@
                 <span>Transaction</span>
             </div>
             <h1>Add Transaction</h1>
-            <p class="action-hero-subtitle">Record a buy, sell, or dividend transaction</p>
+            <p class="action-hero-subtitle">Record a buy, sell, dividend, deposit, or withdrawal</p>
         </div>
 
         <!-- Intelligence Warnings Container -->
@@ -51,7 +51,28 @@
                             <label class="btn btn-outline-success" for="type_dividend">
                                 <i class="bi bi-cash-coin me-2"></i>Dividend
                             </label>
+
+                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT">
+                            <label class="btn btn-outline-info" for="type_deposit">
+                                <i class="bi bi-box-arrow-in-down me-2"></i>Deposit
+                            </label>
+
+                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL">
+                            <label class="btn btn-outline-warning" for="type_withdrawal">
+                                <i class="bi bi-box-arrow-up me-2"></i>Withdraw
+                            </label>
                         </div>
+                    </div>
+
+                    <!-- Cash Amount (for DEPOSIT/WITHDRAWAL only) -->
+                    <div class="mb-3" id="cash_amount_section" style="display: none;">
+                        <label for="cash_amount" class="form-label fw-semibold">Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text" id="currencySymbolCash">{{ currency_symbol }}</span>
+                            <input type="number" class="form-control" id="cash_amount" name="cash_amount"
+                                min="0.01" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-text">Amount to <span id="cashActionLabel">deposit</span></div>
                     </div>
 
                     <!-- Company Selection -->
@@ -86,20 +107,20 @@
                         <label for="currency" class="form-label fw-semibold">Currency <span
                                 class="text-danger">*</span></label>
                         <select class="form-select" id="currency" name="currency" required>
-                            <option value="USD" selected>USD - US Dollar ($)</option>
-                            <option value="EUR">EUR - Euro (€)</option>
-                            <option value="GBP">GBP - British Pound (£)</option>
-                            <option value="JPY">JPY - Japanese Yen (¥)</option>
-                            <option value="CAD">CAD - Canadian Dollar (C$)</option>
-                            <option value="AUD">AUD - Australian Dollar (A$)</option>
-                            <option value="CHF">CHF - Swiss Franc</option>
-                            <option value="CNY">CNY - Chinese Yuan (¥)</option>
-                            <option value="HKD">HKD - Hong Kong Dollar (HK$)</option>
-                            <option value="INR">INR - Indian Rupee (₹)</option>
-                            <option value="KRW">KRW - South Korean Won (₩)</option>
-                            <option value="SEK">SEK - Swedish Krona (kr)</option>
-                            <option value="NOK">NOK - Norwegian Krone (kr)</option>
-                            <option value="DKK">DKK - Danish Krone (kr)</option>
+                            <option value="USD" {% if user_currency == 'USD' %}selected{% endif %}>USD - US Dollar ($)</option>
+                            <option value="EUR" {% if user_currency == 'EUR' %}selected{% endif %}>EUR - Euro (€)</option>
+                            <option value="GBP" {% if user_currency == 'GBP' %}selected{% endif %}>GBP - British Pound (£)</option>
+                            <option value="JPY" {% if user_currency == 'JPY' %}selected{% endif %}>JPY - Japanese Yen (¥)</option>
+                            <option value="CAD" {% if user_currency == 'CAD' %}selected{% endif %}>CAD - Canadian Dollar (C$)</option>
+                            <option value="AUD" {% if user_currency == 'AUD' %}selected{% endif %}>AUD - Australian Dollar (A$)</option>
+                            <option value="CHF" {% if user_currency == 'CHF' %}selected{% endif %}>CHF - Swiss Franc</option>
+                            <option value="CNY" {% if user_currency == 'CNY' %}selected{% endif %}>CNY - Chinese Yuan (¥)</option>
+                            <option value="HKD" {% if user_currency == 'HKD' %}selected{% endif %}>HKD - Hong Kong Dollar (HK$)</option>
+                            <option value="INR" {% if user_currency == 'INR' %}selected{% endif %}>INR - Indian Rupee (₹)</option>
+                            <option value="KRW" {% if user_currency == 'KRW' %}selected{% endif %}>KRW - South Korean Won (₩)</option>
+                            <option value="SEK" {% if user_currency == 'SEK' %}selected{% endif %}>SEK - Swedish Krona (kr)</option>
+                            <option value="NOK" {% if user_currency == 'NOK' %}selected{% endif %}>NOK - Norwegian Krone (kr)</option>
+                            <option value="DKK" {% if user_currency == 'DKK' %}selected{% endif %}>DKK - Danish Krone (kr)</option>
                         </select>
                         <div class="form-text" id="currencyHint">
                             <i class="bi bi-info-circle me-1"></i>
@@ -115,7 +136,7 @@
                                 <i class="bi bi-info-circle me-2"></i>Adding to Existing Position
                             </h6>
                             <p class="mb-2">You currently own <strong id="current_shares">0</strong> shares at an
-                                average cost of <strong>$<span id="current_avg_cost">0.00</span></strong> per share.
+                                average cost of <strong><span id="currencySymbolAvgCost">{{ currency_symbol }}</span><span id="current_avg_cost">0.00</span></strong> per share.
                             </p>
                             <hr>
 
@@ -181,7 +202,7 @@
                                 <span id="priceLabel">Price Per Share</span> <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text" id="currencySymbolPrice">$</span>
+                                <span class="input-group-text" id="currencySymbolPrice">{{ currency_symbol }}</span>
                                 <input type="number" class="form-control" id="price_per_share"
                                     name="price_per_share"
                                     value="{% if form_data %}{{ form_data.price_per_share }}{% endif %}" min="0.01"
@@ -194,7 +215,7 @@
                     <div class="mb-3">
                         <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
                         <div class="input-group">
-                            <span class="input-group-text" id="currencySymbolFees">$</span>
+                            <span class="input-group-text" id="currencySymbolFees">{{ currency_symbol }}</span>
                             <input type="number" class="form-control" id="fees" name="fees"
                                 value="{% if form_data %}{{ form_data.fees }}{% else %}0.00{% endif %}" min="0"
                                 step="0.01">
@@ -209,7 +230,7 @@
                                 <strong>Transaction Total:</strong>
                             </div>
                             <div class="col-6 text-end">
-                                <span id="currencySymbolTotal">$</span><span id="transaction_total"
+                                <span id="currencySymbolTotal">{{ currency_symbol }}</span><span id="transaction_total"
                                     class="fs-5 fw-bold">0.00</span>
                             </div>
                         </div>
@@ -385,6 +406,8 @@
                         <li><strong>Sell:</strong> Record a stock sale. Calculates realized gains/losses (FIFO
                             method).</li>
                         <li><strong>Dividend:</strong> Record dividend income received.</li>
+                        <li><strong>Deposit:</strong> Record cash added to your portfolio (capital inflow).</li>
+                        <li><strong>Withdraw:</strong> Record cash taken out of your portfolio.</li>
                     </ul>
                 </div>
             </div>
@@ -483,29 +506,33 @@
         document.getElementById('currencySymbolPrice').textContent = symbol;
         document.getElementById('currencySymbolFees').textContent = symbol;
         document.getElementById('currencySymbolTotal').textContent = symbol;
+        document.getElementById('currencySymbolCash').textContent = symbol;
+
+        const avgCostEl = document.getElementById('currencySymbolAvgCost');
+        if (avgCostEl) avgCostEl.textContent = symbol;
 
         updateTransactionTotal();
     }
 
     // Calculate transaction total dynamically
     function updateTransactionTotal() {
-        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-        const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
-        const fees = parseFloat(document.getElementById('fees').value) || 0;
         const transactionType = document.querySelector('input[name="type"]:checked').value;
-        const currency = document.getElementById('currency').value;
-        const symbol = CURRENCY_SYMBOLS[currency] || currency;
+        const fees = parseFloat(document.getElementById('fees').value) || 0;
 
-        let total = (quantity * pricePerShare);
+        let total = 0;
 
-        // Add fees for BUY, subtract fees for SELL
-        if (transactionType === 'BUY') {
-            total += fees;
-        } else if (transactionType === 'SELL') {
-            total -= fees;
-        } else if (transactionType === 'DIVIDEND') {
-            // For dividends, total is just quantity * price (dividend per share)
+        if (transactionType === 'DEPOSIT' || transactionType === 'WITHDRAWAL') {
+            total = parseFloat(document.getElementById('cash_amount').value) || 0;
+        } else {
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
             total = quantity * pricePerShare;
+
+            if (transactionType === 'BUY') {
+                total += fees;
+            } else if (transactionType === 'SELL') {
+                total -= fees;
+            }
         }
 
         document.getElementById('transaction_total').textContent = total.toFixed(2);
@@ -561,26 +588,74 @@
         }
     }
 
-    // Update labels based on transaction type
+    // Update labels and field visibility based on transaction type
     function updateLabels() {
         const transactionType = document.querySelector('input[name="type"]:checked').value;
         const quantityLabel = document.getElementById('quantityLabel');
         const priceLabel = document.getElementById('priceLabel');
         const expectationsSection = document.getElementById('buy_expectations_section');
+        const isCash = (transactionType === 'DEPOSIT' || transactionType === 'WITHDRAWAL');
 
-        if (transactionType === 'DIVIDEND') {
-            quantityLabel.textContent = 'Shares (Optional)';
-            priceLabel.textContent = 'Dividend Per Share';
-        } else {
-            quantityLabel.textContent = 'Shares';
-            priceLabel.textContent = 'Price Per Share';
-        }
+        // Toggle company/shares/price fields vs cash amount field
+        const companySection = document.getElementById('company_id').closest('.mb-3');
+        const quantityRow = document.getElementById('quantity').closest('.row');
+        const cashSection = document.getElementById('cash_amount_section');
+        const addPositionSection = document.getElementById('add_position_section');
 
-        // Show expectations section only for BUY transactions
-        if (transactionType === 'BUY') {
-            expectationsSection.style.display = 'block';
-        } else {
+        const feesSection = document.getElementById('fees').closest('.mb-3');
+        const currencyHint = document.getElementById('currencyHint');
+
+        if (isCash) {
+            companySection.style.display = 'none';
+            quantityRow.style.display = 'none';
+            feesSection.style.display = 'none';
+            cashSection.style.display = 'block';
+            addPositionSection.style.display = 'none';
             expectationsSection.style.display = 'none';
+
+            // Update cash label
+            document.getElementById('cashActionLabel').textContent =
+                transactionType === 'DEPOSIT' ? 'deposit' : 'withdraw';
+
+            // Update currency hint for cash transactions
+            if (currencyHint) {
+                currencyHint.innerHTML = '<i class="bi bi-info-circle me-1"></i><span>Select the currency of this ' +
+                    (transactionType === 'DEPOSIT' ? 'deposit' : 'withdrawal') + '</span>';
+            }
+
+            // Make company/quantity/price not required for cash transactions
+            document.getElementById('company_id').removeAttribute('required');
+            document.getElementById('quantity').removeAttribute('required');
+            document.getElementById('price_per_share').removeAttribute('required');
+            document.getElementById('cash_amount').setAttribute('required', 'required');
+        } else {
+            companySection.style.display = 'block';
+            quantityRow.style.display = 'flex';
+            feesSection.style.display = 'block';
+            cashSection.style.display = 'none';
+
+            // Restore currency hint
+            if (currencyHint) {
+                currencyHint.innerHTML = '<i class="bi bi-info-circle me-1"></i>' +
+                    '<span id="currencyDetection">Currency will be auto-detected based on the company ticker</span>';
+            }
+
+            // Restore required attributes
+            document.getElementById('company_id').setAttribute('required', 'required');
+            document.getElementById('quantity').setAttribute('required', 'required');
+            document.getElementById('price_per_share').setAttribute('required', 'required');
+            document.getElementById('cash_amount').removeAttribute('required');
+
+            if (transactionType === 'DIVIDEND') {
+                quantityLabel.textContent = 'Shares (Optional)';
+                priceLabel.textContent = 'Dividend Per Share';
+            } else {
+                quantityLabel.textContent = 'Shares';
+                priceLabel.textContent = 'Price Per Share';
+            }
+
+            // Show expectations section only for BUY transactions
+            expectationsSection.style.display = (transactionType === 'BUY') ? 'block' : 'none';
         }
 
         updateTransactionTotal();
@@ -596,6 +671,7 @@
     document.getElementById('quantity').addEventListener('input', updateTransactionTotal);
     document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
     document.getElementById('fees').addEventListener('input', updateTransactionTotal);
+    document.getElementById('cash_amount').addEventListener('input', updateTransactionTotal);
 
     // Currency-related event listeners
     document.getElementById('currency').addEventListener('change', updateCurrencySymbols);

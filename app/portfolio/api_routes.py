@@ -7,7 +7,8 @@ from flask_login import login_required, current_user
 from app.services.intelligence_engine import IntelligenceEngine
 
 from app.portfolio import portfolio_bp
-from app.models import Company
+from app.models import Company, JournalEntry
+from app.journal_enhanced.utils import extract_tags_from_content
 from app import db, limiter
 from app.constants import RATELIMIT_AI
 
@@ -305,3 +306,106 @@ def find_similar_decisions_api():
     except Exception as e:
         logger.error(f"Error finding similar decisions: {e}")
         return jsonify({'similar_decisions': [], 'count': 0, 'error': str(e)})
+
+
+@portfolio_bp.route('/api/quick-note', methods=['POST'])
+@login_required
+def quick_add_note():
+    """Quick-add a journal entry note from position detail page."""
+    try:
+        data = request.get_json()
+        company_id = data.get('company_id')
+        content = data.get('content', '').strip()
+        entry_type = data.get('entry_type', 'observation')
+        sentiment = data.get('sentiment')
+
+        if not content:
+            return jsonify({'success': False, 'error': 'Content is required'}), 400
+
+        if not company_id:
+            return jsonify({'success': False, 'error': 'Company ID is required'}), 400
+
+        company = Company.query.filter_by(
+            id=company_id,
+            user_id=current_user.id
+        ).first()
+        if not company:
+            return jsonify({'success': False, 'error': 'Company not found'}), 404
+
+        tags = extract_tags_from_content(content)
+
+        entry = JournalEntry(
+            user_id=current_user.id,
+            company_id=company_id,
+            content=content,
+            entry_type=entry_type,
+            sentiment=sentiment if sentiment else None,
+            tags=tags if tags else None
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'entry': {
+                'id': entry.id,
+                'content': entry.content,
+                'entry_type': entry.entry_type,
+                'sentiment': entry.sentiment,
+                'created_at': entry.created_at.strftime('%b %d, %Y %H:%M'),
+                'tags': entry.tags or []
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating quick note: {e}")
+        return jsonify({'success': False, 'error': 'Failed to create note'}), 500
+
+
+@portfolio_bp.route('/api/notes/<int:company_id>')
+@login_required
+def get_company_notes(company_id):
+    """Paginated notes for a company. Supports offset-based loading and search."""
+    company = Company.query.filter_by(
+        id=company_id,
+        user_id=current_user.id
+    ).first()
+    if not company:
+        return jsonify({'success': False, 'error': 'Company not found'}), 404
+
+    offset = request.args.get('offset', 0, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    limit = min(limit, 50)  # cap at 50
+    search = request.args.get('q', '').strip()
+
+    query = JournalEntry.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).order_by(JournalEntry.created_at.desc())
+
+    if search:
+        query = query.filter(
+            db.or_(
+                JournalEntry.content.ilike(f'%{search}%'),
+                JournalEntry.tags.cast(db.Text).ilike(f'%{search}%')
+            )
+        )
+
+    total = query.count()
+    entries = query.offset(offset).limit(limit).all()
+
+    return jsonify({
+        'success': True,
+        'entries': [{
+            'id': e.id,
+            'content': e.content,
+            'entry_type': e.entry_type,
+            'sentiment': e.sentiment,
+            'created_at': e.created_at.strftime('%b %d, %Y'),
+            'tags': e.tags or []
+        } for e in entries],
+        'total': total,
+        'offset': offset,
+        'has_more': (offset + limit) < total
+    })

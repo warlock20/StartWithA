@@ -21,6 +21,18 @@
     color: white;
 }
 
+.btn-check:checked + .btn-outline-info {
+    background-color: var(--info-500);
+    border-color: var(--info-500);
+    color: white;
+}
+
+.btn-check:checked + .btn-outline-warning {
+    background-color: var(--warning-500);
+    border-color: var(--warning-500);
+    color: white;
+}
+
 /* Hover states for transaction type buttons */
 .btn-outline-primary:hover {
     background-color: var(--accent-color);
@@ -37,6 +49,18 @@
 .btn-outline-success:hover {
     background-color: #198754;
     border-color: #198754;
+    color: white;
+}
+
+.btn-outline-info:hover {
+    background-color: var(--info-500);
+    border-color: var(--info-500);
+    color: white;
+}
+
+.btn-outline-warning:hover {
+    background-color: var(--warning-500);
+    border-color: var(--warning-500);
     color: white;
 }
 

@@ -14,6 +14,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_research',         # Research & competitor analysis tasks
                     'app.celery_tasks.tasks_financial',        # Financial data & SEC filings tasks
                     'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
+                    'app.celery_tasks.tasks_import',           # Portfolio import tasks
                 ]
                 )
 

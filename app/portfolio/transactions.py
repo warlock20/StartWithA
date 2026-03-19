@@ -17,6 +17,7 @@ from app.services.portfolio_importer import PortfolioImportError
 from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
+from app.services.cash_service import CashService
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -40,13 +41,13 @@ def transactions():
         'id': txn.id,
         'date': txn.date.strftime('%Y-%m-%d'),
         'type': txn.type,
-        'ticker': txn.company.ticker_symbol,
-        'company_name': txn.company.name,
+        'ticker': txn.company.ticker_symbol if txn.company else '---',
+        'company_name': txn.company.name if txn.company else ('Deposit' if txn.type == 'DEPOSIT' else 'Withdrawal' if txn.type == 'WITHDRAWAL' else '---'),
         'company_id': txn.company_id,
         'shares': float(txn.quantity) if txn.quantity else 0,
         'price': float(txn.price_per_share) if txn.price_per_share else 0,
         'fees': float(txn.fees) if txn.fees else 0,
-        'total': float(txn.total_value) if txn.total_value else 0,
+        'total': float(txn.cash_amount or 0) if txn.type in ('DEPOSIT', 'WITHDRAWAL') else (float(txn.total_value) if txn.total_value else 0),
         'notes': txn.notes or '',
         'bought_without_research': bool(txn.bought_without_research),
         'edit_url': url_for('portfolio.edit_transaction', transaction_id=txn.id),
@@ -171,9 +172,13 @@ def reset_portfolio():
         num_transactions = db.session.query(Transaction).filter_by(
             user_id=current_user.id
         ).delete()
-        
+
+        # 3. Reset cash balance
+        current_user.cash_balance = 0
+        current_user.cash_setup_complete = False
+
         db.session.commit()
-        
+
         flash(f"Portfolio reset complete. Deleted {num_transactions} transactions and {num_positions} positions.", "success")
         
     except Exception as e:
@@ -217,7 +222,10 @@ def force_resync():
             
         # Commit all position updates
         db.session.commit()
-            
+
+        # Recalculate cash balance
+        CashService.recalculate_cash_balance(current_user.id)
+
         flash(f"Resync Complete: Recalculated positions for {recalculated} companies based on {len(company_ids)} transaction sets.", "success")
             
     except Exception as e:
@@ -245,12 +253,14 @@ def add_transaction():
 
         if result.success:
             flash(result.message, 'success')
+            for warning in result.warnings:
+                flash(warning, 'info')
 
             # Redirect based on transaction type
             if 'sell_postmortem' in result.redirect_url:
                 flash('Please complete a post-mortem analysis for this sale', 'info')
 
-            return redirect(url_for(result.redirect_url))
+            return redirect(url_for(result.redirect_url, **result.redirect_kwargs))
         else:
             flash(result.error, 'error')
             # Re-render form with warnings if validation failed
@@ -260,7 +270,9 @@ def add_transaction():
                                       companies=companies,
                                       warnings=result.warnings,
                                       show_warning=True,
-                                      form_data=request.form)
+                                      form_data=request.form,
+                                      user_currency=current_user.base_currency,
+                                      currency_symbol=CurrencyService.get_currency_symbol(current_user.base_currency))
             return redirect(url_for('portfolio.add_transaction'))
 
     # GET request - show form
@@ -286,6 +298,9 @@ def add_transaction():
     # Get company_id from query params if provided
     preselected_company_id = request.args.get('company_id', type=int)
 
+    user_currency = current_user.base_currency
+    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
+
     return render_template('add_transaction.html',
                           companies=companies,
                           warnings=warnings,
@@ -293,7 +308,9 @@ def add_transaction():
                           form_data=None,
                           existing_positions=existing_positions,
                           companies_with_research=companies_with_research,
-                          preselected_company_id=preselected_company_id)
+                          preselected_company_id=preselected_company_id,
+                          user_currency=user_currency,
+                          currency_symbol=currency_symbol)
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -345,6 +362,9 @@ def edit_transaction(transaction_id):
 
             db.session.commit()
 
+            # Recalculate cash balance
+            CashService.recalculate_cash_balance(current_user.id)
+
             flash('Transaction updated successfully', 'success')
             return redirect(url_for('portfolio.transactions'))
 
@@ -368,24 +388,28 @@ def delete_transaction(transaction_id):
 
     try:
         company_id = transaction.company_id
-        company_ticker = transaction.company.ticker_symbol
+        company_ticker = transaction.company.ticker_symbol if transaction.company else '---'
+        txn_type = transaction.type
 
         # Delete transaction
         db.session.delete(transaction)
         db.session.commit()
 
-        # Recalculate position for this company
-        # Create a temporary transaction object to trigger recalculation
-        temp_transaction = Transaction(
-            user_id=current_user.id,
-            company_id=company_id,
-            type='BUY',  # Doesn't matter, just for recalculation
-            date=now_utc().date(),
-            quantity=0,
-            price_per_share=0
-        )
-        update_portfolio_position(temp_transaction)
-        db.session.commit()
+        # Recalculate position for this company (skip for DEPOSIT/WITHDRAWAL)
+        if txn_type not in ('DEPOSIT', 'WITHDRAWAL') and company_id:
+            temp_transaction = Transaction(
+                user_id=current_user.id,
+                company_id=company_id,
+                type='BUY',  # Doesn't matter, just for recalculation
+                date=now_utc().date(),
+                quantity=0,
+                price_per_share=0
+            )
+            update_portfolio_position(temp_transaction)
+            db.session.commit()
+
+        # Recalculate cash balance
+        CashService.recalculate_cash_balance(current_user.id)
 
         flash(f'Transaction for {company_ticker} deleted successfully', 'success')
 

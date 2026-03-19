@@ -62,6 +62,13 @@
                 <div class="portfolio-metric-label">Cost Basis</div>
                 <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_cost) }}</div>
             </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon green">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+                <div class="portfolio-metric-label">Cash</div>
+                <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.cash_balance) }}</div>
+            </div>
             <div class="portfolio-metric highlight {% if portfolio_value.total_unrealized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
                 <div class="portfolio-metric-icon green">
                     <i class="bi bi-graph-up-arrow"></i>
@@ -83,6 +90,22 @@
                 <div class="portfolio-metric-subtext">{{ gains_count }} gaining · {{ losses_count }} losing</div>
             </div>
         </div>
+
+        {% if inferred_deposit is not none and not current_user.cash_setup_complete %}
+        <div class="dashboard-alerts-strip">
+            <form action="{{ url_for('portfolio.cash_setup') }}" method="POST" class="dashboard-alert-card dashboard-alert-card--info">
+                <i class="bi bi-cash-coin"></i>
+                <div class="dashboard-alert-card__text">
+                    <strong>Set up cash tracking</strong> &mdash;
+                    We calculated your total invested capital as {{ currency_symbol }}{{ "{:,.0f}".format(inferred_deposit) }}. Adjust if needed, then confirm.
+                </div>
+                <div class="dashboard-alert-card__actions">
+                    <input type="number" name="initial_capital" value="{{ "{:.2f}".format(inferred_deposit) }}" step="0.01" min="0" class="cash-setup-input">
+                    <button type="submit" class="position-btn">Confirm</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     {% if positions %}

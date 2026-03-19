@@ -109,6 +109,10 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     base_currency = db.Column(db.String(3), nullable=False, default='USD')  # User's preferred reporting currency
     show_original_currency = db.Column(db.Boolean, default=True)  # Show both original and base currency
 
+    # Cash Management
+    cash_balance = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default='0')
+    cash_setup_complete = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+
     # Community features
     buddy_system_enabled = db.Column(db.Boolean, default=False)
 

@@ -3,7 +3,6 @@ from celery_app import celery # Import the celery instance
 from app.models import (User, Checklist, ChecklistItem, Company,
                         ChecklistAnalysis, ChecklistAnswer, CompanyDocument,
                         Transaction, PortfolioPosition)
-from sqlalchemy import text
 from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
 # 1. Create the Flask app instance FIRST.

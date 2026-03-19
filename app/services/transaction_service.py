@@ -15,10 +15,10 @@ from app.models import (
     ResearchProject, update_portfolio_position, ThesisEvolution
 )
 from app.services.currency_service import CurrencyService
+from app.services.cash_service import CashService
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 from app.services.intelligence_engine import IntelligenceEngine
 from app.utils.time_utils import now_utc
-from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class TransactionCreationResult:
     success: bool
     transaction: Optional[Transaction] = None
     redirect_url: Optional[str] = None
+    redirect_kwargs: dict = None
     message: Optional[str] = None
     error: Optional[str] = None
     warnings: List = None
@@ -48,10 +49,58 @@ class TransactionCreationResult:
     def __post_init__(self):
         if self.warnings is None:
             self.warnings = []
+        if self.redirect_kwargs is None:
+            self.redirect_kwargs = {}
 
 
 class TransactionService:
     """Service for handling portfolio transaction operations"""
+
+    @staticmethod
+    def validate_cash_transaction_data(
+        transaction_type: str,
+        date_str: str,
+        cash_amount: str,
+        fees: str = '0'
+    ) -> TransactionValidationResult:
+        """
+        Validate DEPOSIT/WITHDRAWAL transaction data.
+        """
+        if not all([transaction_type, date_str, cash_amount]):
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message='Please fill in all required fields'
+            )
+
+        try:
+            transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message='Invalid date format'
+            )
+
+        if transaction_date > now_utc().date():
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message='Transaction date cannot be in the future'
+            )
+
+        try:
+            amount_decimal = Decimal(cash_amount)
+        except (InvalidOperation, ValueError):
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message='Invalid amount'
+            )
+
+        if amount_decimal <= 0:
+            return TransactionValidationResult(
+                is_valid=False,
+                error_message='Amount must be greater than zero'
+            )
+
+        return TransactionValidationResult(is_valid=True)
 
     @staticmethod
     def validate_transaction_data(
@@ -184,9 +233,20 @@ class TransactionService:
             TransactionCreationResult with success status and details
         """
         try:
+            transaction_type = form_data.get('type')
+
+            # === DEPOSIT / WITHDRAWAL ===
+            if transaction_type in ('DEPOSIT', 'WITHDRAWAL'):
+                return TransactionService._create_cash_transaction(
+                    user_id=user_id,
+                    form_data=form_data,
+                    transaction_type=transaction_type,
+                    user_base_currency=user_base_currency
+                )
+
+            # === BUY / SELL / DIVIDEND / SPLIT / SPINOFF ===
             # Extract form data
             company_id = int(form_data.get('company_id'))
-            transaction_type = form_data.get('type')
             date_str = form_data.get('date')
             quantity = int(form_data.get('quantity'))
             price_per_share = form_data.get('price_per_share')
@@ -328,6 +388,11 @@ class TransactionService:
 
             db.session.commit()
 
+            # Update cash balance (may auto-create deposit if cash goes negative)
+            cash_notice = CashService.update_after_transaction(user_id, transaction)
+            if cash_notice:
+                warnings.append(cash_notice)
+
             # AI Outcome tracking
             TransactionService._track_outcome(
                 transaction=transaction,
@@ -340,13 +405,16 @@ class TransactionService:
 
             # Determine redirect
             redirect_url = 'portfolio.dashboard'
+            redirect_kwargs = {}
             if transaction_type == 'SELL' and decision_journal:
-                redirect_url = f'portfolio.sell_postmortem#{decision_journal.id}'
+                redirect_url = 'portfolio.sell_postmortem'
+                redirect_kwargs = {'journal_id': decision_journal.id}
 
             return TransactionCreationResult(
                 success=True,
                 transaction=transaction,
                 redirect_url=redirect_url,
+                redirect_kwargs=redirect_kwargs,
                 message=f'{transaction_type} transaction for {company.ticker_symbol} recorded successfully',
                 warnings=warnings
             )
@@ -358,6 +426,76 @@ class TransactionService:
                 success=False,
                 error=f'Error adding transaction: {str(e)}'
             )
+
+    @staticmethod
+    def _create_cash_transaction(
+        user_id: int,
+        form_data: Dict,
+        transaction_type: str,
+        user_base_currency: str = 'USD'
+    ) -> TransactionCreationResult:
+        """Create a DEPOSIT or WITHDRAWAL transaction."""
+        date_str = form_data.get('date')
+        cash_amount_str = form_data.get('cash_amount', '0')
+        fees = form_data.get('fees', '0')
+        notes = form_data.get('notes', '').strip()
+        currency = form_data.get('currency', 'USD').strip().upper()
+
+        # Validate
+        validation = TransactionService.validate_cash_transaction_data(
+            transaction_type=transaction_type,
+            date_str=date_str,
+            cash_amount=cash_amount_str,
+            fees=fees
+        )
+
+        if not validation.is_valid:
+            return TransactionCreationResult(
+                success=False,
+                error=validation.error_message
+            )
+
+        transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        cash_amount = Decimal(cash_amount_str)
+        fees_decimal = Decimal(fees) if fees else Decimal('0.00')
+
+        # Currency conversion for cash amount
+        exchange_rate = CurrencyService.get_exchange_rate(
+            from_currency=currency,
+            to_currency=user_base_currency,
+            rate_date=transaction_date
+        )
+
+        cash_amount_base = cash_amount * exchange_rate
+        fees_base = fees_decimal * exchange_rate
+
+        transaction = Transaction(
+            user_id=user_id,
+            type=transaction_type,
+            date=transaction_date,
+            currency=currency,
+            cash_amount=cash_amount,
+            cash_amount_base=cash_amount_base,
+            fees=fees_decimal,
+            fees_base=fees_base,
+            exchange_rate=exchange_rate,
+            exchange_rate_date=transaction_date,
+            notes=notes
+        )
+
+        db.session.add(transaction)
+        db.session.commit()
+
+        # Update cash balance
+        CashService.update_after_transaction(user_id, transaction)
+
+        label = 'Deposit' if transaction_type == 'DEPOSIT' else 'Withdrawal'
+        return TransactionCreationResult(
+            success=True,
+            transaction=transaction,
+            redirect_url='portfolio.dashboard',
+            message=f'{label} of {currency} {cash_amount:,.2f} recorded successfully'
+        )
 
     @staticmethod
     def _create_decision_journal(

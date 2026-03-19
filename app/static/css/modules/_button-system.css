@@ -423,6 +423,19 @@
     transform: translateY(-1px) !important;
 }
 
+.btn-outline-info {
+    background-color: transparent !important;
+    color: var(--info-500) !important;
+    border-color: var(--info-500) !important;
+}
+
+.btn-outline-info:hover, .btn-outline-info:focus {
+    background-color: var(--info-500) !important;
+    border-color: var(--info-500) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
 .btn-warning {
     background-color: var(--warning-500) !important;
     border-color: var(--warning-500) !important;
@@ -464,6 +477,18 @@
     color: white !important;
 }
 
+.btn-check:checked + .btn-outline-info {
+    background-color: var(--info-500) !important;
+    border-color: var(--info-500) !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn-outline-warning {
+    background-color: var(--warning-500) !important;
+    border-color: var(--warning-500) !important;
+    color: white !important;
+}
+
 .btn-check:focus + .btn {
     outline: none;
     box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.25) !important;
@@ -486,5 +511,17 @@
 .btn-check + .btn-outline-success.active {
     background-color: var(--success-500) !important;
     border-color: var(--success-500) !important;
+    color: white !important;
+}
+
+.btn-check + .btn-outline-info.active {
+    background-color: var(--info-500) !important;
+    border-color: var(--info-500) !important;
+    color: white !important;
+}
+
+.btn-check + .btn-outline-warning.active {
+    background-color: var(--warning-500) !important;
+    border-color: var(--warning-500) !important;
     color: white !important;
 }

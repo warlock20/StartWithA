@@ -417,7 +417,37 @@ class GeminiProvider(AIProvider):
                     break
 
         if end_idx == -1:
-            raise ValueError("Unmatched braces in JSON response")
+            # Truncated response — attempt repair by closing open braces/brackets
+            logger.warning(f"Truncated JSON detected ({brace_count} unclosed braces). Attempting repair.")
+            json_str = content[start_idx:]
+            # Strip trailing incomplete string/value
+            json_str = json_str.rstrip()
+            # Remove trailing comma or incomplete key/value
+            if json_str.endswith(','):
+                json_str = json_str[:-1]
+            # Try closing unclosed brackets/braces
+            # Count open brackets too
+            bracket_count = json_str.count('[') - json_str.count(']')
+            # Remove any trailing incomplete string literal
+            last_quote = json_str.rfind('"')
+            if last_quote > 0:
+                # Check if the quote count is odd (unclosed string)
+                quote_count = json_str.count('"')
+                if quote_count % 2 != 0:
+                    # Truncate to last complete key-value, close the string
+                    json_str = json_str[:last_quote + 1]
+            # Strip trailing comma again after truncation
+            json_str = json_str.rstrip().rstrip(',')
+            # Close open brackets and braces
+            json_str += ']' * max(0, bracket_count)
+            json_str += '}' * max(0, brace_count)
+            try:
+                result = json.loads(json_str)
+                logger.info("Successfully repaired truncated JSON response")
+                return result
+            except json.JSONDecodeError as repair_err:
+                logger.error(f"JSON repair failed: {repair_err}")
+                raise ValueError(f"Truncated JSON could not be repaired: {repair_err}")
 
         json_str = content[start_idx:end_idx]
         return json.loads(json_str)

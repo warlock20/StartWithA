@@ -521,6 +521,67 @@
     color: var(--info-800);
 }
 
+/* =============================================================================
+   SCUTTLEBUTT - Article list
+   ============================================================================= */
+.scuttlebutt-articles-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.scuttlebutt-article-item {
+    display: block;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition-fast);
+}
+
+.scuttlebutt-article-item:hover {
+    background: var(--gray-100);
+    text-decoration: none;
+    color: inherit;
+}
+
+.scuttlebutt-article-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xs);
+}
+
+.scuttlebutt-article-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.scuttlebutt-article-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.scuttlebutt-article-desc {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-xs) 0;
+    line-height: 1.4;
+}
+
+.scuttlebutt-article-source {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .company-dashboard-header {

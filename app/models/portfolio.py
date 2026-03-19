@@ -41,23 +41,27 @@ class Transaction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True, index=True)  # Nullable for DEPOSIT/WITHDRAWAL
     decision_journal_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'), nullable=True)
 
     # Transaction details
     type = db.Column(db.String(20), nullable=False, index=True)
-    # Valid types: 'BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'SPINOFF'
+    # Valid types: 'BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'SPINOFF', 'DEPOSIT', 'WITHDRAWAL'
 
     date = db.Column(db.Date, nullable=False, index=True)
-    quantity = db.Column(db.Integer, nullable=False)  # Whole shares only (no fractional)
+    quantity = db.Column(db.Integer, nullable=True)  # Whole shares only; NULL for DEPOSIT/WITHDRAWAL
 
     # MULTI-CURRENCY SUPPORT
     # Primary currency (detected from ticker or user-specified)
     currency = db.Column(db.String(3), nullable=False, default='USD', index=True)  # ISO 4217: USD, EUR, GBP, JPY
 
     # Legacy fields (kept for backward compatibility, will be same as currency fields for old data)
-    price_per_share = db.Column(db.Numeric(10, 2), nullable=False)
+    price_per_share = db.Column(db.Numeric(10, 2), nullable=True)  # NULL for DEPOSIT/WITHDRAWAL
     fees = db.Column(db.Numeric(10, 2), default=0.00)
+
+    # Cash transaction amount (for DEPOSIT/WITHDRAWAL only)
+    cash_amount = db.Column(db.Numeric(12, 2), nullable=True)
+    cash_amount_base = db.Column(db.Numeric(12, 2), nullable=True)  # In user's base currency
 
     # Base currency values (converted for portfolio calculations)
     price_per_share_base = db.Column(db.Numeric(10, 2), nullable=True)
@@ -89,22 +93,26 @@ class Transaction(db.Model):
     decision_journal = db.relationship('DecisionJournal', backref=db.backref('transactions', lazy='dynamic'))
 
     def __repr__(self):
+        if self.type in ('DEPOSIT', 'WITHDRAWAL'):
+            return f'<Transaction {self.type} {self.cash_amount} on {self.date}>'
         return f'<Transaction {self.type} {self.quantity} shares of {self.company_id} on {self.date}>'
 
     @property
     def total_value(self):
         """Calculate total transaction value including fees"""
+        if self.type in ('DEPOSIT', 'WITHDRAWAL'):
+            return float(self.cash_amount or 0)
         return float(self.quantity * self.price_per_share) + float(self.fees)
 
     def to_dict(self):
         """Convert transaction to dictionary for API responses"""
-        return {
+        result = {
             'id': self.id,
             'type': self.type,
             'date': self.date.isoformat() if self.date else None,
             'quantity': self.quantity,
-            'price_per_share': float(self.price_per_share),
-            'fees': float(self.fees),
+            'price_per_share': float(self.price_per_share) if self.price_per_share else None,
+            'fees': float(self.fees) if self.fees else 0,
             'total_value': self.total_value,
             'notes': self.notes,
             'bought_without_research': self.bought_without_research,
@@ -115,6 +123,9 @@ class Transaction(db.Model):
             } if self.company else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+        if self.type in ('DEPOSIT', 'WITHDRAWAL'):
+            result['cash_amount'] = float(self.cash_amount) if self.cash_amount else 0
+        return result
 
 
 class PortfolioPosition(db.Model):
@@ -247,12 +258,27 @@ class PortfolioPosition(db.Model):
 
 # Helper functions for FIFO cost basis calculation
 
+def _get_base_price(txn):
+    """Get price in base currency, falling back to original if _base not set."""
+    if txn.price_per_share_base is not None:
+        return Decimal(str(txn.price_per_share_base))
+    return Decimal(str(txn.price_per_share))
+
+
+def _get_base_fees(txn):
+    """Get fees in base currency, falling back to original if _base not set."""
+    if txn.fees_base is not None:
+        return Decimal(str(txn.fees_base))
+    return Decimal(str(txn.fees))
+
+
 def calculate_fifo_cost_basis(company_id, user_id):
     """
     Calculate cost basis using FIFO (First In, First Out) method.
 
-    This function processes all transactions for a company/user pair
-    and returns the current position state using FIFO accounting.
+    Uses base currency values (_base fields) when available, falling back
+    to original currency values for backward compatibility. This ensures
+    all calculations are in the user's base currency.
 
     Returns:
         tuple: (total_shares, avg_cost_basis, total_cost, realized_gain_loss, first_purchase_date)
@@ -270,17 +296,20 @@ def calculate_fifo_cost_basis(company_id, user_id):
     first_purchase_date = None
 
     for txn in transactions:
+        price = _get_base_price(txn)
+        fees = _get_base_fees(txn)
+
         if txn.type == 'BUY':
             # Add to queue
             shares_queue.append({
                 'date': txn.date,
                 'quantity': txn.quantity,
-                'price_per_share': Decimal(str(txn.price_per_share)),
-                'fees': Decimal(str(txn.fees))
+                'price_per_share': price,
+                'fees': fees
             })
 
             total_shares += txn.quantity
-            total_cost += (Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))) + Decimal(str(txn.fees))
+            total_cost += (Decimal(str(txn.quantity)) * price) + fees
 
             # Track first purchase
             if first_purchase_date is None:
@@ -288,7 +317,7 @@ def calculate_fifo_cost_basis(company_id, user_id):
 
         elif txn.type == 'SELL':
             shares_to_sell = txn.quantity
-            sell_proceeds = (Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))) - Decimal(str(txn.fees))
+            sell_proceeds = (Decimal(str(txn.quantity)) * price) - fees
             sell_cost_basis = Decimal('0.00')
 
             # Remove shares from front of queue (FIFO)
@@ -324,7 +353,7 @@ def calculate_fifo_cost_basis(company_id, user_id):
         elif txn.type == 'DIVIDEND':
             # Dividends don't affect share count or cost basis
             # But they do affect realized gains (cash received)
-            dividend_amount = Decimal(str(txn.quantity)) * Decimal(str(txn.price_per_share))
+            dividend_amount = Decimal(str(txn.quantity)) * price
             realized_gain_loss += dividend_amount
 
         elif txn.type == 'SPLIT':
@@ -355,10 +384,13 @@ def update_portfolio_position(transaction):
     """
     Update or create PortfolioPosition after a new transaction.
     This should be called after every transaction insert/update/delete.
+    Skipped for DEPOSIT/WITHDRAWAL transactions (no company).
 
     Args:
         transaction: Transaction object that was just created/modified
     """
+    if transaction.type in ('DEPOSIT', 'WITHDRAWAL'):
+        return None
     update_portfolio_position_for_company(transaction.company_id, transaction.user_id, transaction.date)
 
 
@@ -399,17 +431,27 @@ def update_portfolio_position_for_company(company_id, user_id, last_transaction_
         ).order_by(Transaction.date.desc()).first()
         last_transaction_date = last_txn.date if last_txn else None
 
-    # Update position data
+    # Set position currency from company's reporting currency or detect from ticker
+    company = Company.query.get(company_id)
+    if company:
+        from app.services.currency_service import CurrencyService
+        if company.reporting_currency:
+            position.currency = company.reporting_currency
+        elif company.ticker_symbol:
+            position.currency = CurrencyService.detect_currency_from_ticker(company.ticker_symbol)
+
+    # Update position data (FIFO results are now in user's base currency)
     position.total_shares = total_shares
     position.average_cost_basis = avg_cost
     position.total_cost = total_cost
+    position.average_cost_basis_base = avg_cost
+    position.total_cost_base = total_cost
     position.realized_gain_loss = realized_gl
     position.first_purchase_date = first_date
     position.last_transaction_date = last_transaction_date
     position.is_active = (total_shares > 0)
 
     # Update company's is_in_portfolio flag
-    company = Company.query.get(company_id)
     if company:
         if total_shares > 0:
             company.is_in_portfolio = True

@@ -8,7 +8,7 @@ category: "portfolio"
 
 preferred_provider: "gemini"
 model: "gemini-2.5-flash"
-max_tokens: 20000
+max_tokens: 65000
 temperature: 0.3
 
 last_modified: "2025-01-09"

@@ -49,13 +49,23 @@
                 <div class="position-metric-label">Current Price</div>
                 <div class="position-metric-value">
                     {% if position.current_price %}
+                    {% if stock_currency != user_currency and position.current_price_base %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price_base) }}
+                    {% else %}
                     {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
+                    {% endif %}
                     {% else %}
                     <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
                 {% if position.last_price_update %}
-                <div class="position-metric-subtext">Updated {{ position.last_price_update.strftime('%H:%M') }}</div>
+                <div class="position-metric-subtext">
+                    {% if stock_currency != user_currency and position.current_price %}
+                    {{ stock_currency_symbol }}{{ "%.2f"|format(position.current_price) }} {{ stock_currency }} · {{ position.last_price_update.strftime('%H:%M') }}
+                    {% else %}
+                    Updated {{ position.last_price_update.strftime('%H:%M') }}
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
             <div class="position-metric">
@@ -109,8 +119,8 @@
                     <span>Actual: <strong class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}" style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
                         {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
                     </strong></span>
-                    <span>Difference: <strong style="color: {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
-                        {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct - decision_journal.expected_return) }}pp
+                    <span>Difference: <strong style="color: {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                        {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float - decision_journal.expected_return) }}pp
                     </strong></span>
                 </div>
             </div>
@@ -138,137 +148,56 @@
                 <div id="position-transactions-table"></div>
             </div>
 
-            <!-- Decision Journal -->
+            <!-- Decision Journal (compact) -->
             {% if decision_journal %}
+            <div class="position-journal-compact">
+                <div class="position-journal-compact-content">
+                    <i class="bi bi-journal-text"></i>
+                    <span class="position-journal-compact-thesis">
+                        {{ decision_journal.investment_thesis[:150] if decision_journal.investment_thesis else 'No thesis recorded' }}{% if decision_journal.investment_thesis and decision_journal.investment_thesis|length > 150 %}...{% endif %}
+                    </span>
+                    {% if decision_journal.confidence_score %}
+                    <span class="position-journal-compact-badge">{{ decision_journal.confidence_score }}/10</span>
+                    {% endif %}
+                    {% if decision_journal.expected_return %}
+                    <span class="position-journal-compact-badge gain">+{{ decision_journal.expected_return }}%</span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-link-btn">
+                    View <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Findings & Notes -->
             <div class="position-card">
                 <div class="position-card-header">
                     <h2 class="position-card-title">
-                        <i class="bi bi-journal-text"></i>
-                        Decision Journal
+                        <i class="bi bi-journal-bookmark"></i>
+                        Findings & Notes
                     </h2>
-                    <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-link-btn">
-                        View Full <i class="bi bi-arrow-right"></i>
-                    </a>
                 </div>
                 <div class="position-card-body">
-                    <!-- Source Badge -->
-                    {% if decision_journal.non_research_source %}
-                    <div class="mb-3">
-                        <span class="badge bg-warning text-dark">
-                            {{ decision_journal.non_research_source.replace('_', ' ').title() }}
-                        </span>
-                        <small class="text-muted d-block mt-1">Purchase without platform research</small>
-                    </div>
-                    {% elif decision_journal.linked_research_id %}
-                    <div class="mb-3">
-                        <span class="badge bg-success">Platform Research</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="position-journal-summary">
-                        {% if decision_journal.investment_thesis %}
-                        <div class="position-journal-thesis">
-                            <p>{{ decision_journal.investment_thesis[:300] }}{% if decision_journal.investment_thesis|length > 300 %}...{% endif %}</p>
+                    {# ---- Quick Note Input (view notes on Investment Journey page) ---- #}
+                    <div class="position-quick-note-form" id="quickNoteForm">
+                        <textarea id="quickNoteContent" class="position-quick-note-input"
+                            placeholder="Quick note about {{ company.ticker_symbol }}..."
+                            rows="2"></textarea>
+                        <div class="position-quick-note-actions">
+                            <span class="position-note-saved" id="noteSavedMsg" style="display:none;">
+                                <i class="bi bi-check-lg"></i> Saved
+                            </span>
+                            <button type="button" class="position-btn primary" id="quickNoteSubmit" onclick="submitQuickNote()">
+                                <i class="bi bi-plus"></i> Add Note
+                            </button>
                         </div>
-                        {% endif %}
-
-                        {% if decision_journal.confidence_score %}
-                        <div class="position-journal-stat">
-                            <div class="position-journal-stat-value">{{ decision_journal.confidence_score }}/10</div>
-                            <div class="position-journal-stat-label">Confidence</div>
-                        </div>
-                        {% endif %}
-
-                        {% if decision_journal.expected_return %}
-                        <div class="position-journal-stat">
-                            <div class="position-journal-stat-value">+{{ decision_journal.expected_return }}%</div>
-                            <div class="position-journal-stat-label">Expected Return</div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% else %}
-            <div class="position-card">
-                <div class="position-card-body">
-                    <div class="position-empty-state">
-                        <i class="bi bi-journal-x"></i>
-                        <p>No decision journal recorded</p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Right Column - Sidebar -->
         <div class="sidebar-column">
-            <!-- Thesis Checkpoints - Always visible -->
-            <div class="position-sidebar-section">
-                <div class="position-sidebar-header">
-                    <span class="position-sidebar-title">
-                        <i class="bi bi-flag"></i>
-                        Thesis Checkpoints
-                    </span>
-                    {% if checkpoints %}
-                    <span class="position-sidebar-badge">{{ checkpoints|length }}</span>
-                    {% endif %}
-                </div>
-                <div class="position-sidebar-body">
-                    {% if checkpoints %}
-                    {% for checkpoint in checkpoints[:5] %}
-                    {% set days_until = (checkpoint.target_date - today).days %}
-                    <div class="position-checkpoint">
-                        <div class="position-checkpoint-header">
-                            <span class="position-checkpoint-metric">{{ checkpoint.metric }}</span>
-                            <span class="position-checkpoint-status {% if checkpoint.status == 'Met' %}met{% elif checkpoint.status == 'Not Met' %}not-met{% else %}active{% endif %}">
-                                {{ checkpoint.status }}
-                            </span>
-                        </div>
-                        <div class="position-checkpoint-expectation">
-                            {{ checkpoint.expectation[:60] }}{% if checkpoint.expectation|length > 60 %}...{% endif %}
-                        </div>
-                        <div class="position-checkpoint-footer">
-                            <span class="position-checkpoint-date">
-                                <i class="bi bi-calendar3"></i>
-                                {{ checkpoint.target_date.strftime('%b %d, %Y') }}
-                                {% if checkpoint.status == 'Active' and days_until < 0 %}
-                                <span class="badge bg-danger ms-1">{{ days_until|abs }}d overdue</span>
-                                {% elif checkpoint.status == 'Active' and days_until <= 7 %}
-                                <span class="badge bg-warning text-dark ms-1">{{ days_until }}d</span>
-                                {% endif %}
-                            </span>
-                            {% if checkpoint.status == 'Active' %}
-                            <div class="position-checkpoint-actions">
-                                <button type="button" class="position-checkpoint-btn success"
-                                    onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Met')" title="Mark as Met">
-                                    <i class="bi bi-check"></i>
-                                </button>
-                                <button type="button" class="position-checkpoint-btn danger"
-                                    onclick="updateCheckpointStatus({{ checkpoint.id }}, 'Not Met')" title="Mark as Not Met">
-                                    <i class="bi bi-x"></i>
-                                </button>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    {% if checkpoints|length > 5 %}
-                    <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-link-btn" style="display: block; text-align: center; margin-top: var(--space-md);">
-                        View all {{ checkpoints|length }} checkpoints <i class="bi bi-arrow-right"></i>
-                    </a>
-                    {% endif %}
-                    {% else %}
-                    <div class="position-empty-state-compact">
-                        <p>No checkpoints set for this position</p>
-                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-link-btn">
-                            <i class="bi bi-plus"></i> Add Checkpoints
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
             <!-- Quick Actions -->
             <div class="position-sidebar-section">
                 <div class="position-sidebar-header">
@@ -287,22 +216,40 @@
                             <i class="bi bi-lightbulb"></i>
                             Update Thesis
                         </a>
-                        {% if decision_journal %}
-                        <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-quick-action">
-                            <i class="bi bi-journal-text"></i>
-                            Decision Journal
-                        </a>
-                        {% endif %}
                         <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-quick-action">
                             <i class="bi bi-flag"></i>
-                            Checkpoints
+                            Add Checkpoint
                         </a>
-                        {% if decision_journal %}
-                        <a href="{{ url_for('portfolio.thesis_reality') }}" class="position-quick-action span-full">
-                            <i class="bi bi-clipboard-check"></i>
-                            Compare All Positions
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deep Analysis Tools -->
+            <div class="position-sidebar-section">
+                <div class="position-sidebar-header">
+                    <span class="position-sidebar-title">
+                        <i class="bi bi-search"></i>
+                        Deep Analysis
+                    </span>
+                </div>
+                <div class="position-sidebar-body">
+                    <div class="position-quick-actions">
+                        <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-newspaper"></i>
+                            News & Sentiment
                         </a>
-                        {% endif %}
+                        <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-grid-3x3"></i>
+                            SWOT Analysis
+                        </a>
+                        <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-diagram-3"></i>
+                            Porter's Five Forces
+                        </a>
+                        <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="position-quick-action">
+                            <i class="bi bi-bar-chart-line"></i>
+                            Financials
+                        </a>
                     </div>
                 </div>
             </div>
@@ -327,9 +274,6 @@
                     {% else %}
                     <div class="position-empty-state-compact">
                         <p>No linked research project</p>
-                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="position-link-btn">
-                            <i class="bi bi-arrow-right"></i> View Company Page
-                        </a>
                     </div>
                     {% endif %}
                 </div>
@@ -468,29 +412,44 @@
         });
     });
 
-    function updateCheckpointStatus(checkpointId, newStatus) {
-        if (!confirm(`Mark this checkpoint as "${newStatus}"?`)) {
+    function submitQuickNote() {
+        const content = document.getElementById('quickNoteContent').value.trim();
+        const submitBtn = document.getElementById('quickNoteSubmit');
+        const savedMsg = document.getElementById('noteSavedMsg');
+
+        if (!content) {
+            document.getElementById('quickNoteContent').focus();
             return;
         }
 
-        fetch(`/portfolio/checkpoint/${checkpointId}/update-status`, {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+        fetch('/portfolio/api/quick-note', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ status: newStatus })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error updating checkpoint: ' + (data.error || 'Unknown error'));
-                }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company_id: {{ company.id }},
+                content: content
             })
-            .catch(error => {
-                alert('Error updating checkpoint: ' + error);
-            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('quickNoteContent').value = '';
+                savedMsg.style.display = 'inline-flex';
+                setTimeout(() => { savedMsg.style.display = 'none'; }, 2000);
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            alert('Error saving note: ' + error);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-plus"></i> Add Note';
+        });
     }
 </script>
 {% endblock %}

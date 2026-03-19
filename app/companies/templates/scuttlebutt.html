@@ -1,79 +1,131 @@
 {% extends "main/_base.html" %}
 
+{% block title %}Scuttlebutt - {{ company.name }}{% endblock %}
+
 {% block content %}
-{# This is the polling status div for our background task #}
-<div id="task-polling-status" style="display: none;"></div>
+<div class="dashboard-container">
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>{{ title }}</h1>
-    {% with btn_class='btn btn-secondary' %}
-        {% include 'components/smart_back_button.html' %}
-    {% endwith %}
-</div>
+    {# This is the polling status div for our background task #}
+    <div id="task-polling-status" style="display: none;"></div>
 
-<p class="lead">Aggregate recent news and transcripts to perform a modern "Scuttlebutt" analysis.</p>
-
-<div class="card mb-4">
-    <div class="card-header">
-        Fetch Recent News (via NewsAPI.org)
-    </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
-            <p class="card-text text-muted">This will start a background task to find and save recent news articles
-                mentioning "{{ company.name }}".</p>
-            <button type="submit" class="btn btn-info">Fetch News Articles</button>
-        </form>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        AI Analysis of News
-        <form method="POST" action="{{ url_for('companies.analyze_scuttlebutt', company_id=company.id) }}">
-            <button type="submit" class="btn btn-primary" id="generate-ai-summary-btn">
-                ✨ Generate New AI Summary
-            </button>
-        </form>
-    </div>
-    {% if latest_analysis %}
-    <div class="card-body">
-        <h5 class="card-title">Latest Analysis (Generated on {{ latest_analysis.generated_at.strftime('%Y-%m-%d %H:%M')
-            }})</h5>
-        {# Use |safe filter with care, assuming Gemini output is trusted. We could also use
-        <pre> #}
-                <div class="p-3 bg-light rounded mt-3" style="white-space: pre-wrap;">{{ latest_analysis.generated_summary }}</div>
-            </div>
-        {% else %}
-            <div class="card-body">
-                <p class="text-muted">No AI analysis has been generated yet. Click the button to generate one.</p>
-            </div>
-        {% endif %}
-    </div>
-
-    <hr class="my-4">
-    <h3>📰 Saved Articles</h3>
-
-    {% if articles %}
-        <div class="list-group">
-        {% for article in articles %}
-            <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="list-group-item list-group-item-action">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ article.title }}</h5>
-                    <small class="text-muted">{{ article.published_at.strftime('%Y-%m-%d') }}</small>
+    <!-- Page Header -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
+                    {{ (company.name)[:2]|upper }}
                 </div>
-                <p class="mb-1">{{ article.description }}</p>
-                <small class="text-muted">Source: {{ article.source_name }}</small>
-            </a>
-        {% endfor %}
+                <div>
+                    <h1 class="dashboard-title font-poppins">
+                        Digital Scuttlebutt
+                        <span class="position-ticker-badge">{{ company.ticker_symbol }}</span>
+                    </h1>
+                    <p class="dashboard-subtitle">Aggregate recent news and transcripts for {{ company.name }}</p>
+                </div>
+            </div>
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Position
+                </a>
+                <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}" style="display: inline;">
+                    <button type="submit" class="position-btn primary">
+                        <i class="bi bi-cloud-download"></i> Fetch News
+                    </button>
+                </form>
+            </div>
+        </header>
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon blue"><i class="bi bi-newspaper"></i></div>
+                <div class="portfolio-metric-label">Articles</div>
+                <div class="portfolio-metric-value">{{ articles|length }}</div>
+            </div>
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon purple"><i class="bi bi-robot"></i></div>
+                <div class="portfolio-metric-label">AI Analysis</div>
+                <div class="portfolio-metric-value">{{ 'Yes' if latest_analysis else 'No' }}</div>
+            </div>
+            {% if latest_analysis %}
+            <div class="portfolio-metric">
+                <div class="portfolio-metric-icon gray"><i class="bi bi-clock"></i></div>
+                <div class="portfolio-metric-label">Last Analyzed</div>
+                <div class="portfolio-metric-value" style="font-size: var(--font-size-sm);">{{ latest_analysis.generated_at.strftime('%b %d, %Y') }}</div>
+            </div>
+            {% endif %}
         </div>
-    {% else %}
-        <p class="text-muted">No news articles fetched yet for this company.</p>
-    {% endif %}
+    </div>
 
+    <!-- AI Analysis Section -->
+    <div class="position-card">
+        <div class="position-card-header">
+            <h2 class="position-card-title">
+                <i class="bi bi-stars"></i>
+                AI Analysis
+            </h2>
+            <form method="POST" action="{{ url_for('companies.analyze_scuttlebutt', company_id=company.id) }}">
+                <button type="submit" class="position-btn primary" id="generate-ai-summary-btn">
+                    <i class="bi bi-arrow-repeat"></i> Generate Summary
+                </button>
+            </form>
+        </div>
+        <div class="position-card-body">
+            {% if latest_analysis %}
+            <p style="font-size: var(--font-size-xs); color: var(--text-muted); margin-bottom: var(--space-md);">
+                Generated on {{ latest_analysis.generated_at.strftime('%b %d, %Y %H:%M') }}
+            </p>
+            <div style="white-space: pre-wrap; font-size: var(--font-size-sm); line-height: 1.6; color: var(--text-secondary);">{{ latest_analysis.generated_summary }}</div>
+            {% else %}
+            <div class="position-empty-state-compact">
+                <p>No AI analysis generated yet. Fetch articles first, then generate a summary.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Saved Articles -->
+    <div class="position-card">
+        <div class="position-card-header">
+            <h2 class="position-card-title">
+                <i class="bi bi-newspaper"></i>
+                Saved Articles
+            </h2>
+            <span style="font-size: var(--font-size-sm); color: var(--text-muted);">{{ articles|length }} articles</span>
+        </div>
+        <div class="position-card-body">
+            {% if articles %}
+            <div class="scuttlebutt-articles-list">
+                {% for article in articles %}
+                <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="scuttlebutt-article-item">
+                    <div class="scuttlebutt-article-header">
+                        <h3 class="scuttlebutt-article-title">{{ article.title }}</h3>
+                        <span class="scuttlebutt-article-date">{{ article.published_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    {% if article.description %}
+                    <p class="scuttlebutt-article-desc">{{ article.description }}</p>
+                    {% endif %}
+                    {% if article.source_name %}
+                    <span class="scuttlebutt-article-source">{{ article.source_name }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="position-empty-state">
+                <i class="bi bi-newspaper"></i>
+                <p>No news articles fetched yet</p>
+                <form method="POST" action="{{ url_for('companies.fetch_news', company_id=company.id) }}">
+                    <button type="submit" class="position-btn primary">
+                        <i class="bi bi-cloud-download"></i> Fetch News Articles
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
-    {# Link the polling script needed for the 'Fetch News' button #}
     <script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 {% endblock %}
