@@ -1,5 +1,9 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
@@ -800,8 +804,9 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/_tabulator_js.html' %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% include 'components/_chart_js.html' %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let activeCharts = {};

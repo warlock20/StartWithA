@@ -1,5 +1,6 @@
 from datetime import timedelta
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from app import db
 from app.models import (User, ResearchMetrics, IdeaPipeline, ResearchProject,
                        WorkSession, ResearchLog, IdeaSourceAnalysis)
@@ -19,7 +20,10 @@ def update_user_metrics(user_id):
     if not metrics:
         metrics = ResearchMetrics(user_id=user_id)
         db.session.add(metrics)
-    
+    elif metrics.last_updated and (now_utc() - metrics.last_updated).total_seconds() < 900:
+        # Skip recomputation if updated within 15 minutes
+        return metrics
+
     # Update idea pipeline metrics
     metrics.total_ideas_captured = user.idea_pipeline.count()
     metrics.ideas_killed = user.idea_pipeline.filter_by(status='killed').count()
@@ -114,18 +118,17 @@ def update_user_metrics(user_id):
     if latest_log:
         metrics.last_research_date = latest_log.timestamp.date()
         
-        # Calculate streak
+        # Calculate streak (single query instead of one per day)
         streak = 0
         current_date = now_utc().date()
-        while True:
-            logs_on_date = user.research_logs.filter(
-                func.date(ResearchLog.timestamp) == current_date
-            ).count()
-            if logs_on_date > 0:
-                streak += 1
-                current_date -= timedelta(days=1)
-            else:
-                break
+        log_dates = {
+            d for d, in db.session.query(func.date(ResearchLog.timestamp))
+            .filter(ResearchLog.user_id == user_id)
+            .distinct().all()
+        }
+        while current_date in log_dates:
+            streak += 1
+            current_date -= timedelta(days=1)
         metrics.research_streak_days = streak
     
     metrics.last_updated = now_utc()
@@ -204,16 +207,23 @@ def analyze_idea_sources(user_id):
         if analysis.total_ideas > 0:
             analysis.survival_rate = (analysis.ideas_promoted / analysis.total_ideas) * 100
         
-        # Track investments from promoted ideas
+        # Track investments from promoted ideas (batch query)
+        promoted_company_ids = [
+            idea.promoted_to_company_id for idea in source_ideas
+            if idea.promoted_to_company_id
+        ]
         invested_count = 0
-        for idea in source_ideas:
-            if idea.promoted_to_company_id:
-                project = ResearchProject.query.filter_by(
-                    company_id=idea.promoted_to_company_id,
-                    decision='invest'
-                ).first()
-                if project:
-                    invested_count += 1
+        if promoted_company_ids:
+            invested_company_ids = {
+                r[0] for r in db.session.query(ResearchProject.company_id)
+                .filter(
+                    ResearchProject.company_id.in_(promoted_company_ids),
+                    ResearchProject.decision == 'invest'
+                ).all()
+            }
+            invested_count = sum(
+                1 for cid in promoted_company_ids if cid in invested_company_ids
+            )
         
         analysis.ideas_invested = invested_count
         if analysis.total_ideas > 0:
@@ -242,10 +252,12 @@ def get_time_allocation_data(user_id, days=30):
     """
     cutoff_date = now_utc() - timedelta(days=days)
 
-    # Get work sessions
+    # Get work sessions (eager load project + company to avoid N+1)
     sessions = WorkSession.query.filter(
         WorkSession.user_id == user_id,
         WorkSession.start_time >= cutoff_date
+    ).options(
+        joinedload(WorkSession.project).joinedload(ResearchProject.company)
     ).all()
     
     # Aggregate by step type

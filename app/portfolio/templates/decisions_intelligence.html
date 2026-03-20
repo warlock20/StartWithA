@@ -413,7 +413,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% include 'components/_chart_js.html' %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Holding Period Performance Chart

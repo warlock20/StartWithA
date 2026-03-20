@@ -1,8 +1,10 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 from app import db
 from app.models import (ResearchMetrics, IdeaPipeline, ResearchProject,
                        DecisionJournal, ResearchLog, Company, KillSession)
+from app.models.idea_pipeline import KillCriterion
 from app.models.sector import SectorAnalysis
 from app.analytics import analytics_bp
 from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
@@ -95,45 +97,61 @@ def dashboard():
             'invested': source.ideas_invested
         })
 
-    # Prepare data for Research Patterns tab
+    # Prepare data for Research Patterns tab (eager load + batch query)
+    kill_sessions = KillSession.query.filter_by(user_id=current_user.id)\
+        .options(joinedload(KillSession.idea)).all()
+
+    # Collect all failed criterion IDs, then batch-load them
+    criterion_ids = {
+        s.idea.failed_criterion_id for s in kill_sessions
+        if s.idea and s.idea.failed_criterion_id
+    }
+    criteria_map = {}
+    if criterion_ids:
+        criteria_map = {
+            c.id: c.question for c in KillCriterion.query.filter(
+                KillCriterion.id.in_(criterion_ids)
+            ).all()
+        }
+
     kill_criteria_stats = {}
-    kill_sessions = KillSession.query.filter_by(user_id=current_user.id).all()
     for session in kill_sessions:
         if session.idea and session.idea.failed_criterion_id:
-            criterion = session.checklist.criteria.filter_by(
-                id=session.idea.failed_criterion_id
-            ).first()
-            if criterion:
-                question = criterion.question
+            question = criteria_map.get(session.idea.failed_criterion_id)
+            if question:
                 kill_criteria_stats[question] = kill_criteria_stats.get(question, 0) + 1
 
     top_kill_reasons = sorted(kill_criteria_stats.items(),
                             key=lambda x: x[1], reverse=True)[:10]
 
-    # Research velocity
+    # Research velocity (2 queries instead of 24)
+    twelve_months_ago = now_utc() - timedelta(days=360)
+
+    project_dates = [
+        r[0] for r in db.session.query(ResearchProject.completed_at)
+        .filter(
+            ResearchProject.user_id == current_user.id,
+            ResearchProject.completed_at >= twelve_months_ago,
+            ResearchProject.completed_at.isnot(None)
+        ).all()
+    ]
+    idea_dates = [
+        r[0] for r in db.session.query(IdeaPipeline.created_at)
+        .filter(
+            IdeaPipeline.user_id == current_user.id,
+            IdeaPipeline.created_at >= twelve_months_ago
+        ).all()
+    ]
+
     velocity_data = []
     for i in range(12):
         start_date = now_utc() - timedelta(days=(i+1)*30)
         end_date = now_utc() - timedelta(days=i*30)
-
-        projects_completed = ResearchProject.query.filter(
-            ResearchProject.user_id == current_user.id,
-            ResearchProject.completed_at >= start_date,
-            ResearchProject.completed_at < end_date
-        ).count()
-
-        ideas_processed = IdeaPipeline.query.filter(
-            IdeaPipeline.user_id == current_user.id,
-            IdeaPipeline.created_at >= start_date,
-            IdeaPipeline.created_at < end_date
-        ).count()
-
         velocity_data.append({
             'month': end_date.strftime('%b %Y'),
-            'projects': projects_completed,
-            'ideas': ideas_processed
+            'projects': sum(1 for d in project_dates if start_date <= d < end_date),
+            'ideas': sum(1 for d in idea_dates if start_date <= d < end_date)
         })
-
     velocity_data.reverse()
 
     # Confidence trend

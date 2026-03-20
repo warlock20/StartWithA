@@ -116,7 +116,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% include 'components/_chart_js.html' %}
 <script>
 {% if conviction_data %}
 const convictionData = {{ conviction_data|safe }};

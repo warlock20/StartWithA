@@ -55,9 +55,11 @@ def index():
     today = now_utc().date()
     twelve_months_from_now = today + timedelta(days=365)
 
-    # Get portfolio company IDs for the current user
+    # Get portfolio company IDs for the current user (IDs only, no full objects)
     portfolio_company_ids = [
-        c.id for c in Company.query.filter_by(user_id=current_user.id, is_in_portfolio=True).all()
+        c.id for c, in Company.query.filter_by(
+            user_id=current_user.id, is_in_portfolio=True
+        ).with_entities(Company.id).all()
     ]
 
     upcoming_checkpoints = []
@@ -70,24 +72,40 @@ def index():
             DestinationCheckpoint.status == 'Active'  # Only show active checkpoints
         ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
 
-    # Get Too Hard Basket statistics
-    all_too_hard_items = TooHardBasketService.get_all_too_hard_companies(current_user.id, {})
-    too_hard_total_count = len(all_too_hard_items)
+    # Too Hard Basket stats via SQL COUNT (no objects loaded into memory)
+    early_kills_count = IdeaPipeline.query.filter_by(
+        user_id=current_user.id, status='killed'
+    ).count()
 
-    # Calculate recent rejections (last 30 days)
+    mid_research_count = ResearchProject.query.filter(
+        ResearchProject.user_id == current_user.id,
+        ResearchProject.decision == 'pass',
+        ResearchProject.too_hard_reason.isnot(None)
+    ).count()
+
+    deep_analysis_count = ResearchProject.query.filter(
+        ResearchProject.user_id == current_user.id,
+        ResearchProject.decision == 'pass',
+        ResearchProject.too_hard_reason.is_(None)
+    ).count()
+
+    too_hard_total_count = early_kills_count + mid_research_count + deep_analysis_count
+
+    # Recent rejections (last 30 days) via SQL
     thirty_days_ago = now_utc() - timedelta(days=30)
-    recent_rejections = [
-        item for item in all_too_hard_items
-        if item.rejection_date and ensure_timezone_aware(item.rejection_date) >= thirty_days_ago
-    ]
-    recent_rejections_count = len(recent_rejections)
+    recent_kills = IdeaPipeline.query.filter(
+        IdeaPipeline.user_id == current_user.id,
+        IdeaPipeline.status == 'killed',
+        IdeaPipeline.killed_at >= thirty_days_ago
+    ).count()
+    recent_passes = ResearchProject.query.filter(
+        ResearchProject.user_id == current_user.id,
+        ResearchProject.decision == 'pass',
+        ResearchProject.decision_date >= thirty_days_ago
+    ).count()
+    recent_rejections_count = recent_kills + recent_passes
 
-    # Count by stage
-    early_kills_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'kill_checklist')
-    mid_research_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'mid_research')
-    deep_analysis_count = sum(1 for item in all_too_hard_items if item.rejection_stage == 'full_analysis')
-
-    # Get analytics and recommendations
+    # Get analytics and recommendations (cached 5 min)
     analytics_data = TooHardBasketService.get_analytics(current_user.id)
     recommendations = analytics_data.get('recommendations', [])
 

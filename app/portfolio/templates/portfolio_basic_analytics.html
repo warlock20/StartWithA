@@ -878,7 +878,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% include 'components/_chart_js.html' %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Tab switching functionality

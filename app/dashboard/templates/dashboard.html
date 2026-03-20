@@ -1,5 +1,9 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{% include 'components/_driver_js.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
@@ -361,6 +365,7 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/_chart_js.html' %}
 <script src="{{ url_for('static', filename='js/tours.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {

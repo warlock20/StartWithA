@@ -117,20 +117,18 @@ def learning_dashboard():
         WeeklyReview.week_start.desc()
     ).first()
 
-    # Calculate streak: consecutive weeks with a review
+    # Calculate streak: consecutive weeks with a review (single query)
     weekly_streak = 0
     if last_weekly_review:
+        review_weeks = {
+            r.week_start for r, in WeeklyReview.query.filter_by(
+                user_id=current_user.id
+            ).with_entities(WeeklyReview.week_start).all()
+        }
         check_week = now_utc().date() - timedelta(days=now_utc().date().weekday())
-        while True:
-            has_review = WeeklyReview.query.filter_by(
-                user_id=current_user.id,
-                week_start=check_week
-            ).first()
-            if has_review:
-                weekly_streak += 1
-                check_week -= timedelta(weeks=1)
-            else:
-                break
+        while check_week in review_weeks:
+            weekly_streak += 1
+            check_week -= timedelta(weeks=1)
 
     weekly_review_stats = {
         'total': total_weekly_reviews,

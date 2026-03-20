@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+from app import cache
 from app.models.idea_pipeline import IdeaPipeline
 from app.models.research import ResearchProject
 from app.models.company import Company
@@ -136,6 +137,7 @@ class TooHardBasketService:
         return items
 
     @staticmethod
+    @cache.memoize(timeout=300)
     def get_analytics(user_id: int) -> Dict[str, Any]:
         """
         Generate Circle of Competence and sector analytics
