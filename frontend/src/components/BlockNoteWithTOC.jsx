@@ -129,6 +129,24 @@ export function BlockNoteWithTOC({
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [onSelectionChange]);
 
+  // Fix copy from editor — ProseMirror sometimes fails to serialize custom blocks
+  useEffect(() => {
+    const wrapper = document.getElementById(editorId);
+    if (!wrapper) return;
+
+    const handleCopy = (e) => {
+      const selection = window.getSelection();
+      const selectedText = selection?.toString() || "";
+      if (selectedText) {
+        e.clipboardData.setData("text/plain", selectedText);
+        e.preventDefault();
+      }
+    };
+
+    wrapper.addEventListener("copy", handleCopy);
+    return () => wrapper.removeEventListener("copy", handleCopy);
+  }, [editorId]);
+
   // Scroll to heading
   const scrollToHeading = (blockId, blockIndex) => {
     if (!editor) return;
