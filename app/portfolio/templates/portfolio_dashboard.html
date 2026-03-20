@@ -2,6 +2,10 @@
 
 {% block title %}Portfolio{% endblock %}
 
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <!-- ════════════════════════════════════════════════
@@ -150,6 +154,7 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/_tabulator_js.html' %}
 {% if positions %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>

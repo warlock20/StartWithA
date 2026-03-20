@@ -1,6 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block head %}
+{% include 'components/_tabulator.html' %}
 <!-- BlockNote Editor (React) -->
 <script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>
 
@@ -49,6 +50,7 @@
 <script src="{{ url_for('static', filename='js/ai-summary.js') }}"></script>
 
 <!-- Data Table Component -->
+{% include 'components/_tabulator_js.html' %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sector-sources-table.js') }}"></script>
 {% endblock %}

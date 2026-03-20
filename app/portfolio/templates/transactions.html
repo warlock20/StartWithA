@@ -2,6 +2,10 @@
 
 {% block title %}Transaction History{% endblock %}
 
+{% block head %}
+{% include 'components/_tabulator.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <!-- Header -->
@@ -81,6 +85,7 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/_tabulator_js.html' %}
 {% if transactions %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>

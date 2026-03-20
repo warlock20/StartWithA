@@ -31,4 +31,4 @@ echo "Starting Celery worker..."
 celery -A celery_app worker --loglevel=info --concurrency=2 &
 
 echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:$PORT --workers 3 --timeout 120 run:app
+exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 run:app

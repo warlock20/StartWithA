@@ -309,6 +309,7 @@
 
 {% block scripts %}
     {{ super() }}
+    {% include 'components/_sortable_js.html' %}
     <script src="{{ url_for('static', filename='js/checklist_inspector.js') }}" defer></script>
 
     <script>
