@@ -22,6 +22,8 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = _db_url or 'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_size': 10, 'pool_recycle': 300}
+
 
     # 3. COOKIES & GDPR: Security settings for German/EU residency
     # Ensure this is TRUE in Railway to prevent session hijacking over non-HTTPS
