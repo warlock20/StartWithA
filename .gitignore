@@ -38,3 +38,12 @@ instance/embedding_cache
 .git
 *.pdf
 *.pyc
+
+# Database backups and dumps
+*.sql
+railway_backup_*
+local_backup_*
+
+# Flask-Assets generated bundles
+app/static/css/gen/
+app/static/.webassets-cache/
