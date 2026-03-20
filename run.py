@@ -1,3 +1,6 @@
+import os
+from whitenoise import WhiteNoise
+
 from app import create_app, db
 from celery_app import celery # Import the celery instance
 from app.models import (User, Checklist, ChecklistItem, Company,
@@ -7,6 +10,16 @@ from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
 # 1. Create the Flask app instance FIRST.
 app = create_app()
+
+# WhiteNoise: serve static files with gzip compression + cache headers
+if not app.debug:
+    app.wsgi_app = WhiteNoise(
+        app.wsgi_app,
+        root=os.path.join(app.static_folder),
+        prefix='static/',
+        max_age=31536000,  # 1 year cache
+        immutable_file_test=lambda path, url: '/gen/' in url,
+    )
 
 # 2. NOW you can use the 'app' variable in decorators.
 @app.shell_context_processor

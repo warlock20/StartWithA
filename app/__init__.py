@@ -11,6 +11,7 @@ from flask_caching import Cache
 
 from config import Config
 from celery_app import celery
+from app.assets import init_assets
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -55,6 +56,9 @@ def create_app(config_class=Config):
     # Initialize rate limiter with storage from config
     # Uses Redis if REDIS_URL is set, otherwise in-memory (for local dev)
     limiter.init_app(app)
+
+    # Initialize Flask-Assets for CSS bundling
+    init_assets(app)
     storage_uri = app.config.get('RATELIMIT_STORAGE_URI', 'memory://')
     app.logger.info(f"Rate limiter initialized with storage: {storage_uri.split('://')[0]}")
 

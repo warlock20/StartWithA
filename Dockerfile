@@ -24,6 +24,9 @@ COPY . .
 # Set Flask app for migrations
 ENV FLASK_APP=run.py
 
+# Pre-build CSS bundles (Flask-Assets: 85 files → 1 minified bundle)
+RUN flask assets build
+
 # Make entrypoint executable
 RUN chmod +x docker-entrypoint.sh
 
