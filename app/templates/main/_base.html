@@ -22,7 +22,9 @@
     <!-- Tabulator for advanced data tables -->
     <link href="https://unpkg.com/tabulator-tables@5.5/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251014-2">
+    {% assets "css_all" %}
+    <link rel="stylesheet" href="{{ ASSET_URL }}">
+    {% endassets %}
 
     {% block head %}{% endblock %}
 </head>
