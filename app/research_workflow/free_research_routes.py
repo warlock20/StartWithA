@@ -11,6 +11,7 @@ from app.models import ResearchProject
 from app.models.research import FreeResearchQuestion, ModelQuestion
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def get_free_research_questions(project_id, step_index):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     questions = FreeResearchQuestion.query.filter_by(
         project_id=project_id,
@@ -60,11 +61,11 @@ def add_free_research_question(project_id, step_index):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     data = request.get_json()
     if not data or not data.get('question_text'):
-        return jsonify({'success': False, 'error': 'Question text is required'}), 400
+        return json_error('Question text is required')
 
     # Get the next order index
     max_order = db.session.query(db.func.max(FreeResearchQuestion.order_index)).filter_by(
@@ -106,11 +107,11 @@ def update_free_research_question(question_id):
     question = FreeResearchQuestion.query.get_or_404(question_id)
 
     if question.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     data = request.get_json()
     if not data:
-        return jsonify({'success': False, 'error': 'No data provided'}), 400
+        return json_error('No data provided')
 
     # Update fields if provided
     if 'answer_content' in data:
@@ -150,14 +151,14 @@ def delete_free_research_question(question_id):
     question = FreeResearchQuestion.query.get_or_404(question_id)
 
     if question.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     db.session.delete(question)
     db.session.commit()
 
     logger.info(f"User {current_user.id} deleted question {question_id}")
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @research_workflow_bp.route('/api/project/<int:project_id>/step/<int:step_index>/questions/reorder', methods=['POST'])
@@ -167,11 +168,11 @@ def reorder_free_research_questions(project_id, step_index):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     data = request.get_json()
     if not data or 'question_ids' not in data:
-        return jsonify({'success': False, 'error': 'Question IDs required'}), 400
+        return json_error('Question IDs required')
 
     # Update order based on new positions
     for index, question_id in enumerate(data['question_ids']):
@@ -181,7 +182,7 @@ def reorder_free_research_questions(project_id, step_index):
 
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 # =============================================================================
@@ -215,7 +216,7 @@ def create_model_question():
     """Save a question to the model questions library"""
     data = request.get_json()
     if not data or not data.get('question_text'):
-        return jsonify({'success': False, 'error': 'Question text is required'}), 400
+        return json_error('Question text is required')
 
     # Check for duplicate
     existing = ModelQuestion.query.filter_by(
@@ -224,7 +225,7 @@ def create_model_question():
     ).first()
 
     if existing:
-        return jsonify({'success': False, 'error': 'This question already exists in your library'}), 400
+        return json_error('This question already exists in your library')
 
     model_question = ModelQuestion(
         user_id=current_user.id,
@@ -256,12 +257,12 @@ def delete_model_question(question_id):
     question = ModelQuestion.query.get_or_404(question_id)
 
     if question.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     db.session.delete(question)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @research_workflow_bp.route('/api/model-questions/<int:question_id>/use', methods=['POST'])
@@ -271,7 +272,7 @@ def use_model_question(question_id):
     question = ModelQuestion.query.get_or_404(question_id)
 
     if question.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     question.times_used = (question.times_used or 0) + 1
     question.last_used_at = now_utc()

@@ -6,6 +6,7 @@ from app import db
 from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemplate,
                        KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
                        KillChecklistSuggestion, MistakeLog, SectorAnalysis)
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
@@ -799,19 +800,19 @@ def delete_idea(idea_id):
 def resurrect_idea(idea_id):
     idea = IdeaPipeline.query.get_or_404(idea_id)
     if idea.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
-    
+        return json_unauthorized('Access denied')
+
     idea.status = 'inbox'
     idea.kill_reason = None
     idea.failed_criterion_id = None
     idea.killed_at = None
-    
+
     try:
         db.session.commit()
-        return jsonify({'success': True})
+        return json_success()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 @ideas_bp.route('/<int:idea_id>/mark_someday', methods=['GET'])
 @login_required
@@ -901,7 +902,7 @@ def get_checklist_suggestions(checklist_id):
         ).first()
 
         if not checklist:
-            return jsonify({'error': 'Checklist not found'}), 404
+            return json_error('Checklist not found', status_code=404)
 
         # Get pending suggestions for this checklist
         suggestions = KillChecklistSuggestion.query.filter_by(
@@ -936,7 +937,7 @@ def get_checklist_suggestions(checklist_id):
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/analyze', methods=['POST'])
@@ -950,7 +951,7 @@ def analyze_checklist(checklist_id):
         ).first()
 
         if not checklist:
-            return jsonify({'error': 'Checklist not found'}), 404
+            return json_error('Checklist not found', status_code=404)
 
         # Generate reordering suggestions
         reorder_suggestion = KillChecklistAnalytics.suggest_reordering(checklist_id)
@@ -975,7 +976,7 @@ def analyze_checklist(checklist_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/apply', methods=['POST'])
@@ -988,10 +989,10 @@ def apply_suggestion(suggestion_id):
         if success:
             return jsonify({'message': 'Suggestion applied successfully'})
         else:
-            return jsonify({'error': 'Failed to apply suggestion'}), 400
+            return json_error('Failed to apply suggestion')
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @ideas_bp.route('/api/suggestions/<int:suggestion_id>/reject', methods=['POST'])
@@ -1006,7 +1007,7 @@ def reject_suggestion(suggestion_id):
         ).first()
 
         if not suggestion:
-            return jsonify({'error': 'Suggestion not found'}), 404
+            return json_error('Suggestion not found', status_code=404)
 
         suggestion.status = 'rejected'
         suggestion.responded_at = now_utc()
@@ -1016,7 +1017,7 @@ def reject_suggestion(suggestion_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @ideas_bp.route('/api/kill-checklist/<int:checklist_id>/effectiveness')
@@ -1030,7 +1031,7 @@ def get_effectiveness_analysis(checklist_id):
         ).first()
 
         if not checklist:
-            return jsonify({'error': 'Checklist not found'}), 404
+            return json_error('Checklist not found', status_code=404)
 
         # Analyze each criterion
         criteria_analysis = []
@@ -1068,7 +1069,7 @@ def get_effectiveness_analysis(checklist_id):
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @ideas_bp.route('/api/mistake-log/<int:mistake_id>/suggest-criteria', methods=['POST'])
@@ -1082,7 +1083,7 @@ def suggest_criteria_from_mistake(mistake_id):
         ).first()
 
         if not mistake:
-            return jsonify({'error': 'Mistake not found'}), 404
+            return json_error('Mistake not found', status_code=404)
 
         # Generate suggestion from mistake
         suggestion = KillChecklistAnalytics.analyze_mistake_for_criteria(mistake_id)
@@ -1108,7 +1109,7 @@ def suggest_criteria_from_mistake(mistake_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 # Webhook for milestone-based suggestions (called from kill session completion)

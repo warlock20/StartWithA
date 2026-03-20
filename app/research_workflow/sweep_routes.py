@@ -17,6 +17,7 @@ from app.models import (
 from app.research_workflow import research_workflow_bp
 from app.services.sector_service import SectorService
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_error
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +132,7 @@ def sweep_decide():
     idea_status = data.get('idea_status', 'inbox')  # 'survived' when kill checklist passed
 
     if not sweep_company_id or decision_type not in ('skip', 'inbox', 'killed'):
-        return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+        return json_error('Invalid parameters')
 
     sweep_company = MarketSweepCompany.query.get_or_404(sweep_company_id)
 

@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.portfolio import portfolio_bp
 from app.models import DestinationCheckpoint
+from app.utils.response_utils import json_success, json_error, json_not_found
 
 from app.constants import DEFAULT_CHECKPOINT_LOOKBACK_DAYS
 from app.services.portfolio_intelligence import get_upcoming_checkpoints
@@ -21,7 +22,7 @@ def update_checkpoint_status(checkpoint_id):
 
         # Validate status
         if new_status not in ['Active', 'Met', 'Not Met']:
-            return jsonify({'success': False, 'error': 'Invalid status'}), 400
+            return json_error('Invalid status')
 
         # Get checkpoint and verify ownership
         checkpoint = DestinationCheckpoint.query.filter_by(
@@ -30,20 +31,17 @@ def update_checkpoint_status(checkpoint_id):
         ).first()
 
         if not checkpoint:
-            return jsonify({'success': False, 'error': 'Checkpoint not found'}), 404
+            return json_not_found('Checkpoint')
 
         # Update status
         checkpoint.status = new_status
         db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'message': f'Checkpoint marked as {new_status}'
-        })
+        return json_success(f'Checkpoint marked as {new_status}')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 @portfolio_bp.route('/checkpoints')
 @login_required

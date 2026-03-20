@@ -19,6 +19,7 @@ from app.services.currency_service import CurrencyService
 from app.services.price_service import PriceService
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.response_utils import json_error, json_unauthorized
 from app.utils.portfolio_utils import (
      filter_positions_by_performance,
     calculate_holding_period_stats,
@@ -772,7 +773,7 @@ def analytics_run_module(template_name):
     Returns JSON with task_id for polling via analytics_status.
     """
     if template_name not in ALLOWED_ANALYSIS_TEMPLATES:
-        return jsonify({'error': f'Unknown analysis type: {template_name}'}), 400
+        return json_error(f'Unknown analysis type: {template_name}')
 
     # Check for already-running task
     running = BackgroundTask.query.filter_by(
@@ -785,7 +786,7 @@ def analytics_run_module(template_name):
 
     # Check token budget
     if not current_user.can_use_ai_tokens(5000):
-        return jsonify({'error': 'AI token limit reached'}), 429
+        return json_error('AI token limit reached', status_code=429)
 
     # Start background task
     task_id = BackgroundTaskService.start_portfolio_analysis(
@@ -1346,10 +1347,10 @@ def get_historical_analysis(insight_id):
     insight = PortfolioUIInsight.query.get(insight_id)
 
     if not insight:
-        return jsonify({'success': False, 'error': 'Analysis not found'}), 404
+        return json_error('Analysis not found', status_code=404)
 
     if insight.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     return jsonify({
         'success': True,

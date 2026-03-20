@@ -15,6 +15,7 @@ from app.services.adaptive_template_service import (
     adaptive_template_service
 )
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_error, json_unauthorized
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,16 +39,16 @@ def get_template_adaptations(template_id):
 
     # Security check
     if template.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     # Get company from request parameters
     company_id = request.args.get('company_id', type=int)
     if not company_id:
-        return jsonify({'error': 'Company ID required'}), 400
+        return json_error('Company ID required')
 
     company = Company.query.get_or_404(company_id)
     if company.user_id != current_user.id:
-        return jsonify({'error': 'Access denied to company'}), 403
+        return json_unauthorized('Access denied to company')
 
     try:
         logger.info(f"Getting adaptations for template {template_id}, company {company_id}")
@@ -83,12 +84,12 @@ def apply_adaptations(template_id):
 
     # Security check
     if template.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No adaptation data provided'}), 400
+            return json_error('No adaptation data provided')
 
         # Apply the adaptations
         success = apply_template_adaptations(template, data)
@@ -121,7 +122,7 @@ def get_personalized_time_estimates(template_id):
 
     # Security check
     if template.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         estimates = adaptive_template_service.get_personalized_time_estimates(
@@ -150,7 +151,7 @@ def get_sector_questions(company_id):
 
     # Security check
     if company.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         if not company.sector:
@@ -187,7 +188,7 @@ def get_project_adaptive_suggestions(project_id):
 
     # Security check
     if project.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         template = project.template
@@ -259,12 +260,12 @@ def get_background_task_status(task_id):
     try:
         status = BackgroundTaskService.get_task_status(task_id)
         if not status:
-            return jsonify({'success': False, 'error': 'Task not found'}), 404
+            return json_error('Task not found', status_code=404)
 
         # Check if task belongs to current user
         task = BackgroundTask.query.get(task_id)
         if task and task.user_id != current_user.id:
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            return json_unauthorized('Access denied')
 
         return jsonify({
             'success': True,
@@ -288,7 +289,7 @@ def get_running_tasks():
         step_index = request.args.get('step_index', type=int)
 
         if not project_id or step_index is None:
-            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+            return json_error('Missing parameters')
 
         # Find running task for this project/step
         running_task = BackgroundTask.query.filter_by(

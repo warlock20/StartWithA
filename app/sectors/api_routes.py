@@ -6,6 +6,7 @@ from app import db
 from app.models import Sector
 from app.services.sector_service import SectorService
 from app.sectors import sectors_bp
+from app.utils.response_utils import json_error, json_unauthorized
 
 
 @sectors_bp.route('/api/sectors/autocomplete', methods=['GET'])
@@ -107,11 +108,11 @@ def create_sector():
     data = request.get_json()
 
     if not data or 'name' not in data:
-        return jsonify({'error': 'Sector name is required'}), 400
+        return json_error('Sector name is required')
 
     name = data['name'].strip()
     if not name:
-        return jsonify({'error': 'Sector name cannot be empty'}), 400
+        return json_error('Sector name cannot be empty')
 
     # Check if sector already exists
     existing = SectorService.find_or_create_sector(current_user.id, name, auto_create=False)
@@ -163,7 +164,7 @@ def get_sector(sector_id):
 
     # Security check
     if sector.user_id != current_user.id:
-        return jsonify({'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     # Update analytics
     sector.update_analytics()
@@ -204,12 +205,12 @@ def update_sector(sector_id):
     """
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'No data provided'}), 400
+        return json_error('No data provided')
 
     sector = SectorService.update_sector_metadata(current_user.id, sector_id, **data)
 
     if not sector:
-        return jsonify({'error': 'Sector not found or unauthorized'}), 404
+        return json_error('Sector not found or unauthorized', status_code=404)
 
     return jsonify({
         'id': sector.id,
@@ -231,7 +232,7 @@ def archive_sector_api(sector_id):
     success = SectorService.archive_sector(current_user.id, sector_id)
 
     if not success:
-        return jsonify({'error': 'Sector not found or unauthorized'}), 404
+        return json_error('Sector not found or unauthorized', status_code=404)
 
     return jsonify({'message': 'Sector archived successfully'})
 
@@ -248,7 +249,7 @@ def restore_sector_api(sector_id):
     success = SectorService.restore_sector(current_user.id, sector_id)
 
     if not success:
-        return jsonify({'error': 'Sector not found or unauthorized'}), 404
+        return json_error('Sector not found or unauthorized', status_code=404)
 
     return jsonify({'message': 'Sector restored successfully'})
 
@@ -269,18 +270,18 @@ def merge_sectors():
     data = request.get_json()
 
     if not data or 'source_sector_id' not in data or 'target_sector_id' not in data:
-        return jsonify({'error': 'source_sector_id and target_sector_id are required'}), 400
+        return json_error('source_sector_id and target_sector_id are required')
 
     source_id = data['source_sector_id']
     target_id = data['target_sector_id']
 
     if source_id == target_id:
-        return jsonify({'error': 'Cannot merge sector with itself'}), 400
+        return json_error('Cannot merge sector with itself')
 
     success = SectorService.merge_sectors(current_user.id, source_id, target_id)
 
     if not success:
-        return jsonify({'error': 'Failed to merge sectors. Check permissions and IDs.'}), 400
+        return json_error('Failed to merge sectors. Check permissions and IDs.')
 
     return jsonify({
         'message': 'Sectors merged successfully',
@@ -300,7 +301,7 @@ def get_sector_analytics(sector_id):
     sector = SectorService.get_sector_analytics(current_user.id, sector_id)
 
     if not sector:
-        return jsonify({'error': 'Sector not found'}), 404
+        return json_error('Sector not found', status_code=404)
 
     stats = SectorService.get_sector_stats(sector_id, current_user.id)
 

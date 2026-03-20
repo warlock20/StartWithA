@@ -7,10 +7,11 @@ import io
 import os
 import zipfile
 from app.utils.time_utils import now_utc
-from flask import current_app, abort, Response
+from flask import current_app, Response
 from flask_login import current_user, login_required
 from app.models import (ResearchProject, ResearchAttachment,
                         FreeResearchQuestion, ChecklistAnalysis, ChecklistAnswer)
+from app.utils.auth_utils import get_user_resource_or_403
 from app.research_workflow import research_workflow_bp
 from app.utils.blocknote_utils import blocknote_to_text
 from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
@@ -211,10 +212,7 @@ def _build_decision_file(project):
 @login_required
 def export_project(project_id):
     """Export the entire research project as a ZIP archive"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    if project.user_id != current_user.id:
-        abort(403)
+    project = get_user_resource_or_403(ResearchProject, project_id, current_user.id)
 
     company_name = _safe_name(project.company.name if project.company else 'Unknown')
     date_str = now_utc().strftime('%Y-%m-%d')

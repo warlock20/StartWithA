@@ -7,6 +7,7 @@ import json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.utils.time_utils import parse_date_to_date_object
+from app.utils.auth_utils import get_user_resource_or_403
 from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
@@ -281,9 +282,7 @@ def delete_company(company_id):
 @companies_bp.route('/<int:company_id>/add_document', methods=['POST'])
 @login_required
 def add_document(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        abort(403)
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
 
     # --- Basic File Checks ---
     if 'document_file' not in request.files:
@@ -350,9 +349,7 @@ def add_document(company_id):
 @companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
 @login_required
 def company_dashboard(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        abort(403)
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
 
     # Data for Documents Tab
     documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc()).all()
@@ -827,19 +824,14 @@ def financials(company_id):
 @companies_bp.route('/<int:company_id>/add_competitor', methods=['POST'])
 @login_required
 def add_competitor(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        abort(403) # Use abort for unauthorized actions
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
 
     competitor_id = request.form.get('competitor_id', type=int)
     if not competitor_id:
         flash('No competitor selected.', 'error')
         return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-    competitor = Company.query.get_or_404(competitor_id)
-
-    if competitor.user_id != current_user.id:
-        abort(403)
+    competitor = get_user_resource_or_403(Company, competitor_id, current_user.id)
 
     if competitor in company.competitors:
         flash(f'"{competitor.name}" is already a competitor.', 'warning')
@@ -853,9 +845,7 @@ def add_competitor(company_id):
 @companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
 @login_required
 def remove_competitor(company_id, competitor_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        abort(403)
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
 
     competitor = Company.query.get_or_404(competitor_id)
     if competitor in company.competitors:

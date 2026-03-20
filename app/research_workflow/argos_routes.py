@@ -15,7 +15,7 @@ from app.models import Company, BackgroundTask
 from app.research_workflow import research_workflow_bp
 from app.services.argos import ArgosService, argos_check
 from app.services.background_tasks import BackgroundTaskService
-from app.utils.response_utils import json_success, json_error
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.constants import RATELIMIT_AI
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ def argos_check_endpoint():
     # Validate required fields
     company_id = data.get('company_id')
     if not company_id:
-        return jsonify({'success': False, 'error': 'company_id required'}), 400
+        return json_error('company_id required')
 
     step_type = data.get('step_type', 'checklist')
     step_context = data.get('step_context', {})
@@ -138,17 +138,14 @@ def argos_feedback_endpoint():
     feedback = data.get('feedback')
 
     if not insight_id or feedback not in ('helpful', 'not_helpful'):
-        return jsonify({
-            'success': False,
-            'error': 'insight_id and feedback (helpful/not_helpful) required'
-        }), 400
+        return json_error('insight_id and feedback (helpful/not_helpful) required')
 
     try:
         # Parse insight_id to get source_type and source_id
         # Format: "mistake_log_123" or "trade_loss_456"
         parts = insight_id.rsplit('_', 1)
         if len(parts) != 2:
-            return jsonify({'success': False, 'error': 'Invalid insight_id format'}), 400
+            return json_error('Invalid insight_id format')
 
         source_type = parts[0]
         source_id = int(parts[1])
@@ -164,11 +161,11 @@ def argos_feedback_endpoint():
         # - Update times_helpful or times_not_helpful in ArgosInsightBase
         # - Or store in a separate feedback table
 
-        return jsonify({'success': True})
+        return json_success()
 
     except Exception as e:
         logger.error(f"Argos feedback failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/api/argos/explain', methods=['POST'])
@@ -196,10 +193,7 @@ def argos_explain_endpoint():
     company_id = data.get('company_id')
 
     if not insight_id or not company_id:
-        return jsonify({
-            'success': False,
-            'error': 'insight_id and company_id required'
-        }), 400
+        return json_error('insight_id and company_id required')
 
     try:
         # TODO: Implement LLM explanation generation
@@ -214,7 +208,7 @@ def argos_explain_endpoint():
 
     except Exception as e:
         logger.error(f"Argos explain failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/api/argos/deep-analysis', methods=['POST'])
