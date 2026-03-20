@@ -2,18 +2,19 @@
 API routes for portfolio-related AJAX calls.
 '''
 import logging
-from flask import request, jsonify
+from flask import request, jsonify, url_for
 from flask_login import login_required, current_user
 from app.services.intelligence_engine import IntelligenceEngine
 from app.utils.response_utils import json_error, json_not_found
 
 from app.portfolio import portfolio_bp
-from app.models import Company, JournalEntry
+from app.models import Company, JournalEntry, PortfolioPosition
 from app.journal_enhanced.utils import extract_tags_from_content
 from app import db, limiter
 from app.constants import RATELIMIT_AI
 
 from app.services.intelligence_engine import check_sell_warnings
+from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.similar_mistakes import find_similar_past_decisions
 
@@ -409,4 +410,41 @@ def get_company_notes(company_id):
         'total': total,
         'offset': offset,
         'has_more': (offset + limit) < total
+    })
+
+
+@portfolio_bp.route('/api/refresh-position/<int:company_id>', methods=['POST'])
+@login_required
+def refresh_position_price(company_id):
+    """Refresh price for a single position. Returns updated data for live table update."""
+    position = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id,
+        is_active=True
+    ).first()
+
+    if not position:
+        return jsonify({'success': False, 'error': 'Position not found'}), 404
+
+    success = PriceService.update_position_price(position, force=True)
+
+    if not success:
+        return jsonify({'success': False, 'error': f'Failed to fetch price for {position.company.ticker_symbol}'})
+
+    return jsonify({
+        'success': True,
+        'position': {
+            'company_id': position.company_id,
+            'ticker': position.company.ticker_symbol,
+            'name': position.company.name,
+            'shares': float(position.total_shares) if position.total_shares else 0,
+            'avg_cost': float(round(position.average_cost_basis, 2)) if position.average_cost_basis else None,
+            'current_price': float(round(position.current_price, 2)) if position.current_price else None,
+            'current_value': float(round(position.current_value)) if position.current_value else None,
+            'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
+            'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,
+            'days_held': position.days_held or 0,
+            'position_url': url_for('portfolio.position_detail', company_id=position.company_id),
+            'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),
+        }
     })

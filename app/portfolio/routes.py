@@ -54,22 +54,49 @@ from . import portfolio_bp
 @portfolio_bp.route('/')
 @login_required
 def dashboard():
-    """Portfolio dashboard showing all positions and metrics"""
+    """Portfolio dashboard — renders instantly with cached data.
+
+    Prices are refreshed asynchronously via AJAX after the page loads
+    (see refresh-position endpoint in api_routes.py).
+    """
     # Get all active positions with eager loading
     positions = PortfolioPosition.query.filter_by(
         user_id=current_user.id,
         is_active=True
     ).options(
-        joinedload(PortfolioPosition.company).joinedload(Company.sector)
+        joinedload(PortfolioPosition.company)
     ).all()
 
-    # Update prices if needed
-    for position in positions:
-        if PriceService.should_update_price(position):
-            PriceService.update_position_price(position)
+    # Calculate portfolio totals from cached DB data (no API calls)
+    total_value = Decimal('0.00')
+    total_cost = Decimal('0.00')
+    total_unrealized = Decimal('0.00')
 
-    # Calculate portfolio totals
-    portfolio_value = PriceService.get_portfolio_value(current_user.id)
+    for pos in positions:
+        if pos.current_value:
+            total_value += pos.current_value
+        total_cost += pos.total_cost
+        if pos.unrealized_gain_loss:
+            total_unrealized += pos.unrealized_gain_loss
+
+    total_pct = (total_unrealized / total_cost * 100) if total_cost > 0 else Decimal('0.00')
+    cash_balance = Decimal(str(current_user.cash_balance)) if current_user.cash_balance else Decimal('0.00')
+
+    portfolio_value = {
+        'total_value': total_value + cash_balance,
+        'total_cost': total_cost,
+        'total_unrealized_gain_loss': total_unrealized,
+        'total_unrealized_gain_loss_pct': total_pct,
+        'positions_count': len(positions),
+        'cash_balance': cash_balance,
+        'invested_value': total_value,
+    }
+
+    # Identify stale positions for async refresh
+    stale_company_ids = [
+        pos.company_id for pos in positions
+        if PriceService.should_update_price(pos)
+    ]
 
     # Calculate gains and losses counts using utility
     status_counts = count_positions_by_status(positions)
@@ -107,6 +134,7 @@ def dashboard():
                           portfolio_value=portfolio_value,
                           gains_count=gains_count,
                           losses_count=losses_count,
+                          stale_company_ids=json.dumps(stale_company_ids),
                           updated_time='just now',
                           currency_symbol=currency_symbol,
                           inferred_deposit=inferred_deposit)
@@ -148,9 +176,8 @@ def position_detail(company_id):
         flash('No position found for this company', 'warning')
         return redirect(url_for('portfolio.dashboard'))
 
-    # Update price if needed
-    if PriceService.should_update_price(position):
-        PriceService.update_position_price(position)
+    # Price is refreshed async via AJAX after page loads
+    price_stale = PriceService.should_update_price(position)
 
     # Get all transactions for this position with eager loading
     transactions = Transaction.query.filter_by(
@@ -193,6 +220,7 @@ def position_detail(company_id):
                           decision_journal=decision_journal,
                           checkpoints=checkpoints,
                           research_project=research_project,
+                          price_stale=price_stale,
                           user_currency=user_currency,
                           currency_symbol=currency_symbol,
                           stock_currency=stock_currency,

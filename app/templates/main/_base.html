@@ -120,6 +120,22 @@
     <!-- AI consent modal (GDPR Art. 6(1)(a)) -->
     {% include 'main/_ai_consent_modal.html' %}
 
+    <!-- Global page loading spinner (any page can call showPageSpinner / hidePageSpinner) -->
+    <div class="page-loading-overlay" id="pageLoadingOverlay">
+        <div class="page-loading-spinner"></div>
+        <div class="page-loading-text" id="pageLoadingText">Loading...</div>
+    </div>
+    <script>
+        window.showPageSpinner = function(text) {
+            var el = document.getElementById('pageLoadingOverlay');
+            if (text) document.getElementById('pageLoadingText').textContent = text;
+            el.classList.add('active');
+        };
+        window.hidePageSpinner = function() {
+            document.getElementById('pageLoadingOverlay').classList.remove('active');
+        };
+    </script>
+
     {% block scripts %}
     <script src="{{ url_for('static', filename='js/my_script.js') }}"></script>
     {% endblock %}

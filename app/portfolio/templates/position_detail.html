@@ -29,7 +29,8 @@
                 <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Portfolio
                 </a>
-                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}"
+                    class="position-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
             </div>
@@ -43,68 +44,70 @@
             </div>
             <div class="position-metric">
                 <div class="position-metric-label">Avg Cost</div>
-                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}
+                </div>
             </div>
             <div class="position-metric">
                 <div class="position-metric-label">Current Price</div>
-                <div class="position-metric-value">
+                <div class="position-metric-value" id="posPrice">
                     {% if position.current_price %}
-                    {% if stock_currency != user_currency and position.current_price_base %}
-                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price_base) }}
-                    {% else %}
                     {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
-                    {% endif %}
                     {% else %}
                     <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
-                {% if position.last_price_update %}
-                <div class="position-metric-subtext">
-                    {% if stock_currency != user_currency and position.current_price %}
-                    {{ stock_currency_symbol }}{{ "%.2f"|format(position.current_price) }} {{ stock_currency }} · {{ position.last_price_update.strftime('%H:%M') }}
-                    {% else %}
+                <div class="position-metric-subtext" id="posPriceSub">
+                    {% if position.last_price_update %}
                     Updated {{ position.last_price_update.strftime('%H:%M') }}
                     {% endif %}
+                    {% if price_stale %}<span class="mini-spinner" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-left:4px;border-width:2px;"></span>{% endif %}
                 </div>
-                {% endif %}
             </div>
             <div class="position-metric">
                 <div class="position-metric-label">Market Value</div>
-                <div class="position-metric-value">
+                <div class="position-metric-value" id="posValue">
                     {% if position.current_value %}
                     {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
                     {% else %}
                     <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
-                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost) }}</div>
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost)
+                    }}</div>
             </div>
-            <div class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+            <div id="posPLCard"
+                class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
                 <div class="position-metric-label">Unrealized P&L</div>
-                <div class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                <div id="posPLValue"
+                    class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
                     {% if position.unrealized_gain_loss %}
-                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.unrealized_gain_loss) }}
+                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{
+                    "{:,.0f}".format(position.unrealized_gain_loss) }}
                     {% else %}
                     <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
-                {% if position.unrealized_gain_loss_pct %}
-                <div class="position-metric-subtext">
-                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                <div class="position-metric-subtext" id="posPLPct">
+                    {% if position.unrealized_gain_loss_pct %}
+                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                    "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             <div class="position-metric">
                 <div class="position-metric-label">Realized P&L</div>
-                <div class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
-                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.realized_gain_loss) }}
+                <div
+                    class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{
+                    "{:,.0f}".format(position.realized_gain_loss) }}
                 </div>
             </div>
         </div>
 
         <!-- Expectation Bar (conditional) -->
         {% if decision_journal and decision_journal.expected_return and position.unrealized_gain_loss_pct %}
-        <div class="position-expectation-bar {% if position.unrealized_gain_loss_pct < decision_journal.expected_return %}below{% endif %}">
+        <div
+            class="position-expectation-bar {% if position.unrealized_gain_loss_pct < decision_journal.expected_return %}below{% endif %}">
             <div class="position-expectation-icon">
                 {% if position.unrealized_gain_loss_pct >= decision_journal.expected_return %}
                 <i class="bi bi-check-lg"></i>
@@ -116,12 +119,18 @@
                 <div class="position-expectation-title">Performance vs Expectations</div>
                 <div class="position-expectation-details">
                     <span>Expected: <strong>+{{ "%.0f"|format(decision_journal.expected_return) }}%</strong></span>
-                    <span>Actual: <strong class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}" style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
-                        {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
-                    </strong></span>
-                    <span>Difference: <strong style="color: {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
-                        {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float - decision_journal.expected_return) }}pp
-                    </strong></span>
+                    <span>Actual: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}"
+                            style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{
+                            "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                        </strong></span>
+                    <span>Difference: <strong
+                            style="color: {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct|float >= decision_journal.expected_return %}+{%
+                            endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float -
+                            decision_journal.expected_return) }}pp
+                        </strong></span>
                 </div>
             </div>
         </div>
@@ -141,7 +150,8 @@
                         <i class="bi bi-arrow-left-right"></i>
                         Transaction History
                     </h2>
-                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}" class="position-link-btn">
+                    <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}"
+                        class="position-link-btn">
                         <i class="bi bi-plus"></i> Add
                     </a>
                 </div>
@@ -154,7 +164,9 @@
                 <div class="position-journal-compact-content">
                     <i class="bi bi-journal-text"></i>
                     <span class="position-journal-compact-thesis">
-                        {{ decision_journal.investment_thesis[:150] if decision_journal.investment_thesis else 'No thesis recorded' }}{% if decision_journal.investment_thesis and decision_journal.investment_thesis|length > 150 %}...{% endif %}
+                        {{ decision_journal.investment_thesis[:150] if decision_journal.investment_thesis else 'No
+                        thesis recorded' }}{% if decision_journal.investment_thesis and
+                        decision_journal.investment_thesis|length > 150 %}...{% endif %}
                     </span>
                     {% if decision_journal.confidence_score %}
                     <span class="position-journal-compact-badge">{{ decision_journal.confidence_score }}/10</span>
@@ -163,7 +175,8 @@
                     <span class="position-journal-compact-badge gain">+{{ decision_journal.expected_return }}%</span>
                     {% endif %}
                 </div>
-                <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}" class="position-link-btn">
+                <a href="{{ url_for('portfolio.view_decision_journal', journal_id=decision_journal.id) }}"
+                    class="position-link-btn">
                     View <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
@@ -178,20 +191,70 @@
                     </h2>
                 </div>
                 <div class="position-card-body">
-                    {# ---- Quick Note Input (view notes on Investment Journey page) ---- #}
+                    {# ---- Quick Note Form ---- #}
                     <div class="position-quick-note-form" id="quickNoteForm">
                         <textarea id="quickNoteContent" class="position-quick-note-input"
-                            placeholder="Quick note about {{ company.ticker_symbol }}..."
-                            rows="2"></textarea>
+                            placeholder="Quick note about {{ company.ticker_symbol }}..." rows="2"></textarea>
                         <div class="position-quick-note-actions">
-                            <span class="position-note-saved" id="noteSavedMsg" style="display:none;">
-                                <i class="bi bi-check-lg"></i> Saved
-                            </span>
-                            <button type="button" class="position-btn primary" id="quickNoteSubmit" onclick="submitQuickNote()">
+                            <select id="quickNoteType" class="position-quick-note-select">
+                                <option value="observation">Observation</option>
+                                <option value="insight">Insight</option>
+                                <option value="question">Question</option>
+                                <option value="earnings_reaction">Earnings Reaction</option>
+                                <option value="news_analysis">News Analysis</option>
+                            </select>
+                            <select id="l" class="position-quick-note-select">
+                                <option value="">Sentiment...</option>
+                                <option value="bullish">Bullish</option>
+                                <option value="bearish">Bearish</option>
+                                <option value="neutral">Neutral</option>
+                            </select>
+                            <button type="button" class="position-btn primary" id="quickNoteSubmit"
+                                onclick="submitQuickNote()">
                                 <i class="bi bi-plus"></i> Add Note
                             </button>
                         </div>
                     </div>
+
+                    {# ---- Notes List with scrollable container ---- #}
+                    <div class="position-notes-scroll" id="notesScroll">
+                        <div class="position-notes-list" id="notesList">
+                            {% if journal_entries %}
+                            {% for entry in journal_entries %}
+                            <div class="position-note-item">
+                                <div class="position-note-header">
+                                    <span class="position-note-type">{{ entry.entry_type.replace('_', ' ').title()
+                                        }}</span>
+                                    {% if entry.sentiment %}
+                                    <span class="position-note-sentiment {{ entry.sentiment }}">{{ entry.sentiment
+                                        }}</span>
+                                    {% endif %}
+                                    <span class="position-note-date">{{ entry.created_at.strftime('%b %d, %Y') }}</span>
+                                </div>
+                                <div class="position-note-content">
+                                    {{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}
+                                </div>
+                                {% if entry.tags %}
+                                <div class="position-note-tags">
+                                    {% for tag in entry.tags[:4] %}
+                                    <span class="position-note-tag">#{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="position-empty-state-compact" id="notesEmptyState">
+                                <p>No notes yet for {{ company.ticker_symbol }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if journal_entries_total > 3 %}
+                    <button type="button" class="position-notes-load-more" id="loadMoreNotes" onclick="loadMoreNotes()">
+                        View all {{ journal_entries_total }} notes <i class="bi bi-chevron-down"></i>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -208,15 +271,18 @@
                 </div>
                 <div class="position-sidebar-body">
                     <div class="position-quick-actions">
-                        <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-map"></i>
                             Investment Journey
                         </a>
-                        <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-lightbulb"></i>
                             Update Thesis
                         </a>
-                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-flag"></i>
                             Add Checkpoint
                         </a>
@@ -234,19 +300,23 @@
                 </div>
                 <div class="position-sidebar-body">
                     <div class="position-quick-actions">
-                        <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-newspaper"></i>
                             News & Sentiment
                         </a>
-                        <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-grid-3x3"></i>
                             SWOT Analysis
                         </a>
-                        <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-diagram-3"></i>
                             Porter's Five Forces
                         </a>
-                        <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="position-quick-action">
+                        <a href="{{ url_for('companies.financials', company_id=company.id) }}"
+                            class="position-quick-action">
                             <i class="bi bi-bar-chart-line"></i>
                             Financials
                         </a>
@@ -264,10 +334,12 @@
                 </div>
                 <div class="position-sidebar-body">
                     {% if research_project %}
-                    <p style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: var(--space-md);">
+                    <p
+                        style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: var(--space-md);">
                         Research project created on {{ research_project.created_at.strftime('%b %d, %Y') }}
                     </p>
-                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}" class="position-quick-action highlight span-full">
+                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}"
+                        class="position-quick-action highlight span-full">
                         <i class="bi bi-arrow-right"></i>
                         View Research Project
                     </a>
@@ -293,129 +365,157 @@
     let positionTransactionsTable;
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Async price refresh for this position
+        {% if price_stale %}
+        fetch('/portfolio/api/refresh-position/{{ company.id }}', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var p = data.position;
+                    document.getElementById('posPrice').textContent = currencySymbol + (p.current_price !== null ? p.current_price.toFixed(2) : '--');
+                    document.getElementById('posPriceSub').textContent = 'Updated just now';
+                    if (p.current_value !== null) {
+                        document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();
+                    }
+                    if (p.gain_loss !== null) {
+                        var sign = p.gain_loss >= 0 ? '+' : '';
+                        document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(p.gain_loss)).toLocaleString();
+                        document.getElementById('posPLValue').className = 'position-metric-value ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                        document.getElementById('posPLCard').className = 'position-metric highlight ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                    }
+                    if (p.gain_loss_pct !== null) {
+                        var pctSign = p.gain_loss_pct >= 0 ? '+' : '';
+                        document.getElementById('posPLPct').textContent = pctSign + p.gain_loss_pct.toFixed(1) + '%';
+                    }
+                }
+            })
+            .catch(function() { /* silent — stale price stays */ });
+        {% endif %}
+
         // Transaction data
         const transactionsData = [
             {% for txn in transactions %}
             {
-                id: {{ txn.id }},
-                date: "{{ txn.date.strftime('%Y-%m-%d') }}",
-                type: "{{ txn.type }}",
-                shares: {{ txn.quantity }},
-                price: {{ txn.price_per_share }},
-                total: {{ txn.total_value }},
-                notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
+            id: {{ txn.id }},
+        date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+        type: "{{ txn.type }}",
+        shares: {{ txn.quantity }},
+        price: {{ txn.price_per_share }},
+        total: {{ txn.total_value }},
+        notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
             }{{ ',' if not loop.last else '' }}
-            {% endfor %}
+        {% endfor %}
         ];
 
-        // Create the table
-        positionTransactionsTable = new Tabulator("#position-transactions-table", {
-            data: transactionsData,
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: false,
-            layoutColumnsOnNewData: true,
-            columns: [
-                {
-                    title: "Date",
-                    field: "date",
-                    sorter: "date",
-                    hozAlign: "left",
-                    minWidth: 100,
-                    widthGrow: 1
+    // Create the table
+    positionTransactionsTable = new Tabulator("#position-transactions-table", {
+        data: transactionsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                hozAlign: "left",
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function (cell) {
+                    const type = cell.getValue();
+                    let typeClass = '';
+                    if (type === 'BUY') typeClass = 'buy';
+                    else if (type === 'SELL') typeClass = 'sell';
+                    else if (type === 'DIVIDEND') typeClass = 'dividend';
+                    else if (type === 'SPLIT') typeClass = 'split';
+                    return `<span class="position-txn-type ${typeClass}">${type}</span>`;
                 },
-                {
-                    title: "Type",
-                    field: "type",
-                    sorter: "string",
-                    hozAlign: "left",
-                    formatter: function (cell) {
-                        const type = cell.getValue();
-                        let typeClass = '';
-                        if (type === 'BUY') typeClass = 'buy';
-                        else if (type === 'SELL') typeClass = 'sell';
-                        else if (type === 'DIVIDEND') typeClass = 'dividend';
-                        else if (type === 'SPLIT') typeClass = 'split';
-                        return `<span class="position-txn-type ${typeClass}">${type}</span>`;
-                    },
-                    minWidth: 90,
-                    widthGrow: 1
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function (cell) {
+                    const val = cell.getValue();
+                    return val ? val.toLocaleString() : '—';
                 },
-                {
-                    title: "Shares",
-                    field: "shares",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function (cell) {
-                        const val = cell.getValue();
-                        return val ? val.toLocaleString() : '—';
-                    },
-                    minWidth: 80,
-                    widthGrow: 1
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function (cell) {
+                    return currencySymbol + cell.getValue().toFixed(2);
                 },
-                {
-                    title: "Price",
-                    field: "price",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function (cell) {
-                        return currencySymbol + cell.getValue().toFixed(2);
-                    },
-                    minWidth: 90,
-                    widthGrow: 1
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function (cell) {
+                    return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</strong>';
                 },
-                {
-                    title: "Total",
-                    field: "total",
-                    sorter: "number",
-                    hozAlign: "right",
-                    formatter: function (cell) {
-                        return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
-                    },
-                    minWidth: 100,
-                    widthGrow: 1.5
+                minWidth: 100,
+                widthGrow: 1.5
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function (cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="position-text-muted">—</span>';
+                    if (notes.length > 25) {
+                        return `<span title="${notes}">${notes.substring(0, 25)}...</span>`;
+                    }
+                    return notes;
                 },
-                {
-                    title: "Notes",
-                    field: "notes",
-                    sorter: "string",
-                    hozAlign: "left",
-                    formatter: function (cell) {
-                        const notes = cell.getValue();
-                        if (!notes) return '<span class="position-text-muted">—</span>';
-                        if (notes.length > 25) {
-                            return `<span title="${notes}">${notes.substring(0, 25)}...</span>`;
-                        }
-                        return notes;
-                    },
-                    minWidth: 100,
-                    widthGrow: 2
-                },
-                {
-                    title: "",
-                    field: "id",
-                    headerSort: false,
-                    hozAlign: "center",
-                    formatter: function (cell) {
-                        const id = cell.getValue();
-                        return `<a href="/portfolio/transaction/${id}/edit" class="position-link-btn" title="Edit">
+                minWidth: 100,
+                widthGrow: 2
+            },
+            {
+                title: "",
+                field: "id",
+                headerSort: false,
+                hozAlign: "center",
+                formatter: function (cell) {
+                    const id = cell.getValue();
+                    return `<a href="/portfolio/transaction/${id}/edit" class="position-link-btn" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>`;
-                    },
-                    minWidth: 50,
-                    widthGrow: 0.5
-                }
-            ],
-            initialSort: [
-                { column: "date", dir: "desc" }
-            ]
-        });
+                },
+                minWidth: 50,
+                widthGrow: 0.5
+            }
+        ],
+        initialSort: [
+            { column: "date", dir: "desc" }
+        ]
+    });
     });
 
     function submitQuickNote() {
         const content = document.getElementById('quickNoteContent').value.trim();
+        const entryType = document.getElementById('quickNoteType').value;
+        const sentiment = document.getElementById('quickNoteSentiment').value;
         const submitBtn = document.getElementById('quickNoteSubmit');
-        const savedMsg = document.getElementById('noteSavedMsg');
 
         if (!content) {
             document.getElementById('quickNoteContent').focus();
@@ -427,18 +527,37 @@
 
         fetch('/portfolio/api/quick-note', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
                 company_id: {{ company.id }},
-                content: content
+            content: content,
+            entry_type: entryType,
+            sentiment: sentiment || null
             })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                const notesList = document.getElementById('notesList');
+                const emptyState = notesList.querySelector('.position-empty-state-compact');
+                if (emptyState) emptyState.remove();
+
+                const noteHtml = `
+                    <div class="position-note-item" style="animation: fadeIn 0.3s ease-in;">
+                        <div class="position-note-header">
+                            <span class="position-note-type">${data.entry.entry_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                            ${data.entry.sentiment ? `<span class="position-note-sentiment ${data.entry.sentiment}">${data.entry.sentiment}</span>` : ''}
+                            <span class="position-note-date">${data.entry.created_at}</span>
+                        </div>
+                        <div class="position-note-content">${data.entry.content.length > 200 ? data.entry.content.substring(0, 200) + '...' : data.entry.content}</div>
+                        ${data.entry.tags.length ? `<div class="position-note-tags">${data.entry.tags.slice(0, 4).map(t => `<span class="position-note-tag">#${t}</span>`).join('')}</div>` : ''}
+                    </div>`;
+                notesList.insertAdjacentHTML('afterbegin', noteHtml);
+
                 document.getElementById('quickNoteContent').value = '';
-                savedMsg.style.display = 'inline-flex';
-                setTimeout(() => { savedMsg.style.display = 'none'; }, 2000);
+                document.getElementById('quickNoteSentiment').value = '';
             } else {
                 alert('Error: ' + (data.error || 'Unknown error'));
             }
@@ -450,6 +569,58 @@
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="bi bi-plus"></i> Add Note';
         });
+    }
+
+    // Notes pagination state
+    let notesLoaded = {{ journal_entries| length }};
+    const notesTotal = {{ journal_entries_total }};
+    const companyId = {{ company.id }};
+    let allNotesLoaded = notesLoaded >= notesTotal;
+
+    function renderNoteHtml(entry) {
+        return `
+            <div class="position-note-item" style="animation: fadeIn 0.3s ease-in;">
+                <div class="position-note-header">
+                    <span class="position-note-type">${entry.entry_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                    ${entry.sentiment ? `<span class="position-note-sentiment ${entry.sentiment}">${entry.sentiment}</span>` : ''}
+                    <span class="position-note-date">${entry.created_at}</span>
+                </div>
+                <div class="position-note-content">${entry.content.length > 200 ? entry.content.substring(0, 200) + '...' : entry.content}</div>
+                ${entry.tags && entry.tags.length ? `<div class="position-note-tags">${entry.tags.slice(0, 4).map(t => `<span class="position-note-tag">#${t}</span>`).join('')}</div>` : ''}
+            </div>`;
+    }
+
+    function loadMoreNotes() {
+        const btn = document.getElementById('loadMoreNotes');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Loading...';
+
+        fetch(`/portfolio/api/notes/${companyId}?offset=${notesLoaded}&limit=10`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const notesList = document.getElementById('notesList');
+                    data.entries.forEach(entry => {
+                        notesList.insertAdjacentHTML('beforeend', renderNoteHtml(entry));
+                    });
+                    notesLoaded += data.entries.length;
+
+                    // Expand the scroll container to show all
+                    document.getElementById('notesScroll').classList.add('expanded');
+
+                    if (data.has_more) {
+                        btn.disabled = false;
+                        btn.innerHTML = `View more (${notesLoaded} of ${data.total}) <i class="bi bi-chevron-down"></i>`;
+                    } else {
+                        allNotesLoaded = true;
+                        btn.remove();
+                    }
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = 'Error loading — try again';
+            });
     }
 </script>
 {% endblock %}
