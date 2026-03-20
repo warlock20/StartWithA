@@ -16,6 +16,7 @@ from app.models import ResearchTemplate, ResearchProject, Sector, ChecklistAnaly
 from app.research_workflow import research_workflow_bp
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/notes')
@@ -126,7 +127,7 @@ def save_project_decision(project_id):
 
     if project.user_id != current_user.id:
         if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            return json_unauthorized('Access denied')
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
@@ -143,7 +144,7 @@ def save_project_decision(project_id):
         # Validate decision
         if decision not in ['invest', 'pass', 'watchlist']:
             if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-                return jsonify({'success': False, 'error': 'Invalid decision type'}), 400
+                return json_error('Invalid decision type')
             flash('Invalid decision type', 'error')
             return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
@@ -186,7 +187,7 @@ def save_project_decision(project_id):
     except Exception as e:
         db.session.rollback()
         if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return json_error(str(e), status_code=500)
         flash(f'Error saving decision: {str(e)}', 'error')
         return redirect(url_for('research_workflow.project_summary', project_id=project_id))
 
@@ -198,7 +199,7 @@ def add_finding(project_id):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         if request.is_json:
@@ -215,17 +216,17 @@ def add_finding(project_id):
         if 'red' in finding_type: finding_type = 'red'
         
         if not finding_text:
-            return jsonify({'success': False, 'error': 'Finding text is required'}), 400
+            return json_error('Finding text is required')
 
         if not finding_text:
-            return jsonify({'success': False, 'error': 'Finding text is required'}), 400
+            return json_error('Finding text is required')
 
         if finding_type == 'green':
             project.green_flags = (project.green_flags or []) + [finding_text]
         elif finding_type == 'red':
             project.red_flags = (project.red_flags or []) + [finding_text]
         else:
-            return jsonify({'success': False, 'error': 'Invalid finding type'}), 400
+            return json_error('Invalid finding type')
 
         db.session.commit()
         
@@ -234,11 +235,11 @@ def add_finding(project_id):
             flash(f'{finding_type.capitalize()} flag added!', 'success')
             return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
             
-        return jsonify({'success': True, 'message': f'{finding_type.capitalize()} flag added'})
+        return json_success(f'{finding_type.capitalize()} flag added')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/remove-finding', methods=['POST'])
@@ -248,7 +249,7 @@ def remove_finding(project_id):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         data = request.get_json()
@@ -267,11 +268,11 @@ def remove_finding(project_id):
                 project.red_flags = flags
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Finding removed'})
+        return json_success('Finding removed')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-thesis', methods=['POST'])
@@ -281,7 +282,7 @@ def update_thesis(project_id):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         data = request.get_json()
@@ -290,11 +291,11 @@ def update_thesis(project_id):
         project.investment_thesis = thesis
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Thesis updated'})
+        return json_success('Thesis updated')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-summary', methods=['POST'])
@@ -304,7 +305,7 @@ def update_summary(project_id):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         data = request.get_json()
@@ -313,8 +314,8 @@ def update_summary(project_id):
         project.summary = summary
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Summary updated'})
+        return json_success('Summary updated')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)

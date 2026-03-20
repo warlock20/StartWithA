@@ -16,6 +16,7 @@ from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
                        ResearchProject, KillChecklist, CompanyDocument)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.response_utils import json_success
 from app.services.ai import generate_ai_content
 import logging
 
@@ -316,7 +317,7 @@ def complete_kill_checklist_step(project_id, session_id):
 def save_checklist_progress(project_id, session_id):
     """Auto-save checklist progress"""
     # Simple auto-save endpoint for checklist progress
-    return jsonify({'success': True, 'message': 'Progress saved'})
+    return json_success('Progress saved')
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/save-kill-checklist-progress', methods=['POST'])
@@ -324,7 +325,7 @@ def save_checklist_progress(project_id, session_id):
 def save_kill_checklist_progress(project_id, session_id):
     """Auto-save kill checklist progress"""
     # Simple auto-save endpoint for kill checklist progress
-    return jsonify({'success': True, 'message': 'Progress saved'})
+    return json_success('Progress saved')
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/sessions/<int:session_id>/checklist_item_analyze', methods=['POST'])

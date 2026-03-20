@@ -204,7 +204,7 @@ class PortfolioPosition(db.Model):
         """Calculate number of days position has been held"""
         if not self.first_purchase_date:
             return 0
-        return (datetime.now().date() - self.first_purchase_date).days
+        return (now_utc().date() - self.first_purchase_date).days
 
     @property
     def allocation_percentage(self):

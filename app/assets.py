@@ -104,6 +104,7 @@ css_all = Bundle(
     'css/modules/_companion.css',
     'css/modules/_cookie-notice.css',
     'css/modules/_market-sweep.css',
+    'css/modules/_page-loading.css',
 
     filters='rcssmin',
     output='css/gen/design-system.%(version)s.css',

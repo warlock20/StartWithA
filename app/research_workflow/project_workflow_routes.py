@@ -11,7 +11,7 @@ This module handles all routes related to executing research project workflows:
 - Returning from checklist execution
 """
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, session as flask_session
+from flask import render_template, request, redirect, url_for, flash, session as flask_session
 from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, WorkSession,
@@ -21,6 +21,7 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
 from app.services.sector_service import SectorService
 from sqlalchemy.orm.attributes import flag_modified
@@ -821,15 +822,15 @@ def skip_step(project_id, step_index):
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     step = project.template.get_step(step_index)
     if not step:
-        return jsonify({'error': 'Invalid step'}), 400
+        return json_error('Invalid step')
 
     # Check if step is required/critical
     if step.get('required', False):
-        return jsonify({'error': 'Cannot skip required steps'}), 400
+        return json_error('Cannot skip required steps')
 
     # Mark step as completed with a note that it was skipped
     if step_index not in project.completed_steps:
@@ -851,10 +852,10 @@ def skip_step(project_id, step_index):
 
     try:
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Step skipped'})
+        return json_success('Step skipped')
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-step-checklist/<int:step_index>', methods=['POST'])

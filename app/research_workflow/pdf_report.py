@@ -7,7 +7,7 @@ import io
 import re
 import fitz
 import logging
-from datetime import datetime
+from app.utils.time_utils import now_utc
 from app.models import (ResearchAttachment, FreeResearchQuestion,
                         ChecklistAnalysis, ChecklistAnswer)
 from app.utils.blocknote_utils import blocknote_to_html, blocknote_to_text
@@ -146,7 +146,7 @@ def _build_title_html(project):
         sector_name = company.sector.display_name
 
     template_name = _esc(project.template.name) if project.template else 'Unknown'
-    date_str = datetime.utcnow().strftime('%B %d, %Y')
+    date_str = now_utc().strftime('%B %d, %Y')
 
     parts = [f'<h1>{company_name}{ticker}</h1>']
     parts.append('<p class="meta">')

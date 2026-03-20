@@ -20,7 +20,7 @@ from flask import current_app
 from app import db, create_app
 from app.models import Company, CompanyDocument, User, FinancialData
 from celery_app import celery
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
                         stored_filename=os.path.join(str(company.id), stored_fn_uuid),
                         document_group=f"SEC {filing_type_str} Filings",
                         document_title=doc_title,
-                        document_date=datetime.strptime(filing_date_str, '%Y-%m-%d').date() if filing_date_str != "N/A" else None
+                        document_date=parse_date_to_date_object(filing_date_str) if filing_date_str != "N/A" else None
                     )
                     db.session.add(new_doc)
                     saved_count += 1

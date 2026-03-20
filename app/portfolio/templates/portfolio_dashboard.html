@@ -11,7 +11,7 @@
         <header class="dashboard-header">
             <div>
                 <h1 class="dashboard-title font-poppins">Portfolio</h1>
-                <p class="dashboard-subtitle">{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }} · Updated {{ updated_time if updated_time else 'recently' }}</p>
+                <p class="dashboard-subtitle" id="dashboardSubtitle">{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }} · Updated {{ updated_time if updated_time else 'recently' }}</p>
             </div>
             <div class="dashboard-header-actions">
                 <a href="{{ url_for('portfolio.transactions') }}" class="position-btn">
@@ -53,7 +53,7 @@
                     <i class="bi bi-cash-stack"></i>
                 </div>
                 <div class="portfolio-metric-label">Total Value</div>
-                <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_value) }}</div>
+                <div class="portfolio-metric-value" id="metricTotalValue">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_value) }}</div>
             </div>
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon purple">
@@ -69,15 +69,15 @@
                 <div class="portfolio-metric-label">Cash</div>
                 <div class="portfolio-metric-value">{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.cash_balance) }}</div>
             </div>
-            <div class="portfolio-metric highlight {% if portfolio_value.total_unrealized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+            <div class="portfolio-metric highlight {% if portfolio_value.total_unrealized_gain_loss >= 0 %}gain{% else %}loss{% endif %}" id="metricPLCard">
                 <div class="portfolio-metric-icon green">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
                 <div class="portfolio-metric-label">Unrealized P/L</div>
-                <div class="portfolio-metric-value {% if portfolio_value.total_unrealized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                <div class="portfolio-metric-value" id="metricPLValue">
                     {% if portfolio_value.total_unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(portfolio_value.total_unrealized_gain_loss) }}
                 </div>
-                <div class="portfolio-metric-subtext">
+                <div class="portfolio-metric-subtext" id="metricPLPct">
                     {% if portfolio_value.total_unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(portfolio_value.total_unrealized_gain_loss_pct) }}%
                 </div>
             </div>
@@ -87,8 +87,14 @@
                 </div>
                 <div class="portfolio-metric-label">Positions</div>
                 <div class="portfolio-metric-value">{{ portfolio_value.positions_count }}</div>
-                <div class="portfolio-metric-subtext">{{ gains_count }} gaining · {{ losses_count }} losing</div>
+                <div class="portfolio-metric-subtext" id="metricWinLoss">{{ gains_count }} gaining · {{ losses_count }} losing</div>
             </div>
+        </div>
+
+        <!-- Price update indicator (shown during async refresh) -->
+        <div class="price-update-bar" id="priceUpdateBar" style="display: none;">
+            <div class="mini-spinner"></div>
+            <span>Updating prices... <span class="update-count" id="priceUpdateCount"></span></span>
         </div>
 
         {% if inferred_deposit is not none and not current_user.cash_setup_complete %}
@@ -151,6 +157,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const currencySymbol = "{{ currency_symbol }}";
     const holdingsData = {{ holdings_json|safe }};
+    const staleCompanyIds = {{ stale_company_ids|safe }};
+    const cashBalance = {{ portfolio_value.cash_balance|float }};
     let holdingsTable = null;
 
     if (holdingsData.length > 0) {
@@ -298,6 +306,98 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 return searchMatch && filterMatch;
             });
+        }
+
+        // ── Async price refresh ──────────────────────────────
+        if (staleCompanyIds.length > 0) {
+            var bar = document.getElementById('priceUpdateBar');
+            var countEl = document.getElementById('priceUpdateCount');
+            var done = 0;
+            var total = staleCompanyIds.length;
+            bar.style.display = 'flex';
+            countEl.textContent = '(0/' + total + ')';
+
+            // Fire parallel fetches — browser batches ~6 at a time
+            staleCompanyIds.forEach(function(companyId) {
+                fetch('/portfolio/api/refresh-position/' + companyId, { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            updateTableRow(data.position);
+                        }
+                    })
+                    .catch(function() { /* silent — stale price stays */ })
+                    .finally(function() {
+                        done++;
+                        countEl.textContent = '(' + done + '/' + total + ')';
+                        if (done >= total) {
+                            bar.style.display = 'none';
+                            document.getElementById('dashboardSubtitle').textContent =
+                                holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
+                        }
+                        recalcMetrics();
+                    });
+            });
+        }
+
+        function updateTableRow(pos) {
+            var rows = holdingsTable.getRows();
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].getData().company_id === pos.company_id) {
+                    rows[i].update({
+                        current_price: pos.current_price,
+                        current_value: pos.current_value,
+                        gain_loss: pos.gain_loss,
+                        gain_loss_pct: pos.gain_loss_pct
+                    });
+                    // Flash the row
+                    var el = rows[i].getElement();
+                    var cls = (pos.gain_loss !== null && pos.gain_loss >= 0) ? 'row-updated-gain' : 'row-updated-loss';
+                    el.classList.add(cls);
+                    setTimeout(function() { el.classList.remove(cls); }, 700);
+
+                    // Also update local holdingsData for metric recalc
+                    for (var j = 0; j < holdingsData.length; j++) {
+                        if (holdingsData[j].company_id === pos.company_id) {
+                            holdingsData[j].current_price = pos.current_price;
+                            holdingsData[j].current_value = pos.current_value;
+                            holdingsData[j].gain_loss = pos.gain_loss;
+                            holdingsData[j].gain_loss_pct = pos.gain_loss_pct;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        function recalcMetrics() {
+            var totalValue = 0, totalCost = 0, totalPL = 0, gains = 0, losses = 0;
+            holdingsData.forEach(function(h) {
+                totalValue += h.current_value || 0;
+                totalCost += (h.avg_cost || 0) * (h.shares || 0);
+                totalPL += h.gain_loss || 0;
+                if (h.gain_loss > 0) gains++;
+                else if (h.gain_loss < 0) losses++;
+            });
+            var totalPct = totalCost > 0 ? (totalPL / totalCost * 100) : 0;
+
+            document.getElementById('metricTotalValue').textContent =
+                currencySymbol + Math.round(totalValue + cashBalance).toLocaleString();
+
+            var sign = totalPL >= 0 ? '+' : '';
+            document.getElementById('metricPLValue').textContent =
+                sign + currencySymbol + Math.round(Math.abs(totalPL)).toLocaleString();
+            document.getElementById('metricPLValue').className =
+                'portfolio-metric-value ' + (totalPL >= 0 ? 'gain' : 'loss');
+            document.getElementById('metricPLPct').textContent =
+                sign + totalPct.toFixed(1) + '%';
+
+            var plCard = document.getElementById('metricPLCard');
+            plCard.className = 'portfolio-metric highlight ' + (totalPL >= 0 ? 'gain' : 'loss');
+
+            document.getElementById('metricWinLoss').textContent =
+                gains + ' gaining \u00b7 ' + losses + ' losing';
         }
     }
 });

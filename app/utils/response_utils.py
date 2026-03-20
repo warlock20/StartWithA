@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any, Tuple
 from flask import jsonify, Response
 from datetime import datetime, date
 from decimal import Decimal
+from app.utils.time_utils import now_utc
 
 
 def json_success(
@@ -69,11 +70,9 @@ def json_error(
     """
     response = {
         'success': False,
-        'message': message
+        'message': message,
+        'error': error or message
     }
-
-    if error:
-        response['error'] = error
 
     # Add any additional fields
     response.update(kwargs)
@@ -235,7 +234,7 @@ def json_with_timestamp(
             'timestamp': '2024-01-15T10:30:00'
         }
     """
-    now = datetime.now()
+    now = now_utc()
 
     if timestamp_format == 'unix':
         timestamp = int(now.timestamp())

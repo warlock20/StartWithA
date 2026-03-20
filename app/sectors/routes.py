@@ -1,4 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
+from app.utils.response_utils import json_success, json_error, json_not_found, json_unauthorized
 from flask_login import current_user, login_required
 from app import db
 from app.models import (SectorAnalysis, QuestionBankItem, SectorResearchSection,
@@ -537,7 +538,7 @@ def save_section(section_id):
 
     # Authorization check
     if section.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     # Get content from request
     content = request.json.get('content', '')
@@ -555,7 +556,7 @@ def save_section(section_id):
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @sectors_bp.route('/<string:sector_name>/add_company/<int:company_id>', methods=['POST'])
@@ -567,7 +568,7 @@ def add_company_to_sector(sector_name, company_id):
 
     if not sector:
         if is_ajax:
-            return jsonify({'success': False, 'error': 'Sector not found'}), 404
+            return json_not_found('Sector')
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.index'))
 
@@ -577,7 +578,7 @@ def add_company_to_sector(sector_name, company_id):
     # Authorization check
     if company.user_id != current_user.id:
         if is_ajax:
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            return json_unauthorized('Access denied')
         flash('Access denied', 'error')
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
@@ -611,7 +612,7 @@ def remove_company_from_sector(sector_name, company_id):
 
     if not sector:
         if is_ajax:
-            return jsonify({'success': False, 'error': 'Sector not found'}), 404
+            return json_not_found('Sector')
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.index'))
 
@@ -621,7 +622,7 @@ def remove_company_from_sector(sector_name, company_id):
     # Authorization check
     if company.user_id != current_user.id:
         if is_ajax:
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            return json_unauthorized('Access denied')
         flash('Access denied', 'error')
         return redirect(url_for('sectors.notebook', sector_name=sector_name))
 
@@ -706,12 +707,12 @@ def mark_source_accessed(source_id):
 
     # Authorization check
     if source.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     source.accessed_at = now_utc()
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/<string:sector_name>/add_snippet', methods=['POST'])
@@ -720,7 +721,7 @@ def add_snippet(sector_name):
     """Add a research snippet"""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -734,7 +735,7 @@ def add_snippet(sector_name):
     notes = data.get('notes', '').strip()
 
     if not content or not category:
-        return jsonify({'success': False, 'error': 'Content and category are required'}), 400
+        return json_error('Content and category are required')
 
     # Create new snippet
     snippet = SectorResearchSnippet(
@@ -759,7 +760,7 @@ def delete_snippet(snippet_id):
 
     # Authorization check
     if snippet.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     sector_slug = snippet.sector_analysis.sector.slug
     db.session.delete(snippet)
@@ -779,7 +780,7 @@ def create_section(sector_name):
     """Create a new section on the canvas"""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -790,7 +791,7 @@ def create_section(sector_name):
     title = data.get('title', '').strip()
 
     if not title:
-        return jsonify({'success': False, 'error': 'Title is required'}), 400
+        return json_error('Title is required')
 
     # Get max sort_order
     max_order = db.session.query(func.max(SectorSection.sort_order)).filter_by(
@@ -827,7 +828,7 @@ def update_section(section_id):
     section = SectorSection.query.get_or_404(section_id)
 
     if section.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     data = request.get_json()
 
@@ -844,7 +845,7 @@ def update_section(section_id):
 
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/section/<int:section_id>/delete', methods=['POST'])
@@ -854,7 +855,7 @@ def delete_section(section_id):
     section = SectorSection.query.get_or_404(section_id)
 
     if section.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     # Move all notes in this section to collector (set section_id to None)
     SectorNote.query.filter_by(section_id=section_id).update({'section_id': None})
@@ -862,7 +863,7 @@ def delete_section(section_id):
     db.session.delete(section)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/<string:sector_name>/note/create', methods=['POST'])
@@ -871,7 +872,7 @@ def create_note(sector_name):
     """Create a new note"""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -883,7 +884,7 @@ def create_note(sector_name):
     content = data.get('content', '').strip()
 
     if not title or not content:
-        return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+        return json_error('Title and content are required')
 
     section_id = data.get('section_id')
 
@@ -930,7 +931,7 @@ def update_note(note_id):
     note = SectorNote.query.get_or_404(note_id)
 
     if note.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     data = request.get_json()
 
@@ -951,7 +952,7 @@ def update_note(note_id):
 
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/note/<int:note_id>/delete', methods=['POST'])
@@ -961,12 +962,12 @@ def delete_note(note_id):
     note = SectorNote.query.get_or_404(note_id)
 
     if note.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     db.session.delete(note)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/<string:sector_name>/generate-document', methods=['GET'])
@@ -976,7 +977,7 @@ def generate_document_from_canvas(sector_name):
     try:
         sector = get_sector_by_name_or_slug(sector_name, current_user.id)
         if not sector:
-            return jsonify({'success': False, 'error': 'Sector not found'}), 404
+            return json_not_found('Sector')
 
         analysis = SectorAnalysis.query.filter_by(
             user_id=current_user.id,
@@ -1035,10 +1036,7 @@ def generate_document_from_canvas(sector_name):
         print(f"Error in generate_document_from_canvas: {str(e)}")
         print(traceback.format_exc())
 
-        return jsonify({
-            'success': False,
-            'error': f'Server error: {str(e)}'
-        }), 500
+        return json_error(f'Server error: {str(e)}', status_code=500)
 
 
 @sectors_bp.route('/<path:sector_name>/research-notes', methods=['GET'])
@@ -1054,7 +1052,7 @@ def get_research_notes(sector_name):
         sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
 
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -1080,7 +1078,7 @@ def save_research_notes(sector_name):
         sector = SectorModel.query.filter_by(user_id=current_user.id, display_name=sector_name).first()
 
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -1194,7 +1192,7 @@ def toggle_continuous_learning(analysis_id):
     analysis = SectorAnalysis.query.get_or_404(analysis_id)
 
     if analysis.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     data = request.get_json()
     enabled = data.get('enabled', False)
@@ -1206,7 +1204,7 @@ def toggle_continuous_learning(analysis_id):
         return jsonify({'success': True, 'enabled': enabled})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 # ============================================================================
@@ -1223,7 +1221,7 @@ def detect_companies():
     text = data.get('text', '')
 
     if not text or not text.strip():
-        return jsonify({'success': False, 'error': 'No text provided'}), 400
+        return json_error('No text provided')
 
     suggestions = get_company_suggestions_for_text(text, current_user.id)
 
@@ -1241,13 +1239,13 @@ def link_companies_to_note(note_id):
 
     # Authorization check
     if note.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     data = request.get_json()
     company_ids = data.get('company_ids', [])
 
     if not company_ids:
-        return jsonify({'success': False, 'error': 'No companies selected'}), 400
+        return json_error('No companies selected')
 
     # Verify all companies belong to the user
     companies = Company.query.filter(
@@ -1256,7 +1254,7 @@ def link_companies_to_note(note_id):
     ).all()
 
     if len(companies) != len(company_ids):
-        return jsonify({'success': False, 'error': 'Invalid company IDs'}), 400
+        return json_error('Invalid company IDs')
 
     # Clear existing links and add new ones
     # Delete existing associations
@@ -1295,18 +1293,18 @@ def unlink_company_from_note(note_id, company_id):
 
     # Authorization check
     if note.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     company = Company.query.get_or_404(company_id)
 
     if company.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     # Remove the link
     note.linked_companies.remove(company)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 @sectors_bp.route('/snippet/<int:snippet_id>/link-companies', methods=['POST'])
@@ -1317,13 +1315,13 @@ def link_companies_to_snippet(snippet_id):
 
     # Authorization check
     if snippet.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     data = request.get_json()
     company_ids = data.get('company_ids', [])
 
     if not company_ids:
-        return jsonify({'success': False, 'error': 'No companies selected'}), 400
+        return json_error('No companies selected')
 
     # Verify all companies belong to the user
     companies = Company.query.filter(
@@ -1332,7 +1330,7 @@ def link_companies_to_snippet(snippet_id):
     ).all()
 
     if len(companies) != len(company_ids):
-        return jsonify({'success': False, 'error': 'Invalid company IDs'}), 400
+        return json_error('Invalid company IDs')
 
     # Clear existing links and add new ones
     # Delete existing associations
@@ -1371,18 +1369,18 @@ def unlink_company_from_snippet(snippet_id, company_id):
 
     # Authorization check
     if snippet.sector_analysis.author != current_user:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     company = Company.query.get_or_404(company_id)
 
     if company.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     # Remove the link
     snippet.linked_companies.remove(company)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return json_success()
 
 
 # ============================================================================
@@ -1396,7 +1394,7 @@ def get_template_content(template_key):
     template = get_template(template_key)
 
     if not template:
-        return jsonify({'success': False, 'error': 'Template not found'}), 404
+        return json_not_found('Template')
 
     return jsonify({
         'success': True,
@@ -1420,7 +1418,7 @@ def generate_ai_summary(sector_name):
     """
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
     if not sector:
-        return jsonify({'success': False, 'error': 'Sector not found'}), 404
+        return json_not_found('Sector')
 
     analysis = SectorAnalysis.query.filter_by(
         user_id=current_user.id,
@@ -1472,10 +1470,7 @@ def generate_ai_summary(sector_name):
         )
 
         if not result['success']:
-            return jsonify({
-                'success': False,
-                'error': result.get('error', 'Failed to generate summary')
-            }), 500
+            return json_error(result.get('error', 'Failed to generate summary'), status_code=500)
 
         # Format as HTML for Quill editor
         html_summary = summarizer.format_as_html(result['bullet_points'])
@@ -1493,7 +1488,4 @@ def generate_ai_summary(sector_name):
         print(f"Error generating AI summary: {str(e)}")
         print(traceback.format_exc())
 
-        return jsonify({
-            'success': False,
-            'error': f'An error occurred while generating the summary: {str(e)}'
-        }), 500
+        return json_error(f'An error occurred while generating the summary: {str(e)}', status_code=500)

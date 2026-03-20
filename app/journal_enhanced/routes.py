@@ -8,7 +8,8 @@ from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        get_review_queue, update_thesis_version,
                                        calculate_next_review_date, create_default_templates)
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -251,7 +252,7 @@ def toggle_star(entry_id):
    entry = JournalEntry.query.get_or_404(entry_id)
    
    if entry.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
+       return json_unauthorized('Access denied')
    
    entry.is_starred = not entry.is_starred
    
@@ -260,7 +261,7 @@ def toggle_star(entry_id):
        return jsonify({'starred': entry.is_starred})
    except Exception as e:
        db.session.rollback()
-       return jsonify({'error': str(e)}), 500
+       return json_error(str(e), status_code=500)
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>/archive', methods=['POST'])
 @login_required
@@ -450,13 +451,8 @@ def new_learning_note():
        investor_tags = [source_author] if source_author else None
 
        # Parse source date
-       source_date = None
        source_date_str = request.form.get('source_date')
-       if source_date_str:
-           try:
-               source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
-           except ValueError:
-               pass
+       source_date = parse_date_to_date_object(source_date_str) if source_date_str else None
 
        note = LearningNote(
            author=current_user,
@@ -533,7 +529,7 @@ def review_learning_note(note_id):
    note = LearningNote.query.get_or_404(note_id)
 
    if note.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
+       return json_unauthorized('Access denied')
 
    note.times_reviewed += 1
    note.last_reviewed = now_utc()
@@ -548,7 +544,7 @@ def review_learning_note(note_id):
        })
    except Exception as e:
        db.session.rollback()
-       return jsonify({'error': str(e)}), 500
+       return json_error(str(e), status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/toggle-favorite', methods=['POST'])
 @login_required
@@ -557,16 +553,16 @@ def toggle_favorite_note(note_id):
    note = LearningNote.query.get_or_404(note_id)
 
    if note.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
+       return json_unauthorized('Access denied')
 
    note.is_favorite = not note.is_favorite
 
    try:
        db.session.commit()
-       return jsonify({'success': True, 'is_favorite': note.is_favorite})
+       return json_success(data={'is_favorite': note.is_favorite})
    except Exception as e:
        db.session.rollback()
-       return jsonify({'error': str(e)}), 500
+       return json_error(str(e), status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/delete', methods=['POST'])
 @login_required
@@ -575,15 +571,15 @@ def delete_learning_note(note_id):
    note = LearningNote.query.get_or_404(note_id)
 
    if note.user_id != current_user.id:
-       return jsonify({'error': 'Access denied'}), 403
+       return json_unauthorized('Access denied')
 
    try:
        db.session.delete(note)
        db.session.commit()
-       return jsonify({'success': True})
+       return json_success()
    except Exception as e:
        db.session.rollback()
-       return jsonify({'error': str(e)}), 500
+       return json_error(str(e), status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -611,10 +607,7 @@ def edit_learning_note(note_id):
        # Parse source date
        source_date_str = request.form.get('source_date')
        if source_date_str:
-           try:
-               note.source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
-           except ValueError:
-               pass
+           note.source_date = parse_date_to_date_object(source_date_str)
 
        # Parse topic tags
        topic_tags_str = request.form.get('topic_tags', '')
@@ -1057,7 +1050,7 @@ def analyze_entry(entry_id):
 
     # Security check
     if entry.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     try:
         # Set processing status
@@ -1117,7 +1110,7 @@ def api_get_related_entries(entry_id):
 
     # Security check
     if entry.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     # Get related entries from stored IDs or run analysis
     related_entry_ids = entry.related_entry_ids or []
@@ -1164,7 +1157,7 @@ def get_contradictions(entry_id):
 
     # Security check
     if entry.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
+        return json_unauthorized('Access denied')
 
     contradictions = entry.contradiction_flags or {}
 
@@ -1443,7 +1436,7 @@ def update_entry_tags(entry_id):
     
     # Check ownership
     if entry.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
     
     try:
         data = request.get_json()
@@ -1476,7 +1469,7 @@ def update_learning_note_tags(note_id):
 
     # Check ownership
     if note.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     try:
         data = request.get_json()

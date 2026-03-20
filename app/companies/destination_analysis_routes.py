@@ -1,4 +1,4 @@
-from datetime import datetime
+from app.utils.time_utils import parse_date_to_date_object
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
@@ -23,7 +23,10 @@ def add_checkpoint(company_id):
         return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
     try:
-        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        target_date = parse_date_to_date_object(target_date_str)
+        if not target_date:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "error")
+            return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
         new_checkpoint = DestinationCheckpoint(
             company_id=company.id,
@@ -132,15 +135,18 @@ def edit_checkpoint(checkpoint_id):
             # Re-render the edit form with an error
             return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
 
+        parsed_date = parse_date_to_date_object(target_date_str)
+        if not parsed_date:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "error")
+            return render_template('companies/edit_checkpoint.html', title="Edit Checkpoint", checkpoint=checkpoint)
+
         try:
             checkpoint.metric = metric
             checkpoint.expectation = expectation
-            checkpoint.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+            checkpoint.target_date = parsed_date
             db.session.commit()
             flash("Checkpoint updated successfully.", "success")
             return redirect(url_for('companies.destination_analysis', company_id=checkpoint.company_id))
-        except ValueError:
-            flash("Invalid date format. Please use YYYY-MM-DD.", "error")
         except Exception as e:
             db.session.rollback()
             flash(f"Error updating checkpoint: {e}", "error")

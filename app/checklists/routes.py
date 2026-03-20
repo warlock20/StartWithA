@@ -6,6 +6,7 @@ import asyncio
 from io import BytesIO
 from app import db
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.models import Checklist, ChecklistItem, Company, QuestionBankItem, DocumentImport, ChecklistAnalysis, ChecklistAnswer
 from app.checklists import checklists_bp 
 from app.services.ai.document_processor import (
@@ -378,7 +379,7 @@ def reorder_checklist_items(checklist_id):
 
     # Authorization check
     if checklist.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     try:
         data = request.get_json()
@@ -394,11 +395,11 @@ def reorder_checklist_items(checklist_id):
                     item.order = index
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Items reordered successfully'})
+        return json_success('Items reordered successfully')
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @checklists_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
@@ -833,7 +834,7 @@ def list_templates_api():
     try:
         loader = get_template_loader()
         templates = loader.list_available_templates()
-        return jsonify({'success': True, 'templates': templates})
+        return json_success(data={'templates': templates})
     except Exception as e:
         current_app.logger.error(f"Failed to list templates: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)

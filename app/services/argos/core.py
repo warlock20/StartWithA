@@ -412,15 +412,8 @@ class ArgosService(CompanionMixin):
 
         TODO: Query transactions with loss > threshold, same sector
         """
-        candidates = []
-        checks_passed = []
-        checks_failed = []
-
-        # TODO: Query Transaction model for significant losses
-        # Filter by sector match
-        # Convert to InsightCandidate
-
-        return candidates, checks_passed, checks_failed
+        logger.debug("_detect_loss_aversion_risk: Not yet implemented")
+        return [], [], []
 
     def _gather_accounting_flags(
         self,
@@ -432,16 +425,11 @@ class ArgosService(CompanionMixin):
         Check for accounting red flags (Beneish, Altman).
 
         TODO: Integrate with financial_data service
+        - Beneish M-Score > -1.78 = potential manipulation
+        - Altman Z-Score < 1.81 = distress
         """
-        candidates = []
-        checks_passed = ["No accounting red flags detected"]
-        checks_failed = []
-
-        # TODO: Get financial data and calculate scores
-        # Beneish M-Score > -1.78 = potential manipulation
-        # Altman Z-Score < 1.81 = distress
-
-        return candidates, checks_passed, checks_failed
+        logger.debug("_gather_accounting_flags: Not yet implemented")
+        return [], ["No accounting red flags detected"], []
 
     def _gather_consistency_issues(
         self,
@@ -452,17 +440,10 @@ class ArgosService(CompanionMixin):
         """
         Check if current answers differ from successful patterns.
 
-        TODO: Compare checklist responses to historical patterns
+        TODO: Compare checklist responses to historical patterns from past successful investments
         """
-        candidates = []
-        checks_passed = []
-        checks_failed = []
-
-        # TODO: Get user's past successful investments
-        # Compare answer patterns
-        # Flag significant deviations
-
-        return candidates, checks_passed, checks_failed
+        logger.debug("_gather_consistency_issues: Not yet implemented")
+        return [], [], []
 
     def _gather_completeness_issues(
         self,
@@ -473,16 +454,10 @@ class ArgosService(CompanionMixin):
         """
         Check research completeness before step completion.
 
-        TODO: Count answered vs total questions
+        TODO: Count answered vs total questions, warn if below threshold
         """
-        candidates = []
-        checks_passed = []
-        checks_failed = []
-
-        # TODO: Get project and count completion
-        # Warn if below threshold
-
-        return candidates, checks_passed, checks_failed
+        logger.debug("_gather_completeness_issues: Not yet implemented")
+        return [], [], []
 
     def _gather_journal_insights(
         self,

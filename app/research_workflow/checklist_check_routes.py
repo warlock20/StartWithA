@@ -10,6 +10,7 @@ from app import db
 from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
+from app.utils.response_utils import json_error, json_unauthorized
 
 # Import unified LLM service
 from app.services.ai import generate_ai_content, ai_service
@@ -207,11 +208,11 @@ def research_step_json(analysis_id, item_id):
     """
     session = ChecklistAnalysis.query.get_or_404(analysis_id)
     if session.researcher != current_user:
-        return jsonify({'error': 'Unauthorized'}), 403
+        return json_unauthorized('Unauthorized')
 
     current_item = ChecklistItem.query.get_or_404(item_id)
     if current_item.checklist_id != session.checklist_id:
-        return jsonify({'error': 'Invalid item'}), 400
+        return json_error('Invalid item')
 
     all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
 
@@ -280,11 +281,11 @@ def autosave_research_answer(analysis_id, item_id):
 
         # Authorization check
         if session.researcher != current_user:
-            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+            return json_unauthorized('Unauthorized')
 
         # Security check: ensure the item belongs to the session's checklist
         if current_item.checklist_id != session.checklist_id:
-            return jsonify({'success': False, 'error': 'Invalid item for this session'}), 400
+            return json_error('Invalid item for this session')
 
         # Get data from request (supports both JSON and form data)
         if request.is_json:
@@ -324,7 +325,7 @@ def autosave_research_answer(analysis_id, item_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/ai_analyze', methods=['POST'])
 @login_required

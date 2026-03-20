@@ -7,6 +7,7 @@ from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
+from app.utils.response_utils import json_error
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +154,7 @@ def api_create_company():
         ticker_symbol = validation['normalized_ticker']
 
         if not name:
-            return jsonify({'success': False, 'error': 'Company name is required'})
+            return json_error('Company name is required')
 
         # Check if company with same name or ticker already exists for this user
         existing = Company.query.filter(
@@ -206,7 +207,7 @@ def api_create_company():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        return json_error(str(e))
 
 
 @companies_bp.route('/api/lookup/<ticker>')
@@ -216,12 +217,12 @@ def api_lookup_ticker(ticker):
     try:
         ticker_input = ticker.upper().strip()
         if not ticker_input:
-            return jsonify({'success': False, 'error': 'Ticker symbol is required'})
+            return json_error('Ticker symbol is required')
 
         # Validate and normalize ticker
         validation = TickerValidator.parse_and_validate(ticker_input)
         if not validation['is_valid']:
-            return jsonify({'success': False, 'error': validation['errors'][0]})
+            return json_error(validation['errors'][0])
 
         # Use normalized ticker for lookup
         normalized_ticker = validation['normalized_ticker']

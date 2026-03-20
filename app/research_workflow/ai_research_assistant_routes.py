@@ -171,8 +171,8 @@ def ai_assist():
             tokens_used=ai_response.tokens_used,
             feedback=None,  # User hasn't provided feedback yet
             prompt_version=ai_response.metadata.get('template_version') if ai_response.metadata else None,
-            provider='gemini',  # TODO: Get from ai_response.metadata
-            model='gemini-flash-latest'  # TODO: Get from ai_response.metadata
+            provider=ai_response.metadata.get('provider', 'gemini') if ai_response.metadata else 'gemini',
+            model=ai_response.metadata.get('model', 'gemini-flash') if ai_response.metadata else 'gemini-flash'
         )
 
         db.session.add(feedback_record)
