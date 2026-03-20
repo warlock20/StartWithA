@@ -8,7 +8,7 @@ from app.learning import learning_bp
 from app.learning.utils import (get_weekly_metrics,
                                calculate_learning_score, get_review_schedule,
                                generate_learning_recommendations)
-from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.time_utils import now_utc, ensure_timezone_aware, parse_date_to_date_object
 from datetime import datetime, timedelta, date
 
 @learning_bp.route('/dashboard')
@@ -267,7 +267,7 @@ def new_mistake():
            lesson_learned=lesson_learned,
            prevention_steps=prevention_steps,
            process_changes=request.form.get('process_changes'),
-           occurred_date=datetime.strptime(request.form.get('occurred_date'), '%Y-%m-%d').date() if request.form.get('occurred_date') else None
+           occurred_date=parse_date_to_date_object(request.form.get('occurred_date'))
        )
        
        db.session.add(mistake)
@@ -366,7 +366,7 @@ def weekly_review():
 @login_required
 def save_weekly_review():
    """Save weekly review"""
-   week_start = datetime.strptime(request.form.get('week_start'), '%Y-%m-%d').date()
+   week_start = parse_date_to_date_object(request.form.get('week_start'))
    week_end = week_start + timedelta(days=6)
    
    # Check for existing review
@@ -466,8 +466,8 @@ def investment_postmortem(decision_id):
            user=current_user,
            company_id=decision.company_id,
            decision_id=decision_id,
-           entry_date=datetime.strptime(request.form.get('entry_date'), '%Y-%m-%d').date(),
-           exit_date=datetime.strptime(request.form.get('exit_date'), '%Y-%m-%d').date(),
+           entry_date=parse_date_to_date_object(request.form.get('entry_date')),
+           exit_date=parse_date_to_date_object(request.form.get('exit_date')),
            entry_price=request.form.get('entry_price', type=float),
            exit_price=request.form.get('exit_price', type=float),
            total_return=request.form.get('total_return', type=float),
@@ -613,7 +613,7 @@ def create_learning_path():
    )
    
    if target_completion:
-       learning_path.target_completion = datetime.strptime(target_completion, '%Y-%m-%d').date()
+       learning_path.target_completion = parse_date_to_date_object(target_completion)
    
    db.session.add(learning_path)
    

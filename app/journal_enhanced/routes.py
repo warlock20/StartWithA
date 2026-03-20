@@ -8,7 +8,7 @@ from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
                                        get_review_queue, update_thesis_version,
                                        calculate_next_review_date, create_default_templates)
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -450,13 +450,8 @@ def new_learning_note():
        investor_tags = [source_author] if source_author else None
 
        # Parse source date
-       source_date = None
        source_date_str = request.form.get('source_date')
-       if source_date_str:
-           try:
-               source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
-           except ValueError:
-               pass
+       source_date = parse_date_to_date_object(source_date_str) if source_date_str else None
 
        note = LearningNote(
            author=current_user,
@@ -611,10 +606,7 @@ def edit_learning_note(note_id):
        # Parse source date
        source_date_str = request.form.get('source_date')
        if source_date_str:
-           try:
-               note.source_date = datetime.strptime(source_date_str, '%Y-%m-%d').date()
-           except ValueError:
-               pass
+           note.source_date = parse_date_to_date_object(source_date_str)
 
        # Parse topic tags
        topic_tags_str = request.form.get('topic_tags', '')

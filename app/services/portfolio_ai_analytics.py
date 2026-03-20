@@ -12,6 +12,7 @@ import json
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime, date
+from app.utils.time_utils import now_utc
 from pathlib import Path
 
 from app.models.portfolio import Transaction, PortfolioPosition
@@ -642,7 +643,7 @@ class PortfolioAIAnalytics:
         if template_name == "sector_momentum_analysis":
             return {
                 "metadata": {
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": now_utc().isoformat(),
                     "last_transaction_date": self._get_last_transaction_date(),
                     "error": None,
                 },
@@ -653,7 +654,7 @@ class PortfolioAIAnalytics:
         if template_name == "tax_optimization_analysis":
             return {
                 "metadata": {
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": now_utc().isoformat(),
                     "last_transaction_date": self._get_last_transaction_date(),
                     "error": None,
                 },
@@ -691,7 +692,7 @@ class PortfolioAIAnalytics:
         # Build formatted structure
         return {
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": now_utc().isoformat(),
                 "last_transaction_date": self._get_last_transaction_date(),
                 "transactions_count": summary.get("total_transactions", 0),
                 "positions_count": summary.get("total_positions", 0),
@@ -972,7 +973,7 @@ class PortfolioAIAnalytics:
         """
         return {
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": now_utc().isoformat(),
                 "last_transaction_date": self._get_last_transaction_date(),
                 "transactions_count": 0,
                 "positions_count": 0,
@@ -1015,7 +1016,7 @@ class PortfolioAIAnalytics:
         """Response when no transaction data"""
         return {
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": now_utc().isoformat(),
                 "last_transaction_date": None,
                 "transactions_count": 0,
                 "positions_count": 0,
@@ -1079,7 +1080,7 @@ class PortfolioAIAnalytics:
 
         return {
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": now_utc().isoformat(),
                 "last_transaction_date": self._get_last_transaction_date(),
                 "transactions_count": summary.get("total_transactions", 0),
                 "positions_count": summary.get("total_positions", 0),

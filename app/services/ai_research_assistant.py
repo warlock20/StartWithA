@@ -315,6 +315,8 @@ class AIResearchAssistant:
                     'category': PROMPT_CATEGORY,
                     'question_length': len(question_text),
                     'answer_length': len(user_answer),
+                    'provider': provider_str or 'gemini',
+                    'model': model_str or 'gemini-flash',
                 }
             )
 

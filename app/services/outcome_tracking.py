@@ -23,15 +23,13 @@ Usage:
     outcome = tracker.create_outcome_record(user_id, company_id, ...)
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime, date
-from decimal import Decimal
+from typing import Dict, Any, Optional
 import logging
 
 from app import db
 from app.utils.time_utils import now_utc
 from app.models.ai_intelligence import ResearchOutcome, AIInsight
-from .research_quality import calculate_research_quality, get_research_quality_for_company
+from .research_quality import calculate_research_quality
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +76,7 @@ class OutcomeTracker:
         Returns:
             Created ResearchOutcome record
         """
-        from app.models import ResearchSession, ResearchProject, DecisionJournal, DestinationCheckpoint
+        from app.models import ResearchProject, DecisionJournal, DestinationCheckpoint
         
         # Find linked research if not provided
         if not research_session_id and not research_project_id:
@@ -97,16 +95,6 @@ class OutcomeTracker:
                 if project:
                     research_project_id = project.id
             
-            if not research_session_id and not research_project_id:
-                session = ResearchSession.query.filter_by(
-                    user_id=user_id,
-                    company_id=company_id,
-                    status='completed'
-                ).order_by(ResearchSession.created_at.desc()).first()
-                
-                if session:
-                    research_session_id = session.id
-        
         # Calculate research quality
         quality_score = None
         quality_data = None

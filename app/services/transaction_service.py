@@ -18,7 +18,7 @@ from app.services.currency_service import CurrencyService
 from app.services.cash_service import CashService
 from app.services.outcome_tracking import on_buy_transaction, on_sell_transaction
 from app.services.intelligence_engine import IntelligenceEngine
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +72,8 @@ class TransactionService:
                 error_message='Please fill in all required fields'
             )
 
-        try:
-            transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
+        transaction_date = parse_date_to_date_object(date_str)
+        if not transaction_date:
             return TransactionValidationResult(
                 is_valid=False,
                 error_message='Invalid date format'
@@ -134,9 +133,8 @@ class TransactionService:
             )
 
         # Parse and validate date
-        try:
-            transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
+        transaction_date = parse_date_to_date_object(date_str)
+        if not transaction_date:
             return TransactionValidationResult(
                 is_valid=False,
                 error_message='Invalid date format'
@@ -275,7 +273,7 @@ class TransactionService:
             company = Company.query.filter_by(id=company_id, user_id=user_id).first()
 
             # Parse values
-            transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            transaction_date = parse_date_to_date_object(date_str)
             price_per_share_decimal = Decimal(price_per_share)
             fees_decimal = Decimal(fees) if fees else Decimal('0.00')
 
@@ -455,7 +453,7 @@ class TransactionService:
                 error=validation.error_message
             )
 
-        transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        transaction_date = parse_date_to_date_object(date_str)
         cash_amount = Decimal(cash_amount_str)
         fees_decimal = Decimal(fees) if fees else Decimal('0.00')
 

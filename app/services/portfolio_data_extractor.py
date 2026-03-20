@@ -21,7 +21,8 @@ Usage:
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
+from app.utils.time_utils import now_utc
 
 from app.models.portfolio import Transaction, PortfolioPosition
 from app.models.company import Company
@@ -204,7 +205,7 @@ class PortfolioDataExtractor:
             'recent_activity': self.extract_recent_activity(transactions, days=90),
             'metadata': {
                 'total_transactions': len(transactions),
-                'extraction_date': datetime.utcnow().isoformat(),
+                'extraction_date': now_utc().isoformat(),
                 'user_id': self.user_id,
                 'has_data': len(transactions) > 0
             }

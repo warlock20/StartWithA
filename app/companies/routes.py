@@ -6,6 +6,7 @@ import json
 
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from app.utils.time_utils import parse_date_to_date_object
 from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
 from flask_login import current_user, login_required
@@ -320,11 +321,9 @@ def add_document(company_id):
 
                 document_date_obj = None
                 if doc_date_str:
-                    try:
-                        document_date_obj = datetime.strptime(doc_date_str, '%Y-%m-%d').date()
-                    except ValueError:
+                    document_date_obj = parse_date_to_date_object(doc_date_str)
+                    if not document_date_obj:
                         flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
-                        # It might be better to return and not save if date is invalid
                         return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
                 
                 new_doc = CompanyDocument(

@@ -4,6 +4,7 @@ API routes for duplicate detection and other real-time validations
 
 from datetime import datetime, timezone
 from flask import request, jsonify, session
+from app.utils.response_utils import json_error, json_unauthorized
 from flask_login import login_required, current_user
 from sqlalchemy.orm.attributes import flag_modified
 from app import db
@@ -40,7 +41,7 @@ def check_duplicates():
         elif entity_type == 'idea':
             result = detector.check_idea_duplicates(name, ticker_symbol)
         else:
-            return jsonify({'error': 'Invalid entity_type'}), 400
+            return json_error('Invalid entity_type')
 
         # Convert model objects to dictionaries for JSON serialization
         def serialize_entity(entity):
@@ -79,7 +80,7 @@ def check_duplicates():
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @api_bp.route('/ideas/<int:idea_id>/resurrect', methods=['POST'])
@@ -91,11 +92,11 @@ def resurrect_idea(idea_id):
 
         # Verify ownership
         if idea.user_id != current_user.id:
-            return jsonify({'error': 'Access denied'}), 403
+            return json_unauthorized('Access denied')
 
         # Verify it's killed
         if idea.status != 'killed':
-            return jsonify({'error': 'Idea is not killed'}), 400
+            return json_error('Idea is not killed')
 
         # Resurrect the idea
         idea.status = 'inbox'
@@ -110,7 +111,7 @@ def resurrect_idea(idea_id):
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @api_bp.route('/mark-tour-completed', methods=['POST'])
@@ -122,7 +123,7 @@ def mark_tour_completed():
         tour_name = data.get('tour_name')
 
         if not tour_name:
-            return jsonify({'error': 'tour_name is required'}), 400
+            return json_error('tour_name is required')
 
         # Get or initialize page_tours_completed dict
         if current_user.page_tours_completed is None:
@@ -146,7 +147,7 @@ def mark_tour_completed():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @api_bp.route('/should-show-tour', methods=['GET'])
@@ -157,7 +158,7 @@ def should_show_tour():
         tour_name = request.args.get('tour_name')
 
         if not tour_name:
-            return jsonify({'error': 'tour_name is required'}), 400
+            return json_error('tour_name is required')
 
         # Check user preferences
         show_tours = True
@@ -179,7 +180,7 @@ def should_show_tour():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)
 
 
 @api_bp.route('/dismiss-quote-banner', methods=['POST'])
@@ -195,4 +196,4 @@ def dismiss_quote_banner():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return json_error(str(e), status_code=500)

@@ -18,7 +18,7 @@ from app.services.background_tasks import BackgroundTaskService
 from app.services.currency_service import CurrencyService
 from app.services.transaction_service import TransactionService
 from app.services.cash_service import CashService
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 
 logger = logging.getLogger(__name__)
 
@@ -336,9 +336,8 @@ def edit_transaction(transaction_id):
                 return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
             # Parse and validate date
-            try:
-                transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            except ValueError:
+            transaction_date = parse_date_to_date_object(date_str)
+            if not transaction_date:
                 flash('Invalid date format', 'error')
                 return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 

@@ -33,6 +33,11 @@ from app.models import DecisionJournal, PortfolioPosition, DestinationCheckpoint
 
 logger = logging.getLogger(__name__)
 
+# Thresholds for outcome analysis (days)
+SHORT_HOLD_THRESHOLD_DAYS = 90
+# Minimum data points needed for confidence-return correlation
+MIN_CONFIDENCE_RETURN_SAMPLES = 3
+
 
 @dataclass
 class GradePerformance:
@@ -579,7 +584,7 @@ class PortfolioIntelligenceService:
         for o in outcomes:
             if o.exit_date and o.entry_date:
                 days = (o.exit_date - o.entry_date).days
-                if days < 90: #TODO: Move this value to config value.
+                if days < SHORT_HOLD_THRESHOLD_DAYS:
                     short_holds.append(float(o.realized_return_pct))
                 else:
                     long_holds.append(float(o.realized_return_pct))
@@ -625,7 +630,7 @@ class PortfolioIntelligenceService:
                     'return': float(o.realized_return_pct)
                 })
         
-        if len(confidence_returns) >= 3: #TODO: Tunable parameter
+        if len(confidence_returns) >= MIN_CONFIDENCE_RETURN_SAMPLES:
             high_conf = [cr for cr in confidence_returns if cr['confidence'] >= 8]
             low_conf = [cr for cr in confidence_returns if cr['confidence'] <= 5]
             

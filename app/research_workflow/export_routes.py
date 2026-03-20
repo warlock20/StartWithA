@@ -6,7 +6,7 @@ Export a full research project as a ZIP of markdown files + attachments.
 import io
 import os
 import zipfile
-from datetime import datetime
+from app.utils.time_utils import now_utc
 from flask import current_app, abort, Response
 from flask_login import current_user, login_required
 from app.models import (ResearchProject, ResearchAttachment,
@@ -217,7 +217,7 @@ def export_project(project_id):
         abort(403)
 
     company_name = _safe_name(project.company.name if project.company else 'Unknown')
-    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    date_str = now_utc().strftime('%Y-%m-%d')
     folder_name = f"{company_name}_Research_{date_str}"
 
     buf = io.BytesIO()

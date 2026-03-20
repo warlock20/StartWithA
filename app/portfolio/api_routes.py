@@ -279,7 +279,7 @@ def quick_thesis_check():
         })
 
 
-#TODO: Not intergrated to the system        
+# TODO: Not integrated to the system - needs UI hookup in add_transaction.html or decision_journal
 @portfolio_bp.route('/api/similar-decisions', methods=['POST'])
 @login_required
 def find_similar_decisions_api():
