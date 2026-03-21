@@ -57,7 +57,7 @@ def index():
 
     # Get portfolio company IDs for the current user (IDs only, no full objects)
     portfolio_company_ids = [
-        c.id for c, in Company.query.filter_by(
+        cid for (cid,) in Company.query.filter_by(
             user_id=current_user.id, is_in_portfolio=True
         ).with_entities(Company.id).all()
     ]

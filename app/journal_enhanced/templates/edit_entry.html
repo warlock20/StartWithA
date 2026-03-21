@@ -183,7 +183,7 @@
 
                     <!-- Submit -->
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ request.referrer or url_for('journal_enhanced.entry_detail', entry_id=entry.id) }}" class="btn btn-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary btn-lg">Update Entry</button>
                     </div>
                 </form>
@@ -343,22 +343,23 @@
 
     // Search companies
     function searchCompanies(query) {
-        fetch(`/companies/search?q=${encodeURIComponent(query)}`)
+        fetch(`/companies/api/companies/search?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
                 const resultsDiv = document.getElementById('searchResults');
                 const quickAddDiv = document.getElementById('quickAddForm');
+                const allResults = (data.user_companies || []).concat(data.yahoo_suggestions || []);
 
-                if (data.companies && data.companies.length > 0) {
-                    displaySearchResults(data.companies);
+                if (allResults.length > 0) {
+                    displaySearchResults(allResults);
                     resultsDiv.style.display = 'block';
                     quickAddDiv.style.display = 'none';
                 } else {
                     resultsDiv.style.display = 'none';
 
                     // Show quick add if query looks like ticker
-                    if (query.match(/^[A-Z]{1,5}$/)) {
-                        document.getElementById('newCompanyTicker').value = query;
+                    if (query.match(/^[A-Z]{1,5}$/i)) {
+                        document.getElementById('newCompanyTicker').value = query.toUpperCase();
                         quickAddDiv.style.display = 'block';
                     }
                 }
@@ -370,23 +371,26 @@
 
     // Display search results
     function displaySearchResults(companies) {
-        const resultsDiv = document.getElementById('searchResults');
-        resultsDiv.innerHTML = '';
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = '';
 
-        companies.slice(0, 5).forEach(company => {
+        companies.slice(0, 8).forEach(company => {
             const div = document.createElement('div');
             div.className = 'list-group-item list-group-item-action company-result';
+            const sourceLabel = company.source === 'financial_data_service'
+                ? '<span class="badge bg-success ms-1">Yahoo Finance</span>' : '';
             div.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${company.name}</strong>
                         ${company.ticker_symbol ? `<span class="badge bg-primary ms-1">${company.ticker_symbol}</span>` : ''}
+                        ${sourceLabel}
                         ${company.sector ? `<br><small class="text-muted">${company.sector}</small>` : ''}
                     </div>
                 </div>
             `;
             div.addEventListener('click', () => selectCompany(company, div));
-            resultsDiv.appendChild(div);
+            resultsList.appendChild(div);
         });
     }
 
