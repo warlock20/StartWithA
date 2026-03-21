@@ -28,7 +28,7 @@ echo "Running migrations..."
 flask db upgrade
 
 echo "Starting Celery worker..."
-celery -A celery_app worker --loglevel=info --concurrency=2 &
+celery -A celery_app worker --loglevel=info --concurrency=1 &
 
 echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 run:app
+exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --preload run:app

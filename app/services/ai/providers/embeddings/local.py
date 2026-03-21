@@ -15,7 +15,11 @@ from typing import List, Optional
 import numpy as np
 
 from .base import BaseEmbeddingProvider
-from sentence_transformers import SentenceTransformer
+
+# NOTE: SentenceTransformer is imported lazily in _load_model() to avoid
+# loading PyTorch (~300MB) on every process startup. This is critical for
+# memory on Railway where each Gunicorn/Celery worker would otherwise
+# import torch at startup even when embeddings are never used.
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +53,16 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         self._model_instance = None
     
     def _load_model(self):
-        """Lazy load the model"""
+        """Lazy load the model (imports torch + sentence-transformers on first use only)"""
         if self._model_instance is None:
+            from sentence_transformers import SentenceTransformer
             self._model_instance = SentenceTransformer(self.model)
             logger.info(f"Loaded local embedding model: {self.model}")
     
     def is_available(self) -> bool:
         """Check if sentence-transformers is installed"""
         try:
+            import sentence_transformers  # noqa: F401
             return True
         except ImportError:
             return False

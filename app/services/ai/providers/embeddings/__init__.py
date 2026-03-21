@@ -22,16 +22,22 @@ Usage:
 """
 
 from .base import BaseEmbeddingProvider
-from .local import LocalEmbeddingProvider
 from .openai_embed import OpenAIEmbeddingProvider
 from .gemini_embed import GeminiEmbeddingProvider
 from .voyage import VoyageEmbeddingProvider
 from .cohere import CohereEmbeddingProvider
 from .tfidf import TfidfEmbeddingProvider
 
+
+def get_local_provider():
+    """Import LocalEmbeddingProvider on demand to avoid loading PyTorch at startup."""
+    from .local import LocalEmbeddingProvider
+    return LocalEmbeddingProvider
+
+
 __all__ = [
     'BaseEmbeddingProvider',
-    'LocalEmbeddingProvider',
+    'get_local_provider',
     'OpenAIEmbeddingProvider',
     'GeminiEmbeddingProvider',
     'VoyageEmbeddingProvider',

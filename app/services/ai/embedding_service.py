@@ -30,7 +30,7 @@ import numpy as np
 
 from .providers.embeddings import (
     BaseEmbeddingProvider,
-    LocalEmbeddingProvider,
+    get_local_provider,
     OpenAIEmbeddingProvider,
     GeminiEmbeddingProvider,
     VoyageEmbeddingProvider,
@@ -47,9 +47,9 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
-# Provider class mapping
+# Provider class mapping (LOCAL is lazy to avoid importing PyTorch at startup)
 PROVIDER_CLASSES = {
-    EmbeddingProvider.LOCAL: LocalEmbeddingProvider,
+    EmbeddingProvider.LOCAL: get_local_provider,
     EmbeddingProvider.OPENAI: OpenAIEmbeddingProvider,
     EmbeddingProvider.GEMINI: GeminiEmbeddingProvider,
     EmbeddingProvider.VOYAGE: VoyageEmbeddingProvider,
@@ -109,9 +109,14 @@ class EmbeddingService:
         """Initialize all available providers"""
         for provider_type in self._provider_priority:
             try:
-                provider_class = PROVIDER_CLASSES[provider_type]
+                provider_class_or_factory = PROVIDER_CLASSES[provider_type]
+                # LOCAL uses a factory function that returns the class (lazy import)
+                if callable(provider_class_or_factory) and provider_type == EmbeddingProvider.LOCAL:
+                    provider_class = provider_class_or_factory()
+                else:
+                    provider_class = provider_class_or_factory
                 provider = provider_class()
-                
+
                 if provider.is_available():
                     self._providers[provider_type] = provider
                     logger.debug(f"Embedding provider available: {provider_type.value}")
