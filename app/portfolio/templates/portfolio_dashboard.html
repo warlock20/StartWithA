@@ -313,36 +313,30 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // ── Async price refresh ──────────────────────────────
+        // ── Async batch price refresh (single API call) ──────
         if (staleCompanyIds.length > 0) {
             var bar = document.getElementById('priceUpdateBar');
             var countEl = document.getElementById('priceUpdateCount');
-            var done = 0;
-            var total = staleCompanyIds.length;
             bar.style.display = 'flex';
-            countEl.textContent = '(0/' + total + ')';
+            countEl.textContent = '(' + staleCompanyIds.length + ' stale)';
 
-            // Fire parallel fetches — browser batches ~6 at a time
-            staleCompanyIds.forEach(function(companyId) {
-                fetch('/portfolio/api/refresh-position/' + companyId, { method: 'POST' })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data.success) {
-                            updateTableRow(data.position);
-                        }
-                    })
-                    .catch(function() { /* silent — stale price stays */ })
-                    .finally(function() {
-                        done++;
-                        countEl.textContent = '(' + done + '/' + total + ')';
-                        if (done >= total) {
-                            bar.style.display = 'none';
-                            document.getElementById('dashboardSubtitle').textContent =
-                                holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
-                        }
-                        recalcMetrics();
-                    });
-            });
+            fetch('/portfolio/api/refresh-positions', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && data.positions) {
+                        data.positions.forEach(function(pos) {
+                            updateTableRow(pos);
+                        });
+                        countEl.textContent = '(' + data.updated + ' updated)';
+                    }
+                })
+                .catch(function() { /* silent — stale prices stay */ })
+                .finally(function() {
+                    setTimeout(function() { bar.style.display = 'none'; }, 800);
+                    document.getElementById('dashboardSubtitle').textContent =
+                        holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
+                    recalcMetrics();
+                });
         }
 
         function updateTableRow(pos) {

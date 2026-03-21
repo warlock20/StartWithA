@@ -422,6 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: "Last Worked",
                     field: "last_worked",
                     sorter: "date",
+                    sorterParams: { format: "yyyy-MM-dd" },
                     minWidth: 110,
                     formatter: ColumnFormatters.date('short')
                 },
@@ -650,6 +651,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: "Date",
                     field: "rejection_date",
                     sorter: "date",
+                    sorterParams: { format: "yyyy-MM-dd" },
                     minWidth: 100,
                     formatter: ColumnFormatters.date('short')
                 },

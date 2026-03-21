@@ -433,18 +433,44 @@ def refresh_position_price(company_id):
 
     return jsonify({
         'success': True,
-        'position': {
-            'company_id': position.company_id,
-            'ticker': position.company.ticker_symbol,
-            'name': position.company.name,
-            'shares': float(position.total_shares) if position.total_shares else 0,
-            'avg_cost': float(round(position.average_cost_basis, 2)) if position.average_cost_basis else None,
-            'current_price': float(round(position.current_price, 2)) if position.current_price else None,
-            'current_value': float(round(position.current_value)) if position.current_value else None,
-            'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
-            'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,
-            'days_held': position.days_held or 0,
-            'position_url': url_for('portfolio.position_detail', company_id=position.company_id),
-            'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),
-        }
+        'position': _serialize_position(position),
     })
+
+
+@portfolio_bp.route('/api/refresh-positions', methods=['POST'])
+@login_required
+def refresh_positions_batch():
+    """Batch refresh prices for stale positions. Single yfinance call instead of N."""
+    results = PriceService.update_all_positions_batch(current_user.id)
+    db.session.commit()
+
+    # Return updated position data for all active positions
+    positions = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        is_active=True
+    ).all()
+
+    return jsonify({
+        'success': True,
+        'updated': results['updated'],
+        'skipped': results['skipped'],
+        'positions': [_serialize_position(p) for p in positions],
+    })
+
+
+def _serialize_position(position):
+    """Serialize a position for JSON API responses."""
+    return {
+        'company_id': position.company_id,
+        'ticker': position.company.ticker_symbol,
+        'name': position.company.name,
+        'shares': float(position.total_shares) if position.total_shares else 0,
+        'avg_cost': float(round(position.average_cost_basis, 2)) if position.average_cost_basis else None,
+        'current_price': float(round(position.current_price, 2)) if position.current_price else None,
+        'current_value': float(round(position.current_value)) if position.current_value else None,
+        'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
+        'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,
+        'days_held': position.days_held or 0,
+        'position_url': url_for('portfolio.position_detail', company_id=position.company_id),
+        'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),
+    }

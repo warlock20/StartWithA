@@ -213,6 +213,14 @@ def position_detail(company_id):
     stock_currency = position.currency or company.reporting_currency or user_currency
     stock_currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
 
+    # Journal entries (notes) — first 3 for initial render, total for pagination
+    journal_entries_query = JournalEntry.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).order_by(JournalEntry.created_at.desc())
+    journal_entries_total = journal_entries_query.count()
+    journal_entries = journal_entries_query.limit(3).all()
+
     return render_template('position_detail.html',
                           company=company,
                           position=position,
@@ -225,6 +233,8 @@ def position_detail(company_id):
                           currency_symbol=currency_symbol,
                           stock_currency=stock_currency,
                           stock_currency_symbol=stock_currency_symbol,
+                          journal_entries=journal_entries,
+                          journal_entries_total=journal_entries_total,
                           today=now_utc().date())
 
 
