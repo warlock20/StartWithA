@@ -441,8 +441,11 @@ def refresh_position_price(company_id):
 @login_required
 def refresh_positions_batch():
     """Batch refresh prices for stale positions. Single yfinance call instead of N."""
-    results = PriceService.update_all_positions_batch(current_user.id)
-    db.session.commit()
+    try:
+        results = PriceService.update_all_positions_batch(current_user.id)
+    except Exception as e:
+        logger.error("Batch price refresh failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
     # Return updated position data for all active positions
     positions = PortfolioPosition.query.filter_by(
@@ -454,6 +457,7 @@ def refresh_positions_batch():
         'success': True,
         'updated': results['updated'],
         'skipped': results['skipped'],
+        'failed': results.get('failed', 0),
         'positions': [_serialize_position(p) for p in positions],
     })
 

@@ -119,7 +119,7 @@ class PriceService:
         # Ensure timezone-aware comparison
         last_update_aware = ensure_timezone_aware(position.last_price_update)
         time_since_update = now_utc() - last_update_aware
-        return time_since_update > timedelta(minutes=15)
+        return time_since_update > timedelta(hours=1)
 
     @staticmethod
     def update_position_price(position, force=False):
@@ -309,8 +309,7 @@ class PriceService:
     @staticmethod
     def get_batch_prices(ticker_symbols):
         """
-        Fetch prices for multiple tickers in a single batch.
-        More efficient than individual calls for bulk updates.
+        Fetch prices for multiple tickers in a single yf.download() call.
 
         Args:
             ticker_symbols: List of ticker symbols
@@ -318,41 +317,54 @@ class PriceService:
         Returns:
             dict: {ticker: price} mapping, None for failed tickers
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not ticker_symbols:
             return {}
 
-        results = {}
+        results = {s: None for s in ticker_symbols}
 
         try:
-            # Fetch data for multiple tickers at once
-            tickers = yf.Tickers(' '.join(ticker_symbols))
+            # yf.download is the true batch API — single HTTP request
+            data = yf.download(
+                ticker_symbols,
+                period='5d',
+                progress=False,
+                threads=True,
+            )
 
-            for symbol in ticker_symbols:
-                try:
-                    ticker = tickers.tickers[symbol]
-                    info = ticker.info
+            if data.empty:
+                logger.warning("yf.download returned empty data for %s", ticker_symbols)
+                return results
 
-                    price = (
-                        info.get('currentPrice') or
-                        info.get('regularMarketPrice') or
-                        info.get('previousClose')
-                    )
-
-                    results[symbol] = float(price) if price else None
-
-                except Exception as e:
-                    print(f"Error fetching price for {symbol}: {str(e)}")
-                    results[symbol] = None
+            if len(ticker_symbols) == 1:
+                # Single ticker: columns are flat (Close, Open, ...)
+                symbol = ticker_symbols[0]
+                close_series = data['Close'].dropna()
+                if not close_series.empty:
+                    results[symbol] = float(close_series.iloc[-1])
+            else:
+                # Multiple tickers: columns are multi-level (Close -> AAPL, MSFT, ...)
+                for symbol in ticker_symbols:
+                    try:
+                        close_series = data['Close'][symbol].dropna()
+                        if not close_series.empty:
+                            results[symbol] = float(close_series.iloc[-1])
+                    except (KeyError, IndexError):
+                        logger.warning("No price data for %s in batch download", symbol)
 
         except Exception as e:
-            print(f"Error in batch price fetch: {str(e)}")
+            logger.error("Batch price fetch failed: %s", e)
             # Fallback to individual fetches
             for symbol in ticker_symbols:
                 try:
                     results[symbol] = PriceService.get_current_price(symbol)
-                except:
+                except Exception:
                     results[symbol] = None
 
+        fetched = sum(1 for v in results.values() if v is not None)
+        logger.info("Batch prices: %d/%d fetched", fetched, len(ticker_symbols))
         return results
 
     @staticmethod
