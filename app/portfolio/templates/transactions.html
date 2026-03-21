@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: "Date",
                     field: "date",
                     sorter: "date",
+                    sorterParams: { format: "yyyy-MM-dd" },
                     minWidth: 100,
                     formatter: function(cell) {
                         return '<span class="rcl-cell-mono">' + cell.getValue() + '</span>';
