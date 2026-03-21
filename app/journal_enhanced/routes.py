@@ -214,22 +214,28 @@ def edit_entry(entry_id):
    if request.method == 'POST':
        entry.title = request.form.get('title')
        entry.content = request.form.get('content')
+       entry.entry_type = request.form.get('entry_type', entry.entry_type)
        entry.key_insight = request.form.get('key_insight')
        entry.sentiment = request.form.get('sentiment')
        entry.conviction_level = request.form.get('conviction', type=int)
-       
+       entry.source = request.form.get('source')
+
+       # Update company association
+       company_id = request.form.get('company_id')
+       entry.company_id = int(company_id) if company_id else None
+
        # Update tags
        entry.tags = extract_tags_from_content(entry.content)
-       
+
        # Update action items and questions
        action_items = request.form.get('action_items', '').split('\n')
        entry.action_items = [item.strip() for item in action_items if item.strip()]
-       
+
        questions = request.form.get('questions_raised', '').split('\n')
        entry.questions_raised = [q.strip() for q in questions if q.strip()]
-       
-       entry.updated_at = now_utc
-       
+
+       entry.updated_at = now_utc()
+
        try:
            db.session.commit()
            flash('Entry updated successfully!', 'success')
