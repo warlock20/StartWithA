@@ -10,11 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install heavy requirements FIRST for better caching
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir sentence-transformers
-
-# Install the rest
+# Install Python dependencies (no torch/sentence-transformers — uses Gemini embeddings)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

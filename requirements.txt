@@ -10,11 +10,9 @@ python-dotenv
 Werkzeug
 flask-admin
 
-# Machine Learning (CPU Optimized to prevent Timeout)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.5.1
-transformers
-sentence-transformers
+# Machine Learning (LOCAL embeddings - optional, heavy ~1.5GB)
+# Only needed for offline embeddings. Railway uses Gemini embeddings instead.
+# Install locally with: pip install -r requirements-local.txt
 
 # Data Processing
 pandas

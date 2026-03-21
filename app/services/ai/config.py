@@ -181,14 +181,28 @@ class EmbeddingProvider(Enum):
     TFIDF = "tfidf"       # Fallback - always works
 
 # Default embedding provider priority
-DEFAULT_EMBEDDING_PRIORITY = [
-    EmbeddingProvider.LOCAL,
-    EmbeddingProvider.GEMINI,
-    EmbeddingProvider.OPENAI,
-    EmbeddingProvider.VOYAGE,
-    EmbeddingProvider.COHERE,
-    EmbeddingProvider.TFIDF,
-]
+# In production (Railway), prefer Gemini (free API, no torch memory overhead)
+# In local dev, prefer LOCAL (offline, no API costs)
+_is_production = bool(os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_PROJECT_ID'))
+
+if _is_production:
+    DEFAULT_EMBEDDING_PRIORITY = [
+        EmbeddingProvider.GEMINI,
+        EmbeddingProvider.OPENAI,
+        EmbeddingProvider.VOYAGE,
+        EmbeddingProvider.COHERE,
+        EmbeddingProvider.TFIDF,
+        EmbeddingProvider.LOCAL,  # Last resort in production (loads PyTorch)
+    ]
+else:
+    DEFAULT_EMBEDDING_PRIORITY = [
+        EmbeddingProvider.LOCAL,
+        EmbeddingProvider.GEMINI,
+        EmbeddingProvider.OPENAI,
+        EmbeddingProvider.VOYAGE,
+        EmbeddingProvider.COHERE,
+        EmbeddingProvider.TFIDF,
+    ]
 
 # Task categories for routing decisions
 QUALITY_TASKS = {
