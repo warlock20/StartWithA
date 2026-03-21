@@ -327,15 +327,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         data.positions.forEach(function(pos) {
                             updateTableRow(pos);
                         });
-                        countEl.textContent = '(' + data.updated + ' updated)';
+                        var msg = data.updated + ' updated';
+                        if (data.failed > 0) msg += ', ' + data.failed + ' failed';
+                        countEl.textContent = '(' + msg + ')';
+                        recalcMetrics();
+                        setTimeout(function() { bar.style.display = 'none'; }, 1200);
+                        document.getElementById('dashboardSubtitle').textContent =
+                            holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
+                    } else {
+                        countEl.textContent = '(failed)';
+                        console.error('Batch refresh error:', data.error || 'unknown');
+                        setTimeout(function() { bar.style.display = 'none'; }, 2000);
                     }
                 })
-                .catch(function() { /* silent — stale prices stay */ })
-                .finally(function() {
-                    setTimeout(function() { bar.style.display = 'none'; }, 800);
-                    document.getElementById('dashboardSubtitle').textContent =
-                        holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
-                    recalcMetrics();
+                .catch(function(err) {
+                    countEl.textContent = '(network error)';
+                    console.error('Price refresh failed:', err);
+                    setTimeout(function() { bar.style.display = 'none'; }, 2000);
                 });
         }
 
