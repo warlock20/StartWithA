@@ -233,7 +233,7 @@ def complete_kill_checklist_step(project_id, session_id):
 
         item_results.append({
             'item_id': item.id,
-            'item_text': item.item_text,
+            'item_text': item.text,
             'result': result,  # 'pass' or 'fail'
             'notes': notes
         })
