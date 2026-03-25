@@ -86,7 +86,7 @@ class CompanionMixin:
         green_flags = ', '.join(project.green_flags or []) or 'None identified yet'
 
         # Thesis
-        investment_thesis = project.investment_thesis or 'Not yet formed'
+        investment_thesis = project.investment_thesis_text or 'Not yet formed'
 
         # Sector
         sector_name = 'Unknown'

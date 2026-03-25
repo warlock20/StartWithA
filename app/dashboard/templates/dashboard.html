@@ -22,9 +22,7 @@
                 </button>
                 <div class="dropdown">
                     <button class="btn btn-primary btn-lg quick-add-btn dropdown-toggle" type="button"
-                        id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-                        data-bs-custom-class="tooltip-primary"
-                        data-bs-toggle="tooltip" data-bs-placement="bottom" title="Quick Add New Item">
+                        id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-plus-circle-fill me-2"></i> Quick Add
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end animate-fade-in" aria-labelledby="quickActionsDropdown">
@@ -58,304 +56,297 @@
         </header>
     </div>
 
-    <!-- Recommendations Section -->
-    {% if recommendations %}
-    <div class="recommendations-section">
-        <div class="recommendations-header">
-            <h2 class="recommendations-title">
-                <i class="bi bi-lightbulb"></i>
-                Sector Insights
-            </h2>
-            <a href="{{ url_for('research_workflow.my_projects') }}" class="recommendations-view-all">
-                View Analysis <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-        <div class="recommendations-list">
-            {% for rec in recommendations %}
-            <div class="recommendation-card type-{{ rec.type }}">
-                <div class="recommendation-indicator"></div>
-                <div class="recommendation-icon">
-                    {% if rec.type == 'avoid' %}
-                        <i class="bi bi-x-circle-fill"></i>
-                    {% elif rec.type == 'strength' %}
-                        <i class="bi bi-check-circle-fill"></i>
-                    {% elif rec.type == 'efficiency' %}
-                        <i class="bi bi-lightning-charge-fill"></i>
+    {# ━━━ 1. PIPELINE STRIP ━━━ #}
+    <div class="pipeline-strip">
+        <a href="{{ url_for('ideas.inbox') }}" class="pipeline-stage">
+            <div class="pipeline-stage-icon pipeline-stage-icon--inbox">
+                <i class="bi bi-inbox-fill"></i>
+            </div>
+            <div class="pipeline-stage-info">
+                <span class="pipeline-stage-name">Inbox</span>
+                <span class="pipeline-stage-value">{{ inbox_count }}</span>
+                <span class="pipeline-stage-meta">
+                    {% if inbox_count > 0 %}Awaiting screening{% else %}No ideas pending{% endif %}
+                </span>
+            </div>
+        </a>
+
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+
+        <a href="{{ url_for('research_workflow.my_projects') }}" class="pipeline-stage">
+            <div class="pipeline-stage-icon pipeline-stage-icon--research">
+                <i class="bi bi-search"></i>
+            </div>
+            <div class="pipeline-stage-info">
+                <span class="pipeline-stage-name">Active Research</span>
+                <span class="pipeline-stage-value">{{ active_projects_count or 0 }}</span>
+                <span class="pipeline-stage-meta">
+                    {% if active_projects_count %}In progress{% else %}No active projects{% endif %}
+                </span>
+            </div>
+        </a>
+
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+
+        <a href="{{ url_for('portfolio.dashboard') }}" class="pipeline-stage">
+            <div class="pipeline-stage-icon pipeline-stage-icon--portfolio">
+                <i class="bi bi-briefcase-fill"></i>
+            </div>
+            <div class="pipeline-stage-info">
+                <span class="pipeline-stage-name">Portfolio</span>
+                <span class="pipeline-stage-value">{{ position_count }}</span>
+                <span class="pipeline-stage-meta">
+                    {% if position_count > 0 %}
+                        {{ position_count }} position{{ 's' if position_count != 1 }}
                     {% else %}
-                        <i class="bi bi-info-circle-fill"></i>
+                        No positions yet
                     {% endif %}
+                </span>
+            </div>
+        </a>
+
+        <div class="pipeline-divider"></div>
+
+        <a href="{{ url_for('research_workflow.my_projects') }}" class="pipeline-stage">
+            <div class="pipeline-stage-icon pipeline-stage-icon--rejected">
+                <i class="bi bi-x-octagon-fill"></i>
+            </div>
+            <div class="pipeline-stage-info">
+                <span class="pipeline-stage-name">Too Hard</span>
+                <span class="pipeline-stage-value">{{ too_hard_total_count }}</span>
+                <span class="pipeline-stage-meta">{{ too_hard_rate|int }}% filter rate</span>
+            </div>
+        </a>
+    </div>
+
+    {# ━━━ 2. MAIN GRID: Research Focus + Action Items ━━━ #}
+    <div class="dashboard-main-grid">
+        {# LEFT: Research Focus #}
+        <div class="focus-card">
+            <div class="dashboard-section-label">
+                <i class="bi bi-bullseye me-1"></i> Research Focus
+            </div>
+
+            {% if focus_recommendation and focus_recommendation.hero %}
+            {% set hero = focus_recommendation.hero %}
+            <div>
+                <div class="focus-hero-title">
+                    Pick up {{ hero.project.subject_display_name }}
                 </div>
-                <div class="recommendation-content">
-                    <div class="recommendation-sector">{{ rec.sector }}</div>
-                    <p class="recommendation-message">{{ rec.message }}</p>
+                <div class="focus-hero-step">
+                    {% set current_step = hero.project.current_step %}
+                    {% if current_step %}{{ current_step.get('name', 'Step ' ~ (hero.project.current_step_index + 1)) }} &mdash; {% endif %}Step {{ hero.project.current_step_index + 1 }} of {{ hero.project.template.workflow_steps|length }}
+                </div>
+                <div class="focus-hero-detail">
+                    {% if hero.days_idle == 0 %}
+                        Worked on today
+                    {% elif hero.days_idle == 1 %}
+                        Last worked: yesterday
+                    {% else %}
+                        Last worked: {{ hero.days_idle }}d ago
+                    {% endif %}
+                     &middot; {{ hero.project.total_hours_spent|round(1) }} hrs invested
                 </div>
             </div>
+            <div class="focus-progress">
+                <div class="focus-progress-bar">
+                    <div class="focus-progress-fill" style="width: {{ hero.project.progress_percentage }}%"></div>
+                </div>
+                <div class="focus-progress-label">
+                    <span>{% if current_step %}{{ current_step.get('name', '') }}{% endif %}</span>
+                    <span>{{ hero.project.progress_percentage }}% complete</span>
+                </div>
+            </div>
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=hero.project.id) }}" class="focus-cta">
+                <i class="bi bi-arrow-right-circle"></i> Continue Research
+            </a>
+
+            {% elif active_projects_list %}
+            <div class="focus-empty">
+                <i class="bi bi-search"></i>
+                <p>{{ active_projects_list|length }} active project{{ 's' if active_projects_list|length != 1 }}</p>
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="focus-cta">
+                    <i class="bi bi-arrow-right-circle"></i> View Projects
+                </a>
+            </div>
+
+            {% else %}
+            <div class="focus-empty">
+                <i class="bi bi-lightbulb"></i>
+                <p>No active research projects.
+                {% if inbox_count > 0 %}
+                    <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }} waiting</a> in your inbox.
+                {% else %}
+                    Capture an idea to get started.
+                {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# RIGHT: Action Items #}
+        <div class="actions-panel">
+            <div class="dashboard-section-label">
+                <i class="bi bi-bell me-1"></i> Needs Attention
+            </div>
+
+            {% set has_actions = inbox_count > 0 or upcoming_checkpoints or stale_projects %}
+
+            <div class="actions-list" id="actionsList">
+                {% if inbox_count > 0 %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--warning">
+                        <i class="bi bi-inbox-fill"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title">Screen <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }}</a> in your inbox</p>
+                        <p class="action-meta">Est. {{ (inbox_count * 5)|int }} minutes</p>
+                    </div>
+                    <span class="action-badge action-badge--new">New</span>
+                </div>
+                {% endif %}
+
+                {% for cp in upcoming_checkpoints[:3] %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--danger">
+                        <i class="bi bi-calendar-event-fill"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title">Checkpoint due for <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}">{{ cp.company.name }}</a></p>
+                        <p class="action-meta">Due {{ cp.target_date.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    <span class="action-badge action-badge--urgent">Due soon</span>
+                </div>
+                {% endfor %}
+
+                {% for sp in stale_projects[:2] %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--info">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title"><a href="{{ url_for('research_workflow.project_dashboard', project_id=sp.project.id) }}">{{ sp.project.subject_display_name }}</a> research stalling</p>
+                        <p class="action-meta">{{ sp.days_idle }}d idle &middot; {{ sp.project.progress_percentage }}% done</p>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% for warning in focus_recommendation.warnings if focus_recommendation %}
+                <div class="action-item">
+                    <div class="action-icon action-icon--warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="action-content">
+                        <p class="action-title">{{ warning.message }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if not has_actions and not (focus_recommendation and focus_recommendation.warnings) %}
+                <div class="actions-empty">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <p>No items need attention. Nice work!</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <button class="actions-toggle" id="actionsToggle" onclick="toggleActions()">
+                <span>Show more</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    {# ━━━ 3. ACTIVE RESEARCH PROJECTS (mini card grid) ━━━ #}
+    {% if active_projects_list %}
+    <div class="research-grid-section">
+        <div class="research-grid-header">
+            <div class="dashboard-section-label" style="margin-bottom: 0;">
+                <i class="bi bi-kanban me-1"></i> Active Research Projects
+            </div>
+            <a href="{{ url_for('research_workflow.my_projects') }}">
+                View All <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="research-grid">
+            {% for scored in all_scored_projects %}
+            <a href="{{ url_for('research_workflow.project_dashboard', project_id=scored.project.id) }}"
+               class="research-mini-card{% if focus_recommendation and focus_recommendation.hero and scored.project.id == focus_recommendation.hero.project.id %} research-mini-card--current{% endif %}">
+                <div class="research-mini-card-header">
+                    <span class="research-mini-name">{{ scored.project.subject_display_name }}</span>
+                    {% if focus_recommendation and focus_recommendation.hero and scored.project.id == focus_recommendation.hero.project.id %}
+                    <span class="research-mini-badge research-mini-badge--current">Current</span>
+                    {% elif scored.label == 'Continue next' %}
+                    <span class="research-mini-badge research-mini-badge--continue">Continue</span>
+                    {% elif scored.label == 'Needs attention' %}
+                    <span class="research-mini-badge research-mini-badge--attention">Attention</span>
+                    {% elif scored.label == 'Consider pausing' %}
+                    <span class="research-mini-badge research-mini-badge--stale">Stale</span>
+                    {% endif %}
+                </div>
+                <div class="research-mini-progress">
+                    <div class="research-mini-progress-fill{% if scored.is_stale_warning %} research-mini-progress-fill--warning{% endif %}"
+                         style="width: {{ scored.project.progress_percentage }}%;"></div>
+                </div>
+                <div class="research-mini-meta">
+                    <span>{{ scored.project.progress_percentage }}% &middot; Step {{ scored.project.current_step_index + 1 }}/{{ scored.project.template.workflow_steps|length }}</span>
+                    <span>{% if scored.days_idle == 0 %}Today{% elif scored.days_idle == 1 %}1d idle{% else %}{{ scored.days_idle }}d idle{% endif %}</span>
+                </div>
+            </a>
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
-    <!-- Bottom Grid: Today's Priorities + Quick Access -->
-    <div class="dashboard-bottom-grid">
-        <!-- Today's Priorities -->
-        <div class="priorities-section-sidebar">
-            <h2 class="section-title font-poppins mb-4">Today's Priorities</h2>
-            <div class="priorities-list">
-<!-- Research Focus Recommendation -->
-{% if focus_recommendation and focus_recommendation.hero %}
-<div class="research-focus-card">
-    <div class="research-focus-header">
-        <span class="research-focus-label">Research Focus</span>
-    </div>
-    <div class="research-focus-hero">
-        <h3 class="research-focus-hero-title">
-            Pick up {{ focus_recommendation.hero.project.subject_display_name }}
-        </h3>
-        <p class="research-focus-hero-meta">
-            {% set current_step = focus_recommendation.hero.project.current_step %}
-            {% if current_step %}{{ current_step.get('name', 'Step ' ~ (focus_recommendation.hero.project.current_step_index + 1)) }} &mdash; {% endif %}{{ focus_recommendation.hero.project.progress_percentage }}% complete
-        </p>
-        <p class="research-focus-hero-detail">
-            {% if focus_recommendation.hero.days_idle == 0 %}
-                Worked on today
-            {% elif focus_recommendation.hero.days_idle == 1 %}
-                Last worked: yesterday
-            {% else %}
-                Last worked: {{ focus_recommendation.hero.days_idle }}d ago
-            {% endif %}
-             &middot; {{ focus_recommendation.hero.project.total_hours_spent|round(1) }} hrs invested
-        </p>
-        <a href="{{ url_for('research_workflow.project_dashboard', project_id=focus_recommendation.hero.project.id) }}" class="position-btn btn-primary-accent">
-            <i class="bi bi-arrow-right-circle"></i> Continue Research
-        </a>
-    </div>
-
-    {% if focus_recommendation.runners_up %}
-    <div class="research-focus-runners">
-        <p class="research-focus-runners-label">Also active:</p>
-        {% for runner in focus_recommendation.runners_up[:4] %}
-        <div class="research-focus-runner-row">
-            <a href="{{ url_for('research_workflow.project_dashboard', project_id=runner.project.id) }}" class="research-focus-runner-link">
-                {{ runner.project.subject_display_name }}
+    {# ━━━ 4. QUICK NAVIGATION ━━━ #}
+    <div class="nav-grid-section">
+        <div class="dashboard-section-label">
+            <i class="bi bi-grid-3x3-gap me-1"></i> Quick Navigation
+        </div>
+        <div class="nav-grid">
+            <a href="{{ url_for('portfolio.dashboard') }}" class="nav-link-card">
+                <i class="bi bi-briefcase-fill nav-link-icon"></i>
+                Portfolio
+                {% if position_count %}<span class="nav-link-count">{{ position_count }}</span>{% endif %}
             </a>
-            <span class="research-focus-runner-meta">
-                {{ runner.project.progress_percentage }}%
-                {% if runner.days_idle > 0 %} &middot; {{ runner.days_idle }}d idle{% endif %}
-            </span>
-            <span class="research-focus-badge research-focus-badge-{{ runner.label|lower|replace(' ', '-') }}">{{ runner.label }}</span>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% for warning in focus_recommendation.warnings %}
-    <div class="research-focus-warning">
-        <i class="bi bi-exclamation-triangle"></i>
-        {{ warning.message }}
-    </div>
-    {% endfor %}
-</div>
-{% elif active_projects_list %}
-{# Fallback: show old-style list if service returned nothing #}
-{% for project in active_projects_list[:3] %}
-<div class="priority-task">
-    <div class="priority-task-checkbox"><i class="bi bi-circle"></i></div>
-    <div class="priority-task-content">
-        <p class="priority-task-title">
-            Continue research on <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}">{{ project.company.name }}</a>
-        </p>
-        <p class="priority-task-meta">Step {{ project.current_step_index + 1 }}/{{ project.template.workflow_steps|length }} &middot; {{ project.progress_percentage }}% complete</p>
-    </div>
-</div>
-{% endfor %}
-{% else %}
-<div class="priority-task">
-    <div class="priority-task-checkbox"><i class="bi bi-lightbulb"></i></div>
-    <div class="priority-task-content">
-        <p class="priority-task-title">No active research projects</p>
-        <p class="priority-task-meta">
-            {% if inbox_count > 0 %}
-                <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }} waiting</a> in your inbox
-            {% else %}
-                Capture an idea to get started
-            {% endif %}
-        </p>
-    </div>
-</div>
-{% endif %}
-
-                {% if inbox_count > 0 %}
-                <div class="priority-task">
-                    <div class="priority-task-checkbox">
-                        <i class="bi bi-circle"></i>
-                    </div>
-                    <div class="priority-task-content">
-                        <p class="priority-task-title">
-                            Screen <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }}</a> in your inbox
-                        </p>
-                        <p class="priority-task-meta">Est. {{ (inbox_count * 5)|int }} minutes</p>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if upcoming_checkpoints %}
-                <div class="priority-task priority-task-urgent">
-                    <div class="priority-task-checkbox">
-                        <i class="bi bi-exclamation-circle"></i>
-                    </div>
-                    <div class="priority-task-content">
-                        <p class="priority-task-title">
-                            Review checkpoint for <a href="{{ url_for('companies.destination_analysis', company_id=upcoming_checkpoints[0].company_id) }}">{{ upcoming_checkpoints[0].company.name }}</a>
-                        </p>
-                        <p class="priority-task-meta">Due {{ upcoming_checkpoints[0].target_date.strftime('%b %d, %Y') }}</p>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if not active_projects_list and inbox_count == 0 and not upcoming_checkpoints %}
-                <div class="priorities-empty">
-                    <i class="bi bi-check-circle"></i>
-                    <p>No immediate priorities. Great work staying on top of things!</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Quick Access -->
-        <div class="quick-access-section">
-            <h2 class="section-title font-poppins mb-4">Quick Access</h2>
-            <div class="quick-access-grid">
-                <!-- Portfolio -->
-                <a href="{{ url_for('portfolio.dashboard') }}" class="quick-access-card">
-                    <div class="quick-access-icon">
-                        <i class="bi bi-briefcase"></i>
-                    </div>
-                    <div class="quick-access-content">
-                        <h4 class="quick-access-title">Portfolio</h4>
-                        <p class="quick-access-count">{{ portfolio_count }} position{{ 's' if portfolio_count != 1 }}</p>
-                    </div>
-                </a>
-
-                <!-- Active Research -->
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="quick-access-card">
-                    <div class="quick-access-icon">
-                        <i class="bi bi-search"></i>
-                    </div>
-                    <div class="quick-access-content">
-                        <h4 class="quick-access-title">Active Research</h4>
-                        <p class="quick-access-count">{{ active_projects_count or 0 }} project{{ 's' if active_projects_count != 1 }}</p>
-                    </div>
-                </a>
-
-                <!-- Sector Research -->
-                <a href="{{ url_for('sectors.index') }}" class="quick-access-card">
-                    <div class="quick-access-icon">
-                        <i class="bi bi-grid-3x3-gap"></i>
-                    </div>
-                    <div class="quick-access-content">
-                        <h4 class="quick-access-title">Sector Research</h4>
-                        <p class="quick-access-count">Explore sectors</p>
-                    </div>
-                </a>
-
-                <!-- Analytics -->
-                <a href="{{ url_for('analytics.dashboard') }}" class="quick-access-card">
-                    <div class="quick-access-icon">
-                        <i class="bi bi-graph-up"></i>
-                    </div>
-                    <div class="quick-access-content">
-                        <h4 class="quick-access-title">Analytics</h4>
-                        <p class="quick-access-count">View insights</p>
-                    </div>
-                </a>
-            </div>
-        </div>
-    </div>
-    <!-- Investment Pipeline Flow -->
-    <div class="investment-pipeline-section">
-        <!-- Compact Discipline Header -->
-
-
-        <div class="pipeline-flow-wrapper">
-            <!-- Main Pipeline Flow: Inbox → Research → Portfolio -->
-            <div class="pipeline-flow-main">
-                <!-- Inbox Stage -->
-                <div class="flow-stage">
-                    <div class="flow-stage-node flow-stage-node-inbox">
-                        <i class="bi bi-inbox-fill"></i>
-                    </div>
-                    <div class="flow-stage-label">Inbox</div>
-                    <div class="flow-stage-value">{{ inbox_count }}</div>
-                    <div class="flow-stage-meta">
-                        {% if inbox_count > 0 %}
-                        Awaiting screening
-                        {% else %}
-                        No ideas pending
-                        {% endif %}
-                    </div>
-                    {% if inbox_count > 0 %}
-                    <a href="{{ url_for('ideas.inbox') }}" class="flow-stage-link">Review Inbox</a>
-                    {% endif %}
-                    <div class="flow-forward-arrow">
-                        <i class="bi bi-arrow-right"></i>
-                    </div>
-                </div>
-
-                <!-- Active Research Stage -->
-                <div class="flow-stage">
-                    <div class="flow-stage-node flow-stage-node-research">
-                        <i class="bi bi-search"></i>
-                    </div>
-                    <div class="flow-stage-label">Active Research</div>
-                    <div class="flow-stage-value">{{ active_projects_list|length }}</div>
-                    <div class="flow-stage-meta">
-                        {% if active_projects_list %}
-                        {{ active_projects_list|length }} project{{ 's' if active_projects_list|length != 1 }}
-                        {% else %}
-                        No active projects
-                        {% endif %}
-                    </div>
-                    {% if active_projects_list %}
-                    <a href="{{ url_for('research_workflow.my_projects') }}" class="flow-stage-link">View Projects</a>
-                    {% endif %}
-                    <div class="flow-forward-arrow">
-                        <i class="bi bi-arrow-right"></i>
-                    </div>
-                </div>
-
-                <!-- Portfolio Stage -->
-                <div class="flow-stage">
-                    <div class="flow-stage-node flow-stage-node-portfolio">
-                        <i class="bi bi-briefcase-fill"></i>
-                    </div>
-                    <div class="flow-stage-label">Portfolio</div>
-                    <div class="flow-stage-value">{{ portfolio_count }}</div>
-                    <div class="flow-stage-meta">
-                        {% if portfolio_count > 0 %}
-                        {{ company_invest_count }} investment{{ 's' if company_invest_count != 1 }}
-                        {% else %}
-                        No investments yet
-                        {% endif %}
-                    </div>
-                    {% if portfolio_count > 0 %}
-                    <a href="{{ url_for('portfolio.dashboard') }}" class="flow-stage-link">View Portfolio</a>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Too Hard Basket - Collection Box -->
-            <div class="too-hard-basket">
-                <div class="basket-icon">
-                    <i class="bi bi-x-octagon-fill"></i>
-                </div>
-                <div class="basket-label">Too Hard Basket</div>
-                <div class="basket-value">{{ too_hard_total_count }}</div>
-                <div class="basket-meta">{{ too_hard_rate|int }}% filter rate</div>
-                <div class="basket-description">Companies rejected at any stage (early screening or mid-research)</div>
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="basket-link">
-                    View All Passes <i class="bi bi-arrow-right ms-1"></i>
-                </a>
-            </div>
+            <a href="{{ url_for('ideas.inbox') }}" class="nav-link-card">
+                <i class="bi bi-inbox-fill nav-link-icon"></i>
+                Ideas Inbox
+                {% if inbox_count %}<span class="nav-link-count">{{ inbox_count }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('research_workflow.my_projects') }}" class="nav-link-card">
+                <i class="bi bi-file-earmark-text-fill nav-link-icon"></i>
+                Research Projects
+                {% if active_projects_count %}<span class="nav-link-count">{{ active_projects_count }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('companies.list_companies') }}" class="nav-link-card">
+                <i class="bi bi-building nav-link-icon"></i>
+                Company Directory
+            </a>
+            <a href="{{ url_for('sectors.index') }}" class="nav-link-card">
+                <i class="bi bi-pie-chart-fill nav-link-icon"></i>
+                Sector Research
+            </a>
+            <a href="{{ url_for('analytics.dashboard') }}" class="nav-link-card">
+                <i class="bi bi-bar-chart-fill nav-link-icon"></i>
+                Analytics
+            </a>
+            <a href="{{ url_for('portfolio.intelligence_hub') }}" class="nav-link-card">
+                <i class="bi bi-lightning-charge-fill nav-link-icon"></i>
+                Portfolio Intelligence
+            </a>
+            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="nav-link-card">
+                <i class="bi bi-journal-bookmark-fill nav-link-icon"></i>
+                Decision Journal
+            </a>
+            <a href="{{ url_for('learning.learning_dashboard') }}" class="nav-link-card">
+                <i class="bi bi-mortarboard-fill nav-link-icon"></i>
+                Learning
+            </a>
+            <a href="{{ url_for('learning.mistake_log') }}" class="nav-link-card">
+                <i class="bi bi-exclamation-triangle-fill nav-link-icon"></i>
+                Mistake Log
+            </a>
         </div>
     </div>
 
@@ -365,44 +356,24 @@
 
 {% block scripts %}
 {{ super() }}
-{% include 'components/_chart_js.html' %}
 <script src="{{ url_for('static', filename='js/tours.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Sector Chart (if element exists)
-        const sectorChartEl = document.getElementById('sectorChart');
-        if (sectorChartEl) {
-            const sectorCtx = sectorChartEl.getContext('2d');
-            new Chart(sectorCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Technology', 'Healthcare', 'Industrials', 'Financials'],
-                    datasets: [{
-                        data: [45, 25, 15, 15],
-                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6'],
-                        borderWidth: 0,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 15,
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    },
-                    cutout: '60%'
-                }
-            });
-        }
-    });
+// Actions panel: show "Show more" if content overflows
+document.addEventListener('DOMContentLoaded', function() {
+    var list = document.getElementById('actionsList');
+    var btn = document.getElementById('actionsToggle');
+    if (list && btn && list.scrollHeight > list.clientHeight + 4) {
+        btn.classList.add('visible');
+    }
+});
+
+function toggleActions() {
+    var list = document.getElementById('actionsList');
+    var btn = document.getElementById('actionsToggle');
+    var isExpanded = list.classList.toggle('expanded');
+    btn.classList.toggle('expanded', isExpanded);
+    btn.querySelector('span').textContent = isExpanded ? 'Show less' : 'Show more';
+}
 </script>
 {% endblock %}
 

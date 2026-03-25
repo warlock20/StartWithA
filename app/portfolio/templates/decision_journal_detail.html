@@ -46,7 +46,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Investment Thesis</label>
                         <div class="border rounded p-3 bg-light">
-                            {{ journal.investment_thesis or 'No thesis recorded' }}
+                            {{ (journal.investment_thesis|blocknote_to_html|safe) if journal.investment_thesis else 'No thesis recorded' }}
                         </div>
                         {% if journal.thesis_word_count %}
                         <small class="text-muted">{{ journal.thesis_word_count }} words</small>
@@ -319,7 +319,7 @@ function analyzeThesis() {
 
     // Prepare data
     const data = {
-        thesis: {{ journal.investment_thesis|tojson }},
+        thesis: {{ journal.investment_thesis_text|tojson }},
         company_name: {{ journal.company.name|tojson }},
         ticker: {{ journal.company.ticker_symbol|tojson }},
         confidence_score: {{ journal.confidence_score or 'null' }},

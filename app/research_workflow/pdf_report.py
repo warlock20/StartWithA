@@ -188,7 +188,7 @@ def _build_overview_html(project):
 def _build_thesis_html(project):
     if not project.investment_thesis:
         return ''
-    return f'<h2>Investment Thesis</h2>\n<p>{_md_to_html(project.investment_thesis)}</p>'
+    return f'<h2>Investment Thesis</h2>\n{blocknote_to_html(project.investment_thesis)}'
 
 
 def _build_flags_html(project):

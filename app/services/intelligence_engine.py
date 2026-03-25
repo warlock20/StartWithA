@@ -225,7 +225,7 @@ class IntelligenceEngine:
             ).order_by(DecisionJournal.created_at.desc()).first()
             
             if journal and journal.investment_thesis:
-                warning = self._check_thesis_quality(company, journal.investment_thesis)
+                warning = self._check_thesis_quality(company, journal.investment_thesis_text)
                 if warning:
                     warnings.append(warning)
         
@@ -515,7 +515,7 @@ class IntelligenceEngine:
         if not new_thesis_journal or not new_thesis_journal.investment_thesis:
             return None
         
-        new_thesis = new_thesis_journal.investment_thesis.lower()
+        new_thesis = new_thesis_journal.investment_thesis_text.lower()
         
         # Simple conflict detection based on keywords
         # (In future, this could use Claude API for semantic analysis)
@@ -537,7 +537,7 @@ class IntelligenceEngine:
             if not existing_journal or not existing_journal.investment_thesis:
                 continue
             
-            existing_thesis = existing_journal.investment_thesis.lower()
+            existing_thesis = existing_journal.investment_thesis_text.lower()
             
             # Check for potential conflicts (simplified keyword matching)
             # Example: Bullish on NVDA for "AI growth" but bearish on INTC thesis saying "AI commoditized"
@@ -560,7 +560,7 @@ class IntelligenceEngine:
                 if new_has_bullish and existing_has_bearish and same_sector:
                     conflicts.append({
                         'ticker': position.company.ticker_symbol,
-                        'thesis_snippet': existing_journal.investment_thesis[:100]
+                        'thesis_snippet': existing_journal.investment_thesis_text[:100]
                     })
                     break
         
@@ -1218,7 +1218,7 @@ class IntelligenceEngine:
         if not journal or not journal.investment_thesis:
             return warnings
 
-        thesis = journal.investment_thesis
+        thesis = journal.investment_thesis_text
 
         # Minimum thesis length for meaningful embedding
         if len(thesis.strip()) < 20:

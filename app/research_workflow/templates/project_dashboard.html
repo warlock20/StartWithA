@@ -181,7 +181,7 @@
                                 <!-- Fallback: Show investment thesis if step_notes is empty -->
                                 <div class="step-notes-content">
                                     <strong>Investment Thesis:</strong><br><br>
-                                    {{ project.investment_thesis }}
+                                    {{ project.investment_thesis|blocknote_to_html|safe }}
                                 </div>
                                 {% else %}
                                 <div class="alert alert-info border-0 mb-0">
@@ -425,7 +425,7 @@
             <form method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
                 <div class="modal-body">
                     <textarea class="form-control" name="investment_thesis" rows="6"
-                              placeholder="Document your evolving thesis as you progress through research...">{{ project.investment_thesis or '' }}</textarea>
+                              placeholder="Document your evolving thesis as you progress through research...">{{ project.investment_thesis_text or '' }}</textarea>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

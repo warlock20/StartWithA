@@ -35,7 +35,7 @@
                         {% if buy_journal %}
                         <div class="mb-4 p-3 bg-light rounded">
                             <h6 class="fw-semibold mb-3">Original Investment Thesis</h6>
-                            <p class="mb-2">{{ buy_journal.investment_thesis }}</p>
+                            <div class="mb-2">{{ buy_journal.investment_thesis|blocknote_to_html|safe }}</div>
                             {% if buy_journal.expected_return %}
                             <div class="small text-muted">
                                 <strong>Expected Return:</strong> {{ buy_journal.expected_return }}%

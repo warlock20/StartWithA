@@ -2,6 +2,7 @@
 
 from app import db
 from app.utils.time_utils import now_utc
+from app.utils.blocknote_utils import blocknote_to_text
 
 
 class DecisionJournal(db.Model):
@@ -59,6 +60,11 @@ class DecisionJournal(db.Model):
 
     # Relationships
     company = db.relationship('Company', backref='decision_journals')
+
+    @property
+    def investment_thesis_text(self):
+        """Plain text version of investment_thesis for LLM prompts and embeddings"""
+        return blocknote_to_text(self.investment_thesis) if self.investment_thesis else ''
 
     def __repr__(self):
         return f'<DecisionJournal {self.decision_type} for Company {self.company_id}>'
@@ -198,6 +204,11 @@ class ThesisEvolution(db.Model):
     # Relationships
     company = db.relationship('Company', backref='thesis_versions')
     linked_journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+
+    @property
+    def thesis_text(self):
+        """Plain text version of thesis for LLM prompts and embeddings"""
+        return blocknote_to_text(self.thesis) if self.thesis else ''
 
     def __repr__(self):
         return f'<ThesisEvolution v{self.version} for Company {self.company_id}>'

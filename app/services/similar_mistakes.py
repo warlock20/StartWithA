@@ -453,12 +453,12 @@ class SimilarMistakesService:
         results = []
         for decision in decisions:
             # Get or compute embedding
-            embedding = get_embedding(decision.investment_thesis)
-            
+            embedding = get_embedding(decision.investment_thesis_text)
+
             if embedding is not None:
                 # Get company info
                 company = Company.query.get(decision.company_id)
-                
+
                 # Get outcome if available
                 outcome = self._get_decision_outcome(decision)
                 
@@ -470,7 +470,7 @@ class SimilarMistakesService:
                     'embedding': embedding,
                     'company_id': decision.company_id,
                     'company': company,
-                    'thesis': decision.investment_thesis,
+                    'thesis': decision.investment_thesis_text,
                     'decision_date': decision.decision_date,
                     'confidence_score': decision.confidence_score,
                     'expected_return': decision.expected_return,
@@ -582,7 +582,7 @@ class SimilarMistakesService:
         count = 0
         for decision in decisions:
             if decision.investment_thesis:
-                embedding = get_embedding(decision.investment_thesis, use_cache=True)
+                embedding = get_embedding(decision.investment_thesis_text, use_cache=True)
                 if embedding is not None:
                     count += 1
         

@@ -59,7 +59,7 @@ def _build_readme(project):
 
     if project.investment_thesis:
         lines.append("\n## Investment Thesis\n")
-        lines.append(project.investment_thesis)
+        lines.append(project.investment_thesis_text)
 
     if project.green_flags:
         lines.append("\n## Green Flags\n")

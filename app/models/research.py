@@ -2,6 +2,7 @@
 
 from app import db
 from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.blocknote_utils import blocknote_to_text
 
 
 class ChecklistAnalysis(db.Model):
@@ -288,6 +289,11 @@ class ResearchProject(db.Model):
         current_time = now_utc()
         days_idle = (current_time - last_worked_at_aware).days
         return days_idle > 14  # Consider overdue after 2 weeks of inactivity
+
+    @property
+    def investment_thesis_text(self):
+        """Plain text version of investment_thesis for LLM prompts and embeddings"""
+        return blocknote_to_text(self.investment_thesis) if self.investment_thesis else ''
 
     @property
     def subject_display_name(self):

@@ -119,7 +119,7 @@ class OutcomeTracker:
         expected_hold_months = None
         
         if decision_journal:
-            initial_thesis = decision_journal.investment_thesis
+            initial_thesis = decision_journal.investment_thesis_text
             confidence_at_entry = decision_journal.confidence_level
             # Try to get expected return/hold from decision journal if available
             if hasattr(decision_journal, 'expected_return'):

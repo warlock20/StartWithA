@@ -41,7 +41,7 @@
         {% if position.investment_thesis and position.investment_thesis != 'No thesis recorded' %}
             <div class="thesis-block">
                 <div class="thesis-heading">Investment Thesis</div>
-                <div class="thesis-content-text">{{ position.investment_thesis }}</div>
+                <div class="thesis-content-text">{{ position.investment_thesis|blocknote_to_html|safe }}</div>
             </div>
         {% else %}
             <div class="no-thesis-message">

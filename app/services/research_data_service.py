@@ -12,6 +12,7 @@ import json
 import logging
 from typing import Optional
 from dataclasses import dataclass
+from app.utils.blocknote_utils import blocknote_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +341,7 @@ class ResearchDataService:
         summary = ResearchDataService.get_thesis_summary(project)
 
         if summary.investment_thesis:
-            texts.append(f"Investment Thesis: {summary.investment_thesis}")
+            texts.append(f"Investment Thesis: {blocknote_to_text(summary.investment_thesis)}")
 
         if summary.green_flags:
             texts.append("Key Positives: " + ", ".join(summary.green_flags))
