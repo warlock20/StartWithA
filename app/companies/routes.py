@@ -13,13 +13,13 @@ from flask import render_template, request, redirect, url_for, flash, current_ap
 from flask_login import current_user, login_required
 from app import db, cache
 from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
-                        ChecklistAnalysis, CompanyArticle, ScuttlebuttAnalysis, QualitativeAnalysis,
+                        ChecklistAnalysis, CompanyArticle, QualitativeAnalysis,
                         FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
                         JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline)
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.companies import companies_bp
-from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task, fetch_company_news_task, analyze_scuttlebutt_task
+from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
 from app.services.financial_data import FinancialDataService
 from app.services.price_service import PriceService
@@ -387,6 +387,9 @@ def company_dashboard(company_id):
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
+    # Saved articles
+    saved_articles = company.articles.order_by(CompanyArticle.fetched_at.desc()).all()
+
     return render_template(
         'company_documents.html',
         company=company,
@@ -398,6 +401,7 @@ def company_dashboard(company_id):
         potential_competitors=potential_competitors,
         user_currency=user_currency,
         currency_symbol=currency_symbol,
+        saved_articles=saved_articles,
         title=f"Dashboard for {company.name}"
     )
 
@@ -516,23 +520,57 @@ def delete_document(doc_id):
 
     return redirect(url_for('companies.company_dashboard', company_id=company_id))
 
-@companies_bp.route('/<int:company_id>/fetch_news', methods=['POST'])
+
+@companies_bp.route('/<int:company_id>/save_article', methods=['POST'])
 @login_required
-def fetch_news(company_id):
-    company = Company.query.get_or_404(company_id)
+def save_article(company_id):
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
+    title = request.form.get('article_title', '').strip()
+    url = request.form.get('article_url', '').strip()
+    description = request.form.get('article_description', '').strip() or None
+    source_name = request.form.get('article_source', '').strip() or None
+
+    if not title or not url:
+        flash("Title and URL are required.", "error")
+        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+    try:
+        article = CompanyArticle(
+            company_id=company.id,
+            title=title,
+            url=url,
+            description=description,
+            source_name=source_name,
+        )
+        db.session.add(article)
+        db.session.commit()
+        flash("Article saved successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error saving article: {e}", "error")
+
+    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+
+
+@companies_bp.route('/article/<int:article_id>/delete', methods=['POST'])
+@login_required
+def delete_article(article_id):
+    article = CompanyArticle.query.get_or_404(article_id)
+    company = Company.query.get_or_404(article.company_id)
     if company.user_id != current_user.id:
         flash("You are not authorized to perform this action.", "error")
         return redirect(url_for('companies.list_companies'))
 
-    # Call the background task
-    task = fetch_company_news_task.delay(company.id)
+    try:
+        db.session.delete(article)
+        db.session.commit()
+        flash("Article deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting article: {e}", "error")
 
-    flash("Request received! Recent news is being fetched in the background. The page will reload when complete.", "info")
+    return redirect(url_for('companies.company_dashboard', company_id=company.id))
 
-    # Redirect back to the same page with the task_id for polling
-    return redirect(url_for('companies.scuttlebutt', 
-                            company_id=company.id, 
-                            task_id=task.id))
 
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
@@ -589,42 +627,6 @@ def toggle_portfolio(company_id):
         flash(f'To add "{company.name}" to your portfolio, please record a BUY transaction.', 'info')
         return redirect(url_for('portfolio.add_transaction') + f'?company_id={company_id}')
  
-
-@companies_bp.route('/<int:company_id>/scuttlebutt')
-@login_required
-def scuttlebutt(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    # Fetch saved articles for this company, newest first
-    articles = company.articles.order_by(CompanyArticle.published_at.desc()).all()
-    latest_analysis = company.scuttlebutt_analyses.order_by(ScuttlebuttAnalysis.generated_at.desc()).first()
-    
-    return render_template(
-        'scuttlebutt.html',
-        title=f"Digital Scuttlebutt for {company.name}",
-        company=company,
-        articles=articles,
-        latest_analysis=latest_analysis 
-    )
-
-@companies_bp.route('/<int:company_id>/analyze_scuttlebutt', methods=['POST'])
-@login_required
-def analyze_scuttlebutt(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    # Call the background task
-    task = analyze_scuttlebutt_task.delay(company.id)
-
-    # Redirect back to the Scuttlebutt page with the task_id for polling
-    return redirect(url_for('companies.scuttlebutt', 
-                            company_id=company.id, 
-                            task_id=task.id))
 
 @companies_bp.route('/<int:company_id>/swot', methods=['GET', 'POST'])
 @login_required
@@ -698,68 +700,6 @@ def swot_analysis(company_id):
         analysis_content=existing_content # Pass the content dictionary to the template
     )
     
-@companies_bp.route('/<int:company_id>/porters-five-forces', methods=['GET', 'POST'])
-@login_required
-def porters_five_forces_analysis(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to access this page.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    analysis_type = 'PortersFiveForces'
-    analysis = QualitativeAnalysis.query.filter_by(
-        user_id=current_user.id,
-        company_id=company.id,
-        model_type=analysis_type
-    ).first()
-
-    if request.method == 'POST':
-        content_data = {
-            'threat_of_new_entrants': request.form.get('threat_of_new_entrants', ''),
-            'bargaining_power_of_buyers': request.form.get('bargaining_power_of_buyers', ''),
-            'bargaining_power_of_suppliers': request.form.get('bargaining_power_of_suppliers', ''),
-            'threat_of_substitutes': request.form.get('threat_of_substitutes', ''),
-            'industry_rivalry': request.form.get('industry_rivalry', '')
-        }
-
-        if analysis:
-            analysis.content = content_data
-        else:
-            analysis = QualitativeAnalysis(
-                user_id=current_user.id,
-                company_id=company.id,
-                model_type=analysis_type,
-                content=content_data
-            )
-            db.session.add(analysis)
-
-        try:
-            db.session.commit()
-            flash("Porter's Five Forces analysis saved successfully.", 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'An error occurred while saving: {e}', 'error')
-
-        # Preserve research workflow context if present
-        project_id = request.args.get('project_id')
-        step_index = request.args.get('step_index')
-        if project_id and step_index:
-            return redirect(url_for('companies.porters_five_forces_analysis',
-                                  company_id=company.id,
-                                  project_id=project_id,
-                                  step_index=step_index))
-        else:
-            return redirect(url_for('companies.porters_five_forces_analysis', company_id=company.id))
-
-    existing_content = analysis.content if analysis and analysis.content else {}
-
-    return render_template(
-        'porters_five_forces.html',
-        title=f"Porter's Five Forces for {company.name}",
-        company=company,
-        analysis_content=existing_content
-    )
- 
 @companies_bp.route('/<int:company_id>/fetch_financials', methods=['POST'])
 @login_required
 def fetch_financials(company_id):

@@ -88,6 +88,72 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Saved Articles Section -->
+            <div class="company-section-card mt-4">
+                <div class="company-section-card-header">
+                    <h5><i class="bi bi-bookmark me-2"></i>Saved Articles</h5>
+                </div>
+                <div class="company-section-card-body">
+                    <form method="POST" action="{{ url_for('companies.save_article', company_id=company.id) }}" class="mb-4">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <label for="article_title" class="form-label fw-semibold">Title</label>
+                                <input type="text" class="form-control" id="article_title" name="article_title"
+                                    placeholder="e.g., Q4 Earnings Analysis" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="article_url" class="form-label fw-semibold">URL</label>
+                                <input type="url" class="form-control" id="article_url" name="article_url"
+                                    placeholder="https://..." required>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="article_source" class="form-label fw-semibold">Source</label>
+                                <input type="text" class="form-control" id="article_source" name="article_source"
+                                    placeholder="e.g., Reuters">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-plus-circle me-1"></i>Save
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    {% if saved_articles %}
+                    <div class="saved-articles-list">
+                        {% for article in saved_articles %}
+                        <div class="saved-article-item">
+                            <div class="saved-article-info">
+                                <h6 class="saved-article-title">
+                                    <a href="{{ article.url }}" target="_blank" rel="noopener">
+                                        {{ article.title }}
+                                        <i class="bi bi-box-arrow-up-right" style="font-size: 0.75em;"></i>
+                                    </a>
+                                </h6>
+                                <div class="saved-article-meta">
+                                    {% if article.source_name %}{{ article.source_name }} &middot; {% endif %}
+                                    Saved {{ article.fetched_at.strftime('%b %d, %Y') }}
+                                </div>
+                            </div>
+                            <form method="POST" action="{{ url_for('companies.delete_article', article_id=article.id) }}"
+                                style="display: inline;">
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Delete this article?');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="company-empty-state">
+                        <i class="bi bi-bookmark"></i>
+                        <p>No saved articles yet. Add links to relevant articles, reports, or blog posts above.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <!-- Documents Tab -->
@@ -531,7 +597,6 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/task_polling.js') }}" defer></script>
 <script>
 // User's currency symbol from backend
 const currencySymbol = "{{ currency_symbol }}";

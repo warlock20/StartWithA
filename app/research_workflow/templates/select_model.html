@@ -42,19 +42,6 @@
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-body text-center d-flex flex-column">
-                <h4 class="card-title">Step 3: Digital Scuttlebutt</h4>
-                <p class="card-text flex-grow-1">
-                    Aggregate and review recent news, press releases, and transcripts to gather qualitative insights and
-                    understand the current narrative around the company.
-                </p>
-                <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}"
-                    class="btn btn-info mt-auto">Gather Intelligence</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
         <div class="card h-100 {% if has_swot_analysis %}border-info border-2{% endif %}">
             <div class="card-body text-center d-flex flex-column">
                 <h4 class="card-title">SWOT Analysis
@@ -73,23 +60,6 @@
                 {% else %}
                 <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
                     class="btn btn-info mt-auto">Start SWOT Analysis</a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card h-100 {% if has_porters_analysis %}border-secondary border-2{% endif %}">
-            <div class="card-body text-center d-flex flex-column">
-                <h4 class="card-title">Porter's Five Forces {% if has_porters_analysis %}<span
-                        class="badge bg-secondary">Completed</span>{% endif %}</h4>
-                <p class="card-text flex-grow-1">Analyze the competitive landscape and profitability potential of the
-                    company's industry.</p>
-                {% if has_porters_analysis %}
-                <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}"
-                    class="btn btn-outline-secondary mt-auto">View/Edit Analysis</a>
-                {% else %}
-                <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}"
-                    class="btn btn-secondary mt-auto">Start Analysis</a>
                 {% endif %}
             </div>
         </div>

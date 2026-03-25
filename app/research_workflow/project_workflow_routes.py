@@ -399,12 +399,6 @@ def execute_step(project_id, step_index):
                                   company_id=project.company_id,
                                   project_id=project_id,
                                   step_index=step_index))
-        elif model_type == 'Porter\'s Five Forces':
-            return redirect(url_for('companies.porters_five_forces_analysis',
-                                  company_id=project.company_id,
-                                  project_id=project_id,
-                                  step_index=step_index))
-
     elif step['type'] == 'competitor_analysis':
         return redirect(url_for('research_workflow.competitor_analysis_step',
                               project_id=project_id, step_index=step_index))

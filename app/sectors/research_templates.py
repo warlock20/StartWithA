@@ -26,32 +26,6 @@ RESEARCH_TEMPLATES = {
 """
     },
 
-    'porter': {
-        'name': "Porter's 5 Forces",
-        'icon': '⚔️',
-        'description': 'Competitive dynamics, barriers to entry, supplier/buyer power',
-        'content': """
-<h2>⚔️ Porter's 5 Forces Analysis</h2>
-<h3>1. Competitive Rivalry</h3>
-<ul>
-    <li>Industry concentration: </li>
-    <li>Growth rate: </li>
-    <li>Differentiation: </li>
-</ul>
-<h3>2. Threat of New Entrants</h3>
-<ul>
-    <li>Capital requirements: </li>
-    <li>Barriers to entry: </li>
-</ul>
-<h3>3. Bargaining Power of Suppliers</h3>
-<p></p>
-<h3>4. Bargaining Power of Buyers</h3>
-<p></p>
-<h3>5. Threat of Substitutes</h3>
-<p></p>
-"""
-    },
-
     'trends': {
         'name': 'Trends & Catalysts',
         'icon': '📈',
