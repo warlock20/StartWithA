@@ -214,7 +214,7 @@ class ResearchDataService:
             for answer in answers:
                 question_text = ""
                 if answer.item:
-                    question_text = answer.item.item_text or ""
+                    question_text = answer.item.text or ""
 
                 answer_text = ResearchDataService.extract_text_from_blocknote(answer.answer_text)
 
