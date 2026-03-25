@@ -4,7 +4,6 @@ MENTAL MODELS STYLES
 =============================================================================
 1. Public walkthrough page (product tour at /mental-models)
 2. SWOT Analysis (per-company)
-3. Porter's Five Forces (per-company)
 */
 
 /* =============================================================================
@@ -767,127 +766,6 @@ MENTAL MODELS STYLES
 }
 
 
-/* =============================================================================
-   PORTER'S FIVE FORCES STYLES
-   ============================================================================= */
-
-/* Porter's Forces List */
-.porters-forces-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-    flex: 1;
-    min-height: 0;
-    padding-right: 0.5rem;
-}
-
-/* Custom scrollbar for Porter's list */
-.porters-forces-list::-webkit-scrollbar {
-    width: 8px;
-}
-
-.porters-forces-list::-webkit-scrollbar-track {
-    background: var(--gray-100);
-    border-radius: 10px;
-}
-
-.porters-forces-list::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: 10px;
-    transition: background 0.2s ease;
-}
-
-.porters-forces-list::-webkit-scrollbar-thumb:hover {
-    background: var(--gray-400);
-}
-
-/* Porter's Force Card */
-.porters-force-card {
-    background: white;
-    border-radius: 12px;
-    border: 2px solid var(--border-color);
-    overflow: visible;
-    transition: all 0.3s ease;
-}
-
-.porters-force-card:hover {
-    border-color: var(--primary-300);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-/* Porter's Force Header */
-.porters-force-header {
-    padding: 1.25rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    border-bottom: 2px solid var(--border-color);
-    background: var(--gray-50);
-}
-
-.porters-force-number {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.porters-force-title-group {
-    flex: 1;
-}
-
-.porters-force-header h3 {
-    font-size: 1.125rem;
-    font-weight: 700;
-    margin: 0 0 0.25rem 0;
-    color: var(--gray-900);
-}
-
-.porters-force-description {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-    margin: 0;
-    line-height: 1.4;
-}
-
-/* Porter's Force Body */
-.porters-force-body {
-    padding: 1.5rem;
-}
-
-.porters-force-textarea {
-    width: 100%;
-    min-height: 200px;
-    padding: 0.875rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    resize: vertical;
-    transition: all 0.2s ease;
-    font-family: inherit;
-}
-
-.porters-force-textarea:focus {
-    outline: none;
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
-}
-
-.porters-force-textarea::placeholder {
-    color: var(--gray-400);
-}
-
 /* Responsive Design */
 @media (max-width: 992px) {
     .swot-analysis-grid {
@@ -896,10 +774,6 @@ MENTAL MODELS STYLES
 
     .swot-quadrant-textarea {
         min-height: 180px;
-    }
-
-    .porters-force-textarea {
-        min-height: 140px;
     }
 }
 
@@ -928,17 +802,6 @@ MENTAL MODELS STYLES
         font-size: 0.875rem;
     }
 
-    .porters-force-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
-
-    .porters-force-textarea {
-        min-height: 120px;
-        font-size: 0.875rem;
-    }
-
     .mental-models-save-section {
         flex-direction: column;
         width: 100%;
@@ -956,14 +819,12 @@ MENTAL MODELS STYLES
         display: none;
     }
 
-    .swot-quadrant-card,
-    .porters-force-card {
+    .swot-quadrant-card {
         break-inside: avoid;
         page-break-inside: avoid;
     }
 
-    .swot-quadrant-textarea,
-    .porters-force-textarea {
+    .swot-quadrant-textarea {
         border: 1px solid #ddd;
         min-height: auto;
     }

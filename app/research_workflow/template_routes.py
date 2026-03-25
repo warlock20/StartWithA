@@ -31,7 +31,6 @@ STEP_TYPES = [
 
 MENTAL_MODELS = [
     'SWOT Analysis',
-    'Porter\'s Five Forces'
 ]
 
 @research_workflow_bp.route('/templates')

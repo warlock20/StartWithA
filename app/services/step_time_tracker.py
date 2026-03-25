@@ -137,15 +137,9 @@ def calculate_swot_time(project, step, step_index):
     return StepTimeTracker.get_step_time(project, step_index)
 
 
-def calculate_porters_time(project, step, step_index):
-    """Calculate time spent on Porter's Five Forces analysis."""
-    return StepTimeTracker.get_step_time(project, step_index)
-
-
 # Map step types to their time calculators
 STEP_TIME_CALCULATORS = {
     'checklist': calculate_checklist_time,
     'thesis_writing': calculate_thesis_writing_time,
     'swot': calculate_swot_time,
-    'porters': calculate_porters_time,
 }

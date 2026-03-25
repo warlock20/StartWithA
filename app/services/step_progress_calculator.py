@@ -202,44 +202,6 @@ def calculate_swot_progress(project, step, step_index):
         return 0.0
 
 
-def calculate_porters_progress(project, step, step_index):
-    """
-    Calculate progress for a Porter's Five Forces analysis step.
-
-    Progress is based on whether the analysis exists and how many
-    of the 5 forces have been analyzed.
-    """
-    try:
-        porters = QualitativeAnalysis.query.filter_by(
-            company_id=project.company_id,
-            user_id=project.user_id,
-            model_type='Porter'
-        ).first()
-
-        if not porters or not porters.content:
-            return 0.0
-
-        content = porters.content
-        filled_forces = 0
-        if content.get('competitive_rivalry'):
-            filled_forces += 1
-        if content.get('supplier_power'):
-            filled_forces += 1
-        if content.get('buyer_power'):
-            filled_forces += 1
-        if content.get('threat_of_substitution'):
-            filled_forces += 1
-        if content.get('threat_of_new_entry'):
-            filled_forces += 1
-
-        progress = (filled_forces / 5) * 100
-        return round(progress, 1)
-
-    except Exception as e:
-        logger.error(f"Error calculating Porter's progress for project {project.id}, step {step_index}: {e}")
-        return 0.0
-
-
 def calculate_custom_step_progress(project, step, step_index):
     """
     Calculate progress for a custom step.
@@ -307,8 +269,6 @@ STEP_CALCULATORS = {
     'kill_checklist': calculate_kill_checklist_progress,
     'kill_checklist_reference': calculate_kill_checklist_progress,
     'swot': calculate_swot_progress,
-    'porters': calculate_porters_progress,
-    'porter_five_forces': calculate_porters_progress,
     'free_research': calculate_free_research_progress,
     'custom': calculate_custom_step_progress,
 }

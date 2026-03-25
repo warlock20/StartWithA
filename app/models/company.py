@@ -44,12 +44,6 @@ class Company(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    scuttlebutt_analyses = db.relationship(
-        "ScuttlebuttAnalysis",
-        backref="company",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
     qualitative_analyses = db.relationship(
         "QualitativeAnalysis",
         backref="company",
@@ -123,8 +117,8 @@ class CompanyArticle(db.Model):
     # The title of the article
     title = db.Column(db.String(300), nullable=False)
 
-    # The URL to the original article - should be unique to avoid duplicates
-    url = db.Column(db.String(500), nullable=False, unique=True)
+    # The URL to the original article
+    url = db.Column(db.String(500), nullable=False)
 
     # A short description or snippet of the article
     description = db.Column(db.Text, nullable=True)
@@ -132,10 +126,10 @@ class CompanyArticle(db.Model):
     # The name of the news source (e.g., "Reuters", "Bloomberg")
     source_name = db.Column(db.String(100), nullable=True)
 
-    # The original publication date of the article
-    published_at = db.Column(db.DateTime, nullable=False, index=True)
+    # The original publication date of the article (nullable for manual entries)
+    published_at = db.Column(db.DateTime, nullable=True, index=True)
 
-    # The date we fetched the article
+    # The date the article was saved
     fetched_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
     def __repr__(self):

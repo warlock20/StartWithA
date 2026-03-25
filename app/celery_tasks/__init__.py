@@ -3,7 +3,7 @@ Celery Tasks Module
 
 All Celery tasks organized by domain:
 - tasks_portfolio: Portfolio AI analytics
-- tasks_research: Competitor analysis, scuttlebutt, news
+- tasks_research: Competitor analysis, bias check, argos
 - tasks_financial: Financial data, SEC filings
 - tasks_data_retention: GDPR data retention / anonymization
 
@@ -21,8 +21,6 @@ from app.celery_tasks.tasks_chart_data import (
 
 from app.celery_tasks.tasks_research import (
     competitor_analysis_task,
-    fetch_company_news_task,
-    analyze_scuttlebutt_task,
     bias_check_task,
     argos_deep_analysis_task,
 )
@@ -48,8 +46,6 @@ __all__ = [
 
     # Research tasks
     'competitor_analysis_task',
-    'fetch_company_news_task',
-    'analyze_scuttlebutt_task',
     'bias_check_task',
     'argos_deep_analysis_task',
 

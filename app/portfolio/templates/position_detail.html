@@ -290,39 +290,10 @@
                             <i class="bi bi-flag"></i>
                             Add Checkpoint
                         </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Deep Analysis Tools -->
-            <div class="position-sidebar-section">
-                <div class="position-sidebar-header">
-                    <span class="position-sidebar-title">
-                        <i class="bi bi-search"></i>
-                        Deep Analysis
-                    </span>
-                </div>
-                <div class="position-sidebar-body">
-                    <div class="position-quick-actions">
-                        <a href="{{ url_for('companies.scuttlebutt', company_id=company.id) }}"
+                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
                             class="position-quick-action">
-                            <i class="bi bi-newspaper"></i>
-                            News & Sentiment
-                        </a>
-                        <a href="{{ url_for('companies.swot_analysis', company_id=company.id) }}"
-                            class="position-quick-action">
-                            <i class="bi bi-grid-3x3"></i>
-                            SWOT Analysis
-                        </a>
-                        <a href="{{ url_for('companies.porters_five_forces_analysis', company_id=company.id) }}"
-                            class="position-quick-action">
-                            <i class="bi bi-diagram-3"></i>
-                            Porter's Five Forces
-                        </a>
-                        <a href="{{ url_for('companies.financials', company_id=company.id) }}"
-                            class="position-quick-action">
-                            <i class="bi bi-bar-chart-line"></i>
-                            Financials
+                            <i class="bi bi-folder2-open"></i>
+                            Company Dashboard
                         </a>
                     </div>
                 </div>

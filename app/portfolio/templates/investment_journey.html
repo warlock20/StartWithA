@@ -148,7 +148,7 @@
                 </p>
 
                 {% if event.data.thesis %}
-                <p class="journey-event-body">{{ event.data.thesis }}</p>
+                <div class="journey-event-body">{{ event.data.thesis|blocknote_to_html|safe }}</div>
                 {% endif %}
 
                 {% if event.data.change_trigger %}

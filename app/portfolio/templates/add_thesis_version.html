@@ -214,7 +214,7 @@
                     </div>
 
                     <div class="thesis-reference-content">
-                        <p>{{ current_thesis.thesis[:200] }}{% if current_thesis.thesis|length > 200 %}...{% endif %}</p>
+                        <p>{{ current_thesis.thesis|blocknote_preview(200) }}</p>
                     </div>
 
                     {% if current_thesis.bull_case or current_thesis.bear_case %}
@@ -264,7 +264,7 @@
         <div class="thesis-modal-body">
             <div class="thesis-modal-section">
                 <h4>Investment Thesis</h4>
-                <p>{{ current_thesis.thesis }}</p>
+                <div>{{ current_thesis.thesis|blocknote_to_html|safe }}</div>
             </div>
 
             <div class="thesis-modal-stats">

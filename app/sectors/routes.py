@@ -68,9 +68,9 @@ def initialize_default_sections(sector_analysis):
             'is_locked': False
         },
         {
-            'title': 'Industry Analysis (Porter\'s 5 Forces)',
+            'title': 'Industry Analysis',
             'icon': '🔍',
-            'description': 'Analyze competitive rivalry, barriers to entry, supplier/buyer power, and threat of substitutes',
+            'description': 'Analyze competitive dynamics, barriers to entry, supplier/buyer power, and threat of substitutes',
             'section_type': 'analysis',
             'display_order': 2,
             'is_locked': False

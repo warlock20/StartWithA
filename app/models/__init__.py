@@ -17,7 +17,6 @@ from .company import (
     Company,
     CompanyDocument,
     CompanyArticle,
-    ScuttlebuttAnalysis,
     QualitativeAnalysis,
     FinancialData,
 )
@@ -134,7 +133,6 @@ __all__ = [
     'Company',
     'CompanyDocument',
     'CompanyArticle',
-    'ScuttlebuttAnalysis',
     'QualitativeAnalysis',
     'FinancialData',
     # Checklist models

@@ -118,8 +118,12 @@ def blocknote_to_html(content):
         return ''.join(html_parts)
 
     except (json.JSONDecodeError, TypeError, ValueError):
-        # Not JSON - return as-is (might be HTML already)
-        return content
+        # Not JSON - convert newlines to <br> for plain text, or return as-is for HTML
+        if '<' in content and '>' in content:
+            return content  # Likely HTML already
+        # Plain text: wrap paragraphs in <p> tags
+        paragraphs = content.split('\n\n')
+        return ''.join(f'<p>{p.strip()}</p>' for p in paragraphs if p.strip())
 
 
 def blocknote_preview(content, max_length=120):
