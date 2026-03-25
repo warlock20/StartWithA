@@ -350,7 +350,7 @@ function hideDetailModal(event) {
 function copyCurrentThesis() {
     {% if current_thesis %}
     document.getElementById('change_summary').value = '{{ current_thesis.change_summary|safe }}';
-    document.getElementById('thesis').value = `{{ current_thesis.thesis|safe }}`;
+    document.getElementById('thesis').value = `{{ current_thesis.thesis_text }}`;
     {% if current_thesis.change_trigger %}
     document.getElementById('change_trigger').value = '{{ current_thesis.change_trigger|safe }}';
     {% endif %}

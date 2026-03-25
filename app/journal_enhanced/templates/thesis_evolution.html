@@ -59,7 +59,7 @@
                 {% endif %}
                 
                 <h6>Thesis:</h6>
-                <p>{{ version.thesis }}</p>
+                <div>{{ version.thesis|blocknote_to_html|safe }}</div>
                 
                 {% if version.change_summary %}
                 <h6>What Changed:</h6>

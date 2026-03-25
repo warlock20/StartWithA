@@ -491,26 +491,8 @@ def complete_step(project_id):
     if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
         step = project.template.workflow_steps[step_index]
         if step.get('type') == 'thesis_writing':
-            # Extract plain text from BlockNote JSON if needed
-            try:
-                blocks = json.loads(notes) if notes else []
-                # Extract text from BlockNote blocks
-                thesis_text = []
-                for block in blocks:
-                    if block.get('type') == 'paragraph':
-                        content = block.get('content', [])
-                        paragraph_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                        if paragraph_text.strip():
-                            thesis_text.append(paragraph_text)
-                    elif block.get('type') == 'heading':
-                        content = block.get('content', [])
-                        heading_text = ''.join(item.get('text', '') for item in content if item.get('type') == 'text')
-                        if heading_text.strip():
-                            thesis_text.append(heading_text)
-                project.investment_thesis = '\n\n'.join(thesis_text) if thesis_text else notes
-            except (json.JSONDecodeError, TypeError):
-                # If not JSON, use as-is
-                project.investment_thesis = notes
+            # Store the original BlockNote JSON to preserve formatting
+            project.investment_thesis = notes
 
             # Create ThesisEvolution Version 0 (initial thesis from research)
             # Check if version 0 already exists for this company

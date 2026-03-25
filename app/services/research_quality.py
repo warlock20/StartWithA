@@ -297,7 +297,7 @@ class ResearchQualityCalculator:
                             all_notes_text += " " + str(note)
                 
                 if project.investment_thesis:
-                    all_notes_text += " " + project.investment_thesis
+                    all_notes_text += " " + project.investment_thesis_text
                 if project.green_flags:
                     all_notes_text += " " + " ".join(project.green_flags)
                 if project.red_flags:

@@ -135,7 +135,7 @@
                         </td>
                         <td class="tr-hide-sm">
                             {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                            <div class="tr-thesis-snippet">{{ p.investment_thesis }}</div>
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
                             {% else %}
                             <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
                             {% endif %}
@@ -169,7 +169,7 @@
                                     <div>
                                         <div class="tr-detail-thesis-label">Investment Thesis</div>
                                         {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                                        <div class="tr-detail-thesis">{{ p.investment_thesis }}</div>
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
                                         {% else %}
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
@@ -249,7 +249,7 @@
                         </td>
                         <td class="tr-hide-sm">
                             {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                            <div class="tr-thesis-snippet">{{ p.investment_thesis }}</div>
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
                             {% else %}
                             <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
                             {% endif %}
@@ -283,7 +283,7 @@
                                     <div>
                                         <div class="tr-detail-thesis-label">Investment Thesis</div>
                                         {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                                        <div class="tr-detail-thesis">{{ p.investment_thesis }}</div>
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
                                         {% else %}
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
@@ -363,7 +363,7 @@
                         </td>
                         <td class="tr-hide-sm">
                             {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                            <div class="tr-thesis-snippet">{{ p.investment_thesis }}</div>
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
                             {% else %}
                             <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
                             {% endif %}
@@ -396,7 +396,7 @@
                                     <div>
                                         <div class="tr-detail-thesis-label">Investment Thesis</div>
                                         {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                                        <div class="tr-detail-thesis">{{ p.investment_thesis }}</div>
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
                                         {% else %}
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
@@ -475,7 +475,7 @@
                         </td>
                         <td class="tr-hide-sm">
                             {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                            <div class="tr-thesis-snippet">{{ p.investment_thesis }}</div>
+                            <div class="tr-thesis-snippet">{{ p.investment_thesis|blocknote_preview(150) }}</div>
                             {% else %}
                             <div class="tr-thesis-snippet tr-no-thesis">No thesis recorded</div>
                             {% endif %}
@@ -508,7 +508,7 @@
                                     <div>
                                         <div class="tr-detail-thesis-label">Investment Thesis</div>
                                         {% if p.investment_thesis and p.investment_thesis != 'No thesis recorded' %}
-                                        <div class="tr-detail-thesis">{{ p.investment_thesis }}</div>
+                                        <div class="tr-detail-thesis">{{ p.investment_thesis|blocknote_to_html|safe }}</div>
                                         {% else %}
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}

@@ -168,9 +168,7 @@
                 <div class="position-journal-compact-content">
                     <i class="bi bi-journal-text"></i>
                     <span class="position-journal-compact-thesis">
-                        {{ decision_journal.investment_thesis[:150] if decision_journal.investment_thesis else 'No
-                        thesis recorded' }}{% if decision_journal.investment_thesis and
-                        decision_journal.investment_thesis|length > 150 %}...{% endif %}
+                        {{ decision_journal.investment_thesis|blocknote_preview(150) if decision_journal.investment_thesis else 'No thesis recorded' }}
                     </span>
                     {% if decision_journal.confidence_score %}
                     <span class="position-journal-compact-badge">{{ decision_journal.confidence_score }}/10</span>

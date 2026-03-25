@@ -64,7 +64,7 @@
                 <div class="summary-section-body">
                     <div class="summary-thesis-content">
                         {% if project.investment_thesis %}
-                            {{ project.investment_thesis|markdown|safe }}
+                            {{ project.investment_thesis|blocknote_to_html|safe }}
                         {% else %}
                             {% for note in all_notes if note.step_type == 'thesis_writing' %}
                                 {{ note.notes|blocknote_to_html|safe }}
@@ -109,7 +109,7 @@
                         <div class="summary-step-content">
                             {% if note.step_type == 'thesis_writing' %}
                                 {% if project.investment_thesis %}
-                                    {{ project.investment_thesis|markdown|safe }}
+                                    {{ project.investment_thesis|blocknote_to_html|safe }}
                                 {% else %}
                                     {{ note.notes|blocknote_to_html|safe }}
                                 {% endif %}
