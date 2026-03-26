@@ -154,6 +154,14 @@ def complete_checklist_step(project_id, session_id):
     session.results = checklist_results
     session.status = 'completed'
 
+    # Update project time tracking
+    if session.duration_minutes:
+        if not project.time_per_step:
+            project.time_per_step = {}
+        current_time = project.time_per_step.get(str(session.step_index), 0)
+        project.time_per_step[str(session.step_index)] = current_time + session.duration_minutes
+        project.total_hours_spent = (project.total_hours_spent or 0) + session.duration_minutes / 60
+
     # Update project progress
     if not project.step_notes:
         project.step_notes = {}
@@ -260,6 +268,14 @@ def complete_kill_checklist_step(project_id, session_id):
     session.notes = step_notes
     session.results = kill_checklist_results
     session.status = 'completed'
+
+    # Update project time tracking
+    if session.duration_minutes:
+        if not project.time_per_step:
+            project.time_per_step = {}
+        current_time = project.time_per_step.get(str(session.step_index), 0)
+        project.time_per_step[str(session.step_index)] = current_time + session.duration_minutes
+        project.total_hours_spent = (project.total_hours_spent or 0) + session.duration_minutes / 60
 
     # Update project progress
     if not project.step_notes:
