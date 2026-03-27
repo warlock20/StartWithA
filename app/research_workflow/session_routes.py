@@ -15,12 +15,71 @@ from app import db
 from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
                        ResearchProject, KillChecklist, CompanyDocument)
 from app.research_workflow import research_workflow_bp
-from app.utils.time_utils import now_utc, ensure_timezone_aware
+from app.utils.time_utils import now_utc, calculate_duration_minutes
 from app.utils.response_utils import json_success
 from app.services.ai import generate_ai_content
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# ── Session / project step helpers ────────────────────────────────────
+
+def finalize_session(session, notes=None, results=None):
+    """End a work session: set end time, calculate duration, mark completed."""
+    session.end_time = now_utc()
+    session.duration_minutes = calculate_duration_minutes(
+        session.start_time, session.end_time
+    )
+    if notes is not None:
+        session.notes = notes
+    if results is not None:
+        session.results = results
+    session.status = 'completed'
+
+
+def update_project_time(project, step_index, duration_minutes):
+    """Accumulate session duration into project time tracking fields."""
+    if not duration_minutes:
+        return
+    if not project.time_per_step:
+        project.time_per_step = {}
+    current = project.time_per_step.get(str(step_index), 0)
+    project.time_per_step[str(step_index)] = current + duration_minutes
+    project.total_hours_spent = (project.total_hours_spent or 0) + duration_minutes / 60
+
+
+def complete_project_step(project, step_index, notes=None, results=None):
+    """Save step data, mark step complete, and set last_worked_at.
+
+    Does NOT advance to next step — caller decides what happens next
+    (advance, kill, or complete).
+    """
+    if notes is not None:
+        if not project.step_notes:
+            project.step_notes = {}
+        project.step_notes[str(step_index)] = notes
+
+    if results is not None:
+        if not project.step_results:
+            project.step_results = {}
+        project.step_results[str(step_index)] = results
+
+    if not project.completed_steps:
+        project.completed_steps = []
+    if step_index not in project.completed_steps:
+        project.completed_steps = project.completed_steps + [step_index]
+
+    project.last_worked_at = now_utc()
+
+
+def advance_or_complete_project(project, step_index):
+    """Move project to next step, or mark completed if this was the last."""
+    if step_index + 1 < len(project.template.workflow_steps):
+        project.current_step_index = step_index + 1
+    else:
+        project.status = 'completed'
+        project.completed_at = now_utc()
 
 
 @research_workflow_bp.route('/research_sessions/<int:session_id>/delete', methods=['POST'])
@@ -146,46 +205,11 @@ def complete_checklist_step(project_id, session_id):
         'pass_rate': (met_count / total_evaluated) * 100 if total_evaluated > 0 else 0
     }
 
-    # Complete the session
-    session.end_time = now_utc()
-    start_time_aware = ensure_timezone_aware(session.start_time)
-    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
-    session.notes = step_notes
-    session.results = checklist_results
-    session.status = 'completed'
-
-    # Update project time tracking
-    if session.duration_minutes:
-        if not project.time_per_step:
-            project.time_per_step = {}
-        current_time = project.time_per_step.get(str(session.step_index), 0)
-        project.time_per_step[str(session.step_index)] = current_time + session.duration_minutes
-        project.total_hours_spent = (project.total_hours_spent or 0) + session.duration_minutes / 60
-
-    # Update project progress
-    if not project.step_notes:
-        project.step_notes = {}
-    project.step_notes[str(session.step_index)] = step_notes
-
-    if not project.step_results:
-        project.step_results = {}
-    project.step_results[str(session.step_index)] = checklist_results
-
-    # Mark step as complete
-    if not project.completed_steps:
-        project.completed_steps = []
-
-    if session.step_index not in project.completed_steps:
-        project.completed_steps = project.completed_steps + [session.step_index]
-
-    # Move to next step
-    if session.step_index + 1 < len(project.template.workflow_steps):
-        project.current_step_index = session.step_index + 1
-    else:
-        project.status = 'completed'
-        project.completed_at = now_utc()
-
-    project.last_worked_at = now_utc()
+    # Finalize session and update project
+    finalize_session(session, notes=step_notes, results=checklist_results)
+    update_project_time(project, session.step_index, session.duration_minutes)
+    complete_project_step(project, session.step_index, notes=step_notes, results=checklist_results)
+    advance_or_complete_project(project, session.step_index)
 
     try:
         db.session.commit()
@@ -261,52 +285,17 @@ def complete_kill_checklist_step(project_id, session_id):
         'screening_passed': overall_result == 'proceed'
     }
 
-    # Complete the session
-    session.end_time = now_utc()
-    start_time_aware = ensure_timezone_aware(session.start_time)
-    session.duration_minutes = int((session.end_time - start_time_aware).total_seconds() / 60)
-    session.notes = step_notes
-    session.results = kill_checklist_results
-    session.status = 'completed'
+    # Finalize session and update project
+    finalize_session(session, notes=step_notes, results=kill_checklist_results)
+    update_project_time(project, session.step_index, session.duration_minutes)
+    complete_project_step(project, session.step_index, notes=step_notes, results=kill_checklist_results)
 
-    # Update project time tracking
-    if session.duration_minutes:
-        if not project.time_per_step:
-            project.time_per_step = {}
-        current_time = project.time_per_step.get(str(session.step_index), 0)
-        project.time_per_step[str(session.step_index)] = current_time + session.duration_minutes
-        project.total_hours_spent = (project.total_hours_spent or 0) + session.duration_minutes / 60
-
-    # Update project progress
-    if not project.step_notes:
-        project.step_notes = {}
-    project.step_notes[str(session.step_index)] = step_notes
-
-    if not project.step_results:
-        project.step_results = {}
-    project.step_results[str(session.step_index)] = kill_checklist_results
-
-    # Mark step as complete (even if killed - it was completed)
-    if not project.completed_steps:
-        project.completed_steps = []
-
-    if session.step_index not in project.completed_steps:
-        project.completed_steps = project.completed_steps + [session.step_index]
-
-    # Handle kill decision
     if overall_result == 'kill':
         project.status = 'killed'
         project.completed_at = now_utc()
         project.kill_reason = f"Failed screening: {step_notes}"
     else:
-        # Move to next step
-        if session.step_index + 1 < len(project.template.workflow_steps):
-            project.current_step_index = session.step_index + 1
-        else:
-            project.status = 'completed'
-            project.completed_at = now_utc()
-
-    project.last_worked_at = now_utc()
+        advance_or_complete_project(project, session.step_index)
 
     try:
         db.session.commit()

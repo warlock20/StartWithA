@@ -285,17 +285,26 @@ def update_thesis(project_id):
         return json_unauthorized('Access denied')
 
     try:
-        data = request.get_json()
-        thesis = data.get('thesis', '').strip()
+        # Support both form POST and JSON
+        if request.is_json:
+            thesis = request.get_json().get('thesis', '').strip()
+        else:
+            thesis = request.form.get('investment_thesis', '').strip()
 
         project.investment_thesis = thesis
         db.session.commit()
 
-        return json_success('Thesis updated')
+        if request.is_json:
+            return json_success('Thesis updated')
+        flash('Thesis updated', 'success')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
     except Exception as e:
         db.session.rollback()
-        return json_error(str(e), status_code=500)
+        if request.is_json:
+            return json_error(str(e), status_code=500)
+        flash(f'Error updating thesis: {str(e)}', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/update-summary', methods=['POST'])
