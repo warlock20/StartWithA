@@ -416,16 +416,16 @@
 
 <!-- Thesis Modal -->
 <div class="modal fade" id="thesisModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Investment Thesis</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
+            <form id="thesisModalForm" method="POST" action="{{ url_for('research_workflow.update_thesis', project_id=project.id) }}">
                 <div class="modal-body">
-                    <textarea class="form-control" name="investment_thesis" rows="6"
-                              placeholder="Document your evolving thesis as you progress through research...">{{ project.investment_thesis_text or '' }}</textarea>
+                    <input type="hidden" id="thesisModalHidden" name="investment_thesis">
+                    <div id="thesisModalEditor" class="blocknote-form-editor"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -478,6 +478,39 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
+<script>
+// Thesis modal BlockNote editor
+let thesisModalContent = '';
+const thesisModalEl = document.getElementById('thesisModal');
+if (thesisModalEl) {
+    let thesisEditorInited = false;
+    thesisModalEl.addEventListener('shown.bs.modal', function () {
+        if (thesisEditorInited) return;
+        const checkEditor = setInterval(() => {
+            if (window.initBlockNoteEditor) {
+                clearInterval(checkEditor);
+                thesisEditorInited = true;
+                const initialContent = {{ (project.investment_thesis or '')|tojson }};
+                window.initBlockNoteEditor('thesisModalEditor', {
+                    initialContent: initialContent,
+                    placeholder: 'Document your evolving thesis as you progress through research...',
+                    onChange: (json) => { thesisModalContent = json; }
+                });
+            }
+        }, 100);
+    });
+
+    document.getElementById('thesisModalForm').addEventListener('submit', function (e) {
+        if (!thesisModalContent) {
+            e.preventDefault();
+            alert('Please write your thesis before saving.');
+            return;
+        }
+        document.getElementById('thesisModalHidden').value = thesisModalContent;
+    });
+}
+</script>
 <script>
 // Show onboarding modal if from onboarding flow
 {% if request.args.get('from_onboarding') %}

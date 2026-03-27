@@ -510,11 +510,14 @@ def add_thesis_version(company_id):
     ).scalar() or 0
     next_version = max_version + 1
 
+    currency_symbol = CurrencyService.get_currency_symbol(company.reporting_currency or 'USD')
+
     return render_template('add_thesis_version.html',
                           company=company,
                           position=position,
                           current_thesis=current_thesis,
-                          next_version=next_version)
+                          next_version=next_version,
+                          currency_symbol=currency_symbol)
 
 
 @portfolio_bp.route('/refresh-prices', methods=['POST'])

@@ -20,9 +20,13 @@ from app.models import (ResearchTemplate, ResearchProject, WorkSession,
                        ResearchAttachment)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
-from app.utils.time_utils import now_utc, ensure_timezone_aware, calculate_duration_minutes, format_for_javascript
+from app.utils.time_utils import now_utc, ensure_timezone_aware, format_for_javascript
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
+from app.research_workflow.session_routes import (
+    finalize_session, update_project_time, complete_project_step,
+    advance_or_complete_project,
+)
 from app.services.sector_service import SectorService
 from sqlalchemy.orm.attributes import flag_modified
 import json
@@ -457,35 +461,14 @@ def complete_step(project_id):
     session_id = request.form.get('session_id', type=int)
 
     # Complete the work session
+    session = None
     if session_id:
         session = WorkSession.query.get(session_id)
         if session and session.user_id == current_user.id:
-            session.end_time = now_utc()
-            session.duration_minutes = calculate_duration_minutes(
-                session.start_time, session.end_time
-            )
-            session.notes = notes
+            finalize_session(session, notes=notes)
+            update_project_time(project, step_index, session.duration_minutes)
 
-            # Update project time tracking
-            if not project.time_per_step:
-                project.time_per_step = {}
-
-            current_time = project.time_per_step.get(str(step_index), 0)
-            project.time_per_step[str(step_index)] = current_time + session.duration_minutes
-            project.total_hours_spent += session.duration_minutes / 60
-
-    # Mark step as complete
-    if not project.completed_steps:
-        project.completed_steps = []
-
-    if step_index not in project.completed_steps:
-        project.completed_steps = project.completed_steps + [step_index]
-
-    # Save step notes
-    if not project.step_notes:
-        project.step_notes = {}
-    project.step_notes[str(step_index)] = notes
-    flag_modified(project, 'step_notes')
+    complete_project_step(project, step_index, notes=notes)
 
     # If this is a thesis_writing step, also update project.investment_thesis
     if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
@@ -495,7 +478,6 @@ def complete_step(project_id):
             project.investment_thesis = notes
 
             # Create ThesisEvolution Version 0 (initial thesis from research)
-            # Check if version 0 already exists for this company
             existing_v0 = ThesisEvolution.query.filter_by(
                 user_id=current_user.id,
                 company_id=project.company_id,
@@ -510,22 +492,15 @@ def complete_step(project_id):
                     thesis=project.investment_thesis,
                     change_summary='Initial investment thesis from research project',
                     change_trigger=f'Research project: {project.project_name}',
-                    conviction_level=project.decision_confidence,  # Set from research decision
+                    conviction_level=project.decision_confidence,
                     is_current=True,
                     created_at=now_utc()
                 )
                 db.session.add(thesis_evolution)
                 logger.info(f"Created ThesisEvolution v0 for company {project.company_id} from research project {project.id}")
 
-    # Update project progress
-    project.last_worked_at = now_utc()
-
-    # Move to next step or complete project
-    if step_index + 1 < len(project.template.workflow_steps):
-        project.current_step_index = step_index + 1
-    else:
-        project.status = 'completed'
-        project.completed_at = now_utc()
+    advance_or_complete_project(project, step_index)
+    if project.status == 'completed':
         flash('Research project completed! Time to make your investment decision.', 'success')
 
     try:

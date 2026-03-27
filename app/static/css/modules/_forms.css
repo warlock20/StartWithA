@@ -13,6 +13,17 @@
 }
 
 /* =============================================================================
+   BLOCKNOTE FORM EDITOR — reusable container for BlockNote in forms
+   ============================================================================= */
+
+.blocknote-form-editor {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    min-height: 200px;
+    background: var(--background-white, #fff);
+}
+
+/* =============================================================================
    THESIS FEEDBACK PANEL (Real-time feedback)
    ============================================================================= */
 

@@ -49,12 +49,8 @@
                         <label class="thesis-form-label">
                             Investment Thesis <span class="required">*</span>
                         </label>
-                        <textarea class="form-control"
-                                  id="thesis"
-                                  name="thesis"
-                                  rows="6"
-                                  placeholder="What has changed in your thinking? What new information influenced this update?"
-                                  required></textarea>
+                        <input type="hidden" id="thesis" name="thesis">
+                        <div id="thesisEditor" class="blocknote-form-editor"></div>
                     </div>
 
                     <!-- Change Trigger -->
@@ -110,7 +106,7 @@
                         <div class="thesis-form-group">
                             <label class="thesis-form-label">Target Price</label>
                             <div class="input-group">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text">{{ currency_symbol }}</span>
                                 <input type="number"
                                        class="form-control"
                                        id="target_price"
@@ -120,7 +116,7 @@
                                        placeholder="0.00">
                             </div>
                             {% if current_thesis and current_thesis.target_price %}
-                            <div class="thesis-form-hint">Previous: ${{ "%.2f"|format(current_thesis.target_price) }}</div>
+                            <div class="thesis-form-hint">Previous: {{ currency_symbol }}{{ "%.2f"|format(current_thesis.target_price) }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -207,7 +203,7 @@
                         {% endif %}
                         {% if current_thesis.target_price %}
                         <div class="thesis-stat">
-                            <span class="thesis-stat-value">${{ "%.0f"|format(current_thesis.target_price) }}</span>
+                            <span class="thesis-stat-value">{{ currency_symbol }}{{ "%.0f"|format(current_thesis.target_price) }}</span>
                             <span class="thesis-stat-label">Target</span>
                         </div>
                         {% endif %}
@@ -281,7 +277,7 @@
                 {% if current_thesis.target_price %}
                 <div class="thesis-modal-stat">
                     <span class="label">Target</span>
-                    <span class="value">${{ "%.2f"|format(current_thesis.target_price) }}</span>
+                    <span class="value">{{ currency_symbol }}{{ "%.2f"|format(current_thesis.target_price) }}</span>
                 </div>
                 {% endif %}
             </div>
@@ -329,9 +325,11 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
 <script>
 let bullCaseCount = 1;
 let bearCaseCount = 1;
+let thesisContent = '';  // Stores latest BlockNote JSON
 
 // Modal functions
 function showDetailModal() {
@@ -350,7 +348,27 @@ function hideDetailModal(event) {
 function copyCurrentThesis() {
     {% if current_thesis %}
     document.getElementById('change_summary').value = '{{ current_thesis.change_summary|safe }}';
-    document.getElementById('thesis').value = `{{ current_thesis.thesis_text }}`;
+
+    // Load current thesis into BlockNote editor
+    if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+        const raw = {{ current_thesis.thesis|tojson }};
+        try {
+            const blocks = JSON.parse(raw);
+            if (Array.isArray(blocks)) {
+                window.blockNoteEditorInstance.editor.replaceBlocks(
+                    window.blockNoteEditorInstance.editor.document,
+                    blocks
+                );
+            }
+        } catch {
+            // Plain text fallback — insert as a paragraph
+            window.blockNoteEditorInstance.editor.replaceBlocks(
+                window.blockNoteEditorInstance.editor.document,
+                [{ type: "paragraph", content: [{ type: "text", text: raw }] }]
+            );
+        }
+    }
+
     {% if current_thesis.change_trigger %}
     document.getElementById('change_trigger').value = '{{ current_thesis.change_trigger|safe }}';
     {% endif %}
@@ -480,6 +498,27 @@ function renumberBearCases() {
 document.addEventListener('DOMContentLoaded', function() {
     updateBullCaseRemoveButtons();
     updateBearCaseRemoveButtons();
+
+    // Initialize BlockNote editor for thesis
+    const checkEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(checkEditor);
+            window.initBlockNoteEditor('thesisEditor', {
+                placeholder: 'What has changed in your thinking? What new information influenced this update?',
+                onChange: (json) => { thesisContent = json; }
+            });
+        }
+    }, 100);
+
+    // On form submit, serialize editor content to hidden input
+    document.getElementById('thesisForm').addEventListener('submit', function(e) {
+        if (!thesisContent) {
+            e.preventDefault();
+            alert('Please provide your investment thesis');
+            return;
+        }
+        document.getElementById('thesis').value = thesisContent;
+    });
 });
 </script>
 {% endblock %}

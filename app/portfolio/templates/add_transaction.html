@@ -298,9 +298,8 @@
                             <label for="investment_thesis" class="form-label fw-semibold">
                                 Investment Thesis <span class="text-danger">*</span>
                             </label>
-                            <textarea class="form-control" id="investment_thesis" name="investment_thesis" rows="4"
-                                placeholder="Why are you buying this stock? What's your investment case? (Minimum 20 words)"
-                                required></textarea>
+                            <input type="hidden" id="investment_thesis" name="investment_thesis">
+                            <div id="thesisEditor" class="blocknote-form-editor"></div>
                             <div class="form-text">
                                 <span id="thesis_word_count">0</span> words
                                 <span class="text-danger ms-2" id="thesis_warning" style="display:none;">Minimum 20
@@ -422,6 +421,7 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
     // Initialize Company Search Modal
@@ -720,33 +720,61 @@
         }
     });
 
-    // Word count for investment thesis
-    const thesisTextarea = document.getElementById('investment_thesis');
-    if (thesisTextarea) {
-        thesisTextarea.addEventListener('input', function () {
-            const text = this.value.trim();
+    // BlockNote thesis editor — init + word count + form submit
+    let thesisEditorContent = '';
+
+    function blocknoteExtractText(json) {
+        if (!json) return '';
+        try {
+            const blocks = JSON.parse(json);
+            if (!Array.isArray(blocks)) return json;
+            return blocks.map(b => {
+                if (b.content && Array.isArray(b.content)) {
+                    return b.content.map(c => c.text || '').join('');
+                }
+                return '';
+            }).join(' ').trim();
+        } catch { return json; }
+    }
+
+    function updateThesisWordCount() {
+        const text = blocknoteExtractText(thesisEditorContent);
+        const words = text.length > 0 ? text.split(/\s+/).length : 0;
+        document.getElementById('thesis_word_count').textContent = words;
+        const warning = document.getElementById('thesis_warning');
+        if (warning) {
+            warning.style.display = (words < 20 && text.length > 0) ? 'inline' : 'none';
+        }
+    }
+
+    // Init BlockNote editor for thesis
+    const checkThesisEditor = setInterval(() => {
+        if (window.initBlockNoteEditor) {
+            clearInterval(checkThesisEditor);
+            window.initBlockNoteEditor('thesisEditor', {
+                placeholder: 'Why are you buying this stock? What\'s your investment case? (Minimum 20 words)',
+                onChange: (json) => {
+                    thesisEditorContent = json;
+                    updateThesisWordCount();
+                    if (typeof checkThesisQuality === 'function') checkThesisQuality();
+                }
+            });
+        }
+    }, 100);
+
+    // Validate on form submit
+    const txForm = document.getElementById('transactionForm');
+    if (txForm) {
+        txForm.addEventListener('submit', function (e) {
+            if (!thesisEditorContent) return; // No thesis section visible (researched buy)
+            const text = blocknoteExtractText(thesisEditorContent);
             const words = text.length > 0 ? text.split(/\s+/).length : 0;
-            document.getElementById('thesis_word_count').textContent = words;
-
-            const warning = document.getElementById('thesis_warning');
-            if (words < 20 && text.length > 0) {
-                warning.style.display = 'inline';
-            } else {
-                warning.style.display = 'none';
-            }
-        });
-
-        // Validate on form submit
-        document.getElementById('transactionForm').addEventListener('submit', function (e) {
-            const text = thesisTextarea.value.trim();
-            const words = text.length > 0 ? text.split(/\s+/).length : 0;
-
             if (words < 20) {
                 e.preventDefault();
                 alert('Please provide at least 20 words for your investment thesis.');
-                thesisTextarea.focus();
                 return false;
             }
+            document.getElementById('investment_thesis').value = thesisEditorContent;
         });
     }
 
@@ -1119,12 +1147,10 @@
 let thesisCheckTimeout;
 
 function checkThesisQuality() {
-    const thesisInput = document.getElementById('investment_thesis');
     const feedbackDiv = document.getElementById('thesis-feedback');
+    if (!feedbackDiv) return;
 
-    if (!thesisInput || !feedbackDiv) return;
-
-    const thesis = thesisInput.value.trim();
+    const thesis = blocknoteExtractText(thesisEditorContent);
 
     if (thesis.length < 10) {
         feedbackDiv.innerHTML = '';
@@ -1181,13 +1207,7 @@ function renderElementCheck(name, hasIt) {
     return `<span class="me-3"><i class="bi bi-${icon}"></i> ${name}</span>`;
 }
 
-// Attach listener
-document.addEventListener('DOMContentLoaded', function() {
-    const thesisInput = document.getElementById('investment_thesis');
-    if (thesisInput) {
-        thesisInput.addEventListener('input', checkThesisQuality);
-    }
-});
+// checkThesisQuality is called from the BlockNote onChange handler via updateThesisWordCount
 </script>
 
 <!-- ============================================================
@@ -1195,7 +1215,6 @@ document.addEventListener('DOMContentLoaded', function() {
      ============================================================ -->
 <script>
 function runFullThesisAnalysis() {
-    const thesisInput = document.getElementById('investment_thesis');
     const companySelect = document.getElementById('company_id');
     const confidenceInput = document.getElementById('confidence_score');
     const expectedReturnInput = document.getElementById('expected_return');
@@ -1203,8 +1222,8 @@ function runFullThesisAnalysis() {
     const resultDiv = document.getElementById('full-thesis-analysis');
     const btn = document.getElementById('analyze-thesis-btn');
 
-    const thesis = thesisInput?.value?.trim();
-    if (!thesis || thesis.length < 20) {
+    const thesis = blocknoteExtractText(thesisEditorContent);
+    if (!thesis || thesis.split(/\s+/).length < 20) {
         alert('Please enter at least 20 words for your thesis.');
         return;
     }
