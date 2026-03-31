@@ -20,46 +20,6 @@ from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 
 
-@research_workflow_bp.route('/projects/<int:project_id>/notes')
-@login_required
-def view_project_notes(project_id):
-    """View all research notes for a project"""
-    project = ResearchProject.query.get_or_404(project_id)
-
-    # Authorization check
-    if project.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.my_projects'))
-
-    # Get all step notes
-    step_notes = project.step_notes or {}
-
-    # Get template steps for context
-    template_steps = project.template.workflow_steps if project.template else []
-
-    # Combine notes with step information
-    notes_with_context = []
-    for step_index, notes in step_notes.items():
-        step_idx = int(step_index)
-        step_name = "Unknown Step"
-        if step_idx < len(template_steps):
-            step_name = template_steps[step_idx].get('name', f'Step {step_idx + 1}')
-
-        notes_with_context.append({
-            'step_index': step_idx,
-            'step_name': step_name,
-            'notes': notes
-        })
-
-    # Sort by step index
-    notes_with_context.sort(key=lambda x: x['step_index'])
-
-    return render_template('project_notes.html',
-                          title=f"Research Notes - {project.subject_display_name}",
-                          project=project,
-                          notes_with_context=notes_with_context)
-
-
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
 def project_summary(project_id):

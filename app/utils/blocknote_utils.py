@@ -71,6 +71,7 @@ def blocknote_to_html(content):
             return content  # Return as-is if not valid JSON
 
         html_parts = []
+        prev_type = None
 
         for block in blocks:
             if not isinstance(block, dict):
@@ -79,6 +80,12 @@ def blocknote_to_html(content):
             block_type = block.get('type', '')
             content_list = block.get('content', [])
             props = block.get('props', {})
+
+            # Close open list if switching away from list type
+            if prev_type == 'bulletListItem' and block_type != 'bulletListItem':
+                html_parts.append('</ul>')
+            elif prev_type == 'numberedListItem' and block_type != 'numberedListItem':
+                html_parts.append('</ol>')
 
             # Extract text with styling
             text_html = ''
@@ -107,13 +114,25 @@ def blocknote_to_html(content):
             elif block_type == 'paragraph':
                 html_parts.append(f'<p>{text_html}</p>')
             elif block_type == 'bulletListItem':
+                if prev_type != 'bulletListItem':
+                    html_parts.append('<ul>')
                 html_parts.append(f'<li>{text_html}</li>')
             elif block_type == 'numberedListItem':
+                if prev_type != 'numberedListItem':
+                    html_parts.append('<ol>')
                 html_parts.append(f'<li>{text_html}</li>')
             else:
                 # Default to paragraph
                 if text_html:
                     html_parts.append(f'<p>{text_html}</p>')
+
+            prev_type = block_type
+
+        # Close any trailing open list
+        if prev_type == 'bulletListItem':
+            html_parts.append('</ul>')
+        elif prev_type == 'numberedListItem':
+            html_parts.append('</ol>')
 
         return ''.join(html_parts)
 
@@ -121,9 +140,65 @@ def blocknote_to_html(content):
         # Not JSON - convert newlines to <br> for plain text, or return as-is for HTML
         if '<' in content and '>' in content:
             return content  # Likely HTML already
-        # Plain text: wrap paragraphs in <p> tags
-        paragraphs = content.split('\n\n')
-        return ''.join(f'<p>{p.strip()}</p>' for p in paragraphs if p.strip())
+        # Plain text / markdown: render formatting
+        return _markdown_to_html(content)
+
+
+def _markdown_to_html(text):
+    """Convert simple markdown-style text to HTML."""
+    lines = text.split('\n')
+    html_parts = []
+    in_list = False
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            continue
+
+        # Bold: **text**
+        stripped = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', stripped)
+
+        # Headings
+        if stripped.startswith('### '):
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            html_parts.append(f'<h5>{stripped[4:]}</h5>')
+        elif stripped.startswith('## '):
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            html_parts.append(f'<h4>{stripped[3:]}</h4>')
+        elif stripped.startswith('# '):
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            html_parts.append(f'<h3>{stripped[2:]}</h3>')
+        # List items (- item)
+        elif stripped.startswith('- '):
+            if not in_list:
+                html_parts.append('<ul>')
+                in_list = True
+            html_parts.append(f'<li>{stripped[2:]}</li>')
+        # Horizontal rule
+        elif stripped == '---':
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            html_parts.append('<hr>')
+        else:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            html_parts.append(f'<p>{stripped}</p>')
+
+    if in_list:
+        html_parts.append('</ul>')
+
+    return ''.join(html_parts)
 
 
 def blocknote_preview(content, max_length=120):
