@@ -241,7 +241,7 @@
                         style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: var(--space-md);">
                         Research project created on {{ research_project.created_at.strftime('%b %d, %Y') }}
                     </p>
-                    <a href="{{ url_for('research_workflow.view_project_notes', project_id=research_project.id) }}"
+                    <a href="{{ url_for('research_workflow.project_summary', project_id=research_project.id) }}"
                         class="position-quick-action highlight span-full">
                         <i class="bi bi-arrow-right"></i>
                         View Research Project
