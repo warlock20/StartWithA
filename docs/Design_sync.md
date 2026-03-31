@@ -22,9 +22,22 @@ Standard dashboard layout with header + content sections.
 - All other pages not listed elsewhere
 
 ## Group 2: Action/Focused Pages
-Centered card layout, editorial style, single-task focus.
+Centered card layout, editorial style, single-task focus. This pages as mentioned in single-task focus. We can remove the backbutton, i.e., smart back button from the right top and use the cancel button to direct back smartly (i.e., the logic of smart button)
+
 - /ideas/add
 - /ideas/<id>/promote
 - /ideas/<id>/kill
 - /portfolio/transaction/add
+- portfolio/position/<id>/thesis/new
+- journal/entry/new
+- learning/mistakes/new
+- learning/weekly-review
 
+## Group 3: Public/Marketing Pages
+Editorial layout, no dashboard header, premium typography-first design.
+Warm off-white background, slate + forest green palette.
+No navigation dots, no emoji icons, no gradient text.
+
+- / (landing page)
+- /mental-models (product walkthrough)
+- /auth/login
