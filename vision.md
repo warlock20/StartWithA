@@ -16,6 +16,10 @@ The tools to find, evaluate, and decide on investment ideas.
 
 Flow: `Idea → Kill Screen → Research → Decision`
 
+#### Research
+
+We must be obsessed with research quality.
+
 ### 2. Portfolio
 
 The tools to monitor positions and track whether reality matches the thesis.
