@@ -595,18 +595,6 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15) !important;
 }
 
-/* Page header improvements */
-.page-header h1 {
-    font-size: 2.5rem !important;
-    margin-bottom: 0.5rem !important;
-    color: var(--gray-900) !important;
-}
-
-.page-header p {
-    font-size: 1.1rem !important;
-    color: var(--gray-600) !important;
-}
-
 /* Filter button group styling */
 .project-filter-group .btn-check:checked + .btn {
     background-color: var(--primary-600) !important;

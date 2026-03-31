@@ -1,20 +1,22 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📝 {{ entry.title or "Journal Entry" }}</h1>
-        <p class="text-muted mb-0">
-            {{ entry.created_at.strftime('%B %d, %Y at %H:%M') }}
-            {% if entry.company %}
-            | {{ entry.company.name }}
-            {% endif %}
-        </p>
-    </div>
-    <div>
-        {% with btn_class='btn btn-outline-secondary' %}
-            {% include 'components/smart_back_button.html' %}
-        {% endwith %}
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="bi bi-journal-text me-2"></i>{{ entry.title or "Journal Entry" }}</h1>
+            <p class="dashboard-header-subtitle">
+                {{ entry.created_at.strftime('%B %d, %Y at %H:%M') }}
+                {% if entry.company %}
+                | {{ entry.company.name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('journal_enhanced.journal_list') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
     </div>
 </div>
 

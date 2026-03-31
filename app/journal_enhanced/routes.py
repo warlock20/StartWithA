@@ -144,7 +144,8 @@ def new_entry():
                 )
 
             flash('Journal entry created successfully!', 'success')
-            return redirect(url_for('journal_enhanced.knowledge_hub', view='research'))
+            return_url = request.form.get('return_url') or url_for('journal_enhanced.knowledge_hub', view='research')
+            return redirect(return_url)
             
         except Exception as e:
             db.session.rollback()
@@ -169,13 +170,20 @@ def new_entry():
     
     # Get company from query param if specified (for quick entry)
     company_id = request.args.get('company_id', type=int)
-    
+    preset_company = None
+    if company_id:
+        preset_company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+
+    return_url = request.args.get('return_url')
+
     return render_template('new_entry.html',
                           title="New Journal Entry",
                           templates=templates,
                           companies=companies,
                           selected_template=selected_template,
-                          preset_company_id=company_id)
+                          preset_company_id=company_id,
+                          preset_company=preset_company,
+                          return_url=return_url)
 
 @journal_enhanced_bp.route('/entry/<int:entry_id>')
 @login_required

@@ -677,17 +677,8 @@
     transition: all var(--transition-fast);
 }
 
-.journey-note-card.truncated {
-    cursor: pointer;
-}
-
 .journey-note-card:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.journey-note-card.expanded {
-    background: var(--primary-50);
-    border-left: 3px solid var(--primary-600);
 }
 
 .journey-note-card-header {
@@ -706,12 +697,62 @@
     margin-right: var(--space-xs);
 }
 
+.journey-note-card-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.journey-note-view-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.journey-note-view-btn:hover {
+    background: var(--primary-50);
+    color: var(--primary-600);
+}
+
 .journey-note-card-content {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: var(--space-sm);
-    white-space: pre-wrap;
+}
+
+/* Rich BlockNote content inside note cards */
+.journey-note-card-content.blocknote-content p {
+    margin: 0 0 0.5em 0;
+}
+
+.journey-note-card-content.blocknote-content p:last-child {
+    margin-bottom: 0;
+}
+
+.journey-note-card-content.blocknote-content h1,
+.journey-note-card-content.blocknote-content h2,
+.journey-note-card-content.blocknote-content h3 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.4em 0;
+}
+
+.journey-note-card-content.blocknote-content li {
+    margin-left: 1.25em;
+    list-style: disc;
+}
+
+.journey-note-card-content.blocknote-content strong {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .journey-notes-load-more {

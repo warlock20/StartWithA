@@ -441,9 +441,7 @@ function escapeHtml(text) {
 }
 
 function renderNoteCard(entry) {
-    const full = entry.content;
-    const truncated = full.length > 200 ? full.substring(0, 200) + '...' : full;
-    const isLong = full.length > 200;
+    const contentHtml = entry.content_html || escapeHtml(entry.content);
 
     let sentimentHtml = '';
     if (entry.sentiment) {
@@ -457,25 +455,19 @@ function renderNoteCard(entry) {
             '</div>';
     }
 
-    return `<div class="journey-note-card${isLong ? ' truncated' : ''}"
-                 ${isLong ? `data-full-content="${escapeHtml(full)}" data-truncated="${escapeHtml(truncated)}" onclick="toggleNoteExpand(this)"` : ''}>
+    const viewUrl = `/journal/entry/${entry.id}`;
+
+    return `<div class="journey-note-card">
         <div class="journey-note-card-header">
             <span class="journey-note-card-date"><i class="bi bi-calendar3"></i> ${entry.created_at}</span>
-            ${sentimentHtml}
+            <div class="journey-note-card-actions">
+                ${sentimentHtml}
+                <a href="${viewUrl}" class="journey-note-view-btn" title="View full entry"><i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
         </div>
-        <div class="journey-note-card-content">${escapeHtml(isLong ? truncated : full)}</div>
+        <div class="journey-note-card-content blocknote-content">${contentHtml}</div>
         ${tagsHtml}
     </div>`;
-}
-
-function toggleNoteExpand(card) {
-    card.classList.toggle('expanded');
-    const contentEl = card.querySelector('.journey-note-card-content');
-    if (card.classList.contains('expanded')) {
-        contentEl.textContent = card.dataset.fullContent;
-    } else {
-        contentEl.textContent = card.dataset.truncated;
-    }
 }
 </script>
 {% endblock %}

@@ -13,6 +13,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import ResearchTemplate, ResearchProject, Sector, ChecklistAnalysis, ChecklistAnswer
+from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
@@ -99,6 +100,16 @@ def project_summary(project_id):
     # Sort by step index
     all_notes.sort(key=lambda x: x['step_index'])
 
+    # Load free research questions for free_research steps
+    free_research_questions = {}
+    for note in all_notes:
+        if note['step_type'] == 'free_research':
+            questions = FreeResearchQuestion.query.filter_by(
+                project_id=project_id,
+                step_index=note['step_index']
+            ).order_by(FreeResearchQuestion.order_index).all()
+            free_research_questions[note['step_index']] = questions
+
     # ═══════════════════════════════════════════════════════════════
     # RESEARCH QUALITY SCORE CALCULATION
     # ═══════════════════════════════════════════════════════════════
@@ -116,6 +127,7 @@ def project_summary(project_id):
                           project=project,
                           all_notes=all_notes,
                           checklist_analyses=checklist_analyses,
+                          free_research_questions=free_research_questions,
                           quality_score=quality_score)
 
 

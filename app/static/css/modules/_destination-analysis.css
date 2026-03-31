@@ -201,6 +201,12 @@
     margin: var(--space-xs) 0 0 0;
 }
 
+.destination-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
 .destination-form-row {
     display: flex;
     gap: var(--space-md);
@@ -209,6 +215,10 @@
 
 .destination-form-group {
     flex: 1;
+}
+
+.destination-form-group.full {
+    flex: 1 1 100%;
 }
 
 .destination-form-group.small {
@@ -225,6 +235,12 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: var(--space-xs);
+}
+
+.destination-form-hint-label {
+    font-weight: 400;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
 }
 
 /* =============================================================================

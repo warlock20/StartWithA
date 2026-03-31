@@ -2,12 +2,11 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <!-- Header Section -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
             <div>
-                <h1>📊 Session Summary</h1>
-                <p class="text-muted mb-0">{{ session.company.name }} • {{ session.checklist.name }}</p>
+                <h1><i class="bi bi-clipboard-data me-2"></i>Session Summary</h1>
+                <p class="dashboard-header-subtitle">{{ session.company.name }} • {{ session.checklist.name }}</p>
                 {% if research_context %}
                 <div class="workflow-context mt-2">
                     <span class="badge bg-info text-white">
@@ -16,24 +15,21 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="d-flex align-items-center gap-2">
-                {% with btn_class='btn btn-outline-secondary' %}
-                    {% include 'components/smart_back_button.html' %}
-                {% endwith %}
-
+            <div class="dashboard-header-actions">
                 <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=session.id) }}"
-                    class="btn btn-outline-primary">
+                    class="position-btn">
                     <i class="bi bi-download"></i> Export
                 </a>
-
                 {% if research_context and research_context.get('project_id') %}
-                <!-- Research workflow context - show completion action -->
                 <a href="{{ url_for('research_workflow.complete_research_step',
                                       project_id=research_context.project_id,
-                                      step_index=research_context.step_index) }}" class="btn btn-success">
+                                      step_index=research_context.step_index) }}" class="position-btn">
                     <i class="bi bi-check-circle"></i> Complete & Continue
                 </a>
                 {% endif %}
+                <a href="{{ url_for('research_workflow.checklist_list') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
             </div>
         </div>
     </div>

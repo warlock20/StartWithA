@@ -1,15 +1,17 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>🤖 Processing Complete</h1>
-        <p class="text-muted mb-0">AI has analyzed your document and extracted checklist items</p>
-    </div>
-    <div>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Checklists
-        </a>
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="bi bi-cpu me-2"></i>Processing Complete</h1>
+            <p class="dashboard-header-subtitle">AI has analyzed your document and extracted checklist items</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('checklists.list_checklists') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i> Back to Checklists
+            </a>
+        </div>
     </div>
 </div>
 

@@ -184,81 +184,6 @@
             </div>
             {% endif %}
 
-            <!-- Findings & Notes -->
-            <div class="position-card">
-                <div class="position-card-header">
-                    <h2 class="position-card-title">
-                        <i class="bi bi-journal-bookmark"></i>
-                        Findings & Notes
-                    </h2>
-                </div>
-                <div class="position-card-body">
-                    {# ---- Quick Note Form ---- #}
-                    <div class="position-quick-note-form" id="quickNoteForm">
-                        <textarea id="quickNoteContent" class="position-quick-note-input"
-                            placeholder="Quick note about {{ company.ticker_symbol }}..." rows="2"></textarea>
-                        <div class="position-quick-note-actions">
-                            <select id="quickNoteType" class="position-quick-note-select">
-                                <option value="observation">Observation</option>
-                                <option value="insight">Insight</option>
-                                <option value="question">Question</option>
-                                <option value="earnings_reaction">Earnings Reaction</option>
-                                <option value="news_analysis">News Analysis</option>
-                            </select>
-                            <select id="quickNoteSentiment" class="position-quick-note-select">
-                                <option value="">Sentiment...</option>
-                                <option value="bullish">Bullish</option>
-                                <option value="bearish">Bearish</option>
-                                <option value="neutral">Neutral</option>
-                            </select>
-                            <button type="button" class="position-btn primary" id="quickNoteSubmit"
-                                onclick="submitQuickNote()">
-                                <i class="bi bi-plus"></i> Add Note
-                            </button>
-                        </div>
-                    </div>
-
-                    {# ---- Notes List with scrollable container ---- #}
-                    <div class="position-notes-scroll" id="notesScroll">
-                        <div class="position-notes-list" id="notesList">
-                            {% if journal_entries %}
-                            {% for entry in journal_entries %}
-                            <div class="position-note-item">
-                                <div class="position-note-header">
-                                    <span class="position-note-type">{{ entry.entry_type.replace('_', ' ').title()
-                                        }}</span>
-                                    {% if entry.sentiment %}
-                                    <span class="position-note-sentiment {{ entry.sentiment }}">{{ entry.sentiment
-                                        }}</span>
-                                    {% endif %}
-                                    <span class="position-note-date">{{ entry.created_at.strftime('%b %d, %Y') }}</span>
-                                </div>
-                                <div class="position-note-content">
-                                    {{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}
-                                </div>
-                                {% if entry.tags %}
-                                <div class="position-note-tags">
-                                    {% for tag in entry.tags[:4] %}
-                                    <span class="position-note-tag">#{{ tag }}</span>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                            {% else %}
-                            <div class="position-empty-state-compact" id="notesEmptyState">
-                                <p>No notes yet for {{ company.ticker_symbol }}</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% if journal_entries_total > 3 %}
-                    <button type="button" class="position-notes-load-more" id="loadMoreNotes" onclick="loadMoreNotes()">
-                        View all {{ journal_entries_total }} notes <i class="bi bi-chevron-down"></i>
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
         </div>
 
         <!-- Right Column - Sidebar -->
@@ -282,6 +207,11 @@
                             class="position-quick-action">
                             <i class="bi bi-lightbulb"></i>
                             Update Thesis
+                        </a>
+                        <a href="{{ url_for('journal_enhanced.new_entry', company_id=company.id, return_url=url_for('portfolio.position_detail', company_id=company.id)) }}"
+                            class="position-quick-action">
+                            <i class="bi bi-journal-plus"></i>
+                            Add Finding or Note
                         </a>
                         <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}"
                             class="position-quick-action">
@@ -486,116 +416,5 @@
     });
     });
 
-    function submitQuickNote() {
-        const content = document.getElementById('quickNoteContent').value.trim();
-        const entryType = document.getElementById('quickNoteType').value;
-        const sentiment = document.getElementById('quickNoteSentiment').value;
-        const submitBtn = document.getElementById('quickNoteSubmit');
-
-        if (!content) {
-            document.getElementById('quickNoteContent').focus();
-            return;
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
-
-        fetch('/portfolio/api/quick-note', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                company_id: {{ company.id }},
-            content: content,
-            entry_type: entryType,
-            sentiment: sentiment || null
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const notesList = document.getElementById('notesList');
-                const emptyState = notesList.querySelector('.position-empty-state-compact');
-                if (emptyState) emptyState.remove();
-
-                const noteHtml = `
-                    <div class="position-note-item" style="animation: fadeIn 0.3s ease-in;">
-                        <div class="position-note-header">
-                            <span class="position-note-type">${data.entry.entry_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                            ${data.entry.sentiment ? `<span class="position-note-sentiment ${data.entry.sentiment}">${data.entry.sentiment}</span>` : ''}
-                            <span class="position-note-date">${data.entry.created_at}</span>
-                        </div>
-                        <div class="position-note-content">${data.entry.content.length > 200 ? data.entry.content.substring(0, 200) + '...' : data.entry.content}</div>
-                        ${data.entry.tags.length ? `<div class="position-note-tags">${data.entry.tags.slice(0, 4).map(t => `<span class="position-note-tag">#${t}</span>`).join('')}</div>` : ''}
-                    </div>`;
-                notesList.insertAdjacentHTML('afterbegin', noteHtml);
-
-                document.getElementById('quickNoteContent').value = '';
-                document.getElementById('quickNoteSentiment').value = '';
-            } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            alert('Error saving note: ' + error);
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-plus"></i> Add Note';
-        });
-    }
-
-    // Notes pagination state
-    let notesLoaded = {{ journal_entries| length }};
-    const notesTotal = {{ journal_entries_total }};
-    const companyId = {{ company.id }};
-    let allNotesLoaded = notesLoaded >= notesTotal;
-
-    function renderNoteHtml(entry) {
-        return `
-            <div class="position-note-item" style="animation: fadeIn 0.3s ease-in;">
-                <div class="position-note-header">
-                    <span class="position-note-type">${entry.entry_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                    ${entry.sentiment ? `<span class="position-note-sentiment ${entry.sentiment}">${entry.sentiment}</span>` : ''}
-                    <span class="position-note-date">${entry.created_at}</span>
-                </div>
-                <div class="position-note-content">${entry.content.length > 200 ? entry.content.substring(0, 200) + '...' : entry.content}</div>
-                ${entry.tags && entry.tags.length ? `<div class="position-note-tags">${entry.tags.slice(0, 4).map(t => `<span class="position-note-tag">#${t}</span>`).join('')}</div>` : ''}
-            </div>`;
-    }
-
-    function loadMoreNotes() {
-        const btn = document.getElementById('loadMoreNotes');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Loading...';
-
-        fetch(`/portfolio/api/notes/${companyId}?offset=${notesLoaded}&limit=10`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const notesList = document.getElementById('notesList');
-                    data.entries.forEach(entry => {
-                        notesList.insertAdjacentHTML('beforeend', renderNoteHtml(entry));
-                    });
-                    notesLoaded += data.entries.length;
-
-                    // Expand the scroll container to show all
-                    document.getElementById('notesScroll').classList.add('expanded');
-
-                    if (data.has_more) {
-                        btn.disabled = false;
-                        btn.innerHTML = `View more (${notesLoaded} of ${data.total}) <i class="bi bi-chevron-down"></i>`;
-                    } else {
-                        allNotesLoaded = true;
-                        btn.remove();
-                    }
-                }
-            })
-            .catch(error => {
-                btn.disabled = false;
-                btn.innerHTML = 'Error loading — try again';
-            });
-    }
 </script>
 {% endblock %}

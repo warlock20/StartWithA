@@ -4,18 +4,17 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="dashboard-header-card">
+        <div class="dashboard-header">
             <div>
-                <h1><i class="fas fa-user-cog me-2"></i>Investment Profile Settings</h1>
-                <p class="text-muted mb-0">
+                <h1><i class="bi bi-person-gear me-2"></i>Investment Profile Settings</h1>
+                <p class="dashboard-header-subtitle">
                     Choose your investor profile to personalize thresholds and warnings
                 </p>
             </div>
-            <div>
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            <div class="dashboard-header-actions">
+                <a href="{{ url_for('main.index') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
                 </a>
             </div>
         </div>

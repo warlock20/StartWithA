@@ -17,6 +17,7 @@ from app.services.intelligence_engine import check_sell_warnings
 from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.similar_mistakes import find_similar_past_decisions
+from app.utils.blocknote_utils import blocknote_to_html
 
 logger = logging.getLogger(__name__)
 
@@ -402,6 +403,7 @@ def get_company_notes(company_id):
         'entries': [{
             'id': e.id,
             'content': e.content,
+            'content_html': blocknote_to_html(e.content),
             'entry_type': e.entry_type,
             'sentiment': e.sentiment,
             'created_at': e.created_at.strftime('%b %d, %Y'),

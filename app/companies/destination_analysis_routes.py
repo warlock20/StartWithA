@@ -17,6 +17,7 @@ def add_checkpoint(company_id):
     metric = request.form.get('metric')
     expectation = request.form.get('expectation')
     target_date_str = request.form.get('target_date')
+    description = request.form.get('description', '').strip() or None
 
     if not metric or not expectation or not target_date_str:
         flash("All fields are required to add a checkpoint.", "error")
@@ -33,8 +34,8 @@ def add_checkpoint(company_id):
             user_id=current_user.id,
             metric=metric,
             expectation=expectation,
+            description=description,
             target_date=target_date
-            # Status defaults to 'Active' as defined in the model
         )
         db.session.add(new_checkpoint)
         db.session.commit()
@@ -143,6 +144,7 @@ def edit_checkpoint(checkpoint_id):
         try:
             checkpoint.metric = metric
             checkpoint.expectation = expectation
+            checkpoint.description = request.form.get('description', '').strip() or None
             checkpoint.target_date = parsed_date
             db.session.commit()
             flash("Checkpoint updated successfully.", "success")

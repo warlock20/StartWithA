@@ -97,6 +97,7 @@ class DestinationCheckpoint(db.Model):
     status = db.Column(
         db.String(30), nullable=False, default="Active"
     )  # E.g., 'Active', 'Met', 'Not Met'
+    description = db.Column(db.Text, nullable=True)  # Narrative thesis context for LLM automation
     outcome_notes = db.Column(db.Text, nullable=True)  # User's analysis of the outcome
 
     created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
