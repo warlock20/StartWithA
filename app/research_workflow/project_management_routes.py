@@ -165,6 +165,26 @@ def my_projects():
             'reactivate_url': reactivate_url,
         })
 
+    # --- Invested (completed research with invest decision) ---
+    invested_projects = current_user.research_projects.filter_by(
+        status='completed', decision='invest'
+    ).order_by(ResearchProject.completed_at.desc()).all()
+
+    invested_data = []
+    for p in invested_projects:
+        invested_data.append({
+            'id': p.id,
+            'company_name': p.subject_display_name,
+            'ticker': p.company.ticker_symbol if p.company else '',
+            'template_name': p.template.name if p.template else 'Custom',
+            'hours_spent': round(p.total_hours_spent or 0, 1),
+            'completed_at': p.completed_at.isoformat() if p.completed_at else None,
+            'confidence': p.decision_confidence,
+            'company_id': p.company_id,
+            'summary_url': url_for('research_workflow.project_summary', project_id=p.id),
+            'company_url': url_for('companies.company_dashboard', company_id=p.company_id) if p.company_id else None,
+        })
+
     # --- Metrics ---
     paused_count = len([p for p in active_data if p['status'] == 'paused'])
     all_projects = current_user.research_projects.all()
@@ -189,6 +209,8 @@ def my_projects():
                           watchlist_data_json=json.dumps(watchlist_data),
                           too_hard_data=too_hard_data,
                           too_hard_data_json=json.dumps(too_hard_data),
+                          invested_data=invested_data,
+                          invested_data_json=json.dumps(invested_data),
                           metrics={
                               'active_count': active_count,
                               'paused_count': paused_count,

@@ -151,6 +151,16 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="invested-tab" data-bs-toggle="tab"
+                            data-bs-target="#investedPanel" type="button" role="tab">
+                        <i class="bi bi-check-circle"></i>
+                        Invested
+                        {% if invested_data %}
+                        <span class="rcl-tab-badge">{{ invested_data|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="toohard-tab" data-bs-toggle="tab"
                             data-bs-target="#toohardPanel" type="button" role="tab">
                         <i class="bi bi-x-octagon"></i>
@@ -230,7 +240,28 @@
                     {% endif %}
                 </div>
 
-                <!-- ═══ TAB 3: TOO HARD / PASSED ═════════════════ -->
+                <!-- ═══ TAB 3: INVESTED ════════════════════════ -->
+                <div class="tab-pane fade" id="investedPanel" role="tabpanel">
+                    {% if invested_data %}
+                    <div class="rcl-panel">
+                        <div class="rcl-panel-controls">
+                            <div class="rcl-search">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="invested-search" placeholder="Search invested companies...">
+                            </div>
+                        </div>
+                        <div id="invested-table"></div>
+                    </div>
+                    {% else %}
+                    <div class="rcl-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <h5>No invested companies yet</h5>
+                        <p>Companies will appear here after you complete research and decide to invest.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- ═══ TAB 4: TOO HARD / PASSED ═════════════════ -->
                 <div class="tab-pane fade" id="toohardPanel" role="tabpanel">
                     {% if too_hard_data %}
                     <div class="rcl-panel">
@@ -713,6 +744,103 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // =========================================================================
+    // Invested Table
+    // =========================================================================
+    const investedData = {{ invested_data_json|safe }};
+    let investedTable = null;
+
+    if (investedData.length > 0) {
+        investedTable = createDataTable('#invested-table', {
+            data: investedData,
+            columns: [
+                {
+                    title: "Company",
+                    field: "company_name",
+                    sorter: "string",
+                    minWidth: 180,
+                    widthGrow: 2,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        const ticker = row.ticker ? `<br><span class="rcl-cell-ticker">${row.ticker}</span>` : '';
+                        return `<strong>${cell.getValue()}</strong>${ticker}`;
+                    }
+                },
+                {
+                    title: "Template",
+                    field: "template_name",
+                    sorter: "string",
+                    minWidth: 120,
+                },
+                {
+                    title: "Confidence",
+                    field: "confidence",
+                    sorter: "number",
+                    hozAlign: "center",
+                    minWidth: 110,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        if (!val) return '<span class="table-cell-muted">--</span>';
+                        const color = val >= 8 ? 'var(--success-500)' : val >= 5 ? 'var(--warning-500)' : 'var(--danger-500)';
+                        return `<span style="color:${color};font-weight:600;">${val}/10</span>`;
+                    }
+                },
+                {
+                    title: "Hours",
+                    field: "hours_spent",
+                    sorter: "number",
+                    hozAlign: "right",
+                    minWidth: 70,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        return val ? `<span class="rcl-cell-mono">${val}</span>` : '<span class="table-cell-muted">--</span>';
+                    }
+                },
+                {
+                    title: "Completed",
+                    field: "completed_at",
+                    sorter: "date",
+                    sorterParams: { format: "yyyy-MM-dd" },
+                    minWidth: 110,
+                    formatter: ColumnFormatters.date('short')
+                },
+                {
+                    title: "",
+                    field: "summary_url",
+                    headerSort: false,
+                    hozAlign: "right",
+                    minWidth: 180,
+                    formatter: function(cell) {
+                        const row = cell.getRow().getData();
+                        let html = `<a href="${cell.getValue()}" class="rcl-action rcl-action--primary"><i class="bi bi-file-text"></i> Summary</a>`;
+                        if (row.company_url) {
+                            html += ` <a href="${row.company_url}" class="rcl-action"><i class="bi bi-building"></i> Company</a>`;
+                        }
+                        return html;
+                    }
+                }
+            ],
+            customConfig: {
+                layout: "fitColumns",
+                initialSort: [{ column: "completed_at", dir: "desc" }],
+                pagination: investedData.length > 25,
+            }
+        });
+
+        // Search filter
+        document.getElementById('invested-search').addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase();
+            if (!val) {
+                investedTable.clearFilter();
+            } else {
+                investedTable.setFilter(function(data) {
+                    return data.company_name.toLowerCase().includes(val) ||
+                           (data.ticker && data.ticker.toLowerCase().includes(val));
+                });
+            }
+        });
+    }
+
+    // =========================================================================
     // Recent Activity Feed (built from existing data)
     // =========================================================================
     const activityFeed = document.getElementById('recent-activity-feed');
@@ -727,6 +855,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 date: new Date(p.last_worked),
                 text: `${label} <strong>${p.company_name}${p.ticker ? ' (' + p.ticker + ')' : ''}</strong>`,
                 dotClass: dotClass,
+            });
+        }
+    });
+
+    // From invested (completion date)
+    investedData.forEach(p => {
+        if (p.completed_at) {
+            events.push({
+                date: new Date(p.completed_at),
+                text: `Invested in <strong>${p.company_name}${p.ticker ? ' (' + p.ticker + ')' : ''}</strong>`,
+                dotClass: 'c-success',
             });
         }
     });
