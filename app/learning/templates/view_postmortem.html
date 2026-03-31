@@ -1,12 +1,16 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <h1>📊 Investment Postmortem</h1>
-    <p class="text-muted">
-        {{ postmortem.company.name if postmortem.company else 'Investment' }}
-        | Completed: {{ postmortem.created_at.strftime('%B %d, %Y') }}
-    </p>
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="bi bi-graph-down me-2"></i>Investment Postmortem</h1>
+            <p class="dashboard-header-subtitle">
+                {{ postmortem.company.name if postmortem.company else 'Investment' }}
+                | Completed: {{ postmortem.created_at.strftime('%B %d, %Y') }}
+            </p>
+        </div>
+    </div>
 </div>
 
 <!-- Performance Summary -->

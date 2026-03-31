@@ -25,6 +25,9 @@
         <div class="action-card">
             <div class="action-card-body">
                 <form method="POST" action="{{ url_for('journal_enhanced.new_entry') }}" enctype="multipart/form-data" id="journalEntryForm">
+                    {% if return_url %}
+                    <input type="hidden" name="return_url" value="{{ return_url }}">
+                    {% endif %}
                     <!-- Template Selector -->
                     {% if templates %}
                     <div class="mb-4">
@@ -80,7 +83,7 @@
                                         <i class="bi bi-x-circle"></i> Clear
                                     </button>
                                 </div>
-                                <input type="hidden" id="company_id" name="company_id" value="">
+                                <input type="hidden" id="company_id" name="company_id" value="{{ preset_company_id or '' }}">
                                 <div id="selectedCompanyInfo" class="mt-2" style="display: none;">
                                     <div class="alert alert-info mb-0">
                                         <small><strong>Selected:</strong> <span id="companyDisplayInfo"></span></small>
@@ -239,6 +242,13 @@
             document.getElementById('advancedFields').style.display = 'none';
             document.getElementById('sourceField').style.display = 'none';
         }
+
+        {% if preset_company %}
+        // Auto-show pre-selected company
+        document.getElementById('companyDisplayInfo').textContent = '{{ preset_company.name }}{% if preset_company.ticker_symbol %} ({{ preset_company.ticker_symbol }}){% endif %}';
+        document.getElementById('selectedCompanyInfo').style.display = 'block';
+        document.getElementById('clearCompanyBtn').style.display = 'inline-block';
+        {% endif %}
     });
 
     // Company Modal Functionality

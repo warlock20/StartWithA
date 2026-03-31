@@ -1,15 +1,17 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>📄 {{ title }}</h1>
-        <p class="text-muted mb-0">Convert your existing documents into structured investment checklists using AI</p>
-    </div>
-    <div>
-        <a href="{{ url_for('checklists.list_checklists') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Checklists
-        </a>
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="bi bi-file-earmark-arrow-up me-2"></i>{{ title }}</h1>
+            <p class="dashboard-header-subtitle">Convert your existing documents into structured investment checklists using AI</p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('checklists.list_checklists') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i> Back to Checklists
+            </a>
+        </div>
     </div>
 </div>
 

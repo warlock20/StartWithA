@@ -1,25 +1,27 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>
-            {% if note.is_favorite %}
-            <i class="bi bi-star-fill text-warning me-2"></i>
-            {% endif %}
-            {{ note.title }}
-        </h1>
-        <p class="text-muted mb-0">
-            {{ note.created_at.strftime('%B %d, %Y at %H:%M') }}
-            {% if note.source_author %}
-            | {{ note.source_author }}
-            {% endif %}
-        </p>
-    </div>
-    <div>
-        {% with btn_class='btn btn-outline-secondary' %}
-            {% include 'components/smart_back_button.html' %}
-        {% endwith %}
+<div class="dashboard-header-card">
+    <div class="dashboard-header">
+        <div>
+            <h1>
+                {% if note.is_favorite %}
+                <i class="bi bi-star-fill text-warning me-2"></i>
+                {% endif %}
+                {{ note.title }}
+            </h1>
+            <p class="dashboard-header-subtitle">
+                {{ note.created_at.strftime('%B %d, %Y at %H:%M') }}
+                {% if note.source_author %}
+                | {{ note.source_author }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="dashboard-header-actions">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub') }}" class="position-btn">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
     </div>
 </div>
 

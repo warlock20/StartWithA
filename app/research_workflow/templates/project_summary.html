@@ -113,6 +113,24 @@
                                 {% else %}
                                     {{ note.notes|blocknote_to_html|safe }}
                                 {% endif %}
+                            {% elif note.step_type == 'free_research' and free_research_questions.get(note.step_index) %}
+                                {% for q in free_research_questions[note.step_index] %}
+                                <div class="summary-free-research-question {% if not loop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="badge {% if q.status == 'answered' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                            {{ q.status|title }}
+                                        </span>
+                                        <strong>{{ q.question_text }}</strong>
+                                    </div>
+                                    {% if q.answer_content %}
+                                    <div class="ms-2">
+                                        {{ q.answer_content|blocknote_to_html|safe }}
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted ms-2 mb-0"><em>No answer recorded.</em></p>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
                             {% else %}
                                 {{ note.notes|blocknote_to_html|safe }}
                             {% endif %}

@@ -82,6 +82,13 @@
                     </button>
                 </div>
             </div>
+            <div class="destination-form-row">
+                <div class="destination-form-group full">
+                    <label for="description">Description <span class="destination-form-hint-label">(optional — thesis context for automated tracking)</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="2"
+                        placeholder="e.g., By Q2 2027, I expect the company to reduce long-term debt by 30% through FCF allocation, validating management's capital discipline thesis"></textarea>
+                </div>
+            </div>
         </form>
     </div>
 
@@ -131,6 +138,12 @@
                         <span class="label"><i class="bi bi-bullseye"></i> Target</span>
                         <span class="value">{{ cp.expectation }}</span>
                     </div>
+                    {% if cp.description %}
+                    <div class="destination-checkpoint-detail">
+                        <span class="label"><i class="bi bi-journal-text"></i> Context</span>
+                        <span class="value">{{ cp.description }}</span>
+                    </div>
+                    {% endif %}
                     {% if cp.outcome_notes %}
                     <div class="destination-checkpoint-detail">
                         <span class="label"><i class="bi bi-clipboard-check"></i> Outcome</span>

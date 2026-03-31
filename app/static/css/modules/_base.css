@@ -54,13 +54,6 @@ small {
     border-top: 1px solid var(--border-color);
 }
 
-/* Page Header */
-.page-header {
-    padding-bottom: 1rem;
-    margin-bottom: 2rem;
-    border-bottom: 1px solid #dee2e6;
-}
-
 /* Fallback styles for unstyled HTML elements */
 table {
     width: 100%;
