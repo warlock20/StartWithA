@@ -509,6 +509,14 @@ const FreeResearch = {
                                 <i class="bi bi-shield-check"></i> Fact-Check
                             </button>
                         </div>
+                        <div class="ai-search-toggle">
+                            <label class="ai-search-toggle-label">
+                                <input type="checkbox" id="aiUseWebSearch-${question.id}" class="form-check-input ai-web-search-checkbox">
+                                <i class="bi bi-globe2"></i>
+                                <span>Use web search</span>
+                                <small class="text-muted">(uses more credits)</small>
+                            </label>
+                        </div>
                         <div class="fr-ai-response" id="aiResponse-${question.id}"></div>
                     </div>
 
@@ -677,11 +685,16 @@ const FreeResearch = {
 
         const responseArea = document.getElementById(`aiResponse-${questionId}`);
 
+        // Check if web search toggle is enabled for this question
+        const searchCheckbox = document.getElementById(`aiUseWebSearch-${questionId}`);
+        const useWebSearch = searchCheckbox ? searchCheckbox.checked : false;
+
         // Show loading
+        const loadingMsg = useWebSearch ? 'Searching the web and verifying...' : 'AI is analyzing your answer...';
         responseArea.innerHTML = `
             <div class="d-flex align-items-center gap-2 text-muted">
                 <span class="spinner-border spinner-border-sm"></span>
-                <span>AI is analyzing your answer...</span>
+                <span>${loadingMsg}</span>
             </div>
         `;
         responseArea.classList.add('visible');
@@ -695,7 +708,8 @@ const FreeResearch = {
                     answer_text: answerText,
                     question_text: question.question_text,
                     company_name: this.companyName,
-                    context: 'free_research'
+                    context: 'free_research',
+                    use_google_search: useWebSearch
                 })
             });
 

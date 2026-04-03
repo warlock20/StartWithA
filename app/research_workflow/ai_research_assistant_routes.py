@@ -92,6 +92,7 @@ def ai_assist():
         # Extract optional context
         analysis_id = data.get('analysis_id')
         item_id = data.get('item_id')
+        use_google_search = bool(data.get('use_google_search', False))
 
         # Get company name from context
         company_name = None
@@ -130,19 +131,22 @@ def ai_assist():
             ai_response = ai_research_assistant.generate_challenge(
                 question_text=question_text,
                 user_answer=answer_text,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         elif mode == 'elaboration':
             ai_response = ai_research_assistant.generate_elaboration(
                 question_text=question_text,
                 user_answer=answer_text,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         elif mode == 'factcheck':
             ai_response = ai_research_assistant.generate_factcheck(
                 question_text=question_text,
                 user_answer=answer_text,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         else:
             return jsonify({
@@ -337,6 +341,7 @@ def ai_assist_regenerate():
             }), 400
 
         feedback_id = data.get('feedback_id')
+        use_google_search = bool(data.get('use_google_search', False))
 
         if not feedback_id:
             return jsonify({
@@ -366,19 +371,22 @@ def ai_assist_regenerate():
             ai_response = ai_research_assistant.generate_challenge(
                 question_text=original_record.question_text,
                 user_answer=original_record.user_answer,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         elif original_record.mode == 'elaboration':
             ai_response = ai_research_assistant.generate_elaboration(
                 question_text=original_record.question_text,
                 user_answer=original_record.user_answer,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         elif original_record.mode == 'factcheck':
             ai_response = ai_research_assistant.generate_factcheck(
                 question_text=original_record.question_text,
                 user_answer=original_record.user_answer,
-                context_data=context_data
+                context_data=context_data,
+                google_search=use_google_search
             )
         else:
             return jsonify({

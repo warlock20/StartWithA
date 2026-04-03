@@ -111,7 +111,8 @@ class AIResearchAssistant:
         self,
         question_text: str,
         user_answer: str,
-        context_data: Dict[str, Any]
+        context_data: Dict[str, Any],
+        google_search: bool = False
     ) -> AIResearchResponse:
         """
         Generate counter-arguments to challenge user's reasoning.
@@ -120,6 +121,7 @@ class AIResearchAssistant:
             question_text: The research question being answered
             user_answer: User's answer to the question
             context_data: Additional context (must include 'company_name')
+            google_search: Enable Google Search grounding for web-verified responses
 
         Returns:
             AIResearchResponse with counter-arguments and critical questions
@@ -136,14 +138,16 @@ class AIResearchAssistant:
             mode=MODE_CHALLENGE,
             question_text=question_text,
             user_answer=user_answer,
-            context_data=context_data
+            context_data=context_data,
+            google_search=google_search
         )
 
     def generate_elaboration(
         self,
         question_text: str,
         user_answer: str,
-        context_data: Dict[str, Any]
+        context_data: Dict[str, Any],
+        google_search: bool = False
     ) -> AIResearchResponse:
         """
         Generate follow-up questions to deepen analysis.
@@ -152,6 +156,7 @@ class AIResearchAssistant:
             question_text: The research question being answered
             user_answer: User's answer to the question
             context_data: Additional context (must include 'company_name')
+            google_search: Enable Google Search grounding for web-verified responses
 
         Returns:
             AIResearchResponse with follow-up questions
@@ -167,14 +172,16 @@ class AIResearchAssistant:
             mode=MODE_ELABORATION,
             question_text=question_text,
             user_answer=user_answer,
-            context_data=context_data
+            context_data=context_data,
+            google_search=google_search
         )
 
     def generate_factcheck(
         self,
         question_text: str,
         user_answer: str,
-        context_data: Dict[str, Any]
+        context_data: Dict[str, Any],
+        google_search: bool = False
     ) -> AIResearchResponse:
         """
         Identify claims requiring verification and request sources.
@@ -183,6 +190,7 @@ class AIResearchAssistant:
             question_text: The research question being answered
             user_answer: User's answer to the question
             context_data: Additional context (must include 'company_name')
+            google_search: Enable Google Search grounding for web-verified responses
 
         Returns:
             AIResearchResponse with claims requiring verification
@@ -198,7 +206,8 @@ class AIResearchAssistant:
             mode=MODE_FACTCHECK,
             question_text=question_text,
             user_answer=user_answer,
-            context_data=context_data
+            context_data=context_data,
+            google_search=google_search
         )
 
     def _generate_response(
@@ -206,7 +215,8 @@ class AIResearchAssistant:
         mode: str,
         question_text: str,
         user_answer: str,
-        context_data: Dict[str, Any]
+        context_data: Dict[str, Any],
+        google_search: bool = False
     ) -> AIResearchResponse:
         """
         Internal method to generate AI response for any mode.
@@ -216,6 +226,7 @@ class AIResearchAssistant:
             question_text: The research question
             user_answer: User's answer
             context_data: Context including company_name
+            google_search: Enable Google Search grounding for web-verified responses
 
         Returns:
             AIResearchResponse object
@@ -294,6 +305,7 @@ class AIResearchAssistant:
                 temperature=metadata.get('temperature', 0.7),
                 provider=provider_enum,
                 model=model_enum,
+                google_search=google_search,
             )
 
             # Estimate tokens (rough approximation: 1 token ≈ 4 characters)
@@ -435,16 +447,16 @@ ai_research_assistant = get_ai_research_assistant()
 
 
 # Convenience functions for quick access
-def generate_challenge(question: str, answer: str, context: Dict[str, Any]) -> AIResearchResponse:
+def generate_challenge(question: str, answer: str, context: Dict[str, Any], google_search: bool = False) -> AIResearchResponse:
     """Quick access to challenge mode."""
-    return ai_research_assistant.generate_challenge(question, answer, context)
+    return ai_research_assistant.generate_challenge(question, answer, context, google_search=google_search)
 
 
-def generate_elaboration(question: str, answer: str, context: Dict[str, Any]) -> AIResearchResponse:
+def generate_elaboration(question: str, answer: str, context: Dict[str, Any], google_search: bool = False) -> AIResearchResponse:
     """Quick access to elaboration mode."""
-    return ai_research_assistant.generate_elaboration(question, answer, context)
+    return ai_research_assistant.generate_elaboration(question, answer, context, google_search=google_search)
 
 
-def generate_factcheck(question: str, answer: str, context: Dict[str, Any]) -> AIResearchResponse:
+def generate_factcheck(question: str, answer: str, context: Dict[str, Any], google_search: bool = False) -> AIResearchResponse:
     """Quick access to fact-check mode."""
-    return ai_research_assistant.generate_factcheck(question, answer, context)
+    return ai_research_assistant.generate_factcheck(question, answer, context, google_search=google_search)
