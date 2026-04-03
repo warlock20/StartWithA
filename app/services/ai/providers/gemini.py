@@ -22,6 +22,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 from google import genai
+from google.genai import types as genai_types
 
 from .base import AIProvider
 from ..config import get_ai_config, AIModel, AIProvider as AIProviderEnum
@@ -168,6 +169,12 @@ class GeminiProvider(AIProvider):
             safety_settings = kwargs.pop('safety_settings', self._get_default_safety_settings())
             if safety_settings:
                 config_dict['safety_settings'] = safety_settings
+
+            # Handle Google Search grounding (for fact-checking, etc.)
+            google_search = kwargs.pop('google_search', False)
+            if google_search:
+                config_dict['tools'] = [genai_types.Tool(google_search=genai_types.GoogleSearch())]
+                logger.info("Gemini TEXT: Google Search grounding enabled")
 
             # New SDK syntax: client.models.generate_content
             response = self._client.models.generate_content(

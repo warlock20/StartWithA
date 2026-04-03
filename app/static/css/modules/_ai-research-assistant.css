@@ -258,6 +258,41 @@ Styles for the unified AI Research Assistant accordion section
     }
 }
 
+/* =============================================================================
+   Web Search Toggle
+   ============================================================================= */
+
+.ai-search-toggle {
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    background: var(--bs-light, #f8f9fa);
+    display: inline-flex;
+}
+
+.ai-search-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--bs-secondary, #6c757d);
+}
+
+.ai-search-toggle-label .form-check-input {
+    margin: 0;
+    cursor: pointer;
+}
+
+.ai-search-toggle-label .bi-globe2 {
+    font-size: 0.85rem;
+}
+
+.ai-search-toggle-label small {
+    font-size: 0.72rem;
+}
+
 /* High contrast mode support */
 @media (prefers-contrast: high) {
     .ai-mode-card {

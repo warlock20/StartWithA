@@ -53,7 +53,8 @@ class AIResearchAssistant {
             factcheck: {
                 section: 'aiResponseFactcheck',
                 text: 'aiResponseFactcheckText',
-                loadingMsg: 'Identifying claims that need verification...'
+                loadingMsg: 'Identifying claims that need verification...',
+                loadingMsgSearch: 'Searching the web and verifying claims...'
             }
         };
     }
@@ -100,6 +101,9 @@ class AIResearchAssistant {
         // Show loading state
         this.showLoading(mode);
 
+        // Check if web search toggle is enabled
+        const useWebSearch = this.isWebSearchEnabled();
+
         // Prepare request data
         const requestData = {
             mode: mode,
@@ -107,7 +111,8 @@ class AIResearchAssistant {
             answer_text: answerText,
             analysis_id: this.context.analysis_id,
             item_id: this.context.item_id,
-            company_name: this.context.company_name
+            company_name: this.context.company_name,
+            use_google_search: useWebSearch
         };
 
         // Make AJAX POST request
@@ -234,10 +239,12 @@ class AIResearchAssistant {
             if (section) section.style.display = 'none';
         });
 
-        // Update loading message based on mode
+        // Update loading message based on mode (use search-specific message if web search is on)
         const loadingText = loadingSpinner.querySelector('p');
         if (loadingText && this.modes[mode]) {
-            loadingText.textContent = this.modes[mode].loadingMsg;
+            const useSearch = this.isWebSearchEnabled();
+            const msg = (useSearch && this.modes[mode].loadingMsgSearch) || this.modes[mode].loadingMsg;
+            loadingText.textContent = msg;
         }
 
         // Show loading spinner and response area
@@ -432,7 +439,8 @@ class AIResearchAssistant {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                feedback_id: this.currentFeedbackId
+                feedback_id: this.currentFeedbackId,
+                use_google_search: this.isWebSearchEnabled()
             })
         })
         .then(response => {
@@ -468,6 +476,24 @@ class AIResearchAssistant {
                 console.error('Regeneration network error:', error);
             }
         });
+    }
+
+    /**
+     * Check if the web search toggle is enabled.
+     * Looks for checkbox with id 'aiUseWebSearch' or class 'ai-web-search-checkbox'.
+     */
+    isWebSearchEnabled() {
+        // Standard research step
+        const toggle = document.getElementById('aiUseWebSearch');
+        if (toggle) return toggle.checked;
+
+        // Free research step (per-question toggles) — find the visible one
+        const checkboxes = document.querySelectorAll('.ai-web-search-checkbox');
+        for (const cb of checkboxes) {
+            if (cb.offsetParent !== null) return cb.checked;
+        }
+
+        return false;
     }
 
     /**
