@@ -152,7 +152,9 @@
                             <div id="note-{{ note_index }}" class="accordion-collapse collapse"
                                 data-bs-parent="#previousNotesAccordion">
                                 <div class="accordion-body">
-                                    <small>{{ note_text|truncate(200) }}</small>
+                                    <div class="step-notes-content">
+                                        {{ note_text|markdown|safe }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
