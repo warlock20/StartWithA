@@ -166,6 +166,38 @@
     </div>
 </div>
 
+<!-- ════════════════════════════════════════════════
+     EASY KILL MODAL
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="easyKillModal" tabindex="-1" aria-labelledby="easyKillLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-poppins" id="easyKillLabel">
+                    <i class="bi bi-lightning-charge text-danger"></i>
+                    Easy Kill &mdash; <span id="easyKillCompanyName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="easyKillReason" class="form-label">Why are you killing this?</label>
+                <textarea id="easyKillReason" class="form-control" rows="4"
+                          placeholder="e.g. Promoter stake keeps dropping, auditor just resigned, related-party transactions too large..."></textarea>
+                <small class="text-muted d-block mt-2">
+                    <i class="bi bi-info-circle"></i>
+                    This reason feeds Argos so it can warn you about similar ideas in the future.
+                </small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="easyKillConfirmBtn">
+                    <i class="bi bi-x-circle"></i> Kill It
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

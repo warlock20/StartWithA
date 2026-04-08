@@ -33,6 +33,7 @@
         $decisionFilter.addEventListener('change', applyFilters);
         document.getElementById('killConfirmBtn').addEventListener('click', confirmKill);
         document.getElementById('inboxConfirmBtn').addEventListener('click', confirmInboxFromKill);
+        document.getElementById('easyKillConfirmBtn').addEventListener('click', confirmEasyKill);
     });
 
     /* ── SWEEP PICKER ──────────────────────────── */
@@ -223,10 +224,12 @@
                             html += '</div>';
                             return html;
                         }
+                        var safeName = escapeHtml(row.company_name).replace(/'/g, "\\'");
                         return '<div class="sweep-actions">' +
                             '<button class="sweep-action-btn sweep-action-btn--skip" onclick="MarketSweep.decide(' + row.id + ',\'skip\')">Skip</button>' +
                             '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' + row.id + ',\'inbox\')">Inbox</button>' +
-                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + escapeHtml(row.company_name).replace(/'/g, "\\'") + '\')">Kill</button>' +
+                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + safeName + '\')" title="Kill via checklist">Kill</button>' +
+                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openEasyKill(' + row.id + ',\'' + safeName + '\')" title="Easy Kill with reason"><i class="bi bi-lightning-charge"></i></button>' +
                             '</div>';
                     }
                 }
@@ -262,6 +265,8 @@
             if (extras.notes) payload.notes = extras.notes;
             if (extras.sector_id) payload.sector_id = extras.sector_id;
             if (extras.idea_status) payload.idea_status = extras.idea_status;
+            if (extras.kill_mode) payload.kill_mode = extras.kill_mode;
+            if (extras.kill_reason_text) payload.kill_reason_text = extras.kill_reason_text;
         }
 
         fetch('/research/workflow/api/sweep/decide', {
@@ -392,6 +397,34 @@
 
         var modal = new bootstrap.Modal(document.getElementById('killChecklistModal'));
         modal.show();
+    }
+
+    /* ── EASY KILL MODAL ───────────────────────── */
+    function openEasyKill(companyId, companyName) {
+        killTargetCompanyId = companyId;
+        document.getElementById('easyKillCompanyName').textContent = companyName;
+        document.getElementById('easyKillReason').value = '';
+        var modal = new bootstrap.Modal(document.getElementById('easyKillModal'));
+        modal.show();
+        // Focus the textarea once the modal is shown
+        setTimeout(function () {
+            document.getElementById('easyKillReason').focus();
+        }, 200);
+    }
+
+    function confirmEasyKill() {
+        var reason = document.getElementById('easyKillReason').value.trim();
+        if (!reason) {
+            showToast('Please enter a reason', 'danger');
+            return;
+        }
+        decide(killTargetCompanyId, 'killed', {
+            kill_mode: 'easy',
+            kill_reason_text: reason,
+            notes: reason
+        });
+        var modal = bootstrap.Modal.getInstance(document.getElementById('easyKillModal'));
+        if (modal) modal.hide();
     }
 
     function checkKillReady() {
@@ -541,7 +574,8 @@
         decide: decide,
         undoDecision: undoDecision,
         updateSector: updateSector,
-        openKill: openKill
+        openKill: openKill,
+        openEasyKill: openEasyKill
     };
 
 })();
