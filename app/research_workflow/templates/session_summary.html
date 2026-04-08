@@ -27,9 +27,15 @@
                     <i class="bi bi-check-circle"></i> Complete & Continue
                 </a>
                 {% endif %}
+                {% if research_context and research_context.get('project_id') %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+                {% else %}
                 <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
