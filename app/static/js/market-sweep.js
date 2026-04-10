@@ -33,7 +33,7 @@
         $decisionFilter.addEventListener('change', applyFilters);
         document.getElementById('killConfirmBtn').addEventListener('click', confirmKill);
         document.getElementById('inboxConfirmBtn').addEventListener('click', confirmInboxFromKill);
-        document.getElementById('easyKillConfirmBtn').addEventListener('click', confirmEasyKill);
+        document.getElementById('killDescription').addEventListener('input', checkKillReady);
     });
 
     /* ── SWEEP PICKER ──────────────────────────── */
@@ -207,7 +207,7 @@
                 },
                 {
                     title: '',
-                    field: 'id',
+                    field: 'decision',
                     headerSort: false,
                     hozAlign: 'right',
                     minWidth: 180,
@@ -228,8 +228,7 @@
                         return '<div class="sweep-actions">' +
                             '<button class="sweep-action-btn sweep-action-btn--skip" onclick="MarketSweep.decide(' + row.id + ',\'skip\')">Skip</button>' +
                             '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' + row.id + ',\'inbox\')">Inbox</button>' +
-                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + safeName + '\')" title="Kill via checklist">Kill</button>' +
-                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openEasyKill(' + row.id + ',\'' + safeName + '\')" title="Easy Kill with reason"><i class="bi bi-lightning-charge"></i></button>' +
+                            '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + safeName + '\')" title="Kill">Kill</button>' +
                             '</div>';
                     }
                 }
@@ -289,11 +288,21 @@
                     break;
                 }
             }
-            sweepTable.updateData([{ id: companyId, decision: decision, decision_sector_id: extras ? extras.sector_id : null, promoted_idea_id: data.promoted_idea_id || null }]);
+            // Use row.update() instead of table.updateData() to force a full
+            // row re-render — updateData() only redraws cells whose own field
+            // value changed, so the action column (field:'id') would stay stale.
+            var row = sweepTable.getRow(companyId);
+            if (row) {
+                row.update({ decision: decision, decision_sector_id: extras ? extras.sector_id : null, promoted_idea_id: data.promoted_idea_id || null });
+            }
             updateStats();
 
             var labels = { 'skip': 'Skipped', 'inbox': 'Sent to Inbox', 'killed': 'Killed' };
             showToast(labels[decision] || decision, decision === 'inbox' ? 'success' : 'info');
+        })
+        .catch(function (err) {
+            showToast('Network error — please try again', 'danger');
+            console.error('Decide error:', err);
         });
     }
 
@@ -308,7 +317,10 @@
                 break;
             }
         }
-        sweepTable.updateData([{ id: companyId, decision: null, decision_sector_id: null }]);
+        var row = sweepTable.getRow(companyId);
+        if (row) {
+            row.update({ decision: null, decision_sector_id: null });
+        }
         updateStats();
     }
 
@@ -356,109 +368,90 @@
         document.getElementById('killConfirmBtn').style.display = 'none';
         document.getElementById('inboxConfirmBtn').style.display = 'none';
         document.getElementById('killResultBanner').style.display = 'none';
+        document.getElementById('killDescription').value = '';
 
         var $list = document.getElementById('killCriteriaList');
-        var $noChecklist = document.getElementById('killNoChecklist');
+        var $descDivider = document.getElementById('killDescriptionDivider');
+        var $descLabel = document.getElementById('killDescriptionLabel');
 
         if (killCriteria.length === 0) {
             $list.style.display = 'none';
-            $noChecklist.style.display = 'block';
-            return;
+            $descDivider.style.display = 'none';
+            $descLabel.innerHTML = '<i class="bi bi-lightning-charge text-danger"></i> Why are you killing this?';
+        } else {
+            $list.style.display = 'block';
+            $descDivider.style.display = '';
+            $descLabel.innerHTML = '<i class="bi bi-lightning-charge text-danger"></i> Or describe your reason to kill';
+            $list.innerHTML = '';
+
+            killCriteria.forEach(function (c, idx) {
+                var name = 'kill_' + c.id;
+                var html =
+                    '<div class="sweep-kill-criterion" data-criterion-id="' + c.id + '">' +
+                        '<div style="display:flex;align-items:flex-start;flex:1;gap:var(--space-sm)">' +
+                            '<span class="sweep-kill-number">' + (idx + 1) + '</span>' +
+                            '<span class="sweep-kill-question">' + escapeHtml(c.question) + '</span>' +
+                        '</div>' +
+                        '<div class="sweep-kill-options">' +
+                            '<label class="sweep-kill-option sweep-kill-pass">' +
+                                '<input type="radio" name="' + name + '" value="pass"> Pass' +
+                            '</label>' +
+                            '<label class="sweep-kill-option sweep-kill-fail">' +
+                                '<input type="radio" name="' + name + '" value="fail"> Fail' +
+                            '</label>' +
+                        '</div>' +
+                    '</div>';
+                $list.insertAdjacentHTML('beforeend', html);
+            });
+
+            $list.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+                radio.addEventListener('change', checkKillReady);
+            });
         }
-
-        $list.style.display = 'block';
-        $noChecklist.style.display = 'none';
-        $list.innerHTML = '';
-
-        killCriteria.forEach(function (c, idx) {
-            var name = 'kill_' + c.id;
-            var html =
-                '<div class="sweep-kill-criterion" data-criterion-id="' + c.id + '">' +
-                    '<div style="display:flex;align-items:flex-start;flex:1;gap:var(--space-sm)">' +
-                        '<span class="sweep-kill-number">' + (idx + 1) + '</span>' +
-                        '<span class="sweep-kill-question">' + escapeHtml(c.question) + '</span>' +
-                    '</div>' +
-                    '<div class="sweep-kill-options">' +
-                        '<label class="sweep-kill-option sweep-kill-pass">' +
-                            '<input type="radio" name="' + name + '" value="pass"> Pass' +
-                        '</label>' +
-                        '<label class="sweep-kill-option sweep-kill-fail">' +
-                            '<input type="radio" name="' + name + '" value="fail"> Fail' +
-                        '</label>' +
-                    '</div>' +
-                '</div>';
-            $list.insertAdjacentHTML('beforeend', html);
-        });
-
-        // Listen for radio changes to show the right action button
-        $list.querySelectorAll('input[type="radio"]').forEach(function (radio) {
-            radio.addEventListener('change', checkKillReady);
-        });
 
         var modal = new bootstrap.Modal(document.getElementById('killChecklistModal'));
         modal.show();
     }
 
-    /* ── EASY KILL MODAL ───────────────────────── */
-    function openEasyKill(companyId, companyName) {
-        killTargetCompanyId = companyId;
-        document.getElementById('easyKillCompanyName').textContent = companyName;
-        document.getElementById('easyKillReason').value = '';
-        var modal = new bootstrap.Modal(document.getElementById('easyKillModal'));
-        modal.show();
-        // Focus the textarea once the modal is shown
-        setTimeout(function () {
-            document.getElementById('easyKillReason').focus();
-        }, 200);
-    }
-
-    function confirmEasyKill() {
-        var reason = document.getElementById('easyKillReason').value.trim();
-        if (!reason) {
-            showToast('Please enter a reason', 'danger');
-            return;
-        }
-        decide(killTargetCompanyId, 'killed', {
-            kill_mode: 'easy',
-            kill_reason_text: reason,
-            notes: reason
-        });
-        var modal = bootstrap.Modal.getInstance(document.getElementById('easyKillModal'));
-        if (modal) modal.hide();
-    }
-
     function checkKillReady() {
+        var description = document.getElementById('killDescription').value.trim();
         var checked = document.querySelectorAll('#killCriteriaList input[type="radio"]:checked');
         var $killBtn = document.getElementById('killConfirmBtn');
         var $inboxBtn = document.getElementById('inboxConfirmBtn');
         var $banner = document.getElementById('killResultBanner');
 
-        // Not all answered yet — hide both buttons
-        if (checked.length < killCriteria.length) {
+        // Description provided → enable Kill button (easy kill path)
+        if (description) {
+            $killBtn.style.display = '';
+            $inboxBtn.style.display = 'none';
+            $banner.style.display = 'none';
+            return;
+        }
+
+        // No description — require all criteria answered (if checklist exists)
+        if (killCriteria.length === 0 || checked.length < killCriteria.length) {
             $killBtn.style.display = 'none';
             $inboxBtn.style.display = 'none';
             $banner.style.display = 'none';
             return;
         }
 
-        // Count failures
+        // All criteria answered, no description
         var failCount = 0;
         checked.forEach(function (r) { if (r.value === 'fail') failCount++; });
 
         if (failCount > 0) {
-            // Has failures → show Kill button
             $killBtn.style.display = '';
             $inboxBtn.style.display = 'none';
             $banner.innerHTML = '<div class="alert alert-danger mb-0 mx-3 mt-2" style="font-size:0.875rem;">' +
-                '<i class="bi bi-x-circle"></i> ' + failCount + ' of ' + killCriteria.length + ' criteria failed — kill this company.' +
+                '<i class="bi bi-x-circle"></i> ' + failCount + ' of ' + killCriteria.length + ' criteria failed &mdash; kill this company.' +
                 '</div>';
             $banner.style.display = 'block';
         } else {
-            // All passed → show Inbox button
             $killBtn.style.display = 'none';
             $inboxBtn.style.display = '';
             $banner.innerHTML = '<div class="alert alert-success mb-0 mx-3 mt-2" style="font-size:0.875rem;">' +
-                '<i class="bi bi-check-circle"></i> All criteria passed — this company looks interesting!' +
+                '<i class="bi bi-check-circle"></i> All criteria passed &mdash; this company looks interesting!' +
                 '</div>';
             $banner.style.display = 'block';
         }
@@ -480,11 +473,24 @@
     }
 
     function confirmKill() {
-        var killReasons = getKillReasons();
-        var failCount = killReasons.filter(function (r) { return r.result === 'fail'; }).length;
-        var notes = failCount + ' of ' + killCriteria.length + ' criteria failed';
+        var description = document.getElementById('killDescription').value.trim();
 
-        decide(killTargetCompanyId, 'killed', { kill_reasons: killReasons, notes: notes });
+        if (description) {
+            // Easy kill — description is the reason
+            decide(killTargetCompanyId, 'killed', {
+                kill_mode: 'easy',
+                kill_reason_text: description,
+                notes: description
+            });
+        } else {
+            // Checklist kill
+            var killReasons = getKillReasons();
+            var failCount = killReasons.filter(function (r) { return r.result === 'fail'; }).length;
+            decide(killTargetCompanyId, 'killed', {
+                kill_reasons: killReasons,
+                notes: failCount + ' of ' + killCriteria.length + ' criteria failed'
+            });
+        }
 
         var modal = bootstrap.Modal.getInstance(document.getElementById('killChecklistModal'));
         if (modal) modal.hide();
@@ -574,8 +580,7 @@
         decide: decide,
         undoDecision: undoDecision,
         updateSector: updateSector,
-        openKill: openKill,
-        openEasyKill: openEasyKill
+        openKill: openKill
     };
 
 })();
