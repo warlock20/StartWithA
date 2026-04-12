@@ -67,10 +67,25 @@ class QuestionBankItem(db.Model):
     # Foreign key to sector - can be null for general questions
     sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=True, index=True)
 
+    # Optional categorization (e.g. 'moat', 'risks', 'valuation', 'management')
+    category = db.Column(db.String(100), nullable=True)
+
+    # Track origin from a research project (nullable, SET NULL on project delete)
+    source_project_id = db.Column(
+        db.Integer,
+        db.ForeignKey("research_project.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Usage tracking
+    times_used = db.Column(db.Integer, nullable=False, default=0)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=now_utc)
 
-    # Relationship to Sector
+    # Relationships
     sector = db.relationship("Sector", backref="question_bank_items")
+    source_project = db.relationship("ResearchProject", backref="question_bank_items")
 
     def __repr__(self):
         return f"<QuestionBankItem {self.text[:50]}...>"

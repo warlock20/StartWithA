@@ -5,26 +5,35 @@ from app.models import QuestionBankItem, SectorAnalysis
 from app.models.sector import Sector
 from . import question_bank_bp
 
+
 @question_bank_bp.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
     if request.method == 'POST':
         text = request.form.get('text')
         llm_prompt = request.form.get('llm_prompt')
-        sector = request.form.get('sector')
+        sector_name = request.form.get('sector')
+        category = request.form.get('category')
 
-        sector_to_save = "General"
-        if sector and sector.strip():
-            sector_to_save = sector.strip()
-            
         if not text:
             flash('Question text is required.', 'error')
         else:
+            # Look up Sector by display_name to get proper FK
+            sector_id = None
+            if sector_name and sector_name.strip():
+                sector_obj = Sector.query.filter_by(
+                    display_name=sector_name.strip(),
+                    user_id=current_user.id
+                ).first()
+                if sector_obj:
+                    sector_id = sector_obj.id
+
             new_question = QuestionBankItem(
-                author=current_user,
+                user_id=current_user.id,
                 text=text,
-                llm_prompt=llm_prompt if llm_prompt else None,
-                sector=sector if sector else None
+                llm_prompt=llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None,
+                sector_id=sector_id,
+                category=category.strip() if category and category.strip() else None,
             )
             db.session.add(new_question)
             db.session.commit()
@@ -32,34 +41,37 @@ def index():
         return redirect(url_for('question_bank.index'))
 
     # GET Request
-    all_questions = QuestionBankItem.query.filter_by(user_id=current_user.id).order_by(QuestionBankItem.text).all()
-    
-    # Fetch distinct sector names from your research notebooks for the datalist
+    all_questions = QuestionBankItem.query.filter_by(
+        user_id=current_user.id
+    ).order_by(QuestionBankItem.text).all()
+
+    # Fetch distinct sector names from user's research notebooks for the datalist
     existing_sectors_query = db.session.query(Sector.display_name)\
                                         .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
                                         .filter(SectorAnalysis.user_id == current_user.id)\
                                         .distinct().order_by(Sector.display_name).all()
     existing_sectors = [row[0] for row in existing_sectors_query]
 
-    # Process questions into a dictionary grouped by sector (existing logic)
+    # Group questions by sector display name
     grouped_questions = {}
     for q in all_questions:
-        sector_key = q.sector if q.sector else "General" # This part already handles grouping under "General"
+        sector_key = q.sector.display_name if q.sector else "General"
         if sector_key not in grouped_questions:
             grouped_questions[sector_key] = []
         grouped_questions[sector_key].append(q)
-        
+
     return render_template('question_bank.html',
                            title="My Question Bank",
                            grouped_questions=grouped_questions,
                            existing_sectors=existing_sectors,
                            total_questions=len(all_questions))
 
+
 @question_bank_bp.route('/<int:item_id>/delete', methods=['POST'])
 @login_required
 def delete_question(item_id):
     question = QuestionBankItem.query.get_or_404(item_id)
-    if question.author != current_user:
+    if question.user_id != current_user.id:
         flash('You are not authorized to delete this item.', 'error')
         return redirect(url_for('question_bank.index'))
 
@@ -68,38 +80,47 @@ def delete_question(item_id):
     flash('Question deleted from your bank.', 'success')
     return redirect(url_for('question_bank.index'))
 
+
 @question_bank_bp.route('/<int:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_question(item_id):
     question = QuestionBankItem.query.get_or_404(item_id)
-    if question.author != current_user:
+    if question.user_id != current_user.id:
         flash('You are not authorized to edit this item.', 'error')
         return redirect(url_for('question_bank.index'))
 
     if request.method == 'POST':
         text = request.form.get('text')
         llm_prompt = request.form.get('llm_prompt')
-        sector = request.form.get('sector')
+        sector_name = request.form.get('sector')
+        category = request.form.get('category')
 
         if not text or not text.strip():
             flash('Question text is required.', 'error')
         else:
             question.text = text.strip()
             question.llm_prompt = llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None
+            question.category = category.strip() if category and category.strip() else None
 
-            sector_to_save = "General"
-            if sector and sector.strip():
-                sector_to_save = sector.strip()
-            question.sector = sector_to_save
+            # Look up Sector by display_name for proper FK
+            if sector_name and sector_name.strip() and sector_name.strip() != "General":
+                sector_obj = Sector.query.filter_by(
+                    display_name=sector_name.strip(),
+                    user_id=current_user.id
+                ).first()
+                question.sector_id = sector_obj.id if sector_obj else None
+            else:
+                question.sector_id = None
 
             db.session.commit()
             flash('Question updated successfully.', 'success')
             return redirect(url_for('question_bank.index'))
 
-    # GET request: fetch existing sectors for the datalist for a consistent UX
-    existing_sectors_query = db.session.query(SectorAnalysis.sector_name)\
+    # GET request: fetch existing sectors for the datalist
+    existing_sectors_query = db.session.query(Sector.display_name)\
+                                        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
                                         .filter(SectorAnalysis.user_id == current_user.id)\
-                                        .distinct().order_by(SectorAnalysis.sector_name).all()
+                                        .distinct().order_by(Sector.display_name).all()
     existing_sectors = [row[0] for row in existing_sectors_query]
 
     return render_template('edit_question.html',

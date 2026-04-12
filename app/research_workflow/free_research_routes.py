@@ -7,8 +7,8 @@ AJAX endpoints for managing free-form research questions within a research proje
 from flask import jsonify, request
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchProject
-from app.models.research import FreeResearchQuestion, ModelQuestion
+from app.models import ResearchProject, QuestionBankItem
+from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
@@ -186,23 +186,24 @@ def reorder_free_research_questions(project_id, step_index):
 
 
 # =============================================================================
-# Model Questions Library
+# Question Bank API (unified library for Free Research integration)
 # =============================================================================
 
-@research_workflow_bp.route('/api/model-questions')
+@research_workflow_bp.route('/api/question-bank')
 @login_required
-def get_model_questions():
-    """Get user's model questions library"""
-    questions = ModelQuestion.query.filter_by(
+def get_question_bank():
+    """Get user's Question Bank items for use in Free Research."""
+    questions = QuestionBankItem.query.filter_by(
         user_id=current_user.id
-    ).order_by(ModelQuestion.times_used.desc()).all()
+    ).order_by(QuestionBankItem.times_used.desc(), QuestionBankItem.created_at.desc()).all()
 
     return jsonify({
         'success': True,
         'questions': [{
             'id': q.id,
-            'question_text': q.question_text,
+            'text': q.text,
             'category': q.category,
+            'sector': q.sector.display_name if q.sector else None,
             'times_used': q.times_used,
             'created_at': q.created_at.isoformat() if q.created_at else None,
             'last_used_at': q.last_used_at.isoformat() if q.last_used_at else None
@@ -210,66 +211,54 @@ def get_model_questions():
     })
 
 
-@research_workflow_bp.route('/api/model-questions', methods=['POST'])
+@research_workflow_bp.route('/api/question-bank', methods=['POST'])
 @login_required
-def create_model_question():
-    """Save a question to the model questions library"""
+def save_to_question_bank():
+    """Save a question to the Question Bank from Free Research."""
     data = request.get_json()
-    if not data or not data.get('question_text'):
+    if not data or not data.get('text'):
         return json_error('Question text is required')
 
+    text = data['text'].strip()
+
     # Check for duplicate
-    existing = ModelQuestion.query.filter_by(
+    existing = QuestionBankItem.query.filter_by(
         user_id=current_user.id,
-        question_text=data['question_text'].strip()
+        text=text
     ).first()
 
     if existing:
-        return json_error('This question already exists in your library')
+        return json_error('This question already exists in your Question Bank')
 
-    model_question = ModelQuestion(
+    question = QuestionBankItem(
         user_id=current_user.id,
-        question_text=data['question_text'].strip(),
+        text=text,
         category=data.get('category'),
-        source_project_id=data.get('source_project_id')
+        source_project_id=data.get('source_project_id'),
     )
 
-    db.session.add(model_question)
+    db.session.add(question)
     db.session.commit()
 
-    logger.info(f"User {current_user.id} saved model question {model_question.id}")
+    logger.info(f"User {current_user.id} saved question {question.id} to Question Bank")
 
     return jsonify({
         'success': True,
         'question': {
-            'id': model_question.id,
-            'question_text': model_question.question_text,
-            'category': model_question.category,
-            'times_used': model_question.times_used
+            'id': question.id,
+            'text': question.text,
+            'category': question.category,
+            'sector': question.sector.display_name if question.sector else None,
+            'times_used': question.times_used,
         }
     })
 
 
-@research_workflow_bp.route('/api/model-questions/<int:question_id>', methods=['DELETE'])
+@research_workflow_bp.route('/api/question-bank/<int:question_id>/use', methods=['POST'])
 @login_required
-def delete_model_question(question_id):
-    """Delete a model question from library"""
-    question = ModelQuestion.query.get_or_404(question_id)
-
-    if question.user_id != current_user.id:
-        return json_unauthorized('Access denied')
-
-    db.session.delete(question)
-    db.session.commit()
-
-    return json_success()
-
-
-@research_workflow_bp.route('/api/model-questions/<int:question_id>/use', methods=['POST'])
-@login_required
-def use_model_question(question_id):
-    """Track when a model question is used (inserted into a project)"""
-    question = ModelQuestion.query.get_or_404(question_id)
+def use_question_bank_item(question_id):
+    """Track when a Question Bank item is used (inserted into a research step)."""
+    question = QuestionBankItem.query.get_or_404(question_id)
 
     if question.user_id != current_user.id:
         return json_unauthorized('Access denied')
@@ -282,3 +271,20 @@ def use_model_question(question_id):
         'success': True,
         'times_used': question.times_used
     })
+
+
+@research_workflow_bp.route('/api/question-bank/<int:question_id>', methods=['DELETE'])
+@login_required
+def delete_question_bank_item(question_id):
+    """Delete a Question Bank item via API."""
+    question = QuestionBankItem.query.get_or_404(question_id)
+
+    if question.user_id != current_user.id:
+        return json_unauthorized('Access denied')
+
+    db.session.delete(question)
+    db.session.commit()
+
+    logger.info(f"User {current_user.id} deleted question bank item {question_id}")
+
+    return json_success()

@@ -517,39 +517,6 @@ class FreeResearchQuestion(db.Model):
         return f'<FreeResearchQuestion {self.id}: {self.question_text[:50]}...>'
 
 
-class ModelQuestion(db.Model):
-    """
-    A saved research question that can be reused across multiple research projects.
-    Users can promote good questions from Free Research steps to their personal
-    library of 'model questions' for future use.
-    """
-    __tablename__ = 'model_question'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-
-    # Question content
-    question_text = db.Column(db.Text, nullable=False)
-
-    # Optional categorization
-    category = db.Column(db.String(100))  # 'moat', 'risks', 'valuation', 'management', etc.
-
-    # Track origin and usage
-    source_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'))
-    times_used = db.Column(db.Integer, default=0)
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=now_utc)
-    last_used_at = db.Column(db.DateTime)
-
-    # Relationships
-    user = db.relationship('User', backref=db.backref('model_questions', lazy='dynamic'))
-    source_project = db.relationship('ResearchProject', backref='promoted_questions')
-
-    def __repr__(self):
-        return f'<ModelQuestion {self.id}: {self.question_text[:50]}...>'
-
-
 class ResearchSettings(db.Model):
     """
     Per-user tunable parameters for the research priority scoring algorithm.
