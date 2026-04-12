@@ -412,13 +412,13 @@ def sector_analysis_focus(sector_name):
 @sectors_bp.route('/<string:sector_name>/add_question', methods=['POST'])
 @login_required
 def add_question_to_bank(sector_name):
-    # This route specifically handles adding a new question to the bank from the notebook page
+    """Add a new question to the bank from the sector notebook page."""
     sector = get_sector_by_name_or_slug(sector_name, current_user.id)
     if not sector:
         flash('Sector not found', 'error')
         return redirect(url_for('sectors.index'))
 
-    analysis = SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
+    SectorAnalysis.query.filter_by(user_id=current_user.id, sector_id=sector.id).first_or_404()
 
     text = request.form.get('text')
     llm_prompt = request.form.get('llm_prompt')
@@ -427,10 +427,10 @@ def add_question_to_bank(sector_name):
         flash('Question text is required.', 'error')
     else:
         new_question = QuestionBankItem(
-            author=current_user,
+            user_id=current_user.id,
             text=text,
-            llm_prompt=llm_prompt if llm_prompt else None,
-            sector=sector_name # Automatically tag with the current sector
+            llm_prompt=llm_prompt.strip() if llm_prompt and llm_prompt.strip() else None,
+            sector_id=sector.id
         )
         db.session.add(new_question)
         db.session.commit()
@@ -441,20 +441,20 @@ def add_question_to_bank(sector_name):
 @sectors_bp.route('/question_bank_item/<int:item_id>/delete', methods=['POST'])
 @login_required
 def delete_question_from_bank(item_id):
-    # This route handles deleting a question and redirects back to the notebook page
+    """Delete a question from the bank, redirecting back to the notebook page."""
     question = QuestionBankItem.query.get_or_404(item_id)
-    if question.author != current_user:
+    if question.user_id != current_user.id:
         flash('You are not authorized to delete this item.', 'error')
         return redirect(url_for('sectors.index'))
 
-    sector_name = question.sector # Get sector name for redirect before deleting
+    # Get sector slug for redirect before deleting
+    sector_slug = question.sector.slug if question.sector else None
     db.session.delete(question)
     db.session.commit()
     flash('Question deleted from your bank.', 'success')
 
-    # If we came from a sector page, redirect back there. Otherwise, to the main bank.
-    if sector_name:
-        return redirect(url_for('sectors.notebook', sector_name=sector_name))
+    if sector_slug:
+        return redirect(url_for('sectors.notebook', sector_name=sector_slug))
     else:
         return redirect(url_for('question_bank.index'))
     

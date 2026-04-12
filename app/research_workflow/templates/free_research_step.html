@@ -129,15 +129,15 @@
                     </div>
                 </div>
 
-                <!-- Model Questions Library -->
+                <!-- Question Bank Library -->
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-bookmarks me-2"></i>Model Questions</span>
-                        <span class="badge bg-primary" id="modelQuestionsCount">0</span>
+                        <span><i class="bi bi-bookmarks me-2"></i>Question Bank</span>
+                        <span class="badge bg-primary" id="questionBankCount">0</span>
                     </div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">Click to insert into your research</p>
-                        <div id="modelQuestionsList">
+                        <div id="questionBankList">
                             <p class="text-muted small">Loading...</p>
                         </div>
                     </div>
@@ -233,7 +233,7 @@ const FreeResearch = {
     stepIndex: {{ step_index }},
     companyName: {{ project.company.name|tojson }},
     questions: [],
-    modelQuestions: [],
+    questionBank: [],
     editors: {},  // Store BlockNote editor instances
     focusedQuestionId: null,  // null = normal mode, question ID = focus mode
 
@@ -246,7 +246,7 @@ const FreeResearch = {
 
     init() {
         this.loadQuestions();
-        this.loadModelQuestions();
+        this.loadQuestionBank();
         this.initSortable();
         this.initKeyboard();
     },
@@ -529,8 +529,8 @@ const FreeResearch = {
                                     <i class="bi bi-${statusIcon}${question.status === 'answered' ? '-fill' : ''}"></i>
                                     ${statusText}
                                 </button>
-                                <button class="btn btn-sm btn-outline-primary" onclick="FreeResearch.saveAsModelQuestion(${question.id})">
-                                    <i class="bi bi-bookmark-plus"></i> Save as Model
+                                <button class="btn btn-sm btn-outline-primary" onclick="FreeResearch.saveToQuestionBank(${question.id})">
+                                    <i class="bi bi-bookmark-plus"></i> Save to Bank
                                 </button>
                             </div>
                             ${question.status === 'exploring' ? '<p class="fr-status-hint mb-0"><i class="bi bi-info-circle me-1"></i>Click the button above to mark this question as answered</p>' : ''}
@@ -779,52 +779,54 @@ const FreeResearch = {
     },
 
     // =============================================================================
-    // Model Questions
+    // Question Bank
     // =============================================================================
 
-    async loadModelQuestions() {
+    async loadQuestionBank() {
         try {
-            const response = await fetch(`${this.apiBase}/model-questions`);
+            const response = await fetch(`${this.apiBase}/question-bank`);
             const data = await response.json();
 
             if (data.success) {
-                this.modelQuestions = data.questions;
-                this.renderModelQuestions();
+                this.questionBank = data.questions;
+                this.renderQuestionBank();
             }
         } catch (error) {
-            console.error('Error loading model questions:', error);
+            console.error('Error loading question bank:', error);
         }
     },
 
-    renderModelQuestions() {
-        const container = document.getElementById('modelQuestionsList');
-        const countBadge = document.getElementById('modelQuestionsCount');
+    renderQuestionBank() {
+        const container = document.getElementById('questionBankList');
+        const countBadge = document.getElementById('questionBankCount');
 
-        countBadge.textContent = this.modelQuestions.length;
+        countBadge.textContent = this.questionBank.length;
 
-        if (this.modelQuestions.length === 0) {
+        if (this.questionBank.length === 0) {
             container.innerHTML = '<p class="text-muted small mb-0">No saved questions yet. Save good questions from your research!</p>';
             return;
         }
 
-        container.innerHTML = this.modelQuestions.slice(0, 5).map(q => `
+        container.innerHTML = this.questionBank.slice(0, 5).map(q => `
             <div class="fr-model-question-item d-flex justify-content-between align-items-start">
-                <div class="flex-grow-1" onclick="FreeResearch.insertModelQuestion(${q.id}, '${this.escapeHtml(q.question_text).replace(/'/g, "\\'")}')">
-                    <div>${this.escapeHtml(q.question_text.substring(0, 50))}${q.question_text.length > 50 ? '...' : ''}</div>
-                    <div class="usage-count"><i class="bi bi-arrow-repeat me-1"></i>Used ${q.times_used} times</div>
+                <div class="flex-grow-1" onclick="FreeResearch.insertFromQuestionBank(${q.id}, '${this.escapeHtml(q.text).replace(/'/g, "\\'")}')">
+                    <div>${this.escapeHtml(q.text.substring(0, 50))}${q.text.length > 50 ? '...' : ''}</div>
+                    <div class="usage-count">
+                        <i class="bi bi-arrow-repeat me-1"></i>Used ${q.times_used} times${q.sector ? ` <span class="badge bg-secondary ms-1" style="font-size: 0.65em;">${this.escapeHtml(q.sector)}</span>` : ''}
+                    </div>
                 </div>
-                <button class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="event.stopPropagation(); FreeResearch.deleteModelQuestion(${q.id})" title="Delete">
+                <button class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="event.stopPropagation(); FreeResearch.deleteFromQuestionBank(${q.id})" title="Delete">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
         `).join('');
 
-        if (this.modelQuestions.length > 5) {
-            container.innerHTML += `<p class="text-muted small mt-2 mb-0">+ ${this.modelQuestions.length - 5} more</p>`;
+        if (this.questionBank.length > 5) {
+            container.innerHTML += `<p class="text-muted small mt-2 mb-0">+ ${this.questionBank.length - 5} more</p>`;
         }
     },
 
-    async insertModelQuestion(modelQuestionId, questionText) {
+    async insertFromQuestionBank(questionBankId, questionText) {
         // Check if question already exists in current step
         const existingQuestion = this.questions.find(q =>
             q.question_text.toLowerCase().trim() === questionText.toLowerCase().trim()
@@ -835,12 +837,10 @@ const FreeResearch = {
             return;
         }
 
-        // Confirm before adding
         if (!confirm(`Add this question to your research?\n\n"${questionText}"`)) {
             return;
         }
 
-        // Add the question directly
         try {
             const response = await fetch(`${this.apiBase}/project/${this.projectId}/step/${this.stepIndex}/questions`, {
                 method: 'POST',
@@ -855,19 +855,16 @@ const FreeResearch = {
                 this.renderQuestions();
                 this.updateStatsFromQuestions();
 
-                // Track usage only after successful add
-                await fetch(`${this.apiBase}/model-questions/${modelQuestionId}/use`, { method: 'POST' });
+                // Track usage
+                await fetch(`${this.apiBase}/question-bank/${questionBankId}/use`, { method: 'POST' });
 
-                // Update local model question usage count
-                const modelQ = this.modelQuestions.find(q => q.id === modelQuestionId);
-                if (modelQ) {
-                    modelQ.times_used = (modelQ.times_used || 0) + 1;
-                    this.renderModelQuestions();
+                const bankQ = this.questionBank.find(q => q.id === questionBankId);
+                if (bankQ) {
+                    bankQ.times_used = (bankQ.times_used || 0) + 1;
+                    this.renderQuestionBank();
                 }
 
-                this.showToast('Question added from library');
-
-                // Auto-expand the new question
+                this.showToast('Question added from Question Bank');
                 setTimeout(() => this.toggleQuestion(data.question.id), 100);
             } else {
                 this.showToast(data.error || 'Error adding question', 'error');
@@ -878,41 +875,41 @@ const FreeResearch = {
         }
     },
 
-    async deleteModelQuestion(modelQuestionId) {
-        if (!confirm('Delete this question from your library?')) {
+    async deleteFromQuestionBank(questionBankId) {
+        if (!confirm('Delete this question from your Question Bank?')) {
             return;
         }
 
         try {
-            const response = await fetch(`${this.apiBase}/model-questions/${modelQuestionId}`, {
+            const response = await fetch(`${this.apiBase}/question-bank/${questionBankId}`, {
                 method: 'DELETE'
             });
 
             const data = await response.json();
 
             if (data.success) {
-                this.modelQuestions = this.modelQuestions.filter(q => q.id !== modelQuestionId);
-                this.renderModelQuestions();
-                this.showToast('Question removed from library');
+                this.questionBank = this.questionBank.filter(q => q.id !== questionBankId);
+                this.renderQuestionBank();
+                this.showToast('Question removed from Question Bank');
             } else {
                 this.showToast(data.error || 'Error deleting', 'error');
             }
         } catch (error) {
-            console.error('Error deleting model question:', error);
+            console.error('Error deleting question:', error);
             this.showToast('Error deleting', 'error');
         }
     },
 
-    async saveAsModelQuestion(questionId) {
+    async saveToQuestionBank(questionId) {
         const question = this.questions.find(q => q.id === questionId);
         if (!question) return;
 
         try {
-            const response = await fetch(`${this.apiBase}/model-questions`, {
+            const response = await fetch(`${this.apiBase}/question-bank`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    question_text: question.question_text,
+                    text: question.question_text,
                     source_project_id: this.projectId
                 })
             });
@@ -920,14 +917,14 @@ const FreeResearch = {
             const data = await response.json();
 
             if (data.success) {
-                this.modelQuestions.unshift(data.question);
-                this.renderModelQuestions();
-                this.showToast('Saved to Model Questions library');
+                this.questionBank.unshift(data.question);
+                this.renderQuestionBank();
+                this.showToast('Saved to Question Bank');
             } else {
                 this.showToast(data.error || 'Error saving', 'error');
             }
         } catch (error) {
-            console.error('Error saving model question:', error);
+            console.error('Error saving to question bank:', error);
             this.showToast('Error saving', 'error');
         }
     },

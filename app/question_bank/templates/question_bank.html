@@ -97,6 +97,21 @@
                                 {% endfor %}
                         </datalist>
                     </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category (Optional)</label>
+                        <input type="text" name="category" id="category" class="form-control"
+                            placeholder="e.g. moat, risks, valuation, management"
+                            list="category_datalist">
+                        <datalist id="category_datalist">
+                            <option value="moat">
+                            <option value="risks">
+                            <option value="valuation">
+                            <option value="management">
+                            <option value="financial health">
+                            <option value="growth">
+                            <option value="competitive position">
+                        </datalist>
+                    </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-success btn-lg">
                             <i class="bi bi-plus-circle"></i> Add to Question Bank
@@ -139,6 +154,17 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
                                         <div class="fw-bold mb-1">{{ q.text }}</div>
+                                        <div class="d-flex flex-wrap gap-1 mb-1">
+                                            {% if q.category %}
+                                            <span class="badge bg-info text-dark" style="font-size: 0.7em;">{{ q.category }}</span>
+                                            {% endif %}
+                                            {% if q.times_used > 0 %}
+                                            <span class="badge bg-success" style="font-size: 0.7em;"><i class="bi bi-arrow-repeat me-1"></i>Used {{ q.times_used }} time{{ 's' if q.times_used != 1 }}</span>
+                                            {% endif %}
+                                            {% if q.source_project %}
+                                            <span class="badge bg-secondary" style="font-size: 0.7em;"><i class="bi bi-journal-text me-1"></i>From research</span>
+                                            {% endif %}
+                                        </div>
                                         {% if q.llm_prompt %}
                                         <div class="alert alert-info alert-sm p-2 mb-0">
                                             <small><i class="bi bi-robot"></i> <strong>LLM Prompt:</strong> {{ q.llm_prompt|truncate(80) }}</small>

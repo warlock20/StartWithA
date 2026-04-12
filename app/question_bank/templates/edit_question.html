@@ -1,143 +1,154 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="checkpoint-edit-container">
-    <div class="checkpoint-edit-card">
-        <!-- Header -->
-        <div class="checkpoint-edit-header">
-            <div class="checkpoint-breadcrumb">
-                <a href="{{ url_for('question_bank.index') }}">
-                    <i class="bi bi-patch-question"></i> Question Bank
-                </a>
-                <span class="separator">›</span>
+<div class="action-page">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="capture-hero">
+            <div class="capture-hero-badge">
+                <i class="bi bi-pencil-square"></i>
                 <span>Edit Question</span>
             </div>
-            <h1>
-                <i class="bi bi-pencil-square me-2"></i>Edit Question
-            </h1>
-            <p class="checkpoint-edit-subtitle">
+            <h1>Edit Question</h1>
+            <p class="capture-hero-subtitle">
                 Update your question details and sector classification
             </p>
         </div>
 
-        <!-- Body -->
-        <div class="checkpoint-edit-body">
-            <!-- Info Box -->
-            <div class="checkpoint-info-box">
-                <i class="bi bi-info-circle-fill"></i>
-                <div class="checkpoint-info-content">
-                    <h6>About Question Bank</h6>
-                    <p>Build your custom question library to guide research and analysis. Questions can be tagged by sector for better organization and used across different research templates.</p>
-                </div>
-            </div>
-
-            <!-- Form -->
+        <!-- Main Form -->
+        <div class="capture-form-container">
             <form method="POST" action="{{ url_for('question_bank.edit_question', item_id=question.id) }}">
-                <!-- Question Text Field -->
-                <div class="checkpoint-form-field">
-                    <label for="text" class="checkpoint-form-label">
-                        <i class="bi bi-question-circle"></i>
-                        Question Text
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <textarea
-                            name="text"
-                            id="text"
-                            class="checkpoint-form-input"
-                            rows="4"
-                            placeholder="e.g., What are the company's key competitive advantages?"
-                            required>{{ question.text }}</textarea>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Write a clear, specific question that will guide your research and analysis</span>
-                    </div>
-                </div>
+                <div class="capture-card">
+                    <div class="capture-card-body">
+                        <!-- Section 1: Question Content -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">1</span>
+                                <span class="capture-section-title">Question Content</span>
+                            </div>
 
-                <!-- LLM Prompt Field -->
-                <div class="checkpoint-form-field">
-                    <label for="llm_prompt" class="checkpoint-form-label">
-                        <i class="bi bi-robot"></i>
-                        AI Assistant Prompt (Optional)
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <textarea
-                            name="llm_prompt"
-                            id="llm_prompt"
-                            class="checkpoint-form-input"
-                            rows="3"
-                            placeholder="e.g., Analyze the company's competitive moat focusing on network effects and switching costs">{{ question.llm_prompt if question.llm_prompt }}</textarea>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Optional: Provide specific instructions for AI to help answer this question</span>
-                    </div>
-                </div>
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="text">
+                                    Question Text<span class="required">*</span>
+                                </label>
+                                <textarea name="text"
+                                          id="text"
+                                          class="capture-textarea"
+                                          rows="4"
+                                          placeholder="e.g., What are the company's key competitive advantages?"
+                                          required>{{ question.text }}</textarea>
+                            </div>
 
-                <!-- Sector Tag Field -->
-                <div class="checkpoint-form-field">
-                    <label for="sector" class="checkpoint-form-label">
-                        <i class="bi bi-tags"></i>
-                        Sector Tag (Optional)
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <input
-                            type="text"
-                            name="sector"
-                            id="sector"
-                            class="checkpoint-form-input"
-                            value="{{ question.sector if question.sector }}"
-                            placeholder="e.g., Technology, Healthcare, Finance"
-                            list="existing_sectors_datalist">
-                        <datalist id="existing_sectors_datalist">
-                            {% for s in existing_sectors %}
-                                <option value="{{ s }}">
-                            {% endfor %}
-                        </datalist>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Tag questions by sector for better organization. Leave blank for "General"</span>
-                    </div>
-                </div>
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="llm_prompt">
+                                    AI Assistant Prompt <span style="color: var(--gray-400); font-weight: 400;">(optional)</span>
+                                </label>
+                                <textarea name="llm_prompt"
+                                          id="llm_prompt"
+                                          class="capture-textarea"
+                                          rows="3"
+                                          placeholder="e.g., Analyze the company's competitive moat focusing on network effects and switching costs">{{ question.llm_prompt if question.llm_prompt }}</textarea>
+                                <p class="capture-input-help">Provide specific instructions for AI to help answer this question</p>
+                            </div>
+                        </div>
 
-                <!-- Actions -->
-                <div class="checkpoint-actions">
-                    <form method="POST" action="{{ url_for('question_bank.delete_question', item_id=question.id) }}" style="display: inline;">
-                        <button type="submit" class="checkpoint-btn checkpoint-btn-danger"
-                                onclick="return confirm('⚠️ Delete this question permanently?\n\nThis action cannot be undone.');">
-                            <i class="bi bi-trash"></i>
-                            Delete Question
-                        </button>
-                    </form>
-                    <div class="checkpoint-btn-group">
-                        <a href="{{ url_for('question_bank.index') }}" class="checkpoint-btn checkpoint-btn-secondary">
-                            <i class="bi bi-x-lg"></i>
-                            Cancel
-                        </a>
-                        <button type="submit" class="checkpoint-btn checkpoint-btn-primary">
-                            <i class="bi bi-check-lg"></i>
-                            Save Changes
-                        </button>
+                        <div class="capture-divider"></div>
+
+                        <!-- Section 2: Classification -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">2</span>
+                                <span class="capture-section-title">Classification</span>
+                            </div>
+
+                            <div class="capture-row">
+                                <div class="capture-input-group">
+                                    <label class="capture-label" for="sector">Sector Tag <span style="color: var(--gray-400); font-weight: 400;">(optional)</span></label>
+                                    <input type="text"
+                                           name="sector"
+                                           id="sector"
+                                           class="capture-input"
+                                           value="{{ question.sector.display_name if question.sector else '' }}"
+                                           placeholder="e.g., Technology, Healthcare"
+                                           list="existing_sectors_datalist">
+                                    <datalist id="existing_sectors_datalist">
+                                        {% for s in existing_sectors %}
+                                            <option value="{{ s }}">
+                                        {% endfor %}
+                                    </datalist>
+                                    <p class="capture-input-help">Tag by sector for better organization</p>
+                                </div>
+                                <div class="capture-input-group">
+                                    <label class="capture-label" for="category">Category <span style="color: var(--gray-400); font-weight: 400;">(optional)</span></label>
+                                    <input type="text"
+                                           name="category"
+                                           id="category"
+                                           class="capture-input"
+                                           value="{{ question.category if question.category else '' }}"
+                                           placeholder="e.g., moat, risks, valuation"
+                                           list="category_datalist">
+                                    <datalist id="category_datalist">
+                                        <option value="moat">
+                                        <option value="risks">
+                                        <option value="valuation">
+                                        <option value="management">
+                                        <option value="financial health">
+                                        <option value="growth">
+                                        <option value="competitive position">
+                                    </datalist>
+                                    <p class="capture-input-help">What aspect of analysis this covers</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Section -->
+                    <div class="capture-submit-section">
+                        <div class="capture-submit-row">
+                            <button type="submit" class="capture-submit-btn btn-primary-submit">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <span>Save Changes</span>
+                            </button>
+                            <button type="button"
+                                    class="capture-submit-btn"
+                                    style="background: var(--danger-500); color: white; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25); flex: 0;"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal">
+                                <i class="bi bi-trash-fill"></i>
+                                <span>Delete</span>
+                            </button>
+                            <a href="{{ url_for('question_bank.index') }}" class="capture-cancel-link">Cancel</a>
+                        </div>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-focus the text field for better UX
-    const textField = document.getElementById('text');
-    if (textField) {
-        textField.focus();
-        // Move cursor to end of text
-        textField.setSelectionRange(textField.value.length, textField.value.length);
-    }
-});
-</script>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-poppins" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete this question?</p>
+                <p class="text-danger mb-0"><i class="bi bi-info-circle-fill"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('question_bank.delete_question', item_id=question.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash-fill"></i> Delete Question
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
