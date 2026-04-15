@@ -14,6 +14,9 @@
                 </h1>
             </div>
             <div class="dashboard-header-actions">
+                <a href="{{ url_for('companies.company_journey', company_id=company.id) }}" class="position-btn">
+                    <i class="bi bi-map"></i> Journey
+                </a>
                 {% include 'components/smart_back_button.html' %}
             </div>
         </header>

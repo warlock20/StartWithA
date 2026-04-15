@@ -3,6 +3,179 @@
  * Handles sections, notes, drag-and-drop, and note viewing/editing
  */
 
+// ==================== DOM HELPERS ====================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function blocknoteToPreviewHtml(contentJson) {
+    try {
+        const blocks = JSON.parse(contentJson);
+        if (!Array.isArray(blocks)) return escapeHtml(contentJson);
+        return blocks.map(block => {
+            if (block.content && Array.isArray(block.content)) {
+                const text = block.content
+                    .filter(item => item && item.type === 'text')
+                    .map(item => item.text || '')
+                    .join('');
+                if (!text) return '';
+                const tag = block.type === 'heading' ? 'h3' : 'p';
+                return `<${tag}>${escapeHtml(text)}</${tag}>`;
+            }
+            return '';
+        }).filter(Boolean).join('');
+    } catch (e) {
+        return escapeHtml(contentJson);
+    }
+}
+
+function buildSectionHtml(section) {
+    const iconHtml = section.icon
+        ? `<span class="canvas-section-icon">${escapeHtml(section.icon)}</span>`
+        : '';
+    const descHtml = section.description
+        ? `<div class="canvas-section-description">${escapeHtml(section.description)}</div>`
+        : '';
+    const escapedTitle = escapeHtml(section.title);
+    const escapedDesc = escapeHtml(section.description || '');
+
+    return `
+        <div class="canvas-section" data-section-id="${section.id}">
+            <div class="canvas-section-header">
+                <div class="canvas-section-title">
+                    ${iconHtml}
+                    <h2>${escapedTitle}</h2>
+                </div>
+                <div class="canvas-section-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="addNoteToSection(${section.id})">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editSection(${section.id}, '${escapedTitle.replace(/'/g, "\\'")}', '${escapedDesc.replace(/'/g, "\\'")}')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSection(${section.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            ${descHtml}
+            <div class="note-cards-grid" data-section-id="${section.id}">
+                <button class="add-note-btn" onclick="addNoteToSection(${section.id})">
+                    <i class="bi bi-plus-circle"></i> Add First Note
+                </button>
+            </div>
+        </div>`;
+}
+
+function buildNoteCardHtml(note) {
+    const previewHtml = blocknoteToPreviewHtml(note.content);
+    const escapedContent = escapeHtml(note.content);
+    const sourceHtml = note.source_reference
+        ? `<a href="${escapeHtml(note.source_reference)}" target="_blank" class="note-card-source"><i class="bi bi-box-arrow-up-right"></i> Source</a>`
+        : '';
+    const tagsHtml = note.tags
+        ? `<div class="note-card-tags">${note.tags.split(',').map(t => `<span class="note-card-tag">${escapeHtml(t.trim())}</span>`).join('')}</div>`
+        : '';
+
+    return `
+        <div class="note-card" draggable="true"
+             data-note-id="${note.id}"
+             data-note-title="${escapeHtml(note.title)}"
+             data-note-content="${escapedContent}"
+             data-note-content-html="${escapeHtml(previewHtml)}"
+             data-note-source-url="${escapeHtml(note.source_reference || '')}"
+             data-note-source-title="${escapeHtml(note.source_title || '')}"
+             data-note-tags="${escapeHtml(note.tags || '')}"
+             data-section-id="${note.section_id || ''}">
+            <div class="note-card-header">
+                <h3 class="note-card-title">${escapeHtml(note.title)}</h3>
+                <div class="note-card-menu-wrapper">
+                    <button class="note-card-menu-btn" onclick="toggleNoteMenu(${note.id})">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <div class="note-card-dropdown" id="noteMenu${note.id}" style="display: none;">
+                        <button onclick="viewNote(${note.id})">
+                            <i class="bi bi-eye"></i> View Full Note
+                        </button>
+                        <button onclick="editNote(${note.id})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button onclick="deleteNote(${note.id})" class="text-danger">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="note-card-content">${previewHtml}</div>
+            <div class="note-card-footer">
+                <div class="note-card-type">
+                    <i class="bi bi-pencil"></i> Note
+                </div>
+                ${sourceHtml}
+            </div>
+            ${tagsHtml}
+        </div>`;
+}
+
+function updateCanvasEmptyState() {
+    const canvas = document.getElementById('notesCanvas');
+    if (!canvas) return;
+    const sections = canvas.querySelectorAll('.canvas-section');
+    const emptyState = document.getElementById('canvasEmptyState');
+
+    if (sections.length === 0) {
+        if (!emptyState) {
+            canvas.innerHTML = `
+                <div class="canvas-empty-state" id="canvasEmptyState">
+                    <i class="bi bi-kanban" style="font-size: 3rem; color: #d1d5db;"></i>
+                    <h3 class="text-muted">Your Research Canvas</h3>
+                    <p class="text-muted">Start by creating a section to organize your notes</p>
+                    <button class="btn btn-primary mt-3" onclick="createNewSection()">
+                        <i class="bi bi-plus-circle"></i> Create First Section
+                    </button>
+                </div>`;
+        }
+    } else if (emptyState) {
+        emptyState.remove();
+    }
+}
+
+function initDragDropOnNew(container) {
+    container.querySelectorAll('.note-card, .collector-item').forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+    container.querySelectorAll('.canvas-section, .collector-items').forEach(section => {
+        section.addEventListener('dragover', handleDragOver);
+        section.addEventListener('drop', handleDrop);
+        section.addEventListener('dragleave', handleDragLeave);
+    });
+    container.querySelectorAll('.note-cards-grid').forEach(grid => {
+        grid.addEventListener('dragover', handleDragOver);
+        grid.addEventListener('drop', handleDrop);
+        grid.addEventListener('dragleave', handleDragLeave);
+    });
+    // Also init expand behavior on new note cards
+    container.querySelectorAll('.note-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('.note-card-menu-wrapper') || e.target.closest('.note-card-dropdown')) return;
+            if (this.classList.contains('dragging')) return;
+            this.classList.toggle('expanded');
+        });
+    });
+}
+
+function closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (!el) return;
+    const instance = bootstrap.Modal.getInstance(el);
+    if (instance) instance.hide();
+}
+
 // ==================== SECTION MANAGEMENT ====================
 
 function createNewSection() {
@@ -58,7 +231,64 @@ function saveSection() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            closeModal('sectionModal');
+
+            if (isEdit) {
+                // Update existing section in DOM
+                const sectionEl = document.querySelector(`.canvas-section[data-section-id="${sectionId}"]`);
+                if (sectionEl) {
+                    const titleEl = sectionEl.querySelector('.canvas-section-title h2');
+                    if (titleEl) titleEl.textContent = title;
+
+                    const iconEl = sectionEl.querySelector('.canvas-section-icon');
+                    if (icon) {
+                        if (iconEl) {
+                            iconEl.textContent = icon;
+                        } else {
+                            const titleDiv = sectionEl.querySelector('.canvas-section-title');
+                            titleDiv.insertAdjacentHTML('afterbegin', `<span class="canvas-section-icon">${escapeHtml(icon)}</span>`);
+                        }
+                    } else if (iconEl) {
+                        iconEl.remove();
+                    }
+
+                    let descEl = sectionEl.querySelector('.canvas-section-description');
+                    if (description) {
+                        if (descEl) {
+                            descEl.textContent = description;
+                        } else {
+                            sectionEl.querySelector('.canvas-section-header').insertAdjacentHTML('afterend',
+                                `<div class="canvas-section-description">${escapeHtml(description)}</div>`);
+                        }
+                    } else if (descEl) {
+                        descEl.remove();
+                    }
+
+                    // Update the edit button's onclick with new values
+                    const editBtn = sectionEl.querySelector('.canvas-section-actions .btn-outline-secondary');
+                    if (editBtn) {
+                        editBtn.setAttribute('onclick',
+                            `editSection(${sectionId}, '${escapeHtml(title).replace(/'/g, "\\'")}', '${escapeHtml(description || '').replace(/'/g, "\\'")}')`);
+                    }
+                }
+                showToast('Section updated', 'success');
+            } else {
+                // Insert new section into the canvas
+                const section = data.section;
+                section.icon = icon || null;
+                section.description = description || null;
+                const html = buildSectionHtml(section);
+
+                const canvas = document.getElementById('notesCanvas');
+                canvas.insertAdjacentHTML('beforeend', html);
+
+                // Initialize drag-and-drop on the new section
+                const newSectionEl = canvas.querySelector(`.canvas-section[data-section-id="${section.id}"]`);
+                if (newSectionEl) initDragDropOnNew(newSectionEl);
+
+                updateCanvasEmptyState();
+                showToast('Section created', 'success');
+            }
         } else {
             alert('Error saving section: ' + (data.error || 'Unknown error'));
         }
@@ -81,7 +311,17 @@ function deleteSection(sectionId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            const sectionEl = document.querySelector(`.canvas-section[data-section-id="${sectionId}"]`);
+            if (sectionEl) {
+                sectionEl.style.transition = 'opacity 0.25s, transform 0.25s';
+                sectionEl.style.opacity = '0';
+                sectionEl.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    sectionEl.remove();
+                    updateCanvasEmptyState();
+                }, 250);
+            }
+            showToast('Section deleted', 'success');
         } else {
             alert('Error deleting section: ' + (data.error || 'Unknown error'));
         }
@@ -145,7 +385,9 @@ function createQuickNote() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            showToast('Quick note created', 'success');
+            // Quick notes go to collector (no section) — not visible on canvas sections
+            // but we still avoid a reload
         } else {
             alert('Error creating note: ' + (data.error || 'Unknown error'));
         }
@@ -235,26 +477,97 @@ function saveNote() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Detect company mentions in the note content
             const savedNoteId = (data.note && data.note.id) || noteId;
             const combinedText = title + ' ' + textContent;
 
             // Close the note modal first
-            const noteModalElement = document.getElementById('noteModal');
-            const noteModal = bootstrap.Modal.getInstance(noteModalElement);
-            if (noteModal) {
-                noteModal.hide();
+            closeModal('noteModal');
+
+            if (isEdit) {
+                // Update existing note card in DOM
+                const noteCard = document.querySelector(`.note-card[data-note-id="${noteId}"]`);
+                if (noteCard) {
+                    noteCard.dataset.noteTitle = title;
+                    noteCard.dataset.noteContent = content;
+                    noteCard.dataset.noteContentHtml = blocknoteToPreviewHtml(content);
+                    noteCard.dataset.noteSourceUrl = sourceUrl || '';
+                    noteCard.dataset.noteSourceTitle = sourceTitle || '';
+                    noteCard.dataset.noteTags = tags || '';
+                    noteCard.dataset.sectionId = sectionId || '';
+
+                    const titleEl = noteCard.querySelector('.note-card-title');
+                    if (titleEl) titleEl.textContent = title;
+
+                    const contentEl = noteCard.querySelector('.note-card-content');
+                    if (contentEl) contentEl.innerHTML = blocknoteToPreviewHtml(content);
+
+                    // Update source link
+                    let sourceEl = noteCard.querySelector('.note-card-source');
+                    if (sourceUrl) {
+                        if (!sourceEl) {
+                            const footer = noteCard.querySelector('.note-card-footer');
+                            if (footer) footer.insertAdjacentHTML('beforeend',
+                                `<a href="${escapeHtml(sourceUrl)}" target="_blank" class="note-card-source"><i class="bi bi-box-arrow-up-right"></i> Source</a>`);
+                        } else {
+                            sourceEl.href = sourceUrl;
+                        }
+                    } else if (sourceEl) {
+                        sourceEl.remove();
+                    }
+
+                    // Update tags
+                    let tagsEl = noteCard.querySelector('.note-card-tags');
+                    if (tags) {
+                        const tagsHtml = tags.split(',').map(t => `<span class="note-card-tag">${escapeHtml(t.trim())}</span>`).join('');
+                        if (tagsEl) {
+                            tagsEl.innerHTML = tagsHtml;
+                        } else {
+                            noteCard.insertAdjacentHTML('beforeend', `<div class="note-card-tags">${tagsHtml}</div>`);
+                        }
+                    } else if (tagsEl) {
+                        tagsEl.remove();
+                    }
+
+                    // Move card to new section if section changed
+                    const currentSectionId = noteCard.closest('.note-cards-grid')?.dataset.sectionId || '';
+                    if (String(sectionId || '') !== String(currentSectionId)) {
+                        moveNoteCardInDom(noteCard, sectionId);
+                    }
+                }
+                showToast('Note updated', 'success');
+            } else {
+                // Insert new note card into the target section
+                const noteData = {
+                    id: savedNoteId,
+                    title: title,
+                    content: content,
+                    note_type: 'note',
+                    section_id: sectionId,
+                    source_reference: sourceUrl || null,
+                    source_title: sourceTitle || null,
+                    tags: tags || null
+                };
+                const html = buildNoteCardHtml(noteData);
+
+                if (sectionId) {
+                    const grid = document.querySelector(`.note-cards-grid[data-section-id="${sectionId}"]`);
+                    if (grid) {
+                        // Remove "Add First Note" button if present
+                        const addBtn = grid.querySelector('.add-note-btn');
+                        if (addBtn) addBtn.remove();
+                        grid.insertAdjacentHTML('beforeend', html);
+                        const newCard = grid.querySelector(`.note-card[data-note-id="${savedNoteId}"]`);
+                        if (newCard) initDragDropOnNew(newCard.parentElement);
+                    }
+                }
+                showToast('Note created', 'success');
             }
 
-            // Trigger company detection (function from company-tagging.js)
+            // Trigger company detection (non-blocking, no reload)
             if (typeof detectAndSuggestCompanies === 'function') {
                 detectAndSuggestCompanies(combinedText, 'note', savedNoteId, function() {
-                    // Reload page after company tagging is complete (or skipped)
-                    location.reload();
+                    // Company tagging complete — no reload needed
                 });
-            } else {
-                // If company tagging not available, just reload
-                location.reload();
             }
         } else {
             alert('Error saving note: ' + (data.error || 'Unknown error'));
@@ -456,7 +769,30 @@ function deleteNote(noteId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            const noteCard = document.querySelector(`.note-card[data-note-id="${noteId}"]`);
+            if (noteCard) {
+                const grid = noteCard.closest('.note-cards-grid');
+                noteCard.style.transition = 'opacity 0.25s, transform 0.25s';
+                noteCard.style.opacity = '0';
+                noteCard.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    noteCard.remove();
+                    // If grid is now empty, show "Add First Note" button
+                    if (grid && !grid.querySelector('.note-card')) {
+                        const sectionId = grid.dataset.sectionId;
+                        if (sectionId && !grid.querySelector('.add-note-btn')) {
+                            grid.innerHTML = `<button class="add-note-btn" onclick="addNoteToSection(${sectionId})">
+                                <i class="bi bi-plus-circle"></i> Add First Note
+                            </button>`;
+                        }
+                    }
+                }, 250);
+            }
+            // Close any open dropdown menus
+            document.querySelectorAll('.note-card-dropdown').forEach(menu => {
+                menu.style.display = 'none';
+            });
+            showToast('Note deleted', 'success');
         } else {
             alert('Error deleting note: ' + (data.error || 'Unknown error'));
         }
@@ -587,8 +923,11 @@ function moveNoteToSection(noteId, sectionId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Reload page to show updated organization
-            location.reload();
+            const noteCard = document.querySelector(`.note-card[data-note-id="${noteId}"]`);
+            if (noteCard) {
+                moveNoteCardInDom(noteCard, sectionId);
+            }
+            showToast('Note moved', 'success');
         } else {
             alert('Error moving note: ' + (data.error || 'Unknown error'));
         }
@@ -597,6 +936,36 @@ function moveNoteToSection(noteId, sectionId) {
         console.error('Error:', err);
         alert('Error moving note');
     });
+}
+
+function moveNoteCardInDom(noteCard, targetSectionId) {
+    const sourceGrid = noteCard.closest('.note-cards-grid');
+
+    // Remove from current location
+    noteCard.remove();
+
+    // If source grid is now empty, show "Add First Note" button
+    if (sourceGrid && !sourceGrid.querySelector('.note-card')) {
+        const srcSectionId = sourceGrid.dataset.sectionId;
+        if (srcSectionId && !sourceGrid.querySelector('.add-note-btn')) {
+            sourceGrid.innerHTML = `<button class="add-note-btn" onclick="addNoteToSection(${srcSectionId})">
+                <i class="bi bi-plus-circle"></i> Add First Note
+            </button>`;
+        }
+    }
+
+    // Insert into target section
+    if (targetSectionId) {
+        const targetGrid = document.querySelector(`.note-cards-grid[data-section-id="${targetSectionId}"]`);
+        if (targetGrid) {
+            // Remove "Add First Note" button if present
+            const addBtn = targetGrid.querySelector('.add-note-btn');
+            if (addBtn) addBtn.remove();
+
+            noteCard.dataset.sectionId = targetSectionId;
+            targetGrid.appendChild(noteCard);
+        }
+    }
 }
 
 // ==================== NOTE CARD EXPAND/COLLAPSE ====================

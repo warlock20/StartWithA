@@ -20,7 +20,7 @@
             </div>
         </div>
         <div class="destination-header-actions">
-            <a href="{{ url_for('portfolio.investment_journey', company_id=company.id) }}" class="destination-btn">
+            <a href="{{ url_for('companies.company_journey', company_id=company.id) }}" class="destination-btn">
                 <i class="bi bi-clock-history"></i> Journey
             </a>
             <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="destination-btn">

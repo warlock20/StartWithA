@@ -7,7 +7,8 @@ from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
-from app.utils.response_utils import json_error
+from app.utils.response_utils import json_error, json_not_found
+from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -256,4 +257,37 @@ def api_lookup_ticker(ticker):
         return jsonify({
             'success': False,
             'error': f'Error looking up ticker: {str(e)}'
-        })            
+        })
+
+
+@companies_bp.route('/api/<int:company_id>/journey-notes', methods=['GET'])
+@login_required
+def get_journey_notes(company_id):
+    """Get BlockNote journey notes for a company."""
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company not found')
+
+    return jsonify({
+        'success': True,
+        'content': company.journey_notes or ''
+    })
+
+
+@companies_bp.route('/api/<int:company_id>/journey-notes', methods=['POST'])
+@login_required
+def save_journey_notes(company_id):
+    """Save BlockNote journey notes for a company."""
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company not found')
+
+    data = request.get_json()
+    if not data or 'content' not in data:
+        return json_error('No content provided')
+
+    company.journey_notes = data['content']
+    company.journey_notes_updated_at = now_utc()
+    db.session.commit()
+
+    return jsonify({'success': True})

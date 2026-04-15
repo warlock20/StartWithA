@@ -830,6 +830,362 @@
 }
 
 /* =============================================================================
+   FLAT TAB BAR (Company Journey unified tabs)
+   ============================================================================= */
+.journey-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-xl);
+}
+
+.journey-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.journey-tab:hover {
+    border-color: var(--border-medium);
+    background: var(--gray-50);
+}
+
+.journey-tab.active {
+    background: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+}
+
+.journey-tab.active .journey-tab-count {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.journey-tab-separator {
+    width: 1px;
+    background: var(--border-light);
+    margin: 0.25rem;
+    align-self: stretch;
+}
+
+/* Tab Panels */
+.journey-tab-panel {
+    display: none;
+}
+
+.journey-tab-panel.active {
+    display: block;
+}
+
+/* =============================================================================
+   COMPANY STATE BADGE
+   ============================================================================= */
+.company-state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.company-state-badge.portfolio {
+    background: var(--success-50);
+    color: var(--success-600);
+    border: 1px solid var(--success-500);
+}
+
+.company-state-badge.watchlist {
+    background: var(--warning-50);
+    color: var(--warning-600);
+    border: 1px solid var(--warning-500);
+}
+
+.company-state-badge.new {
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-300);
+}
+
+/* =============================================================================
+   DECISION TIMELINE STYLES
+   ============================================================================= */
+.journey-badge.decision {
+    background: var(--purple-100);
+    color: var(--purple-700);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.journey-dot.decision {
+    border-color: var(--purple-500);
+    background: var(--purple-500);
+    width: 18px;
+    height: 18px;
+    left: 16px;
+}
+
+.journey-content.decision-content {
+    border-left: 3px solid var(--purple-500);
+}
+
+.journey-decision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.journey-decision-item {
+    font-size: var(--font-size-sm);
+}
+
+.journey-decision-item .label {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    display: block;
+}
+
+.journey-decision-item .value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* =============================================================================
+   RESEARCH PANEL STYLES
+   ============================================================================= */
+.research-summary-card {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--space-md);
+    overflow: hidden;
+}
+
+.research-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-100);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.research-summary-header:hover {
+    background: var(--gray-100);
+}
+
+.research-summary-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.research-step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary-600);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.research-step-number.completed {
+    background: var(--success-500);
+}
+
+.research-step-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+}
+
+.research-step-type {
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--gray-100);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.research-summary-body {
+    padding: var(--space-lg);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.research-summary-body.collapsed {
+    display: none;
+}
+
+.research-project-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.research-project-badge.completed {
+    background: var(--success-50);
+    color: var(--success-600);
+    border: 1px solid var(--success-500);
+}
+
+.research-project-badge.active {
+    background: var(--info-50);
+    color: var(--info-600);
+    border: 1px solid var(--info-500);
+}
+
+.research-project-badge.killed {
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-300);
+}
+
+.research-findings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+.research-findings-col h6 {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.research-findings-col.green h6 {
+    color: var(--success-600);
+}
+
+.research-findings-col.red h6 {
+    color: var(--danger-600);
+}
+
+.research-findings-col ul {
+    padding-left: 1.25rem;
+    font-size: var(--font-size-sm);
+    margin: 0;
+}
+
+.research-findings-col li {
+    margin-bottom: 0.375rem;
+    color: var(--text-secondary);
+}
+
+.research-qa-item {
+    margin-bottom: var(--space-md);
+}
+
+.research-qa-question {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+}
+
+.research-qa-question i {
+    color: var(--info-500);
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+.research-qa-answer {
+    color: var(--text-secondary);
+    padding-left: 1.5rem;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+}
+
+.research-qa-status {
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.research-qa-status.answered {
+    background: var(--success-50);
+    color: var(--success-600);
+}
+
+/* =============================================================================
+   NOTES EDITOR PANEL (BlockNote / Documentation)
+   ============================================================================= */
+.notes-editor-container {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.notes-editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border-light);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.notes-editor-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.notes-editor-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notes-save-status {
+    font-size: var(--font-size-xs);
+    color: var(--success-600);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* =============================================================================
    RESPONSIVE
    ============================================================================= */
 @media (max-width: 768px) {

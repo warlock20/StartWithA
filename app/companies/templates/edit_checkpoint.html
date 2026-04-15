@@ -1,175 +1,159 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="checkpoint-edit-container">
-    <div class="checkpoint-edit-card">
-        <!-- Header -->
-        <div class="checkpoint-edit-header">
-            <div class="checkpoint-breadcrumb">
-                <a href="{{ url_for('companies.list_companies') }}">
-                    <i class="bi bi-building"></i> Companies
-                </a>
-                <span class="separator">›</span>
-                <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}">
-                    <i class="bi bi-geo-alt-fill"></i> Destination Analysis
-                </a>
-                <span class="separator">›</span>
+<div class="action-page">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="capture-hero">
+            <div class="capture-hero-badge">
+                <i class="bi bi-pencil-square"></i>
                 <span>Edit Checkpoint</span>
             </div>
-            <h1>
-                <i class="bi bi-pencil-square me-2"></i>Edit Investment Checkpoint
-            </h1>
-            <p class="checkpoint-edit-subtitle">
+            <h1>Edit Investment Checkpoint</h1>
+            <p class="capture-hero-subtitle">
                 Update the metrics and targets that guide your investment thesis
             </p>
         </div>
 
-        <!-- Body -->
-        <div class="checkpoint-edit-body">
-            <!-- Info Box -->
-            <div class="checkpoint-info-box">
-                <i class="bi bi-info-circle-fill"></i>
-                <div class="checkpoint-info-content">
-                    <h6>About Investment Checkpoints</h6>
-                    <p>Checkpoints help you track key milestones and metrics that validate or challenge your investment thesis. Define clear, measurable targets with specific dates to monitor your company's progress.</p>
-                </div>
-            </div>
-
-            <!-- Form -->
+        <!-- Main Form -->
+        <div class="capture-form-container">
             <form method="POST" action="{{ url_for('companies.edit_checkpoint', checkpoint_id=checkpoint.id) }}">
-                <!-- Metric Field -->
-                <div class="checkpoint-form-field">
-                    <label for="metric" class="checkpoint-form-label">
-                        <i class="bi bi-graph-up-arrow"></i>
-                        Metric Name
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <input
-                            type="text"
-                            class="checkpoint-form-input"
-                            id="metric"
-                            name="metric"
-                            value="{{ checkpoint.metric }}"
-                            placeholder="e.g., Data Center Revenue Growth, AI Chip Market Share"
-                            required>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Choose a specific, measurable metric that's critical to your investment thesis</span>
-                    </div>
-                </div>
+                <div class="capture-card">
+                    <div class="capture-card-body">
+                        <!-- Section 1: Metric & Target -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">1</span>
+                                <span class="capture-section-title">Metric & Target</span>
+                            </div>
 
-                <!-- Expectation Field -->
-                <div class="checkpoint-form-field">
-                    <label for="expectation" class="checkpoint-form-label">
-                        <i class="bi bi-bullseye"></i>
-                        Target / Expectation
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <input
-                            type="text"
-                            class="checkpoint-form-input"
-                            id="expectation"
-                            name="expectation"
-                            value="{{ checkpoint.expectation }}"
-                            placeholder="e.g., > 30% YoY Growth, $500M Revenue Run Rate"
-                            required>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Set a clear target that will indicate success or failure at the checkpoint date</span>
-                    </div>
-                </div>
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="metric">
+                                    Metric Name<span class="required">*</span>
+                                </label>
+                                <input type="text"
+                                       class="capture-input"
+                                       id="metric"
+                                       name="metric"
+                                       value="{{ checkpoint.metric }}"
+                                       placeholder="e.g., Data Center Revenue Growth, AI Chip Market Share"
+                                       required>
+                                <p class="capture-input-help">Choose a specific, measurable metric that's critical to your investment thesis</p>
+                            </div>
 
-                <!-- Description Field -->
-                <div class="checkpoint-form-field">
-                    <label for="description" class="checkpoint-form-label">
-                        <i class="bi bi-journal-text"></i>
-                        Description
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <textarea
-                            class="checkpoint-form-input"
-                            id="description"
-                            name="description"
-                            rows="3"
-                            placeholder="e.g., By Q2 2027, I expect the company to reduce long-term debt by 30% through FCF allocation, validating management's capital discipline thesis">{{ checkpoint.description or '' }}</textarea>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Narrative thesis context — used by automated tracking to understand your investment reasoning</span>
-                    </div>
-                </div>
-
-                <!-- Target Date Field -->
-                <div class="checkpoint-form-field">
-                    <label for="target_date" class="checkpoint-form-label">
-                        <i class="bi bi-calendar-event"></i>
-                        Target Date
-                    </label>
-                    <div class="checkpoint-input-wrapper">
-                        <input
-                            type="date"
-                            class="checkpoint-form-input has-icon"
-                            id="target_date"
-                            name="target_date"
-                            value="{{ checkpoint.target_date.strftime('%Y-%m-%d') }}"
-                            required>
-                        <i class="bi bi-calendar-check checkpoint-input-icon"></i>
-                    </div>
-                    <div class="checkpoint-helper-text">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>When do you expect to evaluate whether this milestone was achieved?</span>
-                    </div>
-                </div>
-
-                <!-- Current Status Preview -->
-                <div class="checkpoint-status-preview">
-                    <h6><i class="bi bi-eye me-2"></i>Current Checkpoint Status</h6>
-                    <div class="checkpoint-preview-content">
-                        <div class="checkpoint-preview-item">
-                            <div class="checkpoint-preview-label">Status</div>
-                            <div class="checkpoint-preview-value">
-                                {% if checkpoint.status == 'Met' %}
-                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Met</span>
-                                {% elif checkpoint.status == 'Not Met' %}
-                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Not Met</span>
-                                {% else %}
-                                <span class="text-warning"><i class="bi bi-clock-fill"></i> Active</span>
-                                {% endif %}
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="expectation">
+                                    Target / Expectation<span class="required">*</span>
+                                </label>
+                                <input type="text"
+                                       class="capture-input"
+                                       id="expectation"
+                                       name="expectation"
+                                       value="{{ checkpoint.expectation }}"
+                                       placeholder="e.g., > 30% YoY Growth, $500M Revenue Run Rate"
+                                       required>
+                                <p class="capture-input-help">Set a clear target that will indicate success or failure at the checkpoint date</p>
                             </div>
                         </div>
-                        {% if checkpoint.outcome_notes %}
-                        <div class="checkpoint-preview-item">
-                            <div class="checkpoint-preview-label">Outcome Notes</div>
-                            <div class="checkpoint-preview-value">{{ checkpoint.outcome_notes[:50] }}{% if checkpoint.outcome_notes|length > 50 %}...{% endif %}</div>
+
+                        <div class="capture-divider"></div>
+
+                        <!-- Section 2: Context -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">2</span>
+                                <span class="capture-section-title">Context & Timeline</span>
+                            </div>
+
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="description">
+                                    Description <span style="color: var(--gray-400); font-weight: 400;">(optional)</span>
+                                </label>
+                                <textarea class="capture-textarea"
+                                          id="description"
+                                          name="description"
+                                          rows="3"
+                                          placeholder="e.g., By Q2 2027, I expect the company to reduce long-term debt by 30% through FCF allocation, validating management's capital discipline thesis">{{ checkpoint.description or '' }}</textarea>
+                                <p class="capture-input-help">Narrative thesis context — used by automated tracking to understand your investment reasoning</p>
+                            </div>
+
+                            <div class="capture-input-group">
+                                <label class="capture-label" for="target_date">
+                                    Target Date<span class="required">*</span>
+                                </label>
+                                <input type="date"
+                                       class="capture-input"
+                                       id="target_date"
+                                       name="target_date"
+                                       value="{{ checkpoint.target_date.strftime('%Y-%m-%d') }}"
+                                       required>
+                                <p class="capture-input-help">When do you expect to evaluate whether this milestone was achieved?</p>
+                            </div>
                         </div>
-                        {% endif %}
-                        <div class="checkpoint-preview-item">
-                            <div class="checkpoint-preview-label">Last Updated</div>
-                            <div class="checkpoint-preview-value">
-                                {% if checkpoint.updated_at %}
-                                {{ checkpoint.updated_at.strftime('%b %d, %Y') }}
-                                {% else %}
-                                Not updated
+
+                        <div class="capture-divider"></div>
+
+                        <!-- Current Status Preview -->
+                        <div class="capture-section">
+                            <div class="capture-section-header">
+                                <span class="capture-section-number">3</span>
+                                <span class="capture-section-title">Current Status</span>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <small class="text-muted text-uppercase">Status</small>
+                                            <div class="fw-semibold mt-1">
+                                                {% if checkpoint.status == 'Met' %}
+                                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Met</span>
+                                                {% elif checkpoint.status == 'Not Met' %}
+                                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Not Met</span>
+                                                {% else %}
+                                                <span class="text-warning"><i class="bi bi-clock-fill"></i> Active</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if checkpoint.outcome_notes %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <small class="text-muted text-uppercase">Outcome Notes</small>
+                                            <div class="fw-semibold mt-1">{{ checkpoint.outcome_notes[:50] }}{% if checkpoint.outcome_notes|length > 50 %}...{% endif %}</div>
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endif %}
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <small class="text-muted text-uppercase">Last Updated</small>
+                                            <div class="fw-semibold mt-1">
+                                                {% if checkpoint.updated_at %}
+                                                {{ checkpoint.updated_at.strftime('%b %d, %Y') }}
+                                                {% else %}
+                                                Not updated
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Actions -->
-                <div class="checkpoint-actions">
-                    <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}"
-                       class="checkpoint-btn checkpoint-btn-secondary">
-                        <i class="bi bi-x-lg"></i>
-                        Cancel
-                    </a>
-                    <div class="checkpoint-btn-group">
-                        <button type="submit" class="checkpoint-btn checkpoint-btn-primary">
-                            <i class="bi bi-check-lg"></i>
-                            Save Changes
-                        </button>
+                    <!-- Submit Section -->
+                    <div class="capture-submit-section">
+                        <div class="capture-submit-row">
+                            <button type="submit" class="capture-submit-btn btn-primary-submit">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <span>Save Changes</span>
+                            </button>
+                            <a href="{{ url_for('companies.destination_analysis', company_id=checkpoint.company_id) }}" class="capture-cancel-link">Cancel</a>
+                        </div>
                     </div>
                 </div>
             </form>
