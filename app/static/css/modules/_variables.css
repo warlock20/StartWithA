@@ -57,6 +57,12 @@
     --info-600: #2563eb;         /* Blue hover */
     --info-50: #eff6ff;          /* Info background */
 
+    --purple-500: #8b5cf6;       /* Purple - decisions */
+    --purple-600: #7c3aed;       /* Purple hover */
+    --purple-700: #6d28d9;       /* Purple dark */
+    --purple-50: #f5f3ff;        /* Purple background */
+    --purple-100: #ede9fe;       /* Purple light */
+
     /* Additional Platform Colors */
     --sage-teal: #0f766e;        /* Primary sage teal for wisdom themes */
     --sage-teal-light: #14b8a6;  /* Lighter sage teal */

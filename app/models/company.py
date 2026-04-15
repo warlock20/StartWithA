@@ -17,6 +17,10 @@ class Company(db.Model):
     is_in_portfolio = db.Column(db.Boolean, default=False, nullable=False, index=True)
     reporting_currency = db.Column(db.String(3), nullable=True)  # Stock's native trading currency (e.g., USD, EUR)
 
+    # Company Journey persistent wiki-style notes (BlockNote JSON)
+    journey_notes = db.Column(db.Text, nullable=True)
+    journey_notes_updated_at = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     sector = db.relationship("Sector", backref="companies")
 

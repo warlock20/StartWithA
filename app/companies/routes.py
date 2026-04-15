@@ -6,7 +6,7 @@ import json
 
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from app.utils.time_utils import parse_date_to_date_object
+from app.utils.time_utils import parse_date_to_date_object, now_utc
 from app.utils.auth_utils import get_user_resource_or_403
 from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
@@ -15,7 +15,9 @@ from app import db, cache
 from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
                         ChecklistAnalysis, CompanyArticle, QualitativeAnalysis,
                         FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
-                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline)
+                        JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline,
+                        Transaction)
+from app.models.research import FreeResearchQuestion
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
 from app.companies import companies_bp
@@ -907,3 +909,183 @@ def validate_ticker_api():
 
     return jsonify(result)
 
+
+@companies_bp.route('/<int:company_id>/journey')
+@login_required
+def company_journey(company_id):
+    """
+    Unified company journey page — works for any company regardless of portfolio status.
+    Combines timeline, research, notes (BlockNote), and journal entries.
+    """
+    company = Company.query.filter_by(
+        id=company_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    # Determine company state
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    if company.is_in_portfolio:
+        company_state = 'portfolio'
+    elif company.id in favorite_ids:
+        company_state = 'watchlist'
+    else:
+        company_state = 'new'
+
+    # Get portfolio position (may be None)
+    position = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).first()
+
+    # Get all thesis versions
+    thesis_versions = ThesisEvolution.query.filter_by(
+        company_id=company_id,
+        user_id=current_user.id
+    ).order_by(ThesisEvolution.created_at).all()
+
+    # Get all destination checkpoints
+    checkpoints = DestinationCheckpoint.query.filter_by(
+        company_id=company_id,
+        user_id=current_user.id
+    ).order_by(DestinationCheckpoint.target_date).all()
+
+    # Get transactions (only if portfolio)
+    transactions = []
+    if company_state == 'portfolio':
+        transactions = Transaction.query.filter_by(
+            company_id=company_id,
+            user_id=current_user.id
+        ).order_by(Transaction.date).all()
+
+    # Get ALL decision journals (not just portfolio decisions)
+    decision_journals = DecisionJournal.query.filter_by(
+        company_id=company_id,
+        user_id=current_user.id
+    ).order_by(DecisionJournal.decision_date).all()
+
+    # Build unified timeline
+    timeline_events = []
+
+    for thesis in thesis_versions:
+        timeline_events.append({
+            'type': 'thesis',
+            'date': thesis.created_at.date() if thesis.created_at else now_utc().date(),
+            'datetime': thesis.created_at,
+            'data': thesis
+        })
+
+    for checkpoint in checkpoints:
+        timeline_events.append({
+            'type': 'checkpoint',
+            'date': checkpoint.target_date,
+            'datetime': datetime.combine(checkpoint.target_date, datetime.min.time()),
+            'data': checkpoint
+        })
+
+    for txn in transactions:
+        if txn.type in ['BUY', 'SELL']:
+            timeline_events.append({
+                'type': 'transaction',
+                'date': txn.date,
+                'datetime': datetime.combine(txn.date, datetime.min.time()),
+                'data': txn
+            })
+
+    for decision in decision_journals:
+        timeline_events.append({
+            'type': 'decision',
+            'date': decision.decision_date,
+            'datetime': datetime.combine(decision.decision_date, datetime.min.time()),
+            'data': decision
+        })
+
+    # Research findings
+    research_project = ResearchProject.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).first()
+
+    findings_count = 0
+    if research_project:
+        for flag in (research_project.green_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'green'}
+            })
+        for flag in (research_project.red_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'red'}
+            })
+        findings_count = len(research_project.green_flags or []) + len(research_project.red_flags or [])
+
+    # Sort timeline by datetime (most recent first)
+    timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
+
+    # Journal entries count (loaded via AJAX)
+    journal_entries_count = JournalEntry.query.filter_by(
+        user_id=current_user.id,
+        company_id=company_id
+    ).count()
+
+    # Journey statistics
+    total_return = 0
+    days_held = 0
+    if position:
+        if position.unrealized_gain_loss_pct:
+            total_return = position.unrealized_gain_loss_pct
+        if position.days_held:
+            days_held = position.days_held
+
+    checkpoints_met = sum(1 for cp in checkpoints if cp.status == 'Met')
+
+    current_conviction = 0
+    if thesis_versions:
+        latest_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
+        current_conviction = latest_thesis.conviction_level or 0
+
+    journey_stats = {
+        'total_return': total_return,
+        'thesis_updates': len(thesis_versions),
+        'checkpoints_met': checkpoints_met,
+        'total_checkpoints': len(checkpoints),
+        'days_held': days_held,
+        'current_conviction': current_conviction,
+        'notes_count': journal_entries_count
+    }
+
+    # Identify current thesis
+    current_thesis = None
+    if thesis_versions:
+        current_thesis_objs = [t for t in thesis_versions if t.is_current]
+        if current_thesis_objs:
+            current_thesis = current_thesis_objs[0]
+        else:
+            current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
+
+    # Research tab data
+    free_research_questions = []
+    if research_project:
+        free_research_questions = FreeResearchQuestion.query.filter_by(
+            research_project_id=research_project.id
+        ).order_by(FreeResearchQuestion.created_at).all()
+
+    return render_template('company_journey.html',
+                           company=company,
+                           position=position,
+                           company_state=company_state,
+                           timeline_events=timeline_events,
+                           journey_stats=journey_stats,
+                           current_thesis=current_thesis,
+                           thesis_count=len(thesis_versions),
+                           checkpoint_count=len(checkpoints),
+                           transaction_count=len([e for e in timeline_events if e['type'] == 'transaction']),
+                           decision_count=len(decision_journals),
+                           journal_entries_count=journal_entries_count,
+                           findings_count=findings_count,
+                           research_project=research_project,
+                           free_research_questions=free_research_questions)

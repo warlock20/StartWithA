@@ -82,7 +82,7 @@
         <a href="{{ url_for('portfolio.position_detail', company_id=position.company_id) }}" class="card-action-btn">
             <i class="bi bi-eye"></i> View Position
         </a>
-        <a href="{{ url_for('portfolio.investment_journey', company_id=position.company_id) }}" class="card-action-btn">
+        <a href="{{ url_for('companies.company_journey', company_id=position.company_id) }}" class="card-action-btn">
             <i class="bi bi-graph-up"></i> Journey
         </a>
         {% if position.status == 'needs_attention' or position.status == 'behind' %}
