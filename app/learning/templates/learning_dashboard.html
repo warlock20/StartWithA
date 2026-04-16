@@ -39,7 +39,6 @@
             </div>
         </header>
 
-        <!-- Review Discipline Metrics -->
         <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
                 <span class="portfolio-metric-icon"><i class="bi bi-journal-check"></i></span>
@@ -58,6 +57,16 @@
             </div>
             <div class="portfolio-metric">
                 <span class="portfolio-metric-icon"><i class="bi bi-lightbulb"></i></span>
+                <span class="portfolio-metric-label">Curated Wisdom</span>
+                <span class="portfolio-metric-value">{{ curated_wisdom_stats.total }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-layers"></i></span>
+                <span class="portfolio-metric-label">Sectors Tracked</span>
+                <span class="portfolio-metric-value">{{ sector_knowledge_stats.total }}</span>
+            </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-pencil-square"></i></span>
                 <span class="portfolio-metric-label">Learning Notes</span>
                 <span class="portfolio-metric-value">{{ review_discipline.total_notes }}</span>
             </div>
@@ -88,131 +97,69 @@
     
 
     <!-- Knowledge Review Center -->
-    <div class="priority-lane-section">
+    <div class="mb-4">
         <h2 class="section-title font-poppins mb-3">Knowledge Review Center</h2>
         <div class="priority-lane-grid">
-            <!-- Curated Wisdom Card -->
-            <div class="priority-card" style="border-left: 4px solid #14b8a6;">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <div>
-                            <h3 class="priority-card-title">
-                                <i class="bi bi-lightbulb me-2" style="color: #14b8a6;"></i>
-                                Curated Wisdom
-                            </h3>
-                            <p class="priority-card-description mb-0">
-                                {{ curated_wisdom_stats.total }} insight{{ 's' if curated_wisdom_stats.total != 1 }}
-                                {% if curated_wisdom_stats.stale_count > 0 %}
-                                • <span class="text-warning">{{ curated_wisdom_stats.stale_count }} need review</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3">
+            <a href="{{ url_for('journal_enhanced.knowledge_hub', view='wisdom') }}" class="learning-content-card" style="border-left: 4px solid #14b8a6; text-decoration: none;">
+                <div class="learning-card-body">
+                    <h5 class="learning-card-title mb-1">
+                        <i class="bi bi-lightbulb me-2" style="color: #14b8a6;"></i>Curated Wisdom
+                    </h5>
+                    <p class="text-muted small mb-2">
+                        {{ curated_wisdom_stats.total }} insight{{ 's' if curated_wisdom_stats.total != 1 }}
+                        {% if curated_wisdom_stats.stale_count > 0 %}
+                        · <span class="text-warning">{{ curated_wisdom_stats.stale_count }} need review</span>
+                        {% endif %}
+                    </p>
+                    <small class="text-muted">
                         {% if curated_wisdom_stats.last_reviewed %}
-                            <small class="text-muted">
-                                <i class="bi bi-clock-history"></i>
-                                Last reviewed: {{ curated_wisdom_stats.last_reviewed.strftime('%b %d, %Y') }}
-                                ({{ ((now - curated_wisdom_stats.last_reviewed).days) }} days ago)
-                            </small>
+                        <i class="bi bi-clock-history"></i> Last reviewed {{ ((now - curated_wisdom_stats.last_reviewed).days) }}d ago
                         {% else %}
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i>
-                                Never reviewed
-                            </small>
+                        <i class="bi bi-info-circle"></i> Never reviewed
                         {% endif %}
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ url_for('journal_enhanced.knowledge_hub', view='wisdom') }}"
-                           class="btn btn-sm"
-                           style="background-color: #14b8a6; color: white; border: none;">
-                            Browse & Review <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
+                    </small>
                 </div>
-            </div>
-
-            <!-- Sector Knowledge Card -->
-            <div class="priority-card" style="border-left: 4px solid #8b5cf6;">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <div>
-                            <h3 class="priority-card-title">
-                                <i class="bi bi-layers me-2" style="color: #8b5cf6;"></i>
-                                Sector Knowledge
-                            </h3>
-                            <p class="priority-card-description mb-0">
-                                {{ sector_knowledge_stats.total }} sector{{ 's' if sector_knowledge_stats.total != 1 }}
-                                {% if sector_knowledge_stats.stale_count > 0 %}
-                                • <span class="text-warning">{{ sector_knowledge_stats.stale_count }} need review</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3">
+            </a>
+            <a href="{{ url_for('sectors.index') }}" class="learning-content-card" style="border-left: 4px solid #8b5cf6; text-decoration: none;">
+                <div class="learning-card-body">
+                    <h5 class="learning-card-title mb-1">
+                        <i class="bi bi-layers me-2" style="color: #8b5cf6;"></i>Sector Knowledge
+                    </h5>
+                    <p class="text-muted small mb-2">
+                        {{ sector_knowledge_stats.total }} sector{{ 's' if sector_knowledge_stats.total != 1 }}
+                        {% if sector_knowledge_stats.stale_count > 0 %}
+                        · <span class="text-warning">{{ sector_knowledge_stats.stale_count }} need review</span>
+                        {% endif %}
+                    </p>
+                    <small class="text-muted">
                         {% if sector_knowledge_stats.last_researched %}
-                            <small class="text-muted">
-                                <i class="bi bi-clock-history"></i>
-                                Last researched: {{ sector_knowledge_stats.last_researched.strftime('%b %d, %Y') }}
-                                ({{ ((now - sector_knowledge_stats.last_researched).days) }} days ago)
-                            </small>
+                        <i class="bi bi-clock-history"></i> Last researched {{ ((now - sector_knowledge_stats.last_researched).days) }}d ago
                         {% else %}
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i>
-                                Never researched
-                            </small>
+                        <i class="bi bi-info-circle"></i> Never researched
                         {% endif %}
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ url_for('sectors.index') }}"
-                           class="btn btn-sm"
-                           style="background-color: #8b5cf6; color: white; border: none;">
-                            Review & Learn <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
+                    </small>
                 </div>
-            </div>
-
-            <!-- Weekly Reviews Card -->
-            <div class="priority-card" style="border-left: 4px solid #3b82f6;">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <div>
-                            <h3 class="priority-card-title">
-                                <i class="bi bi-journal-text me-2" style="color: #3b82f6;"></i>
-                                Weekly Reviews
-                            </h3>
-                            <p class="priority-card-description mb-0">
-                                {{ weekly_review_stats.total }} review{{ 's' if weekly_review_stats.total != 1 }}
-                                {% if weekly_review_stats.streak > 0 %}
-                                • <span class="text-success">{{ weekly_review_stats.streak }}-week streak</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3">
+            </a>
+            <a href="{{ url_for('learning.weekly_review_list') }}" class="learning-content-card" style="border-left: 4px solid #3b82f6; text-decoration: none;">
+                <div class="learning-card-body">
+                    <h5 class="learning-card-title mb-1">
+                        <i class="bi bi-journal-text me-2" style="color: #3b82f6;"></i>Weekly Reviews
+                    </h5>
+                    <p class="text-muted small mb-2">
+                        {{ weekly_review_stats.total }} review{{ 's' if weekly_review_stats.total != 1 }}
+                        {% if weekly_review_stats.streak > 0 %}
+                        · <span class="text-success">{{ weekly_review_stats.streak }}-week streak</span>
+                        {% endif %}
+                    </p>
+                    <small class="text-muted">
                         {% if weekly_review_stats.last_review %}
-                            <small class="text-muted">
-                                <i class="bi bi-clock-history"></i>
-                                Last review: {{ weekly_review_stats.last_review.strftime('%b %d, %Y') }}
-                                ({{ ((now - ensure_timezone_aware(weekly_review_stats.last_review)).days) }} days ago)
-                            </small>
+                        <i class="bi bi-clock-history"></i> Last review {{ ((now - ensure_timezone_aware(weekly_review_stats.last_review)).days) }}d ago
                         {% else %}
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i>
-                                No reviews yet
-                            </small>
+                        <i class="bi bi-info-circle"></i> No reviews yet
                         {% endif %}
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ url_for('learning.weekly_review_list') }}"
-                           class="btn btn-sm"
-                           style="background-color: #3b82f6; color: white; border: none;">
-                            Browse Reviews <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
+                    </small>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 

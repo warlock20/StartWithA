@@ -24,51 +24,31 @@
                 </button>
             </div>
         </header>
-    </div>
-
-    {% if total_questions > 0 %}
-    <!-- Summary Stats -->
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid four-column">
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Total Questions</h3>
-                        <span class="priority-card-number priority-number-blue">{{ total_questions }}</span>
-                    </div>
-                    <p class="priority-card-description">In your question bank.</p>
-                </div>
+        {% if total_questions > 0 %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-question-circle"></i></span>
+                <span class="portfolio-metric-label">Total Questions</span>
+                <span class="portfolio-metric-value">{{ total_questions }}</span>
             </div>
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Sectors Covered</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ grouped_questions|length }}</span>
-                    </div>
-                    <p class="priority-card-description">Organized by category.</p>
-                </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-diagram-3"></i></span>
+                <span class="portfolio-metric-label">Sectors Covered</span>
+                <span class="portfolio-metric-value">{{ grouped_questions|length }}</span>
             </div>
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">General Questions</h3>
-                        <span class="priority-card-number priority-number-green">{{ (grouped_questions.get('General', [])|length) }}</span>
-                    </div>
-                    <p class="priority-card-description">Universal questions.</p>
-                </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-globe"></i></span>
+                <span class="portfolio-metric-label">General</span>
+                <span class="portfolio-metric-value">{{ (grouped_questions.get('General', [])|length) }}</span>
             </div>
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Sector-Specific</h3>
-                        <span class="priority-card-number priority-number-red">{{ total_questions - (grouped_questions.get('General', [])|length) }}</span>
-                    </div>
-                    <p class="priority-card-description">Targeted questions.</p>
-                </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-bullseye"></i></span>
+                <span class="portfolio-metric-label">Sector-Specific</span>
+                <span class="portfolio-metric-value">{{ total_questions - (grouped_questions.get('General', [])|length) }}</span>
             </div>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 
 <div class="row g-4">
     <div class="col-lg-4">
