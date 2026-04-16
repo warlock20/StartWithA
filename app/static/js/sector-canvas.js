@@ -474,7 +474,21 @@ function saveNote() {
             tags: tags || null
         })
     })
-    .then(response => response.json())
+    .then(async response => {
+        // Capture text first so we can show useful errors if response isn't JSON
+        const rawText = await response.text();
+        let data;
+        try {
+            data = rawText ? JSON.parse(rawText) : {};
+        } catch (parseErr) {
+            console.error('Non-JSON response from server (status ' + response.status + '):', rawText);
+            throw new Error('Server returned invalid response (status ' + response.status + ')');
+        }
+        if (!response.ok && !data.error && !data.message) {
+            throw new Error('Server error (status ' + response.status + ')');
+        }
+        return data;
+    })
     .then(data => {
         if (data.success) {
             const savedNoteId = (data.note && data.note.id) || noteId;
@@ -570,12 +584,12 @@ function saveNote() {
                 });
             }
         } else {
-            alert('Error saving note: ' + (data.error || 'Unknown error'));
+            alert('Error saving note: ' + (data.error || data.message || 'Unknown error'));
         }
     })
     .catch(err => {
-        alert('Error saving note');
-        console.error(err);
+        console.error('saveNote failed:', err);
+        alert('Error saving note: ' + (err && err.message ? err.message : 'Network or server error. See browser console for details.'));
     });
 }
 

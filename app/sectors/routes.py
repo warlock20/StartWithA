@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from app.utils.response_utils import json_success, json_error, json_not_found, json_unauthorized
 from flask_login import current_user, login_required
 from app import db
@@ -879,37 +879,44 @@ def create_note(sector_name):
         sector_id=sector.id
     ).first_or_404()
 
-    data = request.get_json()
-    title = data.get('title', '').strip()
-    content = data.get('content', '').strip()
+    data = request.get_json(silent=True) or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
 
     if not title or not content:
         return json_error('Title and content are required')
 
     section_id = data.get('section_id')
+    if section_id in ('', 'null'):
+        section_id = None
 
-    # Get max sort_order for this section
-    if section_id:
-        max_order = db.session.query(func.max(SectorNote.sort_order)).filter_by(
-            section_id=section_id
-        ).scalar() or 0
-    else:
-        max_order = 0
+    try:
+        # Get max sort_order for this section
+        if section_id:
+            max_order = db.session.query(func.max(SectorNote.sort_order)).filter_by(
+                section_id=section_id
+            ).scalar() or 0
+        else:
+            max_order = 0
 
-    note = SectorNote(
-        sector_analysis_id=analysis.id,
-        section_id=section_id,
-        title=title,
-        content=content,
-        note_type=data.get('note_type', 'note'),
-        source_reference=data.get('source_reference'),
-        source_title=data.get('source_title'),
-        tags=data.get('tags'),
-        sort_order=max_order + 1
-    )
+        note = SectorNote(
+            sector_analysis_id=analysis.id,
+            section_id=section_id,
+            title=title,
+            content=content,
+            note_type=data.get('note_type', 'note'),
+            source_reference=data.get('source_reference'),
+            source_title=data.get('source_title'),
+            tags=data.get('tags'),
+            sort_order=max_order + 1
+        )
 
-    db.session.add(note)
-    db.session.commit()
+        db.session.add(note)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('Failed to create sector note')
+        return json_error(f'Failed to save note: {str(e)}', status_code=500)
 
     return jsonify({
         'success': True,
@@ -933,24 +940,38 @@ def update_note(note_id):
     if note.sector_analysis.author != current_user:
         return json_unauthorized('Unauthorized')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
-    if 'title' in data:
-        note.title = data['title'].strip()
-    if 'content' in data:
-        note.content = data['content'].strip()
-    if 'section_id' in data:
-        note.section_id = data.get('section_id')
-    if 'sort_order' in data:
-        note.sort_order = data['sort_order']
-    if 'tags' in data:
-        note.tags = data.get('tags')
-    if 'source_reference' in data:
-        note.source_reference = data.get('source_reference')
-    if 'source_title' in data:
-        note.source_title = data.get('source_title')
+    try:
+        if 'title' in data:
+            title = (data.get('title') or '').strip()
+            if not title:
+                return json_error('Title cannot be empty')
+            note.title = title
+        if 'content' in data:
+            content = (data.get('content') or '').strip()
+            if not content:
+                return json_error('Content cannot be empty')
+            note.content = content
+        if 'section_id' in data:
+            section_id = data.get('section_id')
+            if section_id in ('', 'null'):
+                section_id = None
+            note.section_id = section_id
+        if 'sort_order' in data:
+            note.sort_order = data['sort_order']
+        if 'tags' in data:
+            note.tags = data.get('tags')
+        if 'source_reference' in data:
+            note.source_reference = data.get('source_reference')
+        if 'source_title' in data:
+            note.source_title = data.get('source_title')
 
-    db.session.commit()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('Failed to update sector note')
+        return json_error(f'Failed to update note: {str(e)}', status_code=500)
 
     return json_success()
 

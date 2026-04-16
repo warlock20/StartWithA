@@ -33,14 +33,7 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         context_label = _get_context_label(return_url)
         return return_url, context_label
 
-    # Check for research workflow context in Flask session
-    research_context = flask_session.get('research_context')
-    if research_context and research_context.get('project_id'):
-        project_id = research_context.get('project_id')
-        return_url = url_for('research_workflow.project_dashboard', project_id=project_id)
-        return return_url, "Research"
-
-    # Check HTTP Referer header
+    # Check HTTP Referer header first (most accurate source indicator)
     referer = request.headers.get('Referer')
     if referer:
         parsed = urlparse(referer)
@@ -82,6 +75,14 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         # Analytics
         if '/analytics' in path:
             return path, "Analytics"
+
+    # Fallback: check for research workflow context in Flask session
+    # (only used when no Referer and no explicit 'next' param are available)
+    research_context = flask_session.get('research_context')
+    if research_context and research_context.get('project_id'):
+        project_id = research_context.get('project_id')
+        return_url = url_for('research_workflow.project_dashboard', project_id=project_id)
+        return return_url, "Research"
 
     # Default fallback
     if default_route:

@@ -25,42 +25,26 @@
                 {% endwith %}
             </div>
         </header>
-    </div>
-
-    <!-- Performance Stats (if available) -->
-    {% if checklist.total_ideas_evaluated > 0 %}
-    <div class="priority-lane-section">
-        <div class="priority-lane-grid three-column">
-            <div class="priority-card priority-card-ideas">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Ideas Evaluated</h3>
-                        <span class="priority-card-number priority-number-blue">{{ checklist.total_ideas_evaluated }}</span>
-                    </div>
-                    <p class="priority-card-description">Total ideas run through this checklist.</p>
-                </div>
+        {% if checklist.total_ideas_evaluated > 0 %}
+        <div class="dashboard-metrics-strip">
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-clipboard-check"></i></span>
+                <span class="portfolio-metric-label">Ideas Evaluated</span>
+                <span class="portfolio-metric-value">{{ checklist.total_ideas_evaluated }}</span>
             </div>
-            <div class="priority-card priority-card-research">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Ideas Killed</h3>
-                        <span class="priority-card-number priority-number-red">{{ checklist.total_ideas_killed }}</span>
-                    </div>
-                    <p class="priority-card-description">Ideas filtered out by your criteria.</p>
-                </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-x-octagon"></i></span>
+                <span class="portfolio-metric-label">Ideas Killed</span>
+                <span class="portfolio-metric-value">{{ checklist.total_ideas_killed }}</span>
             </div>
-            <div class="priority-card priority-card-monitoring">
-                <div class="priority-card-content">
-                    <div class="priority-card-header">
-                        <h3 class="priority-card-title">Kill Rate</h3>
-                        <span class="priority-card-number priority-number-yellow">{{ checklist.kill_rate }}%</span>
-                    </div>
-                    <p class="priority-card-description">Percentage of ideas eliminated.</p>
-                </div>
+            <div class="portfolio-metric">
+                <span class="portfolio-metric-icon"><i class="bi bi-percent"></i></span>
+                <span class="portfolio-metric-label">Kill Rate</span>
+                <span class="portfolio-metric-value">{{ checklist.kill_rate }}%</span>
             </div>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     <!-- Main Form Card -->
     <div class="card framework-card">

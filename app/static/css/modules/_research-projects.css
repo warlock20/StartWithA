@@ -552,26 +552,10 @@
 }
 
 /* Priority Card Mini Stat */
-.priority-card-mini-stat {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 0.5rem;
-    font-weight: 500;
-}
-
-/* Four Column Grid for Priority Lane */
-.priority-lane-grid.four-column {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
 /* Responsive */
 @media (max-width: 768px) {
     .research-status-grid {
         grid-template-columns: 1fr;
-    }
-
-    .priority-lane-grid.four-column {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
 

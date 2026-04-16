@@ -39,20 +39,16 @@
     {% if postmortems %}
     <div class="priority-lane-grid">
         {% for pm in postmortems %}
-        <a href="{{ url_for('learning.view_postmortem', postmortem_id=pm.id) }}" class="priority-card" style="text-decoration: none; border-left: 4px solid {% if pm.outcome == 'success' %}#10b981{% elif pm.outcome == 'failure' %}#ef4444{% else %}#f59e0b{% endif %};">
-            <div class="priority-card-content">
-                <div class="priority-card-header">
-                    <div>
-                        <h3 class="priority-card-title">
-                            {{ pm.company.name if pm.company else 'Unknown' }}
-                        </h3>
-                        <p class="priority-card-description mb-0">
-                            {{ pm.entry_date.strftime('%b %Y') }} &rarr; {{ pm.exit_date.strftime('%b %Y') }}
-                            &middot; {{ pm.holding_period_days }} days
-                        </p>
-                    </div>
-                </div>
-                <div class="mt-2 d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('learning.view_postmortem', postmortem_id=pm.id) }}" class="learning-content-card" style="text-decoration: none; border-left: 4px solid {% if pm.outcome == 'success' %}#10b981{% elif pm.outcome == 'failure' %}#ef4444{% else %}#f59e0b{% endif %};">
+            <div class="learning-card-body">
+                <h5 class="learning-card-title mb-1">
+                    {{ pm.company.name if pm.company else 'Unknown' }}
+                </h5>
+                <p class="text-muted small mb-2">
+                    {{ pm.entry_date.strftime('%b %Y') }} &rarr; {{ pm.exit_date.strftime('%b %Y') }}
+                    &middot; {{ pm.holding_period_days }} days
+                </p>
+                <div class="d-flex gap-2 flex-wrap">
                     <span class="badge" style="background: {% if pm.outcome == 'success' %}#d1fae5; color: #065f46{% elif pm.outcome == 'failure' %}#fee2e2; color: #991b1b{% else %}#fef3c7; color: #92400e{% endif %};">
                         {{ pm.outcome|title if pm.outcome else 'Mixed' }}
                     </span>

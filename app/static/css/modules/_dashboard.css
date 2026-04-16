@@ -78,125 +78,11 @@
     letter-spacing: -0.02em;
 }
 
-/* Priority Lane - Priority Cards with Colored Borders */
-.priority-lane-section {
-    margin-bottom: var(--space-2xl);
-}
-
+/* Priority Lane Grid - used for nav/content card layouts */
 .priority-lane-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--space-lg);
-}
-
-.priority-card {
-    background: var(--background-white);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-light);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-normal);
-}
-
-.priority-card:hover {
-    box-shadow: var(--shadow-medium);
-    transform: translateY(-4px);
-}
-
-.priority-card-ideas { border-left: 4px solid var(--warning-500); }
-.priority-card-research { border-left: 4px solid var(--info-500); }
-.priority-card-monitoring { border-left: 4px solid var(--success-500); }
-.priority-card-warning { border-left: 4px solid var(--danger-500); }
-
-.priority-card-content {
-    padding: var(--space-lg);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.priority-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-sm);
-}
-
-.priority-card-title {
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-}
-
-.priority-card-number {
-    font-size: var(--font-size-3xl);
-    font-weight: 700;
-    line-height: 1;
-}
-
-.priority-number-yellow { color: var(--warning-500); }
-.priority-number-blue { color: var(--info-500); }
-.priority-number-green { color: var(--success-500); }
-.priority-number-red { color: var(--danger-500); }
-
-.priority-card-description {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    margin: var(--space-sm) 0;
-    flex-grow: 1;
-    line-height: 1.5;
-}
-
-.priority-card-link {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--primary-600);
-    text-decoration: none;
-    margin-top: var(--space-md);
-    display: inline-block;
-    transition: color var(--transition-fast);
-}
-
-.priority-card-link:hover {
-    color: var(--primary-700);
-}
-
-/* Priority Card Children (used in decision journal stats) */
-.priority-card .card-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-md) var(--space-lg);
-    border-bottom: 1px solid var(--border-light);
-    background: linear-gradient(145deg, var(--background-white), var(--gray-50));
-}
-
-.priority-card .card-header i {
-    font-size: var(--font-size-xl);
-    color: var(--text-secondary);
-}
-
-.priority-card .card-label {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.priority-card .card-value {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--gray-900);
-    padding: var(--space-lg) var(--space-lg) var(--space-md);
-    line-height: 1;
-}
-
-.priority-card .card-footer {
-    font-size: var(--font-size-xs);
-    color: var(--gray-400);
-    padding: 0 var(--space-lg) var(--space-lg);
-    font-weight: 500;
 }
 
 /* Investment Discipline Banner */
@@ -1274,31 +1160,6 @@
     flex: 1;
 }
 
-/* ========================================
-   3-COLUMN GRID VARIANT
-   ======================================== */
-
-.priority-lane-grid.three-column {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
-.priority-lane-grid.four-column {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-.priority-lane-grid.single-column {
-    grid-template-columns: 1fr;
-}
-
-@media (max-width: 768px) {
-    .priority-lane-grid.three-column {
-        grid-template-columns: 1fr;
-    }
-
-    .priority-lane-grid.four-column {
-        grid-template-columns: 1fr;
-    }
-}
 
 /* =============================================================================
    DASHBOARD MAIN GRID: Research Focus + Action Items
