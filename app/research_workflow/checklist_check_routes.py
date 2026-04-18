@@ -15,29 +15,7 @@ from app.utils.response_utils import json_error, json_unauthorized
 # Import unified LLM service
 from app.services.ai import generate_ai_content, ai_service
 from celery_app import celery
-
-
-def get_all_ordered_items_for_checklist(checklist_id):
-    """
-    Returns a flat list of all checklist items for a given checklist_id,
-    ordered by their sequence and hierarchy (depth-first).
-    """
-    return _get_ordered_checklist_items_recursive(None, checklist_id)
-
-def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
-    """
-    Recursive helper to fetch items and their children in order.
-    """
-    ordered_items = []
-    if parent_item_id is None: # Top-level items
-        items = ChecklistItem.query.filter_by(checklist_id=checklist_id, parent_id=None).order_by(ChecklistItem.order).all()
-    else: # Sub-items
-        items = ChecklistItem.query.filter_by(checklist_id=checklist_id, parent_id=parent_item_id).order_by(ChecklistItem.order).all()
-
-    for item in items:
-        ordered_items.append(item)
-        ordered_items.extend(_get_ordered_checklist_items_recursive(item.id, checklist_id))
-    return ordered_items
+from app.utils.checklist_utils import get_all_ordered_items_for_checklist
                                                                              
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required

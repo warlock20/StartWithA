@@ -42,6 +42,9 @@
                 <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn">
                     <i class="bi bi-flag"></i> Checkpoints
                 </a>
+                <button type="button" class="position-btn" onclick="document.getElementById('exportModal').classList.add('show'); document.body.style.overflow='hidden';">
+                    <i class="bi bi-download"></i> Export
+                </button>
                 {% if company_state == 'portfolio' and position %}
                 <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Position
@@ -589,6 +592,86 @@
         </div>
     </div>
 </div>
+
+<!-- Export Journey Modal -->
+<div class="thesis-detail-modal" id="exportModal" onclick="hideExportModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 480px;">
+        <div class="thesis-modal-header">
+            <div>
+                <h3>Export Company Journey</h3>
+                <p>Select components to include in your export</p>
+            </div>
+            <button type="button" class="thesis-modal-close" onclick="hideExportModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('companies.export_company_journey_route', company_id=company.id) }}">
+            <div class="thesis-modal-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+
+                    {% if thesis_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_thesis" value="1" checked>
+                        <span><i class="bi bi-lightbulb"></i> Thesis Evolution ({{ thesis_count }} version{{ 's' if thesis_count != 1 }})</span>
+                    </label>
+                    {% endif %}
+
+                    {% if checkpoint_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_checkpoints" value="1" checked>
+                        <span><i class="bi bi-flag"></i> Checkpoints ({{ checkpoint_count }})</span>
+                    </label>
+                    {% endif %}
+
+                    {% if company_state == 'portfolio' and transaction_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_transactions" value="1" checked>
+                        <span><i class="bi bi-arrow-left-right"></i> Transactions ({{ transaction_count }})</span>
+                    </label>
+                    {% endif %}
+
+                    {% if decision_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_decisions" value="1" checked>
+                        <span><i class="bi bi-signpost"></i> Decisions ({{ decision_count }})</span>
+                    </label>
+                    {% endif %}
+
+                    {% if journal_entries_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_journal" value="1" checked>
+                        <span><i class="bi bi-journal-bookmark"></i> Journal Entries ({{ journal_entries_count }})</span>
+                    </label>
+                    {% endif %}
+
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_notes" value="1" checked>
+                        <span><i class="bi bi-file-earmark-text"></i> Company Notes</span>
+                    </label>
+
+                    {% if research_project %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_research" value="1" checked>
+                        <span><i class="bi bi-microscope"></i> Research Project</span>
+                    </label>
+                    {% endif %}
+
+                </div>
+
+                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 8px; font-size: 0.8125rem; color: var(--gray-600);">
+                    <i class="bi bi-info-circle"></i> Export generates a ZIP file with markdown files for each selected component.
+                </div>
+            </div>
+
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="position-btn" onclick="hideExportModal()">Cancel</button>
+                <button type="submit" class="position-btn primary">
+                    <i class="bi bi-download"></i> Download ZIP
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -767,6 +850,15 @@ function renderJournalCard(entry) {
         <div class="journey-note-card-content blocknote-content">${contentHtml}</div>
         ${tagsHtml}
     </div>`;
+}
+
+function hideExportModal(event) {
+    if (!event || event.target.id === 'exportModal' ||
+        event.target.closest('.thesis-modal-close') ||
+        event.target.closest('.thesis-modal-footer button[type="button"]')) {
+        document.getElementById('exportModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
 }
 </script>
 {% endblock %}

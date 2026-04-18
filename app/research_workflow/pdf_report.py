@@ -11,7 +11,8 @@ from app.utils.time_utils import now_utc
 from app.models import (ResearchAttachment, FreeResearchQuestion,
                         ChecklistAnalysis, ChecklistAnswer)
 from app.utils.blocknote_utils import blocknote_to_html, blocknote_to_text
-from app.research_workflow.checklist_check_routes import get_all_ordered_items_for_checklist
+from app.utils.checklist_utils import get_all_ordered_items_for_checklist
+from app.services.export_service import resolve_checklist_id
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +267,7 @@ def _build_step_html(project, step_index, step):
 
     # Checklist answers
     if step.get('type') == 'checklist' and project.company_id:
-        checklist_id = step.get('config', {}).get('checklist_id')
+        checklist_id = resolve_checklist_id(project, step_index, step)
         if checklist_id:
             analysis = ChecklistAnalysis.query.filter_by(
                 user_id=project.user_id,

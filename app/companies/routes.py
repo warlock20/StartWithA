@@ -9,7 +9,7 @@ from datetime import datetime
 from app.utils.time_utils import parse_date_to_date_object, now_utc
 from app.utils.auth_utils import get_user_resource_or_403
 from itertools import groupby
-from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify
+from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
 from flask_login import current_user, login_required
 from app import db, cache
 from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
@@ -20,6 +20,7 @@ from app.models import (ResearchProject, Company, CompanyDocument, DestinationCh
 from app.models.research import FreeResearchQuestion
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.sector_service import SectorService
+from app.services.export_service import export_company_journey, safe_name
 from app.companies import companies_bp
 from app.celery_tasks import fetch_financial_data_task, fetch_sec_filings_task
 from app.utils.ticker_validator import TickerValidator
@@ -1089,3 +1090,51 @@ def company_journey(company_id):
                            findings_count=findings_count,
                            research_project=research_project,
                            free_research_questions=free_research_questions)
+
+
+@companies_bp.route('/<int:company_id>/journey/export', methods=['POST'])
+@login_required
+def export_company_journey_route(company_id):
+    """Export selected company journey components as a ZIP archive."""
+    company = Company.query.filter_by(
+        id=company_id, user_id=current_user.id
+    ).first_or_404()
+
+    # Determine company state (same logic as company_journey route)
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    if company.is_in_portfolio:
+        company_state = 'portfolio'
+    elif company.id in favorite_ids:
+        company_state = 'watchlist'
+    else:
+        company_state = 'new'
+
+    # Get selected components from form checkboxes
+    all_components = ['thesis', 'checkpoints', 'transactions', 'decisions',
+                      'journal', 'notes', 'research']
+    selected = [c for c in all_components if request.form.get(f'export_{c}')]
+
+    if not selected:
+        flash('Please select at least one component to export.', 'warning')
+        return redirect(url_for('companies.company_journey', company_id=company_id))
+
+    # Guard: transactions only for portfolio companies
+    if 'transactions' in selected and company_state != 'portfolio':
+        selected.remove('transactions')
+
+    zip_bytes = export_company_journey(
+        company=company,
+        user_id=current_user.id,
+        components=selected,
+        company_state=company_state
+    )
+
+    company_name = safe_name(company.name)
+    date_str = now_utc().strftime('%Y-%m-%d')
+    zip_filename = f"{company_name}_Journey_{date_str}.zip"
+
+    return Response(
+        zip_bytes,
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{zip_filename}"'}
+    )
