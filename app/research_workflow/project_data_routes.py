@@ -18,6 +18,7 @@ from app.research_workflow import research_workflow_bp
 from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.services.export_service import resolve_checklist_id
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
@@ -47,11 +48,11 @@ def project_summary(project_id):
 
             # Find checklist analysis if this is a checklist step
             if step.get('type') == 'checklist' and project.company_id:
-                checklist_id = step.get('config', {}).get('checklist_id')
+                checklist_id = resolve_checklist_id(project, step_index, step)
                 if checklist_id:
                     analysis = ChecklistAnalysis.query.filter_by(
                         user_id=current_user.id,
-                        checklist_id=int(checklist_id),
+                        checklist_id=checklist_id,
                         company_id=project.company_id
                     ).order_by(ChecklistAnalysis.start_date.desc()).first()
                     if analysis:

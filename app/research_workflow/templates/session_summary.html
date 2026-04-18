@@ -138,7 +138,7 @@
                                 <div class="answer-content">
                                     {% if current_ans_obj and current_ans_obj.answer_text %}
                                     <div class="answer-text">
-                                        {{ current_ans_obj.answer_text|markdown|safe }}
+                                        {{ current_ans_obj.answer_text|blocknote_to_html|safe }}
                                     </div>
                                     {% else %}
                                     <div class="no-answer">

@@ -1209,3 +1209,36 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* =============================================================================
+   EXPORT MODAL - Component selection
+   ============================================================================= */
+
+.export-component-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+    font-size: 0.9375rem;
+}
+
+.export-component-option:hover {
+    background-color: var(--gray-50);
+    border-color: var(--gray-300);
+}
+
+.export-component-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-600);
+    flex-shrink: 0;
+}
+
+.export-component-option i {
+    color: var(--gray-500);
+    font-size: 1rem;
+}
