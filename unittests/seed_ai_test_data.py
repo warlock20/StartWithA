@@ -19,19 +19,24 @@ Author: Generated for Investment Checklist Platform
 
 import argparse
 import random
+import sys
+import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Dict, Any, Optional, Tuple
 from faker import Faker
 from werkzeug.security import generate_password_hash
 
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app, db
 from app.models.user import User
 from app.models.company import Company
-from app.models.portfolio import Transaction, PortfolioPosition
+from app.models.portfolio import Transaction, PortfolioPosition, update_portfolio_position
 from app.models.journal import DecisionJournal
-from app.models.research import ResearchProject, WorkSession
-from app.models.checklist import ChecklistAnswer, DestinationCheckpoint
+from app.models.research import ResearchProject, WorkSession, ChecklistAnswer
+from app.models.checklist import DestinationCheckpoint
 from app.models.configuration import UserInvestmentProfile, InvestorProfile
 from app.models.idea_pipeline import MistakeLog
 
@@ -337,8 +342,8 @@ class AITestDataGenerator:
         if clean:
             self._clean_data()
         
-        self._create_companies()
         self._create_users_with_personas()
+        self._create_companies()
         self._create_transactions_and_patterns()
         self._create_research_and_quality()
         self._create_mistakes()
@@ -366,34 +371,42 @@ class AITestDataGenerator:
     def _clean_data(self):
         """Clean AI-related data (preserves core data)."""
         print("🧹 Cleaning AI test data...")
-        
-        # Delete in order of dependencies
+
+        # Delete in order of dependencies (most dependent first)
         try:
+            # Import JournalEntry and ResearchMetrics
+            from app.models.journal import JournalEntry
+            from app.models.research import ResearchMetrics
+
+            # Delete most dependent tables first (in reverse dependency order)
             db.session.query(DestinationCheckpoint).delete()
             db.session.query(ChecklistAnswer).delete()
             db.session.query(WorkSession).delete()
+            db.session.query(JournalEntry).delete()  # Must come before ResearchProject
             db.session.query(ResearchProject).delete()
+            db.session.query(ResearchMetrics).delete()  # Must come before User
             db.session.query(MistakeLog).delete()
+            db.session.query(Transaction).delete()  # Must come before DecisionJournal and Company
             db.session.query(DecisionJournal).delete()
-            db.session.query(Transaction).delete()
             db.session.query(PortfolioPosition).delete()
             db.session.query(UserInvestmentProfile).delete()
-            
-            # Only delete test users (by email pattern)
-            db.session.query(User).filter(
-                User.email.like('%@testpersona.ai')
-            ).delete(synchronize_session=False)
-            
-            # Only delete test companies (by ticker pattern)
+
+            # Delete test companies BEFORE users (companies reference users)
             db.session.query(Company).filter(
                 Company.ticker_symbol.like('TEST%')
             ).delete(synchronize_session=False)
-            
+
+            # Delete test users last (many tables reference users)
+            db.session.query(User).filter(
+                User.email.like('%@testpersona.ai')
+            ).delete(synchronize_session=False)
+
             db.session.commit()
             print("   ✨ Cleaned.")
         except Exception as e:
             db.session.rollback()
             print(f"   ⚠️  Error during cleanup: {e}")
+            print(f"   💡 Continuing anyway...")
     
     def _create_companies(self):
         """Create test companies."""
@@ -417,6 +430,7 @@ class AITestDataGenerator:
                 sector_id=sector['id'],
                 industry=random.choice(sector['industries']),
                 summary=fake.catch_phrase(),
+                user_id=random.choice(self.users).id,
             )
             
             db.session.add(company)
@@ -521,10 +535,14 @@ class AITestDataGenerator:
                 
                 if tx:
                     db.session.add(tx)
+                    db.session.flush()  # Get transaction ID
                     self.transactions.append(tx)
-                    
+
+                    # Update portfolio position
+                    update_portfolio_position(tx)
+
                     # Create decision journal for BUY transactions
-                    if tx.transaction_type == 'BUY':
+                    if tx.type == 'BUY':
                         journal = self._create_decision_journal(user, company, tx, persona)
                         if journal:
                             db.session.add(journal)
@@ -583,10 +601,10 @@ class AITestDataGenerator:
         tx = Transaction(
             user_id=user.id,
             company_id=company.id,
-            transaction_type='BUY',
+            type='BUY',
             quantity=quantity,
             price_per_share=round(new_price, 2),
-            transaction_date=tx_date,
+            date=tx_date,
         )
         
         # Track position
@@ -612,10 +630,10 @@ class AITestDataGenerator:
         tx = Transaction(
             user_id=user.id,
             company_id=company.id,
-            transaction_type='SELL',
+            type='SELL',
             quantity=total_shares,
             price_per_share=round(sell_price, 2),
-            transaction_date=tx_date,
+            date=tx_date,
         )
         
         # Clear position
@@ -633,10 +651,10 @@ class AITestDataGenerator:
         tx = Transaction(
             user_id=user.id,
             company_id=company.id,
-            transaction_type='BUY',
+            type='BUY',
             quantity=quantity,
             price_per_share=round(price, 2),
-            transaction_date=tx_date,
+            date=tx_date,
         )
         
         # Track position (will not be sold)
@@ -660,10 +678,10 @@ class AITestDataGenerator:
             tx = Transaction(
                 user_id=user.id,
                 company_id=company.id,
-                transaction_type='SELL',
+                type='SELL',
                 quantity=total_shares,
                 price_per_share=round(sell_price, 2),
-                transaction_date=tx_date,
+                date=tx_date,
             )
             
             del positions[company.id]
@@ -675,10 +693,10 @@ class AITestDataGenerator:
             tx = Transaction(
                 user_id=user.id,
                 company_id=company.id,
-                transaction_type='BUY',
+                type='BUY',
                 quantity=quantity,
                 price_per_share=round(price, 2),
-                transaction_date=tx_date,
+                date=tx_date,
             )
             
             if company.id not in positions:
@@ -700,10 +718,12 @@ class AITestDataGenerator:
         journal = DecisionJournal(
             user_id=user.id,
             company_id=company.id,
-            transaction_id=tx.id if hasattr(tx, 'id') else None,
-            thesis=thesis,
+            decision_type='invest',
+            decision_date=tx.date,
+            investment_thesis=thesis,
             confidence_score=confidence,
-            created_at=tx.transaction_date,
+            is_portfolio_decision=True,
+            created_at=tx.date,
         )
         
         # Create checkpoints for disciplined investors
@@ -774,8 +794,10 @@ class AITestDataGenerator:
                 status = 'pending'
             
             checkpoint = DestinationCheckpoint(
-                decision_journal_id=journal.id if hasattr(journal, 'id') else None,
-                description=description,
+                company_id=company.id,
+                user_id=journal.user_id,
+                metric=description,
+                expectation=f"Target: {description}",
                 target_date=target_date,
                 status=status,
             )
@@ -802,6 +824,7 @@ class AITestDataGenerator:
                 # Create research project
                 project = ResearchProject(
                     user_id=user.id,
+                    template_id=random.choice([20, 21, 22, 23, 24]),  # Use existing templates
                     company_id=journal.company_id,
                     project_name=f"Research: {fake.company()}",
                     status=random.choice(['completed', 'active']),
@@ -809,8 +832,9 @@ class AITestDataGenerator:
                     decision=random.choice(['invest', 'pass', 'watchlist']),
                 )
                 db.session.add(project)
+                db.session.flush()  # Flush to get project.id
                 research_count += 1
-                
+
                 # Create work sessions
                 num_sessions = int(quality / 20) + 1
                 for _ in range(num_sessions):
@@ -819,6 +843,7 @@ class AITestDataGenerator:
                         research_project_id=project.id,
                         start_time=fake.date_time_between(start_date='-6m', end_date='now'),
                         duration_minutes=random.randint(15, 120),
+                        needs_followup=False,
                     )
                     db.session.add(session)
         

@@ -1,0 +1,63 @@
+# Checkpoint Analysis - Destination Analysis Scheduler
+# Daily AI analysis of investment checkpoints/milestones
+
+name: "checkpoint_analysis"
+description: "Evaluate whether an investment checkpoint is on track based on the investor's research context"
+version: "1.0"
+category: "checkpoint"
+
+# AI Provider Configuration
+preferred_provider: "gemini"
+model: "gemini-2.5-flash"
+max_tokens: 1500
+temperature: 0.4
+
+last_modified: "2026-04-18"
+
+system_context: |
+  You are an investment research analyst. Analyze whether a specific investment
+  checkpoint/milestone is on track based on the investor's research context.
+  Be concise, evidence-based, and honest about uncertainty.
+
+template: |
+  ## Checkpoint Details
+  - Company: {company_name} ({ticker_symbol})
+  - Industry: {industry}
+  - Metric: {metric}
+  - Expectation: {expectation}
+  - Target Date: {target_date} ({days_until} days from today)
+  - Investor's Context: {description}
+
+  ## Investor's Research on This Company
+  {research_context}
+
+  ## Company Summary
+  {company_summary}
+  {journey_notes}
+
+  Based on the investor's own research and thesis, assess whether this checkpoint
+  is likely to be met by the target date.
+
+  Respond in JSON:
+  {{
+    "status_assessment": "on_track|at_risk|likely_met|likely_missed|insufficient_data",
+    "confidence": 0.0-1.0,
+    "title": "Short 5-10 word summary",
+    "analysis": "2-3 paragraph assessment citing specific evidence from the research",
+    "key_signals": ["signal 1", "signal 2", "signal 3"]
+  }}
+
+output_format: |
+  JSON object with:
+  - status_assessment: "on_track" | "at_risk" | "likely_met" | "likely_missed" | "insufficient_data"
+  - confidence: float between 0.0 and 1.0
+  - title: string (5-10 words)
+  - analysis: string (2-3 paragraphs)
+  - key_signals: array of strings (up to 5 signals)
+
+tuning_notes: |
+  - If research context is minimal, prefer "insufficient_data" over guessing
+  - Cite specific data points from the investor's research when possible
+  - For overdue checkpoints, focus on whether the metric was actually met
+  - Confidence should reflect data quality, not just the assessment direction
+  - Be honest about uncertainty rather than giving false confidence

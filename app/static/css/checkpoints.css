@@ -251,6 +251,93 @@
     margin-bottom: 1.5rem;
 }
 
+/* =============================================================================
+   AI ANALYSIS INLINE CARDS
+   Shown on checkpoint cards when AI has analyzed the checkpoint
+   ============================================================================= */
+.checkpoint-ai-analysis {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #f0f4ff 0%, #f5f3ff 100%);
+    border: 1px solid #ddd6fe;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.checkpoint-ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.checkpoint-ai-label {
+    font-weight: 600;
+    color: #6d28d9;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.checkpoint-ai-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.checkpoint-ai-status--on_track,
+.checkpoint-ai-status--likely_met {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.checkpoint-ai-status--at_risk {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.checkpoint-ai-status--likely_missed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.checkpoint-ai-status--insufficient_data {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.checkpoint-ai-text {
+    color: #374151;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.checkpoint-ai-signals {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.5rem;
+}
+
+.checkpoint-ai-signal {
+    font-size: 0.8rem;
+    color: #4b5563;
+}
+
+.checkpoint-ai-signal i {
+    color: #6d28d9;
+}
+
+.checkpoint-ai-meta {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 0.4rem;
+}
+
 /* Stat Card Icon Color Variants */
 .portfolio-stat-icon.red {
     background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);

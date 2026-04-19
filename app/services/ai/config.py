@@ -171,6 +171,9 @@ class AITaskType(Enum):
     # Bias check -> Gemini Pro preferred (nuanced analysis)
     BIAS_CHECK = "bias_check"
 
+    # Checkpoint analysis -> Default model (daily batch, cost-effective)
+    CHECKPOINT_ANALYSIS = "checkpoint_analysis"
+
 class EmbeddingProvider(Enum):
     """Available embedding providers (separate from text generation)"""
     LOCAL = "local"       # Sentence Transformers - free, offline
