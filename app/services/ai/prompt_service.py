@@ -322,6 +322,11 @@ def get_intelligence_prompt(name: str, **kwargs) -> str:
     return prompt_service.get_prompt('intelligence', name, **kwargs)
 
 
+def get_checkpoint_prompt(name: str, **kwargs) -> str:
+    """Convenience function for checkpoint prompts."""
+    return prompt_service.get_prompt('checkpoint', name, **kwargs)
+
+
 def list_all_prompts() -> Dict[str, List[str]]:
     """List all available prompts."""
     return prompt_service.list_all_prompts()

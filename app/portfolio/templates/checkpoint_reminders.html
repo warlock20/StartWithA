@@ -2,6 +2,39 @@
 
 {% block title %}Checkpoint Reminders{% endblock %}
 
+{% macro checkpoint_ai_analysis(cp) %}
+{% if checkpoint_insights and checkpoint_insights.get(cp.id) %}
+{% set insight = checkpoint_insights[cp.id] %}
+{% set status = insight.supporting_data.get('status_assessment', 'insufficient_data') if insight.supporting_data else 'insufficient_data' %}
+<div class="checkpoint-ai-analysis">
+    <div class="checkpoint-ai-header">
+        <div class="checkpoint-ai-label">
+            <i class="bi bi-cpu me-1"></i> AI Analysis
+        </div>
+        <span class="checkpoint-ai-status checkpoint-ai-status--{{ status }}">
+            {{ status | replace('_', ' ') | title }}
+        </span>
+    </div>
+    <div class="checkpoint-ai-text">{{ insight.insight_text | truncate(250) }}</div>
+    {% if insight.supporting_data and insight.supporting_data.get('key_signals') %}
+    <div class="checkpoint-ai-signals">
+        {% for signal in insight.supporting_data.key_signals[:3] %}
+        <span class="checkpoint-ai-signal"><i class="bi bi-dot"></i>{{ signal }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="checkpoint-ai-meta">
+        <small class="text-muted">
+            <i class="bi bi-clock me-1"></i>Updated {{ insight.created_at.strftime('%b %d, %H:%M UTC') }}
+            {% if insight.confidence %}
+            &middot; Confidence: {{ (insight.confidence * 100) | int }}%
+            {% endif %}
+        </small>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="dashboard-container">
 
@@ -57,6 +90,35 @@
                 <div class="portfolio-metric-value">{{ checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length }}</div>
             </div>
         </div>
+        {% if analysis_alerts %}
+        <div class="dashboard-alerts-strip">
+            {% for alert in analysis_alerts[:3] %}
+            <div class="dashboard-alert-card dashboard-alert-card--{{ 'danger' if alert.status == 'likely_missed' else 'warning' }}">
+                <i class="bi bi-{{ alert.icon }}"></i>
+                <span class="dashboard-alert-card__text">{{ alert.message }}</span>
+                <div class="dashboard-alert-card__actions">
+                    <a href="{{ url_for('portfolio.position_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                </div>
+            </div>
+            {% endfor %}
+            {% if analysis_alerts|length > 3 %}
+            <div class="dashboard-alerts-expanded" id="checkpoint-alerts-expanded">
+                {% for alert in analysis_alerts[3:] %}
+                <div class="dashboard-alert-card dashboard-alert-card--{{ 'danger' if alert.status == 'likely_missed' else 'warning' }}">
+                    <i class="bi bi-{{ alert.icon }}"></i>
+                    <span class="dashboard-alert-card__text">{{ alert.message }}</span>
+                    <div class="dashboard-alert-card__actions">
+                        <a href="{{ url_for('portfolio.position_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="dashboard-alerts-more" onclick="document.getElementById('checkpoint-alerts-expanded').classList.toggle('is-open'); this.textContent = this.textContent.includes('Show') ? 'Collapse' : 'Show {{ analysis_alerts|length - 3 }} more'">
+                Show {{ analysis_alerts|length - 3 }} more
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     {% set total_checkpoints = checkpoints.overdue|length + checkpoints.this_week|length + checkpoints.this_month|length + checkpoints.next_3_months|length + checkpoints.beyond|length %}
@@ -103,6 +165,7 @@
                 </div>
                 <div class="checkpoint-expectation">{{ cp.expectation }}</div>
             </div>
+            {{ checkpoint_ai_analysis(cp) }}
             <div class="checkpoint-footer">
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
@@ -156,6 +219,7 @@
                 </div>
                 <div class="checkpoint-expectation">{{ cp.expectation }}</div>
             </div>
+            {{ checkpoint_ai_analysis(cp) }}
             <div class="checkpoint-footer">
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
@@ -200,6 +264,7 @@
                 </div>
                 <div class="checkpoint-expectation">{{ cp.expectation }}</div>
             </div>
+            {{ checkpoint_ai_analysis(cp) }}
             <div class="checkpoint-footer">
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
@@ -245,6 +310,7 @@
                 </div>
                 <div class="checkpoint-expectation">{{ cp.expectation }}</div>
             </div>
+            {{ checkpoint_ai_analysis(cp) }}
             <div class="checkpoint-footer">
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
@@ -290,6 +356,7 @@
                 </div>
                 <div class="checkpoint-expectation">{{ cp.expectation }}</div>
             </div>
+            {{ checkpoint_ai_analysis(cp) }}
             <div class="checkpoint-footer">
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}

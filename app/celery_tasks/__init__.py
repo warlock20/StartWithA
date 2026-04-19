@@ -6,6 +6,7 @@ All Celery tasks organized by domain:
 - tasks_research: Competitor analysis, bias check, argos
 - tasks_financial: Financial data, SEC filings
 - tasks_data_retention: GDPR data retention / anonymization
+- tasks_checkpoint_analysis: Daily checkpoint AI analysis
 
 Tasks are automatically discovered by Celery when this module is imported.
 """
@@ -38,6 +39,10 @@ from app.celery_tasks.tasks_import import (
     portfolio_import_task,
 )
 
+from app.celery_tasks.tasks_checkpoint_analysis import (
+    analyze_all_checkpoints,
+)
+
 __all__ = [
     # Portfolio tasks
     'portfolio_ai_analysis_task',
@@ -55,4 +60,7 @@ __all__ = [
 
     # Data retention tasks
     'anonymize_ai_interactions',
+
+    # Checkpoint analysis tasks
+    'analyze_all_checkpoints',
 ]

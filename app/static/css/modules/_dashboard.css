@@ -629,6 +629,11 @@
     color: #92400e;
 }
 
+.dashboard-alert-card--danger {
+    background: var(--danger-50, #fef2f2);
+    color: #991b1b;
+}
+
 .dashboard-alert-card--info {
     background: var(--info-50);
     color: var(--info-600, #1e40af);

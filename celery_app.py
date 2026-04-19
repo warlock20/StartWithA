@@ -15,6 +15,7 @@ celery = Celery('app.celery_tasks',
                     'app.celery_tasks.tasks_financial',        # Financial data & SEC filings tasks
                     'app.celery_tasks.tasks_data_retention',   # GDPR data retention tasks
                     'app.celery_tasks.tasks_import',           # Portfolio import tasks
+                    'app.celery_tasks.tasks_checkpoint_analysis',  # Daily checkpoint analysis
                 ]
                 )
 
@@ -31,6 +32,10 @@ celery.conf.update(
         'gdpr-anonymize-ai-interactions': {
             'task': 'app.celery_tasks.tasks_data_retention.anonymize_ai_interactions',
             'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
+        },
+        'checkpoint-daily-analysis': {
+            'task': 'app.celery_tasks.tasks_checkpoint_analysis.analyze_all_checkpoints',
+            'schedule': crontab(hour=20, minute=0),  # Daily at 20:00 UTC (end of US market day)
         },
     },
 )

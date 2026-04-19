@@ -9,6 +9,7 @@ from app.utils.response_utils import json_success, json_error, json_not_found
 
 from app.constants import DEFAULT_CHECKPOINT_LOOKBACK_DAYS
 from app.services.portfolio_intelligence import get_upcoming_checkpoints
+from app.services.checkpoint_analysis_service import CheckpointAnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +47,19 @@ def update_checkpoint_status(checkpoint_id):
 @portfolio_bp.route('/checkpoints')
 @login_required
 def checkpoint_reminders():
-    """Checkpoint Reminders Dashboard"""    
+    """Checkpoint Reminders Dashboard"""
     checkpoints = get_upcoming_checkpoints(current_user.id, days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
-    
+
+    # Collect all checkpoint IDs and fetch AI insights
+    all_checkpoint_ids = []
+    for group in checkpoints.values():
+        all_checkpoint_ids.extend([cp.id for cp in group])
+
+    checkpoint_insights = CheckpointAnalysisService.get_checkpoint_insights(all_checkpoint_ids)
+    analysis_alerts = CheckpointAnalysisService.get_analysis_alerts(checkpoint_insights)
+
     return render_template('checkpoint_reminders.html',
-                          checkpoints=checkpoints)
+                          checkpoints=checkpoints,
+                          checkpoint_insights=checkpoint_insights,
+                          analysis_alerts=analysis_alerts)
     
