@@ -108,6 +108,12 @@ UPCOMING_CHECKPOINTS_LIMIT = 5
 DEFAULT_CHECKPOINT_LOOKBACK_DAYS = 30
 """Default number of days to look back/ahead for checkpoints"""
 
+CHECKPOINT_ANALYSIS_WINDOW_DAYS = 30
+"""Days ahead to include checkpoints for AI analysis (overdue + this window)"""
+
+CHECKPOINT_ANALYSIS_DEDUP_HOURS = 24
+"""Minimum hours between AI analyses of the same checkpoint"""
+
 MONTHLY_PERFORMANCE_MONTHS = 12
 """Number of months to show in monthly performance chart"""
 
