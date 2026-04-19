@@ -191,12 +191,12 @@ def my_projects():
     total_time = sum(p.total_hours_spent or 0 for p in all_projects)
 
     invest_count = sum(1 for p in all_projects if p.decision == 'invest')
-    pass_count = sum(1 for p in all_projects if p.decision == 'pass')
+    pass_count = len(too_hard_data)  # Includes both passed research projects and killed pipeline ideas
     total_decided = invest_count + pass_count
     selectivity_rate = round((pass_count / total_decided) * 100, 1) if total_decided > 0 else 0
 
     # --- Pipeline (sidebar) ---
-    idea_count = IdeaPipeline.query.filter_by(user_id=current_user.id).count()
+    idea_count = IdeaPipeline.query.filter_by(user_id=current_user.id, status='inbox').count()
     total_companies_researched = len(active_data) + len(watchlist_data) + len(too_hard_data) + invest_count
     avg_time = round(total_time / total_companies_researched, 1) if total_companies_researched > 0 else 0
     invest_rate = round((invest_count / total_companies_researched) * 100, 1) if total_companies_researched > 0 else 0
