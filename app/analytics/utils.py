@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app import db
@@ -20,7 +20,7 @@ def update_user_metrics(user_id):
     if not metrics:
         metrics = ResearchMetrics(user_id=user_id)
         db.session.add(metrics)
-    elif metrics.last_updated and (now_utc() - metrics.last_updated).total_seconds() < 900:
+    elif metrics.last_updated and (now_utc() - metrics.last_updated.replace(tzinfo=timezone.utc)).total_seconds() < 900:
         # Skip recomputation if updated within 15 minutes
         return metrics
 
