@@ -223,6 +223,17 @@
                             <i class="bi bi-folder2-open"></i>
                             Company Dashboard
                         </a>
+                        <a href="#" class="position-quick-action"
+                            onclick="event.preventDefault(); SendToSector.open({
+                                companyId: {{ company.id }},
+                                companyName: {{ company.name|tojson }},
+                                sectorName: {{ (company.sector.display_name if company.sector else '')|tojson }},
+                                sourcePage: 'position_detail',
+                                sourceDetail: 'Position Detail'
+                            })">
+                            <i class="bi bi-arrow-up-right"></i>
+                            Send to Sector
+                        </a>
                     </div>
                 </div>
             </div>
@@ -256,11 +267,13 @@
         </div>
     </div>
 </div>
+{% include 'components/send_to_sector_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
+<script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
 <script>
     // User's currency symbol from backend
     const currencySymbol = "{{ currency_symbol }}";

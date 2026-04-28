@@ -1,11 +1,13 @@
 # app/sectors/api_routes.py
 
-from flask import jsonify, request
+from flask import jsonify, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import func
 from app import db
-from app.models import Sector
+from app.models import Sector, SectorAnalysis, SectorSection, SectorNote, Company
 from app.services.sector_service import SectorService
 from app.sectors import sectors_bp
+from app.sectors.routes import initialize_default_sections
 from app.utils.response_utils import json_error, json_unauthorized
 
 
@@ -372,3 +374,184 @@ def get_all_sectors_analytics():
     }
 
     return jsonify(result)
+
+
+@sectors_bp.route('/api/send-to-sector', methods=['POST'])
+@login_required
+def send_to_sector():
+    """
+    Send content from company research to a sector notebook's Research Canvas.
+
+    Creates a SectorNote linked to the source company.
+    If the sector or its analysis notebook doesn't exist yet, creates them on the fly.
+
+    Request body (JSON):
+        sector_name: Name of the sector notebook (required)
+        content: The text content to send (required)
+        title: Title for the note (required)
+        company_id: ID of the source company (required)
+        section_id: Canvas section ID to file under (optional, null = inbox)
+        context_note: Optional context about why this is sector-relevant
+        source_page: Which page sent this (e.g. 'free_research', 'position_detail', 'thesis')
+        source_detail: Extra detail (e.g. step name, question text)
+
+    Returns:
+        JSON with created note and sector notebook URL
+    """
+    data = request.get_json()
+    if not data:
+        return json_error('No data provided')
+
+    sector_name = (data.get('sector_name') or '').strip()
+    content = (data.get('content') or '').strip()
+    title = (data.get('title') or '').strip()
+    company_id = data.get('company_id')
+
+    if not sector_name:
+        return json_error('Sector name is required')
+    if not content:
+        return json_error('Content is required')
+    if not title:
+        return json_error('Title is required')
+    if not company_id:
+        return json_error('Company ID is required')
+
+    # Verify company belongs to user
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_error('Company not found', status_code=404)
+
+    # Find or create sector
+    sector = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=True)
+    if not sector:
+        return json_error('Failed to create sector')
+
+    # Find or create sector analysis
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_id=sector.id
+    ).first()
+
+    if not analysis:
+        analysis = SectorAnalysis(
+            user_id=current_user.id,
+            sector_id=sector.id
+        )
+        db.session.add(analysis)
+        db.session.flush()
+        initialize_default_sections(analysis)
+
+    # Resolve section_id
+    section_id = data.get('section_id')
+    if section_id in ('', 'null', None, 0):
+        section_id = None
+    else:
+        section_id = int(section_id)
+        section = SectorSection.query.filter_by(id=section_id, sector_analysis_id=analysis.id).first()
+        if not section:
+            section_id = None
+
+    # Build source info
+    source_detail = data.get('source_detail', '')
+    source_title = f"From {company.ticker_symbol or company.name}"
+    if source_detail:
+        source_title += f" - {source_detail}"
+
+    source_reference = url_for('companies.company_dashboard', company_id=company.id, _external=True)
+
+    # Build full content (append context note if provided)
+    context_note = (data.get('context_note') or '').strip()
+    full_content = content
+    if context_note:
+        full_content += f"\n\n---\n**Context:** {context_note}"
+
+    # Get max sort_order for target section
+    if section_id:
+        max_order = db.session.query(func.max(SectorNote.sort_order)).filter_by(
+            section_id=section_id
+        ).scalar() or 0
+    else:
+        max_order = 0
+
+    try:
+        note = SectorNote(
+            sector_analysis_id=analysis.id,
+            section_id=section_id,
+            title=title,
+            content=full_content,
+            note_type='company_insight',
+            source_reference=source_reference,
+            source_title=source_title,
+            tags=company.ticker_symbol or '',
+            sort_order=max_order + 1
+        )
+        db.session.add(note)
+        db.session.flush()
+
+        # Link company via M2M
+        note.linked_companies.append(company)
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return json_error(f'Failed to save note: {str(e)}', status_code=500)
+
+    notebook_url = url_for('sectors.notebook', sector_name=sector.slug)
+
+    return jsonify({
+        'success': True,
+        'item': {
+            'id': note.id,
+            'title': note.title,
+            'section_id': note.section_id,
+            'note_type': note.note_type,
+            'created_at': note.created_at.isoformat()
+        },
+        'sector': {
+            'id': sector.id,
+            'display_name': sector.display_name,
+            'slug': sector.slug,
+            'notebook_url': notebook_url
+        }
+    }), 201
+
+
+@sectors_bp.route('/api/sector-sections', methods=['GET'])
+@login_required
+def get_sector_sections():
+    """
+    Get canvas sections for a sector, used by the Send to Sector modal.
+
+    Query params:
+        sector_name: Sector name or slug (required)
+
+    Returns:
+        JSON array of section objects, or empty array if sector/analysis doesn't exist yet
+    """
+    sector_name = request.args.get('sector_name', '').strip()
+    if not sector_name:
+        return jsonify([])
+
+    # Try to find sector (don't auto-create just for fetching sections)
+    sector = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=False)
+    if not sector:
+        return jsonify([])
+
+    analysis = SectorAnalysis.query.filter_by(
+        user_id=current_user.id,
+        sector_id=sector.id
+    ).first()
+
+    if not analysis:
+        return jsonify([])
+
+    sections = SectorSection.query.filter_by(
+        sector_analysis_id=analysis.id
+    ).order_by(SectorSection.sort_order).all()
+
+    return jsonify([{
+        'id': s.id,
+        'title': s.title,
+        'icon': s.icon,
+        'description': s.description
+    } for s in sections])

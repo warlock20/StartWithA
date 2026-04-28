@@ -3,8 +3,9 @@ Utility decorators for the investment checklist platform.
 """
 
 from functools import wraps
-from flask import jsonify
+from flask import jsonify, redirect, url_for, flash, request
 from flask_login import current_user
+from app.features import user_has_feature
 
 
 def require_ai_tokens(tokens_needed=5000):
@@ -56,6 +57,45 @@ def require_ai_tokens(tokens_needed=5000):
                 }), 429
 
             # User has enough tokens - proceed with request
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+
+def require_feature(feature_name):
+    """
+    Decorator to gate routes behind the feature tier system.
+
+    For page requests: redirects to dashboard with a flash message.
+    For API/AJAX requests: returns 403 JSON.
+
+    Usage:
+        @bp.route('/intelligence')
+        @login_required
+        @require_feature('portfolio_intelligence')
+        def intelligence_hub():
+            pass
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return jsonify({'error': 'Authentication required', 'success': False}), 401
+
+            if not user_has_feature(current_user, feature_name):
+                # API/AJAX requests get JSON
+                if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'error': 'Feature not available',
+                        'feature': feature_name,
+                        'success': False
+                    }), 403
+
+                # Page requests get redirected
+                flash('This feature is not available on your current plan.', 'info')
+                return redirect(url_for('portfolio.dashboard'))
+
             return f(*args, **kwargs)
 
         return decorated_function

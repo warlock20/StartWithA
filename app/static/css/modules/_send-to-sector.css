@@ -1,0 +1,56 @@
+/* =============================================================================
+   Send to Sector - Modal & Button Component
+   Reusable component for sending company research insights to sector notebooks.
+   ============================================================================= */
+
+/* Autocomplete dropdown */
+.sts-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1060;
+    background: var(--background-white, #fff);
+    border: 1px solid var(--border-medium, #dee2e6);
+    border-top: none;
+    border-radius: 0 0 var(--radius-md, 0.375rem) var(--radius-md, 0.375rem);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: none;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.sts-autocomplete-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-primary, #1f2937);
+    transition: background-color 0.15s;
+}
+
+.sts-autocomplete-item:hover {
+    background-color: var(--background-secondary, #f3f4f6);
+}
+
+.sts-autocomplete-item.sts-autocomplete-new {
+    color: var(--primary-600, #2563eb);
+    font-weight: 500;
+}
+
+/* Company insight badge on sector canvas notes */
+.note-card-type.company-insight {
+    color: var(--primary-600, #2563eb);
+    background: rgba(37, 99, 235, 0.08);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm, 0.25rem);
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.note-card-source-title {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #9ca3af);
+    margin-left: 0.5rem;
+}

@@ -99,6 +99,42 @@
 
 </div>
 
+<!-- Evaluation Modal — Unified Design -->
+<div class="modal fade" id="evaluateModal" tabindex="-1" aria-labelledby="evaluateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="evaluateModalLabel">
+                        Evaluate: <span id="eval-idea-name"></span>
+                    </h5>
+                    <small class="eval-subtitle">Pass or fail each criterion. First failure kills the idea.</small>
+                </div>
+                <div class="eval-header-actions">
+                    {% if has_feature('kill_checklists') %}
+                    <select class="eval-checklist-select" id="eval-checklist-select" onchange="onChecklistChange()">
+                        <!-- Options populated by JS -->
+                    </select>
+                    {% endif %}
+                    <a href="#" class="position-btn" id="eval-edit-btn">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="eval-criteria-list">
+                <!-- Criteria cards rendered by JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="position-btn" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="eval-submit-btn" id="eval-submit-btn" onclick="submitEvaluation()">
+                    <i class="bi bi-shield-check"></i> Submit Evaluation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Tips Modal -->
 {% set tips_title = "Inbox Best Practices" %}
 {% set tips_intro = "Make the most of your idea inbox:" %}
@@ -118,11 +154,26 @@
 {% if idea_count > 0 %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
 <script>
+const ideasData = {{ ideas_json|safe }};
+const checklistsData = {{ checklists_json|safe }};
+const defaultChecklistId = '{{ default_checklist_id }}';
+let inboxTable = null;
+let currentEvalIdeaId = null;
+let currentEvalUrl = null;
+let currentChecklistId = defaultChecklistId;
+const savedAnswers = {};
+
+/* ── Modal lifecycle: reset button + save answers on every hide ── */
+document.getElementById('evaluateModal').addEventListener('hidden.bs.modal', function() {
+    if (currentEvalIdeaId) {
+        saveCurrentAnswers();
+    }
+    var btn = document.getElementById('eval-submit-btn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-shield-check"></i> Submit Evaluation';
+});
+
 document.addEventListener('DOMContentLoaded', function() {
-
-    const ideasData = {{ ideas_json|safe }};
-    let inboxTable = null;
-
     if (ideasData.length > 0) {
         inboxTable = createDataTable('#inbox-table', {
             data: ideasData,
@@ -222,20 +273,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         const action = row.action;
                         var html = '<div class="idea-actions" style="justify-content: flex-end;">';
 
-                        if (action.type === 'kill_dropdown') {
-                            html += '<div class="btn-group">';
-                            html += '<button type="button" class="idea-action-btn action-kill dropdown-toggle" data-bs-toggle="dropdown">';
-                            html += action.label;
+                        if (action.type === 'evaluate') {
+                            html += '<button class="idea-action-btn action-kill" onclick="openEvaluateModal(' + row.id + ', \'' + row.name.replace(/'/g, "\\'") + '\', \'' + action.url + '\')">';
+                            html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
                             html += '</button>';
-                            html += '<ul class="dropdown-menu dropdown-menu-end">';
-                            action.checklists.forEach(function(c) {
-                                html += '<li><a class="dropdown-item" href="' + c.url + '">' + c.name + '</a></li>';
-                            });
-                            html += '</ul></div>';
                         } else {
-                            var btnClass = 'action-continue';
-                            if (action.type === 'kill') btnClass = 'action-kill';
-                            else if (action.type === 'promote') btnClass = 'action-promote';
+                            var btnClass = 'action-promote';
                             html += '<a href="' + action.url + '" class="idea-action-btn ' + btnClass + '">';
                             html += '<i class="bi ' + action.icon + '"></i> ' + action.label;
                             html += '</a>';
@@ -256,20 +299,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Search filter
-        document.getElementById('inbox-search').addEventListener('input', function() {
-            applyFilters();
-        });
-
-        // State filter
-        document.getElementById('inbox-state-filter').addEventListener('change', function() {
-            applyFilters();
-        });
-
-        // Purpose filter
-        document.getElementById('inbox-purpose-filter').addEventListener('change', function() {
-            applyFilters();
-        });
+        document.getElementById('inbox-search').addEventListener('input', applyFilters);
+        document.getElementById('inbox-state-filter').addEventListener('change', applyFilters);
+        document.getElementById('inbox-purpose-filter').addEventListener('change', applyFilters);
 
         function applyFilters() {
             var searchVal = document.getElementById('inbox-search').value.toLowerCase().trim();
@@ -289,6 +321,260 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+/* ── Checklist selector (pro only) ── */
+function onChecklistChange() {
+    var select = document.getElementById('eval-checklist-select');
+    currentChecklistId = select.value;
+    if (currentEvalIdeaId) {
+        saveCurrentAnswers();
+        renderCriteria(currentEvalIdeaId, currentChecklistId);
+    }
+    updateEditButton();
+}
+
+function updateEditButton() {
+    var cl = checklistsData[currentChecklistId];
+    if (cl) {
+        document.getElementById('eval-edit-btn').href = cl.edit_url;
+    }
+}
+
+/* ── Open modal ── */
+function openEvaluateModal(ideaId, ideaName, url) {
+    currentEvalIdeaId = ideaId;
+    currentEvalUrl = url;
+    document.getElementById('eval-idea-name').textContent = ideaName;
+
+    // Populate checklist selector (pro users)
+    var selectEl = document.getElementById('eval-checklist-select');
+    if (selectEl) {
+        var html = '';
+        for (var clId in checklistsData) {
+            var selected = (clId === currentChecklistId) ? ' selected' : '';
+            html += '<option value="' + clId + '"' + selected + '>' + checklistsData[clId].name + '</option>';
+        }
+        selectEl.innerHTML = html;
+    }
+
+    updateEditButton();
+    renderCriteria(ideaId, currentChecklistId);
+
+    var modal = new bootstrap.Modal(document.getElementById('evaluateModal'));
+    modal.show();
+}
+
+/* ── Render criteria cards ── */
+function renderCriteria(ideaId, checklistId) {
+    var cl = checklistsData[checklistId];
+    if (!cl) return;
+    var criteriaData = cl.criteria;
+    var cacheKey = ideaId + '-' + checklistId;
+
+    var html = '';
+    criteriaData.forEach(function(c, i) {
+        var saved = (savedAnswers[cacheKey] && savedAnswers[cacheKey][c.id]) || null;
+        var passChecked = saved ? (saved.passed ? 'checked' : '') : 'checked';
+        var failChecked = saved ? (!saved.passed ? 'checked' : '') : '';
+        var notesVal = saved ? saved.notes : '';
+        var cardClass = 'eval-criterion-card';
+        if (saved) {
+            cardClass += saved.passed ? ' is-passed' : ' is-failed';
+        }
+
+        html += '<div class="' + cardClass + '" data-criterion-id="' + c.id + '">';
+        html += '  <div class="eval-criterion-header">';
+        html += '    <span class="eval-criterion-number">' + (i + 1) + '</span>';
+        html += '    <span class="eval-criterion-question">' + c.question + '</span>';
+        html += '  </div>';
+        if (c.help_text) {
+            html += '  <div class="eval-criterion-help"><i class="bi bi-info-circle"></i> ' + c.help_text + '</div>';
+        }
+        html += '  <div class="eval-criterion-actions">';
+        html += '    <label class="eval-toggle eval-toggle-pass">';
+        html += '      <input type="radio" name="criterion_' + c.id + '" value="true" ' + passChecked + ' onchange="updateCardState(this)">';
+        html += '      <span><i class="bi bi-check-circle"></i> Pass</span>';
+        html += '    </label>';
+        html += '    <label class="eval-toggle eval-toggle-fail">';
+        html += '      <input type="radio" name="criterion_' + c.id + '" value="false" ' + failChecked + ' onchange="updateCardState(this)">';
+        html += '      <span><i class="bi bi-x-circle"></i> Fail</span>';
+        html += '    </label>';
+        html += '  </div>';
+        html += '  <textarea class="eval-notes" placeholder="Notes (optional)" data-criterion-id="' + c.id + '">' + notesVal + '</textarea>';
+        html += '</div>';
+    });
+
+    // Quick Kill section
+    var savedQuickKill = (savedAnswers[cacheKey] && savedAnswers[cacheKey]._quickKillReason) || '';
+    html += '<div class="eval-quick-kill">';
+    html += '  <button class="eval-quick-kill-toggle" onclick="toggleQuickKill()">';
+    html += '    <i class="bi bi-x-circle"></i> Kill for another reason';
+    html += '  </button>';
+    html += '  <div class="eval-quick-kill-form" id="quick-kill-form">';
+    html += '    <label>Why are you killing this idea?</label>';
+    html += '    <textarea class="eval-quick-kill-reason" id="quick-kill-reason" placeholder="e.g. CEO just resigned, regulatory risk too high, lost conviction...">' + savedQuickKill + '</textarea>';
+    html += '    <button class="eval-quick-kill-btn" id="quick-kill-btn" onclick="submitQuickKill()">';
+    html += '      <i class="bi bi-x-circle"></i> Kill Idea';
+    html += '    </button>';
+    html += '  </div>';
+    html += '</div>';
+
+    document.getElementById('eval-criteria-list').innerHTML = html;
+
+    if (savedQuickKill) {
+        document.getElementById('quick-kill-form').classList.add('is-open');
+    }
+}
+
+function updateCardState(radio) {
+    var card = radio.closest('.eval-criterion-card');
+    card.classList.remove('is-passed', 'is-failed');
+    card.classList.add(radio.value === 'true' ? 'is-passed' : 'is-failed');
+}
+
+function toggleQuickKill() {
+    var form = document.getElementById('quick-kill-form');
+    form.classList.toggle('is-open');
+    if (form.classList.contains('is-open')) {
+        document.getElementById('quick-kill-reason').focus();
+    }
+}
+
+/* ── Save / restore answers per idea+checklist ── */
+function saveCurrentAnswers() {
+    if (!currentEvalIdeaId) return;
+    var cl = checklistsData[currentChecklistId];
+    if (!cl) return;
+    var cacheKey = currentEvalIdeaId + '-' + currentChecklistId;
+    var answers = {};
+
+    cl.criteria.forEach(function(c) {
+        var radios = document.getElementsByName('criterion_' + c.id);
+        var passed = true;
+        for (var r = 0; r < radios.length; r++) {
+            if (radios[r].checked) {
+                passed = radios[r].value === 'true';
+                break;
+            }
+        }
+        var notesEl = document.querySelector('.eval-notes[data-criterion-id="' + c.id + '"]');
+        answers[c.id] = { passed: passed, notes: notesEl ? notesEl.value : '' };
+    });
+
+    var quickKillEl = document.getElementById('quick-kill-reason');
+    if (quickKillEl && quickKillEl.value.trim()) {
+        answers._quickKillReason = quickKillEl.value;
+    }
+
+    savedAnswers[cacheKey] = answers;
+}
+
+/* ── Submit evaluation ── */
+function submitEvaluation() {
+    var cl = checklistsData[currentChecklistId];
+    if (!cl) return;
+    var answers = [];
+    var killed = false;
+    var killQuestion = '';
+
+    cl.criteria.forEach(function(c) {
+        var radios = document.getElementsByName('criterion_' + c.id);
+        var passed = true;
+        for (var r = 0; r < radios.length; r++) {
+            if (radios[r].checked) {
+                passed = radios[r].value === 'true';
+                break;
+            }
+        }
+        var notesEl = document.querySelector('.eval-notes[data-criterion-id="' + c.id + '"]');
+        answers.push({ criterion_id: c.id, passed: passed, notes: notesEl ? notesEl.value : '' });
+        if (!passed && !killed) {
+            killed = true;
+            killQuestion = c.question;
+        }
+    });
+
+    var submitBtn = document.getElementById('eval-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Evaluating...';
+
+    fetch(currentEvalUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answers, checklist_id: parseInt(currentChecklistId) })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('evaluateModal'));
+        modal.hide();
+
+        var cacheKey = currentEvalIdeaId + '-' + currentChecklistId;
+        delete savedAnswers[cacheKey];
+
+        if (data.outcome === 'killed') {
+            if (inboxTable) {
+                inboxTable.getRows().forEach(function(row) {
+                    if (row.getData().id === currentEvalIdeaId) row.delete();
+                });
+            }
+            showToast('Killed: ' + data.idea_name + '. Reason: ' + data.kill_reason, 'warning');
+        } else if (data.outcome === 'survived') {
+            window.location.href = data.promote_url;
+        }
+    })
+    .catch(function(err) {
+        showToast('Error submitting evaluation. Please try again.', 'danger');
+    });
+}
+
+/* ── Quick Kill ── */
+function submitQuickKill() {
+    var reason = document.getElementById('quick-kill-reason').value.trim();
+    if (!reason) {
+        document.getElementById('quick-kill-reason').style.borderColor = 'var(--danger-500)';
+        document.getElementById('quick-kill-reason').focus();
+        return;
+    }
+
+    var btn = document.getElementById('quick-kill-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Killing...';
+
+    fetch(currentEvalUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quick_kill_reason: reason })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('evaluateModal'));
+        modal.hide();
+
+        var cacheKey = currentEvalIdeaId + '-' + currentChecklistId;
+        delete savedAnswers[cacheKey];
+
+        if (inboxTable) {
+            inboxTable.getRows().forEach(function(row) {
+                if (row.getData().id === currentEvalIdeaId) row.delete();
+            });
+        }
+        showToast('Killed: ' + data.idea_name + '. Reason: ' + data.kill_reason, 'warning');
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-x-circle"></i> Kill Idea';
+        showToast('Error killing idea. Please try again.', 'danger');
+    });
+}
+
+function showToast(message, type) {
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    alert.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;max-width:400px;';
+    alert.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    document.body.appendChild(alert);
+    setTimeout(function() { alert.remove(); }, 5000);
+}
 </script>
 {% endif %}
 {% endblock %}

@@ -216,6 +216,7 @@
 </div>
 
 {% include 'partials/_companion_widget.html' %}
+{% include 'components/send_to_sector_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -225,13 +226,18 @@
 {% include 'components/blocknote_editor_include.html' %}
 <!-- AI Research Assistant -->
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
+<!-- Send to Sector -->
+<script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
 <!-- SortableJS is already included in base -->
 
 <script>
 const FreeResearch = {
     projectId: {{ project.id }},
     stepIndex: {{ step_index }},
+    companyId: {{ project.company.id }},
     companyName: {{ project.company.name|tojson }},
+    sectorName: {{ (project.company.sector.display_name if project.company.sector else '')|tojson }},
+    stepName: {{ step.name|tojson }},
     questions: [],
     questionBank: [],
     editors: {},  // Store BlockNote editor instances
@@ -531,6 +537,10 @@ const FreeResearch = {
                                 </button>
                                 <button class="btn btn-sm btn-outline-primary" onclick="FreeResearch.saveToQuestionBank(${question.id})">
                                     <i class="bi bi-bookmark-plus"></i> Save to Bank
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="FreeResearch.sendToSector(${question.id})"
+                                        data-bs-toggle="tooltip" title="Send this insight to a sector notebook">
+                                    <i class="bi bi-arrow-up-right"></i> Send to Sector
                                 </button>
                             </div>
                             ${question.status === 'exploring' ? '<p class="fr-status-hint mb-0"><i class="bi bi-info-circle me-1"></i>Click the button above to mark this question as answered</p>' : ''}
@@ -898,6 +908,30 @@ const FreeResearch = {
             console.error('Error deleting question:', error);
             this.showToast('Error deleting', 'error');
         }
+    },
+
+    sendToSector(questionId) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return;
+
+        // Try to get selected text from the editor, fall back to empty for freeform
+        let selectedText = '';
+        const editor = this.editors[questionId];
+        if (editor) {
+            const selection = window.getSelection();
+            if (selection && selection.toString().trim()) {
+                selectedText = selection.toString().trim();
+            }
+        }
+
+        SendToSector.open({
+            companyId: this.companyId,
+            companyName: this.companyName,
+            sectorName: this.sectorName,
+            content: selectedText,
+            sourcePage: 'free_research',
+            sourceDetail: this.stepName
+        });
     },
 
     async saveToQuestionBank(questionId) {
