@@ -17,6 +17,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def update_project_activity(project_id):
+    """Update project's last_worked_at timestamp to track user activity"""
+    project = ResearchProject.query.get(project_id)
+    if project:
+        project.last_worked_at = now_utc()
+        db.session.commit()
+
+
 # =============================================================================
 # Free Research Questions CRUD
 # =============================================================================
@@ -85,6 +93,9 @@ def add_free_research_question(project_id, step_index):
     db.session.add(question)
     db.session.commit()
 
+    # Update project activity timestamp
+    update_project_activity(project_id)
+
     logger.info(f"User {current_user.id} added question {question.id} to project {project_id} step {step_index}")
 
     return jsonify({
@@ -132,6 +143,9 @@ def update_free_research_question(question_id):
     question.updated_at = now_utc()
     db.session.commit()
 
+    # Update project activity timestamp
+    update_project_activity(question.project_id)
+
     return jsonify({
         'success': True,
         'question': {
@@ -153,8 +167,13 @@ def delete_free_research_question(question_id):
     if question.user_id != current_user.id:
         return json_unauthorized('Access denied')
 
+    project_id = question.project_id
+
     db.session.delete(question)
     db.session.commit()
+
+    # Update project activity timestamp
+    update_project_activity(project_id)
 
     logger.info(f"User {current_user.id} deleted question {question_id}")
 
@@ -181,6 +200,9 @@ def reorder_free_research_questions(project_id, step_index):
             question.order_index = index
 
     db.session.commit()
+
+    # Update project activity timestamp
+    update_project_activity(project_id)
 
     return json_success()
 
