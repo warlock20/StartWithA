@@ -2,7 +2,7 @@
 <aside class="app-sidebar" id="appSidebar">
     <nav class="sidebar-nav">
 
-        {# Dashboard (standalone) #}
+        {# Dashboard (standalone) — CORE #}
         <a href="{{ url_for('dashboard.index') }}" class="sidebar-item" data-tooltip="Dashboard">
             <i class="bi bi-grid-1x2-fill"></i>
             <span class="sidebar-item-text">Dashboard</span>
@@ -17,6 +17,7 @@
             <i class="bi bi-chevron-right section-arrow"></i>
         </button>
         <div class="sidebar-subitems open">
+            {# CORE #}
             <a href="{{ url_for('ideas.inbox') }}" class="sidebar-item" data-tooltip="Idea Inbox">
                 <i class="bi bi-inbox-fill"></i>
                 <span class="sidebar-item-text">Idea Inbox</span>
@@ -25,39 +26,57 @@
                 <i class="bi bi-file-earmark-text-fill"></i>
                 <span class="sidebar-item-text">Company Research</span>
             </a>
+
+            {# PRO #}
+            {% if has_feature('sectors') %}
             <a href="{{ url_for('sectors.index') }}" class="sidebar-item" data-tooltip="Sector Research">
                 <i class="bi bi-pie-chart-fill"></i>
                 <span class="sidebar-item-text">Sector Research</span>
             </a>
+            {% endif %}
+            {% if has_feature('start_with_a') %}
             <a href="{{ url_for('research_workflow.start_with_a') }}" class="sidebar-item" data-tooltip="Start with A's">
                 <i class="bi bi-globe2"></i>
                 <span class="sidebar-item-text">Start with A's</span>
             </a>
+            {% endif %}
+            {% if has_feature('analytics') %}
             <a href="{{ url_for('analytics.dashboard') }}" class="sidebar-item" data-tooltip="Analytics">
                 <i class="bi bi-bar-chart-fill"></i>
                 <span class="sidebar-item-text">Analytics</span>
             </a>
+            {% endif %}
 
-            {# Tools sub-section (collapsible within Research) #}
+            {# Tools sub-section — all PRO #}
+            {% if has_feature('research_templates') or has_feature('kill_checklists') or has_feature('investment_checklists') or has_feature('question_bank') %}
             <button class="sidebar-section-toggle" onclick="toggleSidebarSection(this)">
                 <i class="bi bi-tools section-icon"></i>
                 <span class="sidebar-item-text">Tools</span>
                 <i class="bi bi-chevron-right section-arrow"></i>
             </button>
             <div class="sidebar-subitems">
+                {% if has_feature('research_templates') %}
                 <a href="{{ url_for('research_workflow.template_list') }}" class="sidebar-item" data-tooltip="Templates">
                     <span class="sidebar-item-text">Research Templates</span>
                 </a>
+                {% endif %}
+                {% if has_feature('kill_checklists') %}
                 <a href="{{ url_for('ideas.manage_kill_checklists') }}" class="sidebar-item" data-tooltip="Kill Checklists">
                     <span class="sidebar-item-text">Kill Checklists</span>
                 </a>
+                {% endif %}
+                {% if has_feature('investment_checklists') %}
                 <a href="{{ url_for('checklists.list_checklists') }}" class="sidebar-item" data-tooltip="Inv. Checklists">
                     <span class="sidebar-item-text">Investment Checklists</span>
                 </a>
+                {% endif %}
+                {% if has_feature('question_bank') %}
                 <a href="{{ url_for('question_bank.index') }}" class="sidebar-item" data-tooltip="Question Bank">
                     <span class="sidebar-item-text">Question Bank</span>
                 </a>
+                {% endif %}
             </div>
+            {% endif %}
         </div>
 
         <div class="sidebar-divider"></div>
@@ -69,6 +88,7 @@
             <i class="bi bi-chevron-right section-arrow"></i>
         </button>
         <div class="sidebar-subitems open">
+            {# CORE #}
             <a href="{{ url_for('companies.list_companies') }}" class="sidebar-item" data-tooltip="Companies">
                 <i class="bi bi-building"></i>
                 <span class="sidebar-item-text">Company Directory</span>
@@ -77,19 +97,26 @@
                 <i class="bi bi-briefcase-fill"></i>
                 <span class="sidebar-item-text">Portfolio</span>
             </a>
+
+            {# PRO #}
+            {% if has_feature('portfolio_intelligence') %}
             <a href="{{ url_for('portfolio.intelligence_hub') }}" class="sidebar-item" data-tooltip="Intelligence">
                 <i class="bi bi-lightning-charge-fill"></i>
                 <span class="sidebar-item-text">Portfolio Intelligence</span>
             </a>
+            {% endif %}
+            {% if has_feature('portfolio_journal') %}
             <a href="{{ url_for('portfolio.decision_journal_list') }}" class="sidebar-item" data-tooltip="Journal">
                 <i class="bi bi-journal-bookmark-fill"></i>
                 <span class="sidebar-item-text">Portfolio Journal</span>
             </a>
+            {% endif %}
         </div>
 
+        {# ===== KNOWLEDGE (collapsible) — all PRO ===== #}
+        {% if has_feature('knowledge_hub') %}
         <div class="sidebar-divider"></div>
 
-        {# ===== KNOWLEDGE (collapsible) ===== #}
         <button class="sidebar-section-toggle expanded" onclick="toggleSidebarSection(this)">
             <i class="bi bi-book-half section-icon"></i>
             <span class="sidebar-item-text">Knowledge</span>
@@ -100,23 +127,32 @@
                 <i class="bi bi-book-half"></i>
                 <span class="sidebar-item-text">Knowledge Hub</span>
             </a>
+            {% if has_feature('learning_dashboard') %}
             <a href="{{ url_for('learning.learning_dashboard') }}" class="sidebar-item" data-tooltip="Learning">
                 <i class="bi bi-mortarboard-fill"></i>
                 <span class="sidebar-item-text">Learning Dashboard</span>
             </a>
+            {% endif %}
+            {% if has_feature('learning_paths') %}
             <a href="{{ url_for('learning.learning_paths') }}" class="sidebar-item" data-tooltip="Learning Paths">
                 <i class="bi bi-signpost-split-fill"></i>
                 <span class="sidebar-item-text">Learning Paths</span>
             </a>
+            {% endif %}
+            {% if has_feature('mistake_log') %}
             <a href="{{ url_for('learning.mistake_log') }}" class="sidebar-item" data-tooltip="Mistakes">
                 <i class="bi bi-exclamation-triangle-fill"></i>
                 <span class="sidebar-item-text">Mistake Log</span>
             </a>
+            {% endif %}
+            {% if has_feature('weekly_review') %}
             <a href="{{ url_for('learning.weekly_review') }}" class="sidebar-item" data-tooltip="Weekly Review">
                 <i class="bi bi-calendar-check-fill"></i>
                 <span class="sidebar-item-text">Weekly Review</span>
             </a>
+            {% endif %}
         </div>
+        {% endif %}
 
     </nav>
 </aside>

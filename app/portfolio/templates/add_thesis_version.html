@@ -173,6 +173,16 @@
                     <!-- Submit -->
                     <div class="thesis-form-actions">
                         <a href="{{ return_url or url_for('companies.company_journey', company_id=company.id) }}" class="thesis-btn">Cancel</a>
+                        <button type="button" class="thesis-btn"
+                                onclick="SendToSector.open({
+                                    companyId: {{ company.id }},
+                                    companyName: {{ company.name|tojson }},
+                                    sectorName: {{ (company.sector.display_name if company.sector else '')|tojson }},
+                                    sourcePage: 'thesis',
+                                    sourceDetail: 'Thesis Update'
+                                })">
+                            <i class="bi bi-arrow-up-right"></i> Send to Sector
+                        </button>
                         <button type="submit" class="thesis-btn primary">
                             <i class="bi bi-check-circle"></i> Save Version {{ next_version }}
                         </button>
@@ -321,11 +331,13 @@
     </div>
 </div>
 {% endif %}
+{% include 'components/send_to_sector_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
+<script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
 <script>
 let bullCaseCount = 1;
 let bearCaseCount = 1;

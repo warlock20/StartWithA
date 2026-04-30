@@ -240,7 +240,84 @@
 
                             <!-- Notes Canvas Area -->
                             <div class="notes-canvas" id="notesCanvas">
-                                {% if canvas_sections|length == 0 %}
+                                {% if collector_notes|length > 0 %}
+                                <!-- Inbox: unsorted notes -->
+                                <div class="canvas-section canvas-section--inbox">
+                                    <div class="canvas-section-header">
+                                        <div class="canvas-section-title">
+                                            <span class="canvas-section-icon">📥</span>
+                                            <h2>Inbox</h2>
+                                            <span class="badge bg-secondary ms-2">{{ collector_notes|length }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="note-cards-grid" data-section-id="">
+                                        {% for note in collector_notes %}
+                                        <div class="note-card" draggable="true"
+                                             data-note-id="{{ note.id }}"
+                                             data-note-title="{{ note.title }}"
+                                             data-note-content="{{ note.content | escape }}"
+                                             data-note-content-html="{{ note.content | blocknote_to_html | escape }}"
+                                             data-note-source-url="{{ note.source_reference or '' }}"
+                                             data-note-source-title="{{ note.source_title or '' }}"
+                                             data-note-tags="{{ note.tags or '' }}"
+                                             data-section-id="">
+                                            <div class="note-card-header">
+                                                <h3 class="note-card-title">{{ note.title }}</h3>
+                                                <div class="note-card-menu-wrapper">
+                                                    <button class="note-card-menu-btn" onclick="toggleNoteMenu({{ note.id }})">
+                                                        <i class="bi bi-three-dots-vertical"></i>
+                                                    </button>
+                                                    <div class="note-card-dropdown" id="noteMenu{{ note.id }}" style="display: none;">
+                                                        <button onclick="viewNote({{ note.id }})">
+                                                            <i class="bi bi-eye"></i> View Full Note
+                                                        </button>
+                                                        <button onclick="editNote({{ note.id }})">
+                                                            <i class="bi bi-pencil"></i> Edit
+                                                        </button>
+                                                        <button onclick="deleteNote({{ note.id }})" class="text-danger">
+                                                            <i class="bi bi-trash"></i> Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
+                                            <div class="note-card-footer">
+                                                <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% elif note.note_type == 'company_insight' %}company-insight{% endif %}">
+                                                    {% if note.note_type == 'ai_insight' %}
+                                                        <i class="bi bi-sparkles"></i> AI Insight
+                                                    {% elif note.note_type == 'web_clip' %}
+                                                        <i class="bi bi-scissors"></i> Web Clip
+                                                    {% elif note.note_type == 'snippet' %}
+                                                        <i class="bi bi-bookmark"></i> Snippet
+                                                    {% elif note.note_type == 'company_insight' %}
+                                                        <i class="bi bi-building"></i> Company Insight
+                                                    {% else %}
+                                                        <i class="bi bi-pencil"></i> Note
+                                                    {% endif %}
+                                                </div>
+                                                {% if note.source_title and note.note_type == 'company_insight' %}
+                                                <span class="note-card-source-title">{{ note.source_title }}</span>
+                                                {% endif %}
+                                                {% if note.source_reference %}
+                                                <a href="{{ note.source_reference }}" target="_blank" class="note-card-source">
+                                                    <i class="bi bi-box-arrow-up-right"></i> Source
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                            {% if note.tags %}
+                                            <div class="note-card-tags">
+                                                {% for tag in note.tags.split(',') %}
+                                                <span class="note-card-tag">{{ tag.strip() }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if canvas_sections|length == 0 and collector_notes|length == 0 %}
                                 <!-- Empty State -->
                                 <div class="canvas-empty-state" id="canvasEmptyState">
                                     <i class="bi bi-kanban" style="font-size: 3rem; color: #d1d5db;"></i>
@@ -250,7 +327,9 @@
                                         <i class="bi bi-plus-circle"></i> Create First Section
                                     </button>
                                 </div>
-                                {% else %}
+                                {% endif %}
+
+                                {% if canvas_sections|length > 0 %}
                                 <!-- Render Sections -->
                                 {% for section in canvas_sections %}
                                 <div class="canvas-section" data-section-id="{{ section.id }}">
@@ -312,17 +391,22 @@
                                             </div>
                                             <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
                                             <div class="note-card-footer">
-                                                <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
+                                                <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% elif note.note_type == 'company_insight' %}company-insight{% endif %}">
                                                     {% if note.note_type == 'ai_insight' %}
                                                         <i class="bi bi-sparkles"></i> AI Insight
                                                     {% elif note.note_type == 'web_clip' %}
                                                         <i class="bi bi-scissors"></i> Web Clip
                                                     {% elif note.note_type == 'snippet' %}
                                                         <i class="bi bi-bookmark"></i> Snippet
+                                                    {% elif note.note_type == 'company_insight' %}
+                                                        <i class="bi bi-building"></i> Company Insight
                                                     {% else %}
                                                         <i class="bi bi-pencil"></i> Note
                                                     {% endif %}
                                                 </div>
+                                                {% if note.source_title and note.note_type == 'company_insight' %}
+                                                <span class="note-card-source-title">{{ note.source_title }}</span>
+                                                {% endif %}
                                                 {% if note.source_reference %}
                                                 <a href="{{ note.source_reference }}" target="_blank" class="note-card-source">
                                                     <i class="bi bi-box-arrow-up-right"></i> Source

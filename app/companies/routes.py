@@ -1072,7 +1072,7 @@ def company_journey(company_id):
     free_research_questions = []
     if research_project:
         free_research_questions = FreeResearchQuestion.query.filter_by(
-            research_project_id=research_project.id
+            project_id=research_project.id
         ).order_by(FreeResearchQuestion.created_at).all()
 
     return render_template('company_journey.html',

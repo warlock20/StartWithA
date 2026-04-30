@@ -12,6 +12,7 @@ from flask_caching import Cache
 from config import Config
 from celery_app import celery
 from app.assets import init_assets
+from app.features import user_has_feature
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -175,6 +176,16 @@ def create_app(config_class=Config):
             return_url=return_url,
             context_label=context_label
         )
+
+    @app.context_processor
+    def inject_feature_access():
+        """Make has_feature() available in all templates for sidebar gating"""
+        def has_feature(feature_name):
+            if not current_user.is_authenticated:
+                return False
+            return user_has_feature(current_user, feature_name)
+
+        return dict(has_feature=has_feature)
 
     # ── Security headers ──────────────────────────────────────────────
     @app.after_request

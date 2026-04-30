@@ -9,8 +9,12 @@ This module handles utility and navigation routes including:
 
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
-from app.models import ResearchTemplate, ResearchProject, Company
+from app import db
+from app.models import ResearchTemplate, ResearchProject, Company, IdeaPipeline
+from app.features import user_has_feature
 from app.research_workflow import research_workflow_bp
+from app.research_workflow.template_routes import ensure_default_template
+from app.analytics.utils import log_research_activity
 
 
 @research_workflow_bp.route('/intelligent-routing')
@@ -65,14 +69,59 @@ def intelligent_routing():
 
     elif completed_projects:
         # User has completed projects - suggest new research angles
-        flash(f'You\'ve completed research on {company.name}. Consider new research angles or templates.', 'info')
-        return redirect(url_for('research_workflow.template_list', company_id=company_id, suggested=True))
+        if user_has_feature(current_user, 'research_templates'):
+            flash(f'You\'ve completed research on {company.name}. Consider new research angles or templates.', 'info')
+            return redirect(url_for('research_workflow.template_list', company_id=company_id, suggested=True))
+        else:
+            return _auto_start_project(company, source)
 
     else:
-        # No existing research - start fresh with template selection
-        if source == 'idea_promotion':
-            flash(f'Company created! Now choose a research template to begin systematic analysis of {company.name}.', 'success')
-        return redirect(url_for('research_workflow.template_list', company_id=company_id, new_company=True))
+        # No existing research - start fresh
+        if user_has_feature(current_user, 'research_templates'):
+            if source == 'idea_promotion':
+                flash(f'Company created! Now choose a research template to begin systematic analysis of {company.name}.', 'success')
+            return redirect(url_for('research_workflow.template_list', company_id=company_id, new_company=True))
+        else:
+            return _auto_start_project(company, source)
+
+
+def _auto_start_project(company, source):
+    """Auto-start a research project using the user's default template.
+
+    Used when a non-pro user reaches intelligent_routing without the
+    research_templates feature — skips template selection entirely.
+    """
+    template, is_new = ensure_default_template(current_user)
+
+    if is_new:
+        flash('We created a default research workflow for you. Review and customize it, then come back.', 'info')
+        return redirect(url_for('research_workflow.edit_template', template_id=template.id))
+
+    project = ResearchProject(
+        researcher=current_user,
+        template=template,
+        company=company,
+        project_name=f"{company.name} - {template.name}",
+        status='active',
+    )
+
+    # Link to idea pipeline if this came from idea promotion
+    if source == 'idea_promotion':
+        idea = IdeaPipeline.query.filter_by(
+            user_id=current_user.id, ticker_symbol=company.ticker_symbol
+        ).order_by(IdeaPipeline.created_at.desc()).first()
+        if idea:
+            project.idea = idea
+
+    db.session.add(project)
+    template.times_used += 1
+    db.session.commit()
+
+    log_research_activity(current_user.id, 'project_started', details={
+        'project_id': project.id, 'template': template.name, 'company': company.name})
+
+    flash(f'Research started for {company.name}!', 'success')
+    return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
 
 @research_workflow_bp.route('/start-new')
@@ -87,16 +136,13 @@ def start_new_research():
 @login_required
 def quick_start_guide():
     """Show a quick start guide for new users"""
-    from app.research_workflow.template_routes import create_default_template_for_user
-
     # Get sample templates or create starter templates
     starter_templates = ResearchTemplate.query.filter_by(
         user_id=current_user.id
     ).limit(3).all()
 
     if not starter_templates:
-        # Optionally create a default template for new users
-        default_template = create_default_template_for_user(current_user)
+        default_template, _ = ensure_default_template(current_user)
         if default_template:
             starter_templates = [default_template]
 

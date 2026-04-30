@@ -131,6 +131,10 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     page_tours_completed = db.Column(db.JSON, default={})  # {'dashboard': True, 'inbox': False, ...}
     tour_preferences = db.Column(db.JSON, default={'show_page_tours': True})
 
+    # Feature gating
+    show_advanced_features = db.Column(db.Boolean, default=False)
+    unlocked_features = db.Column(db.JSON, default={})  # {'feature_name': '2026-04-24T...', ...}
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

@@ -107,3 +107,4 @@ All complex components have been fully modularized.
 @import url('modules/_companion.css');                 /* Research companion floating chat widget */
 @import url('modules/_cookie-notice.css');             /* Cookie information notice banner */
 @import url('modules/_market-sweep.css');              /* Market sweep — Start with A's screening */
+@import url('modules/_send-to-sector.css');            /* Send to Sector - company→sector bridge */

@@ -156,10 +156,12 @@
                                 <p class="templates-empty-text">
                                     Create your first research template to start systematic analysis.
                                 </p>
+                                {% if has_feature('research_templates') %}
                                 <a href="{{ url_for('research_workflow.create_template') }}" class="templates-empty-btn">
                                     <i class="bi bi-plus-lg"></i>
                                     Create Template
                                 </a>
+                                {% endif %}
                             </div>
                             {% endif %}
                         </div>
