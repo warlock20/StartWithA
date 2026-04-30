@@ -12,7 +12,7 @@ from app.analytics.utils import (update_user_metrics, analyze_idea_sources,
 from app.services.too_hard_service import TooHardBasketService
 from app.services.sector_service import SectorService
 from datetime import datetime, timedelta
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, ensure_timezone_aware
 import json
 
 @analytics_bp.route('/dashboard')
@@ -128,7 +128,7 @@ def dashboard():
     twelve_months_ago = now_utc() - timedelta(days=360)
 
     project_dates = [
-        r[0] for r in db.session.query(ResearchProject.completed_at)
+        ensure_timezone_aware(r[0]) for r in db.session.query(ResearchProject.completed_at)
         .filter(
             ResearchProject.user_id == current_user.id,
             ResearchProject.completed_at >= twelve_months_ago,
@@ -136,7 +136,7 @@ def dashboard():
         ).all()
     ]
     idea_dates = [
-        r[0] for r in db.session.query(IdeaPipeline.created_at)
+        ensure_timezone_aware(r[0]) for r in db.session.query(IdeaPipeline.created_at)
         .filter(
             IdeaPipeline.user_id == current_user.id,
             IdeaPipeline.created_at >= twelve_months_ago

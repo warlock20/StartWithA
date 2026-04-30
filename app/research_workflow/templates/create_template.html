@@ -6,16 +6,27 @@
     <div class="dashboard-header-card">
         <header class="dashboard-header">
             <div>
+                {% if template %}
+                <h1 class="dashboard-title font-poppins">Edit Workflow</h1>
+                <p class="dashboard-subtitle">Customize your research workflow steps</p>
+                {% else %}
                 <h1 class="dashboard-title font-poppins">Create Research Template</h1>
                 <p class="dashboard-subtitle">Design a systematic workflow for analyzing investments</p>
+                {% endif %}
             </div>
             <div class="dashboard-header-actions">
-                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
-                {% with btn_class='btn btn-outline-secondary' %}
-                    {% include 'components/smart_back_button.html' %}
-                {% endwith %}
+                {% if template %}
+                <a href="javascript:history.back()" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% else %}
+                <a href="{{ url_for('research_workflow.template_list') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% endif %}
             </div>
         </header>
     </div>
@@ -26,11 +37,12 @@
         <div class="col-lg-8">
             <div class="card template-builder-card">
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('research_workflow.create_template') }}" id="templateForm">
+                    <form method="POST" action="{{ url_for('research_workflow.edit_template', template_id=template.id) if template else url_for('research_workflow.create_template') }}" id="templateForm">
                         <!-- Template Name -->
                         <div class="mb-4">
                             <input type="text" class="form-control template-name-input font-poppins" id="name"
-                                name="name" placeholder="Enter Template Name..." required>
+                                name="name" placeholder="Enter Template Name..."
+                                value="{{ template.name if template else '' }}" required>
                         </div>
 
                         <!-- Basic Settings -->
@@ -39,15 +51,16 @@
                                 <div class="col-md-6">
                                     <label for="investment_style" class="form-label small text-muted">Investment
                                         Style</label>
+                                    {% set style = template.investment_style if template else '' %}
                                     <select class="form-select form-select-sm" id="investment_style"
                                         name="investment_style">
                                         <option value="">Select style...</option>
-                                        <option value="value">Value Investing</option>
-                                        <option value="growth">Growth Investing</option>
-                                        <option value="garp">GARP</option>
-                                        <option value="dividend">Dividend</option>
-                                        <option value="quality">Quality Focus</option>
-                                        <option value="custom">Custom...</option>
+                                        <option value="value" {{ 'selected' if style == 'value' }}>Value Investing</option>
+                                        <option value="growth" {{ 'selected' if style == 'growth' }}>Growth Investing</option>
+                                        <option value="garp" {{ 'selected' if style == 'garp' }}>GARP</option>
+                                        <option value="dividend" {{ 'selected' if style == 'dividend' }}>Dividend</option>
+                                        <option value="quality" {{ 'selected' if style == 'quality' }}>Quality Focus</option>
+                                        <option value="custom" {{ 'selected' if style and style not in ['value','growth','garp','dividend','quality',''] }}>Custom...</option>
                                     </select>
                                     <input type="text" class="form-control form-control-sm mt-2"
                                         id="custom_investment_style" name="custom_investment_style"
@@ -57,7 +70,7 @@
                                     <label for="description" class="form-label small text-muted">Description
                                         (Optional)</label>
                                     <textarea class="form-control form-control-sm" id="description" name="description"
-                                        rows="2" placeholder="When and how to use this template..."></textarea>
+                                        rows="2" placeholder="When and how to use this template...">{{ template.description if template else '' }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -92,13 +105,21 @@
 
                         <!-- Submit buttons -->
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('research_workflow.template_list') }}"
-                                class="btn btn-outline-secondary">
+                            {% if template %}
+                            <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
                                 <i class="bi bi-x"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="eval-submit-btn">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                            {% else %}
+                            <a href="{{ url_for('research_workflow.template_list') }}" class="position-btn">
+                                <i class="bi bi-x"></i> Cancel
+                            </a>
+                            <button type="submit" class="eval-submit-btn">
                                 <i class="bi bi-save"></i> Create Template
                             </button>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
@@ -147,7 +168,6 @@
         </div>
     </div>
 </div>
-</div>
 
 <!-- Tips Modal -->
 {% set tips_title = "Research Template Tips" %}
@@ -189,7 +209,7 @@
         addStep(name, type);
     }
 
-    function addStep(name = '', type = 'custom') {
+    function addStep(name = '', type = 'custom', estimatedMinutes = 60, config = {}) {
         const container = document.getElementById('workflow-canvas');
         const stepIndex = container.querySelectorAll('.workflow-step').length;
 
@@ -239,6 +259,7 @@
         </div>
         <input type="hidden" name="step_type[]" value="${type}">
         <input type="hidden" name="step_config[]" id="step-config-data-${stepIndex}" value="{}">
+        <input type="hidden" name="step_estimate[]" value="${estimatedMinutes || 60}">
     `;
 
         // Insert new steps BEFORE the Investment Thesis step (which should always be last)
@@ -256,7 +277,7 @@
         // Add drag and drop event listeners
         setupDragAndDrop(stepDiv);
 
-        updateStepConfig(stepIndex, type);
+        updateStepConfig(stepIndex, type, config);
         updateStepNumbers();
     }
 
@@ -335,15 +356,18 @@
         });
     }
 
-    function updateStepConfig(stepIndex, stepType) {
+    function updateStepConfig(stepIndex, stepType, config = {}) {
         const configDiv = document.getElementById(`step-config-${stepIndex}`);
         const configData = document.getElementById(`step-config-data-${stepIndex}`);
 
         let configHtml = '';
+        const selectedChecklistId = config.checklist_id || '';
+        const selectedKillChecklistId = config.kill_checklist_id || '';
+        const selectedModelType = config.model_type || '';
 
         if (stepType === 'checklist') {
             const checklistOptions = userChecklists.map(cl =>
-                `<option value="${cl.id}">${cl.name}</option>`
+                `<option value="${cl.id}" ${String(cl.id) === String(selectedChecklistId) ? 'selected' : ''}>${cl.name}</option>`
             ).join('');
             configHtml = `
             <div class="mb-3">
@@ -357,7 +381,7 @@
         `;
         } else if (stepType === 'kill_checklist_reference') {
             const killChecklistOptions = userKillChecklists.map(kc =>
-                `<option value="${kc.id}">${kc.name}</option>`
+                `<option value="${kc.id}" ${String(kc.id) === String(selectedKillChecklistId) ? 'selected' : ''}>${kc.name}</option>`
             ).join('');
             configHtml = `
             <div class="mb-3">
@@ -374,7 +398,7 @@
             <label class="form-label">Mental Model:</label>
             <select class="form-select" name="step_${stepIndex}_model_type" required>
                 <option value="">-- Choose mental model --</option>
-                ${mentalModels.map(m => `<option value="${m}">${m}</option>`).join('')}
+                ${mentalModels.map(m => `<option value="${m}" ${m === selectedModelType ? 'selected' : ''}>${m}</option>`).join('')}
             </select>
         `;
         }
@@ -453,7 +477,23 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function () {
-        // Add default Investment Thesis step as the final step
+        {% if template %}
+        // Edit mode: load existing workflow steps
+        const existingSteps = {{ template.workflow_steps | tojson }};
+        existingSteps.forEach(function(step) {
+            addStep(step.name || '', step.type || 'custom', step.estimated_minutes || 60, step.config || {});
+        });
+
+        // Show custom investment style input if applicable
+        const knownStyles = ['value', 'growth', 'garp', 'dividend', 'quality', '', null];
+        const currentStyle = '{{ template.investment_style or "" }}';
+        if (currentStyle && !knownStyles.includes(currentStyle)) {
+            const customInput = document.getElementById('custom_investment_style');
+            customInput.style.display = 'block';
+            customInput.value = currentStyle;
+        }
+        {% else %}
+        // Create mode: add default Investment Thesis step as the final step
         addStep('Investment Thesis', 'thesis_writing');
 
         // Mark this step as required (cannot be easily removed)
@@ -462,6 +502,7 @@
             thesisStep.classList.add('required-step');
             thesisStep.setAttribute('data-required', 'true');
         }
+        {% endif %}
 
         updateStepNumbers();
 

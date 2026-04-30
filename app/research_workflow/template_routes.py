@@ -14,8 +14,9 @@ This module handles all routes related to research template management including
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject, Company
+from app.models import ResearchTemplate, ResearchProject, Company, Checklist, ChecklistItem
 from app.research_workflow import research_workflow_bp
+from app.utils.decorators import require_feature
 from app.utils.time_utils import now_utc
 import json
 
@@ -33,8 +34,102 @@ MENTAL_MODELS = [
     'SWOT Analysis',
 ]
 
+
+def ensure_default_template(user):
+    """Create a default research template if the user has none.
+
+    Also creates a default investment checklist so the checklist step
+    in the template has something to reference.
+
+    Returns:
+        tuple: (template, is_new) — is_new=True if just created.
+    """
+    template = ResearchTemplate.query.filter_by(user_id=user.id, is_active=True).first()
+    if template:
+        return template, False
+
+    # ── Create default investment checklist ─────────────────────────
+    checklist = Checklist.query.filter_by(user_id=user.id).first()
+    if not checklist:
+        checklist = Checklist(user_id=user.id, name='Basic Investment Analysis',
+                              description='A comprehensive starting point for evaluating any investment opportunity')
+        db.session.add(checklist)
+        db.session.flush()
+
+        default_items = [
+            ('Business Model & Strategy', [
+                'What products/services does the company sell?',
+                'Who are the target customers?',
+                'What is the competitive advantage?',
+                'How does the company generate revenue?',
+            ]),
+            ('Financial Performance Review', [
+                'Revenue growth trend over the past 5 years',
+                'Profitability metrics and margin analysis',
+                'Cash flow vs. net income comparison',
+                'Debt levels and capital structure',
+            ]),
+            ('Management Quality Assessment', [
+                'Executive team background and track record',
+                'Capital allocation track record',
+                'Insider trading activity',
+            ]),
+            ('Competitive Position Analysis', [
+                'Identify main competitors',
+                'Market share analysis',
+                'Barriers to entry evaluation',
+            ]),
+            ('Valuation & Investment Decision', [
+                'P/E ratio vs. historical average',
+                'Peer valuation comparison',
+                'Margin of safety calculation',
+            ]),
+        ]
+
+        for order, (section_text, subitems) in enumerate(default_items):
+            parent = ChecklistItem(checklist_id=checklist.id, text=section_text, order=order)
+            db.session.add(parent)
+            db.session.flush()
+            for sub_order, sub_text in enumerate(subitems):
+                db.session.add(ChecklistItem(
+                    checklist_id=checklist.id, text=sub_text,
+                    parent_id=parent.id, order=sub_order))
+
+    # ── Create default research template ────────────────────────────
+    workflow_steps = [
+        {'order': 1, 'name': 'Initial Financial Screening', 'type': 'checklist',
+         'config': {'checklist_id': str(checklist.id) if checklist else ''},
+         'required': True, 'estimated_minutes': 30},
+        {'order': 2, 'name': 'Business Model Analysis', 'type': 'custom',
+         'config': {}, 'required': True, 'estimated_minutes': 60},
+        {'order': 3, 'name': 'Management Assessment', 'type': 'custom',
+         'config': {}, 'required': False, 'estimated_minutes': 45},
+        {'order': 4, 'name': 'Competitive Position Review', 'type': 'competitor_analysis',
+         'config': {}, 'required': True, 'estimated_minutes': 90},
+        {'order': 5, 'name': 'Valuation Analysis', 'type': 'custom',
+         'config': {}, 'required': True, 'estimated_minutes': 120},
+        {'order': 6, 'name': 'Risk Assessment', 'type': 'custom',
+         'config': {}, 'required': True, 'estimated_minutes': 60},
+        {'order': 7, 'name': 'Investment Thesis', 'type': 'thesis_writing',
+         'config': {}, 'required': True, 'estimated_minutes': 45},
+    ]
+
+    template = ResearchTemplate(
+        author=user,
+        name='Fundamental Analysis Workflow',
+        description='A step-by-step workflow for fundamental stock analysis covering financials, business quality, and valuation.',
+        investment_style='value',
+        workflow_steps=workflow_steps,
+        is_active=True,
+    )
+    db.session.add(template)
+    db.session.commit()
+    return template, True
+
+
 @research_workflow_bp.route('/templates')
 @login_required
+@require_feature('research_templates')
 def template_list():
     """Display all research templates for the current user with sorting and pagination"""
     # Get sort parameter (default: recent)
@@ -113,6 +208,7 @@ def template_list():
 
 @research_workflow_bp.route('/templates/create', methods=['GET', 'POST'])
 @login_required
+@require_feature('research_templates')
 def create_template():
     """Create a new research template"""
     if request.method == 'POST':
@@ -191,6 +287,7 @@ def create_template():
 
 @research_workflow_bp.route('/templates/<int:template_id>/view')
 @login_required
+@require_feature('research_templates')
 def view_template(template_id):
     """View/preview a research template to visualize workflow steps"""
     template = ResearchTemplate.query.get_or_404(template_id)
@@ -240,19 +337,19 @@ def edit_template(template_id):
     
     if template.user_id != current_user.id:
         flash('Access denied', 'error')
-        return redirect(url_for('research_workflow.template_list'))
-    
+        return redirect(url_for('research_workflow.my_projects'))
+
     if request.method == 'POST':
         template.name = request.form.get('name', template.name)
         template.description = request.form.get('description')
         template.investment_style = request.form.get('investment_style')
-        
+
         # Rebuild workflow steps
         workflow_steps = []
         step_names = request.form.getlist('step_name[]')
         step_types = request.form.getlist('step_type[]')
         step_estimates = request.form.getlist('step_estimate[]')
-        
+
         for i, step_name in enumerate(step_names):
             if step_name.strip():
                 step = {
@@ -262,7 +359,7 @@ def edit_template(template_id):
                     'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60,
                     'config': {}
                 }
-                
+
                 # Add type-specific configuration
                 if step['type'] == 'checklist':
                     step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
@@ -270,26 +367,26 @@ def edit_template(template_id):
                     step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
                 elif step['type'] == 'model':
                     step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
-                
+
                 workflow_steps.append(step)
-        
+
         template.workflow_steps = workflow_steps
         template.updated_at = now_utc()
-        
+
         try:
             db.session.commit()
-            flash('Template updated successfully!', 'success')
-            return redirect(url_for('research_workflow.template_list'))
+            flash('Workflow updated successfully!', 'success')
+            return redirect(url_for('research_workflow.my_projects'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating template: {str(e)}', 'error')
-    
+
     # Get user's checklists and kill checklists for the step configuration
     user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
     user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
-    
-    return render_template('edit_template.html',
-                          title=f"Edit Template: {template.name}",
+
+    return render_template('create_template.html',
+                          title=f"Edit Workflow: {template.name}",
                           template=template,
                           user_checklists=user_checklists,
                           user_kill_checklists=user_kill_checklists,
@@ -300,6 +397,7 @@ def edit_template(template_id):
 
 @research_workflow_bp.route('/templates/<int:template_id>/delete', methods=['POST'])
 @login_required
+@require_feature('research_templates')
 def delete_template(template_id):
     """Delete a research template"""
     template = ResearchTemplate.query.get_or_404(template_id)
@@ -332,6 +430,7 @@ def delete_template(template_id):
 
 @research_workflow_bp.route('/templates/<int:template_id>/force-delete', methods=['POST'])
 @login_required
+@require_feature('research_templates')
 def force_delete_template(template_id):
     """Force delete a research template even if it has been used"""
     template = ResearchTemplate.query.get_or_404(template_id)
@@ -356,6 +455,7 @@ def force_delete_template(template_id):
 
 @research_workflow_bp.route('/templates/<int:template_id>/archive', methods=['POST'])
 @login_required
+@require_feature('research_templates')
 def archive_template(template_id):
     """Archive a research template"""
     template = ResearchTemplate.query.get_or_404(template_id)
@@ -379,6 +479,7 @@ def archive_template(template_id):
 
 @research_workflow_bp.route('/templates/<int:template_id>/restore', methods=['POST'])
 @login_required
+@require_feature('research_templates')
 def restore_template(template_id):
     """Restore an archived research template"""
     template = ResearchTemplate.query.get_or_404(template_id)
@@ -397,41 +498,4 @@ def restore_template(template_id):
         flash('Error restoring template', 'error')
     
     return redirect(url_for('research_workflow.template_list'))
-
-
-def create_default_template_for_user(user):
-    """Helper function to create a default research template for new users"""
-    default_steps = [
-        {'order': 1, 'name': 'Initial Financial Screening', 'type': 'checklist', 
-         'config': {}, 'required': True, 'estimated_minutes': 30},
-        {'order': 2, 'name': 'Business Model Analysis', 'type': 'custom', 
-         'config': {}, 'required': True, 'estimated_minutes': 60},
-        {'order': 3, 'name': 'Management Assessment', 'type': 'custom', 
-         'config': {}, 'required': False, 'estimated_minutes': 45},
-        {'order': 4, 'name': 'Competitive Position Review', 'type': 'competitor_analysis', 
-         'config': {}, 'required': True, 'estimated_minutes': 90},
-        {'order': 5, 'name': 'Valuation Analysis', 'type': 'valuation', 
-         'config': {}, 'required': True, 'estimated_minutes': 120},
-        {'order': 6, 'name': 'Risk Assessment', 'type': 'custom', 
-         'config': {}, 'required': True, 'estimated_minutes': 60},
-        {'order': 7, 'name': 'Investment Thesis', 'type': 'thesis_writing', 
-         'config': {}, 'required': True, 'estimated_minutes': 45}
-    ]
-    
-    template = ResearchTemplate(
-        author=user,
-        name="Fundamental Analysis Template",
-        description="A comprehensive template for fundamental stock analysis covering financials, business quality, and valuation",
-        investment_style="value",
-        workflow_steps=default_steps,
-        is_active=True
-    )
-    
-    try:
-        db.session.add(template)
-        db.session.commit()
-        return template
-    except:
-        db.session.rollback()
-        return None
 

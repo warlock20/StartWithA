@@ -47,24 +47,27 @@
                 </p>
             </div>
             <div class="dashboard-header-actions">
-                <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
+                <a href="{{ url_for('research_workflow.edit_template', template_id=project.template_id) }}" class="position-btn">
+                    <i class="bi bi-pencil-square"></i> Edit Workflow
+                </a>
                 {% if project.status == 'active' %}
-                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="btn btn-outline-warning me-2">
+                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-archive"></i> Mark as Too Hard
                 </a>
                 {% elif project.decision == 'pass' %}
                 <form method="POST" action="{{ url_for('research_workflow.reactivate_project', project_id=project.id) }}" class="d-inline">
-                    <button type="submit" class="btn btn-outline-success me-2" onclick="return confirm('Reactivate this research project?')">
+                    <button type="submit" class="position-btn" onclick="return confirm('Reactivate this research project?')">
                         <i class="bi bi-arrow-counterclockwise"></i> Reactivate Research
                     </button>
                 </form>
                 {% endif %}
-                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="btn btn-outline-success me-2">
+                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-download"></i> Export
                 </a>
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Back to My Projects
                 </a>
             </div>

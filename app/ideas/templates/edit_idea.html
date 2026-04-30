@@ -6,28 +6,23 @@
     <div class="dashboard-header-card">
         <header class="dashboard-header">
             <div>
-                <h1 class="dashboard-title font-poppins">✏️ Edit Idea</h1>
+                <h1 class="dashboard-title font-poppins">
+                    <i class="bi bi-pencil-square text-primary me-3"></i>Edit Idea
+                </h1>
                 <p class="dashboard-subtitle">Update your idea details and information</p>
             </div>
             <div class="dashboard-header-actions">
-                {% with btn_class='btn btn-outline-secondary' %}
-                    {% include 'components/smart_back_button.html' %}
-                {% endwith %}
+                <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Inbox
+                </a>
             </div>
         </header>
     </div>
 
     <!-- Main Form -->
-    <div class="row justify-content-center">
-        <div class="col-lg-10 col-xl-8">
-            <div class="quick-capture-card">
-                <div class="card-icon">
-                    <i class="bi bi-pencil-square"></i>
-                </div>
-                <h2>{{ idea.name }}</h2>
-                <p class="card-subtitle">Edit your investment idea</p>
-
-                <form method="POST" action="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}">
+    <div class="card framework-card">
+        <div class="card-body p-4">
+            <form method="POST" action="{{ url_for('ideas.edit_idea', idea_id=idea.id) }}">
                     <!-- Idea Name -->
                     <div class="mb-4">
                         <label for="name" class="form-label">
@@ -129,28 +124,28 @@
                     <!-- Action Buttons -->
                     <div class="d-flex justify-content-between align-items-center gap-2">
                         {% if return_to == 'graveyard' %}
-                        <a href="{{ url_for('research_workflow.my_projects') }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
                             <i class="bi bi-x-circle"></i> Cancel
                         </a>
                         {% else %}
-                        <a href="{{ url_for('ideas.inbox') }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
                             <i class="bi bi-x-circle"></i> Cancel
                         </a>
                         {% endif %}
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn quick-capture-submit">
-                                <i class="bi bi-check-circle-fill me-2"></i> Save Changes
-                            </button>
                             <button type="button"
-                                    class="btn btn-danger"
+                                    class="position-btn"
+                                    style="color: #b91c1c; border-color: rgba(239, 68, 68, 0.3);"
                                     data-bs-toggle="modal"
                                     data-bs-target="#deleteModal">
                                 <i class="bi bi-trash-fill"></i> Delete
                             </button>
+                            <button type="submit" class="eval-submit-btn">
+                                <i class="bi bi-check-circle-fill"></i> Save Changes
+                            </button>
                         </div>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
 </div>
@@ -170,9 +165,9 @@
                 <p class="text-danger mb-0"><i class="bi bi-info-circle-fill"></i> This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="position-btn" data-bs-dismiss="modal">Cancel</button>
                 <form action="{{ url_for('ideas.delete_idea', idea_id=idea.id) }}" method="POST" class="d-inline">
-                    <button type="submit" class="btn btn-danger">
+                    <button type="submit" class="position-btn" style="color: #b91c1c; border-color: rgba(239, 68, 68, 0.3); background: var(--danger-50);">
                         <i class="bi bi-trash-fill"></i> Delete Idea
                     </button>
                 </form>

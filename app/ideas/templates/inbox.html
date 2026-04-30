@@ -32,14 +32,6 @@
                 <div class="inbox-metric-label">Ideas Waiting</div>
             </div>
             <div class="inbox-metric">
-                <div class="inbox-metric-value metric-danger">{{ killing_count }}</div>
-                <div class="inbox-metric-label">In Kill Room</div>
-            </div>
-            <div class="inbox-metric">
-                <div class="inbox-metric-value metric-success">{{ ready_count }}</div>
-                <div class="inbox-metric-label">Ready to Promote</div>
-            </div>
-            <div class="inbox-metric">
                 <div class="inbox-metric-value metric-info">
                     {% if idea_count > 0 %}{{ idea_count * 5 }}m{% else %}0m{% endif %}
                 </div>
@@ -67,7 +59,7 @@
             <select id="inbox-state-filter" class="rcl-filter-select">
                 <option value="all">All States ({{ idea_count }})</option>
                 <option value="waiting">Waiting ({{ waiting_count }})</option>
-                <option value="killing">In Kill Room ({{ killing_count }})</option>
+                <option value="killing">Evaluating ({{ killing_count }})</option>
                 <option value="ready">Ready ({{ ready_count }})</option>
             </select>
             <select id="inbox-purpose-filter" class="rcl-filter-select">

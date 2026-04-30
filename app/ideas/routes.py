@@ -7,13 +7,14 @@ from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemp
                        KillSession, KillAnswer, Company, ResearchProject, ResearchLog, JournalEntry,
                        KillChecklistSuggestion, MistakeLog, SectorAnalysis)
 from app.utils.response_utils import json_success, json_error, json_unauthorized
-from app.features import user_has_feature
+from app.utils.decorators import require_feature
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
 from app.sectors.routes import initialize_default_sections
 from app.companies.routes import EXCHANGES # Import EXCHANGES dictionary
 from app.analytics.utils import log_research_activity
+from app.research_workflow.template_routes import ensure_default_template
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 from sqlalchemy import or_, and_
 import json
@@ -348,13 +349,12 @@ def add_idea():
                           prefill_type=prefill_type,
                           from_start=from_start)
 
-@ideas_bp.route('/<int:idea_id>/kill', methods=['GET', 'POST'])
+@ideas_bp.route('/<int:idea_id>/kill', methods=['POST'])
 @login_required
 def kill_room(idea_id):
-    """Evaluate an idea against kill criteria.
+    """Evaluate an idea against kill criteria via the inline modal.
 
-    JSON POST (modal): receives all answers at once, returns JSON result.
-    GET / Form POST (pro full-page): renders the step-by-step kill room template.
+    JSON POST: receives all answers at once, returns JSON result.
     """
     idea = IdeaPipeline.query.get_or_404(idea_id)
     if idea.user_id != current_user.id:
@@ -441,92 +441,9 @@ def kill_room(idea_id):
             result['promote_url'] = url_for('ideas.promote_idea', idea_id=idea.id)
         return jsonify(result)
 
-    # ── GET / Form POST: full-page kill room (pro feature) ─────────
-    if not user_has_feature(current_user, 'kill_checklists'):
-        flash('Use the Evaluate button in your Inbox to screen ideas.', 'info')
-        return redirect(url_for('ideas.inbox'))
-
-    checklist_id = request.args.get('checklist_id', type=int)
-
-    kill_session = KillSession.query.filter_by(
-        user_id=current_user.id, idea_id=idea.id, outcome=None
-    ).first()
-
-    if not kill_session:
-        kill_checklist = None
-        if checklist_id:
-            kill_checklist = KillChecklist.query.filter_by(id=checklist_id, user_id=current_user.id).first()
-        else:
-            kill_checklist = KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).first()
-
-        if not kill_checklist:
-            flash('Please create a kill checklist first or set one as default.', 'warning')
-            return redirect(url_for('ideas.manage_kill_checklists'))
-
-        kill_session = KillSession(user_id=current_user.id, idea=idea, checklist=kill_checklist)
-        db.session.add(kill_session)
-        idea.status = 'killing'
-        db.session.commit()
-
-    criteria = kill_session.checklist.criteria.order_by(KillCriterion.order).all()
-    existing_answers = {ans.criterion_id: ans for ans in kill_session.answers.all()}
-
-    current_criterion = None
-    current_index = 0
-    for i, criterion in enumerate(criteria):
-        if criterion.id not in existing_answers:
-            current_criterion = criterion
-            current_index = i
-            break
-
-    if request.method == 'POST' and current_criterion:
-        passed = request.form.get('passed') == 'true'
-        notes = request.form.get('notes', '')
-        answer = KillAnswer(session=kill_session, criterion=current_criterion, passed=passed, notes=notes)
-        db.session.add(answer)
-        current_criterion.times_evaluated += 1
-
-        if not passed:
-            current_criterion.times_failed += 1
-            idea.status = 'killed'
-            idea.kill_reason = current_criterion.question
-            idea.failed_criterion = current_criterion
-            idea.killed_at = now_utc()
-            kill_session.outcome = 'killed'
-            kill_session.completed_at = now_utc()
-            kill_session.checklist.total_ideas_evaluated += 1
-            kill_session.checklist.total_ideas_killed += 1
-            db.session.commit()
-            log_research_activity(current_user.id, 'idea_killed', idea_id=idea.id,
-                                  details={'reason': current_criterion.question})
-            flash(f'"{idea.name}" has been killed. Reason: {current_criterion.question}', 'info')
-            return redirect(url_for('research_workflow.my_projects'))
-
-        db.session.commit()
-
-        for criterion in criteria:
-            if criterion.id not in {ans.criterion_id for ans in kill_session.answers.all()}:
-                return redirect(url_for('ideas.kill_room', idea_id=idea.id, checklist_id=kill_session.checklist.id))
-
-        idea.status = 'survived'
-        idea.promoted_at = now_utc()
-        kill_session.outcome = 'survived'
-        kill_session.completed_at = now_utc()
-        kill_session.checklist.total_ideas_evaluated += 1
-        db.session.commit()
-
-        log_research_activity(current_user.id, 'idea_promoted', idea_id=idea.id)
-        flash(f'"{idea.name}" survived the kill checklist! Ready for promotion.', 'success')
-        return redirect(url_for('ideas.promote_idea', idea_id=idea.id))
-
-    progress_percent = (len(existing_answers) / len(criteria)) * 100 if criteria else 0
-    return render_template('kill_room.html', title=f"Kill Room: {idea.name}", idea=idea,
-                           session=kill_session, current_criterion=current_criterion,
-                           current_index=current_index, total_criteria=len(criteria),
-                           progress_percent=progress_percent, existing_answers=existing_answers)
-
 @ideas_bp.route('/kill-checklists')
 @login_required
+@require_feature('kill_checklists')
 def manage_kill_checklists():
     """Show kill checklists for the currently logged-in user with pagination and sorting"""
     page = request.args.get('page', 1, type=int)
@@ -556,6 +473,7 @@ def manage_kill_checklists():
 
 @ideas_bp.route('/kill-checklists/new', methods=['GET', 'POST'])
 @login_required
+@require_feature('kill_checklists')
 def create_kill_checklist():
     if request.method == 'POST':
         name = request.form.get('name')
@@ -595,8 +513,8 @@ def edit_kill_checklist(checklist_id):
     checklist = KillChecklist.query.get_or_404(checklist_id)
     if checklist.user_id != current_user.id:
         flash('You do not have permission to edit this checklist.', 'error')
-        return redirect(url_for('ideas.manage_kill_checklists'))
-    
+        return redirect(url_for('ideas.inbox'))
+
     if request.method == 'POST':
         checklist.name = request.form.get('name')
         checklist.description = request.form.get('description')
@@ -604,17 +522,17 @@ def edit_kill_checklist(checklist_id):
         if is_default and not checklist.is_default:
             KillChecklist.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
         checklist.is_default = is_default
-        
+
         criteria_ids = request.form.getlist('criterion_id[]')
         criteria_questions = request.form.getlist('criterion_question[]')
         criteria_reasons = request.form.getlist('criterion_reason[]')
-        
+
         existing_criterion_ids = {c.id for c in checklist.criteria}
         submitted_criterion_ids = {int(id) for id in criteria_ids if id}
         ids_to_delete = existing_criterion_ids - submitted_criterion_ids
         if ids_to_delete:
             KillCriterion.query.filter(KillCriterion.id.in_(ids_to_delete)).delete(synchronize_session=False)
-        
+
         for i, question in enumerate(criteria_questions):
             if question.strip():
                 criterion_id = criteria_ids[i] if i < len(criteria_ids) and criteria_ids[i] else None
@@ -629,15 +547,16 @@ def edit_kill_checklist(checklist_id):
                         failure_reason=criteria_reasons[i] if i < len(criteria_reasons) else '', order=i
                     )
                     db.session.add(criterion)
-        
+
         db.session.commit()
         flash(f'Kill checklist "{checklist.name}" updated!', 'success')
-        return redirect(url_for('ideas.manage_kill_checklists'))
+        return redirect(url_for('ideas.inbox'))
     
     return render_template('edit_kill_checklist.html', title="Edit Kill Checklist", checklist=checklist)
 
 @ideas_bp.route('/kill-checklists/<int:checklist_id>/delete', methods=['POST'])
 @login_required
+@require_feature('kill_checklists')
 def delete_kill_checklist(checklist_id):
     checklist = KillChecklist.query.get_or_404(checklist_id)
     if checklist.user_id != current_user.id:
@@ -814,9 +733,12 @@ def promote_idea(idea_id):
                 flash(f'Error starting research project: {str(e)}', 'error')
                 return redirect(url_for('ideas.inbox'))
     
+    # Ensure the user has at least one template (creates default if needed)
+    ensure_default_template(current_user)
+
     # Get available templates for the GET request
     templates = current_user.research_templates.filter_by(is_active=True).order_by(ResearchTemplate.times_used.desc()).all()
-    
+
     return render_template('promote_idea.html',
                           title=f"Start Research: {idea.name}",
                           idea=idea,
@@ -961,6 +883,7 @@ def mark_someday(idea_id):
 
 @ideas_bp.route('/kill-checklists/<int:checklist_id>/set-default', methods=['POST'])
 @login_required
+@require_feature('kill_checklists')
 def set_default_checklist(checklist_id):
     checklist = KillChecklist.query.get_or_404(checklist_id)
     if checklist.user_id != current_user.id:
