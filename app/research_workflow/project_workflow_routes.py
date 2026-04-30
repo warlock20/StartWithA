@@ -126,6 +126,10 @@ def project_dashboard(project_id):
         flash('Access denied', 'error')
         return redirect(url_for('research_workflow.my_projects'))
 
+    # Update last_worked_at timestamp when user views the dashboard
+    #project.last_worked_at = now_utc()
+    #db.session.commit()
+
     # Get recent work sessions
     recent_sessions = project.work_sessions.order_by(
         WorkSession.start_time.desc()
@@ -244,6 +248,10 @@ def execute_step(project_id, step_index):
         )
         db.session.add(session)
         db.session.commit()
+
+    # Update project's last_worked_at timestamp when user starts/resumes working on a step
+    project.last_worked_at = now_utc()
+    db.session.commit()
 
     # Route to appropriate handler based on step type
     if step['type'] == 'checklist':

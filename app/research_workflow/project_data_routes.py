@@ -12,14 +12,13 @@ import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchTemplate, ResearchProject, Sector, ChecklistAnalysis, ChecklistAnswer
+from app.models import ResearchProject, ChecklistAnalysis
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
-from app.services.too_hard_service import TooHardBasketService
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
-
+from app.services.research_quality import calculate_research_quality
 
 @research_workflow_bp.route('/projects/<int:project_id>/summary')
 @login_required
@@ -76,7 +75,6 @@ def project_summary(project_id):
     # ═══════════════════════════════════════════════════════════════
     quality_score = None
     try:
-        from app.services.research_quality import calculate_research_quality
         quality_score = calculate_research_quality(research_project_id=project.id)
     except Exception as e:
         print(f"[AI] ✗ Error calculating quality score: {e}")
@@ -106,6 +104,7 @@ def save_project_decision(project_id):
 
     try:
         # Get form data (works for both form and AJAX)
+        project.last_worked_at = now_utc()
         decision = request.form.get('decision')  # invest, pass, watchlist
         decision_summary = request.form.get('decision_summary', '').strip()
         confidence = request.form.get('confidence') or request.form.get('decision_confidence')
@@ -200,7 +199,8 @@ def add_finding(project_id):
             project.red_flags = (project.red_flags or []) + [finding_text]
         else:
             return json_error('Invalid finding type')
-
+        
+        project.last_worked_at = now_utc()
         db.session.commit()
         
         # If it was a form submisison, redirect back. If AJAX, return JSON.
@@ -223,7 +223,8 @@ def remove_finding(project_id):
 
     if project.user_id != current_user.id:
         return json_unauthorized('Access denied')
-
+    
+    project.last_worked_at = now_utc()
     try:
         data = request.get_json()
         finding_type = data.get('type')
@@ -259,6 +260,7 @@ def update_thesis(project_id):
 
     try:
         # Support both form POST and JSON
+        project.last_worked_at = now_utc()
         if request.is_json:
             thesis = request.get_json().get('thesis', '').strip()
         else:
@@ -294,6 +296,7 @@ def update_summary(project_id):
         summary = data.get('summary', '').strip()
 
         project.summary = summary
+        project.last_worked_at = now_utc()
         db.session.commit()
 
         return json_success('Summary updated')
