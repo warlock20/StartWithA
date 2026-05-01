@@ -67,6 +67,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // ── Dismiss NEW badges on click ──
+    document.querySelectorAll('.sidebar-item[data-feature-group]').forEach(function (item) {
+        item.addEventListener('click', function () {
+            var badge = item.querySelector('.sidebar-badge--new');
+            if (!badge) return;
+            var group = item.getAttribute('data-feature-group');
+            badge.remove();
+            fetch('/auth/dismiss-new-feature/' + group, { method: 'POST' });
+        });
+    });
 });
 
 /* ── Global functions (called from onclick attributes) ── */

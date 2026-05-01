@@ -120,6 +120,7 @@
                     </small>
                 </div>
             </a>
+            {% if has_feature('sectors') %}
             <a href="{{ url_for('sectors.index') }}" class="learning-content-card" style="border-left: 4px solid #8b5cf6; text-decoration: none;">
                 <div class="learning-card-body">
                     <h5 class="learning-card-title mb-1">
@@ -140,6 +141,7 @@
                     </small>
                 </div>
             </a>
+            {% endif %}
             <a href="{{ url_for('learning.weekly_review_list') }}" class="learning-content-card" style="border-left: 4px solid #3b82f6; text-decoration: none;">
                 <div class="learning-card-body">
                     <h5 class="learning-card-title mb-1">

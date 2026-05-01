@@ -54,7 +54,7 @@
 <!-- Settings Cards Row -->
 <div class="row">
     <!-- Currency Settings -->
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header">
                 <h6 class="mb-0">💱 Currency Settings</h6>
@@ -110,7 +110,7 @@
     </div>
 
     <!-- Investment Profile Settings -->
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header">
                 <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Investment Profile</h6>
@@ -126,8 +126,34 @@
         </div>
     </div>
 
+    <!-- Feature Preferences -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-sliders me-2"></i>Feature Preferences</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.update_feature_preferences') }}">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="show_advanced"
+                               name="show_advanced_features" {% if user.show_advanced_features %}checked{% endif %}>
+                        <label class="form-check-label" for="show_advanced">
+                            <strong>Show all features</strong>
+                        </label>
+                        <div class="small text-muted mt-1">
+                            Enable to see all platform features immediately, even those not yet unlocked through usage.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle me-2"></i>Save Preferences
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Data & Privacy (GDPR) -->
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-6 mb-4">
         <div class="card h-100">
             <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Data & Privacy</h6>

@@ -134,6 +134,7 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     # Feature gating
     show_advanced_features = db.Column(db.Boolean, default=False)
     unlocked_features = db.Column(db.JSON, default={})  # {'feature_name': '2026-04-24T...', ...}
+    newly_unlocked_features = db.Column(db.JSON, default={})  # {'group_name': '2026-05-01T...', ...}
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

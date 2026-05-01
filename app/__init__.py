@@ -1,7 +1,7 @@
 # In app/__init__.py
 import logging
 
-from flask import Flask, session, render_template, request, jsonify
+from flask import Flask, g, session, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -179,13 +179,28 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_feature_access():
-        """Make has_feature() available in all templates for sidebar gating"""
+        """Make has_feature() and is_newly_unlocked() available in all templates"""
+        from app.features import FEATURE_TO_GROUP
+
         def has_feature(feature_name):
             if not current_user.is_authenticated:
                 return False
-            return user_has_feature(current_user, feature_name)
+            cache = getattr(g, '_feature_cache', None)
+            if cache is None:
+                cache = {}
+                g._feature_cache = cache
+            if feature_name not in cache:
+                cache[feature_name] = user_has_feature(current_user, feature_name)
+            return cache[feature_name]
 
-        return dict(has_feature=has_feature)
+        def is_newly_unlocked(feature_name):
+            if not current_user.is_authenticated:
+                return False
+            newly = getattr(current_user, 'newly_unlocked_features', None) or {}
+            group = FEATURE_TO_GROUP.get(feature_name)
+            return group is not None and group in newly
+
+        return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked)
 
     # ── Security headers ──────────────────────────────────────────────
     @app.after_request

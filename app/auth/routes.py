@@ -5,6 +5,7 @@ from app.models import User
 from app.auth import auth_bp # Import the blueprint from this package's __init__.py
 from app.constants import RATELIMIT_AUTH
 from app.utils.audit_logger import log_auth_event
+from app.services.feature_unlock_service import FeatureUnlockService
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -32,6 +33,12 @@ def login():
         if user and user.check_password(password):
             login_user(user, remember=remember) # Log in the user with Flask-Login
             log_auth_event(user.id, 'login')
+
+            newly_unlocked = FeatureUnlockService.check_and_unlock(user)
+            if newly_unlocked:
+                names = ', '.join(n.replace('_', ' ').title() for n in newly_unlocked)
+                flash(f'New features unlocked: {names}!', 'success')
+
             flash('Login successful!', 'success')
 
             # Redirect to the page the user was trying to access, or a default page
@@ -129,3 +136,21 @@ def update_settings():
         flash(f'Error updating settings: {str(e)}', 'error')
 
     return redirect(url_for('auth.account_settings'))
+
+
+@auth_bp.route('/update-feature-preferences', methods=['POST'])
+@login_required
+def update_feature_preferences():
+    """Toggle the show_advanced_features flag."""
+    current_user.show_advanced_features = 'show_advanced_features' in request.form
+    db.session.commit()
+    flash('Feature preferences updated.', 'success')
+    return redirect(url_for('auth.account_settings'))
+
+
+@auth_bp.route('/dismiss-new-feature/<group_name>', methods=['POST'])
+@login_required
+def dismiss_new_feature(group_name):
+    """Remove a feature group from the NEW badge state."""
+    FeatureUnlockService.dismiss_new_badge(current_user, group_name)
+    return '', 204

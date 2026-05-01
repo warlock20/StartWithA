@@ -227,6 +227,16 @@
     transition: opacity var(--sidebar-transition);
 }
 
+.sidebar-badge--new {
+    background: var(--success-500, #22c55e);
+    animation: badge-pulse 2s ease-in-out 3;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 /* Collapsible section toggle */
 .sidebar-section-toggle {
     display: flex;

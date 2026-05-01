@@ -41,11 +41,13 @@
                                             <i class="bi bi-folder-open"></i> Company Research
                                         </a>
                                     </li>
+                                    {% if has_feature('sectors') %}
                                     <li class="mb-2">
                                         <a href="{{ url_for('sectors.index') }}" class="text-decoration-none">
                                             <i class="bi bi-journal-text"></i> Sector Research
                                         </a>
                                     </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                             <div class="col-md-6">
@@ -55,16 +57,20 @@
                                             <i class="bi bi-check2-square"></i> Checklists
                                         </a>
                                     </li>
+                                    {% if has_feature('analytics') %}
                                     <li class="mb-2">
                                         <a href="{{ url_for('analytics.dashboard') }}" class="text-decoration-none">
                                             <i class="bi bi-graph-up"></i> Analytics
                                         </a>
                                     </li>
+                                    {% endif %}
+                                    {% if has_feature('question_bank') %}
                                     <li class="mb-2">
                                         <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none">
                                             <i class="bi bi-question-circle"></i> Question Bank
                                         </a>
                                     </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>

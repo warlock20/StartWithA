@@ -12,9 +12,9 @@
                     <small class="text-muted">
                         Also explore:
                         <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none fw-semibold">✅
-                            Investment Checklists</a> |
+                            Investment Checklists</a>{% if has_feature('question_bank') %} |
                         <a href="{{ url_for('question_bank.index') }}" class="text-decoration-none fw-semibold">❓ Question
-                            Bank</a>
+                            Bank</a>{% endif %}
                     </small>
                 </div>
             </div>

@@ -44,17 +44,41 @@
                                 New Journal Entry
                             </a>
                         </li>
+                        {% if has_feature('mistake_log') %}
                         <li>
                             <a class="dropdown-item" href="{{ url_for('learning.mistake_log') }}">
                                 <i class="bi bi-exclamation-triangle text-danger me-2"></i>
                                 New Mistake Log
                             </a>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
             </div>
         </header>
     </div>
+
+    {# ━━━ 0. UNLOCK PROGRESS (free-tier only) ━━━ #}
+    {% if unlock_progress %}
+    <div class="unlock-progress-strip">
+        <div class="dashboard-section-label">
+            <i class="bi bi-trophy me-1"></i> Feature Unlocks
+        </div>
+        <div class="unlock-progress-grid">
+            {% for item in unlock_progress %}
+            <div class="unlock-progress-card">
+                <div class="unlock-progress-header">
+                    <span class="unlock-progress-label">{{ item.label }}</span>
+                    <span class="unlock-progress-count">{{ item.count }}/{{ item.threshold }}</span>
+                </div>
+                <div class="unlock-progress-bar">
+                    <div class="unlock-progress-fill" style="width: {{ item.percent }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     {# ━━━ 1. PIPELINE STRIP ━━━ #}
     <div class="pipeline-strip">
@@ -323,30 +347,42 @@
                 <i class="bi bi-building nav-link-icon"></i>
                 Company Directory
             </a>
+            {% if has_feature('sectors') %}
             <a href="{{ url_for('sectors.index') }}" class="nav-link-card">
                 <i class="bi bi-pie-chart-fill nav-link-icon"></i>
                 Sector Research
             </a>
+            {% endif %}
+            {% if has_feature('analytics') %}
             <a href="{{ url_for('analytics.dashboard') }}" class="nav-link-card">
                 <i class="bi bi-bar-chart-fill nav-link-icon"></i>
                 Analytics
             </a>
+            {% endif %}
+            {% if has_feature('portfolio_intelligence') %}
             <a href="{{ url_for('portfolio.intelligence_hub') }}" class="nav-link-card">
                 <i class="bi bi-lightning-charge-fill nav-link-icon"></i>
                 Portfolio Intelligence
             </a>
+            {% endif %}
+            {% if has_feature('portfolio_journal') %}
             <a href="{{ url_for('portfolio.decision_journal_list') }}" class="nav-link-card">
                 <i class="bi bi-journal-bookmark-fill nav-link-icon"></i>
                 Decision Journal
             </a>
+            {% endif %}
+            {% if has_feature('learning_dashboard') %}
             <a href="{{ url_for('learning.learning_dashboard') }}" class="nav-link-card">
                 <i class="bi bi-mortarboard-fill nav-link-icon"></i>
                 Learning
             </a>
+            {% endif %}
+            {% if has_feature('mistake_log') %}
             <a href="{{ url_for('learning.mistake_log') }}" class="nav-link-card">
                 <i class="bi bi-exclamation-triangle-fill nav-link-icon"></i>
                 Mistake Log
             </a>
+            {% endif %}
         </div>
     </div>
 
