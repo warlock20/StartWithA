@@ -52,11 +52,13 @@
                             </div>
                             <div class="col-md-6">
                                 <ul class="list-unstyled">
+                                    {% if has_feature('investment_checklists') %}
                                     <li class="mb-2">
                                         <a href="{{ url_for('checklists.list_checklists') }}" class="text-decoration-none">
                                             <i class="bi bi-check2-square"></i> Checklists
                                         </a>
                                     </li>
+                                    {% endif %}
                                     {% if has_feature('analytics') %}
                                     <li class="mb-2">
                                         <a href="{{ url_for('analytics.dashboard') }}" class="text-decoration-none">

@@ -200,7 +200,30 @@ def create_app(config_class=Config):
             group = FEATURE_TO_GROUP.get(feature_name)
             return group is not None and group in newly
 
-        return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked)
+        def get_tier_info():
+            if not current_user.is_authenticated:
+                return None
+            tier = current_user.subscription_tier or 'free'
+            if tier != 'free' or current_user.show_advanced_features:
+                return None
+            cache = getattr(g, '_tier_info_cache', None)
+            if cache is not None:
+                return cache
+            from app.services.feature_unlock_service import FeatureUnlockService
+            progress = FeatureUnlockService.get_unlock_progress(current_user)
+            total_groups = 4
+            unlocked_count = total_groups - len(progress)
+            info = {
+                'tier': 'free',
+                'progress': progress,
+                'unlocked_count': unlocked_count,
+                'total_groups': total_groups,
+                'remaining': len(progress),
+            }
+            g._tier_info_cache = info
+            return info
+
+        return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked, get_tier_info=get_tier_info)
 
     # ── Security headers ──────────────────────────────────────────────
     @app.after_request
