@@ -34,8 +34,39 @@
     {% endif %}
 
     {# User menu / Login #}
+    {% set tier_info = get_tier_info() %}
     <div class="ms-auto d-flex align-items-center">
         {% if current_user.is_authenticated %}
+        {% if tier_info %}
+        <div class="topbar-tier-wrapper">
+            <button class="topbar-tier-badge" type="button">
+                <i class="bi bi-lock me-1"></i>FREE
+                {% if tier_info.remaining > 0 %}
+                <span class="topbar-tier-count">{{ tier_info.remaining }} to unlock</span>
+                {% endif %}
+            </button>
+            <div class="topbar-tier-popover">
+                <div class="tier-popover-header">
+                    <span class="tier-popover-title">Feature Unlock Progress</span>
+                    <span class="tier-popover-subtitle">{{ tier_info.unlocked_count }}/{{ tier_info.total_groups }} groups unlocked</span>
+                </div>
+                {% for item in tier_info.progress %}
+                <div class="tier-popover-item">
+                    <div class="tier-popover-item-header">
+                        <span class="tier-popover-label">{{ item.label }}</span>
+                        <span class="tier-popover-count">{{ item.count }}/{{ item.threshold }}</span>
+                    </div>
+                    <div class="tier-popover-bar">
+                        <div class="tier-popover-fill" style="width: {{ item.percent }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                <a href="{{ url_for('auth.account_settings') }}" class="tier-popover-link">
+                    <i class="bi bi-sliders me-1"></i>Show all features in Settings
+                </a>
+            </div>
+        </div>
+        {% endif %}
         <div class="dropdown topbar-dropdown">
             <button class="topbar-user dropdown-toggle" type="button" id="topbarUserDropdown"
                 data-bs-toggle="dropdown" aria-expanded="false">

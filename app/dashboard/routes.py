@@ -3,6 +3,7 @@ from flask import render_template
 from flask_login import current_user, login_required
 from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, PortfolioPosition
 from app.services.research_priority import ResearchPriorityService
+from app.services.feature_unlock_service import FeatureUnlockService
 from . import dashboard_bp
 from datetime import timedelta
 from app.utils.time_utils import now_utc
@@ -73,6 +74,12 @@ def index():
             DestinationCheckpoint.status == 'Active'
         ).order_by(DestinationCheckpoint.target_date.asc()).limit(5).all()
 
+    # --- Unlock Progress (free-tier users only) ---
+    unlock_progress = []
+    tier = current_user.subscription_tier or 'free'
+    if tier == 'free' and not current_user.show_advanced_features:
+        unlock_progress = FeatureUnlockService.get_unlock_progress(current_user)
+
     return render_template(
         'dashboard.html',
         title='Dashboard',
@@ -89,6 +96,8 @@ def index():
         # Action items
         upcoming_checkpoints=upcoming_checkpoints,
         stale_projects=stale_projects,
+        # Feature unlocks
+        unlock_progress=unlock_progress,
         # Legacy (kept for template compatibility)
         company_invest_count=company_invest_count,
     )

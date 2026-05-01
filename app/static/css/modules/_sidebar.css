@@ -123,6 +123,133 @@
     margin-top: var(--space-xs) !important;
 }
 
+/* ── Tier badge in topbar ── */
+.topbar-tier-wrapper {
+    position: relative;
+    margin-right: var(--space-sm);
+}
+
+.topbar-tier-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.topbar-tier-badge:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--text-white);
+}
+
+.topbar-tier-count {
+    font-weight: 400;
+    opacity: 0.7;
+    font-size: 0.65rem;
+}
+
+/* Popover (shown on hover) */
+.topbar-tier-popover {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-md);
+    z-index: 1050;
+}
+
+.topbar-tier-wrapper:hover .topbar-tier-popover {
+    display: block;
+}
+
+.tier-popover-header {
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tier-popover-title {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.tier-popover-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.tier-popover-item {
+    margin-bottom: var(--space-sm);
+}
+
+.tier-popover-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.tier-popover-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.tier-popover-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.tier-popover-bar {
+    height: 5px;
+    background: var(--border-light);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+}
+
+.tier-popover-fill {
+    height: 100%;
+    background: var(--success-500, #22c55e);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s ease;
+}
+
+.tier-popover-link {
+    display: block;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-light);
+    font-size: var(--font-size-xs);
+    color: var(--info-500);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.tier-popover-link:hover {
+    color: var(--info-600);
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .topbar-tier-count {
+        display: none;
+    }
+}
+
 /* ========== SIDEBAR ========== */
 .app-sidebar {
     position: fixed;
@@ -225,6 +352,16 @@
     border-radius: var(--radius-pill);
     flex-shrink: 0;
     transition: opacity var(--sidebar-transition);
+}
+
+.sidebar-badge--new {
+    background: var(--success-500, #22c55e);
+    animation: badge-pulse 2s ease-in-out 3;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
 }
 
 /* Collapsible section toggle */

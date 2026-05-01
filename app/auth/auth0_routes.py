@@ -12,6 +12,7 @@ from app.utils.audit_logger import log_auth_event
 from app.models import User
 from app.auth import auth_bp
 from app.utils.auth_utils import is_authorized
+from app.services.feature_unlock_service import FeatureUnlockService
 import secrets
 
 
@@ -138,6 +139,11 @@ def auth0_callback():
         # Log in the user with Flask-Login
         login_user(user, remember=True)
         log_auth_event(user.id, 'login_auth0')
+
+        newly_unlocked = FeatureUnlockService.check_and_unlock(user)
+        if newly_unlocked:
+            names = ', '.join(n.replace('_', ' ').title() for n in newly_unlocked)
+            flash(f'New features unlocked: {names}!', 'success')
 
         # Clear OAuth state from session
         session.pop('oauth_state', None)

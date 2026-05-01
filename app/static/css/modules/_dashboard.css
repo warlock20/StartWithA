@@ -12,6 +12,57 @@
    Based on Sample Dashboard Design
    ============================================================================= */
 
+/* ── Unlock Progress Strip ── */
+.unlock-progress-strip {
+    margin-bottom: var(--space-lg);
+}
+
+.unlock-progress-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-md);
+}
+
+.unlock-progress-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+}
+
+.unlock-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.unlock-progress-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.unlock-progress-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.unlock-progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+}
+
+.unlock-progress-fill {
+    height: 100%;
+    background: var(--success-500, #22c55e);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s ease;
+}
+
 /* Page Container - Distinct styling for dashboard pages */
 .dashboard-container {
     /*max-width: 1400px; */

@@ -8,6 +8,7 @@ from app.models import (User, Checklist, ChecklistItem, Company,
                         Transaction, PortfolioPosition)
 from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
+from app.services.feature_unlock_service import seed_unlock_thresholds
 # 1. Create the Flask app instance FIRST.
 app = create_app()
 
@@ -174,6 +175,14 @@ def refresh_imported_companies_command():
 
         db.session.commit()
         print(f"\nDone! Updated: {updated}, Failed: {failed}")
+
+
+@app.cli.command("seed-unlock-thresholds")
+def seed_unlock_thresholds_command():
+    """Seeds default unlock thresholds for feature groups into SystemConfig."""
+    with app.app_context():
+        seed_unlock_thresholds()
+        print("Feature unlock thresholds seeded.")
 
 
 @app.cli.command("init-db")

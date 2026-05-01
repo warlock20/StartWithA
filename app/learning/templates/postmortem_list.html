@@ -77,7 +77,7 @@
                 <i class="bi bi-clipboard-data"></i>
                 <p>No postmortems yet</p>
                 <p class="text-muted small">Create a postmortem from a closed decision in your
-                    <a href="{{ url_for('portfolio.decision_journal_list') }}">Decision Journal</a>
+                    {% if has_feature('portfolio_journal') %}<a href="{{ url_for('portfolio.decision_journal_list') }}">Decision Journal</a>{% else %}Decision Journal{% endif %}
                 </p>
             </div>
         </div>

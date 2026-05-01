@@ -149,18 +149,21 @@ class UserView(SecureModelView):
     """Admin view for User management and token monitoring"""
     column_list = [
         'id', 'email', 'username', 'subscription_tier',
+        'show_advanced_features', 'unlocked_features',
         'ai_tokens_used', 'ai_tokens_limit', 'ai_tokens_reset_date',
         'auth_provider'
     ]
     column_searchable_list = ['email', 'username', 'auth0_id']
-    column_filters = ['subscription_tier', 'auth_provider']
-    column_editable_list = ['subscription_tier', 'ai_tokens_limit']
+    column_filters = ['subscription_tier', 'auth_provider', 'show_advanced_features']
+    column_editable_list = ['subscription_tier', 'ai_tokens_limit', 'show_advanced_features']
     column_default_sort = [('ai_tokens_used', True)]
 
     # Only show safe fields in edit form
     form_columns = [
         'email', 'username', 'name',
-        'subscription_tier', 'ai_tokens_limit', 'ai_tokens_used', 'ai_tokens_reset_date',
+        'subscription_tier', 'show_advanced_features',
+        'unlocked_features', 'newly_unlocked_features',
+        'ai_tokens_limit', 'ai_tokens_used', 'ai_tokens_reset_date',
         'base_currency', 'preferred_sprint_duration', 'research_experience_level'
     ]
 

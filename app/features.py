@@ -36,6 +36,31 @@ TIER_ACCESS = {
     'beta_tester': ['core', 'pro'],
 }
 
+# Feature unlock groups — features unlock together as a bundle.
+# When a group is unlocked, ALL features in it become available.
+FEATURE_GROUPS = {
+    'research_tools': [
+        'research_templates', 'kill_checklists',
+        'investment_checklists', 'question_bank',
+    ],
+    'advanced_research': [
+        'sectors', 'start_with_a', 'analytics',
+    ],
+    'portfolio_intelligence': [
+        'portfolio_intelligence', 'portfolio_journal',
+    ],
+    'knowledge_learning': [
+        'knowledge_hub', 'learning_dashboard', 'learning_paths',
+        'mistake_log', 'weekly_review',
+    ],
+}
+
+# Reverse lookup: feature_name → group_name
+FEATURE_TO_GROUP = {}
+for _group, _features in FEATURE_GROUPS.items():
+    for _feat in _features:
+        FEATURE_TO_GROUP[_feat] = _group
+
 
 def user_has_feature(user, feature_name):
     """
@@ -46,6 +71,7 @@ def user_has_feature(user, feature_name):
     2. The user's subscription_tier grants access
     3. The user has toggled 'show_advanced_features'
     4. The feature was individually unlocked for this user
+    5. The feature's unlock group was unlocked for this user
     """
     feature_tier = FEATURE_TIERS.get(feature_name, 'core')
 
@@ -63,9 +89,13 @@ def user_has_feature(user, feature_name):
     if getattr(user, 'show_advanced_features', False):
         return True
 
-    # Check individually unlocked features
+    # Check individually unlocked features or group-level unlocks
     unlocked = getattr(user, 'unlocked_features', None) or {}
     if feature_name in unlocked:
+        return True
+
+    group = FEATURE_TO_GROUP.get(feature_name)
+    if group and group in unlocked:
         return True
 
     return False

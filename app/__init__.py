@@ -1,7 +1,7 @@
 # In app/__init__.py
 import logging
 
-from flask import Flask, session, render_template, request, jsonify
+from flask import Flask, g, session, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -179,13 +179,51 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_feature_access():
-        """Make has_feature() available in all templates for sidebar gating"""
+        """Make has_feature() and is_newly_unlocked() available in all templates"""
+        from app.features import FEATURE_TO_GROUP
+
         def has_feature(feature_name):
             if not current_user.is_authenticated:
                 return False
-            return user_has_feature(current_user, feature_name)
+            cache = getattr(g, '_feature_cache', None)
+            if cache is None:
+                cache = {}
+                g._feature_cache = cache
+            if feature_name not in cache:
+                cache[feature_name] = user_has_feature(current_user, feature_name)
+            return cache[feature_name]
 
-        return dict(has_feature=has_feature)
+        def is_newly_unlocked(feature_name):
+            if not current_user.is_authenticated:
+                return False
+            newly = getattr(current_user, 'newly_unlocked_features', None) or {}
+            group = FEATURE_TO_GROUP.get(feature_name)
+            return group is not None and group in newly
+
+        def get_tier_info():
+            if not current_user.is_authenticated:
+                return None
+            tier = current_user.subscription_tier or 'free'
+            if tier != 'free' or current_user.show_advanced_features:
+                return None
+            cache = getattr(g, '_tier_info_cache', None)
+            if cache is not None:
+                return cache
+            from app.services.feature_unlock_service import FeatureUnlockService
+            progress = FeatureUnlockService.get_unlock_progress(current_user)
+            total_groups = 4
+            unlocked_count = total_groups - len(progress)
+            info = {
+                'tier': 'free',
+                'progress': progress,
+                'unlocked_count': unlocked_count,
+                'total_groups': total_groups,
+                'remaining': len(progress),
+            }
+            g._tier_info_cache = info
+            return info
+
+        return dict(has_feature=has_feature, is_newly_unlocked=is_newly_unlocked, get_tier_info=get_tier_info)
 
     # ── Security headers ──────────────────────────────────────────────
     @app.after_request

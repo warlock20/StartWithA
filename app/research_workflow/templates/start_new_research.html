@@ -44,6 +44,7 @@
             </div>
 
             <!-- Sector Research Card -->
+            {% if has_feature('sectors') %}
             <div class="subject-type-card" data-subject="sector">
                 <div class="subject-type-icon sector-icon">
                     <i class="bi bi-grid-3x3-gap"></i>
@@ -65,6 +66,7 @@
                     <i class="bi bi-lightbulb"></i> Build knowledge → Identify companies → Research systematically
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- Quick Tips Section -->
