@@ -106,6 +106,15 @@ def sell_postmortem(journal_id):
         is_portfolio_decision=True
     ).first()
 
+    # Get portfolio position for auto-calculated return
+    position = PortfolioPosition.query.filter_by(
+        user_id=current_user.id,
+        company_id=journal.company_id
+    ).first()
+    calculated_return = None
+    if position and position.realized_gain_loss_pct is not None:
+        calculated_return = float(position.realized_gain_loss_pct)
+
     if request.method == 'POST':
         # Get form data
         sell_reason = request.form.get('sell_reason', '').strip()
@@ -142,5 +151,6 @@ def sell_postmortem(journal_id):
 
     return render_template('sell_postmortem.html',
                           journal=journal,
-                          buy_journal=buy_journal)
+                          buy_journal=buy_journal,
+                          calculated_return=calculated_return)
 
