@@ -185,8 +185,19 @@ class ResearchPriorityService:
         )
 
         if ranked:
-            rec.hero = ranked[0]
-            rec.runners_up = ranked[1:]
+            # Check for a manually pinned project
+            pinned_id = settings.pinned_project_id
+            pinned_score = None
+            if pinned_id:
+                pinned_score = next((s for s in ranked if s.project.id == pinned_id), None)
+
+            if pinned_score:
+                rec.hero = pinned_score
+                rec.runners_up = [s for s in ranked if s.project.id != pinned_id]
+            else:
+                # No pin (or pinned project no longer active) — use algorithmic hero
+                rec.hero = ranked[0]
+                rec.runners_up = ranked[1:]
 
         # --- Warnings ---
         if len(ranked) > settings.active_project_limit:

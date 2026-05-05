@@ -529,6 +529,7 @@ class ResearchSettings(db.Model):
 
     # Focus limits
     active_project_limit = db.Column(db.Integer, default=3)
+    pinned_project_id = db.Column(db.Integer, db.ForeignKey('research_project.id', ondelete='SET NULL'), nullable=True)
 
     # Scoring weights (must sum to 100)
     weight_momentum = db.Column(db.Integer, default=40)

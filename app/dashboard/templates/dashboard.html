@@ -299,7 +299,7 @@
                 <div class="research-mini-card-header">
                     <span class="research-mini-name">{{ scored.project.subject_display_name }}</span>
                     {% if focus_recommendation and focus_recommendation.hero and scored.project.id == focus_recommendation.hero.project.id %}
-                    <span class="research-mini-badge research-mini-badge--current">Current</span>
+                    <span class="research-mini-badge research-mini-badge--current">{{ 'Pinned' if pinned_project_id and scored.project.id == pinned_project_id else 'Current' }}</span>
                     {% elif scored.label == 'Continue next' %}
                     <span class="research-mini-badge research-mini-badge--continue">Continue</span>
                     {% elif scored.label == 'Needs attention' %}
