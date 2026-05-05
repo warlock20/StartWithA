@@ -1,7 +1,7 @@
 # In app/dashboard/routes.py
 from flask import render_template
 from flask_login import current_user, login_required
-from app.models import Company, ResearchProject, IdeaPipeline, DestinationCheckpoint, PortfolioPosition
+from app.models import Company, ResearchProject, ResearchSettings, IdeaPipeline, DestinationCheckpoint, PortfolioPosition
 from app.services.research_priority import ResearchPriorityService
 from app.services.feature_unlock_service import FeatureUnlockService
 from . import dashboard_bp
@@ -18,6 +18,8 @@ def index():
     ).count()
 
     # --- Research Focus ---
+    research_settings = ResearchSettings.get_or_create(current_user.id)
+    pinned_project_id = research_settings.pinned_project_id
     focus_recommendation = ResearchPriorityService.get_focus_recommendation(current_user)
     all_scored = [focus_recommendation.hero] + focus_recommendation.runners_up if focus_recommendation.hero else list(focus_recommendation.runners_up)
     all_scored = [s for s in all_scored if s]
@@ -91,6 +93,7 @@ def index():
         too_hard_rate=round(too_hard_rate, 1),
         # Research focus
         focus_recommendation=focus_recommendation,
+        pinned_project_id=pinned_project_id,
         active_projects_list=active_projects,
         all_scored_projects=all_scored,
         # Action items

@@ -49,6 +49,18 @@
     color: var(--text-primary);
 }
 
+.position-btn--active {
+    background: var(--primary-50, #eff6ff);
+    border-color: var(--primary-400, #60a5fa);
+    color: var(--primary-700, #1d4ed8);
+}
+
+.position-btn--active:hover {
+    background: var(--primary-100, #dbeafe);
+    border-color: var(--primary-500, #3b82f6);
+    color: var(--primary-800, #1e40af);
+}
+
 .position-btn.primary {
     background: var(--primary-600);
     border-color: var(--primary-600);

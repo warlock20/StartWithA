@@ -295,3 +295,32 @@ def touch_project(project_id):
     db.session.commit()
 
     return jsonify({'ok': True})
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/pin', methods=['POST'])
+@login_required
+def pin_project(project_id):
+    """Pin a project as the current research focus, overriding algorithmic selection."""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if project.status != 'active':
+        flash('Only active projects can be pinned as focus', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+    settings = ResearchSettings.get_or_create(current_user.id)
+
+    # Toggle: unpin if already pinned, otherwise pin
+    if settings.pinned_project_id == project_id:
+        settings.pinned_project_id = None
+        db.session.commit()
+        flash(f'Unpinned {project.subject_display_name}. Focus will be chosen automatically.', 'info')
+    else:
+        settings.pinned_project_id = project_id
+        db.session.commit()
+        flash(f'Pinned {project.subject_display_name} as your research focus.', 'success')
+
+    return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))

@@ -72,6 +72,14 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         if '/journal/' in path:
             return path, "Journal"
 
+        # Portfolio position detail
+        if '/portfolio/position/' in path:
+            return path, "Position"
+
+        # Portfolio dashboard or other portfolio pages
+        if '/portfolio' in path:
+            return path, "Portfolio"
+
         # Analytics
         if '/analytics' in path:
             return path, "Analytics"
@@ -124,6 +132,10 @@ def _get_context_label(path):
         return "Learning"
     elif '/journal/' in path:
         return "Journal"
+    elif '/portfolio/position/' in path:
+        return "Position"
+    elif '/portfolio' in path:
+        return "Portfolio"
     elif '/analytics' in path:
         return "Analytics"
     else:

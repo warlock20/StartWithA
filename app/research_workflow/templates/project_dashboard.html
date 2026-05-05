@@ -47,6 +47,14 @@
                 </p>
             </div>
             <div class="dashboard-header-actions">
+                {% if project.status == 'active' %}
+                <form method="POST" action="{{ url_for('research_workflow.pin_project', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="position-btn{% if is_pinned %} position-btn--active{% endif %}"
+                            title="{{ 'Unpin — focus will be chosen automatically' if is_pinned else 'Pin as your current focus. Overrides automatic priority ranking on the dashboard.' }}">
+                        <i class="bi bi-pin-angle{% if is_pinned %}-fill{% endif %}"></i> {{ 'Pinned' if is_pinned else 'Pin as Focus' }}
+                    </button>
+                </form>
+                {% endif %}
                 <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>

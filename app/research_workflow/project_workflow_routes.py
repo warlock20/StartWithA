@@ -14,7 +14,7 @@ This module handles all routes related to executing research project workflows:
 from flask import render_template, request, redirect, url_for, flash, session as flask_session
 from flask_login import current_user, login_required
 from app import db
-from app.models import (ResearchTemplate, ResearchProject, WorkSession,
+from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
                        ChecklistAnalysis, ChecklistAnswer, ThesisEvolution,
                        ResearchAttachment)
@@ -197,6 +197,10 @@ def project_dashboard(project_id):
     for att in step_attachments:
         step_attachments_map.setdefault(att.step_index, []).append(att)
 
+    # Check if this project is pinned as focus
+    settings = ResearchSettings.get_or_create(current_user.id)
+    is_pinned = settings.pinned_project_id == project.id
+
     return render_template('project_dashboard.html',
                           title=f"Research: {project.project_name}",
                           project=project,
@@ -207,7 +211,8 @@ def project_dashboard(project_id):
                           days_since_last_work=days_since_last_work,
                           checklist_analyses=checklist_analyses,
                           project_attachments=project_attachments,
-                          step_attachments_map=step_attachments_map)
+                          step_attachments_map=step_attachments_map,
+                          is_pinned=is_pinned)
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/execute/<int:step_index>')
@@ -588,6 +593,11 @@ def mark_too_hard(project_id):
         project.within_circle_of_competence = within_coc
         project.too_hard_notes = too_hard_notes
         project.abandoned_at = now_utc()  # Keep for backwards compatibility / timing
+
+        # Clear pin if this project was pinned
+        settings = ResearchSettings.get_or_create(current_user.id)
+        if settings.pinned_project_id == project.id:
+            settings.pinned_project_id = None
 
         # Handle sector assignment
         if sector_action == 'existing' and sector_id:
