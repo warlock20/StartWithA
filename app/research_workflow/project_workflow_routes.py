@@ -16,8 +16,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
-                       ChecklistAnalysis, ChecklistAnswer, ThesisEvolution,
-                       ResearchAttachment)
+                       ChecklistAnalysis, ChecklistAnswer, ThesisEvolution)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, format_for_javascript
@@ -184,19 +183,6 @@ def project_dashboard(project_id):
                         if analysis:
                             checklist_analyses[step_index] = analysis.id
 
-    # Get attachments
-    project_attachments = ResearchAttachment.query.filter_by(
-        project_id=project.id, step_index=None
-    ).order_by(ResearchAttachment.uploaded_at.desc()).all()
-    step_attachments = ResearchAttachment.query.filter_by(
-        project_id=project.id
-    ).filter(ResearchAttachment.step_index.isnot(None)).order_by(
-        ResearchAttachment.uploaded_at.desc()
-    ).all()
-    step_attachments_map = {}
-    for att in step_attachments:
-        step_attachments_map.setdefault(att.step_index, []).append(att)
-
     # Check if this project is pinned as focus
     settings = ResearchSettings.get_or_create(current_user.id)
     is_pinned = settings.pinned_project_id == project.id
@@ -210,8 +196,6 @@ def project_dashboard(project_id):
                           latest_research_session=latest_research_session,
                           days_since_last_work=days_since_last_work,
                           checklist_analyses=checklist_analyses,
-                          project_attachments=project_attachments,
-                          step_attachments_map=step_attachments_map,
                           is_pinned=is_pinned)
 
 
@@ -423,17 +407,13 @@ def execute_step(project_id, step_index):
     elif step['type'] == 'free_research':
         # Free research step - user-defined questions with AI assistance
         session_start_js = format_for_javascript(session.start_time)
-        step_attachments = ResearchAttachment.query.filter_by(
-            project_id=project.id, step_index=step_index
-        ).order_by(ResearchAttachment.uploaded_at.desc()).all()
         return render_template('free_research_step.html',
                               title=f"Free Research: {step['name']}",
                               project=project,
                               step=step,
                               step_index=step_index,
                               session=session,
-                              session_start_js=session_start_js,
-                              step_attachments=step_attachments)
+                              session_start_js=session_start_js)
 
     # For other step types, show the generic execution interface
     # Format session start time for JavaScript timer

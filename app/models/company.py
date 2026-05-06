@@ -30,18 +30,6 @@ class Company(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    documents = db.relationship(
-        "CompanyDocument",
-        backref="company",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    articles = db.relationship(
-        "CompanyArticle",
-        backref="company",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
     destination_checkpoints = db.relationship(
         "DestinationCheckpoint",
         backref="company",
@@ -73,71 +61,94 @@ class Company(db.Model):
         return f"<Company {self.ticker_symbol} - {self.name}>"
 
 
-class CompanyDocument(db.Model):
+class CompanyResource(db.Model):
+    """Unified model for all company-related resources: files and links.
+    Replaces CompanyDocument, CompanyArticle, and ResearchAttachment."""
+
+    __tablename__ = "company_resource"
+
     id = db.Column(db.Integer, primary_key=True)
 
-    # Foreign key to link this document to a Company
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-
-    # Foreign key to link this document to the User who uploaded it
+    # Core relationships
+    company_id = db.Column(
+        db.Integer, db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
-    original_filename = db.Column(
-        db.String(255), nullable=False
-    )  # Original name of the uploaded file
-    # Stored file path, relative to a base upload directory.
-    # Could be a unique generated filename or include subdirectories like company_id/
-    stored_filename = db.Column(db.String(300), nullable=False, unique=True)
+    # 'file' or 'link'
+    resource_type = db.Column(db.String(20), nullable=False, index=True)
 
-    document_group = db.Column(
-        db.String(100), nullable=False, index=True
-    )  # E.g., 'Annual Reports', 'Quarterly Reports', 'Analyst Transcripts'
-    document_title = db.Column(
-        db.String(255), nullable=True
-    )  # E.g., "2023 Annual Report", "Q4 2023 Earnings Call"
-    document_date = db.Column(
-        db.Date, nullable=True
-    )  # Publication date of the document, or period end date
-
-    description = db.Column(db.Text, nullable=True)  # Optional user description
-    uploaded_at = db.Column(db.DateTime, nullable=False, default=now_utc)
-
-    # Relationships (these will create the backrefs on Company and User)
-    # company = db.relationship('Company', backref=db.backref('documents', lazy='dynamic')) # This is one way
-    # uploader = db.relationship('User', backref=db.backref('uploaded_documents', lazy='dynamic')) # This is one way
-
-    def __repr__(self):
-        return (
-            f"<CompanyDocument {self.original_filename} for Company {self.company_id}>"
-        )
-
-
-class CompanyArticle(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-
-    # Foreign key to link this article to a Company
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-
-    # The title of the article
+    # Common fields
     title = db.Column(db.String(300), nullable=False)
-
-    # The URL to the original article
-    url = db.Column(db.String(500), nullable=False)
-
-    # A short description or snippet of the article
     description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(100), nullable=True, index=True)
 
-    # The name of the news source (e.g., "Reuters", "Bloomberg")
+    # File-specific fields (null for links)
+    original_filename = db.Column(db.String(255), nullable=True)
+    stored_filename = db.Column(db.String(300), nullable=True, unique=True)
+    file_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+
+    # Link-specific fields (null for files)
+    url = db.Column(db.String(500), nullable=True)
     source_name = db.Column(db.String(100), nullable=True)
 
-    # The original publication date of the article (nullable for manual entries)
-    published_at = db.Column(db.DateTime, nullable=True, index=True)
+    # Optional research context
+    research_project_id = db.Column(
+        db.Integer,
+        db.ForeignKey("research_project.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    research_step_index = db.Column(db.Integer, nullable=True)
 
-    # The date the article was saved
-    fetched_at = db.Column(db.DateTime, nullable=False, default=now_utc)
+    # Dates
+    resource_date = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+
+    # Relationships
+    company = db.relationship(
+        "Company",
+        backref=db.backref("resources", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+    research_project = db.relationship(
+        "ResearchProject",
+        backref=db.backref("resources", lazy="dynamic"),
+    )
 
     def __repr__(self):
-        return f"<CompanyArticle {self.title[:50]}...>"
+        return f"<CompanyResource {self.resource_type}: {self.title}>"
+
+    def to_dict(self):
+        data = {
+            "id": self.id,
+            "company_id": self.company_id,
+            "resource_type": self.resource_type,
+            "title": self.title,
+            "description": self.description,
+            "category": self.category,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "resource_date": self.resource_date.isoformat() if self.resource_date else None,
+        }
+        if self.resource_type == "file":
+            data.update(
+                {
+                    "original_filename": self.original_filename,
+                    "file_type": self.file_type,
+                    "file_size": self.file_size,
+                }
+            )
+        elif self.resource_type == "link":
+            data.update(
+                {
+                    "url": self.url,
+                    "source_name": self.source_name,
+                }
+            )
+        if self.research_project_id:
+            data["research_project_id"] = self.research_project_id
+            data["research_step_index"] = self.research_step_index
+        return data
 
 
 class ScuttlebuttAnalysis(db.Model):

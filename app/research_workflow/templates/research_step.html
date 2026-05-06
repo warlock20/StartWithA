@@ -322,7 +322,7 @@
                         {% for doc in company_documents[:5] %}
                         <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
                            target="_blank">
-                            {{ doc.document_title or doc.original_filename }}
+                            {{ doc.title or doc.original_filename }}
                         </a>
                         {% endfor %}
                         {% if company_documents|length > 5 %}

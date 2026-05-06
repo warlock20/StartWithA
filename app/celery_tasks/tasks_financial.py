@@ -18,7 +18,7 @@ from secedgar import filings, FilingType
 from flask import current_app
 
 from app import db, create_app
-from app.models import Company, CompanyDocument, User, FinancialData
+from app.models import Company, CompanyResource, User, FinancialData
 from celery_app import celery
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 
@@ -155,9 +155,10 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
 
                     # Check for duplicates
                     doc_title = f"{filing_type_str} Report ({filing_date_str})"
-                    existing_doc = CompanyDocument.query.filter_by(
+                    existing_doc = CompanyResource.query.filter_by(
                         company_id=company.id,
-                        document_title=doc_title
+                        title=doc_title,
+                        resource_type='file'
                     ).first()
                     if existing_doc:
                         logger.debug(f"Skipping duplicate: {doc_title}")
@@ -199,14 +200,16 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
                     with open(file_save_path, 'w', encoding='utf-8') as f_out:
                         f_out.write(html_content)
 
-                    new_doc = CompanyDocument(
+                    new_doc = CompanyResource(
                         company_id=company.id,
                         user_id=user.id,
+                        resource_type='file',
+                        title=doc_title,
                         original_filename=original_fn,
                         stored_filename=os.path.join(str(company.id), stored_fn_uuid),
-                        document_group=f"SEC {filing_type_str} Filings",
-                        document_title=doc_title,
-                        document_date=parse_date_to_date_object(filing_date_str) if filing_date_str != "N/A" else None
+                        file_type='html',
+                        category=f"SEC {filing_type_str} Filings",
+                        resource_date=parse_date_to_date_object(filing_date_str) if filing_date_str != "N/A" else None
                     )
                     db.session.add(new_doc)
                     saved_count += 1

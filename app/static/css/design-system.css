@@ -108,3 +108,4 @@ All complex components have been fully modularized.
 @import url('modules/_cookie-notice.css');             /* Cookie information notice banner */
 @import url('modules/_market-sweep.css');              /* Market sweep — Start with A's screening */
 @import url('modules/_send-to-sector.css');            /* Send to Sector - company→sector bridge */
+@import url('modules/_company-resources.css');          /* Company Resources - unified file & link management */
