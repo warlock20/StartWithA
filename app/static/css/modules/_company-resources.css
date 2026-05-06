@@ -1,0 +1,23 @@
+/* Company Resources Modal */
+
+.cr-resource-item {
+    transition: background-color 0.15s;
+}
+
+.cr-resource-item:hover {
+    background-color: var(--bs-light, #f8f9fa);
+}
+
+.cr-resource-item:last-child {
+    border-bottom: none !important;
+}
+
+/* Ensure min-width-0 for text truncation in flex containers */
+.min-width-0 {
+    min-width: 0;
+}
+
+#cr-resource-list {
+    max-height: 400px;
+    overflow-y: auto;
+}

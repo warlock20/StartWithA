@@ -143,47 +143,39 @@
                     </div>
                 </div>
 
-                <!-- Step Attachments -->
+                <!-- Company Resources -->
                 <div class="card mb-3">
                     <div class="card-header">
-                        <i class="bi bi-paperclip me-2"></i>Step Attachments
+                        <i class="bi bi-folder2-open me-2"></i>Resources
                     </div>
                     <div class="card-body">
-                        {% if step_attachments %}
-                        <div class="mb-2">
-                            {% for att in step_attachments %}
-                            <div class="d-flex justify-content-between align-items-center py-1 {% if not loop.last %}border-bottom{% endif %}">
-                                <a href="{{ url_for('research_workflow.download_attachment', project_id=project.id, attachment_id=att.id) }}"
-                                   class="text-decoration-none small">
-                                    <i class="bi bi-file-earmark-{{ 'pdf' if att.file_type == 'pdf' else 'text' }} me-1"></i>
-                                    {{ att.title }}
-                                </a>
-                                <form method="POST" action="{{ url_for('research_workflow.delete_attachment', project_id=project.id, attachment_id=att.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0 p-0" onclick="return confirm('Delete?')">
-                                        <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
-                                    </button>
-                                </form>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="collapse" data-bs-target="#stepAttachForm">
-                            <i class="bi bi-plus-lg me-1"></i> Attach File
-                        </button>
-                        <div class="collapse mt-2" id="stepAttachForm">
-                            <form method="POST" action="{{ url_for('research_workflow.upload_attachment', project_id=project.id) }}"
-                                  enctype="multipart/form-data">
-                                <input type="hidden" name="step_index" value="{{ step_index }}">
-                                <div class="mb-2">
-                                    <input type="text" name="attachment_title" class="form-control form-control-sm" placeholder="Title" required>
-                                </div>
-                                <div class="mb-2">
-                                    <input type="file" name="attachment_file" class="form-control form-control-sm" accept=".pdf,.txt" required>
-                                </div>
-                                <button type="submit" class="btn btn-sm btn-primary w-100">
-                                    <i class="bi bi-upload me-1"></i> Upload
-                                </button>
-                            </form>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick='CompanyResources.open({
+                                companyId: {{ project.company.id }},
+                                companyName: {{ project.company.name|tojson }},
+                                projectId: {{ project.id }},
+                                stepIndex: {{ step_index }},
+                                defaultTab: "upload"
+                            })'>
+                                <i class="bi bi-cloud-upload me-1"></i> Upload File
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick='CompanyResources.open({
+                                companyId: {{ project.company.id }},
+                                companyName: {{ project.company.name|tojson }},
+                                projectId: {{ project.id }},
+                                stepIndex: {{ step_index }},
+                                defaultTab: "link"
+                            })'>
+                                <i class="bi bi-link-45deg me-1"></i> Save Link
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick='CompanyResources.open({
+                                companyId: {{ project.company.id }},
+                                companyName: {{ project.company.name|tojson }},
+                                projectId: {{ project.id }},
+                                stepIndex: {{ step_index }}
+                            })'>
+                                <i class="bi bi-folder2-open me-1"></i> View All Resources
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -217,6 +209,7 @@
 
 {% include 'partials/_companion_widget.html' %}
 {% include 'components/send_to_sector_modal.html' %}
+{% include 'components/company_resources_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -228,6 +221,8 @@
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}"></script>
 <!-- Send to Sector -->
 <script src="{{ url_for('static', filename='js/send-to-sector.js') }}"></script>
+<!-- Company Resources -->
+<script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
 <!-- SortableJS is already included in base -->
 
 <script>

@@ -8,12 +8,11 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.utils.time_utils import parse_date_to_date_object, now_utc
 from app.utils.auth_utils import get_user_resource_or_403
-from itertools import groupby
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
 from flask_login import current_user, login_required
 from app import db, cache
-from app.models import (ResearchProject, Company, CompanyDocument, DestinationCheckpoint,
-                        ChecklistAnalysis, CompanyArticle, QualitativeAnalysis,
+from app.models import (ResearchProject, Company, CompanyResource, DestinationCheckpoint,
+                        ChecklistAnalysis, QualitativeAnalysis,
                         FinancialData, Sector, ResearchLog, ThesisEvolution, DecisionJournal,
                         JournalEntry, LearningNote, MistakeLog, InvestmentPostMortem, IdeaPipeline,
                         Transaction)
@@ -97,7 +96,7 @@ def list_companies():
     for company in companies:
         # Counts for table
         project_count = current_user.research_projects.filter_by(company_id=company.id).count()
-        doc_count = company.documents.count()
+        doc_count = company.resources.count()
         active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first()
 
         status = 'Portfolio' if company.id in portfolio_ids else ('Watchlist' if company.id in favorite_ids else 'Tracked')
@@ -282,83 +281,10 @@ def delete_company(company_id):
 
     return redirect(url_for('companies.list_companies'))
 
-@companies_bp.route('/<int:company_id>/add_document', methods=['POST'])
-@login_required
-def add_document(company_id):
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
-
-    # --- Basic File Checks ---
-    if 'document_file' not in request.files:
-        flash('No file part in request.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
-
-    file = request.files['document_file']
-    if file.filename == '':
-        flash('No file selected for upload.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
-
-    # --- Get all form data ---
-    doc_group = request.form.get('document_group')
-    doc_title = request.form.get('document_title')
-    doc_date_str = request.form.get('document_date')
-    doc_description = request.form.get('description')
-
-    # --- Full Validation and Processing Logic ---
-    if not doc_group or not doc_title:
-        flash('Document group and title are required.', 'error')
-    elif file:
-        original_fn = secure_filename(file.filename)
-        file_ext = os.path.splitext(original_fn)[1].lower()
-        # Ensure ALLOWED_EXTENSIONS is a set, e.g. {'pdf', 'txt'}
-        allowed_extensions = current_app.config['ALLOWED_EXTENSIONS']
-
-        if not original_fn.lower().endswith(tuple(f".{ext}" for ext in allowed_extensions)):
-            flash(f'File type not allowed. Allowed types are: {", ".join(allowed_extensions)}', 'error')
-        else:
-            try:
-                stored_fn = f"{uuid.uuid4().hex}{file_ext}"
-                company_specific_upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
-                os.makedirs(company_specific_upload_path, exist_ok=True)
-                file.save(os.path.join(company_specific_upload_path, stored_fn))
-
-                document_date_obj = None
-                if doc_date_str:
-                    document_date_obj = parse_date_to_date_object(doc_date_str)
-                    if not document_date_obj:
-                        flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
-                        return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
-                
-                new_doc = CompanyDocument(
-                    company_id=company.id, 
-                    user_id=current_user.id,
-                    original_filename=original_fn,
-                    stored_filename=os.path.join(str(company.id), stored_fn),
-                    document_group=doc_group, 
-                    document_title=doc_title,
-                    document_date=document_date_obj, 
-                    description=doc_description
-                )
-                db.session.add(new_doc)
-                db.session.commit()
-                flash(f'Document "{original_fn}" uploaded successfully.', 'success')
-
-            except Exception as e:
-                db.session.rollback()
-                flash(f"An error occurred during upload: {e}", "error")
-                print(f"ERROR: Document upload failed: {e}")
-
-    return redirect(url_for('companies.company_dashboard', company_id=company_id) + '#documents')
-
-@companies_bp.route('/<int:company_id>/documents', methods=['GET']) # This is your dashboard page
+@companies_bp.route('/<int:company_id>/documents', methods=['GET'])
 @login_required
 def company_dashboard(company_id):
     company = get_user_resource_or_403(Company, company_id, current_user.id)
-
-    # Data for Documents Tab
-    documents_query = company.documents.order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc()).all()
-    grouped_documents = {group: list(docs) for group, docs in groupby(documents_query, key=lambda doc: doc.document_group)}
-    distinct_group_names_query = db.session.query(CompanyDocument.document_group).filter(CompanyDocument.user_id == current_user.id).distinct().order_by(CompanyDocument.document_group).all()
-    distinct_group_names = [group[0] for group in distinct_group_names_query if group[0]]
 
     # Data for Competitors Tab
     current_competitors = company.competitors.order_by(Company.name).all()
@@ -390,21 +316,15 @@ def company_dashboard(company_id):
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    # Saved articles
-    saved_articles = company.articles.order_by(CompanyArticle.fetched_at.desc()).all()
-
     return render_template(
         'company_documents.html',
         company=company,
-        grouped_documents=grouped_documents,
-        distinct_group_names=distinct_group_names,
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
         current_competitors=current_competitors,
         potential_competitors=potential_competitors,
         user_currency=user_currency,
         currency_symbol=currency_symbol,
-        saved_articles=saved_articles,
         title=f"Dashboard for {company.name}"
     )
 
@@ -460,120 +380,6 @@ def set_intrinsic_value(company_id):
         flash(f"An error occurred: {e}", "error")
 
     return redirect(request.referrer or url_for('companies.company_dashboard', company_id=company.id))
-
-@companies_bp.route('/documents/serve/<path:filepath>') # /companies/documents/serve/<company_id>/<filename>
-@login_required
-def serve_company_document(filepath):
-    # filepath is expected to be "<company_id>/<stored_filename>"
-    try:
-        # Basic security: Ensure the filepath is not attempting to traverse upwards (../../)
-        # secure_filename can be used on parts of path if constructing from user input, but here it's from DB.
-        # However, direct use of send_from_directory with a subdirectory (UPLOAD_FOLDER) is generally safe.
-
-        # Authorization: Check if the current user owns the company whose document is being requested
-        company_id_str = filepath.split(os.sep, 1)[0]
-        if not company_id_str.isdigit():
-            flash("Invalid file path.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(400)
-
-        company_id = int(company_id_str)
-        doc_company = Company.query.get_or_404(company_id)
-        if doc_company.user_id != current_user.id:
-            flash("You are not authorized to access this file.", "error")
-            return redirect(url_for('companies.list_companies')) # Or abort(403)
-    except Exception as e: # Broad exception for path splitting or int conversion
-        print(f"Error in serve_company_document path processing: {e}") # Log this
-        flash("Invalid file path.", "error")
-        return redirect(url_for('companies.list_companies')) # Or abort(404)
-
-    # send_from_directory needs the base directory and then the relative path from that directory
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filepath, as_attachment=False)
-
-@companies_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
-@login_required
-def delete_document(doc_id):
-    # Fetch the document record from the database
-    doc_to_delete = CompanyDocument.query.get_or_404(doc_id)
-
-    # Authorization: Ensure the user owns the company this document belongs to
-    if doc_to_delete.company.user_id != current_user.id:
-        flash("You are not authorized to delete this document.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    # Store company_id for redirection before we delete the object
-    company_id = doc_to_delete.company_id
-
-    try:
-        # Step 1: Delete the physical file from the server
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc_to_delete.stored_filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"Deleted file: {file_path}")
-        else:
-            print(f"WARNING: File to delete not found at path: {file_path}")
-
-        # Step 2: Delete the database record
-        db.session.delete(doc_to_delete)
-        db.session.commit()
-        flash("Document deleted successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting document: {e}", "error")
-        print(f"ERROR: Could not delete document {doc_id}: {e}")
-
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
-
-
-@companies_bp.route('/<int:company_id>/save_article', methods=['POST'])
-@login_required
-def save_article(company_id):
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
-    title = request.form.get('article_title', '').strip()
-    url = request.form.get('article_url', '').strip()
-    description = request.form.get('article_description', '').strip() or None
-    source_name = request.form.get('article_source', '').strip() or None
-
-    if not title or not url:
-        flash("Title and URL are required.", "error")
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
-
-    try:
-        article = CompanyArticle(
-            company_id=company.id,
-            title=title,
-            url=url,
-            description=description,
-            source_name=source_name,
-        )
-        db.session.add(article)
-        db.session.commit()
-        flash("Article saved successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error saving article: {e}", "error")
-
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
-
-
-@companies_bp.route('/article/<int:article_id>/delete', methods=['POST'])
-@login_required
-def delete_article(article_id):
-    article = CompanyArticle.query.get_or_404(article_id)
-    company = Company.query.get_or_404(article.company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
-
-    try:
-        db.session.delete(article)
-        db.session.commit()
-        flash("Article deleted.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting article: {e}", "error")
-
-    return redirect(url_for('companies.company_dashboard', company_id=company.id))
-
 
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required

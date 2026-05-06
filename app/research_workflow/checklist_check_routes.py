@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from flask import session as flask_session
 
 from app import db
-from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyDocument, QualitativeAnalysis
+from app.models import Checklist, ChecklistItem, Company, ChecklistAnalysis, ChecklistAnswer, CompanyResource, QualitativeAnalysis
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
@@ -106,10 +106,10 @@ def research_step(analysis_id, item_id):
         flash('Error finding current item in checklist order.', 'error')
         return redirect(url_for('checklists.view_checklist', checklist_id=session.checklist_id))
 
-    # Always fetch company documents for the sidebar and AI analysis
-    company_documents_for_llm = CompanyDocument.query.filter_by(company_id=session.company_id)\
-                                            .order_by(CompanyDocument.document_group, CompanyDocument.document_date.desc())\
-                                            .all()
+    # Always fetch company resources (files) for the sidebar and AI analysis
+    company_documents_for_llm = CompanyResource.query.filter_by(
+        company_id=session.company_id, resource_type='file'
+    ).order_by(CompanyResource.category, CompanyResource.resource_date.desc()).all()
         
     # Fetch existing answer for this item in this session
     research_answer = ChecklistAnswer.query.filter_by(
@@ -357,10 +357,11 @@ def ai_analyze_item(analysis_id, item_id):
 
     # Process selected documents if any IDs were provided
     if selected_document_ids:
-        # Fetch CompanyDocument objects, ensuring they belong to the session's company
-        company_documents = CompanyDocument.query.filter(
-            CompanyDocument.id.in_(selected_document_ids),
-            CompanyDocument.company_id == session.company_id 
+        # Fetch CompanyResource file objects, ensuring they belong to the session's company
+        company_documents = CompanyResource.query.filter(
+            CompanyResource.id.in_(selected_document_ids),
+            CompanyResource.company_id == session.company_id,
+            CompanyResource.resource_type == 'file'
         ).all()
 
         # Validate that all requested document IDs were found and valid for this company
@@ -369,7 +370,7 @@ def ai_analyze_item(analysis_id, item_id):
             
         for doc in company_documents:
             validated_documents_info.append({
-                'id': doc.id, 'title': doc.document_title, 'filename': doc.original_filename
+                'id': doc.id, 'title': doc.title, 'filename': doc.original_filename
             })
             
             # Extract text content from each validated document

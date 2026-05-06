@@ -13,7 +13,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, c
 from flask_login import current_user, login_required
 from app import db
 from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
-                       ResearchProject, KillChecklist, CompanyDocument)
+                       ResearchProject, KillChecklist, CompanyResource)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, calculate_duration_minutes
 from app.utils.response_utils import json_success
@@ -393,9 +393,10 @@ def analyze_checklist_item(project_id, session_id):
     if selected_document_ids and project.company_id:
         try:
             doc_ids = [int(doc_id) for doc_id in selected_document_ids]
-            documents = CompanyDocument.query.filter(
-                CompanyDocument.id.in_(doc_ids),
-                CompanyDocument.company_id == project.company_id
+            documents = CompanyResource.query.filter(
+                CompanyResource.id.in_(doc_ids),
+                CompanyResource.company_id == project.company_id,
+                CompanyResource.resource_type == 'file'
             ).all()
         except ValueError:
             return jsonify({'status': 'error', 'message': 'Invalid document ID format'}), 400

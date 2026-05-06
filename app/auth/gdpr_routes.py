@@ -30,7 +30,7 @@ def _collect_user_data(user):
     GDPR Art. 15 - Right of access.
     """
     from app.models import (
-        Company, CompanyDocument, QualitativeAnalysis,
+        Company, CompanyResource, QualitativeAnalysis,
         Checklist, QuestionBankItem, DestinationCheckpoint, DocumentImport,
         IdeaPipeline, KillChecklist, KillSession, KillChecklistSuggestion,
         IdeaSourceAnalysis, MistakeLog,
@@ -69,7 +69,7 @@ def _collect_user_data(user):
     # All models with user_id foreign key
     sections = [
         ('companies', Company, Company.user_id == user.id),
-        ('company_documents', CompanyDocument, CompanyDocument.user_id == user.id),
+        ('company_resources', CompanyResource, CompanyResource.user_id == user.id),
         ('qualitative_analyses', QualitativeAnalysis, QualitativeAnalysis.user_id == user.id),
         ('checklists', Checklist, Checklist.user_id == user.id),
         ('question_bank_items', QuestionBankItem, QuestionBankItem.user_id == user.id),
@@ -226,7 +226,7 @@ def delete_account():
         user_id = current_user.id
 
         from app.models import (
-            Company, CompanyDocument, QualitativeAnalysis,
+            Company, CompanyResource, QualitativeAnalysis,
             Checklist, ChecklistItem, QuestionBankItem, DestinationCheckpoint,
             DocumentImport, ChecklistAnalysis, ChecklistAnswer,
             IdeaPipeline, KillChecklist, KillCriterion, KillSession, KillAnswer,
@@ -329,7 +329,7 @@ def delete_account():
             DocumentImport.query.filter_by(user_id=user_id).delete()
 
             # Company data
-            CompanyDocument.query.filter_by(user_id=user_id).delete()
+            CompanyResource.query.filter_by(user_id=user_id).delete()
             QualitativeAnalysis.query.filter_by(user_id=user_id).delete()
 
             # Favorites (association table)

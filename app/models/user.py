@@ -25,9 +25,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
     name = db.Column(db.String(200), nullable=True)  # Full name from Auth0
     picture = db.Column(db.String(500), nullable=True)  # Profile picture URL from Auth0
     auth_provider = db.Column(db.String(50), nullable=True)  # 'auth0', 'google', 'github', etc.
-    uploaded_documents = db.relationship(
-        "CompanyDocument", backref="uploader", lazy="dynamic"
-    )
     checklists = db.relationship("Checklist", backref="author", lazy="dynamic")
     research_sessions = db.relationship(
         "ChecklistAnalysis", backref="researcher", lazy="dynamic"

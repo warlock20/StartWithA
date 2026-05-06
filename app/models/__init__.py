@@ -15,8 +15,7 @@ from .associations import (
 from .user import User
 from .company import (
     Company,
-    CompanyDocument,
-    CompanyArticle,
+    CompanyResource,
     QualitativeAnalysis,
     FinancialData,
 )
@@ -48,7 +47,6 @@ from .research import (
     ResearchLog,
     FreeResearchQuestion,
     ResearchSettings,
-    ResearchAttachment,
 )
 from .sector import (
     Sector,
@@ -131,8 +129,7 @@ __all__ = [
     'User',
     # Company models
     'Company',
-    'CompanyDocument',
-    'CompanyArticle',
+    'CompanyResource',
     'QualitativeAnalysis',
     'FinancialData',
     # Checklist models
@@ -161,7 +158,6 @@ __all__ = [
     'ResearchLog',
     'FreeResearchQuestion',
     'ResearchSettings',
-    'ResearchAttachment',
     # Sector models
     'Sector',
     'SectorAnalysis',

@@ -4,7 +4,7 @@ from whitenoise import WhiteNoise
 from app import create_app, db
 from celery_app import celery # Import the celery instance
 from app.models import (User, Checklist, ChecklistItem, Company,
-                        ChecklistAnalysis, ChecklistAnswer, CompanyDocument,
+                        ChecklistAnalysis, ChecklistAnswer, CompanyResource,
                         Transaction, PortfolioPosition)
 from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
@@ -35,7 +35,7 @@ def make_shell_context():
         'Company': Company,
         'ChecklistAnalysis': ChecklistAnalysis,
         'ChecklistAnswer': ChecklistAnswer,
-        'CompanyDocument': CompanyDocument
+        'CompanyResource': CompanyResource
     }
 
 @app.cli.command("cleanup-legacy-tickers")

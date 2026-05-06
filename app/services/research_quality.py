@@ -178,7 +178,7 @@ class ResearchQualityCalculator:
         """Gather metrics from database"""
         from app.models import (
             ResearchProject, WorkSession,
-            CompanyDocument, ChecklistAnalysis, ChecklistAnswer
+            CompanyResource, ChecklistAnalysis, ChecklistAnswer
         )
         
         metrics = {
@@ -316,8 +316,8 @@ class ResearchQualityCalculator:
                 
                 # Count documents analyzed for the company
                 if metrics['company_id']:
-                    doc_count = CompanyDocument.query.filter_by(
-                        company_id=metrics['company_id']
+                    doc_count = CompanyResource.query.filter_by(
+                        company_id=metrics['company_id'], resource_type='file'
                     ).count()
                     metrics['documents_analyzed'] = doc_count
                 

@@ -13,7 +13,7 @@ import zipfile
 from app.utils.blocknote_utils import blocknote_to_text
 from app.utils.time_utils import now_utc
 from app.models import (
-    ResearchProject, ResearchAttachment,
+    ResearchProject, CompanyResource,
     FreeResearchQuestion, ChecklistAnalysis, ChecklistAnswer,
     ThesisEvolution, DestinationCheckpoint,
     Transaction, DecisionJournal, JournalEntry,
@@ -383,9 +383,9 @@ def build_research_step_file(project, step_index, step):
                 lines.append("\n## Checklist Answers\n")
                 lines.append("_No checklist analysis found for this company._")
 
-    # Step attachments
-    attachments = ResearchAttachment.query.filter_by(
-        project_id=project.id, step_index=step_index
+    # Step resources (files attached during this research step)
+    attachments = CompanyResource.query.filter_by(
+        research_project_id=project.id, research_step_index=step_index, resource_type='file'
     ).all()
     if attachments:
         lines.append("\n## Attachments\n")
@@ -783,8 +783,8 @@ def export_research_project(project, upload_folder, pdf_bytes=None):
         if pdf_bytes:
             zf.writestr(f"{folder_name}/Research_Report.pdf", pdf_bytes)
 
-        all_attachments = ResearchAttachment.query.filter_by(
-            project_id=project.id
+        all_attachments = CompanyResource.query.filter_by(
+            research_project_id=project.id, resource_type='file'
         ).all()
         for att in all_attachments:
             file_path = os.path.join(upload_folder, att.stored_filename)

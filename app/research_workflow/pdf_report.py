@@ -8,7 +8,7 @@ import re
 import fitz
 import logging
 from app.utils.time_utils import now_utc
-from app.models import (ResearchAttachment, FreeResearchQuestion,
+from app.models import (CompanyResource, FreeResearchQuestion,
                         ChecklistAnalysis, ChecklistAnswer)
 from app.utils.blocknote_utils import blocknote_to_html, blocknote_to_text
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
@@ -298,9 +298,9 @@ def _build_step_html(project, step_index, step):
                             parts.append(f'<tr><td>{item_text}</td><td>-</td><td>-</td></tr>')
                     parts.append('</table>')
 
-    # Step attachments
-    attachments = ResearchAttachment.query.filter_by(
-        project_id=project.id, step_index=step_index
+    # Step resources (files attached during this research step)
+    attachments = CompanyResource.query.filter_by(
+        research_project_id=project.id, research_step_index=step_index, resource_type='file'
     ).all()
     if attachments:
         parts.append('<h3>Attachments</h3>')
@@ -367,14 +367,15 @@ def _build_full_html(project):
     if decision:
         sections.append(f'<div class="page-break">{decision}</div>')
 
-    # Project-level attachments
-    proj_attachments = ResearchAttachment.query.filter_by(
-        project_id=project.id, step_index=None
+    # Project-level file resources
+    proj_attachments = CompanyResource.query.filter_by(
+        research_project_id=project.id, research_step_index=None, resource_type='file'
     ).all()
     if proj_attachments:
         att_html = '<h2>Project Attachments</h2><ul>'
         for att in proj_attachments:
-            att_html += f'<li>{_esc(att.title)} ({_esc(att.original_filename)}, {round(att.file_size / 1024)}KB)</li>'
+            size_kb = round(att.file_size / 1024) if att.file_size else 0
+            att_html += f'<li>{_esc(att.title)} ({_esc(att.original_filename)}, {size_kb}KB)</li>'
         att_html += '</ul>'
         sections.append(att_html)
 
