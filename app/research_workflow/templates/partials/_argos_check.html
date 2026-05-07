@@ -228,7 +228,11 @@ const ArgosInsights = {
     timerSeconds: 0,
 
     init() {
-        this.modal = new bootstrap.Modal(document.getElementById('argosModal'));
+        const modalEl = document.getElementById('argosModal');
+        // Move modal to body for proper Bootstrap positioning —
+        // avoids stacking-context issues when nested inside flex/form/card containers
+        document.body.appendChild(modalEl);
+        this.modal = new bootstrap.Modal(modalEl);
         this.warningsCacheKey = `argos_warnings_${this.companyId}`;
         this.deepCacheKey = `argos_deep_${this.companyId}`;
         this.briefCacheKey = `argos_brief_${this.projectId}_${this.stepIndex}`;
@@ -236,9 +240,19 @@ const ArgosInsights = {
         // Restore badge from warnings cache
         this.restoreBadgeFromCache();
 
-        // Stop polling when modal is hidden
-        document.getElementById('argosModal').addEventListener('hidden.bs.modal', () => {
+        // Hide companion FAB when modal opens (its z-index 1060 sits above the modal)
+        modalEl.addEventListener('show.bs.modal', () => {
+            const fab = document.getElementById('companionFab');
+            const panel = document.getElementById('companionPanel');
+            if (fab) fab.style.display = 'none';
+            if (panel) panel.classList.remove('open');
+        });
+
+        // Restore companion FAB and stop polling when modal is hidden
+        modalEl.addEventListener('hidden.bs.modal', () => {
             this.stopPolling();
+            const fab = document.getElementById('companionFab');
+            if (fab) fab.style.display = '';
         });
 
         // Handle no-project state for brief tab

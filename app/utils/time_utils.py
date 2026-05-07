@@ -78,17 +78,25 @@ def format_for_javascript(dt: datetime) -> str:
     """
     Format datetime for JavaScript consumption with proper timezone handling.
 
+    Naive datetimes from the database are assumed to be in UTC
+    (stored via now_utc()). They are tagged as UTC directly without
+    any local-time offset conversion.
+
     Args:
         dt: Datetime object to format
 
     Returns:
         str: ISO format string that JavaScript can parse correctly
     """
-    dt_aware = ensure_timezone_aware(dt)
-    if dt_aware is None:
+    if dt is None:
         return ""
 
-    return dt_aware.isoformat()
+    if dt.tzinfo is None:
+        # Database stores UTC values as naive datetimes (via now_utc()).
+        # Attach UTC tzinfo directly — do NOT treat as local time.
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    return dt.isoformat()
 
 
 def hours_from_minutes(minutes: Optional[int]) -> float:
