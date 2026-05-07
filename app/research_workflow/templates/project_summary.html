@@ -278,10 +278,32 @@
     </div>
 </div>
 
+<!-- Post-Decision Modal -->
+<div class="modal fade" id="decisionSavedModal" tabindex="-1" aria-labelledby="decisionSavedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" id="decisionModalHeader">
+                <h5 class="modal-title" id="decisionSavedModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div id="decisionModalIcon" style="font-size: 3rem; margin-bottom: 1rem;"></div>
+                <p id="decisionModalMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer justify-content-center gap-2" id="decisionModalFooter"></div>
+        </div>
+    </div>
+</div>
+
 <script>
 const SummaryPage = {
     projectId: {{ project.id }},
     currentDecision: '{{ project.decision or "" }}',
+    companyName: {{ project.subject_display_name|tojson }},
+    urls: {
+        addTransaction: {% if project.company_id %}'{{ url_for('portfolio.add_transaction', company_id=project.company_id) }}'{% else %}null{% endif %},
+        myProjects: '{{ url_for('research_workflow.my_projects') }}'
+    },
 
     // Toggle research step expansion
     toggleStep(header) {
@@ -303,6 +325,53 @@ const SummaryPage = {
         panel.classList.toggle('show');
         icon.classList.toggle('bi-chevron-up');
         icon.classList.toggle('bi-chevron-down');
+    },
+
+    // Show post-decision modal with navigation options
+    showDecisionModal(decision) {
+        const titleEl = document.getElementById('decisionSavedModalLabel');
+        const iconEl = document.getElementById('decisionModalIcon');
+        const msgEl = document.getElementById('decisionModalMessage');
+        const footerEl = document.getElementById('decisionModalFooter');
+        const headerEl = document.getElementById('decisionModalHeader');
+
+        if (decision === 'invest') {
+            headerEl.style.background = 'var(--success-50, #f0fdf4)';
+            iconEl.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+            titleEl.textContent = 'Decision Saved: Invest';
+            msgEl.textContent = `You've decided to invest in ${this.companyName}. Add a transaction to start tracking your position.`;
+            footerEl.innerHTML = `
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Stay on Summary
+                </button>
+                ${this.urls.addTransaction
+                    ? `<a href="${this.urls.addTransaction}" class="btn btn-success">
+                           <i class="bi bi-plus-circle me-1"></i> Go to Portfolio
+                       </a>`
+                    : ''}
+            `;
+        } else {
+            const isPass = decision === 'pass';
+            headerEl.style.background = isPass ? 'var(--danger-50, #fef2f2)' : 'var(--warning-50, #fffbeb)';
+            iconEl.innerHTML = isPass
+                ? '<i class="bi bi-x-circle-fill text-danger"></i>'
+                : '<i class="bi bi-eye-fill text-warning"></i>';
+            titleEl.textContent = isPass ? 'Decision Saved: Pass' : 'Decision Saved: Watchlist';
+            msgEl.textContent = isPass
+                ? `You've decided to pass on ${this.companyName}. Good discipline in knowing when to walk away.`
+                : `${this.companyName} has been added to your watchlist. You can revisit this research later.`;
+            footerEl.innerHTML = `
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Stay on Summary
+                </button>
+                <a href="${this.urls.myProjects}" class="btn btn-primary">
+                    <i class="bi bi-folder me-1"></i> View All Projects
+                </a>
+            `;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('decisionSavedModal'));
+        modal.show();
     },
 
     // Save decision via AJAX
@@ -350,18 +419,16 @@ const SummaryPage = {
                 };
                 badge.innerHTML = badgeContent[this.currentDecision];
 
-                // Show success
-                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Saved!';
-                saveBtn.style.background = 'var(--success-500)';
+                // Reset button
+                saveBtn.innerHTML = originalHtml;
+                saveBtn.style.background = '';
+                saveBtn.disabled = false;
 
                 // Close expanded panel
                 document.getElementById('summaryExpandedPanel').classList.remove('show');
 
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalHtml;
-                    saveBtn.style.background = '';
-                    saveBtn.disabled = false;
-                }, 2000);
+                // Show post-decision modal with navigation options
+                this.showDecisionModal(this.currentDecision);
             } else {
                 throw new Error('Failed to save');
             }
