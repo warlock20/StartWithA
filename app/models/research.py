@@ -202,6 +202,7 @@ class ResearchProject(db.Model):
     key_findings = db.Column(db.JSON, default=list)
     red_flags = db.Column(db.JSON, default=list)
     green_flags = db.Column(db.JSON, default=list)
+    must_exit_criteria = db.Column(db.JSON, default=list)
 
     # Companion session wrap-up summaries
     session_history = db.Column(db.JSON, nullable=True)

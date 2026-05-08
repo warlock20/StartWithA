@@ -12,10 +12,11 @@ import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchProject, ChecklistAnalysis
+from app.models import ResearchProject, ChecklistAnalysis, Company
+from app.models.checklist import DestinationCheckpoint
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
-from app.utils.time_utils import now_utc
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.services.export_service import resolve_checklist_id
 from app.services.research_quality import calculate_research_quality
@@ -112,6 +113,7 @@ def save_project_decision(project_id):
 
         green_flags_raw = request.form.get('green_flags', '')
         red_flags_raw = request.form.get('red_flags', '')
+        must_exit_raw = request.form.get('must_exit_criteria', '')
 
         # Validate decision
         if decision not in ['invest', 'pass', 'watchlist']:
@@ -127,6 +129,7 @@ def save_project_decision(project_id):
         project.decision_date = now_utc()
         project.green_flags = [f.strip() for f in green_flags_raw.split('\n') if f.strip()]
         project.red_flags = [f.strip() for f in red_flags_raw.split('\n') if f.strip()]
+        project.must_exit_criteria = [c.strip() for c in must_exit_raw.split('\n') if c.strip()]
 
         # Mark as completed if not already
         if project.status != 'completed':
@@ -167,7 +170,7 @@ def save_project_decision(project_id):
 @research_workflow_bp.route('/projects/<int:project_id>/add-finding', methods=['POST'])
 @login_required
 def add_finding(project_id):
-    """Add a green or red flag finding to a project"""
+    """Add a green, red, or must-exit finding to a project"""
     project = ResearchProject.query.get_or_404(project_id)
 
     if project.user_id != current_user.id:
@@ -184,8 +187,9 @@ def add_finding(project_id):
             finding_text = request.form.get('finding_text', '').strip()
         
         # Normalize types (convert green_flag to green, etc. if needed)
-        if 'green' in finding_type: finding_type = 'green'
-        if 'red' in finding_type: finding_type = 'red'
+        if 'must_exit' in finding_type: finding_type = 'must_exit'
+        elif 'green' in finding_type: finding_type = 'green'
+        elif 'red' in finding_type: finding_type = 'red'
         
         if not finding_text:
             return json_error('Finding text is required')
@@ -197,6 +201,8 @@ def add_finding(project_id):
             project.green_flags = (project.green_flags or []) + [finding_text]
         elif finding_type == 'red':
             project.red_flags = (project.red_flags or []) + [finding_text]
+        elif finding_type == 'must_exit':
+            project.must_exit_criteria = (project.must_exit_criteria or []) + [finding_text]
         else:
             return json_error('Invalid finding type')
         
@@ -228,7 +234,7 @@ def remove_finding(project_id):
     try:
         data = request.get_json()
         finding_type = data.get('type')
-        finding_index = data.get('index', type=int)
+        finding_index = int(data.get('index', 0))
 
         if finding_type == 'green' and project.green_flags:
             if 0 <= finding_index < len(project.green_flags):
@@ -240,9 +246,73 @@ def remove_finding(project_id):
                 flags = list(project.red_flags)
                 flags.pop(finding_index)
                 project.red_flags = flags
+        elif finding_type == 'must_exit' and project.must_exit_criteria:
+            if 0 <= finding_index < len(project.must_exit_criteria):
+                criteria = list(project.must_exit_criteria)
+                criteria.pop(finding_index)
+                project.must_exit_criteria = criteria
 
         db.session.commit()
         return json_success('Finding removed')
+
+    except Exception as e:
+        db.session.rollback()
+        return json_error(str(e), status_code=500)
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/convert-exit-criteria', methods=['POST'])
+@login_required
+def convert_exit_criteria(project_id):
+    """Convert must-exit criteria into Destination Analysis checkpoints"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return json_unauthorized('Access denied')
+
+    if not project.company_id:
+        return json_error('Project must be linked to a company')
+
+    company = Company.query.get_or_404(project.company_id)
+    if company.user_id != current_user.id:
+        return json_unauthorized('Access denied')
+
+    try:
+        data = request.get_json()
+        items = data.get('items', [])
+
+        if not items:
+            return json_error('No items to convert')
+
+        created_count = 0
+        for item in items:
+            text = item.get('text', '').strip()
+            target_date_str = item.get('target_date', '').strip()
+            metric = item.get('metric', text[:200]).strip()
+            expectation = item.get('expectation', text).strip()
+
+            if not text or not target_date_str:
+                continue
+
+            target_date = parse_date_to_date_object(target_date_str)
+            if not target_date:
+                continue
+
+            checkpoint = DestinationCheckpoint(
+                company_id=project.company_id,
+                user_id=current_user.id,
+                metric=metric,
+                expectation=expectation,
+                target_date=target_date,
+                description=f"From must-exit criteria during research: {project.project_name}"
+            )
+            db.session.add(checkpoint)
+            created_count += 1
+
+        db.session.commit()
+        return json_success(
+            f'{created_count} checkpoint(s) created',
+            data={'count': created_count}
+        )
 
     except Exception as e:
         db.session.rollback()

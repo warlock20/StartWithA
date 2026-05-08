@@ -234,6 +234,13 @@
             <textarea id="redFlagsInput" placeholder="One risk per line...">{% if project.red_flags %}{{ project.red_flags|join('\n') }}{% endif %}</textarea>
             <div class="summary-flag-hint">One per line</div>
         </div>
+        <div class="summary-flag-section" style="grid-column: 1 / -1;">
+            <label style="color: #f59e0b;">
+                <i class="bi bi-exclamation-triangle-fill"></i> Must Exit Criteria
+            </label>
+            <textarea id="mustExitInput" placeholder="One criterion per line...">{% if project.must_exit_criteria %}{{ project.must_exit_criteria|join('\n') }}{% endif %}</textarea>
+            <div class="summary-flag-hint">One per line — conditions that would trigger selling</div>
+        </div>
     </div>
 </div>
 
@@ -280,15 +287,22 @@
 
 <!-- Post-Decision Modal -->
 <div class="modal fade" id="decisionSavedModal" tabindex="-1" aria-labelledby="decisionSavedModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header" id="decisionModalHeader">
                 <h5 class="modal-title" id="decisionSavedModalLabel"></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center py-4">
-                <div id="decisionModalIcon" style="font-size: 3rem; margin-bottom: 1rem;"></div>
-                <p id="decisionModalMessage" class="mb-0"></p>
+            <div class="modal-body" id="decisionModalBody">
+                <div id="decisionStep1" class="text-center py-4">
+                    <div id="decisionModalIcon" style="font-size: 3rem; margin-bottom: 1rem;"></div>
+                    <p id="decisionModalMessage" class="mb-0"></p>
+                </div>
+                <div id="decisionStep2" style="display: none;">
+                    <h6 class="mb-3"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Convert Exit Criteria to Destination Analysis Checkpoints</h6>
+                    <p class="text-muted small mb-3">Select which must-exit criteria to track. Add a target date for each to create checkpoints in Destination Analysis.</p>
+                    <div id="exitCriteriaList"></div>
+                </div>
             </div>
             <div class="modal-footer justify-content-center gap-2" id="decisionModalFooter"></div>
         </div>
@@ -300,9 +314,13 @@ const SummaryPage = {
     projectId: {{ project.id }},
     currentDecision: '{{ project.decision or "" }}',
     companyName: {{ project.subject_display_name|tojson }},
+    mustExitCriteria: {{ (project.must_exit_criteria or [])|tojson }},
+    companyId: {{ project.company_id or 'null' }},
     urls: {
         addTransaction: {% if project.company_id %}'{{ url_for('portfolio.add_transaction', company_id=project.company_id) }}'{% else %}null{% endif %},
-        myProjects: '{{ url_for('research_workflow.my_projects') }}'
+        myProjects: '{{ url_for('research_workflow.my_projects') }}',
+        convertExitCriteria: '{{ url_for("research_workflow.convert_exit_criteria", project_id=project.id) }}',
+        destinationAnalysis: {% if project.company_id %}'{{ url_for("companies.destination_analysis", company_id=project.company_id) }}'{% else %}null{% endif %}
     },
 
     // Toggle research step expansion
@@ -335,21 +353,70 @@ const SummaryPage = {
         const footerEl = document.getElementById('decisionModalFooter');
         const headerEl = document.getElementById('decisionModalHeader');
 
+        // Reset step 2 visibility
+        document.getElementById('decisionStep2').style.display = 'none';
+
         if (decision === 'invest') {
             headerEl.style.background = 'var(--success-50, #f0fdf4)';
             iconEl.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
             titleEl.textContent = 'Decision Saved: Invest';
-            msgEl.textContent = `You've decided to invest in ${this.companyName}. Add a transaction to start tracking your position.`;
-            footerEl.innerHTML = `
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                    Stay on Summary
-                </button>
-                ${this.urls.addTransaction
-                    ? `<a href="${this.urls.addTransaction}" class="btn btn-success">
-                           <i class="bi bi-plus-circle me-1"></i> Go to Portfolio
-                       </a>`
-                    : ''}
-            `;
+
+            const hasCriteria = this.mustExitCriteria && this.mustExitCriteria.length > 0;
+            const hasCompany = !!this.companyId;
+
+            if (hasCriteria && hasCompany) {
+                msgEl.textContent = `You've decided to invest in ${this.companyName}. You have must-exit criteria that can be tracked as Destination Analysis checkpoints.`;
+
+                // Build the criteria list for conversion
+                const listEl = document.getElementById('exitCriteriaList');
+                listEl.innerHTML = '';
+                this.mustExitCriteria.forEach((criterion, index) => {
+                    listEl.insertAdjacentHTML('beforeend', `
+                        <div class="border rounded p-2 mb-2" data-index="${index}">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="exitCheck${index}" checked>
+                                <label class="form-check-label" for="exitCheck${index}">
+                                    <strong>${criterion}</strong>
+                                </label>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <input type="date" class="form-control form-control-sm" id="exitDate${index}">
+                                    <small class="text-muted">Target date</small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="exitMetric${index}"
+                                           value="${criterion.substring(0, 200)}" placeholder="Metric name">
+                                    <small class="text-muted">Metric (optional override)</small>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+
+                footerEl.innerHTML = `
+                    <button type="button" class="btn btn-outline-secondary" onclick="SummaryPage.skipConversion()">
+                        Skip
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="SummaryPage.convertCriteria()" id="convertBtn">
+                        <i class="bi bi-arrow-right-circle me-1"></i> Create Checkpoints
+                    </button>
+                `;
+
+                document.getElementById('decisionStep2').style.display = 'block';
+            } else {
+                msgEl.textContent = `You've decided to invest in ${this.companyName}. Add a transaction to start tracking your position.`;
+                footerEl.innerHTML = `
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Stay on Summary
+                    </button>
+                    ${this.urls.addTransaction
+                        ? `<a href="${this.urls.addTransaction}" class="btn btn-success">
+                               <i class="bi bi-plus-circle me-1"></i> Go to Portfolio
+                           </a>`
+                        : ''}
+                `;
+            }
         } else {
             const isPass = decision === 'pass';
             headerEl.style.background = isPass ? 'var(--danger-50, #fef2f2)' : 'var(--warning-50, #fffbeb)';
@@ -388,6 +455,7 @@ const SummaryPage = {
         const confidence = document.getElementById('confidenceSlider').value;
         const greenFlags = document.getElementById('greenFlagsInput').value;
         const redFlags = document.getElementById('redFlagsInput').value;
+        const mustExitCriteria = document.getElementById('mustExitInput').value;
 
         // Show loading
         saveBtn.disabled = true;
@@ -403,7 +471,8 @@ const SummaryPage = {
                     decision: this.currentDecision,
                     confidence: confidence,
                     green_flags: greenFlags,
-                    red_flags: redFlags
+                    red_flags: redFlags,
+                    must_exit_criteria: mustExitCriteria
                 })
             });
 
@@ -442,6 +511,95 @@ const SummaryPage = {
                 saveBtn.style.background = '';
                 saveBtn.disabled = false;
             }, 2000);
+        }
+    },
+
+    // Skip conversion and show standard post-invest options
+    skipConversion() {
+        document.getElementById('decisionStep2').style.display = 'none';
+        const footerEl = document.getElementById('decisionModalFooter');
+        footerEl.innerHTML = `
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                Stay on Summary
+            </button>
+            ${this.urls.addTransaction
+                ? `<a href="${this.urls.addTransaction}" class="btn btn-success">
+                       <i class="bi bi-plus-circle me-1"></i> Go to Portfolio
+                   </a>`
+                : ''}
+        `;
+    },
+
+    // Convert selected criteria to Destination Analysis checkpoints
+    async convertCriteria() {
+        const convertBtn = document.getElementById('convertBtn');
+        const originalHtml = convertBtn.innerHTML;
+        convertBtn.disabled = true;
+        convertBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Creating...';
+
+        const items = [];
+        this.mustExitCriteria.forEach((criterion, index) => {
+            const checkbox = document.getElementById(`exitCheck${index}`);
+            const dateInput = document.getElementById(`exitDate${index}`);
+            const metricInput = document.getElementById(`exitMetric${index}`);
+
+            if (checkbox && checkbox.checked && dateInput && dateInput.value) {
+                items.push({
+                    text: criterion,
+                    target_date: dateInput.value,
+                    metric: metricInput ? metricInput.value.trim() || criterion.substring(0, 200) : criterion.substring(0, 200),
+                    expectation: criterion
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            alert('Please select at least one criterion and set a target date for each selected item.');
+            convertBtn.disabled = false;
+            convertBtn.innerHTML = originalHtml;
+            return;
+        }
+
+        try {
+            const response = await fetch(this.urls.convertExitCriteria, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: items })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                document.getElementById('decisionStep2').style.display = 'none';
+                document.getElementById('decisionModalMessage').textContent =
+                    `${result.data.count} checkpoint(s) created in Destination Analysis.`;
+
+                const footerEl = document.getElementById('decisionModalFooter');
+                footerEl.innerHTML = `
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Stay on Summary
+                    </button>
+                    ${this.urls.destinationAnalysis
+                        ? `<a href="${this.urls.destinationAnalysis}" class="btn btn-primary">
+                               <i class="bi bi-signpost-2 me-1"></i> View Checkpoints
+                           </a>`
+                        : ''}
+                    ${this.urls.addTransaction
+                        ? `<a href="${this.urls.addTransaction}" class="btn btn-success">
+                               <i class="bi bi-plus-circle me-1"></i> Go to Portfolio
+                           </a>`
+                        : ''}
+                `;
+            } else {
+                alert('Error: ' + (result.message || 'Failed to create checkpoints'));
+                convertBtn.disabled = false;
+                convertBtn.innerHTML = originalHtml;
+            }
+        } catch (err) {
+            console.error('Conversion error:', err);
+            alert('Failed to create checkpoints.');
+            convertBtn.disabled = false;
+            convertBtn.innerHTML = originalHtml;
         }
     }
 };
