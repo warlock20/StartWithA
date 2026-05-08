@@ -35,21 +35,6 @@
                 {% if is_newly_unlocked('sectors') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
             </a>
             {% endif %}
-            {% if has_feature('start_with_a') %}
-            <a href="{{ url_for('research_workflow.start_with_a') }}" class="sidebar-item" data-tooltip="Start with A's" data-feature-group="advanced_research">
-                <i class="bi bi-globe2"></i>
-                <span class="sidebar-item-text">Start with A's</span>
-                {% if is_newly_unlocked('start_with_a') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
-            </a>
-            {% endif %}
-            {% if has_feature('analytics') %}
-            <a href="{{ url_for('analytics.dashboard') }}" class="sidebar-item" data-tooltip="Analytics" data-feature-group="advanced_research">
-                <i class="bi bi-bar-chart-fill"></i>
-                <span class="sidebar-item-text">Analytics</span>
-                {% if is_newly_unlocked('analytics') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
-            </a>
-            {% endif %}
-
             {# Tools sub-section — all PRO #}
             {% if has_feature('research_templates') or has_feature('kill_checklists') or has_feature('investment_checklists') or has_feature('question_bank') %}
             <button class="sidebar-section-toggle" onclick="toggleSidebarSection(this)">
@@ -58,6 +43,20 @@
                 <i class="bi bi-chevron-right section-arrow"></i>
             </button>
             <div class="sidebar-subitems">
+                {% if has_feature('start_with_a') %}
+                <a href="{{ url_for('research_workflow.start_with_a') }}" class="sidebar-item" data-tooltip="Start with A's" data-feature-group="advanced_research">
+                    <i class="bi bi-globe2"></i>
+                    <span class="sidebar-item-text">Start with A's</span>
+                    {% if is_newly_unlocked('start_with_a') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
+                </a>
+                {% endif %}
+                {% if has_feature('analytics') %}
+                <a href="{{ url_for('analytics.dashboard') }}" class="sidebar-item" data-tooltip="Analytics" data-feature-group="advanced_research">
+                    <i class="bi bi-bar-chart-fill"></i>
+                    <span class="sidebar-item-text">Analytics</span>
+                    {% if is_newly_unlocked('analytics') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
+                </a>
+                {% endif %}
                 {% if has_feature('research_templates') %}
                 <a href="{{ url_for('research_workflow.template_list') }}" class="sidebar-item" data-tooltip="Templates" data-feature-group="research_tools">
                     <span class="sidebar-item-text">Research Templates</span>

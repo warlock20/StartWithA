@@ -69,13 +69,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ── Dismiss NEW badges on click ──
+    // Uses sendBeacon so the request survives page navigation
+    // (fetch gets cancelled when the browser navigates to the link's href)
     document.querySelectorAll('.sidebar-item[data-feature-group]').forEach(function (item) {
         item.addEventListener('click', function () {
             var badge = item.querySelector('.sidebar-badge--new');
             if (!badge) return;
             var group = item.getAttribute('data-feature-group');
             badge.remove();
-            fetch('/auth/dismiss-new-feature/' + group, { method: 'POST' });
+            navigator.sendBeacon('/auth/dismiss-new-feature/' + group);
         });
     });
 });
