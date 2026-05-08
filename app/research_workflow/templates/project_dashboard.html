@@ -307,7 +307,19 @@
                     {% endfor %}
                     {% endif %}
 
-                    {% if not project.green_flags and not project.red_flags %}
+                    {% if project.must_exit_criteria %}
+                    {% for criterion in project.must_exit_criteria %}
+                    <div class="key-finding-item">
+                        <i class="bi bi-exclamation-triangle-fill key-finding-icon" style="color: #f59e0b;"></i>
+                        <div>
+                            <span class="key-finding-label">Must Exit:</span>
+                            <span class="key-finding-text">{{ criterion }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if not project.green_flags and not project.red_flags and not project.must_exit_criteria %}
                     <p class="text-muted small mb-0">No key findings documented yet.</p>
                     {% endif %}
                 </div>
@@ -315,8 +327,11 @@
                     <button class="btn btn-sm btn-success me-2" onclick="showAddFindingModal('green_flag')">
                         <i class="bi bi-plus-lg"></i> Green Flag
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="showAddFindingModal('red_flag')">
+                    <button class="btn btn-sm btn-danger me-2" onclick="showAddFindingModal('red_flag')">
                         <i class="bi bi-plus-lg"></i> Red Flag
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="showAddFindingModal('must_exit')">
+                        <i class="bi bi-exclamation-triangle"></i> Must Exit
                     </button>
                 </div>
             </div>
@@ -509,7 +524,13 @@ function showAddFindingModal(findingType) {
 
     // 1. Setup modal state
     typeInput.value = findingType;
-    title.textContent = findingType.includes('green') ? 'Add Green Flag' : 'Add Red Flag';
+    if (findingType.includes('green')) {
+        title.textContent = 'Add Green Flag';
+    } else if (findingType.includes('must_exit')) {
+        title.textContent = 'Add Must Exit Criterion';
+    } else {
+        title.textContent = 'Add Red Flag';
+    }
     textInput.value = ''; // Clear previous text
 
     // 2. Attach AJAX submission handler
@@ -526,7 +547,7 @@ function showAddFindingModal(findingType) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    type: findingType.includes('green') ? 'green' : 'red',
+                    type: findingType.includes('must_exit') ? 'must_exit' : (findingType.includes('green') ? 'green' : 'red'),
                     text: text
                 })
             });
@@ -563,13 +584,22 @@ function appendFindingToSidebar(findingType, text) {
     const emptyMsg = container.querySelector('p.text-muted');
     if (emptyMsg) emptyMsg.remove();
 
-    const isGreen = findingType.includes('green');
-    const iconClass = isGreen ? 'bi-plus-circle-fill green' : 'bi-dash-circle-fill red';
-    const label = isGreen ? 'Green Flag:' : 'Red Flag:';
+    let iconClass, label, iconStyle = '';
+    if (findingType.includes('green')) {
+        iconClass = 'bi-plus-circle-fill green';
+        label = 'Green Flag:';
+    } else if (findingType.includes('must_exit')) {
+        iconClass = 'bi-exclamation-triangle-fill';
+        label = 'Must Exit:';
+        iconStyle = ' style="color: #f59e0b;"';
+    } else {
+        iconClass = 'bi-dash-circle-fill red';
+        label = 'Red Flag:';
+    }
 
     const findingHtml = `
         <div class="key-finding-item">
-            <i class="bi ${iconClass} key-finding-icon"></i>
+            <i class="bi ${iconClass} key-finding-icon"${iconStyle}></i>
             <div>
                 <span class="key-finding-label">${label}</span>
                 <span class="key-finding-text">${text}</span>
