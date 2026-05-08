@@ -5,8 +5,8 @@ Uses Google's Gemini embedding API with the new google-genai SDK.
 Good quality, generous free tier.
 
 Models:
-- embedding-001: General purpose (768 dims)
-- text-embedding-004: Newer model (768 dims)
+- embedding-001: Legacy model (768 dims)
+- gemini-embedding-001: Current model, replaced text-embedding-004 (768 dims)
 """
 
 import logging
@@ -51,10 +51,10 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
 
     MODELS = {
         'models/embedding-001': 768,
-        'models/text-embedding-004': 768,
+        'models/gemini-embedding-001': 768,
     }
 
-    DEFAULT_MODEL = 'models/text-embedding-004'
+    DEFAULT_MODEL = 'models/gemini-embedding-001'
 
     def __init__(
         self,

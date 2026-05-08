@@ -320,7 +320,7 @@
                     </div>
                     <div class="cl-documents-list">
                         {% for doc in company_documents[:5] %}
-                        <a href="{{ url_for('companies.serve_company_document', filepath=doc.stored_filename) }}"
+                        <a href="{{ url_for('companies.api_download_resource', resource_id=doc.id) }}"
                            target="_blank">
                             {{ doc.title or doc.original_filename }}
                         </a>

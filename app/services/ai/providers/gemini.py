@@ -280,7 +280,7 @@ class GeminiProvider(AIProvider):
 
         try:
             # Extract optional parameters
-            embedding_model = kwargs.get('model', 'models/text-embedding-004')
+            embedding_model = kwargs.get('model', 'models/gemini-embedding-001')
 
             embeddings = []
             for text in texts:
