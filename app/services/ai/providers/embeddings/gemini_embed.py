@@ -6,7 +6,7 @@ Good quality, generous free tier.
 
 Models:
 - embedding-001: Legacy model (768 dims)
-- gemini-embedding-001: Current model, replaced text-embedding-004 (768 dims)
+- gemini-embedding-001: Current model, replaced text-embedding-004 (3072 native, truncated to 768)
 """
 
 import logging
@@ -81,9 +81,11 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
 
         try:
             # New SDK syntax: client.models.embed_content
+            # gemini-embedding-001 defaults to 3072 dims; truncate to match DB schema
             result = self._client.models.embed_content(
                 model=self.model,
-                contents=text.strip()[:8000]
+                contents=text.strip()[:8000],
+                config={"output_dimensionality": self.dimension},
             )
             return np.array(result.embeddings[0].values, dtype=np.float32)
         except Exception as e:
@@ -106,7 +108,8 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
                     # New SDK syntax: client.models.embed_content
                     result = self._client.models.embed_content(
                         model=self.model,
-                        contents=text.strip()[:8000]
+                        contents=text.strip()[:8000],
+                        config={"output_dimensionality": self.dimension},
                     )
                     results.append(np.array(result.embeddings[0].values, dtype=np.float32))
                 else:
