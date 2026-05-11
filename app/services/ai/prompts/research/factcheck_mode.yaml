@@ -8,8 +8,8 @@ category: "research"
 
 preferred_provider: "gemini"
 model: "gemini-2.5-flash"
-max_tokens: 6000
-temperature: 0.3
+max_tokens: 10000
+temperature: 0.2
 
 last_modified: "2026-04-03"
 

@@ -119,6 +119,23 @@
         };
     </script>
 
+    <!-- Global toast notification (any page can call showToast(msg, type)) -->
+    <script>
+        window.showToast = function(message, type) {
+            var existing = document.querySelector('.app-toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.className = 'app-toast app-toast--' + (type || 'info');
+            if (type === 'loading') {
+                toast.innerHTML = '<span class="app-toast__spinner"></span>' + message;
+            } else {
+                toast.textContent = message;
+                setTimeout(function () { toast.remove(); }, 2500);
+            }
+            document.body.appendChild(toast);
+        };
+    </script>
+
     {% block scripts %}
     <script defer src="{{ url_for('static', filename='js/my_script.js') }}"></script>
     {% endblock %}

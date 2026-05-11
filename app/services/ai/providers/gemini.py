@@ -249,7 +249,7 @@ class GeminiProvider(AIProvider):
                 config_dict['safety_settings'] = safety_settings
 
             # Retry loop for truncated responses
-            max_retries = 2
+            max_retries = 3
             last_error = None
             for attempt in range(1, max_retries + 1):
                 # New SDK syntax: client.models.generate_content
@@ -260,11 +260,14 @@ class GeminiProvider(AIProvider):
                 )
 
                 # Check finish_reason for diagnostics
+                truncated = False
                 if response.candidates:
                     finish_reason = response.candidates[0].finish_reason
                     if finish_reason == 'MAX_TOKENS':
+                        truncated = True
+                        current_limit = config_dict.get('max_output_tokens', max_tokens)
                         logger.warning(f"Gemini JSON response truncated (MAX_TOKENS) on attempt {attempt}/{max_retries}. "
-                                       f"max_output_tokens={max_tokens}, model={self._model_enum.model_id}")
+                                       f"max_output_tokens={current_limit}, model={self._model_enum.model_id}")
                     elif finish_reason == 'SAFETY':
                         logger.error(f"Gemini JSON response blocked by safety filters on attempt {attempt}")
                     elif finish_reason not in ['STOP', None]:
@@ -280,6 +283,12 @@ class GeminiProvider(AIProvider):
                     logger.error(f"Gemini JSON parse error (attempt {attempt}/{max_retries}): {e}")
                     last_error = e
                     if attempt < max_retries:
+                        # If truncated due to MAX_TOKENS, increase the limit for next attempt
+                        if truncated:
+                            current_limit = config_dict.get('max_output_tokens', max_tokens or 8000)
+                            new_limit = int(current_limit * 1.5)
+                            config_dict['max_output_tokens'] = new_limit
+                            logger.info(f"Increasing max_output_tokens from {current_limit} to {new_limit} for retry")
                         finish_info = ""
                         if response.candidates:
                             finish_info = f" (finish_reason={response.candidates[0].finish_reason})"
@@ -454,44 +463,40 @@ class GeminiProvider(AIProvider):
                     break
 
         if end_idx == -1:
-            # Truncated response — attempt repair by closing open braces/brackets
+            # Truncated response — attempt repair by closing open structures
             logger.warning(f"Truncated JSON detected ({brace_count} unclosed braces). Attempting repair.")
             json_str = content[start_idx:].rstrip()
 
-            # Strategy 1: Close unterminated string in place, then close structures
-            # Strategy 2: Remove the last incomplete key-value pair, then close structures
             repair_attempts = []
 
-            quote_count = json_str.count('"')
-            has_unterminated_string = quote_count % 2 != 0
+            # Strategy 1: Stack-based repair — parse to build nesting stack, close in correct order
+            try:
+                s1 = self._stack_based_repair(json_str)
+                if s1:
+                    repair_attempts.append(("stack-based repair", s1))
+            except Exception:
+                pass
 
-            if has_unterminated_string:
-                # Strategy 1: Close the unterminated string and close structures
-                s1 = json_str + '"'
-                s1 = s1.rstrip().rstrip(',')
-                bracket_count = s1.count('[') - s1.count(']')
-                brace_count_s = s1.count('{') - s1.count('}')
-                s1 += ']' * max(0, bracket_count)
-                s1 += '}' * max(0, brace_count_s)
-                repair_attempts.append(("close string in place", s1))
+            # Strategy 2: Truncate to last comma, then stack-based repair
+            last_comma = json_str.rfind(',')
+            if last_comma > 0:
+                try:
+                    s2 = self._stack_based_repair(json_str[:last_comma].rstrip())
+                    if s2:
+                        repair_attempts.append(("truncate to last complete entry", s2))
+                except Exception:
+                    pass
 
-                # Strategy 2: Remove the incomplete entry back to the last comma
-                last_comma = json_str.rfind(',')
-                if last_comma > 0:
-                    s2 = json_str[:last_comma].rstrip()
-                    bracket_count = s2.count('[') - s2.count(']')
-                    brace_count_s = s2.count('{') - s2.count('}')
-                    s2 += ']' * max(0, bracket_count)
-                    s2 += '}' * max(0, brace_count_s)
-                    repair_attempts.append(("truncate to last complete entry", s2))
-            else:
-                # No unterminated string, just close structures
-                s = json_str.rstrip().rstrip(',')
-                bracket_count = s.count('[') - s.count(']')
-                brace_count_s = s.count('{') - s.count('}')
-                s += ']' * max(0, bracket_count)
-                s += '}' * max(0, brace_count_s)
-                repair_attempts.append(("close structures", s))
+            # Strategy 3: Truncate to second-to-last comma for deeper cuts
+            if last_comma > 0:
+                second_comma = json_str.rfind(',', 0, last_comma)
+                if second_comma > 0:
+                    try:
+                        s3 = self._stack_based_repair(json_str[:second_comma].rstrip())
+                        if s3:
+                            repair_attempts.append(("truncate to second-last entry", s3))
+                    except Exception:
+                        pass
 
             for strategy_name, candidate in repair_attempts:
                 try:
@@ -506,3 +511,59 @@ class GeminiProvider(AIProvider):
 
         json_str = content[start_idx:end_idx]
         return json.loads(json_str)
+
+    @staticmethod
+    def _stack_based_repair(json_str: str) -> str:
+        """
+        Repair truncated JSON by parsing character-by-character to build a nesting
+        stack, then closing structures in the correct reverse order.
+
+        Returns the repaired JSON string, or empty string on failure.
+        """
+        stack = []  # tracks '{' or '['
+        in_string = False
+        escaped = False
+        i = 0
+
+        while i < len(json_str):
+            ch = json_str[i]
+            if escaped:
+                escaped = False
+                i += 1
+                continue
+            if ch == '\\' and in_string:
+                escaped = True
+                i += 1
+                continue
+            if ch == '"':
+                in_string = not in_string
+            elif not in_string:
+                if ch in ('{', '['):
+                    stack.append(ch)
+                elif ch == '}':
+                    if stack and stack[-1] == '{':
+                        stack.pop()
+                elif ch == ']':
+                    if stack and stack[-1] == '[':
+                        stack.pop()
+            i += 1
+
+        if not stack:
+            return json_str
+
+        # Close unterminated string if needed
+        result = json_str
+        if in_string:
+            result += '"'
+
+        # Strip trailing comma or colon (incomplete key-value pair)
+        result = result.rstrip()
+        if result.endswith(',') or result.endswith(':'):
+            result = result[:-1].rstrip()
+
+        # Close structures in reverse nesting order
+        closers = {'{': '}', '[': ']'}
+        for opener in reversed(stack):
+            result += closers[opener]
+
+        return result

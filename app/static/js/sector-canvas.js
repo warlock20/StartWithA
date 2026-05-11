@@ -1094,14 +1094,11 @@ function removeCompanyFromSector(companyId, callback) {
     .catch(() => showToast('Network error', 'error'));
 }
 
+// showToast is provided globally by _base.html
+// Map legacy 'error' type to 'danger' for callers in this file
+var _globalShowToast = window.showToast;
 function showToast(message, type) {
-    // Use existing flash mechanism or create a simple toast
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
-    toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;min-width:250px;box-shadow:0 4px 12px rgba(0,0,0,.15);';
-    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    _globalShowToast(message, type === 'error' ? 'danger' : type);
 }
 
 function updateCompanyBadgeCount() {
