@@ -7,9 +7,9 @@ version: "1.0"
 category: "research"
 
 preferred_provider: "gemini"
-model: "gemini-2.5-flash"
+model: "gemini-3-pro-preview"
 max_tokens: 10000
-temperature: 0.4
+temperature: 0.3
 
 last_modified: "2026-01-25"
 

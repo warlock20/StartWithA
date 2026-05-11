@@ -98,39 +98,6 @@ async function generateAISummary() {
  * Show success toast notification
  */
 function showSuccessToast(message) {
-    // Check if Bootstrap toast is available
-    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-        // Create toast element
-        const toastHTML = `
-            <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="bi bi-check-circle me-2"></i>${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-
-        // Add to toast container or create one
-        let container = document.querySelector('.toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(container);
-        }
-
-        container.insertAdjacentHTML('beforeend', toastHTML);
-        const toastElement = container.lastElementChild;
-        const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
-        toast.show();
-
-        // Remove from DOM after hidden
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            toastElement.remove();
-        });
-    } else {
-        // Fallback to console
-        console.log(message);
-    }
+    // Delegate to the global showToast from _base.html
+    window.showToast(message, 'success');
 }

@@ -197,11 +197,10 @@
                         var val = cell.getValue();
                         if (!val) return '<span class="sweep-decision-badge sweep-decision-badge--pending">Pending</span>';
                         var map = {
-                            'skip':  'sweep-decision-badge--skip',
                             'inbox': 'sweep-decision-badge--inbox',
                             'killed':'sweep-decision-badge--killed'
                         };
-                        var labels = { 'skip': 'Skip', 'inbox': 'Inbox', 'killed': 'Killed' };
+                        var labels = { 'inbox': 'Inbox', 'killed': 'Killed' };
                         return '<span class="sweep-decision-badge ' + (map[val] || '') + '">' + (labels[val] || val) + '</span>';
                     }
                 },
@@ -226,7 +225,6 @@
                         }
                         var safeName = escapeHtml(row.company_name).replace(/'/g, "\\'");
                         return '<div class="sweep-actions">' +
-                            '<button class="sweep-action-btn sweep-action-btn--skip" onclick="MarketSweep.decide(' + row.id + ',\'skip\')">Skip</button>' +
                             '<button class="sweep-action-btn sweep-action-btn--inbox" onclick="MarketSweep.decide(' + row.id + ',\'inbox\')">Inbox</button>' +
                             '<button class="sweep-action-btn sweep-action-btn--kill" onclick="MarketSweep.openKill(' + row.id + ',\'' + safeName + '\')" title="Kill">Kill</button>' +
                             '</div>';
@@ -234,6 +232,7 @@
                 }
             ],
             customConfig: {
+                index: 'id',
                 layout: 'fitColumns',
                 pagination: true,
                 paginationSize: 10,
@@ -268,6 +267,8 @@
             if (extras.kill_reason_text) payload.kill_reason_text = extras.kill_reason_text;
         }
 
+        showToast('Processing…', 'loading');
+
         fetch('/research/workflow/api/sweep/decide', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -297,7 +298,7 @@
             }
             updateStats();
 
-            var labels = { 'skip': 'Skipped', 'inbox': 'Sent to Inbox', 'killed': 'Killed' };
+            var labels = { 'inbox': 'Sent to Inbox', 'killed': 'Killed' };
             showToast(labels[decision] || decision, decision === 'inbox' ? 'success' : 'info');
         })
         .catch(function (err) {
@@ -307,21 +308,36 @@
     }
 
     function undoDecision(companyId) {
-        // Re-decide as pending by sending skip, then clearing it
-        // Actually, we'll re-POST with skip and then manually mark as null
-        // Simpler: just re-decide — the user can pick a new decision
-        for (var i = 0; i < companiesData.length; i++) {
-            if (companiesData[i].id === companyId) {
-                companiesData[i].decision = null;
-                companiesData[i].decision_sector_id = null;
-                break;
+        fetch('/research/workflow/api/sweep/undo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ sweep_company_id: companyId })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
+                return;
             }
-        }
-        var row = sweepTable.getRow(companyId);
-        if (row) {
-            row.update({ decision: null, decision_sector_id: null });
-        }
-        updateStats();
+            for (var i = 0; i < companiesData.length; i++) {
+                if (companiesData[i].id === companyId) {
+                    companiesData[i].decision = null;
+                    companiesData[i].decision_sector_id = null;
+                    companiesData[i].promoted_idea_id = null;
+                    break;
+                }
+            }
+            var row = sweepTable.getRow(companyId);
+            if (row) {
+                row.update({ decision: null, decision_sector_id: null, promoted_idea_id: null });
+            }
+            updateStats();
+            showToast('Decision undone', 'info');
+        })
+        .catch(function (err) {
+            showToast('Network error — please try again', 'danger');
+            console.error('Undo error:', err);
+        });
     }
 
     function updateSector(companyId, sectorId) {
@@ -527,17 +543,15 @@
     /* ── STATS ─────────────────────────────────── */
     function updateStats() {
         var total = companiesData.length;
-        var reviewed = 0, skipped = 0, inbox = 0, killed = 0;
+        var reviewed = 0, inbox = 0, killed = 0;
         companiesData.forEach(function (c) {
             if (c.decision) reviewed++;
-            if (c.decision === 'skip') skipped++;
             if (c.decision === 'inbox') inbox++;
             if (c.decision === 'killed') killed++;
         });
 
         document.getElementById('metricTotal').textContent = total;
         document.getElementById('metricReviewed').textContent = reviewed;
-        document.getElementById('metricSkipped').textContent = skipped;
         document.getElementById('metricInbox').textContent = inbox;
         document.getElementById('metricKilled').textContent = killed;
 
@@ -553,27 +567,7 @@
         return div.innerHTML;
     }
 
-    function showToast(message, type) {
-        var existing = document.querySelector('.sweep-toast');
-        if (existing) existing.remove();
-
-        var toast = document.createElement('div');
-        toast.className = 'sweep-toast';
-        toast.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;padding:0.75rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;z-index:9999;animation:fadeIn 0.2s;';
-        if (type === 'success') {
-            toast.style.background = 'var(--success-600, #059669)';
-            toast.style.color = '#fff';
-        } else if (type === 'danger') {
-            toast.style.background = 'var(--danger-600, #dc2626)';
-            toast.style.color = '#fff';
-        } else {
-            toast.style.background = 'var(--gray-700, #374151)';
-            toast.style.color = '#fff';
-        }
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(function () { toast.remove(); }, 2500);
-    }
+    // showToast is provided globally by _base.html
 
     /* ── PUBLIC API (for inline onclick handlers) ─ */
     window.MarketSweep = {

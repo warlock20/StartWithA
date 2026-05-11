@@ -66,7 +66,6 @@ def list_sweeps():
             'description': sweep.description,
             'total_companies': sweep.total_companies,
             'reviewed': reviewed,
-            'skip_count': breakdown.get('skip', 0),
             'inbox_count': breakdown.get('inbox', 0),
             'killed_count': breakdown.get('killed', 0),
         })
@@ -219,7 +218,7 @@ def sweep_decide():
     kill_mode = data.get('kill_mode', 'checklist')  # 'checklist' or 'easy'
     kill_reason_text = (data.get('kill_reason_text') or '').strip()
 
-    if not sweep_company_id or decision_type not in ('skip', 'inbox', 'killed'):
+    if not sweep_company_id or decision_type not in ('inbox', 'killed'):
         return json_error('Invalid parameters')
 
     if decision_type == 'killed' and kill_mode == 'easy' and not kill_reason_text:
@@ -319,33 +318,29 @@ def sweep_decide():
         promoted_idea_id = idea.id
 
         # Feed Argos: embed the free-text reason for semantic similarity matching.
-        # Wrapped in try/except so an embedding hiccup never blocks the kill.
+        # Use a savepoint so a bad embedding never poisons the main commit.
         if kill_mode == 'easy' and kill_reason_text:
             try:
                 vec = embed(kill_reason_text)
                 if vec is not None:
-                    db.session.add(EmbeddingStore(
-                        user_id=current_user.id,
-                        entity_type='idea_kill',
-                        entity_id=idea.id,
-                        embedding_vector=vec.tolist(),
-                        source_text=kill_reason_text[:500],
-                        embedding_model='default',
-                    ))
+                    try:
+                        with db.session.begin_nested():
+                            db.session.add(EmbeddingStore(
+                                user_id=current_user.id,
+                                entity_type='idea_kill',
+                                entity_id=idea.id,
+                                embedding_vector=vec.tolist(),
+                                source_text=kill_reason_text[:500],
+                                embedding_model='default',
+                            ))
+                    except Exception as e:
+                        current_app.logger.warning(
+                            f'Argos embedding save failed for idea {idea.id}: {e}'
+                        )
             except Exception as e:
                 current_app.logger.warning(
                     f'Argos embedding failed for kill idea {idea.id}: {e}'
                 )
-
-    else:
-        # decision_type == 'skip'
-        # Note: if the user is re-deciding to skip after a prior inbox/killed
-        # decision, we leave the reusable_idea in place (changing its status
-        # to 'skip' would be a new status value not understood elsewhere, and
-        # deleting it risks violating FKs from research projects or journal
-        # entries the user may have created). The decision's promoted_idea_id
-        # is cleared below, which is the primary consistency requirement.
-        pass
 
     # Upsert decision
     if existing:
@@ -374,6 +369,38 @@ def sweep_decide():
         'decision': decision_type,
         'promoted_idea_id': promoted_idea_id,
     })
+
+
+@research_workflow_bp.route('/api/sweep/undo', methods=['POST'])
+@login_required
+def sweep_undo():
+    """Undo a decision for a market sweep company, deleting the decision row
+    and cleaning up any auto-created IdeaPipeline / kill embeddings."""
+    data = request.get_json()
+    sweep_company_id = data.get('sweep_company_id')
+
+    if not sweep_company_id:
+        return json_error('Invalid parameters')
+
+    existing = MarketSweepDecision.query.filter_by(
+        user_id=current_user.id,
+        sweep_company_id=sweep_company_id,
+    ).first()
+
+    if not existing:
+        return jsonify({'success': True})  # nothing to undo
+
+    # Clean up the promoted IdeaPipeline row if it was auto-created by the
+    # sweep flow and hasn't been promoted into deeper research.
+    reusable_idea = _find_reusable_idea(existing)
+    if reusable_idea:
+        _clear_kill_embeddings(current_user.id, reusable_idea.id)
+        db.session.delete(reusable_idea)
+
+    db.session.delete(existing)
+    db.session.commit()
+
+    return jsonify({'success': True})
 
 
 @research_workflow_bp.route('/api/sweep/kill-checklist')
