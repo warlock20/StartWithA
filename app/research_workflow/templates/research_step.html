@@ -233,7 +233,8 @@
                     <div>
                         {% if previous_item_id %}
                         <a href="{{ url_for('research_workflow.research_step', analysis_id=session.id, item_id=previous_item_id) }}"
-                           class="btn btn-outline-secondary">
+                           class="btn btn-outline-secondary"
+                           onclick="event.preventDefault(); navigateToItem({{ previous_item_id }}, this.href);">
                             <i class="bi bi-arrow-left"></i> Previous
                         </a>
                         {% endif %}
@@ -405,13 +406,73 @@
     document.addEventListener('DOMContentLoaded', function () {
         initializeAnswerEditor();
 
-        // Sync BlockNote content on form submit
+        // Intercept form submit for AJAX Save & Next
         const answerForm = document.getElementById('answerForm');
         if (answerForm) {
-            answerForm.addEventListener('submit', function(e) {
+            answerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                // Get current content from BlockNote
+                let content = '';
                 if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
                     const blocks = window.blockNoteEditorInstance.editor.document;
-                    document.getElementById('answer_text').value = JSON.stringify(blocks);
+                    content = JSON.stringify(blocks);
+                } else {
+                    content = document.getElementById('answer_text').value || '';
+                }
+
+                const satisfactionStatus = document.getElementById('satisfaction_status').value;
+
+                // Derive save_and_next URL from current form action
+                const saveNextUrl = answerForm.action + '/save_and_next';
+
+                // Show saving state on button
+                const submitBtn = answerForm.querySelector('button[type="submit"]');
+                const originalBtnHtml = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+                try {
+                    const response = await fetch(saveNextUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: content,
+                            satisfaction_status: satisfactionStatus
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Save failed');
+                    const data = await response.json();
+
+                    if (!data.success) throw new Error(data.error || 'Save failed');
+
+                    if (data.is_last_item) {
+                        // Last item: redirect to summary page
+                        window.location.href = data.summary_url;
+                        return;
+                    }
+
+                    // Restore button state before navigation
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+
+                    // Navigate to next item via AJAX (skip autosave — we just saved)
+                    const nextItemId = data.next_item_id;
+                    const fallbackUrl = `${CHECKLIST_BASE_URL}/item/${nextItemId}`;
+                    await navigateToItem(nextItemId, fallbackUrl, { skipAutosave: true });
+
+                } catch (error) {
+                    console.error('AJAX Save & Next failed, falling back:', error);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+
+                    // Fallback: sync content to textarea and do traditional form submit
+                    if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+                        const blocks = window.blockNoteEditorInstance.editor.document;
+                        document.getElementById('answer_text').value = JSON.stringify(blocks);
+                    }
+                    HTMLFormElement.prototype.submit.call(answerForm);
                 }
             });
         }
@@ -426,6 +487,9 @@
         }
     });
 
+    // Module-level config reference for autosave URL updates during AJAX navigation
+    let editorConfig = null;
+
     function initializeAnswerEditor() {
         try {
             if (!window.initBlockNoteEditor) {
@@ -434,7 +498,7 @@
 
             const existingContent = document.getElementById('answer_text').value || '';
 
-            answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
+            editorConfig = {
                 initialContent: existingContent,
                 placeholder: 'Add your synthesis notes here... Type "/" for commands',
                 saveResearchNotesUrl: '{{ url_for("research_workflow.autosave_research_answer", analysis_id=session.id, item_id=current_item.id) }}',
@@ -445,7 +509,9 @@
                         setTimeout(() => { indicator.innerHTML = ''; }, 2000);
                     }
                 }
-            });
+            };
+
+            answerEditorRoot = window.initBlockNoteEditor('answerEditor', editorConfig);
         } catch (error) {
             console.error('Error initializing BlockNote editor:', error);
             const editorElement = document.getElementById('answerEditor');
@@ -522,6 +588,7 @@
     // AJAX Smooth Navigation
     // =========================================================================
     const ANALYSIS_ID = {{ session.id }};
+    const CHECKLIST_BASE_URL = '{{ url_for("research_workflow.research_step", analysis_id=session.id, item_id=0) }}'.replace('/item/0', '');
     let isNavigating = false;
 
     // Intercept sidebar map clicks
@@ -541,45 +608,59 @@
         }
     });
 
-    async function navigateToItem(itemId, fallbackUrl) {
+    async function navigateToItem(itemId, fallbackUrl, options = {}) {
         if (isNavigating) return;
         isNavigating = true;
 
-        // Auto-save current answer before navigating
-        await autoSaveCurrentAnswer();
+        // Skip autosave when called from Save & Next (already saved)
+        if (!options.skipAutosave) {
+            await autoSaveCurrentAnswer();
+        }
 
         // Fade out main content
         const mainContent = document.querySelector('main.col-lg-8');
-        mainContent.classList.add('cl-fade-out');
+        if (mainContent) mainContent.classList.add('cl-fade-out');
 
         try {
-            const response = await fetch(`/research/checklist/${ANALYSIS_ID}/item/${itemId}/json`);
-            if (!response.ok) throw new Error('Failed to fetch item');
+            const response = await fetch(`${CHECKLIST_BASE_URL}/item/${itemId}/json`);
+            if (!response.ok) throw new Error(`Failed to fetch item: ${response.status}`);
             const data = await response.json();
 
             // Wait for fade out to complete
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Update all content
-            updateQuestionCard(data);
-            updateVerdictButtons(data);
-            updateAnswerEditor(data);
-            updateNavigation(data);
-            updateSidebarMap(data);
-            updateProgressHeader(data);
-            updateAIContext(data);
-
-            // Update URL without reload
-            const newUrl = `/research/checklist/${ANALYSIS_ID}/item/${itemId}`;
-            history.pushState({ itemId }, '', newUrl);
-
-            // Update form action
+            // Update form action FIRST (other updates may depend on it)
             document.getElementById('answerForm').action = data.form_action_url;
 
+            // Update URL without reload
+            const newUrl = `${CHECKLIST_BASE_URL}/item/${itemId}`;
+            history.pushState({ itemId }, '', newUrl);
+
+            // Update all content — each wrapped so one failure doesn't abort the rest
+            const updates = [
+                ['QuestionCard', () => updateQuestionCard(data)],
+                ['VerdictButtons', () => updateVerdictButtons(data)],
+                ['AnswerEditor', () => updateAnswerEditor(data)],
+                ['Navigation', () => updateNavigation(data)],
+                ['SidebarMap', () => updateSidebarMap(data)],
+                ['ProgressHeader', () => updateProgressHeader(data)],
+                ['AIContext', () => updateAIContext(data)]
+            ];
+
+            for (const [name, fn] of updates) {
+                try {
+                    fn();
+                } catch (err) {
+                    console.error(`AJAX nav: ${name} update failed:`, err);
+                }
+            }
+
             // Fade in
-            mainContent.classList.remove('cl-fade-out');
-            mainContent.classList.add('cl-fade-in');
-            setTimeout(() => mainContent.classList.remove('cl-fade-in'), 300);
+            if (mainContent) {
+                mainContent.classList.remove('cl-fade-out');
+                mainContent.classList.add('cl-fade-in');
+                setTimeout(() => mainContent.classList.remove('cl-fade-in'), 300);
+            }
 
             // Scroll map item into view
             const currentMapItem = document.querySelector('.cl-map-item.current');
@@ -589,7 +670,7 @@
 
         } catch (error) {
             console.error('AJAX navigation failed, falling back:', error);
-            mainContent.classList.remove('cl-fade-out');
+            if (mainContent) mainContent.classList.remove('cl-fade-out');
             window.location.href = fallbackUrl;
         } finally {
             isNavigating = false;
@@ -687,26 +768,62 @@
     }
 
     function updateAnswerEditor(data) {
-        // Destroy old editor instance
+        // Update hidden textarea (for fallback and form sync)
+        const textarea = document.getElementById('answer_text');
+        textarea.value = data.answer_text || '';
+
+        // Update autosave URL on the config object (closure picks this up)
+        if (editorConfig) {
+            editorConfig.saveResearchNotesUrl = data.autosave_url;
+        }
+
+        // Try to reuse existing editor via replaceBlocks
+        if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.editor) {
+            try {
+                const editor = window.blockNoteEditorInstance.editor;
+                let newBlocks;
+
+                if (data.answer_text && data.answer_text.trim()) {
+                    try {
+                        const parsed = JSON.parse(data.answer_text);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            newBlocks = parsed;
+                        } else {
+                            newBlocks = [{ type: "paragraph", content: [] }];
+                        }
+                    } catch (parseErr) {
+                        // Not JSON — treat as plain text
+                        newBlocks = [{
+                            type: "paragraph",
+                            content: [{ type: "text", text: data.answer_text }]
+                        }];
+                    }
+                } else {
+                    // Empty content — single empty paragraph
+                    newBlocks = [{ type: "paragraph", content: [] }];
+                }
+
+                editor.replaceBlocks(editor.document, newBlocks);
+                return; // Success — editor stays alive
+            } catch (replaceErr) {
+                console.warn('replaceBlocks failed, falling back to full re-init:', replaceErr);
+            }
+        }
+
+        // Fallback: full destroy + re-create (only if replaceBlocks failed or editor not available)
         if (window.blockNoteEditorInstance && window.blockNoteEditorInstance.unmount) {
             window.blockNoteEditorInstance.unmount();
         }
         window.blockNoteEditorInstance = null;
 
-        // Clear editor container
         const editorWrapper = document.getElementById('answerEditor');
         editorWrapper.innerHTML = '';
         editorWrapper.style.display = '';
-
-        // Update hidden textarea
-        const textarea = document.getElementById('answer_text');
-        textarea.value = data.answer_text || '';
         textarea.classList.add('d-none');
 
-        // Re-initialize BlockNote editor
         try {
             if (window.initBlockNoteEditor) {
-                answerEditorRoot = window.initBlockNoteEditor('answerEditor', {
+                editorConfig = {
                     initialContent: data.answer_text || '',
                     placeholder: 'Add your synthesis notes here... Type "/" for commands',
                     saveResearchNotesUrl: data.autosave_url,
@@ -717,7 +834,8 @@
                             setTimeout(() => { indicator.innerHTML = ''; }, 2000);
                         }
                     }
-                });
+                };
+                answerEditorRoot = window.initBlockNoteEditor('answerEditor', editorConfig);
             } else {
                 throw new Error('BlockNote not available');
             }
@@ -733,7 +851,7 @@
         const prevContainer = navBar.querySelector('div:first-child');
 
         if (data.previous_item_id) {
-            prevContainer.innerHTML = `<a href="/research/checklist/${ANALYSIS_ID}/item/${data.previous_item_id}"
+            prevContainer.innerHTML = `<a href="${CHECKLIST_BASE_URL}/item/${data.previous_item_id}"
                 class="btn btn-outline-secondary" data-ajax-nav="${data.previous_item_id}">
                 <i class="bi bi-arrow-left"></i> Previous
             </a>`;
