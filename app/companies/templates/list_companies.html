@@ -47,6 +47,10 @@
                 <option value="all">All Status</option>
                 <option value="Portfolio">Portfolio</option>
                 <option value="Watchlist">Watchlist</option>
+                <option value="Researching">Researching</option>
+                <option value="Passed">Passed</option>
+                <option value="Killed">Killed</option>
+                <option value="Review">Review</option>
                 <option value="Tracked">Tracked</option>
             </select>
             <div class="rcl-view-toggle">
@@ -71,25 +75,35 @@
                 {% set company = data.company_obj %}
                 {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
 
-                <div class="completed-project-card {% if company.id in portfolio_ids %}decision-invest{% elif company.id in favorite_ids %}decision-watchlist{% endif %}"
+                {% set card_status = data.status %}
+                {% set card_class_map = {
+                    'Portfolio': 'decision-invest',
+                    'Watchlist': 'decision-watchlist',
+                    'Researching': 'decision-watchlist',
+                    'Passed': 'decision-pass',
+                    'Killed': 'decision-pass',
+                    'Review': 'decision-pending',
+                    'Tracked': ''
+                } %}
+                {% set badge_map = {
+                    'Portfolio': ('decision-invest', 'bi-briefcase-fill'),
+                    'Watchlist': ('decision-watchlist', 'bi-star-fill'),
+                    'Researching': ('decision-invest', 'bi-graph-up'),
+                    'Passed': ('decision-pass', 'bi-x-circle'),
+                    'Killed': ('decision-pass', 'bi-slash-circle'),
+                    'Review': ('decision-watchlist', 'bi-arrow-repeat'),
+                    'Tracked': ('decision-pending', 'bi-building')
+                } %}
+                <div class="completed-project-card {{ card_class_map.get(card_status, '') }}"
                      data-name="{{ company.name|lower }}"
                      data-ticker="{{ company.ticker_symbol|lower if company.ticker_symbol else '' }}"
                      data-sector="{{ company.sector.display_name if company.sector else '' }}"
-                     data-status="{% if company.id in portfolio_ids %}Portfolio{% elif company.id in favorite_ids %}Watchlist{% else %}Tracked{% endif %}">
+                     data-status="{{ card_status }}">
                     <div class="decision-header">
-                        {% if company.id in portfolio_ids %}
-                        <div class="decision-badge decision-invest">
-                            <i class="bi bi-briefcase-fill"></i> Portfolio
+                        {% set badge_info = badge_map.get(card_status, ('decision-pending', 'bi-building')) %}
+                        <div class="decision-badge {{ badge_info[0] }}">
+                            <i class="bi {{ badge_info[1] }}"></i> {{ card_status }}
                         </div>
-                        {% elif company.id in favorite_ids %}
-                        <div class="decision-badge decision-watchlist">
-                            <i class="bi bi-star-fill"></i> Watchlist
-                        </div>
-                        {% else %}
-                        <div class="decision-badge decision-pending">
-                            <i class="bi bi-building"></i> Tracked
-                        </div>
-                        {% endif %}
                     </div>
 
                     <div class="completed-project-content">
@@ -113,7 +127,7 @@
                             <div class="stat-item">
                                 <i class="bi bi-file-text text-muted"></i>
                                 <span class="stat-value">
-                                    {% set doc_count = company.documents.count() %}
+                                    {% set doc_count = company.resources.count() %}
                                     {{ doc_count }} doc{{ 's' if doc_count != 1 else '' }}
                                 </span>
                             </div>
@@ -310,9 +324,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: function(cell) {
                         var val = cell.getValue();
                         var map = {
-                            'Portfolio': { cls: 'rcl-cell-badge--active', icon: 'bi-briefcase-fill' },
-                            'Watchlist': { cls: 'rcl-cell-badge--paused', icon: 'bi-star-fill' },
-                            'Tracked':   { cls: 'rcl-cell-badge--default', icon: 'bi-building' }
+                            'Portfolio':    { cls: 'rcl-cell-badge--active', icon: 'bi-briefcase-fill' },
+                            'Watchlist':    { cls: 'rcl-cell-badge--paused', icon: 'bi-star-fill' },
+                            'Researching':  { cls: 'rcl-cell-badge--research', icon: 'bi-graph-up' },
+                            'Passed':       { cls: 'rcl-cell-badge--manual', icon: 'bi-x-circle' },
+                            'Killed':       { cls: 'rcl-cell-badge--kill', icon: 'bi-slash-circle' },
+                            'Review':       { cls: 'rcl-cell-badge--mid', icon: 'bi-arrow-repeat' },
+                            'Tracked':      { cls: 'rcl-cell-badge--default', icon: 'bi-building' }
                         };
                         var info = map[val] || map['Tracked'];
                         return '<span class="rcl-cell-badge ' + info.cls + '"><i class="bi ' + info.icon + '"></i> ' + val + '</span>';
