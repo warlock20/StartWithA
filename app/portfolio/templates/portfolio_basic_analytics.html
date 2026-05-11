@@ -502,6 +502,7 @@
                 {% if sector_momentum %}
                 {# --- Results state --- #}
                 {% set sm = sector_momentum.sector_momentum %}
+                {% if sm %}
 
                 {# Disclaimer #}
                 <div class="module-disclaimer">
@@ -651,6 +652,8 @@
                 </div>
                 {% endif %}
 
+                {% endif %}{# end if sm #}
+
                 {% else %}
                 {# --- Empty state --- #}
                 <div class="module-empty-state" id="sector-momentum-empty">
@@ -677,6 +680,7 @@
                 {% if tax_optimization %}
                 {# --- Results state --- #}
                 {% set tax = tax_optimization.tax_optimization %}
+                {% if tax %}
 
                 {# Summary + Estimated Impact #}
                 <div class="narrative-block">
@@ -850,6 +854,8 @@
                     </div>
                 </div>
                 {% endif %}
+
+                {% endif %}{# end if tax #}
 
                 {% else %}
                 {# --- Empty state --- #}
