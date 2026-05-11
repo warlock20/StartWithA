@@ -90,6 +90,15 @@ def list_companies():
     swot_analysis_ids = {a.company_id for a in QualitativeAnalysis.query.filter_by(user_id=current_user.id, model_type='SWOT').all()}
     dest_analysis_ids = {c.company_id for c in DestinationCheckpoint.query.filter_by(user_id=current_user.id).all()}
 
+    # Pre-fetch latest research project per company (for richer status)
+    all_projects = ResearchProject.query.filter_by(
+        user_id=current_user.id
+    ).order_by(ResearchProject.created_at.desc()).all()
+    latest_project_map = {}
+    for p in all_projects:
+        if p.company_id not in latest_project_map:
+            latest_project_map[p.company_id] = p
+
     # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
     companies_json_list = []
@@ -99,11 +108,31 @@ def list_companies():
         doc_count = company.resources.count()
         active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first()
 
-        status = 'Portfolio' if company.id in portfolio_ids else ('Watchlist' if company.id in favorite_ids else 'Tracked')
+        # Derive status from portfolio, favorites, and research project state
+        if company.id in portfolio_ids:
+            status = 'Portfolio'
+        elif company.id in favorite_ids:
+            status = 'Watchlist'
+        else:
+            lp = latest_project_map.get(company.id)
+            if lp and lp.status == 'active':
+                status = 'Researching'
+            elif lp and lp.status == 'completed':
+                if lp.decision == 'pass':
+                    status = 'Passed'
+                elif lp.decision == 'needs_more_work':
+                    status = 'Review'
+                else:
+                    status = 'Tracked'
+            elif lp and lp.status == 'killed':
+                status = 'Killed'
+            else:
+                status = 'Tracked'
 
         # Jinja data (for card view)
         companies_data_list.append({
             'company_obj': company,
+            'status': status,
             'has_completed_checklist': company.id in completed_checklist_ids,
             'has_swot': company.id in swot_analysis_ids,
             'has_destination_analysis': company.id in dest_analysis_ids,

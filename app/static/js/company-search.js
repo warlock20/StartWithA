@@ -319,6 +319,7 @@ class CompanySearchComponent {
             summary: yahooCompany.summary || null
         };
 
+        showToast('Creating…', 'loading');
         try {
             const response = await fetch(this.config.createEndpoint, {
                 method: 'POST',
@@ -328,8 +329,10 @@ class CompanySearchComponent {
 
             const result = await response.json();
             if (result.success) {
+                showToast('Company created', 'success');
                 this.selectCompany(result.company);
             } else {
+                showToast(result.error || 'Failed to create company', 'danger');
                 console.error('Error creating company:', result.error);
                 // Show error in UI if possible
                 const tickerError = document.getElementById('tickerError');
@@ -339,6 +342,7 @@ class CompanySearchComponent {
                 }
             }
         } catch (error) {
+            showToast('Error creating company', 'danger');
             console.error('Error creating company:', error);
         }
     }
@@ -396,6 +400,7 @@ class CompanySearchComponent {
             summary: summary || null
         };
 
+        showToast('Creating…', 'loading');
         try {
             const response = await fetch(this.config.createEndpoint, {
                 method: 'POST',
@@ -405,12 +410,15 @@ class CompanySearchComponent {
 
             const result = await response.json();
             if (result.success) {
+                showToast('Company created', 'success');
                 this.selectCompany(result.company);
                 this.clearQuickAddForm();
             } else {
+                showToast(result.error || 'Failed to create company', 'danger');
                 this.showError('tickerError', result.error);
             }
         } catch (error) {
+            showToast('Error creating company', 'danger');
             console.error('Error creating company:', error);
             this.showError('tickerError', 'Error creating company. Please try again.');
         }

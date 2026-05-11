@@ -219,6 +219,7 @@ function saveSection() {
         ? window.sectorUrls.updateSection.replace('0', sectionId)
         : window.sectorUrls.createSection;
 
+    showToast('Saving…', 'loading');
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -304,6 +305,7 @@ function deleteSection(sectionId) {
         return;
     }
 
+    showToast('Deleting…', 'loading');
     fetch(window.sectorUrls.deleteSection.replace('0', sectionId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -373,6 +375,7 @@ function createQuickNote() {
     const content = prompt('Note content:');
     if (!content || content.trim() === '') return;
 
+    showToast('Saving…', 'loading');
     fetch(window.sectorUrls.createNote, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,6 +465,7 @@ function saveNote() {
         ? window.sectorUrls.updateNote.replace('0', noteId)
         : window.sectorUrls.createNote;
 
+    showToast('Saving…', 'loading');
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -776,6 +780,7 @@ function deleteNote(noteId) {
         return;
     }
 
+    showToast('Deleting…', 'loading');
     fetch(window.sectorUrls.deleteNote.replace('0', noteId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -925,6 +930,7 @@ function handleDrop(e) {
 }
 
 function moveNoteToSection(noteId, sectionId) {
+    showToast('Moving…', 'loading');
     fetch(`/sectors/note/${noteId}/update`, {
         method: 'POST',
         headers: {
@@ -1062,6 +1068,7 @@ function getSectorNameFromUrl() {
 
 function addCompanyToSector(companyId, callback) {
     const sectorName = getSectorNameFromUrl();
+    showToast('Adding…', 'loading');
     fetch(`/sectors/${sectorName}/add_company/${companyId}`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -1079,6 +1086,7 @@ function addCompanyToSector(companyId, callback) {
 
 function removeCompanyFromSector(companyId, callback) {
     const sectorName = getSectorNameFromUrl();
+    showToast('Removing…', 'loading');
     fetch(`/sectors/${sectorName}/remove_company/${companyId}`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
