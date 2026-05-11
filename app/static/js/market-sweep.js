@@ -289,13 +289,16 @@
                     break;
                 }
             }
-            // Use row.update() instead of table.updateData() to force a full
-            // row re-render — updateData() only redraws cells whose own field
-            // value changed, so the action column (field:'id') would stay stale.
-            var row = sweepTable.getRow(companyId);
-            if (row) {
-                row.update({ decision: decision, decision_sector_id: extras ? extras.sector_id : null, promoted_idea_id: data.promoted_idea_id || null });
-            }
+            // Update the row data and force a full redraw so both the
+            // decision-badge column and the action-buttons column re-render.
+            sweepTable.updateData([{
+                id: companyId,
+                decision: decision,
+                decision_sector_id: extras ? (extras.sector_id || null) : null,
+                promoted_idea_id: data.promoted_idea_id || null
+            }]).then(function () {
+                sweepTable.redraw(true);
+            });
             updateStats();
 
             var labels = { 'inbox': 'Sent to Inbox', 'killed': 'Killed' };
@@ -327,10 +330,14 @@
                     break;
                 }
             }
-            var row = sweepTable.getRow(companyId);
-            if (row) {
-                row.update({ decision: null, decision_sector_id: null, promoted_idea_id: null });
-            }
+            sweepTable.updateData([{
+                id: companyId,
+                decision: null,
+                decision_sector_id: null,
+                promoted_idea_id: null
+            }]).then(function () {
+                sweepTable.redraw(true);
+            });
             updateStats();
             showToast('Decision undone', 'info');
         })

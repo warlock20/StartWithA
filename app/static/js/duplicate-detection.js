@@ -219,6 +219,7 @@ class DuplicateDetector {
 // Helper function for resurrecting killed ideas
 function resurrectIdea(ideaId) {
     if (confirm('Are you sure you want to resurrect this previously killed idea?')) {
+        showToast('Resurrecting…', 'loading');
         fetch(`/ideas/${ideaId}/resurrect`, {
             method: 'POST',
             headers: {
@@ -228,14 +229,15 @@ function resurrectIdea(ideaId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                showToast('Resurrected', 'success');
                 window.location.href = `/ideas/${ideaId}`;
             } else {
-                alert('Failed to resurrect idea: ' + (data.error || 'Unknown error'));
+                showToast('Failed to resurrect idea: ' + (data.error || 'Unknown error'), 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to resurrect idea');
+            showToast('Failed to resurrect idea', 'danger');
         });
     }
 }

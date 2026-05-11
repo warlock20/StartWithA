@@ -304,6 +304,7 @@ async function unlinkCompany(targetType, targetId, companyId) {
             ? `/sectors/note/${targetId}/unlink-company/${companyId}`
             : `/sectors/snippet/${targetId}/unlink-company/${companyId}`;
 
+        showToast('Removing…', 'loading');
         const response = await fetch(endpoint, { method: 'POST' });
         const data = await response.json();
 
@@ -327,11 +328,14 @@ async function unlinkCompany(targetType, targetId, companyId) {
                 }
             }
 
+            showToast('Removed', 'success');
             showAlert('Company unlinked', 'success');
         } else {
+            showToast(data.error || 'Failed to unlink company', 'danger');
             showAlert(data.error || 'Failed to unlink company', 'error');
         }
     } catch (error) {
+        showToast('Failed to unlink company', 'danger');
         console.error('Error unlinking company:', error);
         showAlert('Error unlinking company', 'error');
     }

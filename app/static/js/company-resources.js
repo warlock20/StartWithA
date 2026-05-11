@@ -318,6 +318,7 @@ const CompanyResources = (() => {
     async function deleteResource(resourceId) {
         if (!confirm('Delete this resource?')) return;
 
+        showToast('Deleting…', 'loading');
         try {
             const resp = await fetch(`/companies/api/resources/${resourceId}`, {
                 method: 'DELETE',
@@ -325,12 +326,13 @@ const CompanyResources = (() => {
             const result = await resp.json();
 
             if (result.success) {
+                showToast('Deleted', 'success');
                 loadResources();
             } else {
-                alert(result.message || 'Failed to delete resource.');
+                showToast(result.message || 'Failed to delete resource.', 'danger');
             }
         } catch (e) {
-            alert('Network error. Please try again.');
+            showToast('Network error. Please try again.', 'danger');
         }
     }
 
