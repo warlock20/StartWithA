@@ -243,21 +243,51 @@ class GeminiProvider(AIProvider):
                 logger.info(f"Gemini JSON: Using system_instruction (length: {len(system_context)} chars)")
                 config_dict['system_instruction'] = system_context
 
-            # New SDK syntax: client.models.generate_content
-            response = self._client.models.generate_content(
-                model=self._model_enum.model_id,
-                contents=prompt,
-                config=config_dict
-            )
+            # Apply safety settings (same as generate_text)
+            safety_settings = kwargs.pop('safety_settings', self._get_default_safety_settings())
+            if safety_settings:
+                config_dict['safety_settings'] = safety_settings
 
-            content = response.text
-            if not content:
-                raise ValueError("Received empty response from Gemini")
+            # Retry loop for truncated responses
+            max_retries = 2
+            last_error = None
+            for attempt in range(1, max_retries + 1):
+                # New SDK syntax: client.models.generate_content
+                response = self._client.models.generate_content(
+                    model=self._model_enum.model_id,
+                    contents=prompt,
+                    config=config_dict
+                )
 
-            return json.loads(content.strip())
+                # Check finish_reason for diagnostics
+                if response.candidates:
+                    finish_reason = response.candidates[0].finish_reason
+                    if finish_reason == 'MAX_TOKENS':
+                        logger.warning(f"Gemini JSON response truncated (MAX_TOKENS) on attempt {attempt}/{max_retries}. "
+                                       f"max_output_tokens={max_tokens}, model={self._model_enum.model_id}")
+                    elif finish_reason == 'SAFETY':
+                        logger.error(f"Gemini JSON response blocked by safety filters on attempt {attempt}")
+                    elif finish_reason not in ['STOP', None]:
+                        logger.warning(f"Gemini JSON unexpected finish_reason: {finish_reason} on attempt {attempt}")
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Gemini JSON parse error: {e}")
+                content = response.text
+                if not content:
+                    raise ValueError("Received empty response from Gemini")
+
+                try:
+                    return json.loads(content.strip())
+                except json.JSONDecodeError as e:
+                    logger.error(f"Gemini JSON parse error (attempt {attempt}/{max_retries}): {e}")
+                    last_error = e
+                    if attempt < max_retries:
+                        finish_info = ""
+                        if response.candidates:
+                            finish_info = f" (finish_reason={response.candidates[0].finish_reason})"
+                        logger.warning(f"Retrying JSON generation{finish_info}...")
+                        continue
+                    # Final attempt failed — fall through to fallback extraction
+                    break
+
             # Try to extract JSON from response
             return self._extract_json_fallback(response.text if response else "")
         except Exception as e:
@@ -426,35 +456,53 @@ class GeminiProvider(AIProvider):
         if end_idx == -1:
             # Truncated response — attempt repair by closing open braces/brackets
             logger.warning(f"Truncated JSON detected ({brace_count} unclosed braces). Attempting repair.")
-            json_str = content[start_idx:]
-            # Strip trailing incomplete string/value
-            json_str = json_str.rstrip()
-            # Remove trailing comma or incomplete key/value
-            if json_str.endswith(','):
-                json_str = json_str[:-1]
-            # Try closing unclosed brackets/braces
-            # Count open brackets too
-            bracket_count = json_str.count('[') - json_str.count(']')
-            # Remove any trailing incomplete string literal
-            last_quote = json_str.rfind('"')
-            if last_quote > 0:
-                # Check if the quote count is odd (unclosed string)
-                quote_count = json_str.count('"')
-                if quote_count % 2 != 0:
-                    # Truncate to last complete key-value, close the string
-                    json_str = json_str[:last_quote + 1]
-            # Strip trailing comma again after truncation
-            json_str = json_str.rstrip().rstrip(',')
-            # Close open brackets and braces
-            json_str += ']' * max(0, bracket_count)
-            json_str += '}' * max(0, brace_count)
-            try:
-                result = json.loads(json_str)
-                logger.info("Successfully repaired truncated JSON response")
-                return result
-            except json.JSONDecodeError as repair_err:
-                logger.error(f"JSON repair failed: {repair_err}")
-                raise ValueError(f"Truncated JSON could not be repaired: {repair_err}")
+            json_str = content[start_idx:].rstrip()
+
+            # Strategy 1: Close unterminated string in place, then close structures
+            # Strategy 2: Remove the last incomplete key-value pair, then close structures
+            repair_attempts = []
+
+            quote_count = json_str.count('"')
+            has_unterminated_string = quote_count % 2 != 0
+
+            if has_unterminated_string:
+                # Strategy 1: Close the unterminated string and close structures
+                s1 = json_str + '"'
+                s1 = s1.rstrip().rstrip(',')
+                bracket_count = s1.count('[') - s1.count(']')
+                brace_count_s = s1.count('{') - s1.count('}')
+                s1 += ']' * max(0, bracket_count)
+                s1 += '}' * max(0, brace_count_s)
+                repair_attempts.append(("close string in place", s1))
+
+                # Strategy 2: Remove the incomplete entry back to the last comma
+                last_comma = json_str.rfind(',')
+                if last_comma > 0:
+                    s2 = json_str[:last_comma].rstrip()
+                    bracket_count = s2.count('[') - s2.count(']')
+                    brace_count_s = s2.count('{') - s2.count('}')
+                    s2 += ']' * max(0, bracket_count)
+                    s2 += '}' * max(0, brace_count_s)
+                    repair_attempts.append(("truncate to last complete entry", s2))
+            else:
+                # No unterminated string, just close structures
+                s = json_str.rstrip().rstrip(',')
+                bracket_count = s.count('[') - s.count(']')
+                brace_count_s = s.count('{') - s.count('}')
+                s += ']' * max(0, bracket_count)
+                s += '}' * max(0, brace_count_s)
+                repair_attempts.append(("close structures", s))
+
+            for strategy_name, candidate in repair_attempts:
+                try:
+                    result = json.loads(candidate)
+                    logger.info(f"Successfully repaired truncated JSON via strategy: {strategy_name}")
+                    return result
+                except json.JSONDecodeError:
+                    logger.debug(f"Repair strategy '{strategy_name}' failed, trying next...")
+                    continue
+
+            raise ValueError(f"Truncated JSON could not be repaired after {len(repair_attempts)} strategies")
 
         json_str = content[start_idx:end_idx]
         return json.loads(json_str)

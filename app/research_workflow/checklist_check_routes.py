@@ -214,6 +214,14 @@ def research_step_json(analysis_id, item_id):
     if current_item_index > 0:
         previous_item_id = all_items_in_order[current_item_index - 1].id
 
+    # Next item
+    next_item_id = None
+    is_last_item = False
+    if current_item_index + 1 < len(all_items_in_order):
+        next_item_id = all_items_in_order[current_item_index + 1].id
+    else:
+        is_last_item = True
+
     # All answers for sidebar status update
     all_answers = ChecklistAnswer.query.filter_by(checklist_analysis_id=session.id).all()
     answers_map = {}
@@ -240,6 +248,9 @@ def research_step_json(analysis_id, item_id):
         'answer_text': research_answer.answer_text if research_answer else '',
         'satisfaction_status': research_answer.satisfaction_status if research_answer else 'pending',
         'previous_item_id': previous_item_id,
+        'next_item_id': next_item_id,
+        'is_last_item': is_last_item,
+        'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id),
         'autosave_url': url_for('research_workflow.autosave_research_answer', analysis_id=session.id, item_id=current_item.id),
         'form_action_url': url_for('research_workflow.research_step', analysis_id=session.id, item_id=current_item.id),
         'answers_map': answers_map,
@@ -300,6 +311,77 @@ def autosave_research_answer(analysis_id, item_id):
             'message': 'Answer saved',
             'timestamp': research_answer.answered_at.isoformat() if research_answer.answered_at else None
         })
+
+    except Exception as e:
+        db.session.rollback()
+        return json_error(str(e), status_code=500)
+
+@research_workflow_bp.route('/checklist/<int:analysis_id>/item/<int:item_id>/save_and_next', methods=['POST'])
+@login_required
+def save_and_next(analysis_id, item_id):
+    """
+    AJAX endpoint: saves the answer and returns the next item ID (or summary URL for last item).
+    """
+    try:
+        session = ChecklistAnalysis.query.get_or_404(analysis_id)
+        current_item = ChecklistItem.query.get_or_404(item_id)
+
+        if session.researcher != current_user:
+            return json_unauthorized('Unauthorized')
+        if current_item.checklist_id != session.checklist_id:
+            return json_error('Invalid item for this session')
+
+        # Parse request body
+        if request.is_json:
+            data = request.get_json()
+            answer_text = data.get('content', '')
+            satisfaction_status = data.get('satisfaction_status', 'neutral')
+        else:
+            answer_text = request.form.get('answer_text', '')
+            satisfaction_status = request.form.get('satisfaction_status', 'neutral')
+
+        # Save answer
+        research_answer = ChecklistAnswer.query.filter_by(
+            checklist_analysis_id=session.id,
+            checklist_item_id=current_item.id
+        ).first()
+
+        if research_answer:
+            research_answer.answer_text = answer_text
+            research_answer.answered_at = now_utc()
+            research_answer.satisfaction_status = satisfaction_status
+        else:
+            research_answer = ChecklistAnswer(
+                answer_text=answer_text,
+                checklist_analysis_id=session.id,
+                checklist_item_id=current_item.id,
+                satisfaction_status=satisfaction_status
+            )
+            db.session.add(research_answer)
+        db.session.commit()
+
+        # Determine next item
+        all_items_in_order = get_all_ordered_items_for_checklist(session.checklist_id)
+        current_item_index = next(
+            (i for i, item in enumerate(all_items_in_order) if item.id == current_item.id), -1
+        )
+
+        if current_item_index + 1 < len(all_items_in_order):
+            next_item = all_items_in_order[current_item_index + 1]
+            return jsonify({
+                'success': True,
+                'is_last_item': False,
+                'next_item_id': next_item.id
+            })
+        else:
+            # Last item — mark session complete
+            session.status = 'completed'
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'is_last_item': True,
+                'summary_url': url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id)
+            })
 
     except Exception as e:
         db.session.rollback()

@@ -7,8 +7,8 @@ version: "1.0"
 category: "argos"
 
 preferred_provider: "gemini"
-model: "gemini-2.5-flash"
-max_tokens: 1500
+model: "gemini-3-pro-preview"
+max_tokens: 5500
 temperature: 0.5
 
 last_modified: "2026-01-23"

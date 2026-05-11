@@ -10,23 +10,28 @@ def get_all_ordered_items_for_checklist(checklist_id):
     """
     Returns a flat list of all checklist items for a given checklist_id,
     ordered by their sequence and hierarchy (depth-first).
+    Uses a single query + in-memory sorting instead of recursive queries.
     """
-    return _get_ordered_checklist_items_recursive(None, checklist_id)
+    # Single query: fetch ALL items for this checklist at once
+    all_items = ChecklistItem.query.filter_by(
+        checklist_id=checklist_id
+    ).order_by(ChecklistItem.order).all()
 
+    if not all_items:
+        return []
 
-def _get_ordered_checklist_items_recursive(parent_item_id, checklist_id):
-    """Recursive helper to fetch items and their children in order."""
-    ordered_items = []
-    if parent_item_id is None:
-        items = ChecklistItem.query.filter_by(
-            checklist_id=checklist_id, parent_id=None
-        ).order_by(ChecklistItem.order).all()
-    else:
-        items = ChecklistItem.query.filter_by(
-            checklist_id=checklist_id, parent_id=parent_item_id
-        ).order_by(ChecklistItem.order).all()
+    # Build parent_id -> children map (children already sorted by .order)
+    children_map = {}
+    for item in all_items:
+        children_map.setdefault(item.parent_id, []).append(item)
 
-    for item in items:
-        ordered_items.append(item)
-        ordered_items.extend(_get_ordered_checklist_items_recursive(item.id, checklist_id))
-    return ordered_items
+    # Depth-first traversal from root items (parent_id=None)
+    result = []
+
+    def dfs(parent_id):
+        for child in children_map.get(parent_id, []):
+            result.append(child)
+            dfs(child.id)
+
+    dfs(None)
+    return result

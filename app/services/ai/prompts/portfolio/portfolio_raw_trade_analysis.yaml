@@ -7,12 +7,11 @@ version: "1.0"
 category: "portfolio"
 
 preferred_provider: "gemini"
-model: "gemini-2.5-flash"
+model: "gemini-3-pro-previewh"
 max_tokens: 65000
 temperature: 0.3
 
 last_modified: "2025-01-09"
-
 system_context: |
   You are an expert behavioral finance analyst specializing in investor psychology and trading patterns.
   You analyze raw transaction histories to identify:
