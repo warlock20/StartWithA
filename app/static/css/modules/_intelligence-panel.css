@@ -15,6 +15,9 @@
 .main-layout--intel .form-column { flex: 1; min-width: 0; }
 .main-layout--intel .intel-column { width: 420px; flex-shrink: 0; position: sticky; top: 1rem; }
 
+/* Warnings container: only add spacing when it has content */
+#warnings-container:not(:empty) { margin-bottom: 1rem; }
+
 @media (max-width: 900px) {
   .main-layout--intel { flex-direction: column; }
   .main-layout--intel .intel-column { width: 100%; position: static; }

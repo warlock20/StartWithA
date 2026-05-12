@@ -156,11 +156,13 @@ var IntelligencePanel = (function() {
                 if (data.success && data.data && !data.data.data_unavailable) {
                     state.companyData = data.data;
                     els.tickerLabel.textContent = data.data.ticker;
+                    prefillPrice(data.data.current_price);
                     showPanel();
                     recalculate();
                 } else if (data.success && data.data && data.data.data_unavailable) {
                     state.companyData = data.data;
                     els.tickerLabel.textContent = data.data.ticker;
+                    prefillPrice(data.data.current_price);
                     showPanel();
                     showPartialData();
                 } else {
@@ -570,6 +572,15 @@ var IntelligencePanel = (function() {
     // ═══════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════
+    function prefillPrice(currentPrice) {
+        if (!currentPrice) return;
+        var priceInput = document.getElementById('price_per_share');
+        if (!priceInput) return;
+        priceInput.value = currentPrice.toFixed(2);
+        // Fire input event so the existing total calculation and warnings update
+        priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     function getFormPrice() {
         var el = document.getElementById('price_per_share');
         return el ? parseFloat(el.value) || 0 : 0;
