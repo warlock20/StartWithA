@@ -44,8 +44,7 @@ var IntelligencePanel = (function() {
         els.tabs = document.querySelectorAll('.intel-tab');
         els.calcCards = {
             payback: document.getElementById('calc-payback'),
-            margin: document.getElementById('calc-margin'),
-            breakeven: document.getElementById('calc-breakeven')
+            margin: document.getElementById('calc-margin')
         };
 
         // Attach event listeners
@@ -97,9 +96,7 @@ var IntelligencePanel = (function() {
         // Listen for form changes
         var companySelect = document.getElementById('company_id');
         var typeRadios = document.querySelectorAll('input[name="type"]');
-        var quantityInput = document.getElementById('quantity');
         var priceInput = document.getElementById('price_per_share');
-        var feesInput = document.getElementById('fees');
 
         if (companySelect) {
             companySelect.addEventListener('change', onCompanyChange);
@@ -109,9 +106,7 @@ var IntelligencePanel = (function() {
             radio.addEventListener('change', onTransactionTypeChange);
         });
 
-        [quantityInput, priceInput, feesInput].forEach(function(input) {
-            if (input) input.addEventListener('input', onFormValueChange);
-        });
+        if (priceInput) priceInput.addEventListener('input', onFormValueChange);
     }
 
     function onTransactionTypeChange() {
@@ -263,8 +258,6 @@ var IntelligencePanel = (function() {
         if (mosSummary && !state.companyData.eps_ttm) {
             mosSummary.innerHTML = '<div class="calc-empty">EPS data unavailable for ' + escapeHtml(state.companyData.ticker) + '</div>';
         }
-        // Break-even still works with form values
-        renderBreakEven();
     }
 
     function switchTab(tabId) {
@@ -292,7 +285,6 @@ var IntelligencePanel = (function() {
 
         renderPayback();
         renderMarginOfSafety();
-        renderBreakEven();
     }
 
     // ═══════════════════════════════════════════
@@ -494,54 +486,6 @@ var IntelligencePanel = (function() {
     }
 
     // ═══════════════════════════════════════════
-    // BREAK-EVEN ANALYSIS
-    // ═══════════════════════════════════════════
-    function renderBreakEven() {
-        var cd = state.companyData;
-        var cs = cd ? (CURRENCY_SYMBOLS[cd.currency] || '$') : '$';
-        var quantity = getFormQuantity();
-        var price = getFormPrice();
-        var fees = getFormFees();
-
-        var totalCostEl = document.getElementById('be-total-cost');
-        var totalDetailEl = document.getElementById('be-total-detail');
-        var priceEl = document.getElementById('be-price');
-        var priceDetailEl = document.getElementById('be-price-detail');
-        var insightEl = document.getElementById('be-insight');
-        var insightText = document.getElementById('be-insight-text');
-
-        if (!quantity || !price) {
-            totalCostEl.textContent = '--';
-            totalDetailEl.textContent = '';
-            priceEl.textContent = '--';
-            priceDetailEl.textContent = '';
-            insightEl.style.display = 'none';
-            return;
-        }
-
-        var result = IntelligenceEngine.calcBreakEven(quantity, price, fees);
-        if (!result) return;
-
-        totalCostEl.textContent = cs + formatNumber(result.totalCost);
-        totalDetailEl.textContent = result.quantity + ' \u00d7 ' + cs + result.pricePerShare.toFixed(2) + (result.fees > 0 ? ' + ' + cs + result.fees.toFixed(2) + ' fees' : '');
-
-        priceEl.textContent = cs + result.breakEvenPrice.toFixed(2);
-        priceDetailEl.textContent = result.feesPerShare > 0 ? cs + result.feesPerShare.toFixed(4) + '/share above purchase' : 'Equals purchase price';
-
-        // Insight
-        if (fees > 0) {
-            var feePct = ((result.breakEvenPrice - price) / price * 100);
-            insightEl.style.display = '';
-            insightEl.className = 'calc-insight';
-            insightText.innerHTML = 'Fees add <strong>' + cs + result.feesPerShare.toFixed(4) + '</strong> per share. Stock must rise <strong>' + feePct.toFixed(2) + '%</strong> just to cover trading costs.';
-        } else {
-            insightEl.style.display = '';
-            insightEl.className = 'calc-insight calc-insight--neutral';
-            insightText.innerHTML = 'No fees \u2014 your break-even price equals your purchase price.';
-        }
-    }
-
-    // ═══════════════════════════════════════════
     // WARNING STRIP
     // ═══════════════════════════════════════════
     function renderWarningStrip(warnings) {
@@ -583,16 +527,6 @@ var IntelligencePanel = (function() {
 
     function getFormPrice() {
         var el = document.getElementById('price_per_share');
-        return el ? parseFloat(el.value) || 0 : 0;
-    }
-
-    function getFormQuantity() {
-        var el = document.getElementById('quantity');
-        return el ? parseFloat(el.value) || 0 : 0;
-    }
-
-    function getFormFees() {
-        var el = document.getElementById('fees');
         return el ? parseFloat(el.value) || 0 : 0;
     }
 

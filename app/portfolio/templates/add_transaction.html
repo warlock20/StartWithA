@@ -437,9 +437,6 @@
                         <button type="button" class="intel-tab" data-tab="margin">
                             <i class="bi bi-shield-check"></i><span>Margin of Safety</span>
                         </button>
-                        <button type="button" class="intel-tab" data-tab="breakeven">
-                            <i class="bi bi-graph-up-arrow"></i><span>Break-even</span>
-                        </button>
                     </div>
                 </div>
 
@@ -448,7 +445,13 @@
                     <div class="calc-card" id="calc-payback">
                         <div class="calc-body">
                             <div class="calc-slider-row">
-                                <label class="calc-slider-label">Expected Growth Rate</label>
+                                <label class="calc-slider-label">
+                                    Expected Growth Rate
+                                    <span class="intel-tooltip-trigger">
+                                        <i class="bi bi-info-circle" style="margin-left: 4px; font-size: 12px; color: #9ca3af;"></i>
+                                        <span class="intel-tooltip">The annual rate you expect the company's earnings to grow. Higher growth = faster payback.</span>
+                                    </span>
+                                </label>
                                 <span class="calc-slider-value" id="growth-rate-display">15%</span>
                             </div>
                             <input type="range" min="0" max="50" step="1" value="15" class="calc-range" id="growth-rate-slider">
@@ -477,7 +480,13 @@
                     <div class="calc-card" id="calc-margin" style="display: none;">
                         <div class="calc-body">
                             <div class="calc-slider-row">
-                                <label class="calc-slider-label">Expected Growth Rate</label>
+                                <label class="calc-slider-label">
+                                    Expected Growth Rate
+                                    <span class="intel-tooltip-trigger">
+                                        <i class="bi bi-info-circle" style="margin-left: 4px; font-size: 12px; color: #9ca3af;"></i>
+                                        <span class="intel-tooltip">The annual rate you expect the company's earnings to grow. Higher growth increases the estimated fair value.</span>
+                                    </span>
+                                </label>
                                 <span class="calc-slider-value" id="mos-growth-rate-display">15%</span>
                             </div>
                             <input type="range" min="0" max="50" step="1" value="15" class="calc-range" id="mos-growth-rate-slider">
@@ -494,7 +503,13 @@
                             </div>
                             <div class="mos-values" id="mos-values-container">
                                 <div class="mos-value-item">
-                                    <div class="mos-value-label">Fair Value</div>
+                                    <div class="mos-value-label">
+                                        Est. Fair Value
+                                        <span class="intel-tooltip-trigger">
+                                            <i class="bi bi-info-circle" style="margin-left: 3px; font-size: 11px; color: #9ca3af;"></i>
+                                            <span class="intel-tooltip">Benjamin Graham formula: EPS &times; (8.5 + 2g). A simplified intrinsic value estimate based on current earnings and expected growth.</span>
+                                        </span>
+                                    </div>
                                     <div class="mos-value-number" id="mos-fair-value">--</div>
                                 </div>
                                 <span class="mos-value-vs">vs</span>
@@ -510,27 +525,21 @@
                                 <i class="bi bi-lightbulb-fill"></i>
                                 <span id="mos-insight-text">Graham recommended buying only when margin of safety exceeds <strong>30%</strong>.</span>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Break-even Tab (hidden) -->
-                    <div class="calc-card" id="calc-breakeven" style="display: none;">
-                        <div class="calc-body">
-                            <div class="be-grid" id="be-grid-container">
-                                <div class="be-stat">
-                                    <div class="be-stat-label">Total Cost</div>
-                                    <span class="be-stat-value" id="be-total-cost">--</span>
-                                    <div class="be-stat-detail" id="be-total-detail"></div>
-                                </div>
-                                <div class="be-stat be-stat--highlight">
-                                    <div class="be-stat-label">Break-even Price</div>
-                                    <span class="be-stat-value" id="be-price">--</span>
-                                    <div class="be-stat-detail" id="be-price-detail"></div>
+                            <div class="calc-formula">
+                                <div class="calc-formula-title"><i class="bi bi-calculator"></i> How it's calculated</div>
+                                <div class="calc-formula-equation">V = EPS &times; (8.5 + 2g)</div>
+                                <div class="calc-formula-legend">
+                                    <span><strong>V</strong> = Intrinsic value</span>
+                                    <span><strong>EPS</strong> = Trailing 12-month earnings per share</span>
+                                    <span><strong>8.5</strong> = P/E base for a no-growth company</span>
+                                    <span><strong>g</strong> = Expected annual growth rate (%)</span>
                                 </div>
                             </div>
-                            <div class="calc-insight" id="be-insight" style="display: none;">
-                                <i class="bi bi-lightbulb-fill"></i>
-                                <span id="be-insight-text"></span>
+
+                            <div class="calc-disclaimer">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <span>This is a simplified estimate for educational purposes only. It does not account for interest rates, industry factors, or balance sheet quality. Do not use as sole basis for investment decisions.</span>
                             </div>
                         </div>
                     </div>

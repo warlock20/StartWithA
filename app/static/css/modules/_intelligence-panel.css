@@ -13,7 +13,7 @@
   align-items: flex-start;
 }
 .main-layout--intel .form-column { flex: 1; min-width: 0; }
-.main-layout--intel .intel-column { width: 420px; flex-shrink: 0; position: sticky; top: 1rem; }
+.main-layout--intel .intel-column { width: 460px; flex-shrink: 0; position: sticky; top: 1rem; }
 
 /* Warnings container: only add spacing when it has content */
 #warnings-container:not(:empty) { margin-bottom: 1rem; }
@@ -273,6 +273,72 @@
 }
 .calc-insight--neutral i { color: #10b981; }
 
+/* Formula explanation block */
+.calc-formula {
+  margin-top: 0.85rem;
+  padding: 0.75rem;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md, 8px);
+}
+.calc-formula-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gray-500);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.calc-formula-title i { font-size: 0.75rem; }
+.calc-formula-equation {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  text-align: center;
+  padding: 0.5rem 0;
+  background: #fff;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--gray-100);
+  margin-bottom: 0.5rem;
+}
+.calc-formula-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.6875rem;
+  color: var(--gray-500);
+  line-height: 1.45;
+}
+.calc-formula-legend strong {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--gray-700);
+}
+
+/* Disclaimer strip */
+.calc-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.6875rem;
+  color: #92400e;
+  line-height: 1.45;
+}
+.calc-disclaimer i {
+  color: #d97706;
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
 /* ═══ Margin of Safety Gauge ═══ */
 .mos-gauge { margin-bottom: 1rem; }
 .mos-gauge-track {
@@ -350,39 +416,6 @@
   font-weight: 600;
   color: var(--gray-300);
   text-transform: uppercase;
-}
-
-/* ═══ Break-even Grid ═══ */
-.be-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-.be-stat {
-  padding: 0.85rem;
-  background: var(--gray-50);
-  border-radius: var(--radius-md, 8px);
-  text-align: center;
-}
-.be-stat--highlight {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-}
-.be-stat-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--gray-400);
-  margin-bottom: 0.25rem;
-}
-.be-stat-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--gray-800);
-  display: block;
-  margin-bottom: 0.2rem;
-}
-.be-stat-detail {
-  font-size: 0.65rem;
-  color: var(--gray-400);
 }
 
 /* ═══ Warnings Strip ═══ */
