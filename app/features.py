@@ -16,6 +16,7 @@ FEATURE_TIERS = {
     'kill_checklists': 'pro',
     'investment_checklists': 'pro',
     'question_bank': 'pro',
+    'company_directory': 'core',
 
     # Portfolio
     'portfolio_intelligence': 'pro',

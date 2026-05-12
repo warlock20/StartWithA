@@ -109,3 +109,4 @@ All complex components have been fully modularized.
 @import url('modules/_market-sweep.css');              /* Market sweep — Start with A's screening */
 @import url('modules/_send-to-sector.css');            /* Send to Sector - company→sector bridge */
 @import url('modules/_company-resources.css');          /* Company Resources - unified file & link management */
+@import url('modules/_intelligence-panel.css');          /* Intelligence Panel - transaction page calculators */

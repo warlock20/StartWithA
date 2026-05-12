@@ -17,6 +17,7 @@ from app.services.intelligence_engine import check_sell_warnings
 from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.similar_mistakes import find_similar_past_decisions
+from app.services.financial_data.providers.yahoo_finance import YahooFinanceProvider
 from app.utils.blocknote_utils import blocknote_to_html
 
 logger = logging.getLogger(__name__)
@@ -480,3 +481,77 @@ def _serialize_position(position):
         'position_url': url_for('portfolio.position_detail', company_id=position.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),
     }
+
+
+@portfolio_bp.route('/api/company-intelligence/<int:company_id>')
+@login_required
+def get_company_intelligence(company_id):
+    """
+    Fetch live valuation metrics for a company (PE, EPS, price).
+    Used by the Investment Intelligence Panel on Add Transaction page.
+
+    Response JSON:
+        {
+            "success": true,
+            "data": {
+                "ticker": "AAPL",
+                "pe_ratio": 28.5,
+                "eps_ttm": 6.42,
+                "current_price": 183.00,
+                "sector": "Technology",
+                "currency": "USD",
+                "data_unavailable": false
+            }
+        }
+    """
+    company = Company.query.filter_by(
+        id=company_id,
+        user_id=current_user.id
+    ).first()
+
+    if not company:
+        return json_not_found('Company')
+
+    if not company.ticker_symbol:
+        return jsonify({
+            'success': False,
+            'error': 'Company has no ticker symbol'
+        }), 400
+
+    try:
+        provider = YahooFinanceProvider()
+        metrics = provider.get_valuation_metrics(company.ticker_symbol)
+
+        if not metrics:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'ticker': company.ticker_symbol,
+                    'pe_ratio': None,
+                    'eps_ttm': None,
+                    'current_price': None,
+                    'sector': company.sector.display_name if company.sector else None,
+                    'currency': company.reporting_currency or 'USD',
+                    'data_unavailable': True
+                }
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'ticker': company.ticker_symbol,
+                'pe_ratio': metrics['pe_ratio'],
+                'eps_ttm': metrics['eps_ttm'],
+                'current_price': metrics['current_price'],
+                'sector': metrics['sector'] or (company.sector.display_name if company.sector else None),
+                'currency': metrics['currency'],
+                'data_unavailable': False
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching intelligence for company {company_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch market data'
+        }), 500

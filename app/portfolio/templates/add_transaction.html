@@ -2,9 +2,14 @@
 
 {% block title %}Add Transaction{% endblock %}
 
+{% block head %}
+{{ super() }}
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <div class="action-page">
-    <div class="action-container action-container--md">
+    <div class="action-container action-container--intel">
         <!-- Editorial Hero -->
         <div class="action-hero">
             <div class="action-hero-badge">
@@ -15,8 +20,14 @@
             <p class="action-hero-subtitle">Record a buy, sell, dividend, deposit, or withdrawal</p>
         </div>
 
+        <!-- Two-Column Layout: Form + Intelligence Panel -->
+        <div class="main-layout--intel">
+
+        <!-- LEFT: Form Column -->
+        <div class="form-column">
+
         <!-- Intelligence Warnings Container -->
-        <div id="warnings-container" class="mb-3"></div>
+        <div id="warnings-container"></div>
 
         <!-- Warning Acknowledgment -->
         <div id="warning-acknowledgment" class="mb-3" style="display: none;">
@@ -36,30 +47,30 @@
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Transaction Type <span
                                 class="text-danger">*</span></label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" checked>
-                            <label class="btn btn-outline-primary" for="type_buy">
-                                <i class="bi bi-arrow-down-circle me-2"></i>Buy
+                        <div class="tx-type-group">
+                            <input type="radio" class="btn-check" name="type" id="type_buy" value="BUY" checked style="display:none;">
+                            <label class="tx-type-btn active" for="type_buy" style="--btn-active: #2d6a4f;">
+                                <i class="bi bi-arrow-down-circle"></i><span>Buy</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL">
-                            <label class="btn btn-outline-danger" for="type_sell">
-                                <i class="bi bi-arrow-up-circle me-2"></i>Sell
+                            <input type="radio" class="btn-check" name="type" id="type_sell" value="SELL" style="display:none;">
+                            <label class="tx-type-btn" for="type_sell" style="--btn-active: #dc3545;">
+                                <i class="bi bi-arrow-up-circle"></i><span>Sell</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND">
-                            <label class="btn btn-outline-success" for="type_dividend">
-                                <i class="bi bi-cash-coin me-2"></i>Dividend
+                            <input type="radio" class="btn-check" name="type" id="type_dividend" value="DIVIDEND" style="display:none;">
+                            <label class="tx-type-btn" for="type_dividend" style="--btn-active: #198754;">
+                                <i class="bi bi-cash-coin"></i><span>Dividend</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT">
-                            <label class="btn btn-outline-info" for="type_deposit">
-                                <i class="bi bi-box-arrow-in-down me-2"></i>Deposit
+                            <input type="radio" class="btn-check" name="type" id="type_deposit" value="DEPOSIT" style="display:none;">
+                            <label class="tx-type-btn" for="type_deposit" style="--btn-active: #3b82f6;">
+                                <i class="bi bi-box-arrow-in-down"></i><span>Deposit</span>
                             </label>
 
-                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL">
-                            <label class="btn btn-outline-warning" for="type_withdrawal">
-                                <i class="bi bi-box-arrow-up me-2"></i>Withdraw
+                            <input type="radio" class="btn-check" name="type" id="type_withdrawal" value="WITHDRAWAL" style="display:none;">
+                            <label class="tx-type-btn" for="type_withdrawal" style="--btn-active: #f59e0b;">
+                                <i class="bi bi-box-arrow-up"></i><span>Withdraw</span>
                             </label>
                         </div>
                     </div>
@@ -224,16 +235,9 @@
                     </div>
 
                     <!-- Transaction Total (Calculated) -->
-                    <div class="alert alert-light border">
-                        <div class="row">
-                            <div class="col-6">
-                                <strong>Transaction Total:</strong>
-                            </div>
-                            <div class="col-6 text-end">
-                                <span id="currencySymbolTotal">{{ currency_symbol }}</span><span id="transaction_total"
-                                    class="fs-5 fw-bold">0.00</span>
-                            </div>
-                        </div>
+                    <div class="tx-total-bar">
+                        <span class="tx-total-label">Transaction Total</span>
+                        <span class="tx-total-value"><span id="currencySymbolTotal">{{ currency_symbol }}</span><span id="transaction_total">0.00</span></span>
                     </div>
 
                     <!-- Notes -->
@@ -411,6 +415,149 @@
                 </div>
             </div>
         </div>
+
+        </div><!-- /.form-column -->
+
+        <!-- RIGHT: Intelligence Panel Column -->
+        <div class="intel-column" id="intel-column">
+            <!-- Panel (hidden by default, shown for BUY + company selected) -->
+            <div class="intel-panel" id="intel-panel" style="display: none;">
+                <div class="intel-panel-header">
+                    <div class="intel-panel-title-row">
+                        <span class="intel-panel-icon"><i class="bi bi-lightbulb-fill"></i></span>
+                        <div style="flex: 1;">
+                            <h3 class="intel-panel-title">Investment Intelligence</h3>
+                            <p class="intel-panel-subtitle">Real-time analysis for <strong id="intel-ticker-label">---</strong></p>
+                        </div>
+                    </div>
+                    <div class="intel-tabs">
+                        <button type="button" class="intel-tab active" data-tab="payback">
+                            <i class="bi bi-clock-history"></i><span>Earnings Payback</span>
+                        </button>
+                        <button type="button" class="intel-tab" data-tab="margin">
+                            <i class="bi bi-shield-check"></i><span>Margin of Safety</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="intel-panel-body">
+                    <!-- Earnings Payback Tab -->
+                    <div class="calc-card" id="calc-payback">
+                        <div class="calc-body">
+                            <div class="calc-slider-row">
+                                <label class="calc-slider-label">
+                                    Expected Growth Rate
+                                    <span class="intel-tooltip-trigger">
+                                        <i class="bi bi-info-circle" style="margin-left: 4px; font-size: 12px; color: #9ca3af;"></i>
+                                        <span class="intel-tooltip">The annual rate you expect the company's earnings to grow. Higher growth = faster payback.</span>
+                                    </span>
+                                </label>
+                                <span class="calc-slider-value" id="growth-rate-display">15%</span>
+                            </div>
+                            <input type="range" min="0" max="50" step="1" value="15" class="calc-range" id="growth-rate-slider">
+                            <div class="calc-range-labels"><span>0%</span><span>25%</span><span>50%</span></div>
+
+                            <div style="height: 180px; margin-top: 12px;">
+                                <canvas id="payback-chart"></canvas>
+                            </div>
+
+                            <div class="calc-legend">
+                                <span><span class="legend-dot" style="background: #2d6a4f;"></span>Cumulative Earnings</span>
+                                <span><span class="legend-dot legend-dot--dashed"></span>Purchase Price</span>
+                            </div>
+
+                            <div class="calc-summary" id="payback-summary">
+                                <div class="calc-empty">Select a company to calculate earnings payback</div>
+                            </div>
+                            <div class="calc-insight" id="payback-insight" style="display: none;">
+                                <i class="bi bi-lightbulb-fill"></i>
+                                <span id="payback-insight-text"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Margin of Safety Tab (hidden) -->
+                    <div class="calc-card" id="calc-margin" style="display: none;">
+                        <div class="calc-body">
+                            <div class="calc-slider-row">
+                                <label class="calc-slider-label">
+                                    Expected Growth Rate
+                                    <span class="intel-tooltip-trigger">
+                                        <i class="bi bi-info-circle" style="margin-left: 4px; font-size: 12px; color: #9ca3af;"></i>
+                                        <span class="intel-tooltip">The annual rate you expect the company's earnings to grow. Higher growth increases the estimated fair value.</span>
+                                    </span>
+                                </label>
+                                <span class="calc-slider-value" id="mos-growth-rate-display">15%</span>
+                            </div>
+                            <input type="range" min="0" max="50" step="1" value="15" class="calc-range" id="mos-growth-rate-slider">
+                            <div class="calc-range-labels"><span>0%</span><span>25%</span><span>50%</span></div>
+
+                            <div class="mos-gauge" id="mos-gauge-container" style="margin-top: 1rem;">
+                                <div class="mos-gauge-track">
+                                    <div class="mos-gauge-fill" id="mos-gauge-fill" style="width: 50%;"></div>
+                                    <div class="mos-gauge-center-mark"></div>
+                                </div>
+                                <div class="mos-gauge-labels">
+                                    <span>Overvalued</span><span>Fair Value</span><span>Undervalued</span>
+                                </div>
+                            </div>
+                            <div class="mos-values" id="mos-values-container">
+                                <div class="mos-value-item">
+                                    <div class="mos-value-label">
+                                        Est. Fair Value
+                                        <span class="intel-tooltip-trigger">
+                                            <i class="bi bi-info-circle" style="margin-left: 3px; font-size: 11px; color: #9ca3af;"></i>
+                                            <span class="intel-tooltip">Benjamin Graham formula: EPS &times; (8.5 + 2g). A simplified intrinsic value estimate based on current earnings and expected growth.</span>
+                                        </span>
+                                    </div>
+                                    <div class="mos-value-number" id="mos-fair-value">--</div>
+                                </div>
+                                <span class="mos-value-vs">vs</span>
+                                <div class="mos-value-item">
+                                    <div class="mos-value-label">Your Price</div>
+                                    <div class="mos-value-number" id="mos-your-price">--</div>
+                                </div>
+                            </div>
+                            <div class="calc-summary" id="mos-summary">
+                                <div class="calc-empty">Select a company to calculate margin of safety</div>
+                            </div>
+                            <div class="calc-insight" id="mos-insight" style="display: none;">
+                                <i class="bi bi-lightbulb-fill"></i>
+                                <span id="mos-insight-text">Graham recommended buying only when margin of safety exceeds <strong>30%</strong>.</span>
+                            </div>
+
+                            <div class="calc-formula">
+                                <div class="calc-formula-title"><i class="bi bi-calculator"></i> How it's calculated</div>
+                                <div class="calc-formula-equation">V = EPS &times; (8.5 + 2g)</div>
+                                <div class="calc-formula-legend">
+                                    <span><strong>V</strong> = Intrinsic value</span>
+                                    <span><strong>EPS</strong> = Trailing 12-month earnings per share</span>
+                                    <span><strong>8.5</strong> = P/E base for a no-growth company</span>
+                                    <span><strong>g</strong> = Expected annual growth rate (%)</span>
+                                </div>
+                            </div>
+
+                            <div class="calc-disclaimer">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <span>This is a simplified estimate for educational purposes only. It does not account for interest rates, industry factors, or balance sheet quality. Do not use as sole basis for investment decisions.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warning Strip (synced from existing warnings) -->
+                    <div class="intel-warning-strip" id="intel-warning-strip"></div>
+                </div>
+            </div>
+
+            <!-- Placeholder (shown for BUY + no company) -->
+            <div class="intel-placeholder" id="intel-placeholder">
+                <i class="bi bi-lightbulb"></i>
+                <p>Select a company above to see investment intelligence &mdash; earnings payback, margin of safety, and break-even analysis.</p>
+            </div>
+        </div><!-- /.intel-column -->
+
+        </div><!-- /.main-layout--intel -->
+
     </div>
 </div>
 
@@ -421,7 +568,10 @@
 
 {% block scripts %}
 {{ super() }}
+{% include 'components/_chart_js.html' %}
 {% include 'components/blocknote_editor_include.html' %}
+<script src="{{ url_for('static', filename='js/intelligence-engine.js') }}"></script>
+<script src="{{ url_for('static', filename='js/intelligence-panel.js') }}"></script>
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
     // Initialize Company Search Modal
@@ -691,12 +841,11 @@
     // Set max date to today
     document.getElementById('date').max = today_date();
 
-    // Fix for transaction type button visualization
-    // Ensure the active button is properly styled
+    // Transaction type button visualization
     document.querySelectorAll('input[name="type"]').forEach(radio => {
         radio.addEventListener('change', function () {
-            // Remove active class from all labels
-            document.querySelectorAll('label[for^="type_"]').forEach(label => {
+            // Remove active class from all tx-type-btn labels
+            document.querySelectorAll('.tx-type-btn').forEach(label => {
                 label.classList.remove('active');
             });
             // Add active class to selected label
@@ -907,6 +1056,10 @@
             currentWarnings = data.warnings || [];
             renderWarnings(currentWarnings);
             updateSubmitButton(data.has_high_severity);
+            // Sync warnings to Intelligence Panel
+            if (typeof IntelligencePanel !== 'undefined' && IntelligencePanel.syncWarnings) {
+                IntelligencePanel.syncWarnings(currentWarnings);
+            }
         })
         .catch(error => {
             console.error('Error checking warnings:', error);
