@@ -226,6 +226,42 @@ class YahooFinanceProvider(FinancialDataProvider):
             logger.error(f"Error fetching ticker info for {ticker}: {str(e)}")
             return None
 
+    def get_valuation_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get valuation metrics (PE, EPS, price) from Yahoo Finance.
+        Used by the Intelligence Panel for on-demand calculations.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Dict with valuation data, or None if unavailable
+        """
+        try:
+            ticker_obj = yf.Ticker(ticker)
+            info = ticker_obj.info
+
+            price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+
+            return {
+                'pe_ratio': info.get('trailingPE'),
+                'eps_ttm': info.get('trailingEps'),
+                'forward_pe': info.get('forwardPE'),
+                'forward_eps': info.get('forwardEps'),
+                'current_price': float(price) if price else None,
+                'sector': info.get('sector'),
+                'industry': info.get('industry'),
+                'currency': (info.get('currency') or 'USD').upper(),
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching valuation metrics for {ticker}: {str(e)}")
+            return None
+
     def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:
         """
         Search for companies by name or ticker using Yahoo Finance.

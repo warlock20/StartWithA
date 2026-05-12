@@ -106,6 +106,9 @@ css_all = Bundle(
     'css/modules/_market-sweep.css',
     'css/modules/_page-loading.css',
     'css/modules/_toast.css',
+    'css/modules/_send-to-sector.css',
+    'css/modules/_company-resources.css',
+    'css/modules/_intelligence-panel.css',
 
     filters='rcssmin',
     output='css/gen/design-system.%(version)s.css',
