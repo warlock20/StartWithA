@@ -723,7 +723,7 @@ class IntelligenceEngine:
         total_return = float(existing_position.unrealized_gain_loss_pct or 0)
         cagr = calculate_cagr(total_return, days_held)
 
-        threshold_cagr = self.THRESHOLDS['chasing_returns_cagr']
+        threshold_cagr = self.THRESHOLDS['chasing_returns_cagr_threshold']
 
         if cagr > threshold_cagr:
             # Determine severity based on how much CAGR exceeds threshold
