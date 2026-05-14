@@ -242,11 +242,13 @@ def api_view_resource(resource_id):
     # Allow this response to be embedded in an iframe on our own pages
     g.allow_framing = True
 
-    return send_from_directory(
+    response = send_from_directory(
         os.path.dirname(file_path),
         os.path.basename(file_path),
         as_attachment=False,
     )
+    response.headers['Content-Disposition'] = 'inline'
+    return response
 
 
 @companies_bp.route('/resources/<int:resource_id>/viewer')
