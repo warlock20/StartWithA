@@ -39,13 +39,12 @@
 
     <!-- Viewer -->
     {% if resource.file_type == 'pdf' %}
-        <iframe
-            src="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
-            class="resource-viewer-frame"
-            title="{{ resource.title }}">
-            Your browser does not support inline PDF viewing.
-            <a href="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}">Download the file</a>.
-        </iframe>
+        <div id="pdf-viewer" class="resource-viewer-pdf">
+            <div id="pdf-loading" class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading PDF...
+            </div>
+        </div>
     {% elif resource.file_type == 'txt' %}
         <div class="resource-viewer-text" id="txt-viewer">
             <div class="text-center text-muted py-5">
@@ -59,11 +58,63 @@
 
 {% block scripts %}
 {{ super() }}
-{% if resource.file_type == 'txt' %}
+{% if resource.file_type == 'pdf' %}
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
 (function() {
-    const viewer = document.getElementById('txt-viewer');
-    const viewUrl = document.getElementById('document-viewer-root').dataset.viewUrl;
+    var pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+    var root = document.getElementById('document-viewer-root');
+    var viewUrl = root.dataset.viewUrl;
+    var container = document.getElementById('pdf-viewer');
+
+    pdfjsLib.getDocument(viewUrl).promise.then(function(pdf) {
+        container.innerHTML = '';
+
+        var canvases = [];
+        for (var i = 0; i < pdf.numPages; i++) {
+            var canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page-canvas';
+            container.appendChild(canvas);
+            canvases.push(canvas);
+        }
+
+        for (var i = 1; i <= pdf.numPages; i++) {
+            renderPage(pdf, i, canvases[i - 1]);
+        }
+    }).catch(function() {
+        container.innerHTML = '<div class="text-danger text-center py-5">' +
+            '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load PDF.</div>';
+    });
+
+    function renderPage(pdf, pageNum, canvas) {
+        pdf.getPage(pageNum).then(function(page) {
+            var containerWidth = container.clientWidth - 32;
+            var baseViewport = page.getViewport({ scale: 1 });
+            var scale = containerWidth / baseViewport.width;
+            var viewport = page.getViewport({ scale: scale });
+            var dpr = window.devicePixelRatio || 1;
+
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.style.width = Math.floor(viewport.width) + 'px';
+            canvas.style.height = Math.floor(viewport.height) + 'px';
+
+            var ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            page.render({ canvasContext: ctx, viewport: viewport });
+        });
+    }
+})();
+</script>
+{% elif resource.file_type == 'txt' %}
+<script>
+(function() {
+    var viewer = document.getElementById('txt-viewer');
+    var viewUrl = document.getElementById('document-viewer-root').dataset.viewUrl;
 
     fetch(viewUrl)
         .then(function(resp) {

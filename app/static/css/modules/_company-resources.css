@@ -24,13 +24,25 @@
 
 /* Document Viewer Page */
 
-.resource-viewer-frame {
+.resource-viewer-pdf {
     width: 100%;
     height: calc(100vh - 200px);
     min-height: 500px;
-    border: 1px solid var(--bs-border-color, #dee2e6);
+    overflow-y: auto;
+    background: #525659;
     border-radius: 0.375rem;
-    background: var(--bs-white, #fff);
+    padding: 1rem 0;
+}
+
+.pdf-page-canvas {
+    display: block;
+    margin: 0 auto 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: #fff;
+}
+
+.pdf-page-canvas:last-child {
+    margin-bottom: 0;
 }
 
 .resource-viewer-text {
