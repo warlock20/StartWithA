@@ -173,6 +173,9 @@
                             <button type="button" class="cl-ai-mode-btn factcheck" onclick="triggerAIMode('factcheck')">
                                 <i class="bi bi-shield-check"></i> Fact-Check
                             </button>
+                            <button type="button" class="cl-ai-mode-btn run-prompt" id="btnRunPrompt" onclick="triggerLLMPrompt()" title="Run the predefined AI prompt for this checklist item" style="{% if not current_item.llm_prompt %}display: none;{% endif %}">
+                                <i class="bi bi-play-circle"></i> Run Prompt
+                            </button>
                         </div>
                         <div class="ai-search-toggle">
                             <label class="ai-search-toggle-label">
@@ -222,6 +225,17 @@
                                         <strong>Fact-Check</strong>
                                     </div>
                                     <div id="aiResponseFactcheckText"></div>
+                                </div>
+                            </div>
+
+                            <!-- Run Prompt Response -->
+                            <div id="aiResponseRunPrompt" class="ai-response-content" style="display: none;">
+                                <div class="alert alert-info border-start border-info border-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-play-circle me-2" style="font-size: 1.2rem;"></i>
+                                        <strong>AI Analysis</strong>
+                                    </div>
+                                    <div id="aiResponseRunPromptText"></div>
                                 </div>
                             </div>
                         </div>
@@ -584,6 +598,118 @@
         }
     }
 
+    // Run Prompt — polling state
+    let runPromptPollInterval = null;
+
+    function triggerLLMPrompt() {
+        // Auto-expand AI tools panel if collapsed
+        const panel = document.getElementById('aiToolsPanel');
+        if (!panel.classList.contains('expanded')) {
+            panel.classList.add('expanded');
+        }
+
+        const responseArea = document.getElementById('aiResponseArea');
+        const loadingSpinner = document.getElementById('aiLoadingSpinner');
+
+        // Hide all other response sections
+        document.querySelectorAll('.ai-response-content').forEach(el => el.style.display = 'none');
+
+        // Show loading
+        const loadingMsg = loadingSpinner.querySelector('p');
+        if (loadingMsg) loadingMsg.textContent = 'Running checklist prompt analysis...';
+        loadingSpinner.style.display = 'flex';
+        responseArea.style.display = 'block';
+
+        // Disable button while loading
+        const btn = document.getElementById('btnRunPrompt');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...'; }
+
+        const analysisId = {{ session.id }};
+        const itemId = window.aiAssistant ? window.aiAssistant.context.item_id : {{ current_item.id }};
+
+        // 1. Dispatch background task
+        fetch(`/research/workflow/checklist/${analysisId}/item/${itemId}/ai_analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selected_document_ids: [] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.task_id) {
+                // 2. Start polling for result
+                startRunPromptPolling(data.task_id);
+            } else {
+                runPromptShowError(data.message || 'Failed to start analysis.');
+            }
+        })
+        .catch(error => {
+            console.error('Run Prompt dispatch error:', error);
+            runPromptShowError('Network error. Please try again.');
+        });
+    }
+
+    function startRunPromptPolling(taskId) {
+        if (runPromptPollInterval) clearInterval(runPromptPollInterval);
+
+        let pollCount = 0;
+        const maxPolls = 60; // 2-minute timeout
+
+        runPromptPollInterval = setInterval(() => {
+            pollCount++;
+            if (pollCount > maxPolls) {
+                stopRunPromptPolling();
+                runPromptShowError('Analysis is taking longer than expected. Please try again.');
+                return;
+            }
+
+            fetch(`/research/workflow/checklist/ai_analyze/status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state === 'COMPLETED') {
+                        stopRunPromptPolling();
+                        runPromptShowResult(data.ai_suggestion);
+                    } else if (data.state === 'FAILED') {
+                        stopRunPromptPolling();
+                        runPromptShowError(data.error || 'Analysis failed.');
+                    }
+                    // PENDING / RUNNING — continue polling
+                })
+                .catch(error => {
+                    console.error('Run Prompt poll error:', error);
+                    // Don't stop on transient network errors, keep retrying
+                });
+        }, 2000); // Poll every 2 seconds
+    }
+
+    function stopRunPromptPolling() {
+        if (runPromptPollInterval) {
+            clearInterval(runPromptPollInterval);
+            runPromptPollInterval = null;
+        }
+        // Re-enable button
+        const btn = document.getElementById('btnRunPrompt');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-circle"></i> Run Prompt'; }
+        // Hide spinner
+        document.getElementById('aiLoadingSpinner').style.display = 'none';
+    }
+
+    function runPromptShowResult(aiSuggestion) {
+        const section = document.getElementById('aiResponseRunPrompt');
+        const textDiv = document.getElementById('aiResponseRunPromptText');
+        textDiv.innerHTML = window.aiAssistant
+            ? window.aiAssistant.formatResponse(aiSuggestion)
+            : aiSuggestion.replace(/\n/g, '<br>');
+        section.style.display = 'block';
+    }
+
+    function runPromptShowError(message) {
+        stopRunPromptPolling();
+        const section = document.getElementById('aiResponseRunPrompt');
+        const textDiv = document.getElementById('aiResponseRunPromptText');
+        textDiv.innerHTML = '<p class="text-danger">' + message + '</p>';
+        section.style.display = 'block';
+    }
+
     // =========================================================================
     // AJAX Smooth Navigation
     // =========================================================================
@@ -938,9 +1064,18 @@
             window.aiAssistant.context.question_text = data.text;
         }
 
+        // Stop any running Run Prompt polling
+        if (runPromptPollInterval) stopRunPromptPolling();
+
         // Hide any existing AI responses
         document.getElementById('aiResponseArea').style.display = 'none';
         document.querySelectorAll('.ai-response-content').forEach(el => el.style.display = 'none');
+
+        // Show/hide Run Prompt button based on whether new item has an llm_prompt
+        const btnRunPrompt = document.getElementById('btnRunPrompt');
+        if (btnRunPrompt) {
+            btnRunPrompt.style.display = data.has_llm_prompt ? '' : 'none';
+        }
 
         // Collapse AI tools panel
         document.getElementById('aiToolsPanel').classList.remove('expanded');

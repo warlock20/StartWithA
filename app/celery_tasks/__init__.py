@@ -24,6 +24,7 @@ from app.celery_tasks.tasks_research import (
     competitor_analysis_task,
     bias_check_task,
     argos_deep_analysis_task,
+    checklist_item_analyze_task,
 )
 
 from app.celery_tasks.tasks_financial import (
@@ -53,6 +54,7 @@ __all__ = [
     'competitor_analysis_task',
     'bias_check_task',
     'argos_deep_analysis_task',
+    'checklist_item_analyze_task',
 
     # Financial tasks
     'fetch_financial_data_task',

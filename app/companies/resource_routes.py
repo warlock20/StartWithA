@@ -205,9 +205,16 @@ def api_download_resource(resource_id):
     if resource.resource_type != 'file':
         abort(400)
 
+    file_path = os.path.join(
+        current_app.config['UPLOAD_FOLDER'], resource.stored_filename
+    )
+    if not os.path.isfile(file_path):
+        logger.error(f'Resource file not found on disk: {file_path}')
+        abort(404)
+
     return send_from_directory(
-        current_app.config['UPLOAD_FOLDER'],
-        resource.stored_filename,
+        os.path.dirname(file_path),
+        os.path.basename(file_path),
         as_attachment=True,
         download_name=resource.original_filename,
     )
