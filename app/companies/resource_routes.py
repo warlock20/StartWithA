@@ -8,7 +8,7 @@ import uuid
 import logging
 from datetime import datetime
 
-from flask import request, current_app, send_from_directory, abort, render_template, g
+from flask import request, current_app, send_from_directory, abort, render_template
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -239,15 +239,18 @@ def api_view_resource(resource_id):
         logger.error(f'Resource file not found on disk: {file_path}')
         abort(404)
 
-    # Allow this response to be embedded in an iframe on our own pages
-    g.allow_framing = True
-
     response = send_from_directory(
         os.path.dirname(file_path),
         os.path.basename(file_path),
         as_attachment=False,
     )
     response.headers['Content-Disposition'] = 'inline'
+
+    # Set framing headers directly so after_request doesn't override them.
+    # This allows the PDF to render inside our iframe on the viewer page.
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
+    response._framing_headers_set = True
     return response
 
 
