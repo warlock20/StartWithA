@@ -231,8 +231,12 @@ def create_app(config_class=Config):
         # HTTPS enforcement (Railway terminates TLS at the proxy)
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
-        # Prevent clickjacking
-        response.headers['X-Frame-Options'] = 'DENY'
+        # Prevent clickjacking (conditionally allow framing for document viewer)
+        allow_framing = g.get('allow_framing', False)
+        if allow_framing:
+            response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        else:
+            response.headers['X-Frame-Options'] = 'DENY'
 
         # Prevent MIME-type sniffing
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -251,7 +255,7 @@ def create_app(config_class=Config):
             "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
             "img-src 'self' data: https:",
             "connect-src 'self'",
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'" if allow_framing else "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
         ])

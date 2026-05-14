@@ -178,9 +178,13 @@ const CompanyResources = (() => {
                 ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener" class="text-decoration-none">${escapeHtml(r.title)} <i class="bi bi-box-arrow-up-right" style="font-size: 0.7em;"></i></a>`
                 : escapeHtml(r.title);
 
-            const actions = r.resource_type === 'file'
+            const viewBtn = r.resource_type === 'file'
+                ? `<a href="/companies/resources/${r.id}/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="View"><i class="bi bi-eye"></i></a>`
+                : '';
+            const downloadBtn = r.resource_type === 'file'
                 ? `<a href="/companies/api/resources/${r.id}/download" class="btn btn-sm btn-outline-primary border-0" title="Download"><i class="bi bi-download"></i></a>`
                 : '';
+            const actions = viewBtn + downloadBtn;
 
             return `
                 <div class="cr-resource-item d-flex justify-content-between align-items-start py-2 border-bottom">
