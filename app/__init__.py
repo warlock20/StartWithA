@@ -231,13 +231,8 @@ def create_app(config_class=Config):
         # HTTPS enforcement (Railway terminates TLS at the proxy)
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
-        # If the route already set framing headers (e.g. document viewer),
-        # skip overwriting X-Frame-Options and CSP.
-        framing_set = getattr(response, '_framing_headers_set', False)
-
         # Prevent clickjacking
-        if not framing_set:
-            response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Frame-Options'] = 'DENY'
 
         # Prevent MIME-type sniffing
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -249,19 +244,18 @@ def create_app(config_class=Config):
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
 
         # Content Security Policy
-        if not framing_set:
-            csp = "; ".join([
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
-                "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
-                "img-src 'self' data: https:",
-                "connect-src 'self'",
-                "frame-ancestors 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-            ])
-            response.headers['Content-Security-Policy'] = csp
+        csp = "; ".join([
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+            "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+            "img-src 'self' data: https:",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ])
+        response.headers['Content-Security-Policy'] = csp
 
         return response
 

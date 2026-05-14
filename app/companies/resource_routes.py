@@ -245,12 +245,6 @@ def api_view_resource(resource_id):
         as_attachment=False,
     )
     response.headers['Content-Disposition'] = 'inline'
-
-    # Set framing headers directly so after_request doesn't override them.
-    # This allows the PDF to render inside our iframe on the viewer page.
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
-    response._framing_headers_set = True
     return response
 
 
