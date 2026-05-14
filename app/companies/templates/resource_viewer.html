@@ -1,0 +1,87 @@
+{% extends "main/_base.html" %}
+
+{% block content %}
+<div id="document-viewer-root"
+     data-resource-id="{{ resource.id }}"
+     data-resource-type="{{ resource.file_type }}"
+     data-view-url="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
+     data-download-url="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center gap-2 min-width-0">
+            <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+               class="btn btn-sm btn-outline-secondary flex-shrink-0"
+               title="Back to {{ company.name }}">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="min-width-0">
+                <h5 class="mb-0 text-truncate">
+                    <i class="bi {{ 'bi-file-earmark-pdf-fill text-danger' if resource.file_type == 'pdf' else 'bi-file-earmark-text-fill text-primary' }} me-1"></i>
+                    {{ resource.title }}
+                </h5>
+                <small class="text-muted">
+                    {{ resource.original_filename }}
+                    {% if resource.file_size %}
+                        &middot; {{ "%.1f"|format(resource.file_size / 1024) }} KB
+                    {% endif %}
+                    {% if resource.category %}
+                        &middot; <span class="badge bg-light text-dark border">{{ resource.category }}</span>
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        <a href="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}"
+           class="btn btn-sm btn-outline-primary flex-shrink-0">
+            <i class="bi bi-download me-1"></i>Download
+        </a>
+    </div>
+
+    <!-- Viewer -->
+    {% if resource.file_type == 'pdf' %}
+        <iframe
+            src="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
+            class="resource-viewer-frame"
+            title="{{ resource.title }}">
+            Your browser does not support inline PDF viewing.
+            <a href="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}">Download the file</a>.
+        </iframe>
+    {% elif resource.file_type == 'txt' %}
+        <div class="resource-viewer-text" id="txt-viewer">
+            <div class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading document...
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if resource.file_type == 'txt' %}
+<script>
+(function() {
+    const viewer = document.getElementById('txt-viewer');
+    const viewUrl = document.getElementById('document-viewer-root').dataset.viewUrl;
+
+    fetch(viewUrl)
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Failed to load file');
+            return resp.text();
+        })
+        .then(function(text) {
+            var pre = document.createElement('pre');
+            pre.className = 'resource-viewer-text-content';
+            pre.textContent = text;
+            viewer.innerHTML = '';
+            viewer.appendChild(pre);
+        })
+        .catch(function() {
+            viewer.innerHTML = '<div class="text-danger text-center py-5">' +
+                '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load document.</div>';
+        });
+})();
+</script>
+{% endif %}
+{% endblock %}

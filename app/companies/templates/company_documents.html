@@ -745,6 +745,9 @@ function loadInlineResources() {
                 const titleHtml = r.resource_type === 'link'
                     ? `<a href="${escapeH(r.url)}" target="_blank" rel="noopener" class="text-decoration-none">${escapeH(r.title)} <i class="bi bi-box-arrow-up-right" style="font-size: 0.7em;"></i></a>`
                     : escapeH(r.title);
+                const viewBtn = r.resource_type === 'file'
+                    ? `<a href="/companies/resources/${r.id}/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="View"><i class="bi bi-eye"></i></a>`
+                    : '';
                 const downloadBtn = r.resource_type === 'file'
                     ? `<a href="/companies/api/resources/${r.id}/download" class="btn btn-sm btn-outline-primary border-0" title="Download"><i class="bi bi-download"></i></a>`
                     : '';
@@ -755,6 +758,7 @@ function loadInlineResources() {
                             <div class="text-muted" style="font-size:0.78rem">${meta}</div>
                         </div>
                         <div class="d-flex gap-1 ms-2 flex-shrink-0">
+                            ${viewBtn}
                             ${downloadBtn}
                             <button class="btn btn-sm btn-outline-danger border-0" title="Delete"
                                     onclick="deleteInlineResource(${r.id})">

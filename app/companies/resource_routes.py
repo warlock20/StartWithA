@@ -8,7 +8,7 @@ import uuid
 import logging
 from datetime import datetime
 
-from flask import request, current_app, send_from_directory, abort
+from flask import request, current_app, send_from_directory, abort, render_template, g
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -217,4 +217,53 @@ def api_download_resource(resource_id):
         os.path.basename(file_path),
         as_attachment=True,
         download_name=resource.original_filename,
+    )
+
+
+@companies_bp.route('/api/resources/<int:resource_id>/view')
+@login_required
+def api_view_resource(resource_id):
+    """Serve a file resource inline for in-app viewing."""
+    resource = CompanyResource.query.get_or_404(resource_id)
+
+    if resource.company.user_id != current_user.id:
+        abort(403)
+
+    if resource.resource_type != 'file':
+        abort(400)
+
+    file_path = os.path.join(
+        current_app.config['UPLOAD_FOLDER'], resource.stored_filename
+    )
+    if not os.path.isfile(file_path):
+        logger.error(f'Resource file not found on disk: {file_path}')
+        abort(404)
+
+    # Allow this response to be embedded in an iframe on our own pages
+    g.allow_framing = True
+
+    return send_from_directory(
+        os.path.dirname(file_path),
+        os.path.basename(file_path),
+        as_attachment=False,
+    )
+
+
+@companies_bp.route('/resources/<int:resource_id>/viewer')
+@login_required
+def resource_viewer(resource_id):
+    """Full-page document viewer."""
+    resource = CompanyResource.query.get_or_404(resource_id)
+
+    if resource.company.user_id != current_user.id:
+        abort(403)
+
+    if resource.resource_type != 'file':
+        abort(400)
+
+    return render_template(
+        'resource_viewer.html',
+        resource=resource,
+        company=resource.company,
+        title=f'{resource.title} — Viewer',
     )
