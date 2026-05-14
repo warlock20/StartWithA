@@ -14,6 +14,8 @@ from app.utils.response_utils import json_error, json_unauthorized
 
 # Import unified LLM service
 from app.services.ai import generate_ai_content, ai_service
+from app.services.ai.prompt_service import prompt_service
+from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
                                                                              
@@ -391,132 +393,79 @@ def save_and_next(analysis_id, item_id):
 @login_required
 def ai_analyze_item(analysis_id, item_id):
     """
-    Handles the AI analysis request for a specific checklist item within a research session.
-    It extracts text from selected documents, calls the LLM, and returns a suggestion.
+    Dispatches a background Celery task for AI analysis of a checklist item.
+    Returns a task_id for the frontend to poll for results.
     """
     if not ai_service.is_available():
         return jsonify({'status': 'error_config', 'message': 'AI service is not configured on the server.'}), 500
 
-    # LLM service will handle API configuration automatically
     session = ChecklistAnalysis.query.get_or_404(analysis_id)
-    # Authorization: Ensure the session belongs to the current user
     if session.researcher != current_user:
         return jsonify({'status': 'error', 'message': 'Unauthorized access to session.'}), 403
-    
+
     item = ChecklistItem.query.get_or_404(item_id)
     if item.checklist_id != session.checklist_id:
         return jsonify({'status': 'error', 'message': 'Invalid item for this session.'}), 400
 
-    # Ensure the request is JSON
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid request: Content-Type must be application/json'}), 400
-    
+
     data = request.get_json()
     if not data:
         return jsonify({'status': 'error', 'message': 'Invalid request: No JSON payload found.'}), 400
-    
-    selected_model = data.get('selected_model', 'local') # Default to 'local' if not specified
-    llm_question = data.get('llm_actual_prompt', item.llm_prompt)
 
-
+    # Parse document IDs
     selected_document_ids_str = data.get('selected_document_ids', [])
-    
-    # Convert document IDs from strings to integers
     selected_document_ids = []
     for doc_id_str in selected_document_ids_str:
         try:
             selected_document_ids.append(int(doc_id_str))
         except ValueError:
-            return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}". IDs must be integers.'}), 400
+            return jsonify({'status': 'error', 'message': f'Invalid document ID format: "{doc_id_str}".'}), 400
 
-    # Print received data for debugging (server-side)
-    print(f"AI Analysis Request for Session {analysis_id}, Item {item_id}")
-    print(f"LLM Question: {llm_question}")
-    print(f"Selected Document IDs (integers): {selected_document_ids}")
+    # Dispatch background task
+    task_id = BackgroundTaskService.start_checklist_item_analysis(
+        user_id=current_user.id,
+        analysis_id=analysis_id,
+        item_id=item_id,
+        selected_document_ids=selected_document_ids
+    )
 
-    validated_documents_info = []
-    aggregated_text_content = ""
+    return jsonify({'success': True, 'task_id': task_id})
 
-    # Process selected documents if any IDs were provided
-    if selected_document_ids:
-        # Fetch CompanyResource file objects, ensuring they belong to the session's company
-        company_documents = CompanyResource.query.filter(
-            CompanyResource.id.in_(selected_document_ids),
-            CompanyResource.company_id == session.company_id,
-            CompanyResource.resource_type == 'file'
-        ).all()
 
-        # Validate that all requested document IDs were found and valid for this company
-        if len(company_documents) != len(set(selected_document_ids)):
-            return jsonify({'status': 'error', 'message': 'Some selected documents are invalid or not found for this company.'}), 400
-            
-        for doc in company_documents:
-            validated_documents_info.append({
-                'id': doc.id, 'title': doc.title, 'filename': doc.original_filename
-            })
-            
-            # Extract text content from each validated document
-            try:
-                full_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.stored_filename)
-                if not os.path.exists(full_file_path):
-                    error_msg = f"\n\n--- ERROR: File not found for document: {doc.original_filename} (Path: {full_file_path}) ---"
-                    aggregated_text_content += error_msg
-                    print(error_msg.strip()) # Log server-side
-                    continue # Skip to the next document
-                
-                if doc.original_filename.lower().endswith('.pdf'):
-                    with fitz.open(full_file_path) as pdf_doc:
-                        for page in pdf_doc:
-                            aggregated_text_content += page.get_text("text") + "\n"
-                elif doc.original_filename.lower().endswith('.txt'):
-                    with open(full_file_path, 'r', encoding='utf-8') as txt_file:
-                        aggregated_text_content += txt_file.read() + "\n"
-                else:
-                    aggregated_text_content += f"\n\n--- Skipped unsupported file type: {doc.original_filename} ---"
-            except Exception as e:
-                error_msg = f"\n\n--- ERROR processing document {doc.original_filename}: {str(e)} ---"
-                aggregated_text_content += error_msg
-                print(f"ERROR: Failed to process file {doc.original_filename}: {e}") # Log server-side
-    
-    # Initialize response variables
-    ai_suggestion = "Analysis could not be performed."
-    response_status = 'pending'
-    response_message = ''
+@research_workflow_bp.route('/checklist/ai_analyze/status/<task_id>')
+@login_required
+def ai_analyze_status(task_id):
+    """Poll status of a checklist item AI analysis background task."""
+    task_status = BackgroundTaskService.get_task_status(task_id)
 
-    try:
-        prompt_for_llm = (
-            "You are a helpful financial analyst assistant. Your task is to answer the user's question based strictly "
-            "on the context provided from the financial documents. Do not use external knowledge. "
-            "If the answer is not found in the context, state that clearly.\n\n"
-            f"CONTEXT:\n---\n{aggregated_text_content}\n---\n\n"
-            f"QUESTION:\n{llm_question}"
-        )
-        
-        print("INFO: Sending prompt to AI service...")
-        ai_suggestion = generate_ai_content(prompt_for_llm)
-        response_status = 'success_ai_suggestion'
-        response_message = 'Suggestion generated successfully.'
-        print("INFO: AI suggestion received.")
+    if not task_status:
+        return jsonify({'state': 'NOT_FOUND'}), 404
 
-    except Exception as e:
-        response_status = 'error_api_call'
-        response_message = 'An error occurred while calling the AI service.'
-        ai_suggestion = f"The AI service returned an error: {str(e)}"
-        print(f"ERROR: AI service error: {e}")                
+    response = {
+        'current': 0,
+        'total': 100,
+    }
 
-    else:
-        response_status = 'error_invalid_model'
-        response_message = f"Invalid model '{selected_model}' selected."
+    if task_status['status'] == 'pending':
+        response['state'] = 'PENDING'
+        response['current'] = 10
+    elif task_status['status'] == 'running':
+        response['state'] = 'RUNNING'
+        response['current'] = 50
+    elif task_status['status'] == 'completed':
+        response['state'] = 'COMPLETED'
+        response['current'] = 100
+        result = task_status.get('result', {})
+        response['ai_suggestion'] = result.get('ai_suggestion', '')
+        response['received_prompt'] = result.get('received_prompt', '')
+        response['tokens_used'] = result.get('tokens_used', 0)
+    elif task_status['status'] == 'failed':
+        response['state'] = 'FAILED'
+        response['error'] = task_status.get('error', 'Analysis failed')
 
-    # --- Construct and return the JSON response ---
-    return jsonify({
-        'status': response_status,
-        'message': response_message,
-        'received_prompt': llm_question,
-        'selected_documents_info': validated_documents_info, # Assuming this is populated
-        'extracted_text_sample': aggregated_text_content[:500] + ("..." if len(aggregated_text_content) > 500 else ""),
-        'ai_suggestion': ai_suggestion
-    })
+    return jsonify(response)
 
 @research_workflow_bp.route('/checklist/<int:analysis_id>/summary', methods=['GET', 'POST'])
 @login_required

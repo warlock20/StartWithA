@@ -16,6 +16,7 @@ from app.celery_tasks import portfolio_chart_data_task
 from app.celery_tasks import bias_check_task
 from app.celery_tasks import argos_deep_analysis_task
 from app.celery_tasks import portfolio_import_task
+from app.celery_tasks import checklist_item_analyze_task
 
 logger = logging.getLogger(__name__)
 
@@ -312,5 +313,45 @@ class BackgroundTaskService:
         )
 
         logger.info(f"Started argos deep analysis task {task_id} (Celery: {celery_task.id}) for user {user_id}")
+
+        return task_id
+
+    @staticmethod
+    def start_checklist_item_analysis(user_id, analysis_id, item_id, selected_document_ids=None):
+        """Start a checklist item AI analysis task (Run Prompt) in the background.
+
+        Uses task_type 'checklist_item_analyze' to prevent duplicate concurrent tasks.
+        """
+        task_type = 'checklist_item_analyze'
+
+        # Check for existing running task for the same item in the same session
+        existing_task = BackgroundTask.query.filter_by(
+            user_id=user_id,
+            task_type=task_type,
+            status='running'
+        ).first()
+
+        if existing_task:
+            logger.info(f"Checklist item analysis task {existing_task.id} already running for user {user_id}")
+            return existing_task.id
+
+        # Create new task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task
+        celery_task = checklist_item_analyze_task.delay(
+            task_id, user_id, analysis_id, item_id, selected_document_ids or []
+        )
+
+        logger.info(f"Started checklist item analysis task {task_id} (Celery: {celery_task.id}) for item {item_id}")
 
         return task_id

@@ -484,6 +484,16 @@
     background: #fef3c7;
 }
 
+.cl-ai-mode-btn.run-prompt {
+    background: var(--success-50, #f0fdf4);
+    border-color: #bbf7d0;
+    color: var(--success-600, #16a34a);
+}
+
+.cl-ai-mode-btn.run-prompt:hover {
+    background: #dcfce7;
+}
+
 /* AI Response within the tools section */
 .cl-ai-response {
     margin-top: var(--space-md);

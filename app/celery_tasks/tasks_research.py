@@ -6,9 +6,13 @@ Background tasks for competitor analysis, bias check, and argos deep analysis.
 
 import json
 import logging
+import os
+
+import fitz
+from flask import current_app
 
 from app import db, create_app
-from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult
+from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult, ChecklistItem, ChecklistAnalysis, CompanyResource
 from celery_app import celery
 
 from app.services.ai import generate_ai_content, ai_service
@@ -340,6 +344,132 @@ def argos_deep_analysis_task(self, task_id, user_id, company_id, step_type, step
 
         except Exception as e:
             logger.error(f"TASK {self.request.id}: Argos deep analysis failed - {e}", exc_info=True)
+
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return {"status": "failed", "message": str(e)}
+
+
+# =========================================================================
+# Checklist Item AI Analysis (Run Prompt)
+# =========================================================================
+
+@celery.task(bind=True)
+def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, selected_document_ids):
+    """
+    Celery background task for checklist item AI analysis (Run Prompt).
+
+    Extracts text from selected documents, builds the prompt from YAML template,
+    calls the LLM, and stores the result in BackgroundTask.
+
+    Args:
+        task_id: BackgroundTask ID for status tracking
+        user_id: User ID for token tracking
+        analysis_id: ChecklistAnalysis session ID
+        item_id: ChecklistItem ID
+        selected_document_ids: List of CompanyResource IDs to use as context
+    """
+    app = create_app()
+    with app.app_context():
+        task = BackgroundTask.query.get(task_id)
+        if not task:
+            logger.error(f"TASK {self.request.id}: Task {task_id} not found")
+            return {"status": "failed", "message": "Task not found"}
+
+        try:
+            # 1. UPDATE STATUS TO RUNNING
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            # 2. GET CHECKLIST ITEM AND ITS LLM PROMPT
+            session = ChecklistAnalysis.query.get(analysis_id)
+            if not session:
+                raise ValueError(f"ChecklistAnalysis {analysis_id} not found")
+
+            item = ChecklistItem.query.get(item_id)
+            if not item:
+                raise ValueError(f"ChecklistItem {item_id} not found")
+
+            llm_question = item.llm_prompt
+            if not llm_question:
+                raise ValueError(f"ChecklistItem {item_id} has no llm_prompt defined")
+
+            # 3. EXTRACT TEXT FROM SELECTED DOCUMENTS
+            aggregated_text_content = ""
+
+            if selected_document_ids:
+                company_documents = CompanyResource.query.filter(
+                    CompanyResource.id.in_(selected_document_ids),
+                    CompanyResource.company_id == session.company_id,
+                    CompanyResource.resource_type == 'file'
+                ).all()
+
+                upload_folder = current_app.config['UPLOAD_FOLDER']
+
+                for doc in company_documents:
+                    try:
+                        full_file_path = os.path.join(upload_folder, doc.stored_filename)
+                        if not os.path.exists(full_file_path):
+                            aggregated_text_content += f"\n\n--- ERROR: File not found: {doc.original_filename} ---"
+                            continue
+
+                        if doc.original_filename.lower().endswith('.pdf'):
+                            with fitz.open(full_file_path) as pdf_doc:
+                                for page in pdf_doc:
+                                    aggregated_text_content += page.get_text("text") + "\n"
+                        elif doc.original_filename.lower().endswith('.txt'):
+                            with open(full_file_path, 'r', encoding='utf-8') as txt_file:
+                                aggregated_text_content += txt_file.read() + "\n"
+                        else:
+                            aggregated_text_content += f"\n\n--- Skipped unsupported file type: {doc.original_filename} ---"
+                    except Exception as e:
+                        aggregated_text_content += f"\n\n--- ERROR processing {doc.original_filename}: {str(e)} ---"
+                        logger.warning(f"TASK {self.request.id}: Error processing document {doc.original_filename}: {e}")
+
+            # 4. BUILD PROMPT FROM YAML AND CALL AI
+            company = session.company
+            prompt_for_llm = prompt_service.get_prompt(
+                'research',
+                'checklist_item_analyze',
+                context=aggregated_text_content if aggregated_text_content.strip() else "No documents provided.",
+                question=llm_question,
+                company_name=company.name,
+                ticker_symbol=company.ticker_symbol,
+                sector=company.sector.display_name if company.sector else 'N/A',
+                industry=company.industry or 'N/A'
+            )
+
+            logger.info(f"TASK {self.request.id}: Running checklist item analysis for item {item_id} in session {analysis_id}")
+            ai_suggestion = generate_ai_content(prompt_for_llm, google_search=True)
+
+            # 5. ESTIMATE TOKENS AND TRACK USAGE
+            tokens_estimate = len(prompt_for_llm) // 4 + len(ai_suggestion) // 4
+
+            user = User.query.get(user_id)
+            if user:
+                user.increment_ai_tokens(tokens_estimate)
+
+            # 6. UPDATE TASK AS COMPLETED
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps({
+                'ai_suggestion': ai_suggestion,
+                'received_prompt': llm_question,
+                'tokens_used': tokens_estimate
+            })
+            db.session.commit()
+
+            logger.info(f"TASK {self.request.id}: Checklist item analysis completed for item {item_id}")
+            return {"status": "success", "tokens_used": tokens_estimate}
+
+        except Exception as e:
+            logger.error(f"TASK {self.request.id}: Checklist item analysis failed - {e}", exc_info=True)
 
             task = BackgroundTask.query.get(task_id)
             if task:
