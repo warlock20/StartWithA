@@ -622,3 +622,715 @@
         padding: 1rem;
     }
 }
+
+/* =============================================================================
+   UNIFIED COMPANY PAGE — Pill Tab Bar, Overview Grid, Cards
+   Uses platform design tokens from _variables.css throughout.
+   Font: Inter (body), Poppins (headings via .font-poppins), JetBrains Mono (monospace)
+   ============================================================================= */
+
+/* ---- Pill Tab Bar ---- */
+.unified-tab-bar {
+    display: flex;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+    flex-wrap: wrap;
+    align-items: center;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--background-white);
+}
+
+.unified-pill-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    color: var(--text-secondary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.unified-pill-tab:hover {
+    background: var(--gray-100);
+    color: var(--gray-800);
+}
+
+.unified-pill-tab.active {
+    background: var(--accent-color);
+    color: var(--text-white);
+    border-color: var(--accent-color);
+}
+
+.unified-pill-tab i {
+    font-size: var(--font-size-sm);
+}
+
+.unified-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+.unified-pill-tab.active .unified-tab-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: var(--text-white);
+}
+
+.unified-tab-separator {
+    width: 1px;
+    height: var(--space-lg);
+    background: var(--border-light);
+    margin: 0 var(--space-xs);
+    flex-shrink: 0;
+}
+
+/* ---- Tab Panels ---- */
+.unified-tab-panels {
+    background: var(--background-white);
+}
+
+.unified-tab-panel {
+    display: none;
+    padding: 0;
+}
+
+.unified-tab-panel.active {
+    display: block;
+}
+
+/* Content tabs (non-overview, non-settings) get standard padding + subtle background */
+#panel-timeline,
+#panel-research,
+#panel-documents,
+#panel-notes,
+#panel-journal {
+    padding: var(--space-lg) var(--space-xl);
+    background: var(--gray-50);
+}
+
+/* Give timeline filter tabs a white card look inside gray bg */
+#panel-timeline .journey-tabs {
+    background: var(--background-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    padding: var(--space-xs);
+    margin-bottom: var(--space-lg);
+}
+
+/* ---- Overview Two-Column Grid ---- */
+.unified-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+}
+
+.unified-overview-main {
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    border-right: 1px solid var(--border-light);
+}
+
+.unified-overview-sidebar {
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    background: var(--gray-50);
+}
+
+/* ---- Overview Cards ---- */
+.unified-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    box-shadow: var(--shadow-light);
+}
+
+.unified-card-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: var(--space-sm);
+}
+
+.unified-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-light);
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.unified-link {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--accent-color);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.unified-link:hover {
+    text-decoration: underline;
+    color: var(--accent-600);
+}
+
+/* Thesis body */
+.unified-thesis-body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-sm);
+    line-height: 1.75;
+    color: var(--text-secondary);
+}
+
+.unified-thesis-body .blocknote-content p {
+    margin-bottom: var(--space-sm);
+}
+
+/* ---- Valuation Snapshot Card ---- */
+.unified-valuation-card {
+    background: var(--primary-50);
+    border-color: var(--primary-300);
+}
+
+.unified-valuation-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+}
+
+.unified-valuation-metric {
+    text-align: center;
+}
+
+.unified-valuation-metric-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.unified-valuation-metric-value {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.unified-valuation-metric-value.highlight {
+    color: var(--accent-color);
+}
+
+/* ---- Bull / Bear Cases ---- */
+.unified-bull-bear-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+}
+
+.unified-case-card {
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+}
+
+.unified-case-card.bull {
+    background: var(--success-50);
+    border-left: 3px solid var(--success-500);
+}
+
+.unified-case-card.bear {
+    background: var(--danger-50);
+    border-left: 3px solid var(--danger-500);
+}
+
+.unified-case-header {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    margin-bottom: var(--space-sm);
+}
+
+.unified-case-card.bull .unified-case-header {
+    color: var(--success-700, #047857);
+}
+
+.unified-case-card.bear .unified-case-header {
+    color: var(--danger-700, #b91c1c);
+}
+
+.unified-case-card ul {
+    margin: 0;
+    padding-left: 1.125rem;
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+}
+
+.unified-case-card.bull ul {
+    color: var(--success-700, #047857);
+}
+
+.unified-case-card.bear ul {
+    color: var(--danger-700, #b91c1c);
+}
+
+/* ---- Portfolio Position Card ---- */
+.unified-position-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+}
+
+.unified-position-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.unified-position-value {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+/* ---- Quick Actions ---- */
+.unified-quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.unified-quick-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background: var(--background-white);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: background var(--transition-fast);
+}
+
+.unified-quick-action:hover {
+    background: var(--gray-50);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.unified-quick-action i {
+    font-size: var(--font-size-base);
+    color: var(--gray-400);
+    flex-shrink: 0;
+}
+
+.unified-quick-action.primary {
+    background: var(--accent-50);
+    border-color: var(--accent-color);
+}
+
+.unified-quick-action.primary i {
+    color: var(--accent-color);
+}
+
+.unified-quick-action.primary:hover {
+    background: var(--accent-100);
+}
+
+.unified-quick-action-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.unified-quick-action-sub {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+/* ---- Recent Activity ---- */
+.unified-activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+}
+
+.unified-activity-item i {
+    font-size: var(--font-size-sm);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.unified-activity-content {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.unified-activity-time {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* ---- Settings Tab — Sidebar + Content Layout ---- */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 560px;
+}
+
+/* Sidebar nav */
+.settings-sidebar {
+    background: var(--gray-50);
+    border-right: 1px solid var(--border-light);
+    padding: var(--space-lg) var(--space-md);
+}
+
+.settings-sidebar-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    padding: 0 var(--space-sm) var(--space-sm);
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-sm);
+    margin-bottom: 2px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    border-left: 3px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+}
+
+.settings-nav-item:hover {
+    background: var(--background-white);
+}
+
+.settings-nav-item.active {
+    background: var(--background-white);
+    border-color: var(--border-light);
+    border-left-color: var(--accent-color);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.settings-nav-item.danger {
+    border-left-color: transparent;
+}
+
+.settings-nav-item.danger.active {
+    border-left-color: var(--danger-500);
+}
+
+.settings-nav-item > i {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.settings-nav-item.active > i {
+    color: var(--accent-color);
+}
+
+.settings-nav-item.danger > i {
+    color: var(--danger-500);
+}
+
+.settings-nav-title {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.settings-nav-item.active .settings-nav-title {
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.settings-nav-item.danger .settings-nav-title {
+    color: var(--danger-500);
+}
+
+.settings-nav-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.3;
+    margin-top: 1px;
+}
+
+/* Content area */
+.settings-content {
+    padding: var(--space-lg) var(--space-xl);
+}
+
+.settings-section {
+    display: none;
+}
+
+.settings-section.active {
+    display: block;
+}
+
+.settings-section-heading {
+    margin-bottom: var(--space-lg);
+}
+
+.settings-section-heading h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0 0 var(--space-xs);
+}
+
+.settings-section-heading p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Form cards */
+.settings-form-card {
+    background: var(--background-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    box-shadow: var(--shadow-light);
+}
+
+.settings-field-label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-800);
+    margin-bottom: var(--space-xs);
+}
+
+/* Save bar */
+.settings-save-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    margin-top: var(--space-md);
+}
+
+.settings-save-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* Competitor rows */
+.settings-competitor-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.settings-competitor-row:last-child {
+    border-bottom: none;
+}
+
+.settings-competitor-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.settings-competitor-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-competitor-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.settings-competitor-name:hover {
+    text-decoration: underline;
+}
+
+.settings-competitor-meta {
+    display: flex;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* Add row */
+.settings-add-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--gray-50);
+    border-style: dashed;
+}
+
+/* Key-value rows (Research Setup) */
+.settings-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.settings-kv-row:last-of-type {
+    border-bottom: none;
+}
+
+.settings-kv-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.settings-kv-value {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+/* Danger zone */
+.settings-danger-card {
+    background: var(--danger-50);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.settings-danger-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--background-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.settings-danger-text {
+    flex: 1;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1024px) {
+    .unified-overview-grid {
+        grid-template-columns: 1fr;
+    }
+    .unified-overview-main {
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .unified-valuation-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .unified-bull-bear-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .unified-tab-bar {
+        padding: var(--space-sm) var(--space-md);
+        gap: var(--space-xs);
+    }
+    .unified-pill-tab {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: var(--font-size-xs);
+    }
+    .unified-overview-main {
+        padding: var(--space-md);
+    }
+    .unified-overview-sidebar {
+        padding: var(--space-md);
+    }
+    .settings-layout {
+        grid-template-columns: 1fr;
+    }
+    .settings-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+        padding: var(--space-md);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+        align-items: center;
+    }
+    .settings-sidebar-label {
+        width: 100%;
+    }
+    .settings-nav-item {
+        padding: var(--space-xs) var(--space-sm);
+    }
+    .settings-nav-hint {
+        display: none;
+    }
+    .settings-content {
+        padding: var(--space-md);
+    }
+}

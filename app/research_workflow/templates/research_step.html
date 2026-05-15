@@ -341,7 +341,7 @@
                         </a>
                         {% endfor %}
                         {% if company_documents|length > 5 %}
-                        <a href="{{ url_for('companies.company_dashboard', company_id=session.company.id) }}">
+                        <a href="{{ url_for('companies.company_detail', company_id=session.company.id) }}">
                             View all {{ company_documents|length }} documents...
                         </a>
                         {% endif %}

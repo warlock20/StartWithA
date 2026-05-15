@@ -641,7 +641,7 @@
                                             {% endif %}
                                         </div>
                                         <div class="tool-item-actions">
-                                            <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="btn btn-sm btn-link p-0" title="View company">
+                                            <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="btn btn-sm btn-link p-0" title="View company">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                             <button type="button" class="btn btn-sm btn-link p-0 text-danger btn-remove-company" data-company-id="{{ company.id }}" data-company-name="{{ company.name }}" title="Remove from sector">
@@ -704,7 +704,7 @@
                                         </div>
                                         <div class="tool-item-actions">
                                             {% if item.company_id %}
-                                            <a href="{{ url_for('companies.company_dashboard', company_id=item.company_id) }}" class="btn btn-sm btn-link p-0" title="View details">
+                                            <a href="{{ url_for('companies.company_detail', company_id=item.company_id) }}" class="btn btn-sm btn-link p-0" title="View details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                             {% endif %}

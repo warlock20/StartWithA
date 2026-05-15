@@ -106,7 +106,7 @@
                 {% if note.company %}
                 <div class="mb-3">
                     <span class="text-muted me-2"><i class="bi bi-building"></i> Related Company:</span>
-                    <a href="{{ url_for('companies.company_dashboard', company_id=note.company.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('companies.company_detail', company_id=note.company.id) }}" class="text-decoration-none">
                         {{ note.company.name }}
                     </a>
                 </div>

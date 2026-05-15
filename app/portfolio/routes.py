@@ -232,7 +232,7 @@ def position_detail(company_id):
 @login_required
 def investment_journey(company_id):
     """Redirect to unified Company Journey page."""
-    return redirect(url_for('companies.company_journey', company_id=company_id))
+    return redirect(url_for('companies.company_detail', company_id=company_id))
 
 
 @portfolio_bp.route('/position/<int:company_id>/thesis/new', methods=['GET', 'POST'])
@@ -327,7 +327,7 @@ def add_thesis_version(company_id):
             db.session.commit()
 
             flash(f'Thesis Version {next_version} created successfully', 'success')
-            return redirect(url_for('companies.company_journey', company_id=company_id))
+            return redirect(url_for('companies.company_detail', company_id=company_id))
 
         except Exception as e:
             db.session.rollback()

@@ -21,13 +21,13 @@ def add_checkpoint(company_id):
 
     if not metric or not expectation or not target_date_str:
         flash("All fields are required to add a checkpoint.", "error")
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
 
     try:
         target_date = parse_date_to_date_object(target_date_str)
         if not target_date:
             flash("Invalid date format. Please use YYYY-MM-DD.", "error")
-            return redirect(url_for('companies.company_dashboard', company_id=company_id))
+            return redirect(url_for('companies.company_detail', company_id=company_id))
 
         new_checkpoint = DestinationCheckpoint(
             company_id=company.id,
@@ -63,7 +63,7 @@ def destination_analysis(company_id):
                            company=company,
                            checkpoints=checkpoints,
                            title=f"Destination Analysis for {company.name}",
-                           return_url=url_for('companies.company_dashboard', company_id=company.id),
+                           return_url=url_for('companies.company_detail', company_id=company.id),
                            context_label=f"{company.name} Dashboard")
     
 @companies_bp.route('/checkpoint/<int:checkpoint_id>/update', methods=['POST'])

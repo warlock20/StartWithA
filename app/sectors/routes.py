@@ -594,7 +594,7 @@ def add_company_to_sector(sector_name, company_id):
                 'name': company.name,
                 'ticker': company.ticker_symbol or '',
                 'is_in_portfolio': company.is_in_portfolio,
-                'dashboard_url': url_for('companies.company_dashboard', company_id=company.id),
+                'dashboard_url': url_for('companies.company_detail', company_id=company.id),
                 'remove_url': url_for('sectors.remove_company_from_sector', sector_name=sector_name, company_id=company.id),
             }
         })

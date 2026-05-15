@@ -376,7 +376,7 @@
                 <h3 class="font-poppins fw-bold mb-3">Quick Actions</h3>
                 <div>
                     {% if project.company %}
-                    <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}" class="quick-action-link">
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}" class="quick-action-link">
                         <i class="bi bi-building"></i> Company Dashboard
                     </a>
                     <a href="{{ url_for('journal_enhanced.knowledge_hub', company_id=project.company.id) }}" class="quick-action-link">

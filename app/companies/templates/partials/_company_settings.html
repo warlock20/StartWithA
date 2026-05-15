@@ -1,0 +1,343 @@
+{# Settings Tab — Sidebar navigation + scoped content panels #}
+
+<div class="settings-layout">
+    <!-- LEFT SUB-NAV -->
+    <div class="settings-sidebar">
+        <div class="settings-sidebar-label">Settings</div>
+        <button class="settings-nav-item active" data-settings-section="identity" type="button">
+            <i class="bi bi-building"></i>
+            <div>
+                <div class="settings-nav-title">Company Identity</div>
+                <div class="settings-nav-hint">Name, ticker, sector</div>
+            </div>
+        </button>
+        <button class="settings-nav-item" data-settings-section="data-sources" type="button">
+            <i class="bi bi-cloud-arrow-down"></i>
+            <div>
+                <div class="settings-nav-title">Data Sources</div>
+                <div class="settings-nav-hint">Ticker validation, price feed</div>
+            </div>
+        </button>
+        <button class="settings-nav-item" data-settings-section="competitors" type="button">
+            <i class="bi bi-diagram-3"></i>
+            <div>
+                <div class="settings-nav-title">Competitors</div>
+                <div class="settings-nav-hint">Linked peer companies</div>
+            </div>
+        </button>
+        {% if research_project %}
+        <button class="settings-nav-item" data-settings-section="research" type="button">
+            <i class="bi bi-microscope"></i>
+            <div>
+                <div class="settings-nav-title">Research Setup</div>
+                <div class="settings-nav-hint">Active template, progress</div>
+            </div>
+        </button>
+        {% endif %}
+        <button class="settings-nav-item danger" data-settings-section="danger" type="button">
+            <i class="bi bi-exclamation-triangle"></i>
+            <div>
+                <div class="settings-nav-title">Danger Zone</div>
+                <div class="settings-nav-hint">Delete company</div>
+            </div>
+        </button>
+    </div>
+
+    <!-- RIGHT CONTENT -->
+    <div class="settings-content">
+
+        <!-- ====== SECTION: Company Identity ====== -->
+        <div class="settings-section active" id="settings-identity">
+            <div class="settings-section-heading">
+                <h3 class="font-poppins">Company Identity</h3>
+                <p>Core information about this company. Changes propagate across the platform.</p>
+            </div>
+
+            {% if company.is_in_portfolio %}
+            <div class="warning-banner">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>This company is in your portfolio.</strong>
+                    Changing the ticker symbol will affect price updates for your positions.
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('companies.edit_company', company_id=company.id) }}" id="editCompanyForm">
+                <div class="settings-form-card">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="companyName" class="settings-field-label">
+                                Company Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="companyName" name="name"
+                                   value="{{ company.name }}" required>
+                            <div class="form-text">Displayed everywhere this company appears</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="tickerSymbol" class="settings-field-label">
+                                Ticker Symbol <span class="text-danger">*</span>
+                            </label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="tickerSymbol" name="ticker_symbol"
+                                       value="{{ company.ticker_symbol }}" required
+                                       style="text-transform: uppercase; font-family: 'JetBrains Mono', monospace;">
+                                <div class="ticker-validation-status" id="tickerValidationStatus"></div>
+                            </div>
+                            <div class="form-text">Verified against Yahoo Finance</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sector" class="settings-field-label">Sector</label>
+                            <input type="text" class="form-control" id="sector" name="sector"
+                                   value="{{ company.sector.name if company.sector else '' }}"
+                                   list="sectorList" placeholder="e.g., Technology, Healthcare">
+                            <datalist id="sectorList">
+                                <option value="Technology">
+                                <option value="Healthcare">
+                                <option value="Financials">
+                                <option value="Consumer Discretionary">
+                                <option value="Consumer Staples">
+                                <option value="Industrials">
+                                <option value="Energy">
+                                <option value="Materials">
+                                <option value="Utilities">
+                                <option value="Real Estate">
+                                <option value="Communication Services">
+                            </datalist>
+                            <div class="form-text">Used for filtering & comparison</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="industry" class="settings-field-label">Industry</label>
+                            <input type="text" class="form-control" id="industry" name="industry"
+                                   value="{{ company.industry if company.industry else '' }}"
+                                   placeholder="e.g., Consumer Electronics">
+                            <div class="form-text">Specific industry within the sector</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="companySummary" class="settings-field-label">Company Summary</label>
+                            <textarea class="form-control" id="companySummary" name="summary" rows="3"
+                                      placeholder="Brief description of the company's business...">{{ company.summary if company.summary else '' }}</textarea>
+                            <div class="form-text">A brief description to help you remember what this company does</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save bar -->
+                <div class="settings-save-bar">
+                    <div class="settings-save-hint">
+                        <i class="bi bi-info-circle"></i> Changes require saving
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="location.reload()">
+                            Discard
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="saveChangesBtn">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- ====== SECTION: Data Sources ====== -->
+        <div class="settings-section" id="settings-data-sources">
+            <div class="settings-section-heading">
+                <h3 class="font-poppins">Data Sources</h3>
+                <p>Verify ticker fetches live price data and test against your configured provider.</p>
+            </div>
+
+            <div class="settings-form-card" style="background: linear-gradient(135deg, rgba(45,106,79,0.03) 0%, rgba(139,92,246,0.03) 100%); border: 2px dashed var(--accent-color); border-opacity: 0.3;">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <i class="bi bi-shield-check" style="font-size: 1.75rem; color: var(--accent-color);"></i>
+                    <div>
+                        <div style="font-size: var(--font-size-sm); font-weight: 600;">Ticker Validation Tool</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--text-muted);">Tests the ticker against Yahoo Finance and shows a preview.</div>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" id="testTicker"
+                               placeholder="Enter ticker to test (e.g., AAPL, MSFT, MBB.DE)">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-info w-100" id="testTickerBtn">
+                            <i class="bi bi-lightning-charge me-1"></i>Run Test
+                        </button>
+                    </div>
+                </div>
+                <div id="testResult" class="d-none mt-3"></div>
+            </div>
+
+            <div class="settings-form-card">
+                <div class="settings-field-label" style="margin-bottom: var(--space-sm);">Common Exchange Formats</div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>USA:</strong> AAPL, MSFT, GOOGL<br>
+                            <strong>Germany:</strong> MBB.DE, SAP.DE<br>
+                            <strong>UK:</strong> BP.L, SHEL.L
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>Japan:</strong> 7203.T (Toyota)<br>
+                            <strong>Canada:</strong> SHOP.TO<br>
+                            <strong>India:</strong> RELIANCE.NS
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== SECTION: Competitors ====== -->
+        <div class="settings-section" id="settings-competitors">
+            <div class="settings-section-heading">
+                <h3 class="font-poppins">Competitors</h3>
+                <p>Link this company to its competitors for comparative analysis.</p>
+            </div>
+
+            <!-- Current competitors list -->
+            {% if current_competitors %}
+            <div class="settings-form-card" style="padding: 0; overflow: hidden;">
+                {% for comp in current_competitors %}
+                <div class="settings-competitor-row">
+                    <div class="settings-competitor-avatar">
+                        {{ (comp.ticker_symbol or comp.name)[:2]|upper }}
+                    </div>
+                    <div class="settings-competitor-info">
+                        <a href="{{ url_for('companies.company_detail', company_id=comp.id) }}" class="settings-competitor-name">
+                            {{ comp.name }}
+                            <i class="bi bi-link-45deg" style="font-size: var(--font-size-xs);"></i>
+                        </a>
+                        <div class="settings-competitor-meta">
+                            <span style="font-family: 'JetBrains Mono', monospace;">{{ comp.ticker_symbol }}</span>
+                            {% if comp.sector %}
+                            <span>&middot;</span>
+                            <span>{{ comp.sector.name }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <form method="POST"
+                          action="{{ url_for('companies.remove_competitor', company_id=company.id, competitor_id=comp.id) }}"
+                          style="display: inline;">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x me-1"></i>Remove
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="settings-form-card" style="text-align: center; padding: var(--space-xl);">
+                <i class="bi bi-diagram-3" style="font-size: 2rem; color: var(--gray-300);"></i>
+                <p style="color: var(--text-muted); font-size: var(--font-size-sm); margin-top: var(--space-sm);">
+                    No competitors linked yet.
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Add competitor -->
+            <form method="POST" action="{{ url_for('companies.add_competitor', company_id=company.id) }}">
+                <div class="settings-form-card settings-add-row">
+                    <i class="bi bi-plus-circle" style="font-size: var(--font-size-base); color: var(--text-muted);"></i>
+                    <select name="competitor_id" class="form-select form-select-sm" required style="flex: 1;">
+                        <option value="" disabled selected>Search and add a competitor by name or ticker...</option>
+                        {% for p_comp in potential_competitors %}
+                        <option value="{{ p_comp.id }}">{{ p_comp.name }} ({{ p_comp.ticker_symbol }})</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ====== SECTION: Research Setup ====== -->
+        {% if research_project %}
+        <div class="settings-section" id="settings-research">
+            <div class="settings-section-heading">
+                <h3 class="font-poppins">Research Setup</h3>
+                <p>Configuration for the active research project linked to this company.</p>
+            </div>
+
+            <div class="settings-form-card">
+                <div class="settings-kv-row">
+                    <span class="settings-kv-label">Active Template</span>
+                    <span class="settings-kv-value">{{ research_project.template.name if research_project.template else 'None' }}</span>
+                </div>
+                <div class="settings-kv-row">
+                    <span class="settings-kv-label">Project Status</span>
+                    <span class="settings-kv-value">
+                        <span class="badge" style="background: {% if research_project.status == 'active' %}var(--success-50); color: var(--success-600); border: 1px solid var(--success-500){% else %}var(--gray-100); color: var(--gray-600){% endif %}; font-size: var(--font-size-xs);">
+                            {{ research_project.status|title }}
+                        </span>
+                    </span>
+                </div>
+                <div class="settings-kv-row">
+                    <span class="settings-kv-label">Progress</span>
+                    <span class="settings-kv-value">
+                        Step {{ research_project.current_step_index + 1 }}
+                        {% if research_project.template and research_project.template.steps %}
+                        of {{ research_project.template.steps|length }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="margin-top: var(--space-md);">
+                    <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}"
+                       class="unified-link" style="font-size: var(--font-size-sm);">
+                        Open research project &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ====== SECTION: Danger Zone ====== -->
+        <div class="settings-section" id="settings-danger">
+            <div class="settings-section-heading">
+                <h3 class="font-poppins" style="color: var(--danger-500);">Danger Zone</h3>
+                <p>Irreversible actions. Proceed with caution.</p>
+            </div>
+
+            <div class="settings-form-card settings-danger-card">
+                <div class="settings-danger-action">
+                    <i class="bi bi-trash" style="font-size: 1.125rem; color: var(--danger-500);"></i>
+                    <div class="settings-danger-text">
+                        <div style="font-size: var(--font-size-sm); font-weight: 600;">Delete Permanently</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--text-muted);">
+                            Erase all research, notes, transactions, and journal entries for this company. Cannot be undone.
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}"
+                          onsubmit="return confirm('Are you sure you want to permanently delete {{ company.name }}? This will remove ALL associated data and cannot be undone.');">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function() {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const sections = document.querySelectorAll('.settings-section');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const target = this.getAttribute('data-settings-section');
+
+            // Update nav active state
+            navItems.forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+
+            // Show target section
+            sections.forEach(s => s.classList.remove('active'));
+            const targetSection = document.getElementById('settings-' + target);
+            if (targetSection) targetSection.classList.add('active');
+        });
+    });
+})();
+</script>

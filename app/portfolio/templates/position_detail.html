@@ -198,7 +198,7 @@
                 </div>
                 <div class="position-sidebar-body">
                     <div class="position-quick-actions">
-                        <a href="{{ url_for('companies.company_journey', company_id=company.id) }}"
+                        <a href="{{ url_for('companies.company_detail', company_id=company.id) }}"
                             class="position-quick-action">
                             <i class="bi bi-map"></i>
                             Investment Journey
@@ -218,7 +218,7 @@
                             <i class="bi bi-flag"></i>
                             Add Checkpoint
                         </a>
-                        <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}"
+                        <a href="{{ url_for('companies.company_detail', company_id=company.id) }}"
                             class="position-quick-action">
                             <i class="bi bi-folder2-open"></i>
                             Company Dashboard

@@ -122,7 +122,7 @@ def my_projects():
             'ticker': c.ticker_symbol or '',
             'sector': c.sector.name if c.sector else 'N/A',
             'source': source,
-            'company_url': url_for('companies.company_dashboard', company_id=c.id),
+            'company_url': url_for('companies.company_detail', company_id=c.id),
         })
 
     for p in watchlist_projects:
@@ -136,7 +136,7 @@ def my_projects():
                     'ticker': c.ticker_symbol or '',
                     'sector': c.sector.name if c.sector else 'N/A',
                     'source': 'Research Decision',
-                    'company_url': url_for('companies.company_dashboard', company_id=c.id),
+                    'company_url': url_for('companies.company_detail', company_id=c.id),
                 })
 
     # --- Too Hard / Passed ---
@@ -146,7 +146,7 @@ def my_projects():
         if item.source_type == 'ResearchProject' and item.source_id:
             company_url = url_for('research_workflow.project_dashboard', project_id=item.source_id)
         elif item.company_id:
-            company_url = url_for('companies.company_dashboard', company_id=item.company_id)
+            company_url = url_for('companies.company_detail', company_id=item.company_id)
         else:
             company_url = None
         reactivate_url = url_for('research_workflow.reactivate_project', project_id=item.source_id) if item.source_type == 'ResearchProject' and item.source_id else None
@@ -182,7 +182,7 @@ def my_projects():
             'confidence': p.decision_confidence,
             'company_id': p.company_id,
             'summary_url': url_for('research_workflow.project_summary', project_id=p.id),
-            'company_url': url_for('companies.company_dashboard', company_id=p.company_id) if p.company_id else None,
+            'company_url': url_for('companies.company_detail', company_id=p.company_id) if p.company_id else None,
         })
 
     # --- Metrics ---
