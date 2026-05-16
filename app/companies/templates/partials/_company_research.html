@@ -30,7 +30,7 @@
         <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
     </div>
     <div class="research-summary-body">
-        <p>{{ research_project.investment_thesis }}</p>
+        {{ research_project.investment_thesis|blocknote_to_html|safe }}
     </div>
 </div>
 {% endif %}

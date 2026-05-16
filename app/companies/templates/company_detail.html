@@ -179,15 +179,17 @@
         <button class="unified-pill-tab active" data-tab="overview">
             <i class="bi bi-grid-1x2"></i> Overview
         </button>
-        <button class="unified-pill-tab" data-tab="timeline">
-            <i class="bi bi-list-ul"></i> Timeline
-            {% if timeline_events %}<span class="unified-tab-count">{{ timeline_events|length }}</span>{% endif %}
-        </button>
+        <div class="unified-tab-separator"></div>
         {% if research_project %}
         <button class="unified-pill-tab" data-tab="research">
             <i class="bi bi-microscope"></i> Research
         </button>
         {% endif %}
+        <button class="unified-pill-tab" data-tab="timeline">
+            <i class="bi bi-list-ul"></i> Timeline
+            {% if timeline_events %}<span class="unified-tab-count">{{ timeline_events|length }}</span>{% endif %}
+        </button>
+        <div class="unified-tab-separator"></div>
         <button class="unified-pill-tab" data-tab="documents">
             <i class="bi bi-folder2-open"></i> Documents
             {% if resource_count %}<span class="unified-tab-count">{{ resource_count }}</span>{% endif %}
@@ -199,7 +201,8 @@
             <i class="bi bi-journal-bookmark"></i> Journal
             {% if journal_entries_count %}<span class="unified-tab-count">{{ journal_entries_count }}</span>{% endif %}
         </button>
-        {% if company_state == 'portfolio' %}
+        <div class="unified-tab-separator" style="margin-left: auto;"></div>
+                {% if company_state == 'portfolio' %}
         <button class="unified-pill-tab" data-tab="transactions">
             <i class="bi bi-arrow-left-right"></i> Transactions
             {% if transaction_count %}<span class="unified-tab-count">{{ transaction_count }}</span>{% endif %}
@@ -450,18 +453,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ---- Collapsible sections: show expand button only if content overflows ----
-    document.querySelectorAll('.unified-collapsible').forEach(function(el) {
-        var content = el.querySelector('.unified-collapsible-content');
-        var btn = el.nextElementSibling;
-        if (content && btn && btn.classList.contains('unified-expand-btn')) {
-            if (content.scrollHeight > el.offsetHeight + 8) {
+    requestAnimationFrame(function() {
+        document.querySelectorAll('.unified-collapsible').forEach(function(el) {
+            var content = el.querySelector('.unified-collapsible-content');
+            var btn = el.nextElementSibling;
+            if (!content || !btn || !btn.classList.contains('unified-expand-btn')) return;
+            if (content.scrollHeight > el.clientHeight + 4) {
+                // Content overflows — show the expand button
                 btn.style.display = '';
             } else {
-                // Content fits — remove cap and hide fade
-                el.classList.add('expanded');
+                // Content fits — remove cap, hide fade and button
+                el.style.maxHeight = 'none';
                 el.querySelector('.unified-collapsible-fade').style.display = 'none';
+                btn.style.display = 'none';
             }
-        }
+        });
     });
 
     // ---- Async Price Refresh (portfolio companies) ----
