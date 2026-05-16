@@ -1,0 +1,323 @@
+{# Overview Tab — NEW two-column "control tower" layout from wireframe #}
+
+<div class="unified-overview-grid">
+    <!-- LEFT COLUMN — Narrative -->
+    <div class="unified-overview-main">
+
+        <!-- Company Overview -->
+        <div class="unified-card">
+            <div class="unified-card-label">Company Overview</div>
+            {% if company.summary and company.summary != 'No summary available.' %}
+            <div style="font-size: var(--font-size-sm); line-height: 1.7; color: var(--text-secondary);">
+                {{ company.summary }}
+            </div>
+            {% if company.sector or company.industry %}
+            <div style="margin-top: var(--space-sm); font-size: var(--font-size-xs); color: var(--text-muted);">
+                {% if company.sector %}{{ company.sector.name }}{% endif %}
+                {% if company.sector and company.industry %} &middot; {% endif %}
+                {% if company.industry %}{{ company.industry }}{% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div style="font-size: var(--font-size-sm); color: var(--text-muted); line-height: 1.6;">
+                <i class="bi bi-info-circle me-1"></i> No company overview yet. Add a summary in
+                <a href="#settings" class="unified-link" onclick="switchToTab('settings'); return false;">Settings</a>.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Current Investment Thesis -->
+        {% if current_thesis %}
+        <div class="unified-card">
+            <div class="unified-card-label">Current Investment Thesis</div>
+            <div class="unified-collapsible" id="thesisCollapsible">
+                <div class="unified-collapsible-content">
+                    <div class="unified-thesis-body">
+                        {{ current_thesis.thesis|blocknote_to_html|safe }}
+                    </div>
+                </div>
+                <div class="unified-collapsible-fade"></div>
+            </div>
+            <button class="unified-expand-btn" id="thesisExpandBtn" style="display: none;" onclick="toggleCollapsible('thesisCollapsible', this)">
+                <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="unified-card-footer">
+                <div class="d-flex gap-2 align-items-center">
+                    {% if current_thesis.conviction_level %}
+                    <span class="journey-badge current">Conviction: {{ current_thesis.conviction_level }}/10</span>
+                    {% endif %}
+                    <span class="journey-badge thesis" style="background: var(--gray-200); color: var(--gray-600);">
+                        V{{ current_thesis.version }}
+                        {% if current_thesis.created_at %}
+                        &middot; Updated {{ current_thesis.created_at.strftime('%b %d') }}
+                        {% endif %}
+                    </span>
+                </div>
+                <a href="#timeline" class="unified-link" onclick="switchToTab('timeline'); return false;">
+                    View thesis history &rarr;
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="unified-card">
+            <div class="unified-card-label">Investment Thesis</div>
+            <div class="text-center py-4">
+                <i class="bi bi-lightbulb" style="font-size: 2rem; color: var(--gray-300);"></i>
+                <p class="text-muted mt-2 mb-3" style="font-size: var(--font-size-sm);">No investment thesis yet. Define your thesis to track conviction over time.</p>
+                <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-btn primary">
+                    <i class="bi bi-lightbulb me-1"></i> Create Thesis
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Valuation Snapshot (read-only) -->
+        <div class="unified-card unified-valuation-card">
+            <div class="unified-card-label">Valuation Snapshot</div>
+            <div class="unified-valuation-grid">
+                <div class="unified-valuation-metric">
+                    <div class="unified-valuation-metric-label">Intrinsic Value</div>
+                    <div class="unified-valuation-metric-value highlight">
+                        {{ currency_symbol }}{{ intrinsic_value_label }}
+                    </div>
+                </div>
+                <div class="unified-valuation-metric">
+                    <div class="unified-valuation-metric-label">Market Cap</div>
+                    <div class="unified-valuation-metric-value">
+                        {% if position and position.current_value %}
+                        {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="unified-valuation-metric">
+                    <div class="unified-valuation-metric-label">Margin of Safety</div>
+                    <div class="unified-valuation-metric-value highlight">
+                        {% if company.intrinsic_value and position and position.current_value and position.current_value > 0 %}
+                        {% set mos = ((company.intrinsic_value - position.current_value) / company.intrinsic_value * 100) %}
+                        {{ "%.0f"|format(mos) }}%
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="unified-valuation-metric">
+                    <div class="unified-valuation-metric-label">P/E Ratio</div>
+                    <div class="unified-valuation-metric-value">&mdash;</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: var(--space-sm);">
+                <a href="#" class="unified-link" onclick="document.getElementById('valuationEditModal').classList.add('show'); document.body.style.overflow='hidden'; return false;">
+                    <i class="bi bi-calculator me-1"></i>Edit valuation &rarr;
+                </a>
+            </div>
+        </div>
+
+        <!-- Bull / Bear Cases -->
+        {% if current_thesis and (current_thesis.bull_case or current_thesis.bear_case) %}
+        <div class="unified-bull-bear-grid">
+            {% if current_thesis.bull_case %}
+            <div class="unified-case-card bull">
+                <div class="unified-case-header">
+                    <i class="bi bi-graph-up"></i> Bull Case
+                </div>
+                <div class="unified-collapsible" id="bullCollapsible">
+                    <div class="unified-collapsible-content">
+                        <ul>
+                            {% for point in current_thesis.bull_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="unified-collapsible-fade"></div>
+                </div>
+                <button class="unified-expand-btn" id="bullExpandBtn" style="display: none;" onclick="toggleCollapsible('bullCollapsible', this)">
+                    <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+            {% endif %}
+            {% if current_thesis.bear_case %}
+            <div class="unified-case-card bear">
+                <div class="unified-case-header">
+                    <i class="bi bi-graph-down"></i> Bear Case
+                </div>
+                <div class="unified-collapsible" id="bearCollapsible">
+                    <div class="unified-collapsible-content">
+                        <ul>
+                            {% for point in current_thesis.bear_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="unified-collapsible-fade"></div>
+                </div>
+                <button class="unified-expand-btn" id="bearExpandBtn" style="display: none;" onclick="toggleCollapsible('bearCollapsible', this)">
+                    <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- RIGHT COLUMN — Actions & Status -->
+    <div class="unified-overview-sidebar">
+
+        <!-- Portfolio Position -->
+        {% if company_state == 'portfolio' and position %}
+        <div class="unified-card">
+            <div class="unified-card-label">Portfolio Position</div>
+            <div class="unified-position-grid">
+                <div>
+                    <div class="unified-position-label">Shares</div>
+                    <div class="unified-position-value">{{ position.total_shares }}</div>
+                </div>
+                <div>
+                    <div class="unified-position-label">Avg Cost</div>
+                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+                </div>
+                <div>
+                    <div class="unified-position-label">Current Price</div>
+                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.current_price) if position.current_price else '—' }}</div>
+                </div>
+                <div>
+                    <div class="unified-position-label">Total Return</div>
+                    <div class="unified-position-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss > 0 %}text-success{% elif position.unrealized_gain_loss and position.unrealized_gain_loss < 0 %}text-danger{% endif %}">
+                        {% if position.unrealized_gain_loss %}
+                        {% if position.unrealized_gain_loss > 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.unrealized_gain_loss) }}
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center mt-2">
+                <a href="{{ url_for('portfolio.add_transaction', company_id=company.id) }}" class="position-btn" style="font-size: var(--font-size-xs);">
+                    <i class="bi bi-plus-circle"></i> Add Transaction
+                </a>
+                <a href="#transactions" class="unified-link" style="margin-left: auto;" onclick="switchToTab('transactions'); return false;">
+                    Transactions &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="unified-card">
+            <div class="unified-card-label">Quick Actions</div>
+            <div class="unified-quick-actions">
+                {% if research_project and research_project.status == 'active' %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}" class="unified-quick-action primary">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                    <div>
+                        <div class="unified-quick-action-title">Continue Research</div>
+                        <div class="unified-quick-action-sub">
+                            Step {{ research_project.current_step_index + 1 }}
+                            {% if research_project.template and research_project.template.steps %}
+                            of {{ research_project.template.steps|length }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endif %}
+                <a href="#documents" class="unified-quick-action" onclick="switchToTab('documents'); return false;">
+                    <i class="bi bi-folder2-open"></i>
+                    <div>
+                        <div class="unified-quick-action-title">Documents</div>
+                        <div class="unified-quick-action-sub">{{ resource_count }} file{{ 's' if resource_count != 1 else '' }}</div>
+                    </div>
+                </a>
+                <a href="#journal" class="unified-quick-action" onclick="switchToTab('journal'); return false;">
+                    <i class="bi bi-journal-bookmark"></i>
+                    <div>
+                        <div class="unified-quick-action-title">Journal</div>
+                        <div class="unified-quick-action-sub">{{ journal_entries_count }} entr{{ 'ies' if journal_entries_count != 1 else 'y' }}</div>
+                    </div>
+                </a>
+                <a href="#settings" class="unified-quick-action" onclick="switchToTab('settings'); return false;">
+                    <i class="bi bi-pencil-square"></i>
+                    <div>
+                        <div class="unified-quick-action-title">Edit Company Details</div>
+                        <div class="unified-quick-action-sub">Name, ticker, sector</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        {% if timeline_events %}
+        <div class="unified-card">
+            <div class="unified-card-label">Recent Activity</div>
+            {% for event in timeline_events[:4] %}
+            <div class="unified-activity-item">
+                {% if event.type == 'thesis' %}
+                <i class="bi bi-lightbulb" style="color: var(--accent-color);"></i>
+                <div class="unified-activity-content">
+                    <div>Thesis updated to V{{ event.data.version }}{% if event.data.conviction_level %} — conviction {{ event.data.conviction_level }}/10{% endif %}</div>
+                    <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% elif event.type == 'checkpoint' %}
+                <i class="bi bi-flag-fill" style="color: {% if event.data.status == 'Met' %}var(--success-500){% elif event.data.status == 'Not Met' %}var(--danger-500){% else %}var(--gray-400){% endif %};"></i>
+                <div class="unified-activity-content">
+                    <div>Checkpoint {% if event.data.status == 'Met' %}Met{% elif event.data.status == 'Not Met' %}Not Met{% else %}Pending{% endif %}: {{ event.data.metric|truncate(40) }}</div>
+                    <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% elif event.type == 'transaction' %}
+                <i class="bi bi-arrow-left-right" style="color: var(--gray-500);"></i>
+                <div class="unified-activity-content">
+                    <div>{{ event.data.type }} {{ event.data.quantity }} shares @ ${{ "%.2f"|format(event.data.price_per_share) }}</div>
+                    <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% elif event.type == 'decision' %}
+                <i class="bi bi-signpost" style="color: var(--purple);"></i>
+                <div class="unified-activity-content">
+                    <div>{{ event.data.decision_type|title }} decision{% if event.data.confidence_score %} — confidence {{ event.data.confidence_score }}/10{% endif %}</div>
+                    <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% elif event.type == 'finding' %}
+                <i class="bi bi-{% if event.data.flag_type == 'green' %}check-circle{% else %}exclamation-triangle{% endif %}" style="color: {% if event.data.flag_type == 'green' %}var(--success-500){% else %}var(--danger-500){% endif %};"></i>
+                <div class="unified-activity-content">
+                    <div>{{ event.data.flag_type|title }} flag: {{ event.data.text|truncate(40) }}</div>
+                    <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <div style="text-align: center; margin-top: var(--space-sm);">
+                <a href="#timeline" class="unified-link" onclick="switchToTab('timeline'); return false;">
+                    View full timeline &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Competitors (compact) -->
+        {% if current_competitors %}
+        <div class="unified-card">
+            <div class="unified-card-label">Competitors</div>
+            {% for comp in current_competitors[:5] %}
+            <div style="padding: var(--space-xs) 0; font-size: var(--font-size-sm);">
+                <a href="{{ url_for('companies.company_detail', company_id=comp.id) }}" style="color: var(--text-primary); text-decoration: none;">
+                    <i class="bi bi-building me-1" style="color: var(--gray-400);"></i>
+                    {{ comp.name }}
+                    {% if comp.ticker_symbol %}<span style="color: var(--text-muted);">({{ comp.ticker_symbol }})</span>{% endif %}
+                </a>
+            </div>
+            {% endfor %}
+            {% if current_competitors|length > 5 %}
+            <div style="font-size: var(--font-size-xs); color: var(--text-muted); margin-top: var(--space-xs);">
+                +{{ current_competitors|length - 5 }} more
+            </div>
+            {% endif %}
+            <div style="margin-top: var(--space-sm);">
+                <a href="#settings" class="unified-link" onclick="switchToTab('settings'); return false;">
+                    Manage &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>

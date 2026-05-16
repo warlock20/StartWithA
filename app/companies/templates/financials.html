@@ -7,7 +7,7 @@
                 <h1><i class="bi bi-bar-chart-line me-2"></i>{{ title }}</h1>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('companies.company_dashboard', company_id=company.id) }}" class="position-btn">
+                <a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="position-btn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
             </div>

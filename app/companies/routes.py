@@ -150,7 +150,7 @@ def list_companies():
             'projects': project_count,
             'documents': doc_count,
             'progress': active_project.progress_percentage if active_project else 0,
-            'dashboard_url': url_for('companies.company_dashboard', company_id=company.id),
+            'dashboard_url': url_for('companies.company_detail', company_id=company.id),
             'has_destination': company.id in dest_analysis_ids,
             'destination_url': url_for('companies.destination_analysis', company_id=company.id) if company.id in dest_analysis_ids else '',
             'research_url': url_for('research_workflow.project_dashboard', project_id=active_project.id) if active_project else '',
@@ -310,21 +310,195 @@ def delete_company(company_id):
 
     return redirect(url_for('companies.list_companies'))
 
-@companies_bp.route('/<int:company_id>/documents', methods=['GET'])
-@login_required
-def company_dashboard(company_id):
-    company = get_user_resource_or_403(Company, company_id, current_user.id)
 
-    # Data for Competitors Tab
-    current_competitors = company.competitors.order_by(Company.name).all()
-    current_competitor_ids = {c.id for c in current_competitors}
-    potential_competitors = Company.query.filter(
-        Company.user_id == current_user.id,
-        Company.id != company_id,
-        ~Company.id.in_(current_competitor_ids)
-    ).order_by(Company.name).all()
+def _gather_journey_data(company, user_id):
+    """Gather all journey/timeline data for the unified company page."""
+    # Determine company state
+    favorite_ids = {c.id for c in current_user.favorites.all()}
+    if company.is_in_portfolio:
+        company_state = 'portfolio'
+    elif company.id in favorite_ids:
+        company_state = 'watchlist'
+    else:
+        company_state = 'new'
 
-    # Data for Overview Tab (Intrinsic Value form)
+    # Get portfolio position (may be None)
+    position = PortfolioPosition.query.filter_by(
+        user_id=user_id,
+        company_id=company.id
+    ).first()
+
+    # Get all thesis versions
+    thesis_versions = ThesisEvolution.query.filter_by(
+        company_id=company.id,
+        user_id=user_id
+    ).order_by(ThesisEvolution.created_at).all()
+
+    # Get all destination checkpoints
+    checkpoints = DestinationCheckpoint.query.filter_by(
+        company_id=company.id,
+        user_id=user_id
+    ).order_by(DestinationCheckpoint.target_date).all()
+
+    # Get transactions (only if portfolio)
+    transactions = []
+    if company_state == 'portfolio':
+        transactions = Transaction.query.filter_by(
+            company_id=company.id,
+            user_id=user_id
+        ).order_by(Transaction.date).all()
+
+    # Get ALL decision journals
+    decision_journals = DecisionJournal.query.filter_by(
+        company_id=company.id,
+        user_id=user_id
+    ).order_by(DecisionJournal.decision_date).all()
+
+    # Build unified timeline
+    timeline_events = []
+
+    for thesis in thesis_versions:
+        timeline_events.append({
+            'type': 'thesis',
+            'date': thesis.created_at.date() if thesis.created_at else now_utc().date(),
+            'datetime': thesis.created_at,
+            'data': thesis
+        })
+
+    for checkpoint in checkpoints:
+        timeline_events.append({
+            'type': 'checkpoint',
+            'date': checkpoint.target_date,
+            'datetime': datetime.combine(checkpoint.target_date, datetime.min.time()),
+            'data': checkpoint
+        })
+
+    for txn in transactions:
+        if txn.type in ['BUY', 'SELL']:
+            timeline_events.append({
+                'type': 'transaction',
+                'date': txn.date,
+                'datetime': datetime.combine(txn.date, datetime.min.time()),
+                'data': txn
+            })
+
+    for decision in decision_journals:
+        timeline_events.append({
+            'type': 'decision',
+            'date': decision.decision_date,
+            'datetime': datetime.combine(decision.decision_date, datetime.min.time()),
+            'data': decision
+        })
+
+    # Research findings
+    research_project = ResearchProject.query.filter_by(
+        user_id=user_id,
+        company_id=company.id
+    ).first()
+
+    findings_count = 0
+    if research_project:
+        for flag in (research_project.green_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'green'}
+            })
+        for flag in (research_project.red_flags or []):
+            timeline_events.append({
+                'type': 'finding',
+                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
+                'datetime': research_project.created_at or now_utc(),
+                'data': {'text': flag, 'flag_type': 'red'}
+            })
+        findings_count = len(research_project.green_flags or []) + len(research_project.red_flags or [])
+
+    # Sort timeline by datetime (most recent first)
+    timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
+
+    # Journal entries count (loaded via AJAX)
+    journal_entries_count = JournalEntry.query.filter_by(
+        user_id=user_id,
+        company_id=company.id
+    ).count()
+
+    # Journey statistics
+    total_return = 0
+    days_held = 0
+    if position:
+        if position.unrealized_gain_loss_pct:
+            total_return = position.unrealized_gain_loss_pct
+        if position.days_held:
+            days_held = position.days_held
+
+    checkpoints_met = sum(1 for cp in checkpoints if cp.status == 'Met')
+
+    current_conviction = 0
+    if thesis_versions:
+        latest_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
+        current_conviction = latest_thesis.conviction_level or 0
+
+    journey_stats = {
+        'total_return': total_return,
+        'thesis_updates': len(thesis_versions),
+        'checkpoints_met': checkpoints_met,
+        'total_checkpoints': len(checkpoints),
+        'days_held': days_held,
+        'current_conviction': current_conviction,
+        'notes_count': journal_entries_count
+    }
+
+    # Identify current thesis
+    current_thesis = None
+    if thesis_versions:
+        current_thesis_objs = [t for t in thesis_versions if t.is_current]
+        if current_thesis_objs:
+            current_thesis = current_thesis_objs[0]
+        else:
+            current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
+
+    # Research tab data
+    free_research_questions = []
+    if research_project:
+        free_research_questions = FreeResearchQuestion.query.filter_by(
+            project_id=research_project.id
+        ).order_by(FreeResearchQuestion.created_at).all()
+
+    # Portfolio-specific: decision journal and price staleness
+    portfolio_decision_journal = None
+    price_stale = False
+    if company_state == 'portfolio':
+        portfolio_decision_journal = DecisionJournal.query.filter_by(
+            user_id=user_id,
+            company_id=company.id,
+            is_portfolio_decision=True
+        ).first()
+        if position:
+            price_stale = PriceService.should_update_price(position)
+
+    return {
+        'company_state': company_state,
+        'position': position,
+        'timeline_events': timeline_events,
+        'journey_stats': journey_stats,
+        'current_thesis': current_thesis,
+        'thesis_count': len(thesis_versions),
+        'checkpoint_count': len(checkpoints),
+        'transaction_count': len(transactions),
+        'decision_count': len(decision_journals),
+        'findings_count': findings_count,
+        'journal_entries_count': journal_entries_count,
+        'research_project': research_project,
+        'free_research_questions': free_research_questions,
+        'transactions': transactions,
+        'portfolio_decision_journal': portfolio_decision_journal,
+        'price_stale': price_stale,
+    }
+
+
+def _format_intrinsic_value(company):
+    """Format intrinsic value for display with appropriate unit."""
     intrinsic_display_value = ''
     intrinsic_unit = 1
     if company.intrinsic_value:
@@ -340,22 +514,101 @@ def company_dashboard(company_id):
             intrinsic_display_value = f"{val / intrinsic_unit:.2f}"
         else:
             intrinsic_display_value = str(val)
+    return intrinsic_display_value, intrinsic_unit
 
-    # Get user currency settings for display
+
+def _format_intrinsic_value_label(company):
+    """Format intrinsic value as a human-readable label like '$1.2T' or '$890M'."""
+    if not company.intrinsic_value:
+        return '—'
+    val = company.intrinsic_value
+    if val >= 1_000_000_000_000:
+        return f"{val / 1_000_000_000_000:.1f}T"
+    elif val >= 1_000_000_000:
+        return f"{val / 1_000_000_000:.1f}B"
+    elif val >= 1_000_000:
+        return f"{val / 1_000_000:.1f}M"
+    elif val >= 1_000:
+        return f"{val / 1_000:.1f}K"
+    else:
+        return str(val)
+
+
+@companies_bp.route('/<int:company_id>')
+@login_required
+def company_detail(company_id):
+    """Unified company page — merges dashboard + journey into one."""
+    company = get_user_resource_or_403(Company, company_id, current_user.id)
+
+    # Journey data (timeline, thesis, position, stats, research)
+    journey_data = _gather_journey_data(company, current_user.id)
+
+    # Dashboard data: competitors
+    current_competitors = company.competitors.order_by(Company.name).all()
+    current_competitor_ids = {c.id for c in current_competitors}
+    potential_competitors = Company.query.filter(
+        Company.user_id == current_user.id,
+        Company.id != company_id,
+        ~Company.id.in_(current_competitor_ids)
+    ).order_by(Company.name).all()
+
+    # Dashboard data: intrinsic value formatting
+    intrinsic_display_value, intrinsic_unit = _format_intrinsic_value(company)
+    intrinsic_value_label = _format_intrinsic_value_label(company)
+
+    # Dashboard data: currency
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
+    # Resource count for Quick Actions
+    resource_count = CompanyResource.query.filter_by(
+        company_id=company_id, user_id=current_user.id
+    ).count()
+
+    # User's sectors for the settings dropdown
+    user_sectors = SectorService.get_user_sectors_list(current_user.id)
+
     return render_template(
-        'company_documents.html',
+        'company_detail.html',
         company=company,
+        # Dashboard data
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
+        intrinsic_value_label=intrinsic_value_label,
         current_competitors=current_competitors,
         potential_competitors=potential_competitors,
         user_currency=user_currency,
         currency_symbol=currency_symbol,
-        title=f"Dashboard for {company.name}"
+        resource_count=resource_count,
+        user_sectors=user_sectors,
+        # Journey data
+        company_state=journey_data['company_state'],
+        position=journey_data['position'],
+        timeline_events=journey_data['timeline_events'],
+        journey_stats=journey_data['journey_stats'],
+        current_thesis=journey_data['current_thesis'],
+        thesis_count=journey_data['thesis_count'],
+        checkpoint_count=journey_data['checkpoint_count'],
+        transaction_count=journey_data['transaction_count'],
+        decision_count=journey_data['decision_count'],
+        findings_count=journey_data['findings_count'],
+        journal_entries_count=journey_data['journal_entries_count'],
+        research_project=journey_data['research_project'],
+        free_research_questions=journey_data['free_research_questions'],
+        # Position / transactions data
+        transactions=journey_data['transactions'],
+        portfolio_decision_journal=journey_data['portfolio_decision_journal'],
+        price_stale=journey_data['price_stale'],
+        title=f"{company.name}"
     )
+
+
+@companies_bp.route('/<int:company_id>/documents', methods=['GET'])
+@login_required
+def company_dashboard(company_id):
+    """Legacy route — redirects to unified company page."""
+    return redirect(url_for('companies.company_detail', company_id=company_id))
+
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
 @login_required
@@ -408,7 +661,7 @@ def set_intrinsic_value(company_id):
         db.session.rollback()
         flash(f"An error occurred: {e}", "error")
 
-    return redirect(request.referrer or url_for('companies.company_dashboard', company_id=company.id))
+    return redirect(request.referrer or url_for('companies.company_detail', company_id=company.id))
 
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
@@ -428,7 +681,7 @@ def fetch_sec_filings(company_id):
     flash(f"Request received! {years_from_form} year(s) of filings are being fetched in the background. The page will reload when complete.", "info")
             
     # Redirect back to the same page, but add the task_id to the URL as a query parameter.
-    return redirect(url_for('companies.company_dashboard',
+    return redirect(url_for('companies.company_detail',
                             company_id=company.id,
                             task_id=task.id))
     
@@ -459,7 +712,7 @@ def toggle_portfolio(company_id):
     if position:
         # Already in portfolio - suggest selling
         flash(f'"{company.name}" is already in your portfolio with {position.total_shares} shares. To remove, add a SELL transaction.', 'info')
-        return redirect(url_for('portfolio.position_detail', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
     else:
         # Not in portfolio - redirect to add transaction
         flash(f'To add "{company.name}" to your portfolio, please record a BUY transaction.', 'info')
@@ -607,7 +860,7 @@ def add_competitor(company_id):
     competitor_id = request.form.get('competitor_id', type=int)
     if not competitor_id:
         flash('No competitor selected.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
 
     competitor = get_user_resource_or_403(Company, competitor_id, current_user.id)
 
@@ -618,7 +871,7 @@ def add_competitor(company_id):
         db.session.commit()
         flash(f'"{competitor.name}" added as a competitor.', 'success')
 
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+    return redirect(url_for('companies.company_detail', company_id=company_id))
 
 @companies_bp.route('/<int:company_id>/remove_competitor/<int:competitor_id>', methods=['POST'])
 @login_required
@@ -631,7 +884,7 @@ def remove_competitor(company_id, competitor_id):
         db.session.commit()
         flash(f'"{competitor.name}" removed from competitors.', 'info')
 
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+    return redirect(url_for('companies.company_detail', company_id=company_id))
 
 @companies_bp.route('/<int:company_id>/edit', methods=['POST'])
 @login_required
@@ -654,7 +907,7 @@ def edit_company(company_id):
     # Validate required fields
     if not name or not ticker_symbol:
         flash('Company name and ticker symbol are required.', 'error')
-        return redirect(url_for('companies.company_dashboard', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
 
     # Check if ticker is changing and validate it
     ticker_changed = (ticker_symbol != company.ticker_symbol)
@@ -665,7 +918,7 @@ def edit_company(company_id):
 
         if not validation_result['valid']:
             flash(f'Invalid ticker symbol: {validation_result.get("error", "Could not validate ticker")}', 'error')
-            return redirect(url_for('companies.company_dashboard', company_id=company_id))
+            return redirect(url_for('companies.company_detail', company_id=company_id))
 
         # Check for duplicate ticker in user's companies
         existing_company = Company.query.filter_by(
@@ -675,7 +928,7 @@ def edit_company(company_id):
 
         if existing_company:
             flash(f'You already have a company with ticker "{ticker_symbol}": {existing_company.name}', 'error')
-            return redirect(url_for('companies.company_dashboard', company_id=company_id))
+            return redirect(url_for('companies.company_detail', company_id=company_id))
 
     # Update company fields
     old_name = company.name
@@ -687,7 +940,7 @@ def edit_company(company_id):
     company.industry = industry if industry else None
 
     # Handle sector
-    if sector_name:
+    if sector_name and sector_name != '__new__':
         sector_obj = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=True)
         if sector_obj:
             company.sector_id = sector_obj.id
@@ -725,7 +978,7 @@ def edit_company(company_id):
         db.session.rollback()
         flash(f'Error updating company: {str(e)}', 'error')
 
-    return redirect(url_for('companies.company_dashboard', company_id=company_id))
+    return redirect(url_for('companies.company_detail', company_id=company_id))
 
 @companies_bp.route('/validate_ticker', methods=['POST'])
 @login_required
@@ -749,182 +1002,8 @@ def validate_ticker_api():
 @companies_bp.route('/<int:company_id>/journey')
 @login_required
 def company_journey(company_id):
-    """
-    Unified company journey page — works for any company regardless of portfolio status.
-    Combines timeline, research, notes (BlockNote), and journal entries.
-    """
-    company = Company.query.filter_by(
-        id=company_id,
-        user_id=current_user.id
-    ).first_or_404()
-
-    # Determine company state
-    favorite_ids = {c.id for c in current_user.favorites.all()}
-    if company.is_in_portfolio:
-        company_state = 'portfolio'
-    elif company.id in favorite_ids:
-        company_state = 'watchlist'
-    else:
-        company_state = 'new'
-
-    # Get portfolio position (may be None)
-    position = PortfolioPosition.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id
-    ).first()
-
-    # Get all thesis versions
-    thesis_versions = ThesisEvolution.query.filter_by(
-        company_id=company_id,
-        user_id=current_user.id
-    ).order_by(ThesisEvolution.created_at).all()
-
-    # Get all destination checkpoints
-    checkpoints = DestinationCheckpoint.query.filter_by(
-        company_id=company_id,
-        user_id=current_user.id
-    ).order_by(DestinationCheckpoint.target_date).all()
-
-    # Get transactions (only if portfolio)
-    transactions = []
-    if company_state == 'portfolio':
-        transactions = Transaction.query.filter_by(
-            company_id=company_id,
-            user_id=current_user.id
-        ).order_by(Transaction.date).all()
-
-    # Get ALL decision journals (not just portfolio decisions)
-    decision_journals = DecisionJournal.query.filter_by(
-        company_id=company_id,
-        user_id=current_user.id
-    ).order_by(DecisionJournal.decision_date).all()
-
-    # Build unified timeline
-    timeline_events = []
-
-    for thesis in thesis_versions:
-        timeline_events.append({
-            'type': 'thesis',
-            'date': thesis.created_at.date() if thesis.created_at else now_utc().date(),
-            'datetime': thesis.created_at,
-            'data': thesis
-        })
-
-    for checkpoint in checkpoints:
-        timeline_events.append({
-            'type': 'checkpoint',
-            'date': checkpoint.target_date,
-            'datetime': datetime.combine(checkpoint.target_date, datetime.min.time()),
-            'data': checkpoint
-        })
-
-    for txn in transactions:
-        if txn.type in ['BUY', 'SELL']:
-            timeline_events.append({
-                'type': 'transaction',
-                'date': txn.date,
-                'datetime': datetime.combine(txn.date, datetime.min.time()),
-                'data': txn
-            })
-
-    for decision in decision_journals:
-        timeline_events.append({
-            'type': 'decision',
-            'date': decision.decision_date,
-            'datetime': datetime.combine(decision.decision_date, datetime.min.time()),
-            'data': decision
-        })
-
-    # Research findings
-    research_project = ResearchProject.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id
-    ).first()
-
-    findings_count = 0
-    if research_project:
-        for flag in (research_project.green_flags or []):
-            timeline_events.append({
-                'type': 'finding',
-                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
-                'datetime': research_project.created_at or now_utc(),
-                'data': {'text': flag, 'flag_type': 'green'}
-            })
-        for flag in (research_project.red_flags or []):
-            timeline_events.append({
-                'type': 'finding',
-                'date': research_project.created_at.date() if research_project.created_at else now_utc().date(),
-                'datetime': research_project.created_at or now_utc(),
-                'data': {'text': flag, 'flag_type': 'red'}
-            })
-        findings_count = len(research_project.green_flags or []) + len(research_project.red_flags or [])
-
-    # Sort timeline by datetime (most recent first)
-    timeline_events.sort(key=lambda x: x['datetime'], reverse=True)
-
-    # Journal entries count (loaded via AJAX)
-    journal_entries_count = JournalEntry.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id
-    ).count()
-
-    # Journey statistics
-    total_return = 0
-    days_held = 0
-    if position:
-        if position.unrealized_gain_loss_pct:
-            total_return = position.unrealized_gain_loss_pct
-        if position.days_held:
-            days_held = position.days_held
-
-    checkpoints_met = sum(1 for cp in checkpoints if cp.status == 'Met')
-
-    current_conviction = 0
-    if thesis_versions:
-        latest_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
-        current_conviction = latest_thesis.conviction_level or 0
-
-    journey_stats = {
-        'total_return': total_return,
-        'thesis_updates': len(thesis_versions),
-        'checkpoints_met': checkpoints_met,
-        'total_checkpoints': len(checkpoints),
-        'days_held': days_held,
-        'current_conviction': current_conviction,
-        'notes_count': journal_entries_count
-    }
-
-    # Identify current thesis
-    current_thesis = None
-    if thesis_versions:
-        current_thesis_objs = [t for t in thesis_versions if t.is_current]
-        if current_thesis_objs:
-            current_thesis = current_thesis_objs[0]
-        else:
-            current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
-
-    # Research tab data
-    free_research_questions = []
-    if research_project:
-        free_research_questions = FreeResearchQuestion.query.filter_by(
-            project_id=research_project.id
-        ).order_by(FreeResearchQuestion.created_at).all()
-
-    return render_template('company_journey.html',
-                           company=company,
-                           position=position,
-                           company_state=company_state,
-                           timeline_events=timeline_events,
-                           journey_stats=journey_stats,
-                           current_thesis=current_thesis,
-                           thesis_count=len(thesis_versions),
-                           checkpoint_count=len(checkpoints),
-                           transaction_count=len([e for e in timeline_events if e['type'] == 'transaction']),
-                           decision_count=len(decision_journals),
-                           journal_entries_count=journal_entries_count,
-                           findings_count=findings_count,
-                           research_project=research_project,
-                           free_research_questions=free_research_questions)
+    """Legacy route — redirects to unified company page with timeline tab active."""
+    return redirect(url_for('companies.company_detail', company_id=company_id) + '#timeline')
 
 
 @companies_bp.route('/<int:company_id>/journey/export', methods=['POST'])
@@ -951,7 +1030,7 @@ def export_company_journey_route(company_id):
 
     if not selected:
         flash('Please select at least one component to export.', 'warning')
-        return redirect(url_for('companies.company_journey', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
 
     # Guard: transactions only for portfolio companies
     if 'transactions' in selected and company_state != 'portfolio':

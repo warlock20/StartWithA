@@ -97,7 +97,7 @@
                 <i class="bi bi-{{ alert.icon }}"></i>
                 <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                 <div class="dashboard-alert-card__actions">
-                    <a href="{{ url_for('portfolio.position_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                    <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
                 </div>
             </div>
             {% endfor %}
@@ -108,7 +108,7 @@
                     <i class="bi bi-{{ alert.icon }}"></i>
                     <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                     <div class="dashboard-alert-card__actions">
-                        <a href="{{ url_for('portfolio.position_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                        <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -177,7 +177,7 @@
                     <button type="button" class="btn-portfolio-action danger" onclick="updateCheckpointStatus({{ cp.id }}, 'Not Met')">
                         <i class="bi bi-x-lg"></i> Not Met
                     </button>
-                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                    <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View
                     </a>
                 </div>
@@ -225,7 +225,7 @@
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
                 <div class="checkpoint-actions">
-                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action primary">
+                    <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action primary">
                         <i class="bi bi-eye"></i> View Position
                     </a>
                 </div>
@@ -270,7 +270,7 @@
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
                 <div class="checkpoint-actions">
-                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                    <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>
                 </div>
@@ -316,7 +316,7 @@
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
                 <div class="checkpoint-actions">
-                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                    <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>
                 </div>
@@ -362,7 +362,7 @@
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
                 <div class="checkpoint-actions">
-                    <a href="{{ url_for('portfolio.position_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
+                    <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>
                 </div>

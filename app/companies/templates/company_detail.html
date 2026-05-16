@@ -1,0 +1,1018 @@
+{% extends "main/_base.html" %}
+
+{% block title %}{{ company.name }} — Company Hub{% endblock %}
+
+{% block head %}
+{{ super() }}
+{% include 'components/blocknote_editor_include.html' %}
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator.html' %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- ============ HEADER ============ -->
+    <div class="dashboard-header-card">
+        <header class="dashboard-header">
+            <div class="dashboard-header-identity">
+                <div class="dashboard-header-logo">
+                    {{ (company.name)[:2]|upper }}
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <h1 class="dashboard-title font-poppins">{{ company.name }}</h1>
+                        <span class="company-state-badge {{ company_state }}">
+                            {% if company_state == 'portfolio' %}
+                            <i class="bi bi-briefcase-fill"></i> Portfolio
+                            {% elif company_state == 'watchlist' %}
+                            <i class="bi bi-eye-fill"></i> Watchlist
+                            {% else %}
+                            <i class="bi bi-inbox"></i> New
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="dashboard-subtitle">
+                        <span class="journey-ticker">{{ company.ticker_symbol }}</span>
+                        {% if company.sector %} &middot; {{ company.sector.name }}{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="dashboard-header-actions">
+                {% include 'components/smart_back_button.html' %}
+                <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-btn primary">
+                    <i class="bi bi-lightbulb"></i> Update Thesis
+                </a>
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn">
+                    <i class="bi bi-flag"></i> Checkpoints
+                </a>
+                <button type="button" class="position-btn" onclick="document.getElementById('exportModal').classList.add('show'); document.body.style.overflow='hidden';">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                {% if research_project and research_project.status == 'active' %}
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}" class="position-btn primary">
+                    <i class="bi bi-arrow-right"></i> Continue Research
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Position Metrics Strip (portfolio companies only) -->
+        {% if company_state == 'portfolio' and position %}
+        <div class="dashboard-metrics-strip">
+            <div class="position-metric">
+                <div class="position-metric-label">Shares</div>
+                <div class="position-metric-value">{{ position.total_shares }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Avg Cost</div>
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Current Price</div>
+                <div class="position-metric-value" id="posPrice">
+                    {% if position.current_price %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPriceSub">
+                    {% if position.last_price_update %}
+                    Updated {{ position.last_price_update.strftime('%H:%M') }}
+                    {% endif %}
+                    {% if price_stale %}<span class="mini-spinner" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-left:4px;border-width:2px;"></span>{% endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Market Value</div>
+                <div class="position-metric-value" id="posValue">
+                    {% if position.current_value %}
+                    {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost) }}</div>
+            </div>
+            <div id="posPLCard"
+                class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                <div class="position-metric-label">Unrealized P&L</div>
+                <div id="posPLValue"
+                    class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                    {% if position.unrealized_gain_loss %}
+                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.unrealized_gain_loss) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPLPct">
+                    {% if position.unrealized_gain_loss_pct %}
+                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    {% endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Realized P&L</div>
+                <div class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.realized_gain_loss) }}
+                </div>
+            </div>
+            <div class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
+                <div class="journey-stat-value">
+                    {% if journey_stats.days_held >= 365 and journey_stats.total_return %}
+                    {% set years = journey_stats.days_held / 365.25 %}
+                    {% set tr = journey_stats.total_return|float %}
+                    {% set cagr = ((1 + tr / 100) ** (1 / years) - 1) * 100 %}
+                    {% if cagr > 0 %}+{% endif %}{{ "%.1f"|format(cagr) }}%
+                    {% else %}
+                    {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                    {% endif %}
+                </div>
+                <div class="journey-stat-label">{% if journey_stats.days_held >= 365 %}CAGR{% else %}Total Return{% endif %}</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
+                <div class="journey-stat-label">Days Held</div>
+            </div>
+            <div class="journey-stat">
+                <div class="journey-stat-value">
+                    {{ journey_stats.checkpoints_met }}/{{ journey_stats.total_checkpoints }}
+                </div>
+                <div class="journey-stat-label">Checkpoints Met</div>
+            </div>
+        </div>
+
+        <!-- Performance vs Expectations (conditional) -->
+        {% if portfolio_decision_journal and portfolio_decision_journal.expected_return and position.unrealized_gain_loss_pct %}
+        <div class="position-expectation-bar {% if position.unrealized_gain_loss_pct < portfolio_decision_journal.expected_return %}below{% endif %}">
+            <div class="position-expectation-icon">
+                {% if position.unrealized_gain_loss_pct >= portfolio_decision_journal.expected_return %}
+                <i class="bi bi-check-lg"></i>
+                {% else %}
+                <i class="bi bi-exclamation"></i>
+                {% endif %}
+            </div>
+            <div class="position-expectation-content">
+                <div class="position-expectation-title">Performance vs Expectations</div>
+                <div class="position-expectation-details">
+                    <span>Expected: <strong>+{{ "%.0f"|format(portfolio_decision_journal.expected_return) }}%</strong></span>
+                    <span>Actual: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}"
+                            style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                        </strong></span>
+                    <span>Difference: <strong
+                            style="color: {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float - portfolio_decision_journal.expected_return) }}pp
+                        </strong></span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- ============ PILL TAB BAR ============ -->
+    <div class="unified-tab-bar" id="unifiedTabBar">
+        <button class="unified-pill-tab active" data-tab="overview">
+            <i class="bi bi-grid-1x2"></i> Overview
+        </button>
+        <button class="unified-pill-tab" data-tab="timeline">
+            <i class="bi bi-list-ul"></i> Timeline
+            {% if timeline_events %}<span class="unified-tab-count">{{ timeline_events|length }}</span>{% endif %}
+        </button>
+        {% if research_project %}
+        <button class="unified-pill-tab" data-tab="research">
+            <i class="bi bi-microscope"></i> Research
+        </button>
+        {% endif %}
+        <button class="unified-pill-tab" data-tab="documents">
+            <i class="bi bi-folder2-open"></i> Documents
+            {% if resource_count %}<span class="unified-tab-count">{{ resource_count }}</span>{% endif %}
+        </button>
+        <button class="unified-pill-tab" data-tab="notes">
+            <i class="bi bi-file-earmark-text"></i> Notes
+        </button>
+        <button class="unified-pill-tab" data-tab="journal">
+            <i class="bi bi-journal-bookmark"></i> Journal
+            {% if journal_entries_count %}<span class="unified-tab-count">{{ journal_entries_count }}</span>{% endif %}
+        </button>
+        {% if company_state == 'portfolio' %}
+        <button class="unified-pill-tab" data-tab="transactions">
+            <i class="bi bi-arrow-left-right"></i> Transactions
+            {% if transaction_count %}<span class="unified-tab-count">{{ transaction_count }}</span>{% endif %}
+        </button>
+        {% endif %}
+        <div class="unified-tab-separator"></div>
+        <button class="unified-pill-tab" data-tab="settings">
+            <i class="bi bi-gear"></i> Settings
+        </button>
+    </div>
+
+    <!-- ============ TAB PANELS ============ -->
+    <div class="unified-tab-panels">
+
+        <!-- Overview -->
+        <div class="unified-tab-panel active" id="panel-overview">
+            {% include 'partials/_company_overview.html' %}
+        </div>
+
+        <!-- Timeline -->
+        <div class="unified-tab-panel" id="panel-timeline">
+            {% include 'partials/_company_timeline.html' %}
+        </div>
+
+        <!-- Research -->
+        {% if research_project %}
+        <div class="unified-tab-panel" id="panel-research">
+            {% include 'partials/_company_research.html' %}
+        </div>
+        {% endif %}
+
+        <!-- Documents -->
+        <div class="unified-tab-panel" id="panel-documents">
+            {% include 'partials/_company_documents.html' %}
+        </div>
+
+        <!-- Notes -->
+        <div class="unified-tab-panel" id="panel-notes">
+            {% include 'partials/_company_notes.html' %}
+        </div>
+
+        <!-- Journal -->
+        <div class="unified-tab-panel" id="panel-journal">
+            {% include 'partials/_company_journal.html' %}
+        </div>
+
+        <!-- Transactions (portfolio only) -->
+        {% if company_state == 'portfolio' %}
+        <div class="unified-tab-panel" id="panel-transactions">
+            {% include 'partials/_company_transactions.html' %}
+        </div>
+        {% endif %}
+
+        <!-- Settings -->
+        <div class="unified-tab-panel" id="panel-settings">
+            {% include 'partials/_company_settings.html' %}
+        </div>
+
+    </div>
+</div>
+
+<!-- ============ VALUATION EDIT MODAL ============ -->
+<div class="thesis-detail-modal" id="valuationEditModal" onclick="hideValuationModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 520px;">
+        <div class="thesis-modal-header">
+            <div>
+                <h3>Edit Valuation</h3>
+                <p>Set your calculated intrinsic value for {{ company.name }}</p>
+            </div>
+            <button type="button" class="thesis-modal-close" onclick="hideValuationModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('companies.set_intrinsic_value', company_id=company.id) }}">
+            <div class="thesis-modal-body">
+                <label for="valuationValue" class="form-label fw-semibold">
+                    Intrinsic Value (as Market Cap) in {{ user_currency }}
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">{{ currency_symbol }}</span>
+                    <input type="text" class="form-control" id="valuationValue" name="value"
+                        value="{{ intrinsic_display_value if intrinsic_display_value else '' }}"
+                        placeholder="e.g., 1.5">
+                    <select class="form-select" name="unit_multiplier" style="max-width: 130px;">
+                        <option value="1" {% if intrinsic_unit==1 %}selected{% endif %}>Number</option>
+                        <option value="1000000" {% if intrinsic_unit==1000000 %}selected{% endif %}>Million</option>
+                        <option value="1000000000" {% if intrinsic_unit==1000000000 %}selected{% endif %}>Billion</option>
+                        <option value="1000000000000" {% if intrinsic_unit==1000000000000 %}selected{% endif %}>Trillion</option>
+                    </select>
+                </div>
+                <div class="form-text mt-2">
+                    Enter the total market cap intrinsic value, not per-share price.
+                </div>
+            </div>
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="position-btn" onclick="hideValuationModal()">Cancel</button>
+                <button type="submit" class="position-btn primary">
+                    <i class="bi bi-save"></i> Save Intrinsic Value
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ EXPORT MODAL ============ -->
+<div class="thesis-detail-modal" id="exportModal" onclick="hideExportModal(event)">
+    <div class="thesis-modal-content" onclick="event.stopPropagation()" style="max-width: 480px;">
+        <div class="thesis-modal-header">
+            <div>
+                <h3>Export Company Journey</h3>
+                <p>Select components to include in your export</p>
+            </div>
+            <button type="button" class="thesis-modal-close" onclick="hideExportModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('companies.export_company_journey_route', company_id=company.id) }}">
+            <div class="thesis-modal-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% if thesis_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_thesis" value="1" checked>
+                        <span><i class="bi bi-lightbulb"></i> Thesis Evolution ({{ thesis_count }} version{{ 's' if thesis_count != 1 }})</span>
+                    </label>
+                    {% endif %}
+                    {% if checkpoint_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_checkpoints" value="1" checked>
+                        <span><i class="bi bi-flag"></i> Checkpoints ({{ checkpoint_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if company_state == 'portfolio' and transaction_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_transactions" value="1" checked>
+                        <span><i class="bi bi-arrow-left-right"></i> Transactions ({{ transaction_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if decision_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_decisions" value="1" checked>
+                        <span><i class="bi bi-signpost"></i> Decisions ({{ decision_count }})</span>
+                    </label>
+                    {% endif %}
+                    {% if journal_entries_count > 0 %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_journal" value="1" checked>
+                        <span><i class="bi bi-journal-bookmark"></i> Journal Entries ({{ journal_entries_count }})</span>
+                    </label>
+                    {% endif %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_notes" value="1" checked>
+                        <span><i class="bi bi-file-earmark-text"></i> Company Notes</span>
+                    </label>
+                    {% if research_project %}
+                    <label class="export-component-option">
+                        <input type="checkbox" name="export_research" value="1" checked>
+                        <span><i class="bi bi-microscope"></i> Research Project</span>
+                    </label>
+                    {% endif %}
+                </div>
+                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 8px; font-size: 0.8125rem; color: var(--gray-600);">
+                    <i class="bi bi-info-circle"></i> Export generates a ZIP file with markdown files for each selected component.
+                </div>
+            </div>
+            <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="position-btn" onclick="hideExportModal()">Cancel</button>
+                <button type="submit" class="position-btn primary">
+                    <i class="bi bi-download"></i> Download ZIP
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% include 'components/company_resources_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator_js.html' %}
+{% endif %}
+<script>
+// ---- Shared State ----
+const companyId = {{ company.id }};
+const currencySymbol = "{{ currency_symbol }}";
+let notesInitialized = false;
+let journalInitialized = false;
+let documentsInitialized = false;
+let transactionsInitialized = false;
+
+// ---- Main Tab Switching ----
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBar = document.getElementById('unifiedTabBar');
+    const tabs = tabBar.querySelectorAll('.unified-pill-tab');
+    const panels = document.querySelectorAll('.unified-tab-panel');
+
+    function switchToTab(tabId) {
+        // Deactivate all tabs
+        tabs.forEach(t => t.classList.remove('active'));
+        panels.forEach(p => p.classList.remove('active'));
+
+        // Activate target tab + panel
+        const targetTab = tabBar.querySelector(`[data-tab="${tabId}"]`);
+        const targetPanel = document.getElementById('panel-' + tabId);
+        if (targetTab) targetTab.classList.add('active');
+        if (targetPanel) targetPanel.classList.add('active');
+
+        // Update URL hash
+        history.replaceState(null, '', '#' + tabId);
+
+        // Lazy init
+        if (tabId === 'notes' && !notesInitialized) {
+            initNotesEditor();
+            notesInitialized = true;
+        }
+        if (tabId === 'journal' && !journalInitialized) {
+            loadJournalEntries(true);
+            journalInitialized = true;
+        }
+        if (tabId === 'transactions' && !transactionsInitialized) {
+            initTransactionsTable();
+            transactionsInitialized = true;
+        }
+        if (tabId === 'documents' && !documentsInitialized) {
+            loadInlineResources();
+            documentsInitialized = true;
+        }
+    }
+
+    // Expose globally so partials can use it (Quick Actions, "View thesis history", etc.)
+    window.switchToTab = switchToTab;
+
+    // Click handler for tab buttons
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            switchToTab(this.dataset.tab);
+        });
+    });
+
+    // Hash-based routing on page load
+    const hash = window.location.hash.substring(1);
+    if (hash && document.getElementById('panel-' + hash)) {
+        switchToTab(hash);
+    } else {
+        // Default: overview — and load documents in background if on overview
+    }
+
+    // ---- Collapsible sections: show expand button only if content overflows ----
+    document.querySelectorAll('.unified-collapsible').forEach(function(el) {
+        var content = el.querySelector('.unified-collapsible-content');
+        var btn = el.nextElementSibling;
+        if (content && btn && btn.classList.contains('unified-expand-btn')) {
+            if (content.scrollHeight > el.offsetHeight + 8) {
+                btn.style.display = '';
+            } else {
+                // Content fits — remove cap and hide fade
+                el.classList.add('expanded');
+                el.querySelector('.unified-collapsible-fade').style.display = 'none';
+            }
+        }
+    });
+
+    // ---- Async Price Refresh (portfolio companies) ----
+    {% if price_stale %}
+    fetch('/portfolio/api/refresh-position/{{ company.id }}', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var p = data.position;
+                document.getElementById('posPrice').textContent = currencySymbol + (p.current_price !== null ? p.current_price.toFixed(2) : '--');
+                document.getElementById('posPriceSub').textContent = 'Updated just now';
+                if (p.current_value !== null) {
+                    document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();
+                }
+                if (p.gain_loss !== null) {
+                    var sign = p.gain_loss >= 0 ? '+' : '';
+                    document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(p.gain_loss)).toLocaleString();
+                    document.getElementById('posPLValue').className = 'position-metric-value ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                    document.getElementById('posPLCard').className = 'position-metric highlight ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                }
+                if (p.gain_loss_pct !== null) {
+                    var pctSign = p.gain_loss_pct >= 0 ? '+' : '';
+                    document.getElementById('posPLPct').textContent = pctSign + p.gain_loss_pct.toFixed(1) + '%';
+                }
+            }
+        })
+        .catch(function() { /* silent — stale price stays */ });
+    {% endif %}
+
+    // ---- Timeline Filter Sub-Tabs ----
+    const timelineFilterTabs = document.querySelectorAll('#timelineFilterTabs .journey-tab');
+    const timelineItems = document.querySelectorAll('.journey-item');
+
+    timelineFilterTabs.forEach(filterTab => {
+        filterTab.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            if (!filter) return;
+
+            timelineFilterTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            timelineItems.forEach(item => {
+                const itemType = item.getAttribute('data-type');
+                item.style.display = (filter === 'all' || itemType === filter) ? 'block' : 'none';
+            });
+        });
+    });
+
+    // ---- Ticker Testing Tool (Settings tab) ----
+    const testTickerBtn = document.getElementById('testTickerBtn');
+    const testTickerInput = document.getElementById('testTicker');
+    const testResult = document.getElementById('testResult');
+
+    if (testTickerBtn && testTickerInput) {
+        testTickerBtn.addEventListener('click', function() {
+            const ticker = testTickerInput.value.trim().toUpperCase();
+            if (!ticker) {
+                testResult.className = 'alert alert-warning mt-3';
+                testResult.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Please enter a ticker symbol to test.';
+                testResult.classList.remove('d-none');
+                return;
+            }
+            testTickerBtn.disabled = true;
+            testTickerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testing...';
+            testResult.className = 'alert alert-info mt-3';
+            testResult.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Validating ticker symbol...';
+            testResult.classList.remove('d-none');
+
+            fetch('/companies/validate_ticker', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    const isSameTicker = data.ticker === document.getElementById('currentTickerDisplay')?.textContent.trim();
+                    testResult.className = 'alert alert-success mt-3';
+                    testResult.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong><i class="bi bi-check-circle-fill me-2"></i>Ticker Found!</strong>
+                                <div class="mt-2">
+                                    <strong>${data.ticker}</strong> - ${data.company_name || 'N/A'}
+                                    ${data.exchange ? '<br><small class="text-muted">Exchange: ' + data.exchange + '</small>' : ''}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' + currencySymbol + data.current_price.toFixed(2) + '</div>' : ''}
+                            </div>
+                        </div>
+                        ${isSameTicker ? '<div class="mt-2 text-muted"><small><i class="bi bi-info-circle me-1"></i>This is already the current ticker.</small></div>' : `
+                        <div class="mt-3 pt-3" style="border-top: 1px solid rgba(0,0,0,0.1);">
+                            <button type="button" class="btn btn-primary btn-sm" id="applyTickerBtn" data-ticker="${data.ticker}">
+                                <i class="bi bi-arrow-repeat me-1"></i>Use ${data.ticker} as company ticker
+                            </button>
+                        </div>`}`;
+                } else {
+                    testResult.className = 'alert alert-danger mt-3';
+                    testResult.innerHTML = `
+                        <strong><i class="bi bi-x-circle-fill me-2"></i>Ticker Not Found</strong>
+                        <div class="mt-2">${data.error || 'Could not validate this ticker symbol.'}</div>
+                        <div class="mt-2"><small>Make sure you're using the correct format (e.g., AAPL for US stocks, MBB.DE for German stocks).</small></div>`;
+                }
+            })
+            .catch(() => {
+                testResult.className = 'alert alert-danger mt-3';
+                testResult.innerHTML = `
+                    <strong><i class="bi bi-x-circle-fill me-2"></i>Error</strong>
+                    <div class="mt-2">Failed to validate ticker. Please try again.</div>`;
+            })
+            .finally(() => {
+                testTickerBtn.disabled = false;
+                testTickerBtn.innerHTML = '<i class="bi bi-play-fill me-2"></i>Test Ticker';
+            });
+        });
+
+        testTickerInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); testTickerBtn.click(); }
+        });
+
+        // Handle "Use as company ticker" button (delegated since it's dynamically created)
+        testResult.addEventListener('click', function(e) {
+            const applyBtn = e.target.closest('#applyTickerBtn');
+            if (!applyBtn) return;
+
+            const newTicker = applyBtn.dataset.ticker;
+            if (!newTicker) return;
+
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+
+            // Submit via the edit company form with the new ticker
+            const form = document.getElementById('editCompanyForm');
+            if (form) {
+                const tickerInput = form.querySelector('input[name="ticker_symbol"]');
+                if (tickerInput) {
+                    tickerInput.value = newTicker;
+                    form.submit();
+                }
+            }
+        });
+    }
+
+    // ---- Financial Fetch + Polling (Documents tab) ----
+    const fetchBtn = document.getElementById('fetch-financials-btn');
+    const statusDiv = document.getElementById('financial-fetch-status');
+
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', function() {
+            const cid = this.getAttribute('data-company-id');
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Starting...';
+            statusDiv.classList.remove('d-none');
+
+            fetch(`/companies/${cid}/fetch_financials`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator">
+                            <div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+                            <div><strong>Financial data fetch in progress...</strong>
+                            <div class="small">Task ID: ${data.task_id}. Monitoring progress...</div></div>
+                        </div>`;
+                    fetchBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Fetch Started';
+                    fetchBtn.disabled = true;
+                    pollTaskStatus(data.task_id, statusDiv, fetchBtn);
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator error"><i class="bi bi-exclamation-circle"></i>
+                        <div><strong>Error:</strong> ${data.error || 'Failed to start financial data fetch'}</div></div>`;
+                    fetchBtn.disabled = false;
+                    fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                }
+            })
+            .catch(() => {
+                statusDiv.innerHTML = `
+                    <div class="status-indicator error"><i class="bi bi-exclamation-circle"></i>
+                    <div><strong>Error:</strong> Failed to start financial data fetch. Please try again.</div></div>`;
+                fetchBtn.disabled = false;
+                fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+            });
+        });
+    }
+
+    function pollTaskStatus(taskId, statusDiv, fetchBtn) {
+        const pollInterval = setInterval(() => {
+            fetch(`/research/task_status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state === 'SUCCESS') {
+                        statusDiv.innerHTML = `
+                            <div class="status-indicator success"><i class="bi bi-check-circle"></i>
+                            <div><strong>Financial data fetch completed!</strong>
+                            <div class="small">Financial data has been updated. You can now view the financials page.</div></div></div>`;
+                        fetchBtn.disabled = false;
+                        fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                        clearInterval(pollInterval);
+                        setTimeout(() => { statusDiv.classList.add('d-none'); }, 5000);
+                    } else if (data.state === 'FAILURE') {
+                        statusDiv.innerHTML = `
+                            <div class="status-indicator error"><i class="bi bi-x-circle"></i>
+                            <div><strong>Financial data fetch failed!</strong>
+                            <div class="small">${data.status_message || 'Unknown error occurred'}</div></div></div>`;
+                        fetchBtn.disabled = false;
+                        fetchBtn.innerHTML = '<i class="bi bi-download me-2"></i>Fetch Financial History';
+                        clearInterval(pollInterval);
+                    } else if (data.state === 'PENDING') {
+                        statusDiv.innerHTML = `
+                            <div class="status-indicator"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+                            <div><strong>Financial data fetch in progress...</strong>
+                            <div class="small">${data.status_message || 'Task is running in background...'}</div></div></div>`;
+                    }
+                })
+                .catch(() => {
+                    statusDiv.innerHTML = `
+                        <div class="status-indicator warning"><i class="bi bi-exclamation-triangle"></i>
+                        <div><strong>Cannot check task status</strong>
+                        <div class="small">Will continue running in background</div></div></div>`;
+                    clearInterval(pollInterval);
+                });
+        }, 2000);
+    }
+}); // end DOMContentLoaded
+
+// ---- Collapsible Toggle ----
+function toggleCollapsible(id, btn) {
+    var el = document.getElementById(id);
+    var isExpanded = el.classList.toggle('expanded');
+    btn.classList.toggle('expanded', isExpanded);
+    btn.querySelector('.unified-expand-label').textContent = isExpanded ? 'Show less' : 'Show more';
+}
+
+// ---- Transactions Table (lazy-loaded) ----
+{% if company_state == 'portfolio' %}
+function initTransactionsTable() {
+    if (typeof Tabulator === 'undefined') return;
+
+    const transactionsData = [
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    new Tabulator("#position-transactions-table", {
+        data: transactionsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                sorterParams: { format: "yyyy-MM-dd" },
+                hozAlign: "left",
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    let typeClass = '';
+                    if (type === 'BUY') typeClass = 'buy';
+                    else if (type === 'SELL') typeClass = 'sell';
+                    else if (type === 'DIVIDEND') typeClass = 'dividend';
+                    else if (type === 'SPLIT') typeClass = 'split';
+                    return '<span class="position-txn-type ' + typeClass + '">' + type + '</span>';
+                },
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return val ? val.toLocaleString() : '\u2014';
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return currencySymbol + cell.getValue().toFixed(2);
+                },
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</strong>';
+                },
+                minWidth: 100,
+                widthGrow: 1.5
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function(cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="position-text-muted">\u2014</span>';
+                    if (notes.length > 25) {
+                        return '<span title="' + notes + '">' + notes.substring(0, 25) + '...</span>';
+                    }
+                    return notes;
+                },
+                minWidth: 100,
+                widthGrow: 2
+            },
+            {
+                title: "",
+                field: "id",
+                headerSort: false,
+                hozAlign: "center",
+                formatter: function(cell) {
+                    const id = cell.getValue();
+                    return '<a href="/portfolio/transaction/' + id + '/edit" class="position-link-btn" title="Edit"><i class="bi bi-pencil"></i></a>';
+                },
+                minWidth: 50,
+                widthGrow: 0.5
+            }
+        ],
+        initialSort: [
+            { column: "date", dir: "desc" }
+        ]
+    });
+}
+{% endif %}
+
+// ---- BlockNote Notes Editor ----
+function initNotesEditor() {
+    const getUrl = '{{ url_for("companies.get_journey_notes", company_id=company.id) }}';
+    const saveUrl = '{{ url_for("companies.save_journey_notes", company_id=company.id) }}';
+
+    const tryInit = setInterval(function() {
+        if (window.initBlockNoteEditor) {
+            clearInterval(tryInit);
+            window.initBlockNoteEditor('journeyNotesEditor', {
+                getResearchNotesUrl: getUrl,
+                saveResearchNotesUrl: saveUrl,
+                placeholder: 'Start writing your company notes here...',
+                onSave: function() {
+                    const status = document.getElementById('notesSaveStatus');
+                    status.style.display = 'flex';
+                    setTimeout(() => { status.style.display = 'none'; }, 2000);
+                }
+            });
+        }
+    }, 100);
+}
+
+// ---- Journal Entries AJAX ----
+let journalOffset = 0;
+let journalTotal = 0;
+let journalSearchQuery = '';
+let journalSearchTimeout = null;
+
+function debouncedJournalSearch() {
+    clearTimeout(journalSearchTimeout);
+    journalSearchTimeout = setTimeout(() => {
+        journalSearchQuery = document.getElementById('journalSearchInput').value.trim();
+        loadJournalEntries(true);
+    }, 300);
+}
+
+function loadJournalEntries(reset) {
+    if (reset) {
+        journalOffset = 0;
+        document.getElementById('journalCards').innerHTML = '';
+    }
+    const loadMoreBtn = document.getElementById('journalLoadMore');
+    const emptyState = document.getElementById('journalEmptyState');
+    loadMoreBtn.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    let url = `/portfolio/api/notes/${companyId}?offset=${journalOffset}&limit=10`;
+    if (journalSearchQuery) url += `&q=${encodeURIComponent(journalSearchQuery)}`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            journalTotal = data.total;
+            const container = document.getElementById('journalCards');
+
+            if (data.entries.length === 0 && journalOffset === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            data.entries.forEach(entry => {
+                container.insertAdjacentHTML('beforeend', renderJournalCard(entry));
+            });
+            journalOffset += data.entries.length;
+            if (data.has_more) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.innerHTML = `Load more (${journalOffset} of ${journalTotal}) <i class="bi bi-chevron-down"></i>`;
+            }
+        });
+}
+
+function renderJournalCard(entry) {
+    const contentHtml = entry.content_html || escapeHtml(entry.content);
+    let sentimentHtml = '';
+    if (entry.sentiment) {
+        sentimentHtml = `<span class="journey-note-sentiment ${entry.sentiment}">${entry.sentiment}</span>`;
+    }
+    let tagsHtml = '';
+    if (entry.tags && entry.tags.length) {
+        tagsHtml = '<div class="journey-note-tags">' +
+            entry.tags.slice(0, 6).map(t => `<span class="journey-note-tag">#${escapeHtml(t)}</span>`).join('') +
+            '</div>';
+    }
+    const viewUrl = `/journal/entry/${entry.id}`;
+    return `<div class="journey-note-card">
+        <div class="journey-note-card-header">
+            <span class="journey-note-card-date"><i class="bi bi-calendar3"></i> ${entry.created_at}</span>
+            <div class="journey-note-card-actions">
+                ${sentimentHtml}
+                <a href="${viewUrl}" class="journey-note-view-btn" title="View full entry"><i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
+        </div>
+        <div class="journey-note-card-content blocknote-content">${contentHtml}</div>
+        ${tagsHtml}
+    </div>`;
+}
+
+// ---- Inline Resources (Documents tab) ----
+function loadInlineResources() {
+    const container = document.getElementById('docs-tab-resource-list');
+    if (!container) return;
+
+    fetch('/companies/api/{{ company.id }}/resources')
+        .then(r => r.json())
+        .then(result => {
+            if (!result.success || !result.data.resources.length) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-inbox" style="font-size: 1.5rem;"></i>
+                        <p class="mt-2 mb-0 small">No resources yet. Upload a file or save a link to get started.</p>
+                    </div>`;
+                return;
+            }
+            const resources = result.data.resources;
+            container.innerHTML = resources.map(r => {
+                const icon = r.resource_type === 'file'
+                    ? (r.file_type === 'pdf' ? 'bi-file-earmark-pdf-fill text-danger' : 'bi-file-earmark-text-fill text-primary')
+                    : 'bi-link-45deg text-info';
+                const meta = r.resource_type === 'file'
+                    ? `${escapeH(r.original_filename)}`
+                    : (r.source_name || extractDom(r.url));
+                const catBadge = r.category
+                    ? `<span class="badge bg-light text-dark border ms-1">${escapeH(r.category)}</span>`
+                    : '';
+                const titleHtml = r.resource_type === 'link'
+                    ? `<a href="${escapeH(r.url)}" target="_blank" rel="noopener" class="text-decoration-none">${escapeH(r.title)} <i class="bi bi-box-arrow-up-right" style="font-size: 0.7em;"></i></a>`
+                    : escapeH(r.title);
+                const viewBtn = r.resource_type === 'file'
+                    ? `<a href="/companies/resources/${r.id}/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="View"><i class="bi bi-eye"></i></a>`
+                    : '';
+                const downloadBtn = r.resource_type === 'file'
+                    ? `<a href="/companies/api/resources/${r.id}/download" class="btn btn-sm btn-outline-primary border-0" title="Download"><i class="bi bi-download"></i></a>`
+                    : '';
+                return `
+                    <div class="d-flex justify-content-between align-items-start py-2 border-bottom cr-resource-item">
+                        <div class="flex-grow-1" style="min-width:0">
+                            <div class="fw-semibold small"><i class="bi ${icon} me-1"></i>${titleHtml}${catBadge}</div>
+                            <div class="text-muted" style="font-size:0.78rem">${meta}</div>
+                        </div>
+                        <div class="d-flex gap-1 ms-2 flex-shrink-0">
+                            ${viewBtn}
+                            ${downloadBtn}
+                            <button class="btn btn-sm btn-outline-danger border-0" title="Delete"
+                                    onclick="deleteInlineResource(${r.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>`;
+            }).join('');
+        })
+        .catch(() => {
+            container.innerHTML = '<div class="text-danger small">Failed to load resources.</div>';
+        });
+}
+
+function deleteInlineResource(id) {
+    if (!confirm('Delete this resource?')) return;
+    fetch(`/companies/api/resources/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(result => { if (result.success) loadInlineResources(); })
+        .catch(() => alert('Failed to delete.'));
+}
+
+// ---- Utility ----
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+function escapeH(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function extractDom(u) { try { return new URL(u).hostname.replace('www.',''); } catch { return u; } }
+
+// ---- Modal helpers ----
+function hideExportModal(event) {
+    if (!event || event.target.id === 'exportModal' ||
+        event.target.closest('.thesis-modal-close') ||
+        event.target.closest('.thesis-modal-footer button[type="button"]')) {
+        document.getElementById('exportModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+
+function hideValuationModal(event) {
+    if (!event || event.target.id === 'valuationEditModal' ||
+        event.target.closest('.thesis-modal-close') ||
+        event.target.closest('.thesis-modal-footer button[type="button"]')) {
+        document.getElementById('valuationEditModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+</script>
+{% endblock %}

@@ -457,7 +457,7 @@ def send_to_sector():
     if source_detail:
         source_title += f" - {source_detail}"
 
-    source_reference = url_for('companies.company_dashboard', company_id=company.id, _external=True)
+    source_reference = url_for('companies.company_detail', company_id=company.id, _external=True)
 
     # Build full content (append context note if provided)
     context_note = (data.get('context_note') or '').strip()

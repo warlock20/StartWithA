@@ -1,0 +1,128 @@
+{# Research Tab — carried over from company_journey.html #}
+
+{% if research_project %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+    <span class="research-project-badge {{ research_project.status }}">
+        {% if research_project.status == 'completed' %}
+        <i class="bi bi-check-circle-fill"></i> Research Completed
+        {% elif research_project.status == 'active' %}
+        <i class="bi bi-play-circle-fill"></i> Research In Progress
+        {% else %}
+        <i class="bi bi-pause-circle"></i> {{ research_project.status|title }}
+        {% endif %}
+        {% if research_project.completed_at %}
+         — {{ research_project.completed_at.strftime('%b %d, %Y') }}
+        {% endif %}
+    </span>
+    <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}" class="position-btn">
+        <i class="bi bi-box-arrow-up-right"></i> Open Full Project
+    </a>
+</div>
+
+<!-- Thesis Summary -->
+{% if research_project.investment_thesis %}
+<div class="research-summary-card">
+    <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <div class="research-summary-header-left">
+            <i class="bi bi-lightbulb-fill" style="color: var(--warning-500); font-size: 1.125rem;"></i>
+            <span class="research-step-name">Investment Thesis</span>
+        </div>
+        <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
+    </div>
+    <div class="research-summary-body">
+        <p>{{ research_project.investment_thesis }}</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Free Research Q&As -->
+{% if free_research_questions %}
+{% set grouped_questions = {} %}
+{% for q in free_research_questions %}
+    {% set step_key = q.step_index %}
+    {% if step_key not in grouped_questions %}
+        {% set _ = grouped_questions.update({step_key: []}) %}
+    {% endif %}
+    {% set _ = grouped_questions[step_key].append(q) %}
+{% endfor %}
+
+{% for step_idx, questions in grouped_questions.items() %}
+<div class="research-summary-card">
+    <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <div class="research-summary-header-left">
+            <span class="research-step-number {% if questions[0].status == 'answered' %}completed{% endif %}">
+                {% if questions|selectattr('status', 'equalto', 'answered')|list|length == questions|length %}
+                <i class="bi bi-check" style="font-size: 0.875rem;"></i>
+                {% else %}
+                {{ step_idx + 1 }}
+                {% endif %}
+            </span>
+            <span class="research-step-name">Research Step {{ step_idx + 1 }}</span>
+            <span class="research-step-type">Free Research</span>
+        </div>
+        <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
+    </div>
+    <div class="research-summary-body">
+        {% for q in questions %}
+        <div class="research-qa-item">
+            <div class="research-qa-question">
+                <i class="bi bi-question-circle-fill"></i>
+                {{ q.question_text }}
+                {% if q.status == 'answered' %}
+                <span class="research-qa-status answered">Answered</span>
+                {% endif %}
+            </div>
+            {% if q.answer_content %}
+            <div class="research-qa-answer">{{ q.answer_content|blocknote_to_html|safe }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Key Findings -->
+{% if research_project.green_flags or research_project.red_flags %}
+<div class="research-summary-card">
+    <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <div class="research-summary-header-left">
+            <i class="bi bi-flag-fill" style="color: var(--primary-600); font-size: 1.125rem;"></i>
+            <span class="research-step-name">Key Findings</span>
+        </div>
+        <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
+    </div>
+    <div class="research-summary-body">
+        <div class="research-findings-grid">
+            {% if research_project.green_flags %}
+            <div class="research-findings-col green">
+                <h6><i class="bi bi-check-circle-fill"></i> Green Flags</h6>
+                <ul>
+                    {% for flag in research_project.green_flags %}
+                    <li>{{ flag }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if research_project.red_flags %}
+            <div class="research-findings-col red">
+                <h6><i class="bi bi-exclamation-triangle-fill"></i> Red Flags</h6>
+                <ul>
+                    {% for flag in research_project.red_flags %}
+                    <li>{{ flag }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="journey-empty-state">
+    <i class="bi bi-microscope"></i>
+    <h4>No Research Project</h4>
+    <p>Start a research project to track your analysis process for {{ company.name }}.</p>
+</div>
+{% endif %}

@@ -1,0 +1,308 @@
+{# Timeline Tab — carried over from company_journey.html #}
+
+<!-- Timeline Filter Sub-Tabs -->
+<div class="journey-tabs" id="timelineFilterTabs">
+    <button class="journey-tab active" data-filter="all">
+        <i class="bi bi-list-ul"></i> All
+        <span class="journey-tab-count">{{ timeline_events|length }}</span>
+    </button>
+    {% if thesis_count > 0 %}
+    <button class="journey-tab" data-filter="thesis">
+        <i class="bi bi-lightbulb"></i> Thesis
+        <span class="journey-tab-count">{{ thesis_count }}</span>
+    </button>
+    {% endif %}
+    {% if checkpoint_count > 0 %}
+    <button class="journey-tab" data-filter="checkpoint">
+        <i class="bi bi-flag"></i> Checkpoints
+        <span class="journey-tab-count">{{ checkpoint_count }}</span>
+    </button>
+    {% endif %}
+    {% if company_state == 'portfolio' and transaction_count > 0 %}
+    <button class="journey-tab" data-filter="transaction">
+        <i class="bi bi-arrow-left-right"></i> Transactions
+        <span class="journey-tab-count">{{ transaction_count }}</span>
+    </button>
+    {% endif %}
+    {% if decision_count > 0 %}
+    <button class="journey-tab" data-filter="decision">
+        <i class="bi bi-signpost"></i> Decisions
+        <span class="journey-tab-count">{{ decision_count }}</span>
+    </button>
+    {% endif %}
+    {% if findings_count > 0 %}
+    <button class="journey-tab" data-filter="finding">
+        <i class="bi bi-search"></i> Findings
+        <span class="journey-tab-count">{{ findings_count }}</span>
+    </button>
+    {% endif %}
+</div>
+
+<div class="journey-timeline">
+    {% for event in timeline_events %}
+    {% set is_current = (event.type == 'thesis' and current_thesis and event.data.id == current_thesis.id) %}
+
+    <div class="journey-item" data-type="{{ event.type }}">
+        <!-- Timeline Dot -->
+        <div class="journey-dot
+            {% if event.type == 'checkpoint' %}checkpoint
+                {% if event.data.status == 'Met' %}met
+                {% elif event.data.status == 'Not Met' %}not-met
+                {% endif %}
+            {% elif event.type == 'transaction' %}event
+            {% elif event.type == 'finding' %}finding {{ event.data.flag_type }}
+            {% elif event.type == 'decision' %}decision
+            {% elif is_current %}current
+            {% endif %}">
+        </div>
+
+        <!-- Timeline Content -->
+        <div class="journey-content
+            {% if event.type == 'checkpoint' %}checkpoint-content
+                {% if event.data.status == 'Met' %}met
+                {% elif event.data.status == 'Not Met' %}not-met
+                {% endif %}
+            {% elif event.type == 'finding' %}finding-content {{ event.data.flag_type }}
+            {% elif event.type == 'decision' %}decision-content
+            {% endif %}">
+
+            <!-- THESIS VERSION -->
+            {% if event.type == 'thesis' %}
+            <div class="journey-event-header">
+                <span class="journey-badge {% if is_current %}current{% else %}thesis{% endif %}">
+                    {% if is_current %}Current Thesis{% else %}V{{ event.data.version }}{% endif %}
+                </span>
+                {% if event.data.position_sizing %}
+                <span class="journey-position-badge {{ event.data.position_sizing }}">
+                    {{ event.data.position_sizing|replace('_', ' ')|title }}
+                </span>
+                {% endif %}
+            </div>
+
+            <h4 class="journey-event-title">{{ event.data.change_summary or 'Thesis Update' }}</h4>
+            <p class="journey-event-date">
+                <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+            </p>
+
+            {% if event.data.thesis %}
+            <div class="journey-event-body">{{ event.data.thesis|blocknote_to_html|safe }}</div>
+            {% endif %}
+
+            {% if event.data.change_trigger %}
+            <div class="journey-trigger-alert">
+                <i class="bi bi-lightning-charge"></i>
+                <span><strong>Trigger:</strong> {{ event.data.change_trigger }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Metrics -->
+            <div class="journey-event-metrics">
+                {% if event.data.conviction_level %}
+                <div class="journey-event-metric">
+                    <div class="journey-event-metric-label">Conviction</div>
+                    <div class="journey-event-metric-value">{{ event.data.conviction_level }}/10</div>
+                    <div class="conviction-meter">
+                        {% set conviction_pct = event.data.conviction_level * 10 %}
+                        {% set conviction_class = 'high' if event.data.conviction_level >= 8 else ('medium' if event.data.conviction_level >= 5 else 'low') %}
+                        <div class="conviction-fill {{ conviction_class }}" style="width: {{ conviction_pct }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if event.data.target_price %}
+                <div class="journey-event-metric">
+                    <div class="journey-event-metric-label">Target Price</div>
+                    <div class="journey-event-metric-value">${{ "%.2f"|format(event.data.target_price) }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Bull/Bear Cases -->
+            {% if event.data.bull_case or event.data.bear_case %}
+            <div class="journey-bull-bear">
+                {% if event.data.bull_case %}
+                <div class="journey-case bull">
+                    <h6><i class="bi bi-graph-up"></i> Bull Case</h6>
+                    <ul>
+                        {% for point in event.data.bull_case %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if event.data.bear_case %}
+                <div class="journey-case bear">
+                    <h6><i class="bi bi-graph-down"></i> Bear Case</h6>
+                    <ul>
+                        {% for point in event.data.bear_case %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- CHECKPOINT -->
+            {% elif event.type == 'checkpoint' %}
+            <div class="journey-event-header">
+                <span class="journey-badge checkpoint">Checkpoint</span>
+                <span class="journey-checkpoint-status {{ event.data.status|lower|replace(' ', '-') }}">
+                    {% if event.data.status == 'Met' %}
+                    <i class="bi bi-check-circle-fill"></i> Met
+                    {% elif event.data.status == 'Not Met' %}
+                    <i class="bi bi-x-circle-fill"></i> Not Met
+                    {% else %}
+                    <i class="bi bi-clock"></i> Pending
+                    {% endif %}
+                </span>
+            </div>
+
+            <h4 class="journey-event-title">{{ event.data.metric }}</h4>
+            <p class="journey-event-date">
+                <i class="bi bi-calendar3"></i> Target: {{ event.date.strftime('%B %d, %Y') }}
+            </p>
+
+            <div class="journey-checkpoint-details">
+                <div class="journey-checkpoint-expectation">
+                    <strong>Expected:</strong> {{ event.data.expectation }}
+                </div>
+
+                {% if event.data.actual_outcome %}
+                <div class="journey-checkpoint-outcome {% if event.data.status == 'Met' %}met{% else %}not-met{% endif %}">
+                    <strong>Actual:</strong> {{ event.data.actual_outcome }}
+                </div>
+                {% endif %}
+            </div>
+
+            {% if event.data.status == 'Met' %}
+            <div class="journey-checkpoint-alert success">
+                <i class="bi bi-check-circle"></i>
+                <span><strong>Thesis Validated:</strong> This checkpoint supports your investment thesis.</span>
+            </div>
+            {% elif event.data.status == 'Not Met' %}
+            <div class="journey-checkpoint-alert danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span><strong>Thesis Challenge:</strong> This checkpoint indicates a deviation from expectations.</span>
+            </div>
+            {% endif %}
+
+            <!-- TRANSACTION -->
+            {% elif event.type == 'transaction' %}
+            <div class="journey-event-header">
+                <span class="journey-badge transaction {{ event.data.type|lower }}">
+                    {{ event.data.type }}
+                </span>
+            </div>
+
+            <h4 class="journey-event-title">
+                {{ event.data.type }} {{ event.data.quantity }} shares @ ${{ "%.2f"|format(event.data.price_per_share) }}
+            </h4>
+            <p class="journey-event-date">
+                <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+            </p>
+
+            <div class="journey-transaction-details">
+                <div class="journey-transaction-total">
+                    <span class="label">Total Value</span>
+                    <span class="value">${{ "{:,.2f}".format(event.data.total_value) }}</span>
+                </div>
+            </div>
+
+            {% if event.data.notes %}
+            <p class="journey-transaction-notes">
+                <i class="bi bi-chat-text"></i> {{ event.data.notes }}
+            </p>
+            {% endif %}
+
+            <!-- DECISION -->
+            {% elif event.type == 'decision' %}
+            <div class="journey-event-header">
+                <span class="journey-badge decision"><i class="bi bi-signpost"></i> Decision</span>
+                <span style="font-weight: 600; font-size: 0.8125rem;
+                    {% if event.data.decision_type == 'invest' %}color: var(--success-600);
+                    {% elif event.data.decision_type == 'pass' %}color: var(--danger-600);
+                    {% else %}color: var(--gray-600);{% endif %}">
+                    {% if event.data.decision_type == 'invest' %}
+                    <i class="bi bi-check-circle-fill"></i> Invest
+                    {% elif event.data.decision_type == 'pass' %}
+                    <i class="bi bi-x-circle-fill"></i> Pass
+                    {% elif event.data.decision_type == 'exit' %}
+                    <i class="bi bi-box-arrow-right"></i> Exit
+                    {% endif %}
+                </span>
+            </div>
+
+            <h4 class="journey-event-title">{{ event.data.investment_thesis|truncate(100) if event.data.investment_thesis else event.data.decision_type|title ~ ' Decision' }}</h4>
+            <p class="journey-event-date">
+                <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+            </p>
+
+            <div class="journey-decision-grid">
+                {% if event.data.confidence_score %}
+                <div class="journey-decision-item">
+                    <span class="label">Confidence</span>
+                    <span class="value">{{ event.data.confidence_score }}/10</span>
+                </div>
+                {% endif %}
+                {% if event.data.expected_return %}
+                <div class="journey-decision-item">
+                    <span class="label">Expected Return</span>
+                    <span class="value">{{ "%.0f"|format(event.data.expected_return) }}%{% if event.data.expected_timeframe %} over {{ event.data.expected_timeframe }}mo{% endif %}</span>
+                </div>
+                {% endif %}
+                {% if event.data.exit_criteria %}
+                <div class="journey-decision-item">
+                    <span class="label">Exit Criteria</span>
+                    <span class="value">{{ event.data.exit_criteria|truncate(80) }}</span>
+                </div>
+                {% endif %}
+                {% if event.data.project_id %}
+                <div class="journey-decision-item">
+                    <span class="label">Linked Research</span>
+                    <span class="value">
+                        <a href="{{ url_for('research_workflow.project_dashboard', project_id=event.data.project_id) }}" style="color: var(--info-600);">
+                            View Research Project
+                        </a>
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- FINDING (Research Red/Green Flag) -->
+            {% elif event.type == 'finding' %}
+            <div class="journey-event-header">
+                <span class="journey-badge finding {{ event.data.flag_type }}">
+                    {% if event.data.flag_type == 'green' %}
+                    <i class="bi bi-check-circle"></i> Green Flag
+                    {% else %}
+                    <i class="bi bi-exclamation-triangle"></i> Red Flag
+                    {% endif %}
+                </span>
+            </div>
+            <p class="journey-event-date">
+                <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
+            </p>
+            <div class="journey-event-body">{{ event.data.text }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not timeline_events %}
+    <div class="journey-empty-state">
+        <i class="bi bi-inbox"></i>
+        <h4>No Journey Events Yet</h4>
+        <p>Thesis updates, checkpoints, and decisions will appear here as your journey evolves.</p>
+        <div class="journey-empty-actions">
+            <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}" class="position-btn primary">
+                <i class="bi bi-lightbulb"></i> Add Thesis
+            </a>
+            <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn">
+                <i class="bi bi-flag"></i> Add Checkpoints
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>

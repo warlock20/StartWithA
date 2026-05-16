@@ -206,7 +206,7 @@
                         <i class="bi bi-arrow-left"></i> Back to Dashboard
                     </a>
                     {% if project.company %}
-                    <a href="{{ url_for('companies.company_dashboard', company_id=project.company.id) }}"
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}"
                        class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-building"></i> Company Profile
                     </a>

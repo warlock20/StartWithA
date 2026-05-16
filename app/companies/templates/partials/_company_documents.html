@@ -1,0 +1,110 @@
+{# Documents Tab — carried over from company_documents.html #}
+
+<!-- SEC Filings Fetch Section -->
+{% if '.' not in company.ticker_symbol %}
+<div class="company-section-card mb-4">
+    <div class="company-section-card-header">
+        <h5><i class="bi bi-cloud-download me-2"></i>Automated Document Fetching</h5>
+    </div>
+    <div class="company-section-card-body">
+        <p class="company-section-description">
+            Automatically download recent annual reports (10-K filings) from the SEC EDGAR database for US-listed companies.
+        </p>
+        <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="filing_type" class="form-label fw-semibold">Filing Type</label>
+                    <select id="filing_type" name="filing_type" class="form-select">
+                        <option value="10-K" selected>10-K (Annual)</option>
+                        <option value="10-Q" disabled>10-Q (Quarterly) - Coming Soon</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="years" class="form-label fw-semibold">Number of Recent Years</label>
+                    <select id="years" name="years" class="form-select">
+                        <option value="3">3 Years</option>
+                        <option value="5" selected>5 Years</option>
+                        <option value="10">10 Years</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-info w-100">
+                        <i class="bi bi-download me-2"></i>Fetch Filings
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="warning-banner">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Automated Document Fetching:</strong> This feature is currently available for US-listed companies only.
+    The ticker symbol <strong>{{ company.ticker_symbol }}</strong> appears to be for a non-US exchange.
+</div>
+{% endif %}
+
+<!-- Quantitative Analysis Section -->
+<div class="company-section-card mb-4">
+    <div class="company-section-card-header">
+        <h5><i class="bi bi-graph-up me-2"></i>Quantitative Analysis</h5>
+    </div>
+    <div class="company-section-card-body">
+        <p class="company-section-description">
+            Fetch and store historical financial data (Revenue, Net Income, etc.) to analyze trends over time.
+        </p>
+
+        <!-- Financial Fetch Status -->
+        <div id="financial-fetch-status" class="d-none fetch-status-container">
+            <div class="status-indicator">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div>
+                    <strong>Fetching financial data...</strong>
+                    <div class="small">This may take a few minutes. You can continue using the dashboard while this runs in the background.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="button" id="fetch-financials-btn" class="btn btn-primary" data-company-id="{{ company.id }}">
+                <i class="bi bi-download me-2"></i>Fetch Financial History
+            </button>
+            <a href="{{ url_for('companies.financials', company_id=company.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-table me-2"></i>View Financials
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Company Resources Section -->
+<div class="company-section-card">
+    <div class="company-section-card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Company Resources</h5>
+        <div class="d-flex gap-2">
+            <button class="position-btn" onclick='CompanyResources.open({
+                companyId: {{ company.id }},
+                companyName: {{ company.name|tojson }},
+                defaultTab: "upload"
+            })'>
+                <i class="bi bi-cloud-upload me-1"></i>Upload File
+            </button>
+            <button class="position-btn" onclick='CompanyResources.open({
+                companyId: {{ company.id }},
+                companyName: {{ company.name|tojson }},
+                defaultTab: "link"
+            })'>
+                <i class="bi bi-link-45deg me-1"></i>Save Link
+            </button>
+        </div>
+    </div>
+    <div class="company-section-card-body">
+        <!-- Inline resource list loaded via AJAX -->
+        <div id="docs-tab-resource-list">
+            <div class="text-center text-muted py-3">
+                <span class="spinner-border spinner-border-sm me-1"></span> Loading resources...
+            </div>
+        </div>
+    </div>
+</div>
