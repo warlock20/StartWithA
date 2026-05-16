@@ -716,9 +716,6 @@
 /* Content tabs (non-overview, non-settings) get standard padding + subtle background */
 #panel-timeline,
 #panel-research,
-#panel-documents,
-#panel-notes,
-#panel-journal,
 #panel-transactions {
     padding: var(--space-lg) var(--space-xl);
     background: var(--gray-50);
@@ -1181,6 +1178,24 @@
 }
 
 .settings-section.active {
+    display: block;
+}
+
+/* Library sub-sections (mirrors settings-section pattern) */
+.library-section {
+    display: none;
+}
+
+.library-section.active {
+    display: block;
+}
+
+/* Research sub-sections (same pattern) */
+.research-section {
+    display: none;
+}
+
+.research-section.active {
     display: block;
 }
 

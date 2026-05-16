@@ -331,8 +331,9 @@
 
 <script>
 (function() {
-    const navItems = document.querySelectorAll('.settings-nav-item');
-    const sections = document.querySelectorAll('.settings-section');
+    const settingsPanel = document.getElementById('panel-settings');
+    const navItems = settingsPanel.querySelectorAll('.settings-nav-item');
+    const sections = settingsPanel.querySelectorAll('.settings-section');
 
     navItems.forEach(item => {
         item.addEventListener('click', function() {
