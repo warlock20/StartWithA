@@ -75,35 +75,28 @@
                             <div class="form-text">Displayed everywhere this company appears</div>
                         </div>
                         <div class="col-md-6">
-                            <label for="tickerSymbol" class="settings-field-label">
-                                Ticker Symbol <span class="text-danger">*</span>
+                            <label class="settings-field-label">
+                                Ticker Symbol
                             </label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control" id="tickerSymbol" name="ticker_symbol"
-                                       value="{{ company.ticker_symbol }}" required
-                                       style="text-transform: uppercase; font-family: 'JetBrains Mono', monospace;">
-                                <div class="ticker-validation-status" id="tickerValidationStatus"></div>
+                            <input type="hidden" name="ticker_symbol" value="{{ company.ticker_symbol }}">
+                            <div class="form-control-plaintext" style="font-family: 'JetBrains Mono', monospace; font-weight: 600; letter-spacing: 0.5px;">
+                                {{ company.ticker_symbol }}
                             </div>
-                            <div class="form-text">Verified against Yahoo Finance</div>
+                            <div class="form-text">To change the ticker, use <a href="#" class="unified-link" onclick="document.querySelector('[data-settings-section=data-sources]').click(); return false;">Data Sources</a> to validate first</div>
                         </div>
                         <div class="col-md-6">
                             <label for="sector" class="settings-field-label">Sector</label>
-                            <input type="text" class="form-control" id="sector" name="sector"
-                                   value="{{ company.sector.name if company.sector else '' }}"
-                                   list="sectorList" placeholder="e.g., Technology, Healthcare">
-                            <datalist id="sectorList">
-                                <option value="Technology">
-                                <option value="Healthcare">
-                                <option value="Financials">
-                                <option value="Consumer Discretionary">
-                                <option value="Consumer Staples">
-                                <option value="Industrials">
-                                <option value="Energy">
-                                <option value="Materials">
-                                <option value="Utilities">
-                                <option value="Real Estate">
-                                <option value="Communication Services">
-                            </datalist>
+                            <select class="form-select" id="sectorSelect" name="sector">
+                                <option value="">-- No sector --</option>
+                                {% for s in user_sectors %}
+                                <option value="{{ s.name }}" {% if company.sector and company.sector.id == s.id %}selected{% endif %}>
+                                    {{ s.display_name or s.name }}
+                                </option>
+                                {% endfor %}
+                                <option value="__new__">+ Add new sector...</option>
+                            </select>
+                            <input type="text" class="form-control mt-2 d-none" id="newSectorInput"
+                                   placeholder="Enter new sector name">
                             <div class="form-text">Used for filtering & comparison</div>
                         </div>
                         <div class="col-md-6">
@@ -146,12 +139,28 @@
                 <p>Verify ticker fetches live price data and test against your configured provider.</p>
             </div>
 
+            <!-- Current ticker display -->
+            <div class="settings-form-card" style="border-left: 3px solid var(--accent-color);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div style="font-size: var(--font-size-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Current Ticker</div>
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700;" id="currentTickerDisplay">
+                            {{ company.ticker_symbol }}
+                        </div>
+                    </div>
+                    <span class="badge" style="background: var(--success-50); color: var(--success-600); border: 1px solid var(--success-500); font-size: var(--font-size-xs);">
+                        <i class="bi bi-check-circle me-1"></i>Active
+                    </span>
+                </div>
+            </div>
+
+            <!-- Ticker validation tool -->
             <div class="settings-form-card" style="background: linear-gradient(135deg, rgba(45,106,79,0.03) 0%, rgba(139,92,246,0.03) 100%); border: 2px dashed var(--accent-color); border-opacity: 0.3;">
                 <div class="d-flex align-items-center gap-3 mb-3">
                     <i class="bi bi-shield-check" style="font-size: 1.75rem; color: var(--accent-color);"></i>
                     <div>
-                        <div style="font-size: var(--font-size-sm); font-weight: 600;">Ticker Validation Tool</div>
-                        <div style="font-size: var(--font-size-xs); color: var(--text-muted);">Tests the ticker against Yahoo Finance and shows a preview.</div>
+                        <div style="font-size: var(--font-size-sm); font-weight: 600;">Validate & Update Ticker</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--text-muted);">Test a ticker against Yahoo Finance. Once validated, you can apply it to this company.</div>
                     </div>
                 </div>
                 <div class="row g-2">
@@ -161,7 +170,7 @@
                     </div>
                     <div class="col-md-4">
                         <button type="button" class="btn btn-info w-100" id="testTickerBtn">
-                            <i class="bi bi-lightning-charge me-1"></i>Run Test
+                            <i class="bi bi-play-fill me-1"></i>Test Ticker
                         </button>
                     </div>
                 </div>
@@ -339,5 +348,39 @@
             if (targetSection) targetSection.classList.add('active');
         });
     });
+
+    // Sector select: handle "Add new sector" option
+    const sectorSelect = document.getElementById('sectorSelect');
+    const newSectorInput = document.getElementById('newSectorInput');
+    if (sectorSelect && newSectorInput) {
+        sectorSelect.addEventListener('change', function() {
+            if (this.value === '__new__') {
+                newSectorInput.classList.remove('d-none');
+                newSectorInput.focus();
+                newSectorInput.required = true;
+            } else {
+                newSectorInput.classList.add('d-none');
+                newSectorInput.value = '';
+                newSectorInput.required = false;
+            }
+        });
+
+        // On form submit, swap the new sector name into the select's value
+        const form = document.getElementById('editCompanyForm');
+        if (form) {
+            form.addEventListener('submit', function() {
+                if (sectorSelect.value === '__new__' && newSectorInput.value.trim()) {
+                    // Create a hidden input with the new sector name
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'sector';
+                    hidden.value = newSectorInput.value.trim();
+                    form.appendChild(hidden);
+                    // Disable the select so its __new__ value isn't submitted
+                    sectorSelect.disabled = true;
+                }
+            });
+        }
+    }
 })();
 </script>

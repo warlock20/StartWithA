@@ -102,9 +102,9 @@
                                 <label for="sentiment" class="form-label">Sentiment</label>
                                 <select class="form-select" id="sentiment" name="sentiment">
                                     <option value="">Select sentiment</option>
-                                    <option value="positive" {{ 'selected' if entry.sentiment == 'positive' else '' }}>Positive</option>
+                                    <option value="bullish" {{ 'selected' if entry.sentiment == 'bullish' else '' }}>Bullish</option>
                                     <option value="neutral" {{ 'selected' if entry.sentiment == 'neutral' else '' }}>Neutral</option>
-                                    <option value="negative" {{ 'selected' if entry.sentiment == 'negative' else '' }}>Negative</option>
+                                    <option value="bearish" {{ 'selected' if entry.sentiment == 'bearish' else '' }}>Bearish</option>
                                     <option value="uncertain" {{ 'selected' if entry.sentiment == 'uncertain' else '' }}>Uncertain</option>
                                 </select>
                             </div>

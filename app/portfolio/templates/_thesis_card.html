@@ -79,7 +79,7 @@
 
     <!-- Actions Footer -->
     <div class="position-card-footer">
-        <a href="{{ url_for('portfolio.position_detail', company_id=position.company_id) }}" class="card-action-btn">
+        <a href="{{ url_for('companies.company_detail', company_id=position.company_id) }}" class="card-action-btn">
             <i class="bi bi-eye"></i> View Position
         </a>
         <a href="{{ url_for('companies.company_detail', company_id=position.company_id) }}" class="card-action-btn">

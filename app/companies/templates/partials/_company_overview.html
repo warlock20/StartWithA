@@ -4,13 +4,43 @@
     <!-- LEFT COLUMN — Narrative -->
     <div class="unified-overview-main">
 
+        <!-- Company Overview -->
+        <div class="unified-card">
+            <div class="unified-card-label">Company Overview</div>
+            {% if company.summary and company.summary != 'No summary available.' %}
+            <div style="font-size: var(--font-size-sm); line-height: 1.7; color: var(--text-secondary);">
+                {{ company.summary }}
+            </div>
+            {% if company.sector or company.industry %}
+            <div style="margin-top: var(--space-sm); font-size: var(--font-size-xs); color: var(--text-muted);">
+                {% if company.sector %}{{ company.sector.name }}{% endif %}
+                {% if company.sector and company.industry %} &middot; {% endif %}
+                {% if company.industry %}{{ company.industry }}{% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div style="font-size: var(--font-size-sm); color: var(--text-muted); line-height: 1.6;">
+                <i class="bi bi-info-circle me-1"></i> No company overview yet. Add a summary in
+                <a href="#settings" class="unified-link" onclick="switchToTab('settings'); return false;">Settings</a>.
+            </div>
+            {% endif %}
+        </div>
+
         <!-- Current Investment Thesis -->
         {% if current_thesis %}
         <div class="unified-card">
             <div class="unified-card-label">Current Investment Thesis</div>
-            <div class="unified-thesis-body">
-                {{ current_thesis.thesis|blocknote_to_html|safe }}
+            <div class="unified-collapsible" id="thesisCollapsible">
+                <div class="unified-collapsible-content">
+                    <div class="unified-thesis-body">
+                        {{ current_thesis.thesis|blocknote_to_html|safe }}
+                    </div>
+                </div>
+                <div class="unified-collapsible-fade"></div>
             </div>
+            <button class="unified-expand-btn" id="thesisExpandBtn" style="display: none;" onclick="toggleCollapsible('thesisCollapsible', this)">
+                <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+            </button>
             <div class="unified-card-footer">
                 <div class="d-flex gap-2 align-items-center">
                     {% if current_thesis.conviction_level %}
@@ -92,11 +122,19 @@
                 <div class="unified-case-header">
                     <i class="bi bi-graph-up"></i> Bull Case
                 </div>
-                <ul>
-                    {% for point in current_thesis.bull_case %}
-                    <li>{{ point }}</li>
-                    {% endfor %}
-                </ul>
+                <div class="unified-collapsible" id="bullCollapsible">
+                    <div class="unified-collapsible-content">
+                        <ul>
+                            {% for point in current_thesis.bull_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="unified-collapsible-fade"></div>
+                </div>
+                <button class="unified-expand-btn" id="bullExpandBtn" style="display: none;" onclick="toggleCollapsible('bullCollapsible', this)">
+                    <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+                </button>
             </div>
             {% endif %}
             {% if current_thesis.bear_case %}
@@ -104,28 +142,19 @@
                 <div class="unified-case-header">
                     <i class="bi bi-graph-down"></i> Bear Case
                 </div>
-                <ul>
-                    {% for point in current_thesis.bear_case %}
-                    <li>{{ point }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- Company Summary -->
-        {% if company.summary and company.summary != 'No summary available.' %}
-        <div class="unified-card">
-            <div class="unified-card-label">Company Summary</div>
-            <div style="font-size: var(--font-size-sm); line-height: 1.7; color: var(--text-secondary);">
-                {{ company.summary }}
-            </div>
-            {% if company.sector or company.industry %}
-            <div style="margin-top: var(--space-sm); font-size: var(--font-size-xs); color: var(--text-muted);">
-                {% if company.sector %}{{ company.sector.name }}{% endif %}
-                {% if company.sector and company.industry %} &middot; {% endif %}
-                {% if company.industry %}{{ company.industry }}{% endif %}
+                <div class="unified-collapsible" id="bearCollapsible">
+                    <div class="unified-collapsible-content">
+                        <ul>
+                            {% for point in current_thesis.bear_case %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="unified-collapsible-fade"></div>
+                </div>
+                <button class="unified-expand-btn" id="bearExpandBtn" style="display: none;" onclick="toggleCollapsible('bearCollapsible', this)">
+                    <span class="unified-expand-label">Show more</span> <i class="bi bi-chevron-down"></i>
+                </button>
             </div>
             {% endif %}
         </div>
@@ -168,8 +197,8 @@
                 <a href="{{ url_for('portfolio.add_transaction', company_id=company.id) }}" class="position-btn" style="font-size: var(--font-size-xs);">
                     <i class="bi bi-plus-circle"></i> Add Transaction
                 </a>
-                <a href="{{ url_for('portfolio.position_detail', company_id=company.id) }}" class="unified-link" style="margin-left: auto;">
-                    Position &rarr;
+                <a href="#transactions" class="unified-link" style="margin-left: auto;" onclick="switchToTab('transactions'); return false;">
+                    Transactions &rarr;
                 </a>
             </div>
         </div>

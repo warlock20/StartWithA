@@ -478,7 +478,7 @@ def _serialize_position(position):
         'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
         'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,
         'days_held': position.days_held or 0,
-        'position_url': url_for('portfolio.position_detail', company_id=position.company_id),
+        'position_url': url_for('companies.company_detail', company_id=position.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=position.company_id),
     }
 

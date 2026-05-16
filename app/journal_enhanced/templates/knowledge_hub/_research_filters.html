@@ -27,9 +27,15 @@
                         <option value="observation" {{ 'selected' if request.args.get('entry_type') == 'observation' }}>Observation</option>
                         <option value="thesis_update" {{ 'selected' if request.args.get('entry_type') == 'thesis_update' }}>Thesis Update</option>
                         <option value="question" {{ 'selected' if request.args.get('entry_type') == 'question' }}>Question</option>
+                        <option value="insight" {{ 'selected' if request.args.get('entry_type') == 'insight' }}>Insight</option>
+                        <option value="lesson_learned" {{ 'selected' if request.args.get('entry_type') == 'lesson_learned' }}>Lesson Learned</option>
+                        <option value="market_thought" {{ 'selected' if request.args.get('entry_type') == 'market_thought' }}>Market Thought</option>
                         <option value="meeting_notes" {{ 'selected' if request.args.get('entry_type') == 'meeting_notes' }}>Meeting Notes</option>
                         <option value="earnings_reaction" {{ 'selected' if request.args.get('entry_type') == 'earnings_reaction' }}>Earnings Reaction</option>
-                        <option value="market_thought" {{ 'selected' if request.args.get('entry_type') == 'market_thought' }}>Market Thought</option>
+                        <option value="news_analysis" {{ 'selected' if request.args.get('entry_type') == 'news_analysis' }}>News Analysis</option>
+                        <option value="accounting_note" {{ 'selected' if request.args.get('entry_type') == 'accounting_note' }}>Accounting Note</option>
+                        <option value="finance_tip" {{ 'selected' if request.args.get('entry_type') == 'finance_tip' }}>Finance Tip</option>
+                        <option value="industry_analysis" {{ 'selected' if request.args.get('entry_type') == 'industry_analysis' }}>Industry Analysis</option>
                     </select>
                 </div>
 

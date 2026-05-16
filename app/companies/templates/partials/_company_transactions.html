@@ -1,0 +1,38 @@
+{# Transactions Tab — portfolio companies only #}
+
+<!-- Transaction History -->
+<div class="position-card">
+    <div class="position-card-header">
+        <h2 class="position-card-title">
+            <i class="bi bi-arrow-left-right"></i>
+            Transaction History
+        </h2>
+        <a href="{{ url_for('portfolio.add_transaction') }}?company_id={{ company.id }}"
+            class="position-link-btn">
+            <i class="bi bi-plus"></i> Add
+        </a>
+    </div>
+    <div id="position-transactions-table"></div>
+</div>
+
+<!-- Decision Journal (compact) -->
+{% if portfolio_decision_journal %}
+<div class="position-journal-compact">
+    <div class="position-journal-compact-content">
+        <i class="bi bi-journal-text"></i>
+        <span class="position-journal-compact-thesis">
+            {{ portfolio_decision_journal.investment_thesis|blocknote_preview(150) if portfolio_decision_journal.investment_thesis else 'No thesis recorded' }}
+        </span>
+        {% if portfolio_decision_journal.confidence_score %}
+        <span class="position-journal-compact-badge">{{ portfolio_decision_journal.confidence_score }}/10</span>
+        {% endif %}
+        {% if portfolio_decision_journal.expected_return %}
+        <span class="position-journal-compact-badge gain">+{{ portfolio_decision_journal.expected_return }}%</span>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('portfolio.view_decision_journal', journal_id=portfolio_decision_journal.id) }}"
+        class="position-link-btn">
+        View <i class="bi bi-arrow-right"></i>
+    </a>
+</div>
+{% endif %}

@@ -465,6 +465,18 @@ def _gather_journey_data(company, user_id):
             project_id=research_project.id
         ).order_by(FreeResearchQuestion.created_at).all()
 
+    # Portfolio-specific: decision journal and price staleness
+    portfolio_decision_journal = None
+    price_stale = False
+    if company_state == 'portfolio':
+        portfolio_decision_journal = DecisionJournal.query.filter_by(
+            user_id=user_id,
+            company_id=company.id,
+            is_portfolio_decision=True
+        ).first()
+        if position:
+            price_stale = PriceService.should_update_price(position)
+
     return {
         'company_state': company_state,
         'position': position,
@@ -473,12 +485,15 @@ def _gather_journey_data(company, user_id):
         'current_thesis': current_thesis,
         'thesis_count': len(thesis_versions),
         'checkpoint_count': len(checkpoints),
-        'transaction_count': len([e for e in timeline_events if e['type'] == 'transaction']),
+        'transaction_count': len(transactions),
         'decision_count': len(decision_journals),
         'findings_count': findings_count,
         'journal_entries_count': journal_entries_count,
         'research_project': research_project,
         'free_research_questions': free_research_questions,
+        'transactions': transactions,
+        'portfolio_decision_journal': portfolio_decision_journal,
+        'price_stale': price_stale,
     }
 
 
@@ -550,6 +565,9 @@ def company_detail(company_id):
         company_id=company_id, user_id=current_user.id
     ).count()
 
+    # User's sectors for the settings dropdown
+    user_sectors = SectorService.get_user_sectors_list(current_user.id)
+
     return render_template(
         'company_detail.html',
         company=company,
@@ -562,6 +580,7 @@ def company_detail(company_id):
         user_currency=user_currency,
         currency_symbol=currency_symbol,
         resource_count=resource_count,
+        user_sectors=user_sectors,
         # Journey data
         company_state=journey_data['company_state'],
         position=journey_data['position'],
@@ -576,6 +595,10 @@ def company_detail(company_id):
         journal_entries_count=journey_data['journal_entries_count'],
         research_project=journey_data['research_project'],
         free_research_questions=journey_data['free_research_questions'],
+        # Position / transactions data
+        transactions=journey_data['transactions'],
+        portfolio_decision_journal=journey_data['portfolio_decision_journal'],
+        price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )
 
@@ -689,7 +712,7 @@ def toggle_portfolio(company_id):
     if position:
         # Already in portfolio - suggest selling
         flash(f'"{company.name}" is already in your portfolio with {position.total_shares} shares. To remove, add a SELL transaction.', 'info')
-        return redirect(url_for('portfolio.position_detail', company_id=company_id))
+        return redirect(url_for('companies.company_detail', company_id=company_id))
     else:
         # Not in portfolio - redirect to add transaction
         flash(f'To add "{company.name}" to your portfolio, please record a BUY transaction.', 'info')
@@ -917,7 +940,7 @@ def edit_company(company_id):
     company.industry = industry if industry else None
 
     # Handle sector
-    if sector_name:
+    if sector_name and sector_name != '__new__':
         sector_obj = SectorService.find_or_create_sector(current_user.id, sector_name, auto_create=True)
         if sector_obj:
             company.sector_id = sector_obj.id

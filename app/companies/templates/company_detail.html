@@ -5,6 +5,9 @@
 {% block head %}
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator.html' %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -55,18 +58,83 @@
             </div>
         </header>
 
-        <!-- Stats Strip (portfolio companies only) -->
-        {% if company_state == 'portfolio' %}
+        <!-- Position Metrics Strip (portfolio companies only) -->
+        {% if company_state == 'portfolio' and position %}
         <div class="dashboard-metrics-strip">
+            <div class="position-metric">
+                <div class="position-metric-label">Shares</div>
+                <div class="position-metric-value">{{ position.total_shares }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Avg Cost</div>
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Current Price</div>
+                <div class="position-metric-value" id="posPrice">
+                    {% if position.current_price %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPriceSub">
+                    {% if position.last_price_update %}
+                    Updated {{ position.last_price_update.strftime('%H:%M') }}
+                    {% endif %}
+                    {% if price_stale %}<span class="mini-spinner" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-left:4px;border-width:2px;"></span>{% endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Market Value</div>
+                <div class="position-metric-value" id="posValue">
+                    {% if position.current_value %}
+                    {{ currency_symbol }}{{ "{:,.0f}".format(position.current_value) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost) }}</div>
+            </div>
+            <div id="posPLCard"
+                class="position-metric highlight {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                <div class="position-metric-label">Unrealized P&L</div>
+                <div id="posPLValue"
+                    class="position-metric-value {% if position.unrealized_gain_loss and position.unrealized_gain_loss >= 0 %}gain{% elif position.unrealized_gain_loss %}loss{% endif %}">
+                    {% if position.unrealized_gain_loss %}
+                    {% if position.unrealized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.unrealized_gain_loss) }}
+                    {% else %}
+                    <span class="position-text-muted">--</span>
+                    {% endif %}
+                </div>
+                <div class="position-metric-subtext" id="posPLPct">
+                    {% if position.unrealized_gain_loss_pct %}
+                    {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                    {% endif %}
+                </div>
+            </div>
+            <div class="position-metric">
+                <div class="position-metric-label">Realized P&L</div>
+                <div class="position-metric-value {% if position.realized_gain_loss >= 0 %}gain{% else %}loss{% endif %}">
+                    {% if position.realized_gain_loss >= 0 %}+{% endif %}{{ currency_symbol }}{{ "{:,.0f}".format(position.realized_gain_loss) }}
+                </div>
+            </div>
             <div class="journey-stat {% if journey_stats.total_return > 0 %}gain{% elif journey_stats.total_return < 0 %}loss{% endif %}">
                 <div class="journey-stat-value">
+                    {% if journey_stats.days_held >= 365 and journey_stats.total_return %}
+                    {% set years = journey_stats.days_held / 365.25 %}
+                    {% set tr = journey_stats.total_return|float %}
+                    {% set cagr = ((1 + tr / 100) ** (1 / years) - 1) * 100 %}
+                    {% if cagr > 0 %}+{% endif %}{{ "%.1f"|format(cagr) }}%
+                    {% else %}
                     {% if journey_stats.total_return > 0 %}+{% endif %}{{ "%.1f"|format(journey_stats.total_return) }}%
+                    {% endif %}
                 </div>
-                <div class="journey-stat-label">Total Return</div>
+                <div class="journey-stat-label">{% if journey_stats.days_held >= 365 %}CAGR{% else %}Total Return{% endif %}</div>
             </div>
             <div class="journey-stat">
-                <div class="journey-stat-value">{{ journey_stats.thesis_updates }}</div>
-                <div class="journey-stat-label">Thesis Updates</div>
+                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
+                <div class="journey-stat-label">Days Held</div>
             </div>
             <div class="journey-stat">
                 <div class="journey-stat-value">
@@ -74,19 +142,35 @@
                 </div>
                 <div class="journey-stat-label">Checkpoints Met</div>
             </div>
-            <div class="journey-stat">
-                <div class="journey-stat-value">{{ journey_stats.days_held }}</div>
-                <div class="journey-stat-label">Days Held</div>
+        </div>
+
+        <!-- Performance vs Expectations (conditional) -->
+        {% if portfolio_decision_journal and portfolio_decision_journal.expected_return and position.unrealized_gain_loss_pct %}
+        <div class="position-expectation-bar {% if position.unrealized_gain_loss_pct < portfolio_decision_journal.expected_return %}below{% endif %}">
+            <div class="position-expectation-icon">
+                {% if position.unrealized_gain_loss_pct >= portfolio_decision_journal.expected_return %}
+                <i class="bi bi-check-lg"></i>
+                {% else %}
+                <i class="bi bi-exclamation"></i>
+                {% endif %}
             </div>
-            <div class="journey-stat">
-                <div class="journey-stat-value">{{ journey_stats.current_conviction }}/10</div>
-                <div class="journey-stat-label">Conviction</div>
-            </div>
-            <div class="journey-stat">
-                <div class="journey-stat-value">{{ journal_entries_count }}</div>
-                <div class="journey-stat-label">Journal Entries</div>
+            <div class="position-expectation-content">
+                <div class="position-expectation-title">Performance vs Expectations</div>
+                <div class="position-expectation-details">
+                    <span>Expected: <strong>+{{ "%.0f"|format(portfolio_decision_journal.expected_return) }}%</strong></span>
+                    <span>Actual: <strong
+                            class="{% if position.unrealized_gain_loss_pct >= 0 %}gain{% else %}loss{% endif %}"
+                            style="color: {% if position.unrealized_gain_loss_pct >= 0 %}var(--success-500){% else %}var(--danger-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct >= 0 %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct) }}%
+                        </strong></span>
+                    <span>Difference: <strong
+                            style="color: {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}var(--success-500){% else %}var(--warning-500){% endif %}">
+                            {% if position.unrealized_gain_loss_pct|float >= portfolio_decision_journal.expected_return %}+{% endif %}{{ "%.1f"|format(position.unrealized_gain_loss_pct|float - portfolio_decision_journal.expected_return) }}pp
+                        </strong></span>
+                </div>
             </div>
         </div>
+        {% endif %}
         {% endif %}
     </div>
 
@@ -115,6 +199,12 @@
             <i class="bi bi-journal-bookmark"></i> Journal
             {% if journal_entries_count %}<span class="unified-tab-count">{{ journal_entries_count }}</span>{% endif %}
         </button>
+        {% if company_state == 'portfolio' %}
+        <button class="unified-pill-tab" data-tab="transactions">
+            <i class="bi bi-arrow-left-right"></i> Transactions
+            {% if transaction_count %}<span class="unified-tab-count">{{ transaction_count }}</span>{% endif %}
+        </button>
+        {% endif %}
         <div class="unified-tab-separator"></div>
         <button class="unified-pill-tab" data-tab="settings">
             <i class="bi bi-gear"></i> Settings
@@ -155,6 +245,13 @@
         <div class="unified-tab-panel" id="panel-journal">
             {% include 'partials/_company_journal.html' %}
         </div>
+
+        <!-- Transactions (portfolio only) -->
+        {% if company_state == 'portfolio' %}
+        <div class="unified-tab-panel" id="panel-transactions">
+            {% include 'partials/_company_transactions.html' %}
+        </div>
+        {% endif %}
 
         <!-- Settings -->
         <div class="unified-tab-panel" id="panel-settings">
@@ -283,6 +380,9 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/company-resources.js') }}"></script>
+{% if company_state == 'portfolio' %}
+{% include 'components/_tabulator_js.html' %}
+{% endif %}
 <script>
 // ---- Shared State ----
 const companyId = {{ company.id }};
@@ -290,6 +390,7 @@ const currencySymbol = "{{ currency_symbol }}";
 let notesInitialized = false;
 let journalInitialized = false;
 let documentsInitialized = false;
+let transactionsInitialized = false;
 
 // ---- Main Tab Switching ----
 document.addEventListener('DOMContentLoaded', function() {
@@ -320,6 +421,10 @@ document.addEventListener('DOMContentLoaded', function() {
             loadJournalEntries(true);
             journalInitialized = true;
         }
+        if (tabId === 'transactions' && !transactionsInitialized) {
+            initTransactionsTable();
+            transactionsInitialized = true;
+        }
         if (tabId === 'documents' && !documentsInitialized) {
             loadInlineResources();
             documentsInitialized = true;
@@ -343,6 +448,48 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         // Default: overview — and load documents in background if on overview
     }
+
+    // ---- Collapsible sections: show expand button only if content overflows ----
+    document.querySelectorAll('.unified-collapsible').forEach(function(el) {
+        var content = el.querySelector('.unified-collapsible-content');
+        var btn = el.nextElementSibling;
+        if (content && btn && btn.classList.contains('unified-expand-btn')) {
+            if (content.scrollHeight > el.offsetHeight + 8) {
+                btn.style.display = '';
+            } else {
+                // Content fits — remove cap and hide fade
+                el.classList.add('expanded');
+                el.querySelector('.unified-collapsible-fade').style.display = 'none';
+            }
+        }
+    });
+
+    // ---- Async Price Refresh (portfolio companies) ----
+    {% if price_stale %}
+    fetch('/portfolio/api/refresh-position/{{ company.id }}', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var p = data.position;
+                document.getElementById('posPrice').textContent = currencySymbol + (p.current_price !== null ? p.current_price.toFixed(2) : '--');
+                document.getElementById('posPriceSub').textContent = 'Updated just now';
+                if (p.current_value !== null) {
+                    document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();
+                }
+                if (p.gain_loss !== null) {
+                    var sign = p.gain_loss >= 0 ? '+' : '';
+                    document.getElementById('posPLValue').textContent = sign + currencySymbol + Math.round(Math.abs(p.gain_loss)).toLocaleString();
+                    document.getElementById('posPLValue').className = 'position-metric-value ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                    document.getElementById('posPLCard').className = 'position-metric highlight ' + (p.gain_loss >= 0 ? 'gain' : 'loss');
+                }
+                if (p.gain_loss_pct !== null) {
+                    var pctSign = p.gain_loss_pct >= 0 ? '+' : '';
+                    document.getElementById('posPLPct').textContent = pctSign + p.gain_loss_pct.toFixed(1) + '%';
+                }
+            }
+        })
+        .catch(function() { /* silent — stale price stays */ });
+    {% endif %}
 
     // ---- Timeline Filter Sub-Tabs ----
     const timelineFilterTabs = document.querySelectorAll('#timelineFilterTabs .journey-tab');
@@ -391,6 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.valid) {
+                    const isSameTicker = data.ticker === document.getElementById('currentTickerDisplay')?.textContent.trim();
                     testResult.className = 'alert alert-success mt-3';
                     testResult.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start">
@@ -404,7 +552,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="text-end">
                                 ${data.current_price ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' + currencySymbol + data.current_price.toFixed(2) + '</div>' : ''}
                             </div>
-                        </div>`;
+                        </div>
+                        ${isSameTicker ? '<div class="mt-2 text-muted"><small><i class="bi bi-info-circle me-1"></i>This is already the current ticker.</small></div>' : `
+                        <div class="mt-3 pt-3" style="border-top: 1px solid rgba(0,0,0,0.1);">
+                            <button type="button" class="btn btn-primary btn-sm" id="applyTickerBtn" data-ticker="${data.ticker}">
+                                <i class="bi bi-arrow-repeat me-1"></i>Use ${data.ticker} as company ticker
+                            </button>
+                        </div>`}`;
                 } else {
                     testResult.className = 'alert alert-danger mt-3';
                     testResult.innerHTML = `
@@ -427,6 +581,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         testTickerInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') { e.preventDefault(); testTickerBtn.click(); }
+        });
+
+        // Handle "Use as company ticker" button (delegated since it's dynamically created)
+        testResult.addEventListener('click', function(e) {
+            const applyBtn = e.target.closest('#applyTickerBtn');
+            if (!applyBtn) return;
+
+            const newTicker = applyBtn.dataset.ticker;
+            if (!newTicker) return;
+
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+
+            // Submit via the edit company form with the new ticker
+            const form = document.getElementById('editCompanyForm');
+            if (form) {
+                const tickerInput = form.querySelector('input[name="ticker_symbol"]');
+                if (tickerInput) {
+                    tickerInput.value = newTicker;
+                    form.submit();
+                }
+            }
         });
     }
 
@@ -517,6 +693,136 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 }); // end DOMContentLoaded
+
+// ---- Collapsible Toggle ----
+function toggleCollapsible(id, btn) {
+    var el = document.getElementById(id);
+    var isExpanded = el.classList.toggle('expanded');
+    btn.classList.toggle('expanded', isExpanded);
+    btn.querySelector('.unified-expand-label').textContent = isExpanded ? 'Show less' : 'Show more';
+}
+
+// ---- Transactions Table (lazy-loaded) ----
+{% if company_state == 'portfolio' %}
+function initTransactionsTable() {
+    if (typeof Tabulator === 'undefined') return;
+
+    const transactionsData = [
+        {% for txn in transactions %}
+        {
+            id: {{ txn.id }},
+            date: "{{ txn.date.strftime('%Y-%m-%d') }}",
+            type: "{{ txn.type }}",
+            shares: {{ txn.quantity }},
+            price: {{ txn.price_per_share }},
+            total: {{ txn.total_value }},
+            notes: {{ txn.notes | tojson | safe if txn.notes else 'null' }}
+        }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+    ];
+
+    new Tabulator("#position-transactions-table", {
+        data: transactionsData,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: false,
+        layoutColumnsOnNewData: true,
+        columns: [
+            {
+                title: "Date",
+                field: "date",
+                sorter: "date",
+                sorterParams: { format: "yyyy-MM-dd" },
+                hozAlign: "left",
+                minWidth: 100,
+                widthGrow: 1
+            },
+            {
+                title: "Type",
+                field: "type",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function(cell) {
+                    const type = cell.getValue();
+                    let typeClass = '';
+                    if (type === 'BUY') typeClass = 'buy';
+                    else if (type === 'SELL') typeClass = 'sell';
+                    else if (type === 'DIVIDEND') typeClass = 'dividend';
+                    else if (type === 'SPLIT') typeClass = 'split';
+                    return '<span class="position-txn-type ' + typeClass + '">' + type + '</span>';
+                },
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Shares",
+                field: "shares",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return val ? val.toLocaleString() : '\u2014';
+                },
+                minWidth: 80,
+                widthGrow: 1
+            },
+            {
+                title: "Price",
+                field: "price",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return currencySymbol + cell.getValue().toFixed(2);
+                },
+                minWidth: 90,
+                widthGrow: 1
+            },
+            {
+                title: "Total",
+                field: "total",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    return '<strong>' + currencySymbol + cell.getValue().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</strong>';
+                },
+                minWidth: 100,
+                widthGrow: 1.5
+            },
+            {
+                title: "Notes",
+                field: "notes",
+                sorter: "string",
+                hozAlign: "left",
+                formatter: function(cell) {
+                    const notes = cell.getValue();
+                    if (!notes) return '<span class="position-text-muted">\u2014</span>';
+                    if (notes.length > 25) {
+                        return '<span title="' + notes + '">' + notes.substring(0, 25) + '...</span>';
+                    }
+                    return notes;
+                },
+                minWidth: 100,
+                widthGrow: 2
+            },
+            {
+                title: "",
+                field: "id",
+                headerSort: false,
+                hozAlign: "center",
+                formatter: function(cell) {
+                    const id = cell.getValue();
+                    return '<a href="/portfolio/transaction/' + id + '/edit" class="position-link-btn" title="Edit"><i class="bi bi-pencil"></i></a>';
+                },
+                minWidth: 50,
+                widthGrow: 0.5
+            }
+        ],
+        initialSort: [
+            { column: "date", dir: "desc" }
+        ]
+    });
+}
+{% endif %}
 
 // ---- BlockNote Notes Editor ----
 function initNotesEditor() {

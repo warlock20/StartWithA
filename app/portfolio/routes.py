@@ -119,7 +119,7 @@ def dashboard():
         'gain_loss_pct': float(round(pos.unrealized_gain_loss_pct, 1)) if pos.unrealized_gain_loss_pct else None,
         'days_held': pos.days_held or 0,
         'company_id': pos.company_id,
-        'position_url': url_for('portfolio.position_detail', company_id=pos.company_id),
+        'position_url': url_for('companies.company_detail', company_id=pos.company_id),
         'add_tx_url': url_for('portfolio.add_transaction', company_id=pos.company_id),
     } for pos in positions])
 
@@ -159,73 +159,8 @@ def cash_setup():
 @portfolio_bp.route('/position/<int:company_id>')
 @login_required
 def position_detail(company_id):
-    """View detailed position information for a company"""
-    # Get company
-    company = Company.query.filter_by(
-        id=company_id,
-        user_id=current_user.id
-    ).first_or_404()
-
-    # Get position
-    position = PortfolioPosition.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id
-    ).first()
-
-    if not position:
-        flash('No position found for this company', 'warning')
-        return redirect(url_for('portfolio.dashboard'))
-
-    # Price is refreshed async via AJAX after page loads
-    price_stale = PriceService.should_update_price(position)
-
-    # Get all transactions for this position with eager loading
-    transactions = Transaction.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id
-    ).options(
-        joinedload(Transaction.company)
-    ).order_by(Transaction.date.desc()).all()
-
-    # Get linked decision journal
-    decision_journal = DecisionJournal.query.filter_by(
-        user_id=current_user.id,
-        company_id=company_id,
-        is_portfolio_decision=True
-    ).first()
-
-    # Get destination checkpoints
-    checkpoints = company.destination_checkpoints.filter_by(
-        user_id=current_user.id
-    ).order_by(db.desc('target_date')).all()
-
-    # Get research project
-    research_project = ResearchProject.query.filter_by(
-        company_id=company_id,
-        user_id=current_user.id
-    ).first()
-
-    # Get user currency settings
-    user_currency = current_user.base_currency
-    currency_symbol = CurrencyService.get_currency_symbol(user_currency)
-
-    # Stock's native trading currency (for dual-currency display)
-    stock_currency = position.currency or company.reporting_currency or user_currency
-    stock_currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
-
-    return render_template('position_detail.html',
-                          company=company,
-                          position=position,
-                          transactions=transactions,
-                          decision_journal=decision_journal,
-                          checkpoints=checkpoints,
-                          research_project=research_project,
-                          price_stale=price_stale,
-                          user_currency=user_currency,
-                          currency_symbol=currency_symbol,
-                          stock_currency=stock_currency,
-                          stock_currency_symbol=stock_currency_symbol,
-                          today=now_utc().date())
+    """Legacy route — redirects to unified company page with transactions tab."""
+    return redirect(url_for('companies.company_detail', company_id=company_id) + '#transactions')
 
 
 @portfolio_bp.route('/position/<int:company_id>/journey')

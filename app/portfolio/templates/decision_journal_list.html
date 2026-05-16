@@ -67,7 +67,7 @@
                         <tr>
                             <td>{{ journal.decision_date.strftime('%Y-%m-%d') if journal.decision_date else 'N/A' }}</td>
                             <td>
-                                <a href="{{ url_for('portfolio.position_detail', company_id=journal.company_id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('companies.company_detail', company_id=journal.company_id) }}" class="text-decoration-none">
                                     <strong>{{ journal.company.ticker_symbol }}</strong>
                                 </a>
                                 <div class="small text-muted">{{ journal.company.name }}</div>

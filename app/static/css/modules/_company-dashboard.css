@@ -718,7 +718,8 @@
 #panel-research,
 #panel-documents,
 #panel-notes,
-#panel-journal {
+#panel-journal,
+#panel-transactions {
     padding: var(--space-lg) var(--space-xl);
     background: var(--gray-50);
 }
@@ -808,6 +809,69 @@
 
 .unified-thesis-body .blocknote-content p {
     margin-bottom: var(--space-sm);
+}
+
+/* ---- Collapsible Content Pattern ---- */
+.unified-collapsible {
+    position: relative;
+    max-height: 160px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.unified-collapsible.expanded {
+    max-height: none;
+}
+
+.unified-collapsible-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, var(--background-white));
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.unified-collapsible.expanded .unified-collapsible-fade {
+    opacity: 0;
+}
+
+/* Fade adapts to bull/bear card backgrounds */
+.unified-case-card.bull .unified-collapsible-fade {
+    background: linear-gradient(to bottom, transparent, var(--success-50, #f0fdf4));
+}
+.unified-case-card.bear .unified-collapsible-fade {
+    background: linear-gradient(to bottom, transparent, var(--danger-50, #fef2f2));
+}
+
+.unified-expand-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    padding: var(--space-xs) 0;
+    margin-top: var(--space-xs);
+    transition: color 0.15s ease;
+}
+
+.unified-expand-btn:hover {
+    color: var(--accent-600);
+}
+
+.unified-expand-btn i {
+    transition: transform 0.3s ease;
+    font-size: 0.65rem;
+}
+
+.unified-expand-btn.expanded i {
+    transform: rotate(180deg);
 }
 
 /* ---- Valuation Snapshot Card ---- */
