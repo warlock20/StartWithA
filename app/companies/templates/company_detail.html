@@ -199,17 +199,18 @@
             <i class="bi bi-grid-1x2"></i> Overview
         </button>
         <div class="unified-tab-separator"></div>
-        <button class="unified-pill-tab" data-tab="research">
-            <i class="bi bi-microscope"></i> Research
-        </button>
         <button class="unified-pill-tab" data-tab="timeline">
             <i class="bi bi-list-ul"></i> Timeline
             {% if timeline_events %}<span class="unified-tab-count">{{ timeline_events|length }}</span>{% endif %}
         </button>
         <div class="unified-tab-separator"></div>
+        <button class="unified-pill-tab" data-tab="research">
+            <i class="bi bi-microscope"></i> Research
+        </button>
         <button class="unified-pill-tab" data-tab="library">
             <i class="bi bi-collection"></i> Library
         </button>
+
         <div class="unified-tab-separator" style="margin-left: auto;"></div>
         {% if company_state == 'portfolio' %}
         <button class="unified-pill-tab" data-tab="transactions">
@@ -394,6 +395,7 @@
 <script>
 window.companyConfig = {
     companyId: {{ company.id }},
+    companyName: {{ company.name|tojson }},
     currencySymbol: "{{ currency_symbol }}",
     priceStale: {{ 'true' if price_stale else 'false' }},
     isPortfolio: {{ 'true' if company_state == 'portfolio' else 'false' }},
@@ -416,5 +418,6 @@ window.companyConfig = {
     ]
 };
 </script>
+<script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/company-dashboard.js') }}"></script>
 {% endblock %}

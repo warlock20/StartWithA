@@ -11,6 +11,7 @@
 
     const cfg = window.companyConfig || {};
     const companyId = cfg.companyId;
+    const companyName = cfg.companyName || '';
     const currencySymbol = cfg.currencySymbol || '$';
 
     // ---- Lazy-init flags ----
@@ -856,6 +857,7 @@
                 '</div>' +
                 '<div class="research-summary-body collapsed">' +
                     '<div id="standalone-editor-' + q.id + '" style="min-height: 120px;"></div>' +
+                    AIResearchAssistant.renderToolbar(q.id, 'StandaloneQA') +
                 '</div>' +
             '</div>';
         },
@@ -980,6 +982,27 @@
                     }
                 })
                 .catch(function (err) { console.error('Error deleting question:', err); });
+        },
+
+        // ---- AI Research Tools (delegates to AIResearchAssistant) ----
+
+        getEditorText: function (questionId) {
+            var container = document.getElementById('standalone-editor-' + questionId);
+            if (container) {
+                return container.textContent || container.innerText || '';
+            }
+            return '';
+        },
+
+        triggerAI: function (questionId, mode) {
+            var question = this.questions.find(function (q) { return q.id === questionId; });
+            if (!question) return;
+            AIResearchAssistant.triggerForQuestion(questionId, mode, {
+                answerText: this.getEditorText(questionId),
+                questionText: question.question_text,
+                companyName: companyName,
+                showToast: showToast
+            });
         }
     };
 
