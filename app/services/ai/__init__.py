@@ -93,11 +93,6 @@ from .ai_service import (
     generate_json,
     generate_embeddings,
     get_available_providers,
-    # Backward-compatible aliases (DEPRECATED)
-    generate,
-    generate_ai_content,
-    generate_ai_content_async,
-    generate_ai_json,
 )
 
 # Provider exports (for advanced usage)
@@ -139,12 +134,6 @@ __all__ = [
     'generate_text',
     'generate_json',
     'generate_embeddings',
-
-    # Backward-compatible aliases (DEPRECATED)
-    'generate',
-    'generate_ai_content',
-    'generate_ai_content_async',
-    'generate_ai_json',
 
     # Configuration
     'AIProvider',

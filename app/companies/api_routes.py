@@ -8,7 +8,7 @@ from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
-from app.utils.response_utils import json_error, json_not_found, json_success
+from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)

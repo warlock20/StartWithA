@@ -612,13 +612,6 @@ def company_detail(company_id):
     )
 
 
-@companies_bp.route('/<int:company_id>/documents', methods=['GET'])
-@login_required
-def company_dashboard(company_id):
-    """Legacy route — redirects to unified company page."""
-    return redirect(url_for('companies.company_detail', company_id=company_id))
-
-
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
 @login_required
 def toggle_favorite(company_id):
@@ -1030,13 +1023,6 @@ def validate_ticker_api():
     result = validator.validate_ticker(ticker)
 
     return jsonify(result)
-
-
-@companies_bp.route('/<int:company_id>/journey')
-@login_required
-def company_journey(company_id):
-    """Legacy route — redirects to unified company page with timeline tab active."""
-    return redirect(url_for('companies.company_detail', company_id=company_id) + '#timeline')
 
 
 @companies_bp.route('/<int:company_id>/journey/export', methods=['POST'])

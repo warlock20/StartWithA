@@ -10,7 +10,7 @@ from sqlalchemy import func, desc
 from app import db
 from app.models import (KillChecklist, KillCriterion, KillSession, KillAnswer,
                        KillChecklistSuggestion, MistakeLog, IdeaPipeline)
-from app.services.ai import generate_ai_content
+from app.services.ai import generate_text
 from app.services.ai import get_kill_checklist_prompt
 import re
 from typing import List, Dict, Optional, Tuple
@@ -179,7 +179,7 @@ class KillChecklistAnalytics:
 
         try:
             # Generate LLM response
-            llm_response = generate_ai_content(llm_prompt, max_tokens=800)
+            llm_response = generate_text(llm_prompt, max_tokens=800)
 
             if not llm_response:
                 # Fallback to rule-based extraction

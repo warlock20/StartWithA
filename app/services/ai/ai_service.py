@@ -27,8 +27,8 @@ Usage:
     warning = ai_service.generate_warning(context, patterns)
     
     # Convenience functions
-    from app.services.ai import generate, generate_json
-    response = generate("Hello")
+    from app.services.ai import generate_text, generate_json
+    response = generate_text("Hello")
     data = generate_json("Return JSON with name and age")
 """
 
@@ -682,42 +682,6 @@ def generate_embeddings(texts: List[str], **kwargs) -> List[List[float]]:
 
 
 # ============================================================
-# Backward-Compatible Aliases
-# ============================================================
-
-def generate(prompt: str, **kwargs) -> str:
-    """
-    Backward-compatible alias for generate_text().
-    DEPRECATED: Use generate_text() instead.
-    """
-    return generate_text(prompt, **kwargs)
-
-
-def generate_ai_content(prompt: str, **kwargs) -> str:
-    """
-    Generate AI content.
-    Backward-compatible function name from old llm_service.py.
-    DEPRECATED: Use generate_text() instead.
-    """
-    return generate_text(prompt, **kwargs)
-
-
-async def generate_ai_content_async(prompt: str, **kwargs) -> str:
-    """
-    Generate AI content asynchronously.
-    DEPRECATED: Use generate_text() instead.
-    """
-    return generate_text(prompt, **kwargs)
-
-
-def generate_ai_json(prompt: str, **kwargs) -> Dict[str, Any]:
-    """
-    Generate structured JSON response.
-    Backward-compatible function name from old llm_service.py.
-    DEPRECATED: Use generate_json() instead.
-    """
-    return get_ai_service().generate_json(prompt, **kwargs)
-
 def get_available_providers() -> List[str]:
     ai = get_ai_service()
     return [p.value for p in ai.get_available_providers()]
