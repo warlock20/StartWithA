@@ -79,55 +79,92 @@
 
         <!-- ====== SECTION: Q&A ====== -->
         <div class="research-section" id="research-qa">
-            {% if research_project and free_research_questions %}
-            {% set grouped_questions = {} %}
-            {% for q in free_research_questions %}
-                {% set step_key = q.step_index %}
-                {% if step_key not in grouped_questions %}
-                    {% set _ = grouped_questions.update({step_key: []}) %}
-                {% endif %}
-                {% set _ = grouped_questions[step_key].append(q) %}
-            {% endfor %}
 
-            {% for step_idx, questions in grouped_questions.items() %}
-            <div class="research-summary-card">
-                <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-                    <div class="research-summary-header-left">
-                        <span class="research-step-number {% if questions[0].status == 'answered' %}completed{% endif %}">
-                            {% if questions|selectattr('status', 'equalto', 'answered')|list|length == questions|length %}
-                            <i class="bi bi-check" style="font-size: 0.875rem;"></i>
-                            {% else %}
-                            {{ step_idx + 1 }}
-                            {% endif %}
-                        </span>
-                        <span class="research-step-name">Research Step {{ step_idx + 1 }}</span>
-                        <span class="research-step-type">Free Research</span>
+            <!-- Standalone Q&A (always visible, interactive via AJAX) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <h5 style="margin: 0; font-size: var(--font-size-base); font-weight: 600;">
+                    <i class="bi bi-chat-square-text me-1"></i> Research Questions
+                </h5>
+                <button type="button" class="position-btn primary" onclick="StandaloneQA.showAddForm()">
+                    <i class="bi bi-plus-circle me-1"></i> Add Question
+                </button>
+            </div>
+
+            <!-- Add Question Form (hidden by default) -->
+            <div id="addQuestionForm" style="display: none; margin-bottom: 1rem;">
+                <div class="research-summary-card" style="padding: var(--space-md);">
+                    <input type="text" id="newQuestionText" class="form-control"
+                           placeholder="What do you want to research?"
+                           style="margin-bottom: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <button type="button" class="position-btn" onclick="StandaloneQA.hideAddForm()">Cancel</button>
+                        <button type="button" class="position-btn primary" onclick="StandaloneQA.createQuestion()">
+                            <i class="bi bi-plus me-1"></i> Add
+                        </button>
                     </div>
-                    <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
-                </div>
-                <div class="research-summary-body">
-                    {% for q in questions %}
-                    <div class="research-qa-item">
-                        <div class="research-qa-question">
-                            <i class="bi bi-question-circle-fill"></i>
-                            {{ q.question_text }}
-                            {% if q.status == 'answered' %}
-                            <span class="research-qa-status answered">Answered</span>
-                            {% endif %}
-                        </div>
-                        {% if q.answer_content %}
-                        <div class="research-qa-answer">{{ q.answer_content|blocknote_to_html|safe }}</div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
-            {% else %}
-            <div class="journey-empty-state">
+
+            <!-- Standalone Questions List (AJAX-loaded) -->
+            <div id="standaloneQuestionsList"></div>
+
+            <div id="standaloneQaEmptyState" class="journey-empty-state"
+                 style="{% if standalone_research_questions %}display:none;{% endif %}">
                 <i class="bi bi-chat-square-text"></i>
-                <h4>No Research Q&A</h4>
-                <p>Complete research steps to see questions and answers here.</p>
+                <h4>No Research Questions Yet</h4>
+                <p>Add questions to track what you want to research about {{ company.name }}.</p>
+            </div>
+
+            <!-- Project-linked Q&A (read-only, shown only if project has questions) -->
+            {% if research_project and free_research_questions %}
+            <div style="margin-top: 2rem; border-top: 1px solid var(--border-light); padding-top: 1rem;">
+                <h5 style="margin: 0 0 1rem 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--text-muted);">
+                    <i class="bi bi-diagram-3 me-1"></i> From Research Project
+                </h5>
+
+                {% set grouped_questions = {} %}
+                {% for q in free_research_questions %}
+                    {% set step_key = q.step_index %}
+                    {% if step_key not in grouped_questions %}
+                        {% set _ = grouped_questions.update({step_key: []}) %}
+                    {% endif %}
+                    {% set _ = grouped_questions[step_key].append(q) %}
+                {% endfor %}
+
+                {% for step_idx, questions in grouped_questions.items() %}
+                <div class="research-summary-card">
+                    <div class="research-summary-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+                        <div class="research-summary-header-left">
+                            <span class="research-step-number {% if questions[0].status == 'answered' %}completed{% endif %}">
+                                {% if questions|selectattr('status', 'equalto', 'answered')|list|length == questions|length %}
+                                <i class="bi bi-check" style="font-size: 0.875rem;"></i>
+                                {% else %}
+                                {{ step_idx + 1 }}
+                                {% endif %}
+                            </span>
+                            <span class="research-step-name">Research Step {{ step_idx + 1 }}</span>
+                            <span class="research-step-type">Free Research</span>
+                        </div>
+                        <i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>
+                    </div>
+                    <div class="research-summary-body">
+                        {% for q in questions %}
+                        <div class="research-qa-item">
+                            <div class="research-qa-question">
+                                <i class="bi bi-question-circle-fill"></i>
+                                {{ q.question_text }}
+                                {% if q.status == 'answered' %}
+                                <span class="research-qa-status answered">Answered</span>
+                                {% endif %}
+                            </div>
+                            {% if q.answer_content %}
+                            <div class="research-qa-answer">{{ q.answer_content|blocknote_to_html|safe }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             {% endif %}
         </div>

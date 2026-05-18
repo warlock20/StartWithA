@@ -40,7 +40,7 @@
                 </div>
             </div>
             <div class="dashboard-header-actions">
-                {% include 'components/smart_back_button.html' %}
+                {% with btn_class='position-btn' %}{% include 'components/smart_back_button.html' %}{% endwith %}
                 <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}"
                     class="position-btn primary">
                     <i class="bi bi-lightbulb"></i> Update Thesis
@@ -238,11 +238,9 @@
         </div>
 
         <!-- Research -->
-        {% if research_project %}
         <div class="unified-tab-panel" id="panel-research">
             {% include 'partials/_company_research.html' %}
         </div>
-        {% endif %}
 
         <!-- Library (Documents + Notes + Journal) -->
         <div class="unified-tab-panel" id="panel-library">

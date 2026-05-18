@@ -18,6 +18,7 @@
     let journalInitialized = false;
     let documentsInitialized = false;
     let transactionsInitialized = false;
+    let qaInitialized = false;
 
     // ===================================================================
     //  Tab, Sub-Section, and Hash Routing
@@ -113,6 +114,12 @@
             const targetSection = document.getElementById('research-' + sectionId);
             if (targetNav) targetNav.classList.add('active');
             if (targetSection) targetSection.classList.add('active');
+
+            // Lazy init standalone Q&A
+            if (sectionId === 'qa' && !qaInitialized) {
+                StandaloneQA.init();
+                qaInitialized = true;
+            }
 
             // Update hash
             history.replaceState(null, '', '#research/' + sectionId);
@@ -300,9 +307,92 @@
                     const tickerInput = form.querySelector('input[name="ticker_symbol"]');
                     if (tickerInput) {
                         tickerInput.value = newTicker;
-                        form.submit();
+                        form.requestSubmit();
                     }
                 }
+            });
+        }
+
+        // ---- Settings Form — AJAX Save ----
+        var editForm = document.getElementById('editCompanyForm');
+        if (editForm) {
+            editForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                var saveBtn = document.getElementById('saveChangesBtn');
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving\u2026';
+
+                // Handle "Add new sector" before building FormData
+                var sectorSel = document.getElementById('sectorSelect');
+                var newSectorInp = document.getElementById('newSectorInput');
+                var formData = new FormData(editForm);
+
+                if (sectorSel && sectorSel.value === '__new__' && newSectorInp && newSectorInp.value.trim()) {
+                    formData.set('sector', newSectorInp.value.trim());
+                }
+
+                fetch(editForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        // Update header with new values
+                        if (data.name) {
+                            var titleEl = document.querySelector('.dashboard-title');
+                            if (titleEl) titleEl.textContent = data.name;
+                            var logoEl = document.querySelector('.dashboard-header-logo');
+                            if (logoEl) logoEl.textContent = data.name.substring(0, 2).toUpperCase();
+                            document.title = data.name + ' \u2014 Company Hub';
+                        }
+                        if (data.ticker_symbol) {
+                            var tickerEl = document.querySelector('.journey-ticker');
+                            if (tickerEl) tickerEl.textContent = data.ticker_symbol;
+                            var tickerDisplay = document.getElementById('currentTickerDisplay');
+                            if (tickerDisplay) tickerDisplay.textContent = data.ticker_symbol;
+                        }
+                        var subtitleEl = document.querySelector('.dashboard-subtitle');
+                        if (subtitleEl) {
+                            var tickerSpan = '<span class="journey-ticker">' + escapeHtml(data.ticker_symbol || '') + '</span>';
+                            subtitleEl.innerHTML = tickerSpan + (data.sector_name ? ' &middot; ' + escapeHtml(data.sector_name) : '');
+                        }
+                        // If new sector was created, add it to the dropdown
+                        if (sectorSel && data.sector_name) {
+                            var existing = sectorSel.querySelector('option[value="' + CSS.escape(data.sector_name) + '"]');
+                            if (!existing) {
+                                var opt = document.createElement('option');
+                                opt.value = data.sector_name;
+                                opt.textContent = data.sector_name;
+                                sectorSel.insertBefore(opt, sectorSel.querySelector('option[value="__new__"]'));
+                            }
+                            sectorSel.value = data.sector_name;
+                            if (newSectorInp) {
+                                newSectorInp.classList.add('d-none');
+                                newSectorInp.value = '';
+                                newSectorInp.required = false;
+                            }
+                        }
+                    } else {
+                        showToast(data.error || 'Failed to save changes', 'danger');
+                    }
+                })
+                .catch(function () {
+                    showToast('Network error saving changes', 'danger');
+                })
+                .finally(function () {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Save Changes';
+                    // Reset apply-ticker button if it was used
+                    var applyBtn = document.getElementById('applyTickerBtn');
+                    if (applyBtn) {
+                        applyBtn.disabled = false;
+                        applyBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Use ' + applyBtn.dataset.ticker + ' as company ticker';
+                    }
+                });
             });
         }
 
@@ -687,6 +777,214 @@
             .then(function (result) { if (result.success) loadInlineResources(); })
             .catch(function () { alert('Failed to delete.'); });
     };
+
+    // ===================================================================
+    //  Standalone Q&A (Research Tab)
+    //  List + Create use /companies/api/<id>/research-questions
+    //  Update + Delete reuse /research/workflow/api/questions/<id>
+    // ===================================================================
+
+    var StandaloneQA = {
+        questions: [],
+        editors: {},
+        listUrl: '/companies/api/' + companyId + '/research-questions',
+        questionUrl: '/research/workflow/api/questions/',
+
+        init: function () {
+            this.loadQuestions();
+
+            // Enter-key handler for add-question input
+            var input = document.getElementById('newQuestionText');
+            if (input) {
+                input.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') { e.preventDefault(); StandaloneQA.createQuestion(); }
+                });
+            }
+        },
+
+        loadQuestions: function () {
+            var self = this;
+            fetch(this.listUrl)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        self.questions = data.questions;
+                        self.renderAll();
+                    }
+                })
+                .catch(function (err) { console.error('Error loading research questions:', err); });
+        },
+
+        renderAll: function () {
+            var container = document.getElementById('standaloneQuestionsList');
+            var emptyState = document.getElementById('standaloneQaEmptyState');
+
+            if (this.questions.length === 0) {
+                container.innerHTML = '';
+                if (emptyState) emptyState.style.display = '';
+                return;
+            }
+
+            if (emptyState) emptyState.style.display = 'none';
+            var self = this;
+            container.innerHTML = this.questions.map(function (q) { return self.renderCard(q); }).join('');
+        },
+
+        renderCard: function (q) {
+            var isAnswered = q.status === 'answered';
+            var statusLabel = isAnswered ? 'Answered' : 'Exploring';
+            var statusIcon = isAnswered ? 'check-circle-fill' : 'search';
+
+            return '<div class="research-summary-card" data-question-id="' + q.id + '" style="margin-bottom: 0.75rem;">' +
+                '<div class="research-summary-header" onclick="StandaloneQA.toggleExpand(' + q.id + ')">' +
+                    '<div class="research-summary-header-left">' +
+                        '<i class="bi bi-question-circle-fill" style="color: var(--accent-color);"></i>' +
+                        '<span class="research-step-name">' + escapeHtml(q.question_text) + '</span>' +
+                        '<span class="research-qa-status ' + q.status + '">' + statusLabel + '</span>' +
+                    '</div>' +
+                    '<div style="display: flex; align-items: center; gap: 0.5rem;">' +
+                        '<button class="position-btn" style="padding: 2px 8px; font-size: 0.75rem;" ' +
+                            'onclick="event.stopPropagation(); StandaloneQA.toggleStatus(' + q.id + ')" title="Toggle status">' +
+                            '<i class="bi bi-' + statusIcon + '"></i>' +
+                        '</button>' +
+                        '<button class="position-btn" style="padding: 2px 8px; font-size: 0.75rem; color: var(--danger-500);" ' +
+                            'onclick="event.stopPropagation(); StandaloneQA.deleteQuestion(' + q.id + ')" title="Delete">' +
+                            '<i class="bi bi-trash"></i>' +
+                        '</button>' +
+                        '<i class="bi bi-chevron-down" style="color: var(--gray-400);"></i>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="research-summary-body collapsed">' +
+                    '<div id="standalone-editor-' + q.id + '" style="min-height: 120px;"></div>' +
+                '</div>' +
+            '</div>';
+        },
+
+        toggleExpand: function (questionId) {
+            var card = document.querySelector('[data-question-id="' + questionId + '"]');
+            if (!card) return;
+
+            var body = card.querySelector('.research-summary-body');
+            var wasCollapsed = body.classList.contains('collapsed');
+
+            // Collapse all other standalone cards
+            var allBodies = document.querySelectorAll('#standaloneQuestionsList .research-summary-body');
+            allBodies.forEach(function (b) { b.classList.add('collapsed'); });
+
+            if (wasCollapsed) {
+                body.classList.remove('collapsed');
+                this.initEditor(questionId);
+            }
+        },
+
+        initEditor: function (questionId) {
+            if (this.editors[questionId]) return;
+
+            var containerId = 'standalone-editor-' + questionId;
+            var container = document.getElementById(containerId);
+            if (!container || !window.initBlockNoteEditor) return;
+
+            var question = this.questions.find(function (q) { return q.id === questionId; });
+            var self = this;
+
+            this.editors[questionId] = window.initBlockNoteEditor(containerId, {
+                initialContent: question ? question.answer_content || '' : '',
+                placeholder: 'Write your research findings here...',
+                onChange: function (json) {
+                    self.saveAnswer(questionId, json);
+                }
+            });
+        },
+
+        saveAnswer: function (questionId, content) {
+            var question = this.questions.find(function (q) { return q.id === questionId; });
+            if (question) question.answer_content = content;
+
+            fetch(this.questionUrl + questionId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answer_content: content })
+            }).catch(function (err) { console.error('Error saving answer:', err); });
+        },
+
+        toggleStatus: function (questionId) {
+            var question = this.questions.find(function (q) { return q.id === questionId; });
+            if (!question) return;
+
+            var newStatus = question.status === 'exploring' ? 'answered' : 'exploring';
+            var self = this;
+
+            fetch(this.questionUrl + questionId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    question.status = newStatus;
+                    self.renderAll();
+                    showToast(newStatus === 'answered' ? 'Marked as answered' : 'Marked as exploring');
+                }
+            })
+            .catch(function (err) { console.error('Error toggling status:', err); });
+        },
+
+        showAddForm: function () {
+            document.getElementById('addQuestionForm').style.display = '';
+            document.getElementById('newQuestionText').focus();
+        },
+
+        hideAddForm: function () {
+            document.getElementById('addQuestionForm').style.display = 'none';
+            document.getElementById('newQuestionText').value = '';
+        },
+
+        createQuestion: function () {
+            var input = document.getElementById('newQuestionText');
+            var text = input.value.trim();
+            if (!text) return;
+
+            var self = this;
+            fetch(this.listUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_text: text })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    self.questions.push(data.question);
+                    self.renderAll();
+                    self.hideAddForm();
+                    showToast('Question added');
+                } else {
+                    showToast(data.message || 'Error adding question', 'danger');
+                }
+            })
+            .catch(function () { showToast('Network error', 'danger'); });
+        },
+
+        deleteQuestion: function (questionId) {
+            if (!confirm('Delete this research question?')) return;
+            var self = this;
+
+            fetch(this.questionUrl + questionId, { method: 'DELETE' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        self.questions = self.questions.filter(function (q) { return q.id !== questionId; });
+                        delete self.editors[questionId];
+                        self.renderAll();
+                        showToast('Question deleted');
+                    }
+                })
+                .catch(function (err) { console.error('Error deleting question:', err); });
+        }
+    };
+
+    // Expose to global scope for onclick handlers in dynamically rendered HTML
+    window.StandaloneQA = StandaloneQA;
 
     // ===================================================================
     //  Utility

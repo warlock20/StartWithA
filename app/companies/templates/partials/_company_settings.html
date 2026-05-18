@@ -365,23 +365,6 @@
                 newSectorInput.required = false;
             }
         });
-
-        // On form submit, swap the new sector name into the select's value
-        const form = document.getElementById('editCompanyForm');
-        if (form) {
-            form.addEventListener('submit', function() {
-                if (sectorSelect.value === '__new__' && newSectorInput.value.trim()) {
-                    // Create a hidden input with the new sector name
-                    const hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = 'sector';
-                    hidden.value = newSectorInput.value.trim();
-                    form.appendChild(hidden);
-                    // Disable the select so its __new__ value isn't submitted
-                    sectorSelect.disabled = true;
-                }
-            });
-        }
     }
 })();
 </script>

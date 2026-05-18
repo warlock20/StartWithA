@@ -3,11 +3,12 @@ from flask import request, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (Company)
+from app.models.research import FreeResearchQuestion
 from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
-from app.utils.response_utils import json_error, json_not_found
+from app.utils.response_utils import json_error, json_not_found, json_success
 from app.utils.time_utils import now_utc
 
 logger = logging.getLogger(__name__)
@@ -291,3 +292,81 @@ def save_journey_notes(company_id):
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+# ===================================================================
+#  Standalone Research Questions API (list + create only;
+#  PUT/DELETE reuse existing /research/workflow/api/questions/<id>)
+# ===================================================================
+
+@companies_bp.route('/api/<int:company_id>/research-questions')
+@login_required
+def api_list_research_questions(company_id):
+    """List standalone (non-project) research questions for a company."""
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company')
+
+    questions = FreeResearchQuestion.query.filter_by(
+        company_id=company_id,
+        user_id=current_user.id,
+        project_id=None
+    ).order_by(FreeResearchQuestion.order_index).all()
+
+    return jsonify({
+        'success': True,
+        'questions': [{
+            'id': q.id,
+            'question_text': q.question_text,
+            'answer_content': q.answer_content,
+            'status': q.status,
+            'order_index': q.order_index,
+            'created_at': q.created_at.isoformat() if q.created_at else None,
+            'updated_at': q.updated_at.isoformat() if q.updated_at else None,
+            'answered_at': q.answered_at.isoformat() if q.answered_at else None,
+        } for q in questions]
+    })
+
+
+@companies_bp.route('/api/<int:company_id>/research-questions', methods=['POST'])
+@login_required
+def api_create_research_question(company_id):
+    """Create a new standalone research question for a company."""
+    company = Company.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return json_not_found('Company')
+
+    data = request.get_json()
+    if not data or not data.get('question_text', '').strip():
+        return json_error('Question text is required')
+
+    max_order = db.session.query(db.func.max(FreeResearchQuestion.order_index)).filter_by(
+        company_id=company_id,
+        user_id=current_user.id,
+        project_id=None
+    ).scalar() or -1
+
+    question = FreeResearchQuestion(
+        user_id=current_user.id,
+        company_id=company_id,
+        project_id=None,
+        step_index=None,
+        question_text=data['question_text'].strip(),
+        status='exploring',
+        order_index=max_order + 1
+    )
+
+    db.session.add(question)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'question': {
+            'id': question.id,
+            'question_text': question.question_text,
+            'answer_content': question.answer_content,
+            'status': question.status,
+            'order_index': question.order_index,
+            'created_at': question.created_at.isoformat(),
+        }
+    })

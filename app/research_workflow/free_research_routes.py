@@ -83,6 +83,7 @@ def add_free_research_question(project_id, step_index):
 
     question = FreeResearchQuestion(
         user_id=current_user.id,
+        company_id=project.company_id,
         project_id=project_id,
         step_index=step_index,
         question_text=data['question_text'].strip(),
