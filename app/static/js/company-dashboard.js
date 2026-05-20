@@ -20,6 +20,7 @@
     let documentsInitialized = false;
     let transactionsInitialized = false;
     let qaInitialized = false;
+    let annotationsInitialized = false;
 
     // ===================================================================
     //  Tab, Sub-Section, and Hash Routing
@@ -87,7 +88,7 @@
 
             // Lazy init per sub-section
             if (sectionId === 'documents' && !documentsInitialized) {
-                loadInlineResources();
+                // React island (CompanyResourcesManager) self-fetches on mount
                 documentsInitialized = true;
             }
             if (sectionId === 'notes' && !notesInitialized) {
@@ -97,6 +98,10 @@
             if (sectionId === 'journal' && !journalInitialized) {
                 loadJournalEntries(true);
                 journalInitialized = true;
+            }
+            if (sectionId === 'annotations' && !annotationsInitialized) {
+                loadCompanyAnnotations();
+                annotationsInitialized = true;
             }
 
             // Update hash
@@ -713,71 +718,124 @@
     }
 
     // ===================================================================
-    //  Inline Resources (Documents tab)
+    //  Inline Resources (Documents tab) — handled by React island
+    //  (CompanyResourcesManager) which self-fetches, renders, and
+    //  listens for 'resources-changed' events autonomously.
     // ===================================================================
 
-    function loadInlineResources() {
-        var container = document.getElementById('docs-tab-resource-list');
+    // ===================================================================
+    //  Company Annotations (Library > Annotations tab)
+    // ===================================================================
+
+    function loadCompanyAnnotations() {
+        var container = document.getElementById('company-annotations-list');
         if (!container) return;
 
-        fetch('/companies/api/' + companyId + '/resources')
+        fetch('/companies/api/' + companyId + '/annotations')
             .then(function (r) { return r.json(); })
             .then(function (result) {
-                if (!result.success || !result.data.resources.length) {
+                if (!result.success) {
+                    container.innerHTML = '<div class="text-danger small">Failed to load annotations.</div>';
+                    return;
+                }
+
+                var annotations = result.data.annotations;
+                var countBadge = document.getElementById('company-annotations-count');
+                if (countBadge) {
+                    if (annotations.length > 0) {
+                        countBadge.textContent = annotations.length;
+                        countBadge.style.display = 'inline';
+                    } else {
+                        countBadge.style.display = 'none';
+                    }
+                }
+
+                if (annotations.length === 0) {
                     container.innerHTML =
-                        '<div class="text-center text-muted py-3">' +
-                            '<i class="bi bi-inbox" style="font-size: 1.5rem;"></i>' +
-                            '<p class="mt-2 mb-0 small">No resources yet. Upload a file or save a link to get started.</p>' +
+                        '<div class="text-center text-muted py-4">' +
+                            '<i class="bi bi-pin-angle" style="font-size:1.5rem;"></i>' +
+                            '<p class="mt-2 mb-0 small">No annotations yet. Open a PDF document and add pins or highlights to get started.</p>' +
                         '</div>';
                     return;
                 }
-                var resources = result.data.resources;
-                container.innerHTML = resources.map(function (r) {
-                    var icon = r.resource_type === 'file'
-                        ? (r.file_type === 'pdf' ? 'bi-file-earmark-pdf-fill text-danger' : 'bi-file-earmark-text-fill text-primary')
-                        : 'bi-link-45deg text-info';
-                    var meta = r.resource_type === 'file'
-                        ? escapeH(r.original_filename)
-                        : (r.source_name || extractDom(r.url));
-                    var catBadge = r.category
-                        ? '<span class="badge bg-light text-dark border ms-1">' + escapeH(r.category) + '</span>'
-                        : '';
-                    var titleHtml = r.resource_type === 'link'
-                        ? '<a href="' + escapeH(r.url) + '" target="_blank" rel="noopener" class="text-decoration-none">' + escapeH(r.title) + ' <i class="bi bi-box-arrow-up-right" style="font-size: 0.7em;"></i></a>'
-                        : escapeH(r.title);
-                    var viewBtn = r.resource_type === 'file'
-                        ? '<a href="/companies/resources/' + r.id + '/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="View"><i class="bi bi-eye"></i></a>'
-                        : '';
-                    var downloadBtn = r.resource_type === 'file'
-                        ? '<a href="/companies/api/resources/' + r.id + '/download" class="btn btn-sm btn-outline-primary border-0" title="Download"><i class="bi bi-download"></i></a>'
-                        : '';
-                    return '<div class="d-flex justify-content-between align-items-start py-2 border-bottom cr-resource-item">' +
-                        '<div class="flex-grow-1" style="min-width:0">' +
-                            '<div class="fw-semibold small"><i class="bi ' + icon + ' me-1"></i>' + titleHtml + catBadge + '</div>' +
-                            '<div class="text-muted" style="font-size:0.78rem">' + meta + '</div>' +
+
+                // Group annotations by resource
+                var groups = {};
+                var groupOrder = [];
+                annotations.forEach(function (a) {
+                    var key = a.resource_id;
+                    if (!groups[key]) {
+                        groups[key] = { title: a.resource_title, resourceId: a.resource_id, items: [] };
+                        groupOrder.push(key);
+                    }
+                    groups[key].items.push(a);
+                });
+
+                var html = '';
+                groupOrder.forEach(function (key) {
+                    var group = groups[key];
+                    html += '<div class="company-section-card mb-3">' +
+                        '<div class="company-section-card-header d-flex justify-content-between align-items-center" style="padding:0.625rem 1rem;">' +
+                            '<h6 class="mb-0" style="font-size:0.85rem;">' +
+                                '<i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>' +
+                                escapeHtml(group.title) +
+                                ' <span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">' + group.items.length + '</span>' +
+                            '</h6>' +
+                            '<a href="/companies/resources/' + group.resourceId + '/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="Open document">' +
+                                '<i class="bi bi-box-arrow-up-right"></i>' +
+                            '</a>' +
                         '</div>' +
-                        '<div class="d-flex gap-1 ms-2 flex-shrink-0">' +
-                            viewBtn +
-                            downloadBtn +
-                            '<button class="btn btn-sm btn-outline-danger border-0" title="Delete" onclick="deleteInlineResource(' + r.id + ')">' +
-                                '<i class="bi bi-trash"></i>' +
-                            '</button>' +
-                        '</div>' +
-                    '</div>';
-                }).join('');
+                        '<div style="max-height:300px;overflow-y:auto;">';
+
+                    group.items.forEach(function (a) {
+                        var icon = a.annotation_type === 'highlight'
+                            ? '<i class="bi bi-highlighter text-warning me-1"></i>'
+                            : '<i class="bi bi-pin-angle text-danger me-1"></i>';
+                        var date = a.created_at ? new Date(a.created_at).toLocaleDateString() : '';
+                        var quote = a.annotation_type === 'highlight' && a.anchor_text
+                            ? '<div style="font-size:0.75rem;color:#777;border-left:2px solid #fbc02d;padding:0.125rem 0.375rem;margin-bottom:0.25rem;background:#fffde7;border-radius:0 2px 2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                                escapeHtml(a.anchor_text.length > 80 ? a.anchor_text.substring(0, 80) + '...' : a.anchor_text) +
+                              '</div>'
+                            : '';
+
+                        html += '<div class="d-flex align-items-start py-2 px-3 border-bottom annotation-dashboard-item" ' +
+                            'style="cursor:pointer;transition:background 0.15s;" ' +
+                            'data-resource-id="' + a.resource_id + '" data-page="' + a.page_number + '">' +
+                            '<div class="flex-grow-1" style="min-width:0;">' +
+                                quote +
+                                '<div class="small">' + icon +
+                                    '<span style="color:var(--gray-500);font-size:0.75rem;">p.' + a.page_number + '</span> ' +
+                                    escapeHtml(a.content.length > 100 ? a.content.substring(0, 100) + '...' : a.content) +
+                                '</div>' +
+                                '<div style="font-size:0.7rem;color:#6c757d;margin-top:0.125rem;">' +
+                                    date +
+                                    ' <span class="badge bg-light text-dark border" style="font-size:0.6rem;">' + escapeHtml(a.scope) + '</span>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                    });
+
+                    html += '</div></div>';
+                });
+
+                container.innerHTML = html;
+
+                // Click handlers: open viewer
+                container.querySelectorAll('.annotation-dashboard-item').forEach(function (item) {
+                    item.addEventListener('click', function () {
+                        var rid = this.dataset.resourceId;
+                        var page = this.dataset.page;
+                        window.open('/companies/resources/' + rid + '/viewer#page=' + page, '_blank');
+                    });
+                    item.addEventListener('mouseenter', function () { this.style.background = '#f8f9fa'; });
+                    item.addEventListener('mouseleave', function () { this.style.background = ''; });
+                });
             })
-            .catch(function () {
-                container.innerHTML = '<div class="text-danger small">Failed to load resources.</div>';
+            .catch(function (err) {
+                console.error('Failed to load company annotations:', err);
+                container.innerHTML = '<div class="text-danger small">Failed to load annotations.</div>';
             });
     }
-
-    window.deleteInlineResource = function (id) {
-        if (!confirm('Delete this resource?')) return;
-        fetch('/companies/api/resources/' + id, { method: 'DELETE' })
-            .then(function (r) { return r.json(); })
-            .then(function (result) { if (result.success) loadInlineResources(); })
-            .catch(function () { alert('Failed to delete.'); });
-    };
 
     // ===================================================================
     //  Standalone Q&A (Research Tab)

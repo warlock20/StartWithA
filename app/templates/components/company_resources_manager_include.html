@@ -1,0 +1,23 @@
+{#
+  Company Resources Manager — React Island
+
+  Usage:
+    1. Include this in your template:
+       {% include 'components/company_resources_manager_include.html' %}
+
+    2. Add a mount point:
+       <div id="company-resources-manager"></div>
+
+    3. Initialize:
+       <script>
+         window.initCompanyResourcesManager('company-resources-manager', {
+           companyId: 123,
+           companyName: 'Acme Corp',
+           openUploadModal: function() { ... },
+           openLinkModal: function() { ... }
+         });
+       </script>
+#}
+
+<!-- Company Resources Manager (React) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-resources-manager.bundle.js') }}"></script>

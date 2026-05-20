@@ -19,6 +19,7 @@ from .company import (
     QualitativeAnalysis,
     FinancialData,
 )
+from .document_annotation import DocumentAnnotation
 from .checklist import (
     Checklist,
     ChecklistItem,
@@ -130,6 +131,7 @@ __all__ = [
     # Company models
     'Company',
     'CompanyResource',
+    'DocumentAnnotation',
     'QualitativeAnalysis',
     'FinancialData',
     # Checklist models

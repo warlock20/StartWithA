@@ -681,7 +681,6 @@ def generate_embeddings(texts: List[str], **kwargs) -> List[List[float]]:
     return get_ai_service().generate_embeddings(texts, **kwargs)
 
 
-# ============================================================
 def get_available_providers() -> List[str]:
     ai = get_ai_service()
     return [p.value for p in ai.get_available_providers()]

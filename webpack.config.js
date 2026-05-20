@@ -3,6 +3,7 @@ const path = require('path');
 module.exports = {
   entry: {
     'blocknote-editor': './frontend/src/blocknote-editor.js',
+    'company-resources-manager': './frontend/src/company-resources-manager.js',
   },
   output: {
     filename: '[name].bundle.js',

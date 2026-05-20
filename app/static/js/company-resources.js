@@ -252,6 +252,8 @@ const CompanyResources = (() => {
                 document.getElementById('cr-upload-date').value = '';
                 // Refresh the resource list and count
                 loadResources();
+                // Notify dashboard to refresh inline resource list
+                document.dispatchEvent(new CustomEvent('resources-changed', { detail: { companyId: currentConfig.companyId } }));
                 // Auto-hide success after 3s
                 setTimeout(() => successEl.classList.add('d-none'), 3000);
             } else {
@@ -307,6 +309,8 @@ const CompanyResources = (() => {
                 document.getElementById('cr-link-description').value = '';
                 // Refresh the resource list and count
                 loadResources();
+                // Notify dashboard to refresh inline resource list
+                document.dispatchEvent(new CustomEvent('resources-changed', { detail: { companyId: currentConfig.companyId } }));
                 // Auto-hide success after 3s
                 setTimeout(() => successEl.classList.add('d-none'), 3000);
             } else {

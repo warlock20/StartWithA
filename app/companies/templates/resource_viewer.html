@@ -1,11 +1,20 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+{% if resource.file_type == 'pdf' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/web/pdf_viewer.min.css">
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div id="document-viewer-root"
      data-resource-id="{{ resource.id }}"
      data-resource-type="{{ resource.file_type }}"
      data-view-url="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
-     data-download-url="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}">
+     data-download-url="{{ url_for('companies.api_download_resource', resource_id=resource.id) }}"
+     data-company-id="{{ company.id }}"
+     data-company-name="{{ company.name }}"
+     data-annotations-url="{{ url_for('companies.api_list_annotations', resource_id=resource.id) }}">
 
     <!-- Header -->
     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -39,10 +48,33 @@
 
     <!-- Viewer -->
     {% if resource.file_type == 'pdf' %}
-        <div id="pdf-viewer" class="resource-viewer-pdf">
-            <div id="pdf-loading" class="text-center text-muted py-5">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Loading PDF...
+        <!-- Annotation Toolbar -->
+        <div class="annotation-toolbar">
+            <small class="text-muted me-1">Select text to highlight, or</small>
+            <button id="btn-add-annotation" class="btn btn-sm btn-outline-warning" title="Drop a pin anywhere on the page">
+                <i class="bi bi-pin-angle me-1"></i>Drop Pin
+            </button>
+            <button id="btn-toggle-sidebar" class="btn btn-sm btn-outline-secondary" title="Toggle notes sidebar">
+                <i class="bi bi-layout-sidebar-reverse me-1"></i>Notes
+                <span id="annotation-count-badge" class="badge bg-secondary ms-1" style="display:none;">0</span>
+            </button>
+        </div>
+
+        <div id="pdf-viewer-container">
+            <div id="pdf-viewer" class="resource-viewer-pdf">
+                <div id="pdf-loading" class="text-center text-muted py-5">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Loading PDF...
+                </div>
+            </div>
+            <div id="annotation-sidebar" class="annotation-sidebar">
+                <div class="annotation-sidebar-header">
+                    <strong>Document Notes</strong>
+                    <button class="btn btn-sm btn-outline-secondary border-0" onclick="DocumentAnnotations.toggleSidebar()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div id="annotation-sidebar-list"></div>
             </div>
         </div>
     {% elif resource.file_type == 'txt' %}
@@ -60,6 +92,7 @@
 {{ super() }}
 {% if resource.file_type == 'pdf' %}
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="{{ url_for('static', filename='js/document-annotations.js') }}"></script>
 <script>
 (function() {
     var pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -73,23 +106,54 @@
     pdfjsLib.getDocument(viewUrl).promise.then(function(pdf) {
         container.innerHTML = '';
 
-        var canvases = [];
+        var pageElements = []; // { canvas, textLayerDiv, pageNum }
         for (var i = 0; i < pdf.numPages; i++) {
+            var pageNum = i + 1;
+
+            // Wrapper for canvas + text layer
+            var wrapper = document.createElement('div');
+            wrapper.className = 'pdf-page-canvas-wrapper';
+            wrapper.dataset.pageNumber = pageNum;
+
             var canvas = document.createElement('canvas');
             canvas.className = 'pdf-page-canvas';
-            container.appendChild(canvas);
-            canvases.push(canvas);
+            canvas.dataset.pageNumber = pageNum;
+            wrapper.appendChild(canvas);
+
+            // Text layer sits on top of canvas for selection
+            var textLayerDiv = document.createElement('div');
+            textLayerDiv.className = 'textLayer';
+            wrapper.appendChild(textLayerDiv);
+
+            container.appendChild(wrapper);
+            pageElements.push({ canvas: canvas, textLayerDiv: textLayerDiv, pageNum: pageNum });
         }
 
-        for (var i = 1; i <= pdf.numPages; i++) {
-            renderPage(pdf, i, canvases[i - 1]);
-        }
-    }).catch(function() {
+        var rendered = 0;
+        pageElements.forEach(function(pe) {
+            renderPage(pdf, pe.pageNum, pe.canvas, pe.textLayerDiv, function() {
+                rendered++;
+                if (rendered === pdf.numPages) {
+                    try {
+                        DocumentAnnotations.init({
+                            resourceId: parseInt(root.dataset.resourceId),
+                            companyId: parseInt(root.dataset.companyId),
+                            companyName: root.dataset.companyName,
+                        });
+                    } catch (e) {
+                        console.error('Annotation init error:', e);
+                    }
+                }
+            });
+        });
+    }).catch(function(err) {
+        console.error('PDF load error:', err);
         container.innerHTML = '<div class="text-danger text-center py-5">' +
-            '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load PDF.</div>';
+            '<i class="bi bi-exclamation-triangle me-2"></i>Failed to load PDF.<br>' +
+            '<small class="text-muted">' + (err && err.message ? err.message : '') + '</small></div>';
     });
 
-    function renderPage(pdf, pageNum, canvas) {
+    function renderPage(pdf, pageNum, canvas, textLayerDiv, onComplete) {
         pdf.getPage(pageNum).then(function(page) {
             var containerWidth = container.clientWidth - 32;
             var baseViewport = page.getViewport({ scale: 1 });
@@ -105,7 +169,46 @@
             var ctx = canvas.getContext('2d');
             ctx.scale(dpr, dpr);
 
-            page.render({ canvasContext: ctx, viewport: viewport });
+            // Render canvas
+            var renderPromise = page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+            // Render text layer for selection.
+            // pdfjs-dist 3.6+ requires --scale-factor CSS variable for
+            // renderTextLayer to compute correct layer dimensions.
+            textLayerDiv.style.setProperty('--scale-factor', scale);
+
+            var textPromise = page.getTextContent().then(function(textContent) {
+                if (typeof pdfjsLib.renderTextLayer === 'function') {
+                    var textTask = pdfjsLib.renderTextLayer({
+                        textContentSource: textContent,
+                        container: textLayerDiv,
+                        viewport: viewport,
+                        textDivs: [],
+                    });
+                    return textTask.promise || textTask;
+                } else {
+                    // Manual fallback (no renderTextLayer in build)
+                    textLayerDiv.style.width = Math.floor(viewport.width) + 'px';
+                    textLayerDiv.style.height = Math.floor(viewport.height) + 'px';
+                    textContent.items.forEach(function(item) {
+                        if (!item.str) return;
+                        var tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                        var fontSize = Math.abs(tx[3]);
+                        var span = document.createElement('span');
+                        span.textContent = item.str;
+                        span.style.left = tx[4] + 'px';
+                        span.style.top = (tx[5] - fontSize) + 'px';
+                        span.style.fontSize = fontSize + 'px';
+                        span.style.fontFamily = item.fontName || 'sans-serif';
+                        span.style.transformOrigin = '0% 0%';
+                        textLayerDiv.appendChild(span);
+                    });
+                }
+            });
+
+            Promise.all([renderPromise, textPromise]).then(function() {
+                if (onComplete) onComplete();
+            });
         });
     }
 })();

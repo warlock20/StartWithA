@@ -25,6 +25,13 @@
                 <div class="settings-nav-hint">Timestamped observations</div>
             </div>
         </button>
+        <button class="settings-nav-item library-nav-item" data-library-section="annotations" type="button">
+            <i class="bi bi-pin-angle"></i>
+            <div>
+                <div class="settings-nav-title">Annotations</div>
+                <div class="settings-nav-hint">Document pins & highlights</div>
+            </div>
+        </button>
     </div>
 
     <!-- RIGHT CONTENT -->
@@ -43,6 +50,11 @@
         <!-- ====== SECTION: Journal ====== -->
         <div class="library-section" id="library-journal">
             {% include 'partials/_company_journal.html' %}
+        </div>
+
+        <!-- ====== SECTION: Annotations ====== -->
+        <div class="library-section" id="library-annotations">
+            {% include 'partials/_company_annotations.html' %}
         </div>
 
     </div>

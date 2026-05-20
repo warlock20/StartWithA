@@ -25,6 +25,7 @@
 /* Document Viewer Page */
 
 .resource-viewer-pdf {
+    position: relative;
     width: 100%;
     height: calc(100vh - 200px);
     min-height: 500px;
@@ -41,7 +42,8 @@
     background: #fff;
 }
 
-.pdf-page-canvas:last-child {
+.pdf-page-canvas:last-child,
+.pdf-page-wrapper:last-child .pdf-page-canvas {
     margin-bottom: 0;
 }
 
