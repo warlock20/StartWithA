@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { colors, spacing, radius, shadows, fonts, fontSizes, transitions } from "../tokens";
+import { colors, radius, shadows, fonts, transitions } from "../tokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File-type metadata — icon + background colour per extension
@@ -262,18 +262,12 @@ function ResourceRow({ resource, onDelete }) {
       <div style={{ display: "flex", gap: 2, opacity: hover ? 1 : 0.55, transition: "opacity .12s" }}>
         {r.resource_type === "file" && (
           <>
-            <a href={`/companies/resources/${r.id}/viewer`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-              <IconBtn icon="eye" label="Preview" />
-            </a>
-            <a href={`/companies/api/resources/${r.id}/download`} style={{ textDecoration: "none" }}>
-              <IconBtn icon="download" label="Download" />
-            </a>
+            <IconBtn icon="eye" label="Preview" onClick={() => window.open(`/companies/resources/${r.id}/viewer`, "_blank")} />
+            <IconBtn icon="download" label="Download" onClick={() => { window.location.href = `/companies/api/resources/${r.id}/download`; }} />
           </>
         )}
         {r.resource_type === "link" && (
-          <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-            <IconBtn icon="box-arrow-up-right" label="Open link" />
-          </a>
+          <IconBtn icon="box-arrow-up-right" label="Open link" onClick={() => window.open(r.url, "_blank", "noopener,noreferrer")} />
         )}
         <IconBtn icon="trash" label="Delete" danger onClick={() => onDelete(r.id)} />
       </div>

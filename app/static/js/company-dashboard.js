@@ -17,7 +17,6 @@
     // ---- Lazy-init flags ----
     let notesInitialized = false;
     let journalInitialized = false;
-    let documentsInitialized = false;
     let transactionsInitialized = false;
     let qaInitialized = false;
     let annotationsInitialized = false;
@@ -87,10 +86,6 @@
             if (targetSection) targetSection.classList.add('active');
 
             // Lazy init per sub-section
-            if (sectionId === 'documents' && !documentsInitialized) {
-                // React island (CompanyResourcesManager) self-fetches on mount
-                documentsInitialized = true;
-            }
             if (sectionId === 'notes' && !notesInitialized) {
                 initNotesEditor();
                 notesInitialized = true;
