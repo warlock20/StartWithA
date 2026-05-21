@@ -12,6 +12,7 @@ const TYPE_META = {
   xlsx: { color: colors.success500,bg: colors.success50, icon: "file-earmark-excel-fill",label: "XLSX" },
   xls:  { color: colors.success500,bg: colors.success50, icon: "file-earmark-excel-fill",label: "XLS" },
   csv:  { color: colors.success500,bg: colors.success50, icon: "file-earmark-spreadsheet",label: "CSV" },
+  html: { color: colors.warning500,bg: colors.warning50, icon: "file-earmark-code-fill", label: "HTML" },
   link: { color: colors.accent,    bg: colors.accent50,  icon: "link-45deg",             label: "LINK" },
 };
 

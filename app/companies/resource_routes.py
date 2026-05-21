@@ -20,7 +20,7 @@ from app.utils.response_utils import json_success, json_error, json_created, jso
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_RESOURCE_TYPES = {'pdf', 'txt'}
+ALLOWED_RESOURCE_TYPES = {'pdf', 'txt', 'html'}
 
 
 @companies_bp.route('/api/<int:company_id>/resources')

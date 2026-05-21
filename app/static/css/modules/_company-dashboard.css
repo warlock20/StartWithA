@@ -1621,6 +1621,12 @@
     gap: 8px;
 }
 
+/* Disabled card state */
+.docs-section-card--disabled {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
 /* Responsive — stack on narrow viewports */
 @media (max-width: 768px) {
     .docs-automation-row {
