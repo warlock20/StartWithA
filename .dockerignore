@@ -18,12 +18,9 @@ pip-delete-this-directory.txt
 .ipynb_checkpoints
 *.ipynb
 
-# Web Assets / Node
+# Web Assets / Node (keep package.json & webpack.config.js for Docker build)
 node_modules/
 frontend/node_modules/
-package-lock.json
-package.json
-webpack.config.js
 
 # App Data
 instance/

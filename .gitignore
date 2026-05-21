@@ -1,48 +1,46 @@
-# company_research_platform/.gitignore
-
+# ── Python ──
 venv/
+.venv/
 __pycache__/
 *.pyc
-*.sqlite3
-app.db # Or your specific database file name if different
-my_research_app.db # From the .env example
-.env_local
+*.pyo
+*.pyd
+
+# ── Environment ──
 .env
+.env_local
+
+# ── Flask / App data ──
 instance/
 app/static/uploads/
+*.sqlite3
+app.db
+my_research_app.db
 
-# Node modules
+# ── Flask-Assets generated bundles ──
+app/static/css/gen/
+app/static/.webassets-cache/
+
+# ── Node / Webpack ──
 node_modules/
 npm-debug.log*
+app/static/js/dist/
 
-# Webpack build
-app/static/js/dist/*.map
-
-
-
-mockups/
-app/static/uploads/ 
-app/static/js/dist/*
-app/portfolio/routes.py
-app/research_workflow/templates/view_template.html.bak
-app/research_workflow/templates/start_new_research.html.bak
-
-
-TODOs/*
-
-.venv
-venv
-__pycache__
-instance/embedding_cache
-.git
-*.pdf
-*.pyc
-
-# Database backups and dumps
+# ── Database backups ──
 *.sql
 railway_backup_*
 local_backup_*
 
-# Flask-Assets generated bundles
-app/static/css/gen/
-app/static/.webassets-cache/
+# ── Documents / Large files ──
+*.pdf
+*.woff
+*.woff2
+docs/
+mockups/
+
+# ── Misc ──
+*.bak
+TODOs/
+
+# ── Files with local overrides (tracked but ignored locally) ──
+app/portfolio/routes.py
