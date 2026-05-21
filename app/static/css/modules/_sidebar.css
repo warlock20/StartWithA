@@ -371,9 +371,11 @@
     gap: 0.75rem;
     padding: 0.55rem var(--space-md);
     margin: 1px var(--space-sm);
-    color: var(--sidebar-text);
+    color: rgba(255, 255, 255, 0.85);
     font-size: var(--font-size-sm);
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
     border-radius: var(--radius-md);
     transition: all var(--transition-fast);
     white-space: nowrap;
@@ -420,10 +422,27 @@
     max-height: 500px;
 }
 
+/* Child items within sections — smaller and indented for hierarchy */
+.sidebar-subitems > .sidebar-item {
+    padding-left: 2.35rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
+/* Nested sub-section toggles (e.g., Advanced, Tools within Research) */
+.sidebar-subitems > .sidebar-section-toggle {
+    padding-left: 2.35rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0.25rem;
+}
+
 /* Nested sub-section items (e.g., Tools within Research) get extra indent */
 .sidebar-subitems .sidebar-subitems .sidebar-item {
-    padding-left: 2.75rem;
-    font-size: 0.82rem;
+    padding-left: 3.1rem;
+    font-size: 0.78rem;
 }
 
 /* Sidebar divider */

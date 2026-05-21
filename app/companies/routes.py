@@ -668,24 +668,28 @@ def set_intrinsic_value(company_id):
 @companies_bp.route('/<int:company_id>/fetch_sec_filings', methods=['POST'])
 @login_required
 def fetch_sec_filings(company_id):
-    company = Company.query.get_or_404(company_id)
-    if company.user_id != current_user.id:
-        flash("You are not authorized to perform this action.", "error")
-        return redirect(url_for('companies.list_companies'))
+    try:
+        company = Company.query.get_or_404(company_id)
+        if company.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'You are not authorized to perform this action.'}), 403
 
-    # Get the 'years' value from the form, defaulting to 5 if not found
-    years_from_form = request.form.get('years', 5, type=int)
-    
-    # When you call .delay(), it returns a task object.
-    task = fetch_sec_filings_task.delay(company.id, current_user.id, years_from_form)
-    
-    # Flash a message to give immediate feedback.
-    flash(f"Request received! {years_from_form} year(s) of filings are being fetched in the background. The page will reload when complete.", "info")
-            
-    # Redirect back to the same page, but add the task_id to the URL as a query parameter.
-    return redirect(url_for('companies.company_detail',
-                            company_id=company.id,
-                            task_id=task.id))
+        data = request.get_json(silent=True) or {}
+        filing_type = data.get('filing_type', '10-K')
+        years = data.get('years', 5)
+
+        task = fetch_sec_filings_task.delay(company.id, current_user.id, years)
+
+        return jsonify({
+            'success': True,
+            'task_id': task.id,
+            'message': f'{years} year(s) of {filing_type} filings being fetched in the background'
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error starting SEC filings fetch task: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to start task: {str(e)}'
+        }), 500
     
 @companies_bp.route('/<int:company_id>/toggle_portfolio', methods=['POST'])
 @login_required

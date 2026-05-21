@@ -23,6 +23,7 @@ PyMuPDF
 python-docx
 openpyxl
 beautifulsoup4
+weasyprint
 
 # APIs & Integrations
 google-genai

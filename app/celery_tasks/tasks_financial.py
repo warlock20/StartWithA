@@ -9,12 +9,14 @@ import shutil
 import uuid
 import re
 import logging
+import warnings
 from datetime import timedelta
 from pathlib import Path
 
 import yfinance as yf
 import pandas as pd
 from secedgar import filings, FilingType
+from weasyprint import HTML as WeasyHTML
 from flask import current_app
 
 from app import db, create_app
@@ -103,7 +105,7 @@ def fetch_financial_data_task(self, company_id):
             return f"Task failed: {e}"
 
 
-@celery.task(bind=True)
+@celery.task(bind=True, soft_time_limit=300, time_limit=360)
 def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
     """
     A Celery task to fetch SEC filings in the background.
@@ -123,6 +125,9 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
         try:
             logger.info(f"TASK {self.request.id}: Fetching {filing_type_str} filings for {company.ticker_symbol}")
             start_date = (now_utc() - timedelta(days=years_to_fetch * 365.25)).date()
+
+            from bs4 import XMLParsedAsHTMLWarning
+            warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
             filing_docs = filings(
                 cik_lookup=company.ticker_symbol,
@@ -190,15 +195,20 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
                         logger.warning(f"Could not extract HTML from {submission_file_path.name}")
                         continue
 
-                    # Save file
-                    original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.html"
-                    stored_fn_uuid = f"{uuid.uuid4().hex}.html"
+                    # Convert HTML to PDF and save
+                    original_fn = f"{company.ticker_symbol}_{filing_type_str}_{filing_date_str}.pdf"
+                    stored_fn_uuid = f"{uuid.uuid4().hex}.pdf"
                     company_permanent_path = os.path.join(current_app.config['UPLOAD_FOLDER'], str(company.id))
                     os.makedirs(company_permanent_path, exist_ok=True)
                     file_save_path = os.path.join(company_permanent_path, stored_fn_uuid)
 
-                    with open(file_save_path, 'w', encoding='utf-8') as f_out:
-                        f_out.write(html_content)
+                    try:
+                        WeasyHTML(string=html_content).write_pdf(file_save_path)
+                    except Exception as pdf_err:
+                        logger.warning(f"PDF conversion failed for {doc_title}, skipping: {pdf_err}")
+                        continue
+
+                    pdf_size = os.path.getsize(file_save_path)
 
                     new_doc = CompanyResource(
                         company_id=company.id,
@@ -207,7 +217,8 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
                         title=doc_title,
                         original_filename=original_fn,
                         stored_filename=os.path.join(str(company.id), stored_fn_uuid),
-                        file_type='html',
+                        file_type='pdf',
+                        file_size=pdf_size,
                         category=f"SEC {filing_type_str} Filings",
                         resource_date=parse_date_to_date_object(filing_date_str) if filing_date_str != "N/A" else None
                     )
@@ -223,7 +234,7 @@ def fetch_sec_filings_task(self, company_id, user_id, years_to_fetch=5):
         except Exception as e:
             db.session.rollback()
             logger.error(f"TASK {self.request.id}: Failed - {e}")
-            return f"Task failed for {company.ticker_symbol}: {e}"
+            raise
 
         finally:
             if temp_download_path.exists():

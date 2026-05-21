@@ -26,31 +26,31 @@
                 Pulls recent <strong>SEC EDGAR</strong> filings for US-listed companies.
                 Already cached locally won't be re-downloaded.
             </p>
-            <form method="POST" action="{{ url_for('companies.fetch_sec_filings', company_id=company.id) }}">
-                <div class="docs-form-grid--3col">
-                    <div>
-                        <label class="docs-form-label">Filing type</label>
-                        <select name="filing_type" class="form-select form-select-sm">
-                            <option value="10-K" selected>10-K (Annual)</option>
-                            <option value="10-Q" disabled>10-Q (Quarterly)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="docs-form-label">Recent years</label>
-                        <select name="years" class="form-select form-select-sm">
-                            <option value="1">1 year</option>
-                            <option value="3">3 years</option>
-                            <option value="5" selected>5 years</option>
-                            <option value="10">10 years</option>
-                        </select>
-                    </div>
-                    <div style="padding-top: 22px;">
-                        <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="bi bi-cloud-download me-1"></i>Fetch
-                        </button>
-                    </div>
+            <div class="docs-form-grid--3col">
+                <div>
+                    <label class="docs-form-label">Filing type</label>
+                    <select id="sec-filing-type" class="form-select form-select-sm">
+                        <option value="10-K" selected>10-K (Annual)</option>
+                        <option value="10-Q" disabled>10-Q (Quarterly)</option>
+                    </select>
                 </div>
-            </form>
+                <div>
+                    <label class="docs-form-label">Recent years</label>
+                    <select id="sec-filing-years" class="form-select form-select-sm">
+                        <option value="1">1 year</option>
+                        <option value="3">3 years</option>
+                        <option value="5" selected>5 years</option>
+                        <option value="10">10 years</option>
+                    </select>
+                </div>
+                <div style="padding-top: 22px;">
+                    <button type="button" id="fetch-sec-btn" class="btn btn-sm btn-primary"
+                            data-company-id="{{ company.id }}">
+                        <i class="bi bi-cloud-download me-1"></i>Fetch
+                    </button>
+                </div>
+            </div>
+            <div id="sec-fetch-status" class="d-none docs-status-bar"></div>
             {% else %}
             <p class="docs-description" style="margin-bottom: 0;">
                 Available for US-listed companies only.
@@ -60,39 +60,22 @@
         </div>
     </div>
 
-    <!-- Quantitative Analysis -->
-    <div class="docs-section-card">
+    <!-- Quantitative Analysis (disabled — future work) -->
+    <div class="docs-section-card docs-section-card--disabled">
         <div class="docs-section-card-header">
             <div class="docs-section-card-header-left">
                 <div class="docs-icon-circle docs-icon-circle--accent">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
                 <h6 class="docs-card-title">Quantitative Analysis</h6>
+                <span class="docs-badge-pill" style="background: var(--gray-100); color: var(--gray-500);">Coming soon</span>
             </div>
         </div>
         <div class="docs-section-card-body">
-            <p class="docs-description">
-                Builds a historical series of <strong>Revenue, Net Income</strong>,
-                and key ratios to chart over time.
+            <p class="docs-description" style="margin-bottom: 0;">
+                Historical series of <strong>Revenue, Net Income</strong>,
+                and key ratios charted over time. Currently under development.
             </p>
-            <div id="financial-fetch-status" class="d-none fetch-status-container mb-2">
-                <div class="status-indicator">
-                    <div class="spinner-border spinner-border-sm" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <div><strong class="small">Fetching...</strong></div>
-                </div>
-            </div>
-            <div class="docs-action-row">
-                <button type="button" id="fetch-financials-btn" class="btn btn-sm btn-primary"
-                        data-company-id="{{ company.id }}">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-                </button>
-                <a href="{{ url_for('companies.financials', company_id=company.id) }}"
-                   class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-table me-1"></i>View financials
-                </a>
-            </div>
         </div>
     </div>
 </div>

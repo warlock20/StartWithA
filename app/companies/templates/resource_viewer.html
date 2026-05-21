@@ -26,7 +26,7 @@
             </a>
             <div class="min-width-0">
                 <h5 class="mb-0 text-truncate">
-                    <i class="bi {{ 'bi-file-earmark-pdf-fill text-danger' if resource.file_type == 'pdf' else 'bi-file-earmark-text-fill text-primary' }} me-1"></i>
+                    <i class="bi {{ 'bi-file-earmark-pdf-fill text-danger' if resource.file_type == 'pdf' else ('bi-file-earmark-code-fill text-warning' if resource.file_type == 'html' else 'bi-file-earmark-text-fill text-primary') }} me-1"></i>
                     {{ resource.title }}
                 </h5>
                 <small class="text-muted">
@@ -76,6 +76,18 @@
                 </div>
                 <div id="annotation-sidebar-list"></div>
             </div>
+        </div>
+    {% elif resource.file_type == 'html' %}
+        <div class="resource-viewer-html">
+            <div class="alert alert-info small mb-2">
+                <i class="bi bi-info-circle me-1"></i>
+                This is a legacy HTML filing. New SEC fetches save as PDF for full annotation support.
+                You can delete this and re-fetch to get a PDF version.
+            </div>
+            <iframe id="html-viewer"
+                    src="{{ url_for('companies.api_view_resource', resource_id=resource.id) }}"
+                    style="width:100%; height:80vh; border:1px solid var(--border-light, #e2e8f0); border-radius:8px; background:#fff;">
+            </iframe>
         </div>
     {% elif resource.file_type == 'txt' %}
         <div class="resource-viewer-text" id="txt-viewer">
