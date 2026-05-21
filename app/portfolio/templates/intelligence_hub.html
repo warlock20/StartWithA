@@ -15,6 +15,9 @@
                 <p class="dashboard-subtitle">Your central command for portfolio insights, patterns, and actionable intelligence</p>
             </div>
             <div class="dashboard-header-actions">
+                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="position-btn">
+                    <i class="bi bi-journal-bookmark-fill"></i> Decision Journal
+                </a>
                 <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
                     <i class="bi bi-briefcase"></i> Portfolio
                 </a>

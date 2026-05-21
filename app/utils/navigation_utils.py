@@ -5,6 +5,8 @@ Provides smart back navigation that remembers where users came from
 and returns them to the appropriate context.
 """
 
+import re
+
 from flask import request, url_for, session as flask_session
 from urllib.parse import urlparse
 
@@ -56,7 +58,11 @@ def get_smart_return_url(default_route=None, default_kwargs=None):
         if '/sectors/' in path and '/analysis/' in path:
             return path, "Sector Analysis"
 
-        # Companies dashboard
+        # Company detail page (e.g., /companies/10)
+        if re.match(r'/companies/\d+', path):
+            return path, "Company"
+
+        # Companies list
         if '/companies' in path and '/documents' not in path:
             return path, "Companies"
 
@@ -124,6 +130,8 @@ def _get_context_label(path):
         return "Checklist"
     elif '/sectors/' in path:
         return "Sector Analysis"
+    elif re.match(r'/companies/\d+', path):
+        return "Company"
     elif '/companies' in path:
         return "Companies"
     elif '/ideas/' in path:

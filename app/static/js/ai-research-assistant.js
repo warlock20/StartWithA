@@ -301,39 +301,7 @@ class AIResearchAssistant {
      * Converts line breaks, bold text, and lists to HTML
      */
     formatResponse(text) {
-        // Escape HTML first
-        let formatted = text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-
-        // Convert **bold** to <strong>
-        formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-        // Convert line breaks to paragraphs
-        const paragraphs = formatted.split('\n\n');
-        formatted = paragraphs.map(p => {
-            // Check if paragraph is a list
-            if (p.includes('\n- ') || p.includes('\n* ') || p.match(/^\d+\./m)) {
-                // Convert bullet lists
-                let listContent = p.replace(/^- /gm, '<li>').replace(/^\* /gm, '<li>');
-                // Convert numbered lists
-                listContent = listContent.replace(/^\d+\. /gm, '<li>');
-
-                // Wrap in ul or ol
-                if (p.match(/^\d+\./m)) {
-                    return '<ol>' + listContent.split('\n').map(line => line.startsWith('<li>') ? line + '</li>' : line).join('') + '</ol>';
-                } else {
-                    return '<ul>' + listContent.split('\n').map(line => line.startsWith('<li>') ? line + '</li>' : line).join('') + '</ul>';
-                }
-            } else {
-                return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
-            }
-        }).join('');
-
-        formatted += aiDisclaimer();
-
-        return formatted;
+        return AIResearchAssistant.formatResponseText(text);
     }
 
     /**
@@ -569,6 +537,232 @@ class AIResearchAssistant {
         });
     }
 }
+
+// =============================================================================
+// Static per-question utilities
+// =============================================================================
+// Used when multiple questions exist on the same page (Q&A cards).
+// Each question gets its own response area identified by aiResponse-{questionId}.
+// Usage:
+//   AIResearchAssistant.renderToolbar(questionId, 'MyModule')
+//   MyModule.triggerAI = function(id, mode) {
+//       AIResearchAssistant.triggerForQuestion(id, mode, { answerText, questionText, companyName, showToast });
+//   };
+
+AIResearchAssistant.MODES = {
+    challenge:   { icon: 'exclamation-triangle', respIcon: 'exclamation-diamond', color: 'danger',  title: 'Challenge',          btnClass: 'challenge' },
+    elaboration: { icon: 'question-circle',      respIcon: 'chat-dots',           color: 'primary', title: 'Follow-Up Questions', btnClass: 'elaborate' },
+    factcheck:   { icon: 'shield-check',         respIcon: 'shield-exclamation',  color: 'warning', title: 'Fact-Check',          btnClass: 'factcheck' }
+};
+
+/**
+ * Format AI response text to HTML (shared by instance and static callers).
+ * Converts bold, paragraphs, bullet/numbered lists. Appends AI disclaimer.
+ */
+AIResearchAssistant.formatResponseText = function (text) {
+    var formatted = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    var paragraphs = formatted.split('\n\n');
+    formatted = paragraphs.map(function (p) {
+        if (p.includes('\n- ') || p.includes('\n* ') || p.match(/^\d+\./m)) {
+            var listContent = p.replace(/^- /gm, '<li>').replace(/^\* /gm, '<li>');
+            listContent = listContent.replace(/^\d+\. /gm, '<li>');
+            if (p.match(/^\d+\./m)) {
+                return '<ol>' + listContent.split('\n').map(function (line) { return line.startsWith('<li>') ? line + '</li>' : line; }).join('') + '</ol>';
+            } else {
+                return '<ul>' + listContent.split('\n').map(function (line) { return line.startsWith('<li>') ? line + '</li>' : line; }).join('') + '</ul>';
+            }
+        } else {
+            return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+        }
+    }).join('');
+
+    formatted += (typeof aiDisclaimer === 'function') ? aiDisclaimer() : '';
+    return formatted;
+};
+
+/**
+ * Render the AI tools toolbar HTML for a per-question card.
+ * @param {number} questionId
+ * @param {string} handlerName - Global object name whose triggerAI(id, mode) will be called (e.g. 'StandaloneQA')
+ * @returns {string} HTML string using fr-ai-* CSS classes
+ */
+AIResearchAssistant.renderToolbar = function (questionId, handlerName) {
+    var modes = AIResearchAssistant.MODES;
+    var buttons = '';
+    for (var key in modes) {
+        if (modes.hasOwnProperty(key)) {
+            var m = modes[key];
+            buttons +=
+                '<button class="fr-ai-mode-btn ' + m.btnClass + '" onclick="' + handlerName + '.triggerAI(' + questionId + ', \'' + key + '\')">' +
+                    '<i class="bi bi-' + m.icon + '"></i> ' + m.title +
+                '</button>';
+        }
+    }
+
+    return '<div class="fr-ai-assistant">' +
+        '<h6><i class="bi bi-robot me-1"></i> AI Research Tools</h6>' +
+        '<div class="fr-ai-mode-buttons">' + buttons + '</div>' +
+        '<div class="ai-search-toggle">' +
+            '<label class="ai-search-toggle-label">' +
+                '<input type="checkbox" id="aiUseWebSearch-' + questionId + '" class="form-check-input ai-web-search-checkbox">' +
+                '<i class="bi bi-globe2"></i>' +
+                '<span>Use web search</span>' +
+                '<small class="text-muted">(uses more credits)</small>' +
+            '</label>' +
+        '</div>' +
+        '<div class="fr-ai-response" id="aiResponse-' + questionId + '"></div>' +
+    '</div>';
+};
+
+/**
+ * Trigger an AI call for a specific question.
+ * Handles GDPR consent, loading state, fetch, error handling, and response rendering.
+ * @param {number} questionId
+ * @param {string} mode - 'challenge' | 'elaboration' | 'factcheck'
+ * @param {object} opts - { answerText, questionText, companyName, showToast }
+ */
+AIResearchAssistant.triggerForQuestion = function (questionId, mode, opts) {
+    var answerText = opts.answerText || '';
+    var showToast = opts.showToast || function () {};
+
+    if (!answerText.trim()) {
+        showToast('Write some research findings first before using AI tools', 'info');
+        return;
+    }
+
+    function proceed() {
+        var responseArea = document.getElementById('aiResponse-' + questionId);
+        if (!responseArea) return;
+
+        var searchCheckbox = document.getElementById('aiUseWebSearch-' + questionId);
+        var useWebSearch = searchCheckbox ? searchCheckbox.checked : false;
+        var loadingMsg = useWebSearch ? 'Searching the web and analyzing...' : 'AI is analyzing your answer...';
+
+        responseArea.innerHTML =
+            '<div class="d-flex align-items-center gap-2 text-muted">' +
+                '<span class="spinner-border spinner-border-sm"></span>' +
+                '<span>' + loadingMsg + '</span>' +
+            '</div>';
+        responseArea.classList.add('visible');
+
+        fetch('/research/workflow/ai_assist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                mode: mode,
+                answer_text: answerText,
+                question_text: opts.questionText || '',
+                company_name: opts.companyName || '',
+                context: 'free_research',
+                use_google_search: useWebSearch
+            })
+        })
+        .then(function (response) {
+            if (response.status === 429) {
+                return response.json().then(function (data) {
+                    responseArea.innerHTML =
+                        '<div class="text-danger" style="padding: 0.5rem 0;">' +
+                            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
+                            '<strong>AI Token Limit Reached</strong> — ' +
+                            'You\'ve used ' + (data.tokens_used || 'all') + ' of your ' + (data.tokens_limit || 'monthly') + ' tokens.' +
+                        '</div>';
+                    throw new Error('Token limit exceeded');
+                });
+            }
+            return response.json();
+        })
+        .then(function (data) {
+            if (data.success) {
+                AIResearchAssistant.renderQuestionResponse(questionId, mode, data.response, data.feedback_id, showToast);
+            } else {
+                responseArea.innerHTML =
+                    '<div class="text-danger" style="padding: 0.5rem 0;">' +
+                        '<i class="bi bi-exclamation-circle me-2"></i>' + (data.error || 'AI request failed') +
+                    '</div>';
+            }
+        })
+        .catch(function (error) {
+            if (error.message !== 'Token limit exceeded') {
+                responseArea.innerHTML =
+                    '<div class="text-danger" style="padding: 0.5rem 0;">' +
+                        '<i class="bi bi-exclamation-circle me-2"></i>Error connecting to AI service' +
+                    '</div>';
+            }
+        });
+    }
+
+    if (typeof window.checkAIConsent === 'function') {
+        window.checkAIConsent().then(function (consented) {
+            if (consented) proceed();
+        });
+    } else {
+        proceed();
+    }
+};
+
+/**
+ * Render the AI response for a specific question with feedback buttons.
+ */
+AIResearchAssistant.renderQuestionResponse = function (questionId, mode, responseText, feedbackId, showToast) {
+    var responseArea = document.getElementById('aiResponse-' + questionId);
+    if (!responseArea) return;
+
+    var config = AIResearchAssistant.MODES[mode] || AIResearchAssistant.MODES.challenge;
+
+    responseArea.innerHTML =
+        '<div class="d-flex align-items-center gap-2 mb-2 text-' + config.color + '">' +
+            '<i class="bi bi-' + config.respIcon + '"></i>' +
+            '<strong>' + config.title + '</strong>' +
+        '</div>' +
+        '<div class="ai-response-text" style="font-size: 0.9rem; line-height: 1.6;">' +
+            AIResearchAssistant.formatResponseText(responseText) +
+        '</div>' +
+        '<div class="d-flex gap-2 mt-3 pt-2 border-top">' +
+            '<button class="fr-ai-mode-btn" onclick="AIResearchAssistant.submitQuestionFeedback(' + questionId + ', ' + feedbackId + ', \'helpful\')" style="font-size: 0.78rem;">' +
+                '<i class="bi bi-hand-thumbs-up"></i> Helpful' +
+            '</button>' +
+            '<button class="fr-ai-mode-btn" onclick="AIResearchAssistant.submitQuestionFeedback(' + questionId + ', ' + feedbackId + ', \'not_helpful\')" style="font-size: 0.78rem;">' +
+                '<i class="bi bi-hand-thumbs-down"></i> Not Helpful' +
+            '</button>' +
+            '<button class="fr-ai-mode-btn" onclick="AIResearchAssistant.dismissQuestion(' + questionId + ')" style="margin-left: auto; font-size: 0.78rem;">' +
+                '<i class="bi bi-x-lg"></i> Dismiss' +
+            '</button>' +
+        '</div>';
+    responseArea.classList.add('visible');
+};
+
+/**
+ * Submit feedback for a per-question AI response.
+ */
+AIResearchAssistant.submitQuestionFeedback = function (questionId, feedbackId, value) {
+    fetch('/research/workflow/ai_assist/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback_id: feedbackId, feedback: value })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function () {
+        AIResearchAssistant.dismissQuestion(questionId);
+    })
+    .catch(function (err) { console.error('Feedback error:', err); });
+};
+
+/**
+ * Dismiss the AI response area for a specific question.
+ */
+AIResearchAssistant.dismissQuestion = function (questionId) {
+    var responseArea = document.getElementById('aiResponse-' + questionId);
+    if (responseArea) {
+        responseArea.classList.remove('visible');
+        responseArea.innerHTML = '';
+    }
+};
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

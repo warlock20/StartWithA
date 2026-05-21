@@ -1,0 +1,76 @@
+{# Library Tab — Sidebar navigation + scoped content panels #}
+
+<div class="settings-layout">
+    <!-- LEFT SUB-NAV -->
+    <div class="settings-sidebar">
+        <div class="settings-sidebar-label">Library</div>
+        <button class="settings-nav-item library-nav-item active" data-library-section="documents" type="button">
+            <i class="bi bi-folder2-open"></i>
+            <div>
+                <div class="settings-nav-title">Documents</div>
+                <div class="settings-nav-hint">SEC filings, resources, financials</div>
+            </div>
+        </button>
+        <button class="settings-nav-item library-nav-item" data-library-section="notes" type="button">
+            <i class="bi bi-file-earmark-text"></i>
+            <div>
+                <div class="settings-nav-title">Notes</div>
+                <div class="settings-nav-hint">Free-form company notes</div>
+            </div>
+        </button>
+        <button class="settings-nav-item library-nav-item" data-library-section="journal" type="button">
+            <i class="bi bi-journal-bookmark"></i>
+            <div>
+                <div class="settings-nav-title">Journal</div>
+                <div class="settings-nav-hint">Timestamped observations</div>
+            </div>
+        </button>
+        <button class="settings-nav-item library-nav-item" data-library-section="annotations" type="button">
+            <i class="bi bi-pin-angle"></i>
+            <div>
+                <div class="settings-nav-title">Annotations</div>
+                <div class="settings-nav-hint">Document pins & highlights</div>
+            </div>
+        </button>
+    </div>
+
+    <!-- RIGHT CONTENT -->
+    <div class="settings-content">
+
+        <!-- ====== SECTION: Documents ====== -->
+        <div class="library-section active" id="library-documents">
+            {% include 'partials/_company_documents.html' %}
+        </div>
+
+        <!-- ====== SECTION: Notes ====== -->
+        <div class="library-section" id="library-notes">
+            {% include 'partials/_company_notes.html' %}
+        </div>
+
+        <!-- ====== SECTION: Journal ====== -->
+        <div class="library-section" id="library-journal">
+            {% include 'partials/_company_journal.html' %}
+        </div>
+
+        <!-- ====== SECTION: Annotations ====== -->
+        <div class="library-section" id="library-annotations">
+            {% include 'partials/_company_annotations.html' %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function() {
+    const navItems = document.querySelectorAll('.library-nav-item');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const target = this.getAttribute('data-library-section');
+            if (window.switchLibrarySection) {
+                window.switchLibrarySection(target);
+            }
+        });
+    });
+})();
+</script>

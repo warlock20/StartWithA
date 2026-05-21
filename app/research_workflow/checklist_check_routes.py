@@ -13,7 +13,7 @@ from app.utils.time_utils import now_utc
 from app.utils.response_utils import json_error, json_unauthorized
 
 # Import unified LLM service
-from app.services.ai import generate_ai_content, ai_service
+from app.services.ai import ai_service
 from app.services.ai.prompt_service import prompt_service
 from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery

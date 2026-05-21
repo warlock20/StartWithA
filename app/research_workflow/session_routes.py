@@ -17,7 +17,7 @@ from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, calculate_duration_minutes
 from app.utils.response_utils import json_success
-from app.services.ai import generate_ai_content
+from app.services.ai import generate_text
 import logging
 
 logger = logging.getLogger(__name__)
@@ -440,7 +440,7 @@ User's Analysis Request:
 
     # Generate AI analysis using unified LLM service
     try:
-        ai_suggestion = generate_ai_content(analysis_context)
+        ai_suggestion = generate_text(analysis_context)
 
         return jsonify({
             'status': 'success_analysis_complete',

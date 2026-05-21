@@ -2,7 +2,8 @@
 """
 Database Sync Utility - Railway to Local
 
-Safely pull production data from Railway to your local PostgreSQL database.
+Safely pull production data from Railway to your local PostgreSQL database,
+and optionally sync uploaded files from Railway's volume.
 
 Setup (one-time):
     1. In Railway dashboard → pgvector service → Settings → Networking
@@ -10,11 +11,15 @@ Setup (one-time):
     2. Copy the public host and port (e.g., roundhouse.proxy.rlwy.net:12345)
     3. Add to your .env file:
        RAILWAY_DB_PUBLIC_URL=postgresql://postgres:postgres@roundhouse.proxy.rlwy.net:12345/investment_platform
+    4. Link Railway CLI to your project:
+       railway link
 
 Usage:
-    python sync_db.py pull     # Pull Railway data to local
-    python sync_db.py export   # Export Railway data to a file
-    python sync_db.py check    # Verify connection
+    python sync_db.py pull       # Pull Railway data to local
+    python sync_db.py export     # Export Railway data to a file
+    python sync_db.py check      # Verify connection
+    python sync_db.py files      # Check which uploaded files are missing locally
+    python sync_db.py fullsync   # Pull database + check missing files
 """
 
 import os
@@ -33,6 +38,10 @@ LOCAL_DB_URL = os.getenv(
 
 # Railway database (public TCP proxy URL)
 RAILWAY_DB_URL = os.getenv('RAILWAY_DB_PUBLIC_URL')
+
+# File paths
+basedir = os.path.abspath(os.path.dirname(__file__))
+LOCAL_UPLOAD_FOLDER = os.path.join(basedir, 'instance', 'uploads')
 
 
 def run_command(cmd, error_msg="Command failed"):
@@ -186,6 +195,62 @@ def pull_from_railway():
     print("  flask run")
 
 
+def sync_files():
+    """Check which uploaded files are missing locally after a DB pull."""
+    print("\n=== File Sync Status ===\n")
+
+    # Query the local DB for all file resources
+    result = run_command([
+        'psql', LOCAL_DB_URL, '-t', '-A', '-c',
+        "SELECT id, stored_filename, original_filename, title "
+        "FROM company_resource WHERE resource_type = 'file' "
+        "AND stored_filename IS NOT NULL;"
+    ], "Could not query local database for file resources")
+
+    if result is None:
+        sys.exit(1)
+
+    rows = [line for line in result.strip().splitlines() if line.strip()]
+    if not rows:
+        print("  No file resources found in the database.")
+        return
+
+    missing = []
+    found = 0
+    for row in rows:
+        parts = row.split('|')
+        if len(parts) < 4:
+            continue
+        res_id, stored_fn, original_fn, title = parts[0], parts[1], parts[2], parts[3]
+        local_path = os.path.join(LOCAL_UPLOAD_FOLDER, stored_fn)
+        if os.path.isfile(local_path):
+            found += 1
+        else:
+            missing.append((res_id, stored_fn, original_fn, title))
+
+    print(f"  Total file resources in DB: {len(rows)}")
+    print(f"  Found locally:              {found}")
+    print(f"  Missing locally:            {len(missing)}")
+
+    if not missing:
+        print("\n  ✓ All files are present locally!")
+        return
+
+    print(f"\n  Missing files:")
+    for res_id, stored_fn, original_fn, title in missing[:15]:
+        print(f"    [{res_id}] {title} ({original_fn})")
+        print(f"         → {stored_fn}")
+    if len(missing) > 15:
+        print(f"    ... and {len(missing) - 15} more")
+
+    print("\n" + "=" * 50)
+    print("  To get these files locally, you can either:")
+    print("  1. Upload files again through your local app UI")
+    print("  2. Use Railway dashboard → service shell to")
+    print("     inspect the volume at $UPLOAD_FOLDER")
+    print("=" * 50)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -200,6 +265,11 @@ def main():
         export_railway_db(output_file)
     elif command == 'check':
         check_connection()
+    elif command == 'files':
+        sync_files()
+    elif command == 'fullsync':
+        pull_from_railway()
+        sync_files()
     else:
         print(f"Unknown command: {command}")
         print(__doc__)

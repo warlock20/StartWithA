@@ -480,18 +480,21 @@ class ResearchLog(db.Model):
 
 class FreeResearchQuestion(db.Model):
     """
-    A custom research question created by the user during a Free Research step.
-    Unlike checklist items which are predefined, these are user-generated questions
-    that allow for exploratory, unstructured research.
+    A custom research question created by the user.
+    Can be linked to a research project step (project_id + step_index set)
+    or standalone on a company (project_id is None).
     """
     __tablename__ = 'free_research_question'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
-    # Link to the research project and step
-    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False, index=True)
-    step_index = db.Column(db.Integer, nullable=False)  # Which step in the workflow
+    # Link to company (always present)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
+
+    # Link to research project and step (nullable for standalone questions)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=True, index=True)
+    step_index = db.Column(db.Integer, nullable=True)  # Which step in the workflow (None for standalone)
 
     # Question content
     question_text = db.Column(db.Text, nullable=False)
@@ -510,8 +513,11 @@ class FreeResearchQuestion(db.Model):
 
     # Relationships
     user = db.relationship('User', backref=db.backref('free_research_questions', lazy='dynamic'))
-    project = db.relationship('ResearchProject', backref=db.backref(
+    company = db.relationship('Company', backref=db.backref(
         'free_research_questions', lazy='dynamic', cascade='all, delete-orphan'
+    ))
+    project = db.relationship('ResearchProject', backref=db.backref(
+        'free_research_questions', lazy='dynamic', cascade='all'
     ))
 
     def __repr__(self):

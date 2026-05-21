@@ -156,20 +156,6 @@ def cash_setup():
 #### Postion Related ########
 #############################
 
-@portfolio_bp.route('/position/<int:company_id>')
-@login_required
-def position_detail(company_id):
-    """Legacy route — redirects to unified company page with transactions tab."""
-    return redirect(url_for('companies.company_detail', company_id=company_id) + '#transactions')
-
-
-@portfolio_bp.route('/position/<int:company_id>/journey')
-@login_required
-def investment_journey(company_id):
-    """Redirect to unified Company Journey page."""
-    return redirect(url_for('companies.company_detail', company_id=company_id))
-
-
 @portfolio_bp.route('/position/<int:company_id>/thesis/new', methods=['GET', 'POST'])
 @login_required
 def add_thesis_version(company_id):

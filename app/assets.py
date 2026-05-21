@@ -108,6 +108,7 @@ css_all = Bundle(
     'css/modules/_toast.css',
     'css/modules/_send-to-sector.css',
     'css/modules/_company-resources.css',
+    'css/modules/_document-annotations.css',
     'css/modules/_intelligence-panel.css',
 
     filters='rcssmin',

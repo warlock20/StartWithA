@@ -146,15 +146,6 @@
                     class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
             </a>
             {% endif %}
-            {% if has_feature('portfolio_journal') %}
-            <a href="{{ url_for('portfolio.decision_journal_list') }}" class="sidebar-item" data-tooltip="Journal"
-                data-feature-group="portfolio_intelligence">
-                <i class="bi bi-journal-bookmark-fill"></i>
-                <span class="sidebar-item-text">Portfolio Journal</span>
-                {% if is_newly_unlocked('portfolio_journal') %}<span
-                    class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
-            </a>
-            {% endif %}
         </div>
 
         {# ===== KNOWLEDGE (collapsible) — all PRO ===== #}

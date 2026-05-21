@@ -15,7 +15,7 @@ from app import db, create_app
 from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult, ChecklistItem, ChecklistAnalysis, CompanyResource
 from celery_app import celery
 
-from app.services.ai import generate_ai_content, ai_service
+from app.services.ai import generate_text, ai_service
 from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service
 from app.services.ai.config import AITaskType
 from app.services.argos import ArgosService
@@ -58,7 +58,7 @@ def competitor_analysis_task(self, task_id, company_data):
 
             # Call LLM service - this is where the long wait happens
             logger.info(f"TASK {self.request.id}: Calling LLM service...")
-            competitor_analysis = generate_ai_content(analysis_prompt, max_tokens=2000)
+            competitor_analysis = generate_text(analysis_prompt, max_tokens=2000)
 
             # Store result in work session
             session = WorkSession.query.filter_by(
@@ -446,7 +446,7 @@ def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, se
             )
 
             logger.info(f"TASK {self.request.id}: Running checklist item analysis for item {item_id} in session {analysis_id}")
-            ai_suggestion = generate_ai_content(prompt_for_llm, google_search=True)
+            ai_suggestion = generate_text(prompt_for_llm, google_search=True)
 
             # 5. ESTIMATE TOKENS AND TRACK USAGE
             tokens_estimate = len(prompt_for_llm) // 4 + len(ai_suggestion) // 4

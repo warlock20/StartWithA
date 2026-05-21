@@ -458,12 +458,19 @@ def _gather_journey_data(company, user_id):
         else:
             current_thesis = max(thesis_versions, key=lambda x: x.created_at or datetime.min)
 
-    # Research tab data
+    # Research tab data: project-linked questions
     free_research_questions = []
     if research_project:
         free_research_questions = FreeResearchQuestion.query.filter_by(
             project_id=research_project.id
         ).order_by(FreeResearchQuestion.created_at).all()
+
+    # Standalone research questions (no project, loaded for initial empty-state check)
+    standalone_research_questions = FreeResearchQuestion.query.filter_by(
+        company_id=company.id,
+        user_id=user_id,
+        project_id=None
+    ).order_by(FreeResearchQuestion.order_index).all()
 
     # Portfolio-specific: decision journal and price staleness
     portfolio_decision_journal = None
@@ -491,6 +498,7 @@ def _gather_journey_data(company, user_id):
         'journal_entries_count': journal_entries_count,
         'research_project': research_project,
         'free_research_questions': free_research_questions,
+        'standalone_research_questions': standalone_research_questions,
         'transactions': transactions,
         'portfolio_decision_journal': portfolio_decision_journal,
         'price_stale': price_stale,
@@ -595,19 +603,13 @@ def company_detail(company_id):
         journal_entries_count=journey_data['journal_entries_count'],
         research_project=journey_data['research_project'],
         free_research_questions=journey_data['free_research_questions'],
+        standalone_research_questions=journey_data['standalone_research_questions'],
         # Position / transactions data
         transactions=journey_data['transactions'],
         portfolio_decision_journal=journey_data['portfolio_decision_journal'],
         price_stale=journey_data['price_stale'],
         title=f"{company.name}"
     )
-
-
-@companies_bp.route('/<int:company_id>/documents', methods=['GET'])
-@login_required
-def company_dashboard(company_id):
-    """Legacy route — redirects to unified company page."""
-    return redirect(url_for('companies.company_detail', company_id=company_id))
 
 
 @companies_bp.route('/<int:company_id>/toggle_favorite', methods=['POST'])
@@ -891,9 +893,12 @@ def remove_competitor(company_id, competitor_id):
 def edit_company(company_id):
     """Update company details including ticker symbol, name, sector, and industry"""
     company = Company.query.get_or_404(company_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     # Authorization check
     if company.user_id != current_user.id:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Not authorized'}), 403
         flash("You are not authorized to edit this company.", "error")
         return redirect(url_for('companies.list_companies'))
 
@@ -906,6 +911,8 @@ def edit_company(company_id):
 
     # Validate required fields
     if not name or not ticker_symbol:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Company name and ticker symbol are required.'}), 400
         flash('Company name and ticker symbol are required.', 'error')
         return redirect(url_for('companies.company_detail', company_id=company_id))
 
@@ -917,7 +924,10 @@ def edit_company(company_id):
         validation_result = validator.validate_ticker(ticker_symbol)
 
         if not validation_result['valid']:
-            flash(f'Invalid ticker symbol: {validation_result.get("error", "Could not validate ticker")}', 'error')
+            msg = f'Invalid ticker symbol: {validation_result.get("error", "Could not validate ticker")}'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'error')
             return redirect(url_for('companies.company_detail', company_id=company_id))
 
         # Check for duplicate ticker in user's companies
@@ -927,7 +937,10 @@ def edit_company(company_id):
         ).filter(Company.id != company_id).first()
 
         if existing_company:
-            flash(f'You already have a company with ticker "{ticker_symbol}": {existing_company.name}', 'error')
+            msg = f'You already have a company with ticker "{ticker_symbol}": {existing_company.name}'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'error')
             return redirect(url_for('companies.company_detail', company_id=company_id))
 
     # Update company fields
@@ -967,7 +980,18 @@ def edit_company(company_id):
                 for position in positions:
                     PriceService.update_position_price(position, force=True)
 
-                flash('Portfolio positions updated with new ticker symbol.', 'info')
+                if not is_ajax:
+                    flash('Portfolio positions updated with new ticker symbol.', 'info')
+
+        if is_ajax:
+            msg = f'Company updated: {", ".join(changes)}' if changes else 'Company details saved.'
+            return jsonify({
+                'success': True,
+                'message': msg,
+                'name': company.name,
+                'ticker_symbol': company.ticker_symbol,
+                'sector_name': (company.sector.display_name or company.sector.name) if company.sector else None
+            })
 
         if changes:
             flash(f'Company updated successfully: {", ".join(changes)}', 'success')
@@ -976,6 +1000,8 @@ def edit_company(company_id):
 
     except Exception as e:
         db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': f'Error updating company: {str(e)}'}), 500
         flash(f'Error updating company: {str(e)}', 'error')
 
     return redirect(url_for('companies.company_detail', company_id=company_id))
@@ -997,13 +1023,6 @@ def validate_ticker_api():
     result = validator.validate_ticker(ticker)
 
     return jsonify(result)
-
-
-@companies_bp.route('/<int:company_id>/journey')
-@login_required
-def company_journey(company_id):
-    """Legacy route — redirects to unified company page with timeline tab active."""
-    return redirect(url_for('companies.company_detail', company_id=company_id) + '#timeline')
 
 
 @companies_bp.route('/<int:company_id>/journey/export', methods=['POST'])
