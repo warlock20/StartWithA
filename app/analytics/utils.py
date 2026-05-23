@@ -82,7 +82,7 @@ def update_user_metrics(user_id):
     for project in user.research_projects.all():
         if project.time_per_step:
             for step_index, minutes in project.time_per_step.items():
-                step = project.template.get_step(int(step_index))
+                step = project.get_step(int(step_index))
                 if step:
                     step_name = step['name']
                     step_times[step_name] = step_times.get(step_name, 0) + minutes

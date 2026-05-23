@@ -159,7 +159,7 @@
                 </div>
                 <div class="focus-hero-step">
                     {% set current_step = hero.project.current_step %}
-                    {% if current_step %}{{ current_step.get('name', 'Step ' ~ (hero.project.current_step_index + 1)) }} &mdash; {% endif %}Step {{ hero.project.current_step_index + 1 }} of {{ hero.project.template.workflow_steps|length }}
+                    {% if current_step %}{{ current_step.get('name', 'Step ' ~ (hero.project.current_step_index + 1)) }} &mdash; {% endif %}Step {{ hero.project.current_step_index + 1 }} of {{ hero.project.step_count }}
                 </div>
                 <div class="focus-hero-detail">
                     {% if hero.days_idle == 0 %}
@@ -313,7 +313,7 @@
                          style="width: {{ scored.project.progress_percentage }}%;"></div>
                 </div>
                 <div class="research-mini-meta">
-                    <span>{{ scored.project.progress_percentage }}% &middot; Step {{ scored.project.current_step_index + 1 }}/{{ scored.project.template.workflow_steps|length }}</span>
+                    <span>{{ scored.project.progress_percentage }}% &middot; Step {{ scored.project.current_step_index + 1 }}/{{ scored.project.step_count }}</span>
                     <span>{% if scored.days_idle == 0 %}Today{% elif scored.days_idle == 1 %}1d idle{% else %}{{ scored.days_idle }}d idle{% endif %}</span>
                 </div>
             </a>

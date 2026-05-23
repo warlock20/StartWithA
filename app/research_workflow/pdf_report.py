@@ -176,7 +176,7 @@ def _build_overview_html(project):
     parts.append(f'<tr><td><strong>Time Invested</strong></td><td>{hours} hours</td></tr>')
 
     completed = len(project.completed_steps or [])
-    total = project.template.step_count if project.template else 0
+    total = project.step_count
     parts.append(f'<tr><td><strong>Steps Completed</strong></td><td>{completed} of {total}</td></tr>')
 
     if project.last_worked_at:
@@ -358,8 +358,8 @@ def _build_full_html(project):
         sections.append(flags)
 
     # Steps - each on a new page
-    if project.template and project.template.workflow_steps:
-        for i, step in enumerate(project.template.workflow_steps):
+    if project.workflow_steps:
+        for i, step in enumerate(project.workflow_steps):
             step_html = _build_step_html(project, i, step)
             sections.append(f'<div class="page-break">{step_html}</div>')
 

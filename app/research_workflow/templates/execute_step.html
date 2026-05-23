@@ -7,7 +7,7 @@
             <div>
                 <h1><i class="bi bi-play-circle me-2"></i>{{title}}</h1>
                 <p class="dashboard-header-subtitle">Project: {{ project.project_name }} |
-                    Step {{ step_index + 1 }} of {{ project.template.step_count }}</p>
+                    Step {{ step_index + 1 }} of {{ project.step_count }}</p>
             </div>
             <div class="dashboard-header-actions">
                 <a href="{{ url_for('research_workflow.project_dashboard', project_id=project.id) }}" class="position-btn">
@@ -167,7 +167,7 @@
                 <div class="card-body">
                     <div class="accordion" id="previousNotesAccordion">
                         {% for note_index, note_text in project.step_notes.items() %}
-                        {% set note_step = project.template.get_step(note_index|int) %}
+                        {% set note_step = project.get_step(note_index|int) %}
                         {% if note_step %}
                         <div class="accordion-item">
                             <h2 class="accordion-header">

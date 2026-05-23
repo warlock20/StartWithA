@@ -168,6 +168,7 @@ class ResearchProject(db.Model):
     step_notes = db.Column(db.JSON, default=dict)  # Notes for each step
     step_results = db.Column(db.JSON, default=dict)  # Detailed results for each step
     step_overrides = db.Column(db.JSON, default=dict)  # Override step configs (e.g., if checklist was deleted)
+    workflow_snapshot = db.Column(db.JSON, nullable=True)  # Snapshot of template workflow_steps at project creation
 
     # Status tracking
     status = db.Column(db.String(50), default='active')  # 'active', 'completed', 'killed'
@@ -221,6 +222,27 @@ class ResearchProject(db.Model):
                                    lazy='dynamic', cascade='all, delete-orphan')
 
     @property
+    def workflow_steps(self):
+        """Return the project's workflow steps -- snapshot first, template fallback."""
+        if self.workflow_snapshot:
+            return self.workflow_snapshot
+        if self.template and self.template.workflow_steps:
+            return self.template.workflow_steps
+        return []
+
+    @property
+    def step_count(self):
+        """Number of steps in this project's workflow."""
+        return len(self.workflow_steps)
+
+    def get_step(self, step_index):
+        """Safely get a specific step from the project's workflow."""
+        steps = self.workflow_steps
+        if steps and 0 <= step_index < len(steps):
+            return steps[step_index]
+        return None
+
+    @property
     def progress_percentage(self):
         """
         Calculate the completion percentage of this project.
@@ -231,10 +253,10 @@ class ResearchProject(db.Model):
         # Import here to avoid circular import
         from app.services.step_progress_calculator import StepProgressCalculator
 
-        if not self.template or not self.template.workflow_steps:
+        if not self.workflow_steps:
             return 0.0
 
-        total_steps = len(self.template.workflow_steps)
+        total_steps = self.step_count
         if total_steps == 0:
             return 0.0
 
@@ -276,10 +298,8 @@ class ResearchProject(db.Model):
 
     @property
     def current_step(self):
-        """Get the current step details from the template"""
-        if self.template:
-            return self.template.get_step(self.current_step_index)
-        return None
+        """Get the current step details from the project's workflow snapshot"""
+        return self.get_step(self.current_step_index)
 
     @property
     def is_overdue(self):

@@ -39,16 +39,16 @@ class StepProgressCalculator:
         Returns:
             float: Progress percentage (0-100)
         """
-        if not project or not project.template or not project.template.workflow_steps:
+        if not project or not project.workflow_steps:
             return 0.0
 
-        if step_index < 0 or step_index >= len(project.template.workflow_steps):
+        if step_index < 0 or step_index >= project.step_count:
             return 0.0
 
         if step_index in (project.completed_steps or []):
             return 100.0
 
-        step = project.template.workflow_steps[step_index]
+        step = project.workflow_steps[step_index]
         step_type = step.get('type', '')
 
         calculator = STEP_CALCULATORS.get(step_type)

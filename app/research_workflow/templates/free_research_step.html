@@ -12,7 +12,7 @@
             <div>
                 <h1 class="dashboard-title font-poppins">{{ step.name }}: {{ project.company.name }}</h1>
                 <p class="dashboard-subtitle">
-                    Step {{ step_index + 1 }} of {{ project.template.workflow_steps|length }} in "{{ project.template.name }}"
+                    Step {{ step_index + 1 }} of {{ project.step_count }} in "{{ project.template.name }}"
                     <span class="fr-saving-indicator" id="savingIndicator">
                         <span class="spinner-border spinner-border-sm"></span> Saving...
                     </span>

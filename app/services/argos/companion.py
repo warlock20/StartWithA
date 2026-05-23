@@ -70,8 +70,8 @@ class CompanionMixin:
         if step_index is None:
             step_index = project.current_step_index or 0
 
-        # Get step info from template
-        step = project.template.get_step(step_index) if project.template else None
+        # Get step info from project workflow
+        step = project.get_step(step_index)
         step_name = step.get('name', f'Step {step_index + 1}') if step else f'Step {step_index + 1}'
         step_description = step.get('description', '') if step else ''
 

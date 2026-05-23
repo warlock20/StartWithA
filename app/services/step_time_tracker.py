@@ -34,10 +34,10 @@ class StepTimeTracker:
         Returns:
             float: Time spent in minutes
         """
-        if not project or not project.template or not project.template.workflow_steps:
+        if not project or not project.workflow_steps:
             return 0.0
 
-        if step_index < 0 or step_index >= len(project.template.workflow_steps):
+        if step_index < 0 or step_index >= project.step_count:
             return 0.0
 
         # Check if we have tracked time for this step
@@ -59,12 +59,12 @@ class StepTimeTracker:
             ...
         }
         """
-        if not project or not project.template or not project.template.workflow_steps:
+        if not project or not project.workflow_steps:
             return {}
 
         time_by_type = {}
 
-        for step_index, step in enumerate(project.template.workflow_steps):
+        for step_index, step in enumerate(project.workflow_steps):
             step_type = step.get('type', 'unknown')
             time_spent = StepTimeTracker.get_step_time(project, step_index)
 

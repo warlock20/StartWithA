@@ -11,6 +11,7 @@ This module handles all routes related to executing research project workflows:
 - Returning from checklist execution
 """
 
+import copy
 from flask import render_template, request, redirect, url_for, flash, session as flask_session
 from flask_login import current_user, login_required
 from app import db
@@ -87,7 +88,8 @@ def start_project():
         template=template,
         company=company,
         project_name=f"{company.name} - {template.name}",
-        status='active'
+        status='active',
+        workflow_snapshot=copy.deepcopy(template.workflow_steps)
     )
 
     # If this came from an idea pipeline, link it
@@ -137,14 +139,14 @@ def project_dashboard(project_id):
     # Calculate time spent per step
     time_breakdown = {}
     for step_index, minutes in (project.time_per_step or {}).items():
-        step = project.template.get_step(int(step_index))
+        step = project.get_step(int(step_index))
         if step:
             time_breakdown[step['name']] = minutes
 
     # Get next steps
     next_steps = []
-    if project.template.workflow_steps:
-        for i, step in enumerate(project.template.workflow_steps):
+    if project.workflow_steps:
+        for i, step in enumerate(project.workflow_steps):
             if i not in project.completed_steps:
                 next_steps.append(step)
                 if len(next_steps) >= 3:  # Show next 3 upcoming steps
@@ -168,10 +170,10 @@ def project_dashboard(project_id):
 
     # Get checklist analysis IDs for completed checklist steps
     checklist_analyses = {}
-    if project.template and project.template.workflow_steps:
+    if project.workflow_steps:
         for step_index in project.completed_steps:
-            if step_index < len(project.template.workflow_steps):
-                step = project.template.workflow_steps[step_index]
+            if step_index < len(project.workflow_steps):
+                step = project.workflow_steps[step_index]
                 if step.get('type') == 'checklist':
                     checklist_id = step.get('config', {}).get('checklist_id')
                     if checklist_id:
@@ -210,7 +212,7 @@ def execute_step(project_id, step_index):
         return redirect(url_for('research_workflow.my_projects'))
 
     # Get the step details
-    step = project.template.get_step(step_index)
+    step = project.get_step(step_index)
     if not step:
         flash('Invalid step', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -464,8 +466,8 @@ def complete_step(project_id):
     complete_project_step(project, step_index, notes=notes)
 
     # If this is a thesis_writing step, also update project.investment_thesis
-    if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
-        step = project.template.workflow_steps[step_index]
+    if project.workflow_steps and step_index < len(project.workflow_steps):
+        step = project.workflow_steps[step_index]
         if step.get('type') == 'thesis_writing':
             # Store the original BlockNote JSON to preserve formatting
             project.investment_thesis = notes
@@ -504,8 +506,8 @@ def complete_step(project_id):
 
         # Get step info for logging
         step_name = "Unknown Step"
-        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
-            step_name = project.template.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
+        if project.workflow_steps and step_index < len(project.workflow_steps):
+            step_name = project.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
 
         log_research_activity(
             current_user.id,
@@ -698,8 +700,8 @@ def reopen_step(project_id, step_index):
         db.session.commit()
 
         step_name = 'this step'
-        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
-            step_name = project.template.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
+        if project.workflow_steps and step_index < len(project.workflow_steps):
+            step_name = project.workflow_steps[step_index].get('name', f'Step {step_index + 1}')
 
         flash(f'{step_name} has been reopened', 'success')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
@@ -740,7 +742,7 @@ def complete_research_step(project_id, step_index):
         flag_modified(project, 'step_notes')
 
         # Move to next step if not at the end
-        if step_index + 1 < len(project.template.workflow_steps):
+        if step_index + 1 < project.step_count:
             project.current_step_index = step_index + 1
         else:
             project.status = 'completed'
@@ -773,7 +775,7 @@ def skip_step(project_id, step_index):
     if project.user_id != current_user.id:
         return json_unauthorized('Access denied')
 
-    step = project.template.get_step(step_index)
+    step = project.get_step(step_index)
     if not step:
         return json_error('Invalid step')
 
@@ -791,7 +793,7 @@ def skip_step(project_id, step_index):
     flag_modified(project, 'step_notes')
 
     # Move to next step
-    if step_index + 1 < len(project.template.workflow_steps):
+    if step_index + 1 < project.step_count:
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
@@ -892,7 +894,7 @@ def return_from_checklist(project_id, step_index):
     if research_context and research_context.get('project_id') == project_id:
 
         # Mark the step as completed (similar to complete_step route)
-        if project.template and project.template.workflow_steps and step_index < len(project.template.workflow_steps):
+        if project.workflow_steps and step_index < len(project.workflow_steps):
             # Mark step as complete
             if not project.completed_steps:
                 project.completed_steps = []
@@ -922,3 +924,68 @@ def return_from_checklist(project_id, step_index):
         # No valid research context, just go to project dashboard
         flash('Returned from checklist execution', 'info')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/edit-workflow', methods=['GET', 'POST'])
+@login_required
+def edit_project_workflow(project_id):
+    """Edit the workflow steps for this specific project (snapshot only, not the source template)"""
+    from app.research_workflow.template_routes import STEP_TYPES, MENTAL_MODELS
+
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if request.method == 'POST':
+        # Rebuild workflow steps from form data (same logic as edit_template)
+        workflow_steps = []
+        step_names = request.form.getlist('step_name[]')
+        step_types = request.form.getlist('step_type[]')
+        step_estimates = request.form.getlist('step_estimate[]')
+
+        for i, step_name in enumerate(step_names):
+            if step_name.strip():
+                step = {
+                    'order': i + 1,
+                    'name': step_name.strip(),
+                    'type': step_types[i] if i < len(step_types) else 'custom',
+                    'estimated_minutes': int(step_estimates[i]) if i < len(step_estimates) and step_estimates[i] else 60,
+                    'config': {}
+                }
+
+                # Add type-specific configuration
+                if step['type'] == 'checklist':
+                    step['config']['checklist_id'] = request.form.get(f'step_{i}_checklist_id')
+                elif step['type'] == 'kill_checklist_reference':
+                    step['config']['kill_checklist_id'] = request.form.get(f'step_{i}_kill_checklist_id')
+                elif step['type'] == 'model':
+                    step['config']['model_type'] = request.form.get(f'step_{i}_model_type')
+
+                workflow_steps.append(step)
+
+        project.workflow_snapshot = workflow_steps
+        flag_modified(project, 'workflow_snapshot')
+
+        try:
+            db.session.commit()
+            flash('Project workflow updated successfully!', 'success')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating workflow: {str(e)}', 'error')
+
+    # Reuse the create_template.html form
+    user_checklists = [{'id': cl.id, 'name': cl.name} for cl in current_user.checklists.all()]
+    user_kill_checklists = [{'id': kc.id, 'name': kc.name} for kc in current_user.kill_checklists.all()]
+
+    return render_template('create_template.html',
+                          title=f"Edit Workflow: {project.project_name}",
+                          template=project.template,
+                          workflow_steps_override=project.workflow_steps,
+                          project=project,
+                          user_checklists=user_checklists,
+                          user_kill_checklists=user_kill_checklists,
+                          step_types=STEP_TYPES,
+                          mental_models=MENTAL_MODELS)

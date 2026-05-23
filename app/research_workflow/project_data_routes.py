@@ -37,7 +37,7 @@ def project_summary(project_id):
 
     for step_index_str, notes in (project.step_notes or {}).items():
         step_index = int(step_index_str)
-        step = project.template.get_step(step_index)
+        step = project.get_step(step_index)
         if step and notes:
             all_notes.append({
                 'step_index': step_index,

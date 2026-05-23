@@ -75,7 +75,7 @@ def complete_project_step(project, step_index, notes=None, results=None):
 
 def advance_or_complete_project(project, step_index):
     """Move project to next step, or mark completed if this was the last."""
-    if step_index + 1 < len(project.template.workflow_steps):
+    if step_index + 1 < project.step_count:
         project.current_step_index = step_index + 1
     else:
         project.status = 'completed'
@@ -137,7 +137,7 @@ def complete_checklist_step(project_id, session_id):
         return redirect(url_for('research_workflow.my_projects'))
 
     # Get step details
-    step = project.template.get_step(session.step_index)
+    step = project.get_step(session.step_index)
     if not step or step['type'] != 'checklist':
         flash('Invalid checklist step', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -246,7 +246,7 @@ def complete_kill_checklist_step(project_id, session_id):
         return redirect(url_for('research_workflow.my_projects'))
 
     # Get step details
-    step = project.template.get_step(session.step_index)
+    step = project.get_step(session.step_index)
     if not step or step['type'] != 'kill_checklist_reference':
         flash('Invalid kill checklist step', 'error')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
@@ -380,7 +380,7 @@ def analyze_checklist_item(project_id, session_id):
         }), 400
 
     # Get the current step and validate the item index
-    step = project.template.get_step(session.step_index)
+    step = project.get_step(session.step_index)
     if not step or step['type'] != 'checklist':
         return jsonify({'status': 'error', 'message': 'Invalid step or not a checklist step'}), 400
 
