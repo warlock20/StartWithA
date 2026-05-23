@@ -5,7 +5,7 @@ Uses Celery for robust task processing
 
 import uuid
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from app import db
 from app.models import BackgroundTask
 from app.utils.time_utils import now_utc
@@ -17,6 +17,7 @@ from app.celery_tasks import bias_check_task
 from app.celery_tasks import argos_deep_analysis_task
 from app.celery_tasks import portfolio_import_task
 from app.celery_tasks import checklist_item_analyze_task
+from app.celery_tasks import ai_research_assist_task
 
 logger = logging.getLogger(__name__)
 
@@ -353,5 +354,45 @@ class BackgroundTaskService:
         )
 
         logger.info(f"Started checklist item analysis task {task_id} (Celery: {celery_task.id}) for item {item_id}")
+
+        return task_id
+
+    @staticmethod
+    def start_ai_research_assist(user_id, mode, question_text, answer_text,
+                                 company_name, use_google_search=False,
+                                 analysis_id=None, item_id=None):
+        """Start an AI Research Assistant task (Challenge/Elaboration/Fact-Check) in the background.
+
+        Uses task_type 'ai_research_assist' to prevent duplicate concurrent tasks.
+        """
+        task_type = 'ai_research_assist'
+
+        # Cancel any stale running/pending tasks for this user
+        BackgroundTask.query.filter(
+            BackgroundTask.user_id == user_id,
+            BackgroundTask.task_type == task_type,
+            BackgroundTask.status.in_(['running', 'pending']),
+        ).update({'status': 'failed', 'error_message': 'Superseded by new request'}, synchronize_session='fetch')
+        db.session.commit()
+
+        # Create new task record
+        task_id = str(uuid.uuid4())
+        task = BackgroundTask(
+            id=task_id,
+            user_id=user_id,
+            task_type=task_type,
+            status='pending'
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Start Celery task
+        celery_task = ai_research_assist_task.delay(
+            task_id, user_id, mode, question_text, answer_text,
+            company_name, use_google_search, analysis_id, item_id
+        )
+
+        logger.info(f"Started AI research assist task {task_id} (Celery: {celery_task.id}, mode: {mode}) for user {user_id}")
 
         return task_id

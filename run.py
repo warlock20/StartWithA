@@ -9,6 +9,7 @@ from app.models import (User, Checklist, ChecklistItem, Company,
 from app.services.portfolio_importer import PortfolioImporter
 from app.services.financial_data import FinancialDataService
 from app.services.feature_unlock_service import seed_unlock_thresholds
+from app.models.research import ResearchProject
 # 1. Create the Flask app instance FIRST.
 app = create_app()
 
@@ -183,6 +184,36 @@ def seed_unlock_thresholds_command():
     with app.app_context():
         seed_unlock_thresholds()
         print("Feature unlock thresholds seeded.")
+
+
+@app.cli.command("fix-imported-research-flags")
+def fix_imported_research_flags_command():
+    """Fixes bulk-imported BUY transactions that are missing the bought_without_research flag."""
+    with app.app_context():
+        imported_buys = Transaction.query.filter(
+            Transaction.type == 'BUY',
+            Transaction.notes.like('%Imported via Bulk Uploader%'),
+            Transaction.bought_without_research == False
+        ).all()
+
+        if not imported_buys:
+            print("No imported BUY transactions need fixing.")
+            return
+
+        fixed = 0
+        for txn in imported_buys:
+            research = ResearchProject.query.filter_by(
+                company_id=txn.company_id,
+                user_id=txn.user_id
+            ).first()
+
+            if not research:
+                txn.bought_without_research = True
+                fixed += 1
+                print(f"  Fixed: {txn.company.ticker_symbol} ({txn.date}) - marked as without research")
+
+        db.session.commit()
+        print(f"\nDone! Fixed {fixed} out of {len(imported_buys)} imported BUY transactions.")
 
 
 @app.cli.command("init-db")

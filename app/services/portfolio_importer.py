@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.company import Company
 from app.models.portfolio import Transaction, update_portfolio_position_for_company
 from app.models.journal import DecisionJournal
+from app.models.research import ResearchProject
 from app.services.financial_data import FinancialDataService
 from app.services.cash_service import CashService
 from app.services.currency_service import CurrencyService
@@ -412,6 +413,16 @@ class PortfolioImporter:
         price_per_share_base = db_price * exchange_rate
         fees_base = fees * exchange_rate
 
+        # For BUY transactions, check if company has research
+        imported_without_research = False
+        if db_type == 'BUY':
+            research_project = ResearchProject.query.filter_by(
+                company_id=company_id,
+                user_id=self.user.id
+            ).first()
+            if not research_project:
+                imported_without_research = True
+
         txn = Transaction(
             user_id=self.user.id,
             company_id=company_id,
@@ -425,7 +436,8 @@ class PortfolioImporter:
             exchange_rate=exchange_rate,
             exchange_rate_date=transaction_date,
             notes=f"Imported via Bulk Uploader. Row {row_index+2}",
-            currency=currency
+            currency=currency,
+            bought_without_research=imported_without_research
         )
         
         db.session.add(txn)

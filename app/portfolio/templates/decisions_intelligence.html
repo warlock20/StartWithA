@@ -311,10 +311,10 @@
                 <div class="analytics-timeline-content">
                     <div class="analytics-timeline-title">
                         {{ txn.type }} {{ txn.company.ticker_symbol }} - ${{ "%.2f"|format(txn.price_per_share) }}
-                        {% if txn.bought_without_research and txn.type == 'BUY' %}
-                        <span class="analytics-insight-badge warning">No Research</span>
-                        {% elif txn.type == 'BUY' %}
+                        {% if txn.type == 'BUY' and txn.decision_journal and txn.decision_journal.linked_research_id %}
                         <span class="analytics-insight-badge success">With Research</span>
+                        {% elif txn.type == 'BUY' %}
+                        <span class="analytics-insight-badge warning">No Research</span>
                         {% endif %}
                     </div>
                     <div class="analytics-timeline-description">
