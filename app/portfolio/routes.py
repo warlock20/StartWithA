@@ -615,30 +615,49 @@ def analytics_decisions():
     ).all()
 
     # Calculate research-backed vs non-research statistics
-    research_backed = [j for j in all_journals if j.linked_research_id is not None and j.decision_type == 'BUY']
-    non_research = [j for j in all_journals if j.non_research_source is not None and j.decision_type == 'BUY']
+    # Build a set of company_ids that have a research-backed BUY journal
+    research_company_ids = {j.company_id for j in all_journals
+                           if j.linked_research_id is not None and j.decision_type == 'BUY'}
 
     # Calculate average returns for each category
+    # Use unrealized for active positions, realized for closed positions
+    def get_position_return(position):
+        """Get the return % for a position: unrealized if active, realized if closed."""
+        if position.is_active and position.unrealized_gain_loss_pct is not None:
+            return float(position.unrealized_gain_loss_pct)
+        elif not position.is_active and position.realized_gain_loss_pct is not None:
+            return float(position.realized_gain_loss_pct)
+        return None
+
+    def get_position_gain(position):
+        """Get the gain/loss amount: unrealized if active, realized if closed."""
+        if position.is_active and position.unrealized_gain_loss is not None:
+            return float(position.unrealized_gain_loss)
+        elif not position.is_active and position.realized_gain_loss is not None:
+            return float(position.realized_gain_loss)
+        return None
+
+    # Categorize positions: research-backed vs non-research
+    # A position is research-backed if it has a BUY journal with linked_research_id
+    # Everything else (no journal, or journal without research) is non-research
     research_positions = []
     non_research_positions = []
 
-    for journal in research_backed:
-        position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-        if position and position.unrealized_gain_loss_pct:
+    for position in all_positions:
+        if get_position_return(position) is None:
+            continue
+        if position.company_id in research_company_ids:
             research_positions.append(position)
-
-    for journal in non_research:
-        position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-        if position and position.unrealized_gain_loss_pct:
+        else:
             non_research_positions.append(position)
 
     # Calculate stats
-    research_avg_return = sum(float(p.unrealized_gain_loss_pct) for p in research_positions) / len(research_positions) if research_positions else 0
-    research_win_rate = sum(1 for p in research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0) / len(research_positions) * 100 if research_positions else 0
+    research_avg_return = sum(get_position_return(p) for p in research_positions) / len(research_positions) if research_positions else 0
+    research_win_rate = sum(1 for p in research_positions if (get_position_gain(p) or 0) > 0) / len(research_positions) * 100 if research_positions else 0
     research_avg_hold = sum(p.days_held for p in research_positions) / len(research_positions) if research_positions else 0
 
-    non_research_avg_return = sum(float(p.unrealized_gain_loss_pct) for p in non_research_positions) / len(non_research_positions) if non_research_positions else 0
-    non_research_win_rate = sum(1 for p in non_research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0) / len(non_research_positions) * 100 if non_research_positions else 0
+    non_research_avg_return = sum(get_position_return(p) for p in non_research_positions) / len(non_research_positions) if non_research_positions else 0
+    non_research_win_rate = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) > 0) / len(non_research_positions) * 100 if non_research_positions else 0
     non_research_avg_hold = sum(p.days_held for p in non_research_positions) / len(non_research_positions) if non_research_positions else 0
 
     # Get active positions for current analysis
@@ -649,10 +668,10 @@ def analytics_decisions():
 
     # Decision Quality Matrix
     # Good Process = Research-backed, Bad Process = No research
-    good_process_good_outcome = sum(1 for p in research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0)
-    good_process_bad_outcome = sum(1 for p in research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss <= 0)
-    bad_process_good_outcome = sum(1 for p in non_research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss > 0)
-    bad_process_bad_outcome = sum(1 for p in non_research_positions if p.unrealized_gain_loss and p.unrealized_gain_loss <= 0)
+    good_process_good_outcome = sum(1 for p in research_positions if (get_position_gain(p) or 0) > 0)
+    good_process_bad_outcome = sum(1 for p in research_positions if (get_position_gain(p) or 0) <= 0)
+    bad_process_good_outcome = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) > 0)
+    bad_process_bad_outcome = sum(1 for p in non_research_positions if (get_position_gain(p) or 0) <= 0)
 
     # Recent decisions
     recent_decisions = Transaction.query.filter_by(
@@ -667,10 +686,10 @@ def analytics_decisions():
     for journal in all_journals:
         if journal.confidence_score and journal.decision_type == 'BUY':
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            if position and position.unrealized_gain_loss_pct:
+            if position and get_position_return(position) is not None:
                 journals_with_confidence.append({
                     'confidence': journal.confidence_score,
-                    'return': float(position.unrealized_gain_loss_pct)
+                    'return': get_position_return(position)
                 })
 
     # Calculate confidence calibration stats using utility
@@ -682,9 +701,10 @@ def analytics_decisions():
     for journal in all_journals:
         if journal.expected_return and journal.decision_type == 'BUY':
             position = next((p for p in all_positions if p.company_id == journal.company_id), None)
-            if position and position.unrealized_gain_loss_pct:
+            pos_return = get_position_return(position) if position else None
+            if position and pos_return is not None:
                 expected = journal.expected_return
-                actual = float(position.unrealized_gain_loss_pct)
+                actual = pos_return
                 diff = actual - expected
                 met_expectation = actual >= expected
 

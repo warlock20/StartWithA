@@ -671,6 +671,9 @@ const FreeResearch = {
     // AI Assistant Integration
     // =============================================================================
 
+    // Track per-question polling intervals
+    _aiPolls: {},
+
     async triggerAI(questionId, mode) {
         // Check GDPR consent before sending data to AI providers
         if (typeof checkAIConsent === 'function') {
@@ -718,10 +721,17 @@ const FreeResearch = {
                 })
             });
 
+            if (response.status === 429) {
+                const data = await response.json();
+                responseArea.innerHTML = `<div class="text-danger" style="padding: 0.5rem 0;"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>AI Token Limit Reached</strong> — You've used ${data.tokens_used || 'all'} of your ${data.tokens_limit || 'monthly'} tokens.</div>`;
+                return;
+            }
+
             const data = await response.json();
 
-            if (data.success) {
-                this.renderAIResponse(questionId, mode, data.response);
+            if (data.success && data.task_id) {
+                // Start polling for result
+                this.startAIPoll(questionId, data.task_id, mode);
             } else {
                 responseArea.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-circle me-2"></i>${data.error || 'AI request failed'}</div>`;
             }
@@ -731,7 +741,52 @@ const FreeResearch = {
         }
     },
 
-    renderAIResponse(questionId, mode, responseText) {
+    startAIPoll(questionId, taskId, mode) {
+        this.stopAIPoll(questionId);
+
+        let pollCount = 0;
+        const maxPolls = 60; // 2-minute timeout
+
+        this._aiPolls[questionId] = setInterval(() => {
+            pollCount++;
+            if (pollCount > maxPolls) {
+                this.stopAIPoll(questionId);
+                const responseArea = document.getElementById(`aiResponse-${questionId}`);
+                if (responseArea) {
+                    responseArea.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-circle me-2"></i>Analysis is taking longer than expected. Please try again.</div>`;
+                }
+                return;
+            }
+
+            fetch(`/research/workflow/ai_assist/status/${taskId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.state === 'COMPLETED') {
+                        this.stopAIPoll(questionId);
+                        this.renderAIResponse(questionId, data.mode || mode, data.response, data.feedback_id);
+                    } else if (data.state === 'FAILED') {
+                        this.stopAIPoll(questionId);
+                        const responseArea = document.getElementById(`aiResponse-${questionId}`);
+                        if (responseArea) {
+                            responseArea.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-circle me-2"></i>${data.error || 'AI analysis failed'}</div>`;
+                        }
+                    }
+                    // PENDING / RUNNING — continue polling
+                })
+                .catch(error => {
+                    console.error(`Poll error for question ${questionId}:`, error);
+                });
+        }, 2000); // Poll every 2 seconds
+    },
+
+    stopAIPoll(questionId) {
+        if (this._aiPolls[questionId]) {
+            clearInterval(this._aiPolls[questionId]);
+            delete this._aiPolls[questionId];
+        }
+    },
+
+    renderAIResponse(questionId, mode, responseText, feedbackId) {
         const responseArea = document.getElementById(`aiResponse-${questionId}`);
 
         const modeConfig = {
@@ -752,10 +807,10 @@ const FreeResearch = {
             </div>
             ${aiDisclaimer()}
             <div class="d-flex gap-2 mt-3 pt-2 border-top">
-                <button class="btn btn-sm btn-outline-success" onclick="FreeResearch.submitAIFeedback(${questionId}, 'helpful')">
+                <button class="btn btn-sm btn-outline-success" onclick="FreeResearch.submitAIFeedback(${questionId}, ${feedbackId}, 'helpful')">
                     <i class="bi bi-hand-thumbs-up"></i> Helpful
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="FreeResearch.submitAIFeedback(${questionId}, 'not_helpful')">
+                <button class="btn btn-sm btn-outline-danger" onclick="FreeResearch.submitAIFeedback(${questionId}, ${feedbackId}, 'not_helpful')">
                     <i class="bi bi-hand-thumbs-down"></i> Not Helpful
                 </button>
                 <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="FreeResearch.dismissAI(${questionId})">
@@ -773,12 +828,22 @@ const FreeResearch = {
     },
 
     dismissAI(questionId) {
+        this.stopAIPoll(questionId);
         const responseArea = document.getElementById(`aiResponse-${questionId}`);
         responseArea.classList.remove('visible');
         setTimeout(() => responseArea.innerHTML = '', 300);
     },
 
-    async submitAIFeedback(questionId, feedback) {
+    async submitAIFeedback(questionId, feedbackId, feedback) {
+        try {
+            await fetch('/research/workflow/ai_assist/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ feedback_id: feedbackId, feedback: feedback })
+            });
+        } catch (e) {
+            console.error('Feedback error:', e);
+        }
         this.showToast(feedback === 'helpful' ? 'Thanks for the feedback!' : 'Feedback recorded');
         this.dismissAI(questionId);
     },

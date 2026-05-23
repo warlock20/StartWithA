@@ -12,13 +12,14 @@ import fitz
 from flask import current_app
 
 from app import db, create_app
-from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult, ChecklistItem, ChecklistAnalysis, CompanyResource
+from app.models import Company, BackgroundTask, WorkSession, User, ResearchProject, BiasCheckResult, ChecklistItem, ChecklistAnalysis, CompanyResource, AIResearchFeedback
 from celery_app import celery
 
 from app.services.ai import generate_text, ai_service
 from app.services.ai.prompt_service import get_competitor_analysis_prompt, prompt_service
 from app.services.ai.config import AITaskType
 from app.services.argos import ArgosService
+from app.services.ai_research_assistant import ai_research_assistant
 from app.services.research_data_service import ResearchDataService
 from app.utils.time_utils import now_utc
 
@@ -470,6 +471,125 @@ def checklist_item_analyze_task(self, task_id, user_id, analysis_id, item_id, se
 
         except Exception as e:
             logger.error(f"TASK {self.request.id}: Checklist item analysis failed - {e}", exc_info=True)
+
+            task = BackgroundTask.query.get(task_id)
+            if task:
+                task.status = 'failed'
+                task.completed_at = now_utc()
+                task.error_message = str(e)
+                db.session.commit()
+
+            return {"status": "failed", "message": str(e)}
+
+
+# =========================================================================
+# AI Research Assistant (Challenge / Elaboration / Fact-Check)
+# =========================================================================
+
+@celery.task(bind=True)
+def ai_research_assist_task(self, task_id, user_id, mode, question_text, answer_text,
+                            company_name, use_google_search, analysis_id, item_id):
+    """
+    Celery background task for AI Research Assistant modes
+    (Challenge, Elaboration, Fact-Check).
+
+    Args:
+        task_id: BackgroundTask ID for status tracking
+        user_id: User ID for token tracking
+        mode: 'challenge' | 'elaboration' | 'factcheck'
+        question_text: The research question being answered
+        answer_text: User's answer text
+        company_name: Company name for context
+        use_google_search: Whether to enable Google Search grounding
+        analysis_id: Optional ChecklistAnalysis ID (for feedback tracking)
+        item_id: Optional ChecklistItem ID (for feedback tracking)
+    """
+    app = create_app()
+    with app.app_context():
+        task = BackgroundTask.query.get(task_id)
+        if not task:
+            logger.error(f"TASK {self.request.id}: Task {task_id} not found")
+            return {"status": "failed", "message": "Task not found"}
+
+        try:
+            # 1. UPDATE STATUS TO RUNNING
+            task.status = 'running'
+            task.started_at = now_utc()
+            db.session.commit()
+
+            # 2. CALL AI RESEARCH ASSISTANT SERVICE
+            context_data = {'company_name': company_name}
+
+            if mode == 'challenge':
+                ai_response = ai_research_assistant.generate_challenge(
+                    question_text=question_text,
+                    user_answer=answer_text,
+                    context_data=context_data,
+                    google_search=use_google_search
+                )
+            elif mode == 'elaboration':
+                ai_response = ai_research_assistant.generate_elaboration(
+                    question_text=question_text,
+                    user_answer=answer_text,
+                    context_data=context_data,
+                    google_search=use_google_search
+                )
+            elif mode == 'factcheck':
+                ai_response = ai_research_assistant.generate_factcheck(
+                    question_text=question_text,
+                    user_answer=answer_text,
+                    context_data=context_data,
+                    google_search=use_google_search
+                )
+            else:
+                raise ValueError(f"Invalid mode '{mode}'")
+
+            if not ai_response.success:
+                raise ValueError(ai_response.error or 'AI service failed')
+
+            # 3. STORE FEEDBACK RECORD
+            feedback_record = AIResearchFeedback(
+                user_id=user_id,
+                analysis_id=analysis_id,
+                item_id=item_id,
+                company_name=company_name,
+                mode=mode,
+                question_text=question_text,
+                user_answer=answer_text,
+                ai_response=ai_response.response_text,
+                tokens_used=ai_response.tokens_used,
+                feedback=None,
+                prompt_version=ai_response.metadata.get('template_version') if ai_response.metadata else None,
+                provider=ai_response.metadata.get('provider', 'gemini') if ai_response.metadata else 'gemini',
+                model=ai_response.metadata.get('model', 'gemini-flash') if ai_response.metadata else 'gemini-flash'
+            )
+            db.session.add(feedback_record)
+            db.session.flush()
+
+            # 4. TRACK TOKEN USAGE
+            user = User.query.get(user_id)
+            if user:
+                user.increment_ai_tokens(ai_response.tokens_used)
+
+            # 5. UPDATE TASK AS COMPLETED
+            task.status = 'completed'
+            task.completed_at = now_utc()
+            task.result = json.dumps({
+                'response': ai_response.response_text,
+                'mode': mode,
+                'tokens_used': ai_response.tokens_used,
+                'feedback_id': feedback_record.id
+            })
+            db.session.commit()
+
+            logger.info(
+                f"TASK {self.request.id}: AI research assist ({mode}) completed, "
+                f"feedback_id={feedback_record.id}, tokens={ai_response.tokens_used}"
+            )
+            return {"status": "success", "tokens_used": ai_response.tokens_used}
+
+        except Exception as e:
+            logger.error(f"TASK {self.request.id}: AI research assist ({mode}) failed - {e}", exc_info=True)
 
             task = BackgroundTask.query.get(task_id)
             if task:

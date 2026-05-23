@@ -9,6 +9,8 @@
  * - Elaboration Mode: Follow-up questions to deepen analysis
  * - Fact-Check Mode: Verify claims and request sources
  *
+ * All AI modes run as background tasks with polling for results.
+ *
  * Usage:
  * 1. Include this script in your page: <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}" defer></script>
  * 2. Initialize: window.aiAssistant = new AIResearchAssistant(config);
@@ -17,6 +19,7 @@
  * Configuration:
  * {
  *     apiEndpoint: '/research/workflow/ai_assist',           // Backend API endpoint
+ *     statusEndpoint: '/research/workflow/ai_assist/status',  // Polling endpoint
  *     feedbackEndpoint: '/research/workflow/ai_assist/feedback',
  *     regenerateEndpoint: '/research/workflow/ai_assist/regenerate',
  *     getAnswerText: () => string,                  // Function to get answer text from editor
@@ -29,6 +32,7 @@ class AIResearchAssistant {
     constructor(config = {}) {
         // Configuration
         this.apiEndpoint = config.apiEndpoint || '/research/workflow/ai_assist';
+        this.statusEndpoint = config.statusEndpoint || '/research/workflow/ai_assist/status';
         this.feedbackEndpoint = config.feedbackEndpoint || '/research/workflow/ai_assist/feedback';
         this.regenerateEndpoint = config.regenerateEndpoint || '/research/workflow/ai_assist/regenerate';
         this.getAnswerText = config.getAnswerText || (() => '');
@@ -37,6 +41,7 @@ class AIResearchAssistant {
         // State
         this.currentFeedbackId = null;
         this.currentMode = null;
+        this.pollInterval = null;
 
         // Mode configuration
         this.modes = {
@@ -61,7 +66,7 @@ class AIResearchAssistant {
 
     /**
      * Trigger AI mode (Challenge, Elaboration, Fact-Check)
-     * Validates answer exists, then calls AI assistant API
+     * Validates answer exists, then dispatches background task
      */
     triggerMode(mode, answerText = null, context = null) {
         // Get answer text if not provided
@@ -83,13 +88,12 @@ class AIResearchAssistant {
         // Store current mode
         this.currentMode = mode;
 
-        // Call AI assistant
+        // Dispatch background task
         this.callAIAssistant(mode, answerText);
     }
 
     /**
-     * Call AI Assistant API
-     * Makes AJAX POST request to backend
+     * Call AI Assistant API - dispatches background task and polls for result
      */
     async callAIAssistant(mode, answerText) {
         // Check GDPR consent before sending data to AI providers
@@ -115,7 +119,7 @@ class AIResearchAssistant {
             use_google_search: useWebSearch
         };
 
-        // Make AJAX POST request
+        // Dispatch background task
         fetch(this.apiEndpoint, {
             method: 'POST',
             headers: {
@@ -129,35 +133,82 @@ class AIResearchAssistant {
                 return response.json().then(data => {
                     this.hideLoading();
                     this.showTokenLimitError(data);
-                    throw new Error('Token limit exceeded'); // Stop further processing
+                    throw new Error('Token limit exceeded');
                 });
             }
             return response.json();
         })
         .then(data => {
-            this.hideLoading();
-
-            if (data.success) {
-                // Display AI response
-                this.displayResponse(mode, data.response, data.feedback_id);
-                this.currentFeedbackId = data.feedback_id;
-
-                // Log success
-                console.log(`AI ${mode} success: ${data.tokens_used} tokens used`);
+            if (data.success && data.task_id) {
+                // Start polling for result
+                this.startPolling(data.task_id, mode);
             } else {
-                // Show error
+                this.hideLoading();
                 alert('AI Assistant Error: ' + (data.error || 'Unknown error occurred'));
-                console.error('AI assist error:', data.error);
+                console.error('AI assist dispatch error:', data.error);
             }
         })
         .catch(error => {
-            // Only show network error if not token limit error
             if (error.message !== 'Token limit exceeded') {
                 this.hideLoading();
                 alert('Network error. Please check your connection and try again.');
                 console.error('AI assist network error:', error);
             }
         });
+    }
+
+    /**
+     * Start polling for background task result
+     * @param {string} taskId - Background task UUID
+     * @param {string} mode - AI mode (challenge/elaboration/factcheck)
+     */
+    startPolling(taskId, mode) {
+        this.stopPolling();
+
+        let pollCount = 0;
+        const maxPolls = 60; // 2-minute timeout (60 * 2s)
+
+        this.pollInterval = setInterval(() => {
+            pollCount++;
+            if (pollCount > maxPolls) {
+                this.stopPolling();
+                this.hideLoading();
+                alert('AI analysis is taking longer than expected. Please try again.');
+                return;
+            }
+
+            fetch(this.statusEndpoint + '/' + taskId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state === 'COMPLETED') {
+                        this.stopPolling();
+                        this.hideLoading();
+                        this.displayResponse(data.mode || mode, data.response, data.feedback_id);
+                        this.currentFeedbackId = data.feedback_id;
+                        console.log(`AI ${mode} success: ${data.tokens_used} tokens used`);
+                    } else if (data.state === 'FAILED') {
+                        this.stopPolling();
+                        this.hideLoading();
+                        alert('AI Assistant Error: ' + (data.error || 'Analysis failed'));
+                        console.error('AI assist task failed:', data.error);
+                    }
+                    // PENDING / RUNNING — continue polling
+                })
+                .catch(error => {
+                    console.error('Poll error:', error);
+                    // Keep retrying on transient errors
+                });
+        }, 2000); // Poll every 2 seconds
+    }
+
+    /**
+     * Stop polling for background task result
+     */
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
     }
 
     /**
@@ -389,7 +440,7 @@ class AIResearchAssistant {
     }
 
     /**
-     * Regenerate AI response
+     * Regenerate AI response - dispatches background task and polls for result
      */
     regenerate() {
         if (!this.currentFeedbackId) {
@@ -400,7 +451,7 @@ class AIResearchAssistant {
         // Show loading
         this.showLoading(this.currentMode || 'regenerating');
 
-        // Make AJAX POST request
+        // Dispatch regeneration as background task
         fetch(this.regenerateEndpoint, {
             method: 'POST',
             headers: {
@@ -423,17 +474,13 @@ class AIResearchAssistant {
             return response.json();
         })
         .then(data => {
-            this.hideLoading();
-
-            if (data.success) {
-                // Display new AI response
-                this.displayResponse(data.mode, data.response, data.feedback_id);
-                this.currentFeedbackId = data.feedback_id;
-
-                console.log('Response regenerated:', data.tokens_used, 'tokens used');
+            if (data.success && data.task_id) {
+                // Start polling for regenerated result
+                this.startPolling(data.task_id, this.currentMode);
             } else {
+                this.hideLoading();
                 alert('Regeneration Error: ' + (data.error || 'Unknown error occurred'));
-                console.error('Regeneration error:', data.error);
+                console.error('Regeneration dispatch error:', data.error);
             }
         })
         .catch(error => {
@@ -468,6 +515,9 @@ class AIResearchAssistant {
      * Dismiss AI response area
      */
     dismiss() {
+        // Stop any active polling
+        this.stopPolling();
+
         // Submit dismissed feedback
         if (this.currentFeedbackId) {
             this.submitFeedback('dismissed');
@@ -555,6 +605,9 @@ AIResearchAssistant.MODES = {
     factcheck:   { icon: 'shield-check',         respIcon: 'shield-exclamation',  color: 'warning', title: 'Fact-Check',          btnClass: 'factcheck' }
 };
 
+// Track per-question polling intervals
+AIResearchAssistant._questionPolls = {};
+
 /**
  * Format AI response text to HTML (shared by instance and static callers).
  * Converts bold, paragraphs, bullet/numbered lists. Appends AI disclaimer.
@@ -622,7 +675,7 @@ AIResearchAssistant.renderToolbar = function (questionId, handlerName) {
 
 /**
  * Trigger an AI call for a specific question.
- * Handles GDPR consent, loading state, fetch, error handling, and response rendering.
+ * Dispatches a background task and polls for the result.
  * @param {number} questionId
  * @param {string} mode - 'challenge' | 'elaboration' | 'factcheck'
  * @param {object} opts - { answerText, questionText, companyName, showToast }
@@ -651,6 +704,7 @@ AIResearchAssistant.triggerForQuestion = function (questionId, mode, opts) {
             '</div>';
         responseArea.classList.add('visible');
 
+        // Dispatch background task
         fetch('/research/workflow/ai_assist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -678,8 +732,9 @@ AIResearchAssistant.triggerForQuestion = function (questionId, mode, opts) {
             return response.json();
         })
         .then(function (data) {
-            if (data.success) {
-                AIResearchAssistant.renderQuestionResponse(questionId, mode, data.response, data.feedback_id, showToast);
+            if (data.success && data.task_id) {
+                // Start polling for result
+                AIResearchAssistant.startQuestionPolling(questionId, data.task_id, mode, showToast);
             } else {
                 responseArea.innerHTML =
                     '<div class="text-danger" style="padding: 0.5rem 0;">' +
@@ -703,6 +758,70 @@ AIResearchAssistant.triggerForQuestion = function (questionId, mode, opts) {
         });
     } else {
         proceed();
+    }
+};
+
+/**
+ * Start polling for a per-question background task result.
+ * @param {number} questionId
+ * @param {string} taskId - Background task UUID
+ * @param {string} mode - AI mode
+ * @param {function} showToast - Toast notification function
+ */
+AIResearchAssistant.startQuestionPolling = function (questionId, taskId, mode, showToast) {
+    // Stop any existing poll for this question
+    AIResearchAssistant.stopQuestionPolling(questionId);
+
+    var pollCount = 0;
+    var maxPolls = 60; // 2-minute timeout
+
+    AIResearchAssistant._questionPolls[questionId] = setInterval(function () {
+        pollCount++;
+        if (pollCount > maxPolls) {
+            AIResearchAssistant.stopQuestionPolling(questionId);
+            var responseArea = document.getElementById('aiResponse-' + questionId);
+            if (responseArea) {
+                responseArea.innerHTML =
+                    '<div class="text-danger" style="padding: 0.5rem 0;">' +
+                        '<i class="bi bi-exclamation-circle me-2"></i>Analysis is taking longer than expected. Please try again.' +
+                    '</div>';
+            }
+            return;
+        }
+
+        fetch('/research/workflow/ai_assist/status/' + taskId)
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.state === 'COMPLETED') {
+                    AIResearchAssistant.stopQuestionPolling(questionId);
+                    AIResearchAssistant.renderQuestionResponse(questionId, data.mode || mode, data.response, data.feedback_id, showToast);
+                } else if (data.state === 'FAILED') {
+                    AIResearchAssistant.stopQuestionPolling(questionId);
+                    var responseArea = document.getElementById('aiResponse-' + questionId);
+                    if (responseArea) {
+                        responseArea.innerHTML =
+                            '<div class="text-danger" style="padding: 0.5rem 0;">' +
+                                '<i class="bi bi-exclamation-circle me-2"></i>' + (data.error || 'AI analysis failed') +
+                            '</div>';
+                    }
+                }
+                // PENDING / RUNNING — continue polling
+            })
+            .catch(function (error) {
+                console.error('Poll error for question ' + questionId + ':', error);
+                // Keep retrying on transient errors
+            });
+    }, 2000); // Poll every 2 seconds
+};
+
+/**
+ * Stop polling for a specific question.
+ * @param {number} questionId
+ */
+AIResearchAssistant.stopQuestionPolling = function (questionId) {
+    if (AIResearchAssistant._questionPolls[questionId]) {
+        clearInterval(AIResearchAssistant._questionPolls[questionId]);
+        delete AIResearchAssistant._questionPolls[questionId];
     }
 };
 
@@ -757,6 +876,9 @@ AIResearchAssistant.submitQuestionFeedback = function (questionId, feedbackId, v
  * Dismiss the AI response area for a specific question.
  */
 AIResearchAssistant.dismissQuestion = function (questionId) {
+    // Stop any active polling for this question
+    AIResearchAssistant.stopQuestionPolling(questionId);
+
     var responseArea = document.getElementById('aiResponse-' + questionId);
     if (responseArea) {
         responseArea.classList.remove('visible');

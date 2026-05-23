@@ -2,13 +2,16 @@
 AI Research Assistant Routes
 
 Flask routes for AI-powered research assistance:
-- Generate AI challenges, elaborations, and fact-checks
+- Dispatch AI challenges, elaborations, and fact-checks as background tasks
+- Poll task status for async results
 - Store user feedback for quality monitoring
 - AJAX-based (no page reloads)
 
 Routes:
-- POST /research/ai_assist - Generate AI response
+- POST /research/ai_assist - Dispatch AI response task (returns task_id)
+- GET  /research/ai_assist/status/<task_id> - Poll task status
 - POST /research/ai_assist/feedback - Store user feedback
+- POST /research/ai_assist/regenerate - Regenerate AI response (returns task_id)
 """
 
 import logging
@@ -18,11 +21,12 @@ from flask_login import current_user, login_required
 from app import db
 from app.research_workflow import research_workflow_bp
 from app.models import ChecklistAnalysis, AIResearchFeedback
-from app.services.ai_research_assistant import ai_research_assistant
-from app.utils.time_utils import now_utc
+from app.services.background_tasks import BackgroundTaskService
 from app.utils.decorators import require_ai_tokens
 
 logger = logging.getLogger(__name__)
+
+VALID_MODES = ['challenge', 'elaboration', 'factcheck']
 
 
 @research_workflow_bp.route('/ai_assist', methods=['POST'])
@@ -30,7 +34,7 @@ logger = logging.getLogger(__name__)
 @require_ai_tokens(5000)
 def ai_assist():
     """
-    Generate AI research assistance response.
+    Dispatch AI research assistance as a background task.
 
     Request Body (JSON):
     {
@@ -44,16 +48,7 @@ def ai_assist():
     Response (JSON):
     {
         "success": true,
-        "mode": "challenge",
-        "response": "Counter-argument: Network effects are weak...",
-        "tokens_used": 245,
-        "feedback_id": 789  // For tracking feedback later
-    }
-
-    Or on error:
-    {
-        "success": false,
-        "error": "Invalid mode 'xyz'"
+        "task_id": "uuid-string"
     }
     """
     try:
@@ -75,6 +70,12 @@ def ai_assist():
             return jsonify({
                 'success': False,
                 'error': 'mode is required (challenge, elaboration, or factcheck)'
+            }), 400
+
+        if mode not in VALID_MODES:
+            return jsonify({
+                'success': False,
+                'error': f"Invalid mode '{mode}'. Valid modes: challenge, elaboration, factcheck"
             }), 400
 
         if not question_text or not question_text.strip():
@@ -105,7 +106,6 @@ def ai_assist():
             if analysis:
                 company_name = analysis.company.name
             else:
-                # Invalid analysis_id or unauthorized
                 return jsonify({
                     'success': False,
                     'error': 'Invalid or unauthorized analysis_id'
@@ -115,102 +115,80 @@ def ai_assist():
         if not company_name:
             company_name = data.get('company_name', 'Unknown Company')
 
-        # Build context data
-        context_data = {
-            'company_name': company_name
-        }
-
-        # Call AI Research Assistant service
+        # Dispatch background task
         logger.info(
-            f"AI assist request: user={current_user.id}, mode={mode}, "
+            f"AI assist dispatch: user={current_user.id}, mode={mode}, "
             f"analysis={analysis_id}, item={item_id}, company={company_name}"
         )
 
-        # Generate AI response based on mode
-        if mode == 'challenge':
-            ai_response = ai_research_assistant.generate_challenge(
-                question_text=question_text,
-                user_answer=answer_text,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        elif mode == 'elaboration':
-            ai_response = ai_research_assistant.generate_elaboration(
-                question_text=question_text,
-                user_answer=answer_text,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        elif mode == 'factcheck':
-            ai_response = ai_research_assistant.generate_factcheck(
-                question_text=question_text,
-                user_answer=answer_text,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        else:
-            return jsonify({
-                'success': False,
-                'error': f"Invalid mode '{mode}'. Valid modes: challenge, elaboration, factcheck"
-            }), 400
-
-        # Check if AI service succeeded
-        if not ai_response.success:
-            logger.error(f"AI assist failed: {ai_response.error}")
-            return jsonify({
-                'success': False,
-                'error': ai_response.error or 'AI service failed'
-            }), 500
-
-        # Store interaction in database for quality tracking
-        feedback_record = AIResearchFeedback(
+        task_id = BackgroundTaskService.start_ai_research_assist(
             user_id=current_user.id,
-            analysis_id=analysis_id,
-            item_id=item_id,
-            company_name=company_name,
             mode=mode,
             question_text=question_text,
-            user_answer=answer_text,
-            ai_response=ai_response.response_text,
-            tokens_used=ai_response.tokens_used,
-            feedback=None,  # User hasn't provided feedback yet
-            prompt_version=ai_response.metadata.get('template_version') if ai_response.metadata else None,
-            provider=ai_response.metadata.get('provider', 'gemini') if ai_response.metadata else 'gemini',
-            model=ai_response.metadata.get('model', 'gemini-flash') if ai_response.metadata else 'gemini-flash'
+            answer_text=answer_text,
+            company_name=company_name,
+            use_google_search=use_google_search,
+            analysis_id=analysis_id,
+            item_id=item_id
         )
 
-        db.session.add(feedback_record)
-        db.session.commit()
-
-        # Increment user's token usage with actual tokens from AI response
-        current_user.increment_ai_tokens(ai_response.tokens_used)
-
-        logger.info(
-            f"AI assist success: feedback_id={feedback_record.id}, "
-            f"tokens={ai_response.tokens_used}, mode={mode}, "
-            f"user_total={current_user.ai_tokens_used}/{current_user.ai_tokens_limit}"
-        )
-
-        # Return success response
         return jsonify({
             'success': True,
-            'mode': mode,
-            'response': ai_response.response_text,
-            'tokens_used': ai_response.tokens_used,
-            'feedback_id': feedback_record.id,  # For later feedback submission
-            'metadata': {
-                'question_length': len(question_text),
-                'answer_length': len(answer_text),
-                'response_length': len(ai_response.response_text)
-            }
+            'task_id': task_id
         }), 200
 
     except Exception as e:
-        logger.error(f"Unexpected error in AI assist: {e}", exc_info=True)
+        logger.error(f"Unexpected error in AI assist dispatch: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': 'An unexpected error occurred. Please try again.'
         }), 500
+
+
+@research_workflow_bp.route('/ai_assist/status/<task_id>')
+@login_required
+def ai_assist_status(task_id):
+    """
+    Poll status of an AI research assist background task.
+
+    Response (JSON):
+    {
+        "state": "PENDING" | "RUNNING" | "COMPLETED" | "FAILED",
+        "current": 0-100,
+        "total": 100,
+        // On COMPLETED:
+        "response": "AI generated text...",
+        "mode": "challenge",
+        "tokens_used": 245,
+        "feedback_id": 789
+    }
+    """
+    task_status = BackgroundTaskService.get_task_status(task_id)
+
+    if not task_status:
+        return jsonify({'state': 'NOT_FOUND'}), 404
+
+    response = {'current': 0, 'total': 100}
+
+    if task_status['status'] == 'pending':
+        response['state'] = 'PENDING'
+        response['current'] = 10
+    elif task_status['status'] == 'running':
+        response['state'] = 'RUNNING'
+        response['current'] = 50
+    elif task_status['status'] == 'completed':
+        response['state'] = 'COMPLETED'
+        response['current'] = 100
+        result = task_status.get('result', {})
+        response['response'] = result.get('response', '')
+        response['mode'] = result.get('mode', '')
+        response['tokens_used'] = result.get('tokens_used', 0)
+        response['feedback_id'] = result.get('feedback_id')
+    elif task_status['status'] == 'failed':
+        response['state'] = 'FAILED'
+        response['error'] = task_status.get('error', 'AI analysis failed')
+
+    return jsonify(response)
 
 
 @research_workflow_bp.route('/ai_assist/feedback', methods=['POST'])
@@ -318,10 +296,7 @@ def ai_assist_feedback():
 @require_ai_tokens(5000)
 def ai_assist_regenerate():
     """
-    Regenerate AI response for the same question/answer.
-
-    Useful when user clicks "Regenerate" button after getting
-    a not-so-helpful response.
+    Regenerate AI response for the same question/answer as a background task.
 
     Request Body (JSON):
     {
@@ -329,7 +304,10 @@ def ai_assist_regenerate():
     }
 
     Response (JSON):
-    Same as /ai_assist endpoint
+    {
+        "success": true,
+        "task_id": "uuid-string"
+    }
     """
     try:
         # Parse request data
@@ -361,81 +339,32 @@ def ai_assist_regenerate():
                 'error': 'Invalid or unauthorized feedback_id'
             }), 404
 
-        # Re-use original parameters to regenerate
-        context_data = {
-            'company_name': original_record.company_name or 'Unknown Company'
-        }
-
-        # Generate new AI response
-        if original_record.mode == 'challenge':
-            ai_response = ai_research_assistant.generate_challenge(
-                question_text=original_record.question_text,
-                user_answer=original_record.user_answer,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        elif original_record.mode == 'elaboration':
-            ai_response = ai_research_assistant.generate_elaboration(
-                question_text=original_record.question_text,
-                user_answer=original_record.user_answer,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        elif original_record.mode == 'factcheck':
-            ai_response = ai_research_assistant.generate_factcheck(
-                question_text=original_record.question_text,
-                user_answer=original_record.user_answer,
-                context_data=context_data,
-                google_search=use_google_search
-            )
-        else:
+        if original_record.mode not in VALID_MODES:
             return jsonify({
                 'success': False,
                 'error': f"Invalid mode '{original_record.mode}'"
             }), 400
 
-        if not ai_response.success:
-            return jsonify({
-                'success': False,
-                'error': ai_response.error or 'AI service failed'
-            }), 500
-
-        # Create NEW feedback record for regenerated response
-        new_feedback_record = AIResearchFeedback(
+        # Dispatch background task with original parameters
+        task_id = BackgroundTaskService.start_ai_research_assist(
             user_id=current_user.id,
-            analysis_id=original_record.analysis_id,
-            item_id=original_record.item_id,
-            company_name=original_record.company_name,
             mode=original_record.mode,
             question_text=original_record.question_text,
-            user_answer=original_record.user_answer,
-            ai_response=ai_response.response_text,
-            tokens_used=ai_response.tokens_used,
-            feedback=None,
-            prompt_version=ai_response.metadata.get('template_version') if ai_response.metadata else None,
-            provider='gemini',
-            model='gemini-flash-latest'
+            answer_text=original_record.user_answer,
+            company_name=original_record.company_name or 'Unknown Company',
+            use_google_search=use_google_search,
+            analysis_id=original_record.analysis_id,
+            item_id=original_record.item_id
         )
 
-        db.session.add(new_feedback_record)
-        db.session.commit()
-
-        # Increment user's token usage with actual tokens from AI response
-        current_user.increment_ai_tokens(ai_response.tokens_used)
-
         logger.info(
-            f"AI response regenerated: original_id={feedback_id}, "
-            f"new_id={new_feedback_record.id}, mode={original_record.mode}, "
-            f"tokens={ai_response.tokens_used}, user_total={current_user.ai_tokens_used}/{current_user.ai_tokens_limit}"
+            f"AI response regeneration dispatched: original_id={feedback_id}, "
+            f"task_id={task_id}, mode={original_record.mode}"
         )
 
         return jsonify({
             'success': True,
-            'mode': original_record.mode,
-            'response': ai_response.response_text,
-            'tokens_used': ai_response.tokens_used,
-            'feedback_id': new_feedback_record.id,
-            'regenerated_from': feedback_id
+            'task_id': task_id
         }), 200
 
     except Exception as e:
