@@ -37,7 +37,7 @@
         <div class="col-lg-8">
             <div class="card template-builder-card">
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('research_workflow.edit_template', template_id=template.id) if template else url_for('research_workflow.create_template') }}" id="templateForm">
+                    <form method="POST" action="{% if project %}{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}{% elif template %}{{ url_for('research_workflow.edit_template', template_id=template.id) }}{% else %}{{ url_for('research_workflow.create_template') }}{% endif %}" id="templateForm">
                         <!-- Template Name -->
                         <div class="mb-4">
                             <input type="text" class="form-control template-name-input font-poppins" id="name"
@@ -479,7 +479,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         {% if template %}
         // Edit mode: load existing workflow steps
-        const existingSteps = {{ template.workflow_steps | tojson }};
+        const existingSteps = {{ (workflow_steps_override or template.workflow_steps) | tojson }};
         existingSteps.forEach(function(step) {
             addStep(step.name || '', step.type || 'custom', step.estimated_minutes || 60, step.config || {});
         });

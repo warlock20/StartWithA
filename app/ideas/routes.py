@@ -1,5 +1,6 @@
 # app/ideas/routes.py
 
+import copy
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import current_user, login_required
 from app import db
@@ -707,7 +708,8 @@ def promote_idea(idea_id):
                 project_name=f"{idea.name} - {template.name}",
                 status='active',
                 idea=idea,
-                investment_thesis=idea.thesis_summary
+                investment_thesis=idea.thesis_summary,
+                workflow_snapshot=copy.deepcopy(template.workflow_steps)
             )
             
             # Update template usage count

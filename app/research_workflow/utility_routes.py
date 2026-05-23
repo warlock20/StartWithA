@@ -7,6 +7,7 @@ This module handles utility and navigation routes including:
 - Research initiation page
 """
 
+import copy
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import current_user, login_required
 from app import db
@@ -103,6 +104,7 @@ def _auto_start_project(company, source):
         company=company,
         project_name=f"{company.name} - {template.name}",
         status='active',
+        workflow_snapshot=copy.deepcopy(template.workflow_steps),
     )
 
     # Link to idea pipeline if this came from idea promotion

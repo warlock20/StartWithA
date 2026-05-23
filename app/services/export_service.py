@@ -298,7 +298,7 @@ def build_research_readme(project):
             lines.append(f"**Decision Date:** {project.decision_date.strftime('%Y-%m-%d')}")
 
     lines.append(f"**Total Time Invested:** {round(project.total_hours_spent or 0, 1)} hours")
-    lines.append(f"**Steps Completed:** {len(project.completed_steps or [])} of {project.template.step_count}")
+    lines.append(f"**Steps Completed:** {len(project.completed_steps or [])} of {project.step_count}")
 
     if project.last_worked_at:
         lines.append(f"**Last Worked:** {project.last_worked_at.strftime('%Y-%m-%d')}")
@@ -770,8 +770,8 @@ def export_research_project(project, upload_folder, pdf_bytes=None):
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"{folder_name}/00_README.md", build_research_readme(project))
 
-        if project.template and project.template.workflow_steps:
-            for i, step in enumerate(project.template.workflow_steps):
+        if project.workflow_steps:
+            for i, step in enumerate(project.workflow_steps):
                 step_name = safe_name(step.get('name', f'Step_{i+1}'))
                 filename = f"{folder_name}/{i+1:02d}_{step_name}.md"
                 zf.writestr(filename, build_research_step_file(project, i, step))
@@ -887,8 +887,8 @@ def export_company_journey(company, user_id, components, company_state):
                     f"{prefix}/00_README.md",
                     build_research_readme(project)
                 )
-                if project.template and project.template.workflow_steps:
-                    for i, step in enumerate(project.template.workflow_steps):
+                if project.workflow_steps:
+                    for i, step in enumerate(project.workflow_steps):
                         step_name = safe_name(step.get('name', f'Step_{i+1}'))
                         zf.writestr(
                             f"{prefix}/{i+1:02d}_{step_name}.md",

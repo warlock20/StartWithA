@@ -93,9 +93,9 @@
                 <h6 class="mb-0">Screening Progress</h6>
             </div>
             <div class="card-body">
-                <small class="text-muted">Step {{ step_index + 1 }} of {{ project.template.workflow_steps|length }}</small>
+                <small class="text-muted">Step {{ step_index + 1 }} of {{ project.step_count }}</small>
                 <div class="progress mt-2">
-                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ ((step_index) / project.template.workflow_steps|length * 100)|round }}%"></div>
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ ((step_index) / project.step_count * 100)|round }}%"></div>
                 </div>
                 
                 <div class="mt-3">

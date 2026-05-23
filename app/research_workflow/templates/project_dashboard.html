@@ -58,7 +58,7 @@
                 <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
-                <a href="{{ url_for('research_workflow.edit_template', template_id=project.template_id) }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-pencil-square"></i> Edit Workflow
                 </a>
                 {% if project.status == 'active' %}
@@ -116,7 +116,7 @@
             {% endif %}
 
             <div class="project-timeline-container">
-                {% for step in project.template.workflow_steps %}
+                {% for step in project.workflow_steps %}
                 {% set step_index = loop.index0 %}
                 {% set is_completed = step_index in project.completed_steps %}
                 {% set is_current = step_index == project.current_step_index %}
