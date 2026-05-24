@@ -7,7 +7,7 @@ from app.utils.time_utils import now_utc
 class IdeaPipeline(db.Model):
     __tablename__ = 'idea_pipeline'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
     idea_type = db.Column(db.String(50), nullable=False, default='company')  # Subject type: company/sector/theme
     idea_purpose = db.Column(db.String(50), nullable=False, default='investment')  # Purpose: investment/learning/research
@@ -42,7 +42,7 @@ class IdeaPipeline(db.Model):
 class KillChecklist(db.Model):
     __tablename__ = 'kill_checklist'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     is_default = db.Column(db.Boolean, default=False)
@@ -70,7 +70,7 @@ class KillChecklist(db.Model):
 class KillCriterion(db.Model):
     __tablename__ = 'kill_criterion'
     id = db.Column(db.Integer, primary_key=True)
-    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False, index=True)
     question = db.Column(db.String(500), nullable=False)
     failure_reason = db.Column(db.Text)
     help_text = db.Column(db.Text)
@@ -101,9 +101,9 @@ class KillCriterion(db.Model):
 class KillSession(db.Model):
     __tablename__ = 'kill_session'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False)
-    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), nullable=False, index=True)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False, index=True)
     started_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime)
     outcome = db.Column(db.String(50))  # 'killed', 'survived', 'paused'
@@ -117,8 +117,8 @@ class KillSession(db.Model):
 class KillAnswer(db.Model):
     __tablename__ = 'kill_answer'
     id = db.Column(db.Integer, primary_key=True)
-    kill_session_id = db.Column(db.Integer, db.ForeignKey('kill_session.id'), nullable=False)
-    criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False)
+    kill_session_id = db.Column(db.Integer, db.ForeignKey('kill_session.id'), nullable=False, index=True)
+    criterion_id = db.Column(db.Integer, db.ForeignKey('kill_criterion.id'), nullable=False, index=True)
     passed = db.Column(db.Boolean)
     notes = db.Column(db.Text)
     answered_at = db.Column(db.DateTime, default=now_utc)
@@ -136,8 +136,8 @@ class KillChecklistSuggestion(db.Model):
     __tablename__ = 'kill_checklist_suggestion'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    kill_checklist_id = db.Column(db.Integer, db.ForeignKey('kill_checklist.id'), nullable=False, index=True)
 
     # Suggestion details
     suggestion_type = db.Column(db.String(50), nullable=False)

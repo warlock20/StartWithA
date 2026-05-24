@@ -16,9 +16,9 @@ class ChecklistAnalysis(db.Model):
     start_date = db.Column(db.DateTime, nullable=False, default=now_utc)
     status = db.Column(db.String(50), nullable=False, default="in_progress")
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-    checklist_id = db.Column(db.Integer, db.ForeignKey("checklist.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey("checklist.id"), nullable=False, index=True)
     conclusion = db.Column(db.Text, nullable=True)
 
     # Relationships
@@ -47,10 +47,10 @@ class ChecklistAnswer(db.Model):
     satisfaction_status = db.Column(db.String(30), nullable=True, default="neutral")
 
     checklist_analysis_id = db.Column(
-        db.Integer, db.ForeignKey("checklist_analysis.id"), nullable=False
+        db.Integer, db.ForeignKey("checklist_analysis.id"), nullable=False, index=True
     )
     checklist_item_id = db.Column(
-        db.Integer, db.ForeignKey("checklist_item.id"), nullable=False
+        db.Integer, db.ForeignKey("checklist_item.id"), nullable=False, index=True
     )
 
     # Relationship to the specific checklist item
@@ -72,7 +72,7 @@ class ResearchTemplate(db.Model):
     __tablename__ = 'research_template'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
     # Basic template information
     name = db.Column(db.String(200), nullable=False)
@@ -146,17 +146,17 @@ class ResearchProject(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('research_template.id'), nullable=False, index=True)
 
     # Company being researched (required)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
 
     # Sector for analytics and Circle of Competence tracking
     sector_id = db.Column(db.Integer, db.ForeignKey('sector.id'), nullable=True, index=True)
 
     # If this project originated from an idea in the pipeline
-    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'))
+    idea_id = db.Column(db.Integer, db.ForeignKey('idea_pipeline.id'), index=True)
 
     # Project metadata
     project_name = db.Column(db.String(200))
@@ -336,8 +336,8 @@ class WorkSession(db.Model):
     __tablename__ = 'work_session'
 
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
     # What was worked on
     step_index = db.Column(db.Integer)
@@ -371,7 +371,7 @@ class TemplateStep(db.Model):
     __tablename__ = 'template_step'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system-provided steps
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)  # Null for system-provided steps
 
     # Step definition
     name = db.Column(db.String(200), nullable=False)

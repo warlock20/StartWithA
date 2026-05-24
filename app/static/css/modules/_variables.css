@@ -142,6 +142,11 @@
     --radius-2xl: 24px;
     --radius-pill: 50px;
 
+    /* Font Families */
+    --font-body: 'Inter', -apple-system, sans-serif;
+    --font-display: 'Poppins', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
     /* Transitions */
     --transition-fast: 0.15s ease;
     --transition-normal: 0.3s ease;

@@ -6,7 +6,7 @@ badge state management, and admin override operations.
 """
 
 import logging
-from app import db
+from app import db, cache
 from app.models import IdeaPipeline, Company, ResearchProject
 from app.models.portfolio import PortfolioPosition
 from app.models.configuration import SystemConfig
@@ -99,6 +99,10 @@ class FeatureUnlockService:
             flag_modified(user, 'unlocked_features')
             flag_modified(user, 'newly_unlocked_features')
             db.session.commit()
+            # Bust the progress cache so the nav bar reflects the change
+            cache.delete_memoized(
+                FeatureUnlockService._get_unlock_progress_cached,
+            )
 
         return newly_unlocked
 
@@ -116,9 +120,18 @@ class FeatureUnlockService:
     def get_unlock_progress(user):
         """Return progress data for groups not yet unlocked."""
         unlocked = user.unlocked_features or {}
+        unlocked_keys = tuple(sorted(unlocked.keys()))
+        return FeatureUnlockService._get_unlock_progress_cached(
+            user.id, unlocked_keys,
+        )
+
+    @staticmethod
+    @cache.memoize(timeout=120)
+    def _get_unlock_progress_cached(user_id, unlocked_keys):
+        """Cached implementation — keyed on user_id + unlocked groups."""
         progress = []
         for group_name, config in UNLOCK_CONFIG.items():
-            if group_name in unlocked:
+            if group_name in unlocked_keys:
                 continue
             threshold = config['default_threshold']
             sys_config = SystemConfig.query.filter_by(
@@ -126,7 +139,7 @@ class FeatureUnlockService:
             ).first()
             if sys_config and sys_config.value is not None:
                 threshold = int(sys_config.value)
-            count = config['metric'](user.id)
+            count = config['metric'](user_id)
             progress.append({
                 'group': group_name,
                 'label': group_name.replace('_', ' ').title(),
