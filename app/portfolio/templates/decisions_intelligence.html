@@ -3,7 +3,7 @@
 {% block title %}Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="dashboard-container" style="max-width: 1280px;">
+<div class="dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -76,8 +76,8 @@
     <!-- Dashboard Grid -->
     <div class="di-dashboard-grid">
 
-        <!-- Row 1: Research Comparison + Decision Matrix -->
-        <div class="di-row di-row-3-2">
+        <!-- Row 1: Research Comparison + Decision Matrix + Confidence Calibration -->
+        <div class="di-row di-row-1-1-1">
 
             <!-- Research vs Non-Research Comparison -->
             <div class="di-section-card">
@@ -213,10 +213,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Row 2: Confidence Calibration + Expectations Table -->
-        <div class="di-row di-row-1-1">
 
             <!-- Confidence Calibration -->
             {% if confidence_stats.high.count > 0 or confidence_stats.medium.count > 0 or confidence_stats.low.count > 0 %}
@@ -296,76 +292,76 @@
                 </div>
             </div>
             {% endif %}
+        </div>
 
-            <!-- Performance vs Expectations -->
-            {% if expectations_total_count > 0 %}
-            <div class="di-section-card">
-                <div class="di-section-header">
-                    <div>
-                        <h3 class="di-section-title">
-                            <i class="bi bi-bullseye"></i>
-                            Performance vs Expectations
-                        </h3>
-                        <p class="di-section-subtitle">Actual returns vs your initial projections</p>
-                    </div>
-                    <span class="di-badge {% if expectations_met_pct >= 50 %}success{% else %}warning{% endif %}">{{ "%.0f"|format(expectations_met_pct) }}% Met</span>
+        <!-- Row 2: Expectations Table (full width) -->
+        {% if expectations_total_count > 0 %}
+        <div class="di-section-card">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-bullseye"></i>
+                        Performance vs Expectations
+                    </h3>
+                    <p class="di-section-subtitle">Actual returns vs your initial projections</p>
                 </div>
-                <div class="di-section-body">
-                    <div class="di-table-wrapper">
-                        <table class="di-table">
-                            <thead>
-                                <tr>
-                                    <th style="text-align: left;">Company</th>
-                                    <th>Expected</th>
-                                    <th>Actual</th>
-                                    <th>Diff</th>
-                                    <th style="text-align: center;">Met?</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in expectations_analysis|sort(attribute='diff', reverse=true) %}
-                                <tr>
-                                    <td style="text-align: left;">
-                                        <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
-                                        <span class="company-name"> &middot; {{ item.company.name }}</span>
-                                    </td>
-                                    <td style="text-align: right;" class="mono-value" style="color: #6b7280;">{{ "%.1f"|format(item.expected) }}%</td>
-                                    <td style="text-align: right;" class="mono-value-bold {% if item.actual >= 0 %}positive{% else %}negative{% endif %}">
-                                        {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
-                                    </td>
-                                    <td style="text-align: right;" class="mono-value-bold {% if item.diff >= 0 %}positive{% else %}negative{% endif %}">
-                                        {% if item.diff >= 0 %}+{% endif %}{{ "%.1f"|format(item.diff) }}pp
-                                    </td>
-                                    <td style="text-align: center;">
-                                        <i class="bi bi-{% if item.met %}check-circle-fill{% else %}x-circle-fill{% endif %}"
-                                           style="color: {% if item.met %}#10b981{% else %}#ef4444{% endif %}; font-size: 16px;"></i>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <span class="di-badge {% if expectations_met_pct >= 50 %}success{% else %}warning{% endif %}">{{ "%.0f"|format(expectations_met_pct) }}% Met</span>
+            </div>
+            <div class="di-section-body">
+                <div class="di-table-wrapper">
+                    <table class="di-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Company</th>
+                                <th>Expected</th>
+                                <th>Actual</th>
+                                <th>Diff</th>
+                                <th style="text-align: center;">Met?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in expectations_analysis|sort(attribute='diff', reverse=true) %}
+                            <tr>
+                                <td style="text-align: left;">
+                                    <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
+                                    <span class="company-name"> &middot; {{ item.company.name }}</span>
+                                </td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%</td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.actual >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                                    {% if item.actual >= 0 %}+{% endif %}{{ "%.1f"|format(item.actual) }}%
+                                </td>
+                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.diff >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                                    {% if item.diff >= 0 %}+{% endif %}{{ "%.1f"|format(item.diff) }}pp
+                                </td>
+                                <td style="text-align: center;">
+                                    <i class="bi bi-{% if item.met %}check-circle-fill{% else %}x-circle-fill{% endif %}"
+                                       style="color: {% if item.met %}#10b981{% else %}#ef4444{% endif %}; font-size: 16px;"></i>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="di-insight-card learning">
+                    <div class="di-insight-title">
+                        <i class="bi bi-lightbulb-fill"></i>
+                        Key Insight
                     </div>
-                    <div class="di-insight-card learning">
-                        <div class="di-insight-title">
-                            <i class="bi bi-lightbulb-fill"></i>
-                            Key Insight
-                        </div>
-                        <div>
-                            You've met expectations in <span class="di-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} positions</span> ({{ "%.0f"|format(expectations_met_pct) }}%).
-                            {% if expectations_met_pct >= 60 %}
-                            Strong forecasting &mdash; you know your picks.
-                            {% else %}
-                            Review missed targets to calibrate future projections.
-                            {% endif %}
-                        </div>
+                    <div>
+                        You've met expectations in <span class="di-highlight">{{ expectations_met_count }} of {{ expectations_total_count }} positions</span> ({{ "%.0f"|format(expectations_met_pct) }}%).
+                        {% if expectations_met_pct >= 60 %}
+                        Strong forecasting &mdash; you know your picks.
+                        {% else %}
+                        Review missed targets to calibrate future projections.
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
 
-        <!-- Row 3: Holding Period Chart + Recent Decisions -->
-        <div class="di-row di-row-1-1">
+        <!-- Row 3: Holding Period Chart + Recent Decisions + Winning Patterns -->
+        <div class="di-row di-row-1-1-1">
 
             <!-- Performance by Holding Period -->
             <div class="di-section-card">
@@ -437,10 +433,7 @@
                 </div>
             </div>
             {% endif %}
-        </div>
 
-        <!-- Row 4: Winning + Losing Patterns -->
-        <div class="di-row di-row-1-1">
             <!-- Winning Patterns -->
             <div class="di-section-card">
                 <div class="di-section-header">
@@ -477,39 +470,39 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Losing Patterns -->
-            <div class="di-section-card">
-                <div class="di-section-header">
-                    <div>
-                        <h3 class="di-section-title">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            Losing Patterns
-                        </h3>
-                    </div>
-                    <span class="di-badge warning">Avoid</span>
+        <!-- Row 4: Losing Patterns (full width, single card) -->
+        <div class="di-section-card">
+            <div class="di-section-header">
+                <div>
+                    <h3 class="di-section-title">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Losing Patterns
+                    </h3>
                 </div>
-                <div class="di-section-body">
-                    <div class="di-pattern-list">
-                        <div class="di-pattern-item">
-                            <div class="di-pattern-icon danger">
-                                <i class="bi bi-lightning-fill"></i>
-                            </div>
-                            <div>
-                                <div class="di-pattern-title">Impulsive Entry Without Research</div>
-                                <div class="di-pattern-desc">Buying without proper research leads to lower win rates and returns</div>
-                                <div class="di-pattern-stat">{{ non_research_count }} positions tracked</div>
-                            </div>
+                <span class="di-badge warning">Avoid</span>
+            </div>
+            <div class="di-section-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div class="di-pattern-item">
+                        <div class="di-pattern-icon danger">
+                            <i class="bi bi-lightning-fill"></i>
                         </div>
-                        <div class="di-pattern-item">
-                            <div class="di-pattern-icon warning">
-                                <i class="bi bi-arrow-down-up"></i>
-                            </div>
-                            <div>
-                                <div class="di-pattern-title">Early Exits</div>
-                                <div class="di-pattern-desc">Selling positions too quickly may prevent gains from materializing</div>
-                                <div class="di-pattern-stat">Monitor hold periods vs returns</div>
-                            </div>
+                        <div>
+                            <div class="di-pattern-title">Impulsive Entry Without Research</div>
+                            <div class="di-pattern-desc">Buying without proper research leads to lower win rates and returns</div>
+                            <div class="di-pattern-stat">{{ non_research_count }} positions tracked</div>
+                        </div>
+                    </div>
+                    <div class="di-pattern-item">
+                        <div class="di-pattern-icon warning">
+                            <i class="bi bi-arrow-down-up"></i>
+                        </div>
+                        <div>
+                            <div class="di-pattern-title">Early Exits</div>
+                            <div class="di-pattern-desc">Selling positions too quickly may prevent gains from materializing</div>
+                            <div class="di-pattern-stat">Monitor hold periods vs returns</div>
                         </div>
                     </div>
                 </div>
