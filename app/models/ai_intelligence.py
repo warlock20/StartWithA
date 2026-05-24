@@ -101,7 +101,7 @@ class AIInsight(db.Model):
     # Context: where does this insight apply?
     context_type = db.Column(db.String(50), nullable=True)  # 'company', 'research', 'portfolio', 'journal'
     context_id = db.Column(db.Integer, nullable=True)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='SET NULL'), nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # The insight content
     title = db.Column(db.String(200), nullable=False)

@@ -213,7 +213,7 @@ class Sector(db.Model):
 
 class SectorAnalysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     # Link to the Sector being analyzed
     sector_id = db.Column(db.Integer, db.ForeignKey("sector.id"), nullable=False, index=True)

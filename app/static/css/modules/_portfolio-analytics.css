@@ -54,7 +54,7 @@
 }
 
 .analytics-metric-value {
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--font-display, 'Poppins', sans-serif);
     font-size: 2rem;
     font-weight: 700;
     color: var(--gray-900);
@@ -81,6 +81,761 @@
     color: var(--gray-600);
 }
 
+/* =============================================================================
+   KPI SUMMARY STRIP — Decision Intelligence Dashboard
+   ============================================================================= */
+
+.di-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.di-kpi-card {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.di-kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.di-kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.di-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+
+.di-kpi-desc {
+    font-size: 11px;
+    color: var(--primary-400);
+    margin-top: 2px;
+}
+
+@media (max-width: 1024px) {
+    .di-kpi-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .di-kpi-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   DASHBOARD GRID LAYOUT — Decision Intelligence
+   ============================================================================= */
+
+.di-dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.di-row {
+    display: grid;
+    gap: 20px;
+}
+
+.di-row-3-2 {
+    grid-template-columns: 3fr 2fr;
+}
+
+.di-row-1-1 {
+    grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 1024px) {
+    .di-row-3-2,
+    .di-row-1-1 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   SECTION CARD — Unified card wrapper with header
+   ============================================================================= */
+
+.di-section-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--gray-200);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.di-section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--primary-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.di-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body, 'Inter', sans-serif);
+}
+
+.di-section-title i {
+    color: var(--gray-500);
+    font-size: 16px;
+}
+
+.di-section-subtitle {
+    font-size: 12px;
+    color: var(--primary-400);
+    margin: 2px 0 0;
+    font-family: var(--font-body, 'Inter', sans-serif);
+}
+
+.di-section-body {
+    padding: 20px;
+    flex: 1;
+}
+
+/* =============================================================================
+   INSIGHT CARD — Colored left-border callout
+   ============================================================================= */
+
+.di-insight-card {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.55;
+    font-family: var(--font-body, 'Inter', sans-serif);
+}
+
+.di-insight-card.learning {
+    background: #fffbeb;
+    border-left: 3px solid #fbbf24;
+    color: #92400e;
+}
+
+.di-insight-card.success {
+    background: #f0fdf4;
+    border-left: 3px solid var(--success-500);
+    color: #166534;
+}
+
+.di-insight-card.warning {
+    background: #fef2f2;
+    border-left: 3px solid var(--danger-500);
+    color: #991b1b;
+}
+
+.di-insight-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* =============================================================================
+   MONOSPACE + HIGHLIGHT helpers
+   ============================================================================= */
+
+.di-mono {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 700;
+}
+
+.di-highlight {
+    font-weight: 700;
+    background: rgba(251,191,36,0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* =============================================================================
+   RESEARCH COMPARISON — Side-by-side panels with VS divider
+   ============================================================================= */
+
+.di-comparison-wrapper {
+    display: flex;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    margin: -4px -4px 0;
+}
+
+.di-comparison-side {
+    flex: 1;
+    padding: 24px;
+    position: relative;
+}
+
+.di-comparison-side.with-research {
+    background: #f0fdf4;
+}
+
+.di-comparison-side.without-research {
+    background: #fef2f2;
+}
+
+.di-comparison-winner-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--success-500);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.di-comparison-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.di-comparison-label span {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.di-comparison-return {
+    font-size: 36px;
+    font-weight: 700;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    letter-spacing: -0.03em;
+}
+
+.di-comparison-return.positive {
+    color: var(--success-500);
+}
+
+.di-comparison-return.negative {
+    color: var(--danger-500);
+}
+
+.di-comparison-meta {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 4px;
+}
+
+.di-comparison-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.di-comparison-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--primary-800);
+}
+
+.di-comparison-stat-label {
+    font-size: 10px;
+    color: var(--primary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+}
+
+.di-comparison-divider {
+    width: 1px;
+    background: var(--gray-200);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.di-comparison-vs {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-400);
+    background: #fff;
+    padding: 6px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--gray-200);
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .di-comparison-wrapper {
+        flex-direction: column;
+    }
+
+    .di-comparison-divider {
+        width: 100%;
+        height: 1px;
+    }
+
+    .di-comparison-vs {
+        padding: 4px 8px;
+    }
+}
+
+/* =============================================================================
+   DECISION QUALITY MATRIX — 2x2 grid with hover
+   ============================================================================= */
+
+.di-matrix-axis-labels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.di-matrix-axis-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+}
+
+.di-matrix-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.di-matrix-cell {
+    padding: 18px 16px;
+    border-radius: 10px;
+    text-align: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: default;
+}
+
+.di-matrix-cell:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.di-matrix-cell.deserved-wins {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.di-matrix-cell.bad-luck {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.di-matrix-cell.lucky-wins {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.di-matrix-cell.expected-losses {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
+.di-matrix-cell i {
+    font-size: 14px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.di-matrix-value {
+    font-size: 32px;
+    font-weight: 700;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    line-height: 1.1;
+}
+
+.di-matrix-label {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.di-matrix-desc {
+    font-size: 10px;
+    color: var(--primary-400);
+    margin-top: 2px;
+}
+
+@media (max-width: 576px) {
+    .di-matrix-grid,
+    .di-matrix-axis-labels {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   CONFIDENCE CALIBRATION — Horizontal bar rows
+   ============================================================================= */
+
+.di-confidence-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.di-confidence-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.di-confidence-label {
+    width: 110px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.di-confidence-label span {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.di-confidence-bar-wrapper {
+    flex: 1;
+    position: relative;
+    height: 32px;
+    background: var(--primary-100);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.di-confidence-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    opacity: 0.15;
+}
+
+.di-confidence-bar-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding-left: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.di-confidence-count {
+    width: 50px;
+    font-size: 11px;
+    color: var(--primary-400);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* =============================================================================
+   EXPECTATIONS TABLE — Dark header, striped rows
+   ============================================================================= */
+
+.di-table-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+}
+
+.di-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body, 'Inter', sans-serif);
+}
+
+.di-table thead th {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 14px;
+    background: #334155;
+    text-align: right;
+}
+
+.di-table thead th:first-child {
+    text-align: left;
+}
+
+.di-table tbody td {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--primary-100);
+}
+
+.di-table tbody tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+.di-table tbody tr:nth-child(odd) {
+    background: #fff;
+}
+
+.di-table .positive {
+    color: var(--success-500);
+}
+
+.di-table .negative {
+    color: var(--danger-500);
+}
+
+.di-table .mono-value {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 600;
+}
+
+.di-table .mono-value-bold {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 700;
+}
+
+.di-table .ticker {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.di-table .company-name {
+    color: var(--primary-400);
+    font-size: 12px;
+}
+
+/* =============================================================================
+   TIMELINE — Dot indicators with filter buttons
+   ============================================================================= */
+
+.di-filter-group {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.di-filter-btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    color: var(--gray-500);
+    cursor: pointer;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    text-transform: capitalize;
+    transition: all var(--transition-fast);
+}
+
+.di-filter-btn.active {
+    border-color: var(--accent-600);
+    background: var(--accent-600);
+    color: #fff;
+}
+
+.di-timeline-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.di-timeline-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--primary-100);
+}
+
+.di-timeline-item:last-child {
+    border-bottom: none;
+}
+
+.di-timeline-dot-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 14px;
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.di-timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.di-timeline-dot.researched { background: var(--success-500); }
+.di-timeline-dot.no-research { background: var(--danger-500); }
+.di-timeline-dot.sell { background: var(--primary-500); }
+.di-timeline-dot.unknown { background: var(--primary-400); }
+
+.di-timeline-line {
+    width: 1px;
+    flex: 1;
+    background: var(--gray-200);
+    margin-top: 4px;
+}
+
+.di-timeline-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.di-timeline-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.di-timeline-detail {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 2px;
+}
+
+.di-timeline-detail .note {
+    color: var(--primary-400);
+}
+
+.di-timeline-date {
+    font-size: 11px;
+    color: var(--primary-400);
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+/* =============================================================================
+   PATTERN CARDS — Icon + description list
+   ============================================================================= */
+
+.di-pattern-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.di-pattern-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.di-pattern-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.di-pattern-icon.success { background: #f0fdf4; color: var(--success-500); }
+.di-pattern-icon.danger  { background: #fef2f2; color: var(--danger-500); }
+.di-pattern-icon.warning { background: #fef3c7; color: var(--warning-500); }
+
+.di-pattern-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.di-pattern-desc {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+.di-pattern-stat {
+    font-size: 11px;
+    color: var(--primary-400);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* =============================================================================
+   INSIGHT BADGE — Small pill badge
+   ============================================================================= */
+
+.di-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: inline-block;
+}
+
+.di-badge.success { background: #f0fdf4; color: #166534; }
+.di-badge.warning { background: #fef3c7; color: #92400e; }
+.di-badge.info    { background: #eff6ff; color: #1e40af; }
+.di-badge.danger  { background: #fef2f2; color: #991b1b; }
+
+/* Small inline badge for timeline */
+.di-inline-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: inline-block;
+}
+
+.di-inline-badge.success { background: #f0fdf4; color: #166534; }
+.di-inline-badge.danger  { background: #fef2f2; color: #991b1b; }
+
+/* =============================================================================
+   LEGACY COMPATIBILITY — Keep old classes for other analytics pages
+   ============================================================================= */
+
 /* Chart Container */
 .analytics-chart-container {
     background: white;
@@ -91,11 +846,19 @@
 }
 
 .analytics-chart-title {
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 700;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 15px;
+    font-weight: 600;
     color: var(--gray-900);
     margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analytics-chart-title i {
+    color: var(--gray-500);
+    font-size: 16px;
 }
 
 .analytics-chart-header {
@@ -207,11 +970,12 @@
 }
 
 .decision-comparison-value {
-    font-family: 'Poppins', sans-serif;
-    font-size: 2.5rem;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 2.25rem;
     font-weight: 700;
     color: var(--gray-900);
     margin-bottom: 0.5rem;
+    letter-spacing: -0.03em;
 }
 
 .decision-comparison-detail {
@@ -222,26 +986,28 @@
 
 /* Learning Card */
 .analytics-learning-card {
-    background: #fffbeb;
-    border: 2px solid #fbbf24;
+    margin-top: 16px;
+    padding: 12px 16px;
     border-radius: 8px;
-    padding: 1.25rem;
-    margin-top: 1rem;
+    background: #fffbeb;
+    border-left: 3px solid #fbbf24;
+    font-size: 13px;
+    line-height: 1.55;
 }
 
 .analytics-learning-title {
-    font-weight: 700;
+    font-weight: 600;
     color: #92400e;
-    margin-bottom: 0.5rem;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 6px;
 }
 
 .analytics-learning-text {
-    color: #78350f;
-    font-size: 0.9375rem;
-    line-height: 1.6;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.55;
 }
 
 /* Pattern List */
@@ -253,8 +1019,8 @@
 
 .analytics-pattern-item {
     display: flex;
-    align-items: start;
-    gap: 1rem;
+    align-items: flex-start;
+    gap: 12px;
     padding: 1rem;
     background: var(--gray-50);
     border-radius: 8px;
@@ -262,29 +1028,29 @@
 }
 
 .analytics-pattern-icon {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 15px;
     flex-shrink: 0;
 }
 
 .analytics-pattern-icon.success {
-    background: #d1fae5;
-    color: #065f46;
+    background: #f0fdf4;
+    color: var(--success-500);
 }
 
 .analytics-pattern-icon.warning {
     background: #fef3c7;
-    color: #92400e;
+    color: var(--warning-500);
 }
 
 .analytics-pattern-icon.danger {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #fef2f2;
+    color: var(--danger-500);
 }
 
 .analytics-pattern-content {
@@ -292,28 +1058,30 @@
 }
 
 .analytics-pattern-title {
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--gray-900);
     margin-bottom: 0.25rem;
 }
 
 .analytics-pattern-description {
-    font-size: 0.875rem;
-    color: var(--gray-600);
+    font-size: 12px;
+    color: var(--gray-500);
     margin-bottom: 0.5rem;
+    line-height: 1.4;
 }
 
 .analytics-pattern-stat {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--primary-600);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--primary-400);
 }
 
 /* Decision Matrix */
 .decision-matrix {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 8px;
     margin-top: 1rem;
 }
 
@@ -324,29 +1092,36 @@
 }
 
 .decision-matrix-cell {
-    padding: 1.5rem;
-    border-radius: 8px;
+    padding: 18px 16px;
+    border-radius: 10px;
     text-align: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: default;
+}
+
+.decision-matrix-cell:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .decision-matrix-cell.quadrant-1 {
-    background: #ecfdf5;
-    border: 2px solid var(--success-600);
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
 }
 
 .decision-matrix-cell.quadrant-2 {
-    background: #fef3c7;
-    border: 2px solid var(--warning-600);
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
 }
 
 .decision-matrix-cell.quadrant-3 {
-    background: #fee2e2;
-    border: 2px solid var(--danger-600);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
 }
 
 .decision-matrix-cell.quadrant-4 {
-    background: #cffafe;
-    border: 2px solid var(--info-600);
+    background: #fffbeb;
+    border: 1px solid #fde68a;
 }
 
 .decision-matrix-label {
@@ -358,24 +1133,26 @@
 }
 
 .decision-matrix-value {
-    font-family: 'Poppins', sans-serif;
-    font-size: 2rem;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 32px;
     font-weight: 700;
     color: var(--gray-900);
+    line-height: 1.1;
     margin-bottom: 0.25rem;
 }
 
 .decision-matrix-description {
-    font-size: 0.875rem;
-    color: var(--gray-700);
+    font-size: 10px;
+    color: var(--primary-400);
+    margin-top: 2px;
 }
 
 /* Timeline */
 .analytics-timeline-item {
     display: flex;
-    gap: 1rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border-light);
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--primary-100);
 }
 
 .analytics-timeline-item:last-child {
@@ -383,10 +1160,11 @@
 }
 
 .analytics-timeline-date {
-    font-size: 0.875rem;
-    color: var(--gray-600);
+    font-size: 11px;
+    color: var(--primary-400);
     min-width: 100px;
-    font-weight: 600;
+    font-weight: 500;
+    flex-shrink: 0;
 }
 
 .analytics-timeline-content {
@@ -394,30 +1172,31 @@
 }
 
 .analytics-timeline-title {
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--gray-900);
     margin-bottom: 0.25rem;
 }
 
 .analytics-timeline-description {
-    font-size: 0.875rem;
-    color: var(--gray-600);
+    font-size: 12px;
+    color: var(--gray-500);
 }
 
 /* Insight Badge */
 .analytics-insight-badge {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 3px 10px;
     border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
 }
 
 .analytics-insight-badge.success {
-    background: #d1fae5;
-    color: #065f46;
+    background: #f0fdf4;
+    color: #166534;
 }
 
 .analytics-insight-badge.warning {
@@ -426,22 +1205,19 @@
 }
 
 .analytics-insight-badge.info {
-    background: #cffafe;
-    color: #164e63;
+    background: #eff6ff;
+    color: #1e40af;
 }
 
 .analytics-insight-badge.danger {
-    background: #fee2e2;
+    background: #fef2f2;
     color: #991b1b;
 }
 
 /* Stat Highlight */
 .analytics-stat-highlight {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    background: var(--primary-600);
-    color: white;
-    border-radius: 6px;
     font-weight: 700;
-    font-size: 0.875rem;
+    background: rgba(251,191,36,0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
 }

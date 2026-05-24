@@ -7,12 +7,12 @@ from app.utils.time_utils import now_utc
 class BackgroundTask(db.Model):
     """Simple background task tracking for LLM operations"""
     id = db.Column(db.String(36), primary_key=True)  # UUID
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     task_type = db.Column(db.String(50), nullable=False)  # 'competitor_analysis', etc.
     status = db.Column(db.String(20), default='pending')  # pending, running, completed, failed
 
     # Task parameters
-    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), index=True)
     step_index = db.Column(db.Integer)
 
     # Results

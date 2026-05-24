@@ -13,9 +13,9 @@ class DecisionJournal(db.Model):
     __tablename__ = 'decision_journal'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('research_project.id'), index=True)
 
     # Decision details
     decision_type = db.Column(db.String(20), nullable=False)  # 'invest', 'pass', 'exit'
@@ -78,7 +78,7 @@ class JournalEntry(db.Model):
     __tablename__ = 'journal_entry'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
     # Entry metadata
     title = db.Column(db.String(200))
@@ -153,7 +153,7 @@ class JournalAttachment(db.Model):
     __tablename__ = 'journal_attachment'
 
     id = db.Column(db.Integer, primary_key=True)
-    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'), nullable=False)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'), nullable=False, index=True)
 
     filename = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(50))  # 'image', 'pdf', 'spreadsheet', etc.
@@ -176,8 +176,8 @@ class ThesisEvolution(db.Model):
     __tablename__ = 'thesis_evolution'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, index=True)
 
     # Thesis version
     version = db.Column(db.Integer, default=1)
@@ -222,7 +222,7 @@ class LearningNote(db.Model):
     __tablename__ = 'learning_note'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
     # Learning content
     title = db.Column(db.String(200), nullable=False)
@@ -285,7 +285,7 @@ class JournalTemplate(db.Model):
     __tablename__ = 'journal_template'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Null for system templates
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)  # Null for system templates
 
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)

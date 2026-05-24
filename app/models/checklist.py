@@ -9,7 +9,7 @@ class Checklist(db.Model):
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(1000))
     user_id = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=False
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
     )  # Link to User
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
@@ -31,10 +31,10 @@ class ChecklistItem(db.Model):
     text = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text, nullable=True)  # Detailed description for the item
     checklist_id = db.Column(
-        db.Integer, db.ForeignKey("checklist.id"), nullable=False
+        db.Integer, db.ForeignKey("checklist.id"), nullable=False, index=True
     )  # Link to Checklist
     parent_id = db.Column(
-        db.Integer, db.ForeignKey("checklist_item.id"), nullable=True
+        db.Integer, db.ForeignKey("checklist_item.id"), nullable=True, index=True
     )  # For sub-items
     order = db.Column(db.Integer, default=0)  # To maintain order
 
@@ -56,7 +56,7 @@ class ChecklistItem(db.Model):
 
 class QuestionBankItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     # The text of the reusable question
     text = db.Column(db.Text, nullable=False)
@@ -95,10 +95,10 @@ class DestinationCheckpoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Foreign key to link this checkpoint to a specific Company
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
 
     # Foreign key to link this checkpoint to the User who created it
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     target_date = db.Column(db.Date, nullable=False, index=True)
     metric = db.Column(
@@ -128,7 +128,7 @@ class DocumentImport(db.Model):
     __tablename__ = 'document_imports'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
 
     # File information
     filename = db.Column(db.String(255), nullable=False)
