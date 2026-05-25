@@ -172,9 +172,23 @@
     grid-template-columns: 1fr 1fr;
 }
 
+.di-row-1-1-1 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
 @media (max-width: 1024px) {
-    .di-row-3-2,
-    .di-row-1-1 {
+    .di-row-3-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .di-row-1-1-1 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .di-row-1-1,
+    .di-row-1-1-1 {
         grid-template-columns: 1fr;
     }
 }
