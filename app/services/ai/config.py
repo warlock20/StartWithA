@@ -281,13 +281,13 @@ class AIConfig:
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         # Load model preferences from environment
-        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-3-pro-preview')
+        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-3-flash-preview')
         config.default_model = AIModel.from_string(default_model_name)
 
-        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-3-pro-preview')
+        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-3-flash-preview')
         config.quality_model = AIModel.from_string(quality_model_name)
 
-        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-3-pro-preview')
+        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-3-flash-preview')
         config.fast_model = AIModel.from_string(fast_model_name)
 
         # Load routing preferences
