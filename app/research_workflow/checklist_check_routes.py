@@ -18,6 +18,7 @@ from app.services.ai.prompt_service import prompt_service
 from app.services.background_tasks import BackgroundTaskService
 from celery_app import celery
 from app.utils.checklist_utils import get_all_ordered_items_for_checklist
+from app.utils.blocknote_utils import blocknote_to_html
                                                                              
 @research_workflow_bp.route('/for_company/<int:company_id>/select_checklist', methods=['GET'])
 @login_required
@@ -481,9 +482,14 @@ def view_checklist_session_summary(analysis_id):
         session.conclusion = request.form.get('conclusion')
         try:
             db.session.commit()
+            # Return JSON for fetch requests from React island
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': 'Conclusion saved successfully.'})
             flash('Session conclusion saved successfully.', 'success')
         except Exception as e:
             db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': str(e)}), 500
             flash(f'Error saving conclusion: {str(e)}', 'error')
         return redirect(url_for('research_workflow.view_checklist_session_summary', analysis_id=session.id))
 
@@ -519,16 +525,30 @@ def view_checklist_session_summary(analysis_id):
     # 5. Check for research workflow context
     research_context = flask_session.get('research_context')
 
-    # 6. Render the template, passing all the prepared data
+    # 6. Serialize questions + answers as JSON for the React island
+    questions_data = []
+    for item in all_ordered_items:
+        ans = answers_map.get(item.id)
+        questions_data.append({
+            'id': item.id,
+            'text': item.text,
+            'parent': item.parent.text if item.parent else None,
+            'status': ans.satisfaction_status if ans else 'not_answered',
+            'answerHtml': blocknote_to_html(ans.answer_text) if ans and ans.answer_text else None,
+        })
+    questions_json = json.dumps(questions_data)
+
+    # 7. Render the template, passing all the prepared data
     return render_template(
         'session_summary.html',
-        title=f"Checklist Summary: {session.company.name}", # Use the company name in the title
+        title=f"Checklist Summary: {session.company.name}",
         session=session,
         all_ordered_items=all_ordered_items,
         answers_map=answers_map,
         intrinsic_display_value=intrinsic_display_value,
         intrinsic_unit=intrinsic_unit,
-        research_context=research_context  # Pass research workflow context
+        research_context=research_context,
+        questions_json=questions_json,
     )
 
 def blocknote_to_text(blocknote_json):

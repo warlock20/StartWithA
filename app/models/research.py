@@ -185,6 +185,10 @@ class ResearchProject(db.Model):
     decision_confidence = db.Column(db.Integer)  # 1-10 scale
     decision_notes = db.Column(db.Text)
 
+    # Watchlist tracking (can be set on active or completed projects)
+    watch_reason = db.Column(db.String(50))  # 'valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other'
+    watch_notes = db.Column(db.Text)
+
     # Circle of Competence tracking (for Too Hard Basket analytics)
     within_circle_of_competence = db.Column(db.String(20))  # 'yes', 'no', 'unsure'
 

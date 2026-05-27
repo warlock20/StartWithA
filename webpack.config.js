@@ -4,6 +4,7 @@ module.exports = {
   entry: {
     'blocknote-editor': './frontend/src/blocknote-editor.js',
     'company-resources-manager': './frontend/src/company-resources-manager.js',
+    'session-summary': './frontend/src/session-summary.js',
   },
   output: {
     filename: '[name].bundle.js',
