@@ -451,15 +451,7 @@
             return;
         }
 
-        // No description — require all criteria answered (if checklist exists)
-        if (killCriteria.length === 0 || checked.length < killCriteria.length) {
-            $killBtn.style.display = 'none';
-            $inboxBtn.style.display = 'none';
-            $banner.style.display = 'none';
-            return;
-        }
-
-        // All criteria answered, no description
+        // Check for any failures first — one fail is enough to kill
         var failCount = 0;
         checked.forEach(function (r) { if (r.value === 'fail') failCount++; });
 
@@ -467,17 +459,27 @@
             $killBtn.style.display = '';
             $inboxBtn.style.display = 'none';
             $banner.innerHTML = '<div class="alert alert-danger mb-0 mx-3 mt-2" style="font-size:0.875rem;">' +
-                '<i class="bi bi-x-circle"></i> ' + failCount + ' of ' + killCriteria.length + ' criteria failed &mdash; kill this company.' +
+                '<i class="bi bi-x-circle"></i> ' + failCount + ' criteria failed &mdash; kill this company.' +
                 '</div>';
             $banner.style.display = 'block';
-        } else {
-            $killBtn.style.display = 'none';
-            $inboxBtn.style.display = '';
-            $banner.innerHTML = '<div class="alert alert-success mb-0 mx-3 mt-2" style="font-size:0.875rem;">' +
-                '<i class="bi bi-check-circle"></i> All criteria passed &mdash; this company looks interesting!' +
-                '</div>';
-            $banner.style.display = 'block';
+            return;
         }
+
+        // No failures — require all criteria answered before showing Inbox
+        if (killCriteria.length === 0 || checked.length < killCriteria.length) {
+            $killBtn.style.display = 'none';
+            $inboxBtn.style.display = 'none';
+            $banner.style.display = 'none';
+            return;
+        }
+
+        // All criteria answered and all passed
+        $killBtn.style.display = 'none';
+        $inboxBtn.style.display = '';
+        $banner.innerHTML = '<div class="alert alert-success mb-0 mx-3 mt-2" style="font-size:0.875rem;">' +
+            '<i class="bi bi-check-circle"></i> All criteria passed &mdash; this company looks interesting!' +
+            '</div>';
+        $banner.style.display = 'block';
     }
 
     function getKillReasons() {

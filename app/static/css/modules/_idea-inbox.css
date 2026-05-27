@@ -460,6 +460,16 @@
     cursor: not-allowed;
 }
 
+.eval-submit-btn.eval-submit-btn--kill {
+    background: var(--danger-500);
+    border-color: var(--danger-500);
+}
+
+.eval-submit-btn.eval-submit-btn--kill:hover {
+    background: var(--danger-600);
+    border-color: var(--danger-600);
+}
+
 /* Quick Kill section */
 .eval-quick-kill {
     border-top: 1px dashed var(--gray-200);

@@ -162,6 +162,7 @@ document.getElementById('evaluateModal').addEventListener('hidden.bs.modal', fun
     }
     var btn = document.getElementById('eval-submit-btn');
     btn.disabled = false;
+    btn.className = 'eval-submit-btn';
     btn.innerHTML = '<i class="bi bi-shield-check"></i> Submit Evaluation';
 });
 
@@ -416,12 +417,28 @@ function renderCriteria(ideaId, checklistId) {
     if (savedQuickKill) {
         document.getElementById('quick-kill-form').classList.add('is-open');
     }
+
+    checkEvalState();
 }
 
 function updateCardState(radio) {
     var card = radio.closest('.eval-criterion-card');
     card.classList.remove('is-passed', 'is-failed');
     card.classList.add(radio.value === 'true' ? 'is-passed' : 'is-failed');
+    checkEvalState();
+}
+
+function checkEvalState() {
+    var failCards = document.querySelectorAll('#eval-criteria-list .eval-criterion-card.is-failed');
+    var btn = document.getElementById('eval-submit-btn');
+    if (!btn) return;
+    if (failCards.length > 0) {
+        btn.className = 'eval-submit-btn eval-submit-btn--kill';
+        btn.innerHTML = '<i class="bi bi-x-circle"></i> Kill Idea';
+    } else {
+        btn.className = 'eval-submit-btn';
+        btn.innerHTML = '<i class="bi bi-shield-check"></i> Submit Evaluation';
+    }
 }
 
 function toggleQuickKill() {
