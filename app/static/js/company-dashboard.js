@@ -179,7 +179,8 @@
                 .then(function (data) {
                     if (data.success) {
                         var p = data.position;
-                        document.getElementById('posPrice').textContent = currencySymbol + (p.current_price !== null ? p.current_price.toFixed(2) : '--');
+                        var displayPrice = p.current_price_base !== null ? p.current_price_base : p.current_price;
+                        document.getElementById('posPrice').textContent = currencySymbol + (displayPrice !== null ? displayPrice.toFixed(2) : '--');
                         document.getElementById('posPriceSub').textContent = 'Updated just now';
                         if (p.current_value !== null) {
                             document.getElementById('posValue').textContent = currencySymbol + Math.round(p.current_value).toLocaleString();

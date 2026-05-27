@@ -14,12 +14,14 @@ Usage:
 import logging
 from typing import Optional, Dict, Any
 from datetime import date
+from decimal import Decimal
 
 from .providers import (
     FinancialDataProvider,
     YahooFinanceProvider,
     CachedFinancialDataProvider
 )
+from app.services.currency_service import CurrencyService
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +173,65 @@ class FinancialDataService:
             result[ticker] = ticker_prices
 
         return result
+
+    def get_price_in_currency(self, ticker: str, target_currency: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch current price for a ticker and convert to target currency.
+
+        Reusable across the platform wherever a price needs to be displayed
+        in the user's preferred currency.
+
+        Args:
+            ticker: Stock ticker symbol (e.g., 'DECK', 'SAP.DE')
+            target_currency: ISO currency code to convert to (e.g., 'EUR', 'USD')
+
+        Returns:
+            Dict with conversion details, or None if unavailable:
+            {
+                'price_native': float,       # Price in stock's native currency
+                'currency_native': str,       # Native currency code (e.g., 'USD')
+                'price_converted': float,     # Price in target currency
+                'currency_target': str,       # Target currency code
+                'exchange_rate': float,        # Rate used for conversion
+                'same_currency': bool          # True if no conversion needed
+            }
+        """
+        try:
+            price_data = self.get_current_price_with_currency(ticker)
+            if not price_data:
+                return None
+
+            native_price = price_data['price']
+            native_currency = price_data['currency']
+
+            if native_currency == target_currency:
+                return {
+                    'price_native': native_price,
+                    'currency_native': native_currency,
+                    'price_converted': native_price,
+                    'currency_target': target_currency,
+                    'exchange_rate': 1.0,
+                    'same_currency': True,
+                }
+
+            exchange_rate = CurrencyService.get_exchange_rate(
+                from_currency=native_currency,
+                to_currency=target_currency,
+            )
+            converted_price = float(Decimal(str(native_price)) * exchange_rate)
+
+            return {
+                'price_native': native_price,
+                'currency_native': native_currency,
+                'price_converted': converted_price,
+                'currency_target': target_currency,
+                'exchange_rate': float(exchange_rate),
+                'same_currency': False,
+            }
+
+        except Exception as e:
+            logger.error("Error fetching price in currency for %s -> %s: %s", ticker, target_currency, e)
+            return None
 
     def get_ticker_info(self, ticker: str) -> Optional[Dict[str, Any]]:
         """

@@ -234,7 +234,7 @@
                 </span>
             </div>
 
-            <h4 class="journey-event-title">{{ event.data.investment_thesis|truncate(100) if event.data.investment_thesis else event.data.decision_type|title ~ ' Decision' }}</h4>
+            <h4 class="journey-event-title">{{ event.data.investment_thesis|blocknote_preview(100) if event.data.investment_thesis else event.data.decision_type|title ~ ' Decision' }}</h4>
             <p class="journey-event-date">
                 <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
             </p>
@@ -255,7 +255,7 @@
                 {% if event.data.exit_criteria %}
                 <div class="journey-decision-item">
                     <span class="label">Exit Criteria</span>
-                    <span class="value">{{ event.data.exit_criteria|truncate(80) }}</span>
+                    <span class="value">{{ event.data.exit_criteria|blocknote_preview(80) }}</span>
                 </div>
                 {% endif %}
                 {% if event.data.project_id %}

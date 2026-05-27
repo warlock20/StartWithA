@@ -374,6 +374,20 @@ def kill_room(idea_id):
             idea.status = 'killed'
             idea.kill_reason = quick_kill_reason
             idea.killed_at = now_utc()
+
+            # Auto-log to company journal
+            if idea.company_id:
+                db.session.add(JournalEntry(
+                    user_id=current_user.id,
+                    company_id=idea.company_id,
+                    title=f'Idea Killed: {idea.name}',
+                    entry_type='investment_action',
+                    content=f'Quick-killed idea "{idea.name}".\n\nReason: {quick_kill_reason}',
+                    sentiment='bearish',
+                    tags=['idea-killed', 'investment-action'],
+                    source='kill_evaluation',
+                ))
+
             db.session.commit()
             log_research_activity(current_user.id, 'idea_killed', idea_id=idea.id,
                                   details={'reason': quick_kill_reason, 'type': 'quick_kill'})
@@ -432,6 +446,19 @@ def kill_room(idea_id):
             checklist.total_ideas_killed += 1
             log_research_activity(current_user.id, 'idea_killed', idea_id=idea.id,
                                   details={'reason': kill_reason})
+
+            # Auto-log to company journal
+            if idea.company_id:
+                db.session.add(JournalEntry(
+                    user_id=current_user.id,
+                    company_id=idea.company_id,
+                    title=f'Idea Killed: {idea.name}',
+                    entry_type='investment_action',
+                    content=f'Idea "{idea.name}" failed kill checklist evaluation.\n\nFailed criterion: {kill_reason}',
+                    sentiment='bearish',
+                    tags=['idea-killed', 'investment-action'],
+                    source='kill_evaluation',
+                ))
 
         db.session.commit()
 

@@ -17,7 +17,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (ResearchTemplate, ResearchProject, ResearchSettings, WorkSession,
                        Company, Checklist, KillChecklist, IdeaPipeline,
-                       ChecklistAnalysis, ChecklistAnswer, ThesisEvolution)
+                       ChecklistAnalysis, ChecklistAnswer, ThesisEvolution, JournalEntry)
 from app.research_workflow import research_workflow_bp
 from app.analytics.utils import log_research_activity
 from app.utils.time_utils import now_utc, ensure_timezone_aware, format_for_javascript
@@ -974,6 +974,29 @@ def move_to_watchlist(project_id):
         settings = ResearchSettings.get_or_create(current_user.id)
         if settings.pinned_project_id == project.id:
             settings.pinned_project_id = None
+
+        # Auto-log to company journal
+        if project.company_id:
+            reason_labels = {
+                'valuation_too_high': 'Valuation too high',
+                'waiting_for_catalyst': 'Waiting for catalyst',
+                'lower_priority': 'Lower priority',
+                'other': 'Other',
+            }
+            content_parts = [f'Moved to watchlist. Reason: {reason_labels.get(watch_reason, watch_reason)}.']
+            if watch_notes:
+                content_parts.append(f'\n\n{watch_notes}')
+            db.session.add(JournalEntry(
+                user_id=current_user.id,
+                company_id=project.company_id,
+                project_id=project.id,
+                title='Moved to Watchlist',
+                entry_type='investment_action',
+                content=''.join(content_parts),
+                sentiment='neutral',
+                tags=['moved-to-watchlist', 'investment-action'],
+                source='research_workflow',
+            ))
 
         db.session.commit()
 
