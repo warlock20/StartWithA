@@ -474,6 +474,7 @@ def _serialize_position(position):
         'shares': float(position.total_shares) if position.total_shares else 0,
         'avg_cost': float(round(position.average_cost_basis, 2)) if position.average_cost_basis else None,
         'current_price': float(round(position.current_price, 2)) if position.current_price else None,
+        'current_price_base': float(round(position.current_price_base, 2)) if position.current_price_base else None,
         'current_value': float(round(position.current_value)) if position.current_value else None,
         'gain_loss': float(round(position.unrealized_gain_loss)) if position.unrealized_gain_loss else None,
         'gain_loss_pct': float(round(position.unrealized_gain_loss_pct, 1)) if position.unrealized_gain_loss_pct else None,

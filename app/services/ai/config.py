@@ -239,9 +239,9 @@ class AIConfig:
     openai_api_key: Optional[str] = None
     
     # Model configuration
-    default_model: AIModel = AIModel.GEMINI_FLASH_25
+    default_model: AIModel = AIModel.GEMINI_PRO_25
     quality_model: AIModel = AIModel.GEMINI_PRO_25
-    fast_model: AIModel = AIModel.GEMINI_FLASH_25
+    fast_model: AIModel = AIModel.GEMINI_PRO_25
     
     # Default generation parameters
     default_temperature: float = 0.7
@@ -281,13 +281,13 @@ class AIConfig:
         config.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         # Load model preferences from environment
-        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-2.5-flash')
+        default_model_name = os.getenv('AI_DEFAULT_MODEL', 'gemini-3-flash-preview')
         config.default_model = AIModel.from_string(default_model_name)
 
-        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-2.5-pro')
+        quality_model_name = os.getenv('AI_QUALITY_MODEL', 'gemini-3-flash-preview')
         config.quality_model = AIModel.from_string(quality_model_name)
 
-        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-2.5-flash')
+        fast_model_name = os.getenv('AI_FAST_MODEL', 'gemini-3-flash-preview')
         config.fast_model = AIModel.from_string(fast_model_name)
 
         # Load routing preferences

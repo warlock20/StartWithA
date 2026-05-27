@@ -13,7 +13,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, c
 from flask_login import current_user, login_required
 from app import db
 from app.models import (WorkSession, ChecklistAnalysis, ChecklistAnswer,
-                       ResearchProject, KillChecklist, CompanyResource)
+                       ResearchProject, KillChecklist, CompanyResource, JournalEntry)
 from app.research_workflow import research_workflow_bp
 from app.utils.time_utils import now_utc, calculate_duration_minutes
 from app.utils.response_utils import json_success
@@ -294,6 +294,24 @@ def complete_kill_checklist_step(project_id, session_id):
         project.status = 'killed'
         project.completed_at = now_utc()
         project.kill_reason = f"Failed screening: {step_notes}"
+
+        # Auto-log to company journal
+        if project.company_id:
+            content_parts = [f'Killed during research screening.']
+            if step_notes:
+                content_parts.append(f'\n\nNotes: {step_notes}')
+            content_parts.append(f'\n\nFailed {fail_count}/{len(item_results)} criteria.')
+            db.session.add(JournalEntry(
+                user_id=current_user.id,
+                company_id=project.company_id,
+                project_id=project.id,
+                title='Research Killed: Failed Screening',
+                entry_type='investment_action',
+                content=''.join(content_parts),
+                sentiment='bearish',
+                tags=['research-killed', 'investment-action'],
+                source='research_workflow',
+            ))
     else:
         advance_or_complete_project(project, session.step_index)
 

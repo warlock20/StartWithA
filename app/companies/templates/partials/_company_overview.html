@@ -180,7 +180,7 @@
                 </div>
                 <div>
                     <div class="unified-position-label">Current Price</div>
-                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.current_price) if position.current_price else '—' }}</div>
+                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.current_price_base) if position.current_price_base else ("%.2f"|format(position.current_price) if position.current_price else '—') }}</div>
                 </div>
                 <div>
                     <div class="unified-position-label">Total Return</div>

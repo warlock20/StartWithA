@@ -76,7 +76,9 @@
             <div class="position-metric">
                 <div class="position-metric-label">Current Price</div>
                 <div class="position-metric-value" id="posPrice">
-                    {% if position.current_price %}
+                    {% if position.current_price_base %}
+                    {{ currency_symbol }}{{ "%.2f"|format(position.current_price_base) }}
+                    {% elif position.current_price %}
                     {{ currency_symbol }}{{ "%.2f"|format(position.current_price) }}
                     {% else %}
                     <span class="position-text-muted">--</span>

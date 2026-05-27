@@ -12,7 +12,7 @@ import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import ResearchProject, ChecklistAnalysis, Company
+from app.models import ResearchProject, ChecklistAnalysis, Company, JournalEntry
 from app.models.checklist import DestinationCheckpoint
 from app.models.research import FreeResearchQuestion
 from app.research_workflow import research_workflow_bp
@@ -140,6 +140,33 @@ def save_project_decision(project_id):
         if project.status != 'completed':
             project.status = 'completed'
             project.completed_at = now_utc()
+
+        # Auto-log decision to company journal
+        if project.company_id:
+            decision_config = {
+                'invest': ('Decision: Invest', 'bullish', ['invest-decision', 'investment-action']),
+                'pass': ('Decision: Pass', 'bearish', ['pass-decision', 'investment-action']),
+                'watchlist': ('Decision: Watchlist', 'neutral', ['watchlist-decision', 'investment-action']),
+            }
+            title, sentiment, tags = decision_config[decision]
+            company_name = project.company.name if project.company else project.project_name
+            content_parts = [f'{decision.title()} decision for {company_name}.']
+            if decision_summary:
+                content_parts.append(f'\n\n{decision_summary}')
+            if decision_confidence:
+                content_parts.append(f'\n\nConfidence: {decision_confidence}/10')
+            db.session.add(JournalEntry(
+                user_id=current_user.id,
+                company_id=project.company_id,
+                project_id=project.id,
+                title=title,
+                entry_type='investment_action',
+                content=''.join(content_parts),
+                sentiment=sentiment,
+                conviction_level=decision_confidence,
+                tags=tags,
+                source='research_workflow',
+            ))
 
         db.session.commit()
 
