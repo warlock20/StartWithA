@@ -61,6 +61,17 @@
                 <a href="{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-pencil-square"></i> Edit Workflow
                 </a>
+                {% if project.status == 'active' and project.decision != 'watchlist' %}
+                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#watchlistModal">
+                    <i class="bi bi-eye"></i> Move to Watchlist
+                </button>
+                {% elif project.status == 'active' and project.decision == 'watchlist' %}
+                <form method="POST" action="{{ url_for('research_workflow.remove_from_watchlist', project_id=project.id) }}" class="d-inline">
+                    <button type="submit" class="position-btn position-btn--active" onclick="return confirm('Remove from watchlist and return to active research?')">
+                        <i class="bi bi-eye-slash"></i> Remove from Watchlist
+                    </button>
+                </form>
+                {% endif %}
                 {% if project.status == 'active' %}
                 <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="position-btn">
                     <i class="bi bi-archive"></i> Mark as Too Hard
@@ -242,14 +253,16 @@
                     <div class="project-vitals-item">
                         <span class="project-vitals-label">Status:</span>
                         <span class="project-vitals-value">
-                            {% if project.status == 'active' %}
+                            {% if project.status == 'active' and project.decision == 'watchlist' %}
+                            <span class="badge bg-warning text-dark">Watchlist (In Progress)</span>
+                            {% elif project.status == 'active' %}
                             <span class="badge bg-primary">In Progress</span>
                             {% elif project.status == 'completed' and project.decision == 'invest' %}
                             <span class="badge bg-success">Invested</span>
                             {% elif project.status == 'completed' and project.decision == 'pass' %}
                             <span class="badge bg-secondary">Passed</span>
                             {% elif project.status == 'completed' and project.decision == 'watchlist' %}
-                            <span class="badge bg-warning">Watchlist</span>
+                            <span class="badge bg-warning text-dark">Watchlist</span>
                             {% elif project.status == 'completed' %}
                             <span class="badge bg-success">Completed</span>
                             {% endif %}
@@ -392,6 +405,42 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Watchlist Modal -->
+<div class="modal fade" id="watchlistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Move to Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('research_workflow.move_to_watchlist', project_id=project.id) }}">
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Park this research on your watchlist. Progress is preserved and you can continue anytime.</p>
+                    <div class="mb-3">
+                        <label for="watchReason" class="form-label">Watch Reason <span class="text-danger">*</span></label>
+                        <select class="form-select" name="watch_reason" id="watchReason" required>
+                            <option value="" selected disabled>Select a reason...</option>
+                            <option value="valuation_too_high">Valuation too high</option>
+                            <option value="waiting_for_catalyst">Waiting for catalyst</option>
+                            <option value="lower_priority">Lower priority</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="watchNotes" class="form-label">Notes <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control" name="watch_notes" id="watchNotes" rows="3"
+                                  placeholder="e.g. Revisit if price drops below $X, or after Q3 earnings..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-eye me-1"></i> Move to Watchlist</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -228,6 +228,12 @@
                                 <option value="Research Decision">Research Decision</option>
                                 <option value="Manual Add">Manual Add</option>
                             </select>
+                            <select id="watchlist-status-filter" class="rcl-filter-select">
+                                <option value="all">All Status</option>
+                                <option value="active">In Progress</option>
+                                <option value="completed">Research Done</option>
+                                <option value="">Manual</option>
+                            </select>
                         </div>
                         <div id="watchlist-table"></div>
                     </div>
@@ -542,17 +548,49 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 {
+                    title: "Status",
+                    field: "research_status",
+                    sorter: "string",
+                    hozAlign: "center",
+                    minWidth: 130,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const row = cell.getRow().getData();
+                        if (val === 'active') {
+                            let html = `<span class="rcl-cell-badge rcl-cell-badge--active">In Progress</span>`;
+                            if (row.progress != null) {
+                                html += ` <span class="rcl-cell-badge" style="background:var(--neutral-100);color:var(--neutral-600);">${row.progress}%</span>`;
+                            }
+                            return html;
+                        } else if (val === 'completed') {
+                            return `<span class="rcl-cell-badge rcl-cell-badge--default">Research Done</span>`;
+                        }
+                        return `<span class="rcl-cell-badge rcl-cell-badge--manual">Manual</span>`;
+                    }
+                },
+                {
+                    title: "Watch Reason",
+                    field: "watch_reason",
+                    sorter: "string",
+                    minWidth: 150,
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        if (!val) return '<span class="table-cell-muted">--</span>';
+                        return val;
+                    }
+                },
+                {
                     title: "Sector",
                     field: "sector",
                     sorter: "string",
-                    minWidth: 120,
+                    minWidth: 100,
                 },
                 {
                     title: "Source",
                     field: "source",
                     sorter: "string",
                     hozAlign: "center",
-                    minWidth: 140,
+                    minWidth: 130,
                     formatter: function(cell) {
                         const val = cell.getValue();
                         const modifiers = { 'Research Decision': 'research', 'Manual Add': 'manual' };
@@ -567,9 +605,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     hozAlign: "right",
                     minWidth: 180,
                     formatter: function(cell) {
-                        const url = cell.getValue();
-                        return `<a href="${url}" class="rcl-action rcl-action--primary"><i class="bi bi-grid-1x2"></i> Dashboard</a>
-                            <a href="${url}" class="rcl-action"><i class="bi bi-file-earmark-text"></i> Notes</a>`;
+                        const row = cell.getRow().getData();
+                        const companyUrl = cell.getValue();
+                        let html = '';
+                        if (row.project_url) {
+                            html += `<a href="${row.project_url}" class="rcl-action rcl-action--primary"><i class="bi bi-arrow-right-circle"></i> Research</a> `;
+                        }
+                        html += `<a href="${companyUrl}" class="rcl-action"><i class="bi bi-building"></i> Company</a>`;
+                        return html;
                     }
                 }
             ],
@@ -580,33 +623,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Search filter
-        document.getElementById('watchlist-search').addEventListener('input', function(e) {
-            const val = e.target.value.toLowerCase();
-            if (!val) {
-                watchlistTable.clearFilter();
-            } else {
-                watchlistTable.setFilter(function(data) {
-                    return data.company_name.toLowerCase().includes(val) ||
-                           (data.ticker && data.ticker.toLowerCase().includes(val)) ||
-                           (data.sector && data.sector.toLowerCase().includes(val));
-                });
-            }
-        });
+        // Watchlist combined filter helper
+        function applyWatchlistFilters() {
+            const searchVal = document.getElementById('watchlist-search').value.toLowerCase();
+            const sourceVal = document.getElementById('watchlist-source-filter').value;
+            const statusVal = document.getElementById('watchlist-status-filter').value;
 
-        // Source filter
-        document.getElementById('watchlist-source-filter').addEventListener('change', function(e) {
-            const val = e.target.value;
-            if (val === 'all') {
-                watchlistTable.clearFilter();
-            } else {
-                watchlistTable.setFilter("source", "=", val);
-            }
-            const searchVal = document.getElementById('watchlist-search').value;
-            if (searchVal) {
-                document.getElementById('watchlist-search').dispatchEvent(new Event('input'));
-            }
-        });
+            watchlistTable.setFilter(function(data) {
+                let match = true;
+                if (searchVal) {
+                    match = match && (
+                        data.company_name.toLowerCase().includes(searchVal) ||
+                        (data.ticker && data.ticker.toLowerCase().includes(searchVal)) ||
+                        (data.sector && data.sector.toLowerCase().includes(searchVal)) ||
+                        (data.watch_reason && data.watch_reason.toLowerCase().includes(searchVal))
+                    );
+                }
+                if (sourceVal !== 'all') {
+                    match = match && data.source === sourceVal;
+                }
+                if (statusVal !== 'all') {
+                    match = match && (data.research_status || '') === statusVal;
+                }
+                return match;
+            });
+        }
+
+        document.getElementById('watchlist-search').addEventListener('input', applyWatchlistFilters);
+        document.getElementById('watchlist-source-filter').addEventListener('change', applyWatchlistFilters);
+        document.getElementById('watchlist-status-filter').addEventListener('change', applyWatchlistFilters);
     }
 
     // =========================================================================

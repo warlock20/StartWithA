@@ -131,6 +131,11 @@ def save_project_decision(project_id):
         project.red_flags = [f.strip() for f in red_flags_raw.split('\n') if f.strip()]
         project.must_exit_criteria = [c.strip() for c in must_exit_raw.split('\n') if c.strip()]
 
+        # Clear mid-research watchlist fields when making a final decision
+        if decision != 'watchlist':
+            project.watch_reason = None
+            project.watch_notes = None
+
         # Mark as completed if not already
         if project.status != 'completed':
             project.status = 'completed'

@@ -26,9 +26,10 @@ from app.services.research_priority import ResearchPriorityService
 def my_projects():
     """Unified Company Research page — Active Research, Watchlist, Too Hard"""
 
-    # --- Active Research (active + paused) ---
+    # --- Active Research (active + paused, excluding watchlisted) ---
     active_projects = current_user.research_projects.filter(
-        ResearchProject.status.in_(['active', 'paused'])
+        ResearchProject.status.in_(['active', 'paused']),
+        db.or_(ResearchProject.decision.is_(None), ResearchProject.decision != 'watchlist')
     ).order_by(ResearchProject.last_worked_at.desc()).all()
 
     # Score and rank active projects
@@ -97,7 +98,7 @@ def my_projects():
             'over_by': over_by,
         })
 
-    # --- Watchlist (favorites not in portfolio + watchlist decisions) ---
+    # --- Watchlist (favorites not in portfolio + watchlist decisions, including active) ---
     favorite_ids = {c.id for c in current_user.favorites.all()}
     all_user_companies = Company.query.filter_by(user_id=current_user.id).all()
     portfolio_ids = {c.id for c in all_user_companies if c.is_in_portfolio}
@@ -105,16 +106,26 @@ def my_projects():
     manual_watchlist = [c for c in all_user_companies
                         if c.id in favorite_ids and c.id not in portfolio_ids]
 
+    # Include both completed AND active projects with watchlist decision
     watchlist_projects = current_user.research_projects.filter_by(
-        status='completed', decision='watchlist'
+        decision='watchlist'
     ).all()
     watchlist_company_ids = {p.company_id for p in watchlist_projects}
+    watchlist_project_by_company = {p.company_id: p for p in watchlist_projects}
+
+    WATCH_REASON_LABELS = {
+        'valuation_too_high': 'Valuation too high',
+        'waiting_for_catalyst': 'Waiting for catalyst',
+        'lower_priority': 'Lower priority',
+        'other': 'Other',
+    }
 
     watchlist_data = []
     seen_ids = set()
 
     for c in manual_watchlist:
         seen_ids.add(c.id)
+        wp = watchlist_project_by_company.get(c.id)
         source = 'Research Decision' if c.id in watchlist_company_ids else 'Manual Add'
         watchlist_data.append({
             'company_id': c.id,
@@ -122,7 +133,11 @@ def my_projects():
             'ticker': c.ticker_symbol or '',
             'sector': c.sector.name if c.sector else 'N/A',
             'source': source,
+            'research_status': wp.status if wp else '',
+            'watch_reason': WATCH_REASON_LABELS.get(wp.watch_reason, '') if wp else '',
+            'progress': wp.progress_percentage if wp and wp.status == 'active' else None,
             'company_url': url_for('companies.company_detail', company_id=c.id),
+            'project_url': url_for('research_workflow.project_dashboard', project_id=wp.id) if wp else None,
         })
 
     for p in watchlist_projects:
@@ -136,7 +151,11 @@ def my_projects():
                     'ticker': c.ticker_symbol or '',
                     'sector': c.sector.name if c.sector else 'N/A',
                     'source': 'Research Decision',
+                    'research_status': p.status,
+                    'watch_reason': WATCH_REASON_LABELS.get(p.watch_reason, ''),
+                    'progress': p.progress_percentage if p.status == 'active' else None,
                     'company_url': url_for('companies.company_detail', company_id=c.id),
+                    'project_url': url_for('research_workflow.project_dashboard', project_id=p.id),
                 })
 
     # --- Too Hard / Passed ---

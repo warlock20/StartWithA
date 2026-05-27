@@ -645,6 +645,8 @@ def reactivate_project(project_id):
         project.decision_date = None
         project.too_hard_reason = None
         project.too_hard_notes = None
+        project.watch_reason = None
+        project.watch_notes = None
         project.abandoned_at = None
         project.last_worked_at = now_utc()
 
@@ -924,6 +926,112 @@ def return_from_checklist(project_id, step_index):
         # No valid research context, just go to project dashboard
         flash('Returned from checklist execution', 'info')
         return redirect(url_for('research_workflow.project_dashboard', project_id=project_id))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/move-to-watchlist', methods=['POST'])
+@login_required
+def move_to_watchlist(project_id):
+    """Move an active research project to the watchlist with a reason"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        if request.headers.get('Content-Type') == 'application/json':
+            return json_error('Access denied', status_code=403)
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if project.status not in ('active', 'paused'):
+        if request.headers.get('Content-Type') == 'application/json':
+            return json_error('Only active or paused projects can be moved to the watchlist')
+        flash('Only active or paused projects can be moved to the watchlist', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    try:
+        watch_reason = request.form.get('watch_reason', '').strip()
+        watch_notes = request.form.get('watch_notes', '').strip()
+
+        if not watch_reason:
+            if request.headers.get('Content-Type') == 'application/json':
+                return json_error('Watch reason is required')
+            flash('Please select a watch reason', 'error')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+        valid_reasons = ('valuation_too_high', 'waiting_for_catalyst', 'lower_priority', 'other')
+        if watch_reason not in valid_reasons:
+            if request.headers.get('Content-Type') == 'application/json':
+                return json_error('Invalid watch reason')
+            flash('Invalid watch reason', 'error')
+            return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+        project.decision = 'watchlist'
+        project.decision_date = now_utc()
+        project.watch_reason = watch_reason
+        project.watch_notes = watch_notes
+        project.last_worked_at = now_utc()
+        # Status stays 'active' — research is preserved and can continue
+
+        # Clear pin if this project was pinned
+        settings = ResearchSettings.get_or_create(current_user.id)
+        if settings.pinned_project_id == project.id:
+            settings.pinned_project_id = None
+
+        db.session.commit()
+
+        log_research_activity(
+            current_user.id,
+            'project_watchlisted',
+            company_id=project.company_id,
+            project_id=project.id,
+            details={
+                'watch_reason': watch_reason,
+                'progress': project.progress_percentage,
+                'hours_spent': project.total_hours_spent,
+            }
+        )
+
+        company_name = project.company.name if project.company else project.project_name
+        flash(f'{company_name} moved to watchlist. You can continue research or revisit later.', 'info')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error moving project to watchlist: {str(e)}')
+        flash(f'Error moving project to watchlist: {str(e)}', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+
+@research_workflow_bp.route('/projects/<int:project_id>/remove-from-watchlist', methods=['POST'])
+@login_required
+def remove_from_watchlist(project_id):
+    """Remove an active project from the watchlist (undo mid-research watchlisting)"""
+    project = ResearchProject.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('research_workflow.my_projects'))
+
+    if project.status != 'active' or project.decision != 'watchlist':
+        flash('This project is not on the watchlist as an active project', 'warning')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    try:
+        project.decision = None
+        project.decision_date = None
+        project.watch_reason = None
+        project.watch_notes = None
+        project.last_worked_at = now_utc()
+
+        db.session.commit()
+
+        company_name = project.company.name if project.company else project.project_name
+        flash(f'{company_name} removed from watchlist. Back to active research.', 'success')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error removing project from watchlist: {str(e)}')
+        flash(f'Error removing project from watchlist: {str(e)}', 'error')
+        return redirect(url_for('research_workflow.project_dashboard', project_id=project.id))
 
 
 @research_workflow_bp.route('/projects/<int:project_id>/edit-workflow', methods=['GET', 'POST'])
