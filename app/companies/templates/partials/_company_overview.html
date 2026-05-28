@@ -176,7 +176,7 @@
                 </div>
                 <div>
                     <div class="unified-position-label">Avg Cost</div>
-                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}</div>
+                    <div class="unified-position-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis_base or position.average_cost_basis) }}</div>
                 </div>
                 <div>
                     <div class="unified-position-label">Current Price</div>
@@ -267,7 +267,7 @@
                 {% elif event.type == 'transaction' %}
                 <i class="bi bi-arrow-left-right" style="color: var(--gray-500);"></i>
                 <div class="unified-activity-content">
-                    <div>{{ event.data.type }} {{ event.data.quantity }} shares @ ${{ "%.2f"|format(event.data.price_per_share) }}</div>
+                    <div>{{ event.data.type }} {{ event.data.quantity }} shares @ {{ currency_symbol }}{{ "%.2f"|format(event.data.price_per_share) }}</div>
                     <div class="unified-activity-time">{{ event.date.strftime('%b %d, %Y') }}</div>
                 </div>
                 {% elif event.type == 'decision' %}

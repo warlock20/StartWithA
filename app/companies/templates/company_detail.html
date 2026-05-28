@@ -70,7 +70,7 @@
             </div>
             <div class="position-metric">
                 <div class="position-metric-label">Avg Cost</div>
-                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis) }}
+                <div class="position-metric-value">{{ currency_symbol }}{{ "%.2f"|format(position.average_cost_basis_base or position.average_cost_basis) }}
                 </div>
             </div>
             <div class="position-metric">
@@ -102,7 +102,7 @@
                     <span class="position-text-muted">--</span>
                     {% endif %}
                 </div>
-                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost)
+                <div class="position-metric-subtext">Cost: {{ currency_symbol }}{{ "{:,.0f}".format(position.total_cost_base or position.total_cost)
                     }}</div>
             </div>
             <div id="posPLCard"

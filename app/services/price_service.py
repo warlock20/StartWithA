@@ -173,11 +173,13 @@ class PriceService:
             position.current_value = position.total_shares * current_price_base
             position.current_value_base = position.current_value
 
-            # Calculate unrealized gains/losses (both in base currency now)
-            if position.total_cost > 0:
-                position.unrealized_gain_loss = position.current_value - position.total_cost
+            # Calculate unrealized gains/losses in base currency
+            # Note: total_cost is already in user's base currency (FIFO uses _base prices)
+            total_cost = position.total_cost or Decimal('0.00')
+            if total_cost > 0:
+                position.unrealized_gain_loss = position.current_value - total_cost
                 position.unrealized_gain_loss_pct = (
-                    (position.unrealized_gain_loss / position.total_cost) * 100
+                    (position.unrealized_gain_loss / total_cost) * 100
                 )
             else:
                 position.unrealized_gain_loss = Decimal('0.00')
@@ -449,11 +451,13 @@ class PriceService:
                 position.current_value = position.total_shares * current_price_base
                 position.current_value_base = position.current_value
 
-                # Calculate unrealized gains/losses (both in base currency)
-                if position.total_cost > 0:
-                    position.unrealized_gain_loss = position.current_value - position.total_cost
+                # Calculate unrealized gains/losses in base currency
+                # Note: total_cost is already in user's base currency (FIFO uses _base prices)
+                total_cost = position.total_cost or Decimal('0.00')
+                if total_cost > 0:
+                    position.unrealized_gain_loss = position.current_value - total_cost
                     position.unrealized_gain_loss_pct = (
-                        (position.unrealized_gain_loss / position.total_cost) * 100
+                        (position.unrealized_gain_loss / total_cost) * 100
                     )
                 else:
                     position.unrealized_gain_loss = Decimal('0.00')
