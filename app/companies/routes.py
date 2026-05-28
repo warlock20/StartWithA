@@ -553,7 +553,7 @@ def company_detail(company_id):
 
     # Ensure position prices are converted to user's base currency
     position = journey_data.get('position')
-    if position and not position.current_price_base:
+    if position and (not position.current_price_base or not position.total_cost_base):
         PriceService.update_position_price(position, force=True)
 
     # Dashboard data: competitors
