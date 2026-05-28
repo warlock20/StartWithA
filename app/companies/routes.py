@@ -551,9 +551,9 @@ def company_detail(company_id):
     # Journey data (timeline, thesis, position, stats, research)
     journey_data = _gather_journey_data(company, current_user.id)
 
-    # Ensure position prices are converted to user's base currency
+    # Ensure current price is converted to user's base currency
     position = journey_data.get('position')
-    if position and (not position.current_price_base or not position.total_cost_base):
+    if position and not position.current_price_base:
         PriceService.update_position_price(position, force=True)
 
     # Dashboard data: competitors
