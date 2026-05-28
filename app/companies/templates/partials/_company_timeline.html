@@ -112,7 +112,7 @@
                 {% if event.data.target_price %}
                 <div class="journey-event-metric">
                     <div class="journey-event-metric-label">Target Price</div>
-                    <div class="journey-event-metric-value">${{ "%.2f"|format(event.data.target_price) }}</div>
+                    <div class="journey-event-metric-value">{{ currency_symbol }}{{ "%.2f"|format(event.data.target_price) }}</div>
                 </div>
                 {% endif %}
             </div>
@@ -197,7 +197,7 @@
             </div>
 
             <h4 class="journey-event-title">
-                {{ event.data.type }} {{ event.data.quantity }} shares @ ${{ "%.2f"|format(event.data.price_per_share) }}
+                {{ event.data.type }} {{ event.data.quantity }} shares @ {{ currency_symbol }}{{ "%.2f"|format(event.data.price_per_share) }}
             </h4>
             <p class="journey-event-date">
                 <i class="bi bi-calendar3"></i> {{ event.date.strftime('%B %d, %Y') }}
@@ -206,7 +206,7 @@
             <div class="journey-transaction-details">
                 <div class="journey-transaction-total">
                     <span class="label">Total Value</span>
-                    <span class="value">${{ "{:,.2f}".format(event.data.total_value) }}</span>
+                    <span class="value">{{ currency_symbol }}{{ "{:,.2f}".format(event.data.total_value) }}</span>
                 </div>
             </div>
 

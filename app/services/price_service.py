@@ -169,15 +169,23 @@ class PriceService:
             position.current_price_base = current_price_base
             position.last_exchange_rate_update = now_utc()
 
+            # Convert cost basis fields to base currency
+            exchange_rate = position.current_exchange_rate or Decimal('1.0')
+            if position.average_cost_basis:
+                position.average_cost_basis_base = position.average_cost_basis * exchange_rate
+            if position.total_cost:
+                position.total_cost_base = position.total_cost * exchange_rate
+
             # Calculate values in base currency
             position.current_value = position.total_shares * current_price_base
             position.current_value_base = position.current_value
 
-            # Calculate unrealized gains/losses (both in base currency now)
-            if position.total_cost > 0:
-                position.unrealized_gain_loss = position.current_value - position.total_cost
+            # Calculate unrealized gains/losses in base currency
+            total_cost_base = position.total_cost_base or position.total_cost
+            if total_cost_base and total_cost_base > 0:
+                position.unrealized_gain_loss = position.current_value - total_cost_base
                 position.unrealized_gain_loss_pct = (
-                    (position.unrealized_gain_loss / position.total_cost) * 100
+                    (position.unrealized_gain_loss / total_cost_base) * 100
                 )
             else:
                 position.unrealized_gain_loss = Decimal('0.00')
@@ -445,15 +453,23 @@ class PriceService:
                 position.current_price_base = current_price_base
                 position.last_exchange_rate_update = now_utc()
 
+                # Convert cost basis fields to base currency
+                ex_rate = position.current_exchange_rate or Decimal('1.0')
+                if position.average_cost_basis:
+                    position.average_cost_basis_base = position.average_cost_basis * ex_rate
+                if position.total_cost:
+                    position.total_cost_base = position.total_cost * ex_rate
+
                 # Values in base currency
                 position.current_value = position.total_shares * current_price_base
                 position.current_value_base = position.current_value
 
-                # Calculate unrealized gains/losses (both in base currency)
-                if position.total_cost > 0:
-                    position.unrealized_gain_loss = position.current_value - position.total_cost
+                # Calculate unrealized gains/losses in base currency
+                total_cost_base = position.total_cost_base or position.total_cost
+                if total_cost_base and total_cost_base > 0:
+                    position.unrealized_gain_loss = position.current_value - total_cost_base
                     position.unrealized_gain_loss_pct = (
-                        (position.unrealized_gain_loss / position.total_cost) * 100
+                        (position.unrealized_gain_loss / total_cost_base) * 100
                     )
                 else:
                     position.unrealized_gain_loss = Decimal('0.00')
