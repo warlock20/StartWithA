@@ -927,6 +927,7 @@ def edit_company(company_id):
 
     # Check if ticker is changing and validate it
     ticker_changed = (ticker_symbol != company.ticker_symbol)
+    new_currency = None
     if ticker_changed:
         # Validate ticker with Yahoo Finance
         validator = TickerValidator()
@@ -938,6 +939,11 @@ def edit_company(company_id):
                 return jsonify({'success': False, 'error': msg}), 400
             flash(msg, 'error')
             return redirect(url_for('companies.company_detail', company_id=company_id))
+
+        # Detect the new ticker's currency
+        new_currency = validation_result.get('currency')
+        if not new_currency:
+            new_currency = CurrencyService.detect_currency_from_ticker(ticker_symbol)
 
         # Check for duplicate ticker in user's companies
         existing_company = Company.query.filter_by(
@@ -960,6 +966,10 @@ def edit_company(company_id):
     company.ticker_symbol = ticker_symbol
     company.summary = summary if summary else None
     company.industry = industry if industry else None
+
+    # Update reporting currency when ticker changes
+    if ticker_changed and new_currency:
+        company.reporting_currency = new_currency
 
     # Handle sector
     if sector_name and sector_name != '__new__':

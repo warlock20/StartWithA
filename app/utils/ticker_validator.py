@@ -5,6 +5,7 @@ Handles multiple ticker formats from different financial data providers
 
 import re
 from typing import Tuple, Optional, Dict
+from app.services.currency_service import CurrencyService
 
 
 class TickerValidator:
@@ -408,7 +409,8 @@ class TickerValidator:
             'error': None,
             'company_name': None,
             'current_price': None,
-            'exchange': None
+            'exchange': None,
+            'currency': None
         }
 
         if not ticker_symbol or not ticker_symbol.strip():
@@ -450,12 +452,24 @@ class TickerValidator:
             # Get exchange
             exchange = info.get('exchange') or info.get('market')
 
+            # Get currency and normalize sub-unit currencies (e.g., GBp → GBP)
+            raw_currency = info.get('currency') or ''
+            price_float = float(current_price) if current_price else None
+
+            if raw_currency and raw_currency.upper() != 'NONE':
+                currency, price_float = CurrencyService.normalize_yahoo_currency(
+                    raw_currency, price_float
+                )
+            else:
+                currency = None
+
             # If we have at least a company name, consider it valid
             if company_name:
                 result['valid'] = True
                 result['company_name'] = company_name
-                result['current_price'] = float(current_price) if current_price else None
+                result['current_price'] = price_float
                 result['exchange'] = exchange
+                result['currency'] = currency
             else:
                 result['error'] = f'Unable to retrieve information for "{ticker}"'
 
