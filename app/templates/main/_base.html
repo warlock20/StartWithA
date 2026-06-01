@@ -22,6 +22,9 @@
     <link rel="stylesheet" href="{{ ASSET_URL }}">
     {% endassets %}
 
+    <!-- Shared React vendor bundle (loaded once for all React islands) -->
+    <script defer src="{{ url_for('static', filename='js/dist/vendors.bundle.js') }}"></script>
+
     {% block head %}{% endblock %}
 </head>
 
