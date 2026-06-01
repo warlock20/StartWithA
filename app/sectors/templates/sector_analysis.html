@@ -632,7 +632,7 @@
                                     {% set company = data.company %}
                                     <div class="tool-item" data-company-id="{{ company.id }}">
                                         <div class="tool-item-text">
-                                            <strong>{{ company.name }}</strong>
+                                            <strong><a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="text-decoration-none" style="color: inherit">{{ company.name }}</a></strong>
                                             <small class="d-block text-muted">{{ company.ticker_symbol }}</small>
                                             {% if data.is_in_portfolio %}
                                             <span class="badge bg-info">Portfolio</span>

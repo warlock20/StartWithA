@@ -107,7 +107,7 @@
                     </div>
 
                     <div class="completed-project-content">
-                        <h3 class="completed-project-title font-poppins">{{ company.name }}</h3>
+                        <h3 class="completed-project-title font-poppins"><a href="{{ url_for('companies.company_detail', company_id=company.id) }}" class="text-decoration-none" style="color: inherit">{{ company.name }}</a></h3>
                         <p class="completed-project-meta">
                             <span class="project-type-badge">{{ company.ticker_symbol }}</span>
                             {% if company.sector %}

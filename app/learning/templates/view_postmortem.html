@@ -6,7 +6,7 @@
         <div>
             <h1><i class="bi bi-graph-down me-2"></i>Investment Postmortem</h1>
             <p class="dashboard-header-subtitle">
-                {{ postmortem.company.name if postmortem.company else 'Investment' }}
+                {% if postmortem.company %}<a href="{{ url_for('companies.company_detail', company_id=postmortem.company.id) }}" class="text-decoration-none" style="color: inherit">{{ postmortem.company.name }}</a>{% else %}Investment{% endif %}
                 | Completed: {{ postmortem.created_at.strftime('%B %d, %Y') }}
             </p>
         </div>

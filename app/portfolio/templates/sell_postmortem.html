@@ -11,7 +11,7 @@
                 <header class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title font-poppins">Post-Mortem Analysis</h1>
-                        <p class="dashboard-subtitle">{{ journal.company.ticker_symbol }} - {{ journal.company.name }}</p>
+                        <p class="dashboard-subtitle">{{ journal.company.ticker_symbol }} - <a href="{{ url_for('companies.company_detail', company_id=journal.company_id) }}" class="text-decoration-none" style="color: inherit">{{ journal.company.name }}</a></p>
                     </div>
                     <div class="dashboard-header-actions">
                         <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">

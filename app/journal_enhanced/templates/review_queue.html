@@ -59,7 +59,7 @@
                         {% if entry.company %}
                         <span class="meta-item">
                             <i class="bi bi-building"></i>
-                            {{ entry.company.name }}
+                            <a href="{{ url_for('companies.company_detail', company_id=entry.company.id) }}" class="text-decoration-none text-muted">{{ entry.company.name }}</a>
                         </span>
                         {% endif %}
                         <span class="meta-item">
@@ -155,7 +155,7 @@
                         {% if entry.company %}
                         <span class="meta-item">
                             <i class="bi bi-building"></i>
-                            {{ entry.company.name }}
+                            <a href="{{ url_for('companies.company_detail', company_id=entry.company.id) }}" class="text-decoration-none text-muted">{{ entry.company.name }}</a>
                         </span>
                         {% endif %}
                     </div>
