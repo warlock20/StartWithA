@@ -85,16 +85,20 @@ class PriceService:
 
             # Get currency from Yahoo Finance
             # Yahoo provides currency in the 'currency' field
-            yahoo_currency = info.get('currency', '').upper()
+            raw_currency = info.get('currency', '')
 
             # If Yahoo didn't provide currency, detect from ticker
-            if not yahoo_currency or yahoo_currency == 'NONE':
+            if not raw_currency or raw_currency.upper() == 'NONE':
                 currency = CurrencyService.detect_currency_from_ticker(ticker_symbol)
+                normalized_price = float(price)
             else:
-                currency = yahoo_currency
+                # Normalize sub-unit currencies (e.g., GBp pence → GBP pounds)
+                currency, normalized_price = CurrencyService.normalize_yahoo_currency(
+                    raw_currency, float(price)
+                )
 
             return {
-                'price': float(price),
+                'price': normalized_price,
                 'currency': currency
             }
 

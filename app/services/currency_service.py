@@ -105,6 +105,49 @@ class CurrencyService:
         'TRY': '₺',
     }
 
+    # Sub-unit currencies reported by Yahoo Finance that need conversion
+    # to their standard ISO 4217 major unit.
+    # Format: { yahoo_code: (iso_code, divisor) }
+    SUB_UNIT_CURRENCIES = {
+        'GBP': ('GBP', 100),    # GBp (pence) → GBP; Yahoo returns "GBp" which uppercases to "GBP"
+        'ILA': ('ILS', 100),    # Israeli Agorot → Israeli Shekel
+        'ZAC': ('ZAR', 100),    # South African cents → South African Rand
+    }
+
+    @classmethod
+    def normalize_yahoo_currency(cls, yahoo_currency: str, price: float) -> tuple:
+        """
+        Normalize sub-unit currencies from Yahoo Finance to standard ISO codes.
+
+        Yahoo Finance reports some stocks in sub-units (e.g., British pence "GBp"
+        instead of pounds "GBP"). This method converts both the currency code
+        and the price to the major unit.
+
+        Args:
+            yahoo_currency: Currency code as returned by Yahoo Finance (e.g., 'GBp', 'ILA')
+            price: Price in the Yahoo-reported currency
+
+        Returns:
+            tuple: (normalized_currency_code, normalized_price)
+        """
+        if not yahoo_currency:
+            return yahoo_currency, price
+
+        # Yahoo returns "GBp" for pence — detect before uppercasing
+        raw = yahoo_currency.strip()
+        is_pence = (raw == 'GBp' or raw == 'GBX')
+
+        code = raw.upper()
+
+        if is_pence:
+            return 'GBP', price / 100.0 if price else price
+
+        if code in cls.SUB_UNIT_CURRENCIES:
+            iso_code, divisor = cls.SUB_UNIT_CURRENCIES[code]
+            return iso_code, price / divisor if price else price
+
+        return code, price
+
     @classmethod
     def detect_currency_from_ticker(cls, ticker_symbol: str) -> str:
         """
