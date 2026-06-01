@@ -261,10 +261,8 @@
 
                 <!-- Edit mode -->
                 <div id="tagsEdit" style="display: none;">
-                    <div class="mb-2" style="position: relative;">
-                        <input type="text" class="form-control" id="tagsInput" name="hashtags"
-                               value="{% if entry.tags %}{% for tag in entry.tags %}#{{ tag.lstrip('#') }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}"
-                               placeholder="e.g., #valuation #moat #earnings">
+                    <div class="mb-2">
+                        <div id="hashtag-autocomplete-mount"></div>
                         <small class="text-muted">Space or comma separated</small>
                     </div>
                     <div class="d-flex gap-2">
@@ -430,7 +428,7 @@
 {% block scripts %}
 {{ super() }}
 <!-- Hashtag Autocomplete -->
-<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/hashtag-autocomplete.bundle.js') }}"></script>
 <style>
     .attachment-card {
         transition: all 0.2s ease;
@@ -733,13 +731,18 @@
         document.getElementById('tagsEdit').style.display = 'block';
         document.getElementById('editTagsBtn').style.display = 'none';
 
-        // Initialize hashtag autocomplete on the input
-        const tagsInput = document.getElementById('tagsInput');
-        if (!tagsEditorInstance && window.HashtagAutocomplete) {
-            tagsEditorInstance = new HashtagAutocomplete(tagsInput);
+        // Initialize hashtag autocomplete React island
+        if (!tagsEditorInstance && window.initHashtagAutocomplete) {
+            tagsEditorInstance = window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+                name: 'hashtags',
+                initialValue: '{% if entry.tags %}{% for tag in entry.tags %}#{{ tag.lstrip("#") }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}',
+                placeholder: 'e.g., #valuation #moat #earnings',
+                className: 'form-control'
+            });
         }
 
-        tagsInput.focus();
+        const tagsInput = document.querySelector('#hashtag-autocomplete-mount input[name="hashtags"]');
+        if (tagsInput) tagsInput.focus();
     }
 
     function cancelTagsEdit() {
@@ -749,8 +752,8 @@
     }
 
     async function saveTags() {
-        const tagsInput = document.getElementById('tagsInput');
-        const tagsString = tagsInput.value.trim();
+        const tagsInput = document.querySelector('#hashtag-autocomplete-mount input[name="hashtags"]');
+        const tagsString = (tagsInput ? tagsInput.value : '').trim();
 
         // Parse tags (space or comma separated)
         const tags = tagsString

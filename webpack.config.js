@@ -5,6 +5,8 @@ module.exports = {
     'blocknote-editor': './frontend/src/blocknote-editor.js',
     'company-resources-manager': './frontend/src/company-resources-manager.js',
     'session-summary': './frontend/src/session-summary.js',
+    'duplicate-detector': './frontend/src/duplicate-detector.js',
+    'hashtag-autocomplete': './frontend/src/hashtag-autocomplete.js',
   },
   output: {
     filename: '[name].bundle.js',

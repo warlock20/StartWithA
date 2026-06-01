@@ -5,7 +5,7 @@
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
 <!-- Hashtag Autocomplete -->
-<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
+<script defer src="{{ url_for('static', filename='js/dist/hashtag-autocomplete.bundle.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -108,9 +108,8 @@
 
                         <!-- Hashtags -->
                         <div class="mb-3">
-                            <label for="hashtags" class="form-label">Hashtags</label>
-                            <input type="text" class="form-control" id="hashtags" name="hashtags"
-                                   placeholder="e.g., #accountingtips #cfaprep #financialratios">
+                            <label class="form-label">Hashtags</label>
+                            <div id="hashtag-autocomplete-mount"></div>
                             <small class="text-muted">Enter hashtags with # for easy searching</small>
                         </div>
 
@@ -176,6 +175,15 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Initialize Hashtag Autocomplete React island
+    if (window.initHashtagAutocomplete) {
+        window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+            name: 'hashtags',
+            placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+            className: 'form-control'
+        });
+    }
+
     // Initialize BlockNote Editor
     let journalEditorInstance = null;
 
