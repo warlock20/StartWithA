@@ -252,11 +252,21 @@
 {% include 'components/company_search_modal.html' %}
 
 <!-- Scripts -->
-<script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/duplicate-detector.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
 <script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize duplicate detector React island
+    if (window.initDuplicateDetector) {
+        window.initDuplicateDetector('duplicate-alerts', {
+            entityType: 'idea',
+            nameInputId: 'idea-name',
+            tickerInputId: 'idea-ticker',
+            submitSelector: 'form[data-entity="idea"] button[type="submit"]'
+        });
+    }
+
     const form = document.getElementById('captureForm');
     const ideaTypeSelect = document.getElementById('idea_type');
     const ideaPurposeSelect = document.getElementById('idea_purpose');

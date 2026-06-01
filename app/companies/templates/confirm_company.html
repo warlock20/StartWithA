@@ -48,5 +48,17 @@
 
 {% block scripts %}
     {{ super() }}
-    <script src="{{ url_for('static', filename='js/duplicate-detection.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/dist/duplicate-detector.bundle.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initDuplicateDetector) {
+            window.initDuplicateDetector('duplicate-alerts', {
+                entityType: 'company',
+                nameInputId: 'company-name',
+                tickerInputId: 'company-ticker',
+                submitSelector: 'form[data-entity="company"] button[type="submit"]'
+            });
+        }
+    });
+    </script>
 {% endblock %}
