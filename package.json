@@ -13,8 +13,10 @@
     "@blocknote/core": "^0.15.11",
     "@blocknote/mantine": "^0.15.11",
     "@blocknote/react": "^0.15.11",
+    "@tanstack/react-query": "^5.100.14",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",

@@ -37,6 +37,17 @@ module.exports = {
   },
   devtool: 'source-map',
   optimization: {
-    minimize: true
+    minimize: true,
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+          priority: 10,
+        },
+      },
+    },
   }
 };
