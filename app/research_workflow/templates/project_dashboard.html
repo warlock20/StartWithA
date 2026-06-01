@@ -41,7 +41,7 @@
                 <h1 class="dashboard-title font-poppins">{{ project.project_name }}</h1>
                 <p class="dashboard-subtitle">
                     {% if project.company %}
-                    {{ project.company.name }}
+                    <a href="{{ url_for('companies.company_detail', company_id=project.company.id) }}" class="text-decoration-none" style="color: inherit">{{ project.company.name }}</a>
                     {% if project.company.ticker_symbol %}({{ project.company.ticker_symbol }}){% endif %}
                     {% endif %}
                 </p>

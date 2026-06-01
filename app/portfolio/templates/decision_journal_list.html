@@ -70,7 +70,7 @@
                                 <a href="{{ url_for('companies.company_detail', company_id=journal.company_id) }}" class="text-decoration-none">
                                     <strong>{{ journal.company.ticker_symbol }}</strong>
                                 </a>
-                                <div class="small text-muted">{{ journal.company.name }}</div>
+                                <div class="small text-muted"><a href="{{ url_for('companies.company_detail', company_id=journal.company_id) }}" class="text-decoration-none text-muted">{{ journal.company.name }}</a></div>
                             </td>
                             <td>
                                 {% if journal.decision_type == 'BUY' %}

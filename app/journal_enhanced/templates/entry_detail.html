@@ -8,7 +8,7 @@
             <p class="dashboard-header-subtitle">
                 {{ entry.created_at.strftime('%B %d, %Y at %H:%M') }}
                 {% if entry.company %}
-                | {{ entry.company.name }}
+                | <a href="{{ url_for('companies.company_detail', company_id=entry.company.id) }}" class="text-decoration-none" style="color: inherit">{{ entry.company.name }}</a>
                 {% endif %}
             </p>
         </div>
