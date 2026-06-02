@@ -8,6 +8,7 @@ from app.services.sector_service import SectorService
 from app.services.financial_data import FinancialDataService
 from app.companies import companies_bp
 from app.utils.ticker_validator import TickerValidator
+from app.services.currency_service import CurrencyService
 from app.utils.response_utils import json_error, json_not_found
 from app.utils.time_utils import now_utc
 
@@ -189,7 +190,8 @@ def api_create_company():
             ticker_symbol=ticker_symbol,
             industry=industry,
             sector_id=sector_obj.id if sector_obj else None,
-            summary=summary
+            summary=summary,
+            reporting_currency=CurrencyService.detect_currency_from_ticker(ticker_symbol)
         )
 
         db.session.add(company)

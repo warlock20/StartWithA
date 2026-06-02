@@ -123,7 +123,7 @@ class PortfolioDataExtractor:
                 'quantity': int(txn.quantity) if txn.quantity else 0,
                 'price': float(txn.price_per_share) if txn.price_per_share else 0.0,
                 'fees': float(txn.fees) if txn.fees else 0.0,
-                'currency': txn.currency or 'USD',
+                'currency': txn.currency or (txn.company.reporting_currency if txn.company else None) or 'USD',
                 'notes': txn.notes or ''
             })
 

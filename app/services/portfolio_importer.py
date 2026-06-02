@@ -83,7 +83,8 @@ class PortfolioImporter:
             ticker_symbol=ticker,
             user_id=self.user.id,
             is_in_portfolio=True,
-            industry=industry
+            industry=industry,
+            reporting_currency=CurrencyService.detect_currency_from_ticker(ticker)
         )
         db.session.add(new_company)
         db.session.flush()  # Flush to get the ID

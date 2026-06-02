@@ -16,6 +16,7 @@ from app.models import (
     EmbeddingStore,
 )
 from app.research_workflow import research_workflow_bp
+from app.services.currency_service import CurrencyService
 from app.services.sector_service import SectorService
 from app.services.ai.embedding_service import embed
 from app.utils.time_utils import now_utc
@@ -147,11 +148,13 @@ def _resolve_or_create_company(sweep_company, sector_id):
             auto_create=True,
         )
 
+    ticker = sweep_company.ticker or 'UNKNOWN'
     new_company = Company(
         user_id=current_user.id,
         name=sweep_company.company_name,
-        ticker_symbol=sweep_company.ticker or 'UNKNOWN',
+        ticker_symbol=ticker,
         sector_id=sector_obj.id if sector_obj else None,
+        reporting_currency=CurrencyService.detect_currency_from_ticker(ticker) if ticker != 'UNKNOWN' else None,
     )
     db.session.add(new_company)
     db.session.flush()
