@@ -148,6 +148,38 @@ class CurrencyService:
 
         return code, price
 
+    # Ticker exchange suffixes where yf.download() returns prices in sub-units.
+    # These exchanges conventionally quote prices in minor currency units.
+    SUBUNIT_TICKER_SUFFIXES = {
+        '.L': 100,      # LSE: prices in pence, need /100 for GBP
+    }
+
+    @classmethod
+    def normalize_price_for_ticker(cls, ticker_symbol: str, price: float) -> float:
+        """
+        Normalize a price from yf.download() that may be in sub-units.
+
+        yf.download() returns raw exchange prices without currency metadata.
+        For exchanges like the LSE (.L suffix), prices are in pence rather
+        than pounds. This method converts to the major currency unit.
+
+        Args:
+            ticker_symbol: Stock ticker (e.g., 'WISE.L', 'AAPL')
+            price: Raw price from yf.download()
+
+        Returns:
+            float: Price normalized to major currency unit
+        """
+        if not ticker_symbol or price is None:
+            return price
+
+        ticker = ticker_symbol.upper().strip()
+        for suffix, divisor in cls.SUBUNIT_TICKER_SUFFIXES.items():
+            if ticker.endswith(suffix):
+                return price / divisor
+
+        return price
+
     @classmethod
     def detect_currency_from_ticker(cls, ticker_symbol: str) -> str:
         """

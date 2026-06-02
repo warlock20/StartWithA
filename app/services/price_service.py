@@ -349,14 +349,16 @@ class PriceService:
                 symbol = ticker_symbols[0]
                 close_series = data['Close'].dropna()
                 if not close_series.empty:
-                    results[symbol] = float(close_series.iloc[-1])
+                    raw_price = float(close_series.iloc[-1])
+                    results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
             else:
                 # Multiple tickers: columns are multi-level (Close -> AAPL, MSFT, ...)
                 for symbol in ticker_symbols:
                     try:
                         close_series = data['Close'][symbol].dropna()
                         if not close_series.empty:
-                            results[symbol] = float(close_series.iloc[-1])
+                            raw_price = float(close_series.iloc[-1])
+                            results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
                     except (KeyError, IndexError):
                         logger.warning("No price data for %s in batch download", symbol)
 
@@ -365,7 +367,8 @@ class PriceService:
             # Fallback to individual fetches
             for symbol in ticker_symbols:
                 try:
-                    results[symbol] = PriceService.get_current_price(symbol)
+                    raw_price = PriceService.get_current_price(symbol)
+                    results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
                 except Exception:
                     results[symbol] = None
 
