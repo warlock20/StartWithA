@@ -9,6 +9,7 @@ from app.models import (IdeaPipeline, KillChecklist, KillCriterion, ResearchTemp
                        KillChecklistSuggestion, MistakeLog, SectorAnalysis)
 from app.utils.response_utils import json_success, json_error, json_unauthorized
 from app.utils.decorators import require_feature
+from app.services.currency_service import CurrencyService
 from app.services.duplicate_detection import DuplicateDetectionService
 from app.services.kill_checklist_analytics import KillChecklistAnalytics, SuggestionEngine
 from app.ideas import ideas_bp
@@ -658,7 +659,8 @@ def promote_idea(idea_id):
             # Create company and redirect to research template selection
             company = Company(
                 name=idea.name, ticker_symbol=idea.ticker_symbol,
-                creator=current_user, summary=idea.thesis_summary
+                creator=current_user, summary=idea.thesis_summary,
+                reporting_currency=CurrencyService.detect_currency_from_ticker(idea.ticker_symbol) if idea.ticker_symbol else None
             )
             db.session.add(company)
             db.session.flush()
@@ -703,7 +705,8 @@ def promote_idea(idea_id):
                         name=idea.name,
                         ticker_symbol=idea.ticker_symbol,
                         creator=current_user,
-                        summary=idea.thesis_summary
+                        summary=idea.thesis_summary,
+                        reporting_currency=CurrencyService.detect_currency_from_ticker(idea.ticker_symbol) if idea.ticker_symbol else None
                     )
                     db.session.add(new_company)
                     db.session.flush()

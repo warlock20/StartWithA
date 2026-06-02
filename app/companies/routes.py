@@ -252,6 +252,7 @@ def add_company_confirmed():
                 sector_id = sector_obj.id
 
         company = Company(name=name, ticker_symbol=ticker_symbol, summary=summary, sector_id=sector_id, industry=industry, creator=current_user)
+        company.reporting_currency = CurrencyService.detect_currency_from_ticker(ticker_symbol)
         db.session.add(company)
         db.session.commit()
         flash(f'Company "{name}" ({ticker_symbol}) added successfully!', 'success')

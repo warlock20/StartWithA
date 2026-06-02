@@ -372,8 +372,10 @@ def edit_transaction(transaction_id):
             flash(f'Error updating transaction: {str(e)}', 'error')
             return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
-    # GET request
-    return render_template('edit_transaction.html', transaction=transaction)
+    # GET request — resolve currency symbol for the form
+    stock_currency = transaction.currency or transaction.company.reporting_currency or CurrencyService.detect_currency_from_ticker(transaction.company.ticker_symbol)
+    currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
+    return render_template('edit_transaction.html', transaction=transaction, currency_symbol=currency_symbol)
 
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/delete', methods=['POST'])

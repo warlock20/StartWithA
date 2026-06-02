@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 from datetime import date, timedelta
 import yfinance as yf
 
+from app.services.currency_service import CurrencyService
 from .base import FinancialDataProvider
 
 logger = logging.getLogger(__name__)
@@ -255,7 +256,9 @@ class YahooFinanceProvider(FinancialDataProvider):
                 'current_price': float(price) if price else None,
                 'sector': info.get('sector'),
                 'industry': info.get('industry'),
-                'currency': (info.get('currency') or 'USD').upper(),
+                'currency': CurrencyService.normalize_yahoo_currency(
+                    info.get('currency', ''), 0
+                )[0] or CurrencyService.detect_currency_from_ticker(ticker),
             }
 
         except Exception as e:

@@ -270,7 +270,8 @@ def add_thesis_version(company_id):
     ).scalar() or 0
     next_version = max_version + 1
 
-    currency_symbol = CurrencyService.get_currency_symbol(company.reporting_currency or 'USD')
+    stock_currency = company.reporting_currency or CurrencyService.detect_currency_from_ticker(company.ticker_symbol)
+    currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
 
     return render_template('add_thesis_version.html',
                           company=company,

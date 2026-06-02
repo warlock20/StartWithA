@@ -13,6 +13,7 @@ from app.journal_enhanced.utils import extract_tags_from_content
 from app import db, limiter
 from app.constants import RATELIMIT_AI
 
+from app.services.currency_service import CurrencyService
 from app.services.intelligence_engine import check_sell_warnings
 from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
@@ -532,7 +533,7 @@ def get_company_intelligence(company_id):
                     'eps_ttm': None,
                     'current_price': None,
                     'sector': company.sector.display_name if company.sector else None,
-                    'currency': company.reporting_currency or 'USD',
+                    'currency': company.reporting_currency or CurrencyService.detect_currency_from_ticker(company.ticker_symbol),
                     'data_unavailable': True
                 }
             })
