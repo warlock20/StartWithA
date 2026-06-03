@@ -195,37 +195,8 @@
         {% endif %}
     </div>
 
-    <!-- ============ PILL TAB BAR ============ -->
-    <div class="unified-tab-bar" id="unifiedTabBar">
-        <button class="unified-pill-tab active" data-tab="overview">
-            <i class="bi bi-grid-1x2"></i> Overview
-        </button>
-        <div class="unified-tab-separator"></div>
-        <button class="unified-pill-tab" data-tab="timeline">
-            <i class="bi bi-list-ul"></i> Timeline
-            {% if timeline_events %}<span class="unified-tab-count">{{ timeline_events|length }}</span>{% endif %}
-        </button>
-        <div class="unified-tab-separator"></div>
-        <button class="unified-pill-tab" data-tab="research">
-            <i class="bi bi-microscope"></i> Research
-        </button>
-        <button class="unified-pill-tab" data-tab="library">
-            <i class="bi bi-collection"></i> Library
-        </button>
-
-        <div class="unified-tab-separator" style="margin-left: auto;"></div>
-        {% if company_state == 'portfolio' %}
-        <button class="unified-pill-tab" data-tab="transactions">
-            <i class="bi bi-arrow-left-right"></i> Transactions
-            {% if transaction_count %}<span class="unified-tab-count">{{ transaction_count }}</span>{% endif %}
-        </button>
-        {% endif %}
-        <div class="unified-tab-separator"></div>
-
-        <button class="unified-pill-tab" data-tab="settings">
-            <i class="bi bi-gear"></i> Settings
-        </button>
-    </div>
+    <!-- ============ PILL TAB BAR (React Island) ============ -->
+    <div id="tab-router-mount"></div>
 
     <!-- ============ TAB PANELS ============ -->
     <div class="unified-tab-panels">
@@ -421,5 +392,28 @@ window.companyConfig = {
 };
 </script>
 <script src="{{ url_for('static', filename='js/ai-research-assistant.js') }}" defer></script>
+<script defer src="{{ url_for('static', filename='js/dist/company-dashboard-tabs.bundle.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.initCompanyDashboardTabs) {
+        window.initCompanyDashboardTabs('tab-router-mount', {
+            items: [
+                { type: 'tab', key: 'overview', label: 'Overview', icon: 'bi-grid-1x2' },
+                { type: 'separator' },
+                { type: 'tab', key: 'timeline', label: 'Timeline', icon: 'bi-list-ul', count: {{ timeline_events|length if timeline_events else 0 }} },
+                { type: 'separator' },
+                { type: 'tab', key: 'research', label: 'Research', icon: 'bi-microscope' },
+                { type: 'tab', key: 'library', label: 'Library', icon: 'bi-collection' },
+                { type: 'separator', auto: true },
+                {% if company_state == 'portfolio' %}
+                { type: 'tab', key: 'transactions', label: 'Transactions', icon: 'bi-arrow-left-right', count: {{ transaction_count or 0 }} },
+                {% endif %}
+                { type: 'separator' },
+                { type: 'tab', key: 'settings', label: 'Settings', icon: 'bi-gear' }
+            ]
+        });
+    }
+});
+</script>
 <script src="{{ url_for('static', filename='js/company-dashboard.js') }}"></script>
 {% endblock %}
