@@ -248,13 +248,12 @@
     </div>
 </div>
 
-<!-- Include Company Search Modal -->
-{% include 'components/company_search_modal.html' %}
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
 
 <!-- Scripts -->
 <script defer src="{{ url_for('static', filename='js/dist/duplicate-detector.bundle.js') }}"></script>
-<script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
-<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize duplicate detector React island
