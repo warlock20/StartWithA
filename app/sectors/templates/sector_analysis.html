@@ -36,12 +36,11 @@
 <script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
 
-<!-- Company Search Component -->
-<script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
-<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+<!-- Company Search Component (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 
-<!-- Company Tagging Module -->
-<script src="{{ url_for('static', filename='js/company-tagging.js') }}"></script>
+<!-- Company Tagging Module (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-tagging.bundle.js') }}"></script>
 
 <!-- Generate Document Module -->
 <script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
@@ -743,7 +742,7 @@
     "Focus on what makes winners vs. losers in this specific industry"
 ] %}
 {% include 'main/_tips_modal.html' %}
-{% include 'components/company_search_modal.html' %}
+<div id="company-search-mount"></div>
 {% include 'components/paste_ai_modal.html' %}
 {% include 'components/add_source_modal.html' %}
 {% include 'components/archive_modal.html' %}
@@ -752,7 +751,7 @@
 {% include 'components/modals/section_modal.html' %}
 {% include 'components/modals/note_modal.html' %}
 {% include 'components/modals/view_note_modal.html' %}
-{% include 'components/modals/company_suggestions_modal.html' %}
+<div id="company-tagging-mount"></div>
 {% include 'components/modals/generate_document_modal.html' %}
 {% endblock %}
 

@@ -7,6 +7,10 @@ module.exports = {
     'session-summary': './frontend/src/session-summary.js',
     'duplicate-detector': './frontend/src/duplicate-detector.js',
     'hashtag-autocomplete': './frontend/src/hashtag-autocomplete.js',
+    'company-search': './frontend/src/company-search.js',
+    'company-tagging': './frontend/src/company-tagging.js',
+    'intelligence-panel': './frontend/src/intelligence-panel.js',
+    'ai-research-assistant': './frontend/src/ai-research-assistant.js',
   },
   output: {
     filename: '[name].bundle.js',
