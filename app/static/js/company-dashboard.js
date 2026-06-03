@@ -26,66 +26,21 @@
     // ===================================================================
 
     document.addEventListener('DOMContentLoaded', function () {
-        const tabBar = document.getElementById('unifiedTabBar');
-        const tabs = tabBar.querySelectorAll('.unified-pill-tab');
-        const panels = document.querySelectorAll('.unified-tab-panel');
+        // ---- Lazy-init via React TabRouter custom events ----
+        // Tab switching, hash routing, sub-section toggling, and collapsible
+        // section detection are now handled by the TabRouter React island.
+        // This file listens for its custom events to trigger lazy initialization.
 
-        function switchToTab(tabId) {
-            // Map legacy tab IDs to library sub-sections
-            let librarySection = null;
-            if (tabId === 'documents' || tabId === 'notes' || tabId === 'journal') {
-                librarySection = tabId;
-                tabId = 'library';
-            }
-
-            // Deactivate all tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            panels.forEach(p => p.classList.remove('active'));
-
-            // Activate target tab + panel
-            const targetTab = tabBar.querySelector('[data-tab="' + tabId + '"]');
-            const targetPanel = document.getElementById('panel-' + tabId);
-            if (targetTab) targetTab.classList.add('active');
-            if (targetPanel) targetPanel.classList.add('active');
-
-            // Update URL hash
-            if (tabId === 'library' && librarySection) {
-                history.replaceState(null, '', '#library/' + librarySection);
-            } else {
-                history.replaceState(null, '', '#' + tabId);
-            }
-
-            // Library sub-section activation
-            if (tabId === 'library') {
-                switchLibrarySection(librarySection || 'documents');
-            }
-
-            // Research sub-section activation (default to summary)
-            if (tabId === 'research') {
-                switchResearchSection('summary');
-            }
-
-            // Lazy init (non-library tabs)
+        document.addEventListener('tab-changed', function (e) {
+            var tabId = e.detail.tabId;
             if (tabId === 'transactions' && !transactionsInitialized) {
                 initTransactionsTable();
                 transactionsInitialized = true;
             }
-        }
+        });
 
-        // ---- Library Sub-Section Switching ----
-        function switchLibrarySection(sectionId) {
-            const libraryNav = document.querySelectorAll('.library-nav-item');
-            const librarySections = document.querySelectorAll('.library-section');
-
-            libraryNav.forEach(n => n.classList.remove('active'));
-            librarySections.forEach(s => s.classList.remove('active'));
-
-            const targetNav = document.querySelector('[data-library-section="' + sectionId + '"]');
-            const targetSection = document.getElementById('library-' + sectionId);
-            if (targetNav) targetNav.classList.add('active');
-            if (targetSection) targetSection.classList.add('active');
-
-            // Lazy init per sub-section
+        document.addEventListener('library-section-changed', function (e) {
+            var sectionId = e.detail.sectionId;
             if (sectionId === 'notes' && !notesInitialized) {
                 initNotesEditor();
                 notesInitialized = true;
@@ -98,78 +53,14 @@
                 loadCompanyAnnotations();
                 annotationsInitialized = true;
             }
+        });
 
-            // Update hash
-            history.replaceState(null, '', '#library/' + sectionId);
-        }
-
-        // ---- Research Sub-Section Switching ----
-        function switchResearchSection(sectionId) {
-            const researchNav = document.querySelectorAll('.research-nav-item');
-            const researchSections = document.querySelectorAll('.research-section');
-
-            researchNav.forEach(n => n.classList.remove('active'));
-            researchSections.forEach(s => s.classList.remove('active'));
-
-            const targetNav = document.querySelector('[data-research-section="' + sectionId + '"]');
-            const targetSection = document.getElementById('research-' + sectionId);
-            if (targetNav) targetNav.classList.add('active');
-            if (targetSection) targetSection.classList.add('active');
-
-            // Lazy init standalone Q&A
+        document.addEventListener('research-section-changed', function (e) {
+            var sectionId = e.detail.sectionId;
             if (sectionId === 'qa' && !qaInitialized) {
                 StandaloneQA.init();
                 qaInitialized = true;
             }
-
-            // Update hash
-            history.replaceState(null, '', '#research/' + sectionId);
-        }
-
-        // Expose globally so partials can use it
-        window.switchToTab = switchToTab;
-        window.switchLibrarySection = switchLibrarySection;
-        window.switchResearchSection = switchResearchSection;
-
-        // Click handler for tab buttons
-        tabs.forEach(tab => {
-            tab.addEventListener('click', function () {
-                switchToTab(this.dataset.tab);
-            });
-        });
-
-        // Hash-based routing on page load
-        const hash = window.location.hash.substring(1);
-        if (hash) {
-            if (hash.startsWith('library/')) {
-                const libSection = hash.split('/')[1];
-                switchToTab('library');
-                switchLibrarySection(libSection);
-            } else if (hash.startsWith('research/')) {
-                const resSection = hash.split('/')[1];
-                switchToTab('research');
-                switchResearchSection(resSection);
-            } else if (['documents', 'notes', 'journal'].includes(hash)) {
-                switchToTab(hash);
-            } else if (document.getElementById('panel-' + hash)) {
-                switchToTab(hash);
-            }
-        }
-
-        // ---- Collapsible sections: show expand button only if content overflows ----
-        requestAnimationFrame(function () {
-            document.querySelectorAll('.unified-collapsible').forEach(function (el) {
-                var content = el.querySelector('.unified-collapsible-content');
-                var btn = el.nextElementSibling;
-                if (!content || !btn || !btn.classList.contains('unified-expand-btn')) return;
-                if (content.scrollHeight > el.clientHeight + 4) {
-                    btn.style.display = '';
-                } else {
-                    el.style.maxHeight = 'none';
-                    el.querySelector('.unified-collapsible-fade').style.display = 'none';
-                    btn.style.display = 'none';
-                }
-            });
         });
 
         // ---- Async Price Refresh (portfolio companies) ----
