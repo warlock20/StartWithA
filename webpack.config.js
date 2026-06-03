@@ -11,6 +11,9 @@ module.exports = {
     'company-tagging': './frontend/src/company-tagging.js',
     'intelligence-panel': './frontend/src/intelligence-panel.js',
     'ai-research-assistant': './frontend/src/ai-research-assistant.js',
+    'document-annotations': './frontend/src/document-annotations.js',
+    'market-sweep': './frontend/src/market-sweep.js',
+    'company-dashboard-tabs': './frontend/src/company-dashboard-tabs.js',
   },
   output: {
     filename: '[name].bundle.js',

@@ -77,93 +77,9 @@
         </div>
     </div>
 
-    <!-- ════════════════════════════════════════════════
-         SWEEP PICKER (shown initially)
-         ════════════════════════════════════════════════ -->
-    <div id="sweepPicker" class="sweep-picker">
-        <h3>Choose a Market</h3>
-        <div class="sweep-picker-grid" id="sweepPickerGrid">
-            <!-- Populated by JS -->
-        </div>
-        <div class="sweep-empty" id="sweepEmptyState" style="display:none;">
-            <i class="bi bi-globe-americas"></i>
-            <h5>No market sweeps available</h5>
-            <p>Ask your admin to upload a company list via the admin panel.</p>
-        </div>
-    </div>
+    <!-- React island mount point (picker + table + kill modal) -->
+    <div id="market-sweep-mount"></div>
 
-    <!-- ════════════════════════════════════════════════
-         TABLE VIEW (shown after selecting a sweep)
-         ════════════════════════════════════════════════ -->
-    <div id="sweepTableView" style="display:none;">
-        <!-- Progress bar -->
-        <div class="sweep-progress-bar-container">
-            <div class="sweep-progress-bar">
-                <div class="sweep-progress-fill" id="sweepProgressFill" style="width:0%"></div>
-            </div>
-        </div>
-
-        <div class="rcl-panel">
-            <div class="rcl-panel-controls">
-                <div class="rcl-search">
-                    <i class="bi bi-search"></i>
-                    <input type="text" id="sweepSearch" placeholder="Search company or ticker...">
-                </div>
-                <select id="sweepDecisionFilter" class="rcl-filter-select">
-                    <option value="all">All Companies</option>
-                    <option value="pending">Pending</option>
-                    <option value="inbox">Inbox</option>
-                    <option value="killed">Killed</option>
-                </select>
-            </div>
-            <div id="sweepTable"></div>
-        </div>
-    </div>
-
-</div>
-
-<!-- ════════════════════════════════════════════════
-     KILL CHECKLIST MODAL
-     ════════════════════════════════════════════════ -->
-<div class="modal fade" id="killChecklistModal" tabindex="-1" aria-labelledby="killChecklistLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title font-poppins" id="killChecklistLabel">
-                    <i class="bi bi-shield-x text-danger"></i>
-                    Kill Checklist &mdash; <span id="killCompanyName"></span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="killCriteriaList">
-                    <!-- Populated by JS -->
-                </div>
-                <div id="killDescriptionSection">
-                    <hr class="my-3" id="killDescriptionDivider">
-                    <label for="killDescription" class="form-label fw-semibold" id="killDescriptionLabel">
-                        <i class="bi bi-lightning-charge text-danger"></i> Or describe your reason to kill
-                    </label>
-                    <textarea id="killDescription" class="form-control" rows="3"
-                              placeholder="e.g. Promoter stake keeps dropping, auditor just resigned..."></textarea>
-                    <small class="text-muted d-block mt-1">
-                        <i class="bi bi-info-circle"></i>
-                        This feeds Argos so it can warn you about similar ideas in the future.
-                    </small>
-                </div>
-            </div>
-            <div id="killResultBanner" style="display:none;"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="killConfirmBtn" style="display:none;">
-                    <i class="bi bi-x-circle"></i> Kill It
-                </button>
-                <button type="button" class="btn btn-success" id="inboxConfirmBtn" style="display:none;">
-                    <i class="bi bi-inbox"></i> Send to Inbox
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 {% endblock %}
@@ -171,9 +87,14 @@
 {% block scripts %}
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
-<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/market-sweep.bundle.js') }}"></script>
 <script>
-    const SECTORS_JSON = {{ sectors_json|tojson }};
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.initMarketSweep) {
+        window.initMarketSweep('market-sweep-mount', {
+            sectors: {{ sectors_json|tojson }}
+        });
+    }
+});
 </script>
-<script src="{{ url_for('static', filename='js/market-sweep.js') }}"></script>
 {% endblock %}
