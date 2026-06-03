@@ -22,7 +22,7 @@
     let annotationsInitialized = false;
 
     // ===================================================================
-    //  Tab, Sub-Section, and Hash Routing
+    //  Lazy Initialization (listens to React TabRouter events)
     // ===================================================================
 
     document.addEventListener('DOMContentLoaded', function () {
