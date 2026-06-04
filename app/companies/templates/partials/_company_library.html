@@ -60,17 +60,4 @@
     </div>
 </div>
 
-<script>
-(function() {
-    const navItems = document.querySelectorAll('.library-nav-item');
-
-    navItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const target = this.getAttribute('data-library-section');
-            if (window.switchLibrarySection) {
-                window.switchLibrarySection(target);
-            }
-        });
-    });
-})();
-</script>
+{# Library nav click handlers are now managed by the React TabRouter island #}

@@ -1,24 +1,4 @@
-{# Journal Tab — carried over from company_journey.html #}
-
-<div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
-    <input type="text" id="journalSearchInput" placeholder="Search entries by content or #tags..."
-           style="flex: 1; min-width: 200px; padding: 0.5rem 1rem; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 0.9375rem;"
-           oninput="debouncedJournalSearch()">
-    <a href="{{ url_for('journal_enhanced.new_entry') }}?company_id={{ company.id }}" class="position-btn primary">
-        <i class="bi bi-plus-circle"></i> New Entry
-    </a>
-</div>
-<div id="journalCards"></div>
-<button id="journalLoadMore" class="journey-notes-load-more" style="display:none;" onclick="loadJournalEntries()">
-    Load more <i class="bi bi-chevron-down"></i>
-</button>
-<div id="journalEmptyState" class="journey-empty-state" style="display:none;">
-    <i class="bi bi-journal-text"></i>
-    <h4>No Journal Entries Yet</h4>
-    <p>Journal entries are timestamped observations, earnings reactions, and thesis updates.</p>
-    <div class="journey-empty-actions">
-        <a href="{{ url_for('journal_enhanced.new_entry') }}?company_id={{ company.id }}" class="position-btn primary">
-            <i class="bi bi-plus-circle"></i> Write First Entry
-        </a>
-    </div>
-</div>
+{# Journal Tab — React island mount point #}
+<div id="journal-entries-mount"
+     data-company-id="{{ company.id }}"
+     data-new-entry-url="{{ url_for('journal_enhanced.new_entry') }}?company_id={{ company.id }}"></div>
