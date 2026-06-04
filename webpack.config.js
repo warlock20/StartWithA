@@ -14,6 +14,7 @@ module.exports = {
     'document-annotations': './frontend/src/document-annotations.js',
     'market-sweep': './frontend/src/market-sweep.js',
     'company-dashboard-tabs': './frontend/src/company-dashboard-tabs.js',
+    'standalone-qa': './frontend/src/standalone-qa.js',
   },
   output: {
     filename: '[name].bundle.js',
