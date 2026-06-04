@@ -20,6 +20,8 @@ module.exports = {
     'settings-form': './frontend/src/settings-form.js',
     'sec-filings-fetcher': './frontend/src/sec-filings-fetcher.js',
     'transactions-table': './frontend/src/transactions-table.js',
+    'sector-canvas': './frontend/src/sector-canvas.js',
+    'analytics-charts': './frontend/src/analytics-charts.js',
   },
   output: {
     filename: '[name].bundle.js',
