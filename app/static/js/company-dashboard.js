@@ -46,11 +46,21 @@
                 notesInitialized = true;
             }
             if (sectionId === 'journal' && !journalInitialized) {
-                loadJournalEntries(true);
+                var mount = document.getElementById('journal-entries-mount');
+                if (mount && window.initJournalEntries) {
+                    window.initJournalEntries('journal-entries-mount', {
+                        companyId: companyId,
+                        newEntryUrl: mount.dataset.newEntryUrl
+                    });
+                }
                 journalInitialized = true;
             }
             if (sectionId === 'annotations' && !annotationsInitialized) {
-                loadCompanyAnnotations();
+                if (window.initCompanyAnnotationsPanel) {
+                    window.initCompanyAnnotationsPanel('company-annotations-mount', {
+                        companyId: companyId
+                    });
+                }
                 annotationsInitialized = true;
             }
         });
@@ -552,83 +562,9 @@
     }
 
     // ===================================================================
-    //  Journal Entries (AJAX, paginated)
+    //  Journal Entries — now a React island (journal-entries.bundle.js)
+    //  Mounted lazily via library-section-changed event above.
     // ===================================================================
-
-    var journalOffset = 0;
-    var journalTotal = 0;
-    var journalSearchQuery = '';
-    var journalSearchTimeout = null;
-
-    window.debouncedJournalSearch = function () {
-        clearTimeout(journalSearchTimeout);
-        journalSearchTimeout = setTimeout(function () {
-            journalSearchQuery = document.getElementById('journalSearchInput').value.trim();
-            loadJournalEntries(true);
-        }, 300);
-    };
-
-    function loadJournalEntries(reset) {
-        if (reset) {
-            journalOffset = 0;
-            document.getElementById('journalCards').innerHTML = '';
-        }
-        var loadMoreBtn = document.getElementById('journalLoadMore');
-        var emptyState = document.getElementById('journalEmptyState');
-        loadMoreBtn.style.display = 'none';
-        emptyState.style.display = 'none';
-
-        var url = '/portfolio/api/notes/' + companyId + '?offset=' + journalOffset + '&limit=10';
-        if (journalSearchQuery) url += '&q=' + encodeURIComponent(journalSearchQuery);
-
-        fetch(url)
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (!data.success) return;
-                journalTotal = data.total;
-                var container = document.getElementById('journalCards');
-
-                if (data.entries.length === 0 && journalOffset === 0) {
-                    emptyState.style.display = 'block';
-                    return;
-                }
-                data.entries.forEach(function (entry) {
-                    container.insertAdjacentHTML('beforeend', renderJournalCard(entry));
-                });
-                journalOffset += data.entries.length;
-                if (data.has_more) {
-                    loadMoreBtn.style.display = 'block';
-                    loadMoreBtn.innerHTML = 'Load more (' + journalOffset + ' of ' + journalTotal + ') <i class="bi bi-chevron-down"></i>';
-                }
-            });
-    }
-    window.loadJournalEntries = loadJournalEntries;
-
-    function renderJournalCard(entry) {
-        var contentHtml = entry.content_html || escapeHtml(entry.content);
-        var sentimentHtml = '';
-        if (entry.sentiment) {
-            sentimentHtml = '<span class="journey-note-sentiment ' + entry.sentiment + '">' + entry.sentiment + '</span>';
-        }
-        var tagsHtml = '';
-        if (entry.tags && entry.tags.length) {
-            tagsHtml = '<div class="journey-note-tags">' +
-                entry.tags.slice(0, 6).map(function (t) { return '<span class="journey-note-tag">#' + escapeHtml(t) + '</span>'; }).join('') +
-                '</div>';
-        }
-        var viewUrl = '/journal/entry/' + entry.id;
-        return '<div class="journey-note-card">' +
-            '<div class="journey-note-card-header">' +
-                '<span class="journey-note-card-date"><i class="bi bi-calendar3"></i> ' + entry.created_at + '</span>' +
-                '<div class="journey-note-card-actions">' +
-                    sentimentHtml +
-                    '<a href="' + viewUrl + '" class="journey-note-view-btn" title="View full entry"><i class="bi bi-box-arrow-up-right"></i></a>' +
-                '</div>' +
-            '</div>' +
-            '<div class="journey-note-card-content blocknote-content">' + contentHtml + '</div>' +
-            tagsHtml +
-        '</div>';
-    }
 
     // ===================================================================
     //  Inline Resources (Documents tab) — handled by React island
@@ -637,118 +573,9 @@
     // ===================================================================
 
     // ===================================================================
-    //  Company Annotations (Library > Annotations tab)
+    //  Company Annotations — now a React island (company-annotations-panel.bundle.js)
+    //  Mounted lazily via library-section-changed event above.
     // ===================================================================
-
-    function loadCompanyAnnotations() {
-        var container = document.getElementById('company-annotations-list');
-        if (!container) return;
-
-        fetch('/companies/api/' + companyId + '/annotations')
-            .then(function (r) { return r.json(); })
-            .then(function (result) {
-                if (!result.success) {
-                    container.innerHTML = '<div class="text-danger small">Failed to load annotations.</div>';
-                    return;
-                }
-
-                var annotations = result.data.annotations;
-                var countBadge = document.getElementById('company-annotations-count');
-                if (countBadge) {
-                    if (annotations.length > 0) {
-                        countBadge.textContent = annotations.length;
-                        countBadge.style.display = 'inline';
-                    } else {
-                        countBadge.style.display = 'none';
-                    }
-                }
-
-                if (annotations.length === 0) {
-                    container.innerHTML =
-                        '<div class="text-center text-muted py-4">' +
-                            '<i class="bi bi-pin-angle" style="font-size:1.5rem;"></i>' +
-                            '<p class="mt-2 mb-0 small">No annotations yet. Open a PDF document and add pins or highlights to get started.</p>' +
-                        '</div>';
-                    return;
-                }
-
-                // Group annotations by resource
-                var groups = {};
-                var groupOrder = [];
-                annotations.forEach(function (a) {
-                    var key = a.resource_id;
-                    if (!groups[key]) {
-                        groups[key] = { title: a.resource_title, resourceId: a.resource_id, items: [] };
-                        groupOrder.push(key);
-                    }
-                    groups[key].items.push(a);
-                });
-
-                var html = '';
-                groupOrder.forEach(function (key) {
-                    var group = groups[key];
-                    html += '<div class="company-section-card mb-3">' +
-                        '<div class="company-section-card-header d-flex justify-content-between align-items-center" style="padding:0.625rem 1rem;">' +
-                            '<h6 class="mb-0" style="font-size:0.85rem;">' +
-                                '<i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>' +
-                                escapeHtml(group.title) +
-                                ' <span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">' + group.items.length + '</span>' +
-                            '</h6>' +
-                            '<a href="/companies/resources/' + group.resourceId + '/viewer" target="_blank" class="btn btn-sm btn-outline-secondary border-0" title="Open document">' +
-                                '<i class="bi bi-box-arrow-up-right"></i>' +
-                            '</a>' +
-                        '</div>' +
-                        '<div style="max-height:300px;overflow-y:auto;">';
-
-                    group.items.forEach(function (a) {
-                        var icon = a.annotation_type === 'highlight'
-                            ? '<i class="bi bi-highlighter text-warning me-1"></i>'
-                            : '<i class="bi bi-pin-angle text-danger me-1"></i>';
-                        var date = a.created_at ? new Date(a.created_at).toLocaleDateString() : '';
-                        var quote = a.annotation_type === 'highlight' && a.anchor_text
-                            ? '<div style="font-size:0.75rem;color:#777;border-left:2px solid #fbc02d;padding:0.125rem 0.375rem;margin-bottom:0.25rem;background:#fffde7;border-radius:0 2px 2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-                                escapeHtml(a.anchor_text.length > 80 ? a.anchor_text.substring(0, 80) + '...' : a.anchor_text) +
-                              '</div>'
-                            : '';
-
-                        html += '<div class="d-flex align-items-start py-2 px-3 border-bottom annotation-dashboard-item" ' +
-                            'style="cursor:pointer;transition:background 0.15s;" ' +
-                            'data-resource-id="' + a.resource_id + '" data-page="' + a.page_number + '">' +
-                            '<div class="flex-grow-1" style="min-width:0;">' +
-                                quote +
-                                '<div class="small">' + icon +
-                                    '<span style="color:var(--gray-500);font-size:0.75rem;">p.' + a.page_number + '</span> ' +
-                                    escapeHtml(a.content.length > 100 ? a.content.substring(0, 100) + '...' : a.content) +
-                                '</div>' +
-                                '<div style="font-size:0.7rem;color:#6c757d;margin-top:0.125rem;">' +
-                                    date +
-                                    ' <span class="badge bg-light text-dark border" style="font-size:0.6rem;">' + escapeHtml(a.scope) + '</span>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>';
-                    });
-
-                    html += '</div></div>';
-                });
-
-                container.innerHTML = html;
-
-                // Click handlers: open viewer
-                container.querySelectorAll('.annotation-dashboard-item').forEach(function (item) {
-                    item.addEventListener('click', function () {
-                        var rid = this.dataset.resourceId;
-                        var page = this.dataset.page;
-                        window.open('/companies/resources/' + rid + '/viewer#page=' + page, '_blank');
-                    });
-                    item.addEventListener('mouseenter', function () { this.style.background = '#f8f9fa'; });
-                    item.addEventListener('mouseleave', function () { this.style.background = ''; });
-                });
-            })
-            .catch(function (err) {
-                console.error('Failed to load company annotations:', err);
-                container.innerHTML = '<div class="text-danger small">Failed to load annotations.</div>';
-            });
-    }
 
     // ===================================================================
     //  Standalone Q&A — now a React island (standalone-qa.bundle.js)

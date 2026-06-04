@@ -15,6 +15,8 @@ module.exports = {
     'market-sweep': './frontend/src/market-sweep.js',
     'company-dashboard-tabs': './frontend/src/company-dashboard-tabs.js',
     'standalone-qa': './frontend/src/standalone-qa.js',
+    'journal-entries': './frontend/src/journal-entries.js',
+    'company-annotations-panel': './frontend/src/company-annotations-panel.js',
   },
   output: {
     filename: '[name].bundle.js',
