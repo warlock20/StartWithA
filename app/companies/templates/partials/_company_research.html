@@ -80,40 +80,8 @@
         <!-- ====== SECTION: Q&A ====== -->
         <div class="research-section" id="research-qa">
 
-            <!-- Standalone Q&A (always visible, interactive via AJAX) -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                <h5 style="margin: 0; font-size: var(--font-size-base); font-weight: 600;">
-                    <i class="bi bi-chat-square-text me-1"></i> Research Questions
-                </h5>
-                <button type="button" class="position-btn primary" onclick="StandaloneQA.showAddForm()">
-                    <i class="bi bi-plus-circle me-1"></i> Add Question
-                </button>
-            </div>
-
-            <!-- Add Question Form (hidden by default) -->
-            <div id="addQuestionForm" style="display: none; margin-bottom: 1rem;">
-                <div class="research-summary-card" style="padding: var(--space-md);">
-                    <input type="text" id="newQuestionText" class="form-control"
-                           placeholder="What do you want to research?"
-                           style="margin-bottom: 0.5rem;">
-                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                        <button type="button" class="position-btn" onclick="StandaloneQA.hideAddForm()">Cancel</button>
-                        <button type="button" class="position-btn primary" onclick="StandaloneQA.createQuestion()">
-                            <i class="bi bi-plus me-1"></i> Add
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Standalone Questions List (AJAX-loaded) -->
-            <div id="standaloneQuestionsList"></div>
-
-            <div id="standaloneQaEmptyState" class="journey-empty-state"
-                 style="{% if standalone_research_questions %}display:none;{% endif %}">
-                <i class="bi bi-chat-square-text"></i>
-                <h4>No Research Questions Yet</h4>
-                <p>Add questions to track what you want to research about {{ company.name }}.</p>
-            </div>
+            <!-- Standalone Q&A — React island mount point -->
+            <div id="standalone-qa-mount"></div>
 
             <!-- Project-linked Q&A (read-only, shown only if project has questions) -->
             {% if research_project and free_research_questions %}
@@ -250,19 +218,6 @@
 {% endif %}
 
 <script>
-(function() {
-    const navItems = document.querySelectorAll('.research-nav-item');
-
-    navItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const target = this.getAttribute('data-research-section');
-            if (window.switchResearchSection) {
-                window.switchResearchSection(target);
-            }
-        });
-    });
-})();
-
 {% if not research_project %}
 function hideStartResearchModal(event) {
     if (!event || event.target.id === 'startResearchModal' ||
