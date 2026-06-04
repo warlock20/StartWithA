@@ -13,3 +13,4 @@ export { EmptyState } from "./EmptyState";
 export { showToast } from "./Toast";
 export { ConfirmDialog, useConfirm } from "./ConfirmDialog";
 export { TabBar } from "./TabBar";
+export { DataTable } from "./DataTable";

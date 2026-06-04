@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { apiGet, apiDelete } from "../lib/api";
 import { colors, radius, shadows, fonts, transitions } from "../tokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -421,8 +422,7 @@ export function CompanyResourcesManager({ companyId, companyName, openUploadModa
   const fetchResources = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`/companies/api/${companyId}/resources`)
-      .then((r) => r.json())
+    apiGet(`/companies/api/${companyId}/resources`)
       .then((result) => {
         if (result.success) {
           setResources(result.data.resources || []);
@@ -447,8 +447,7 @@ export function CompanyResourcesManager({ companyId, companyName, openUploadModa
   // ── Delete ──
   const handleDelete = useCallback((id) => {
     if (!confirm("Delete this resource?")) return;
-    fetch(`/companies/api/resources/${id}`, { method: "DELETE" })
-      .then((r) => r.json())
+    apiDelete(`/companies/api/resources/${id}`)
       .then((result) => {
         if (result.success) fetchResources();
         else alert("Failed to delete resource.");
