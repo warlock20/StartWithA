@@ -17,6 +17,9 @@ module.exports = {
     'standalone-qa': './frontend/src/standalone-qa.js',
     'journal-entries': './frontend/src/journal-entries.js',
     'company-annotations-panel': './frontend/src/company-annotations-panel.js',
+    'settings-form': './frontend/src/settings-form.js',
+    'sec-filings-fetcher': './frontend/src/sec-filings-fetcher.js',
+    'transactions-table': './frontend/src/transactions-table.js',
   },
   output: {
     filename: '[name].bundle.js',

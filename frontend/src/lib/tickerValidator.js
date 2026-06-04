@@ -387,3 +387,8 @@ export class TickerValidator {
         };
     }
 }
+
+// Backward-compat shim so vanilla JS can use window.TickerValidator
+if (typeof window !== 'undefined') {
+    window.TickerValidator = TickerValidator;
+}
