@@ -1,5 +1,10 @@
 {% extends "main/_base.html" %}
 
+{% block head %}
+<script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/financials-charts.bundle.js') }}"></script>
+{% endblock %}
+
 {% block content %}
     <div class="dashboard-header-card">
         <div class="dashboard-header">
@@ -19,7 +24,7 @@
             <div class="card">
                 <div class="card-header">Revenue Trend</div>
                 <div class="card-body">
-                    <canvas id="revenueChart"></canvas>
+                    <div id="revenue-chart-mount"></div>
                 </div>
             </div>
         </div>
@@ -28,7 +33,7 @@
             <div class="card">
                 <div class="card-header">Net Income Trend</div>
                 <div class="card-body">
-                    <canvas id="netIncomeChart"></canvas>
+                    <div id="net-income-chart-mount"></div>
                 </div>
             </div>
         </div>
@@ -37,10 +42,15 @@
 
 {% block scripts %}
     {{ super() }}
-
     <script>
-        const pageChartData = {{ chart_data|tojson }};
+    document.addEventListener('DOMContentLoaded', function() {
+        var chartData = {{ chart_data|tojson }};
+        if (window.initRevenueChart && chartData.revenue) {
+            window.initRevenueChart('revenue-chart-mount', chartData.revenue);
+        }
+        if (window.initNetIncomeChart && chartData.net_income) {
+            window.initNetIncomeChart('net-income-chart-mount', chartData.net_income);
+        }
+    });
     </script>
-
-    <script src="{{ url_for('static', filename='js/financials_charts.js') }}" defer></script>
 {% endblock %}

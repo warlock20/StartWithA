@@ -436,6 +436,7 @@
 {% block scripts %}
 {{ super() }}
 {% include 'components/blocknote_editor_include.html' %}
+<script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/intelligence-panel.bundle.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>

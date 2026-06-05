@@ -22,7 +22,8 @@
     <link rel="stylesheet" href="{{ ASSET_URL }}">
     {% endassets %}
 
-    <!-- Shared React vendor bundle (loaded once for all React islands) -->
+    <!-- Shared React vendor bundles (loaded once for all React islands) -->
+    <script defer src="{{ url_for('static', filename='js/dist/vendors-core.bundle.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/dist/vendors.bundle.js') }}"></script>
 
     {% block head %}{% endblock %}
@@ -77,8 +78,9 @@
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 
-    <!-- Sidebar navigation (toggle, collapse, active state) -->
-    <script defer src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <!-- Sidebar navigation (React island — toggle, collapse, active state) -->
+    <script defer src="{{ url_for('static', filename='js/dist/sidebar.bundle.js') }}"></script>
+    <div id="sidebar-behavior-mount" style="display:none;"></div>
 
     <!-- Auto-dismiss flash messages & Bootstrap tooltips -->
     <script>

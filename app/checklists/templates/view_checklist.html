@@ -310,7 +310,13 @@
 {% block scripts %}
     {{ super() }}
     {% include 'components/_sortable_js.html' %}
-    <script src="{{ url_for('static', filename='js/checklist_inspector.js') }}" defer></script>
+    <script defer src="{{ url_for('static', filename='js/dist/checklist-inspector.bundle.js') }}"></script>
+    <div id="checklist-inspector-mount" style="display:none;"></div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initChecklistInspector) window.initChecklistInspector('checklist-inspector-mount');
+    });
+    </script>
 
     <script>
     // Function to add a question from Question Bank to the edit form
