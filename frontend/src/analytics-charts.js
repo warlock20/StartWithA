@@ -3,13 +3,13 @@ import { OverviewActivityChart } from './components/analytics/OverviewActivityCh
 import { TimeAnalysisCharts } from './components/analytics/TimeAnalysisCharts';
 import { SourceFunnelChart } from './components/analytics/SourceFunnelChart';
 import { PatternsCharts } from './components/analytics/PatternsCharts';
-import { CocCharts } from './components/analytics/CocCharts';
+import { CocBreakdownChart, CocSectorChart } from './components/analytics/CocCharts';
 
 /**
  * Analytics Charts — React island entry point.
  *
- * Exposes per-tab init functions. Each renders Recharts components
- * into the corresponding tab's mount point.
+ * Exposes per-chart/tab init functions. Each renders Recharts components
+ * into the corresponding mount point.
  */
 
 window.initOverviewChart = function (elementId, config) {
@@ -28,6 +28,10 @@ window.initPatternsCharts = function (elementId, config) {
   return mountIsland(elementId, PatternsCharts, config);
 };
 
-window.initCocCharts = function (elementId, config) {
-  return mountIsland(elementId, CocCharts, config);
+window.initCocBreakdownChart = function (elementId, config) {
+  return mountIsland(elementId, CocBreakdownChart, config);
+};
+
+window.initCocSectorChart = function (elementId, config) {
+  return mountIsland(elementId, CocSectorChart, config);
 };

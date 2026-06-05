@@ -3,7 +3,7 @@
 {% block head %}
 {% include 'components/_tabulator.html' %}
 <!-- BlockNote Editor (React) -->
-<script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>
+{% include 'components/blocknote_editor_include.html' %}
 
 <!-- Highlight.js for code syntax highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">

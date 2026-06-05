@@ -2,6 +2,8 @@
 
 {% block head %}
 {% include 'components/_tabulator.html' %}
+<script defer src="{{ url_for('static', filename='js/dist/vendors-recharts.bundle.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/analytics-charts.bundle.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -220,9 +222,7 @@
                 <div class="analytics-chart-card">
                     <div class="analytics-chart-body">
                         <h5 class="mb-3" style="font-weight: 700; color: #111827;">Research Activity (Last 30 Days)</h5>
-                        <div style="position: relative; height: 300px; max-height: 300px;">
-                            <canvas id="timeChart"></canvas>
-                        </div>
+                        <div id="overview-chart-mount"></div>
                     </div>
                     <div class="analytics-chart-footer">
                         Total: {{ "%.1f"|format(time_data.total_minutes / 60) if time_data else 0 }} hours |
@@ -236,106 +236,15 @@
              TIME ANALYSIS TAB
              ======================================== -->
         <div class="tab-pane fade" id="time-analysis" role="tabpanel" aria-labelledby="time-analysis-tab">
-            {% if (step_chart_data and step_chart_data != '[]') or (company_chart_data and company_chart_data != '[]') or (productivity_by_hour and productivity_by_hour|length > 0) or (productivity_by_day and productivity_by_day|length > 0) %}
-            <div class="row">
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Time by Research Step</h5>
-                            {% if step_chart_data and step_chart_data != '[]' %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="stepChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>📊</i>
-                                <p>No research time data yet. Start tracking your research to see analytics!</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Time by Company</h5>
-                            {% if company_chart_data and company_chart_data != '[]' %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="companyChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>🏢</i>
-                                <p>No  data yet</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Activity by Hour of Day</h5>
-                            {% if productivity_by_hour and productivity_by_hour|length > 0 %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="hourChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>🕐</i>
-                                <p>No hourly activity data yet</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Activity by Day of Week</h5>
-                            {% if productivity_by_day and productivity_by_day|length > 0 %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="dayChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>📅</i>
-                                <p>No daily activity data yet</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="analytics-empty-state" style="padding: 4rem 2rem;">
-                <i style="font-size: 4rem;">⏱️</i>
-                <h3 style="margin-top: 1.5rem; color: #111827;">No Time Analysis Data Yet</h3>
-                <p style="font-size: 1rem; max-width: 500px; margin: 1rem auto 0;">
-                    Start researching companies to track how you spend your time. You'll see insights on which research steps take longest, your most productive hours, and more!
-                </p>
-            </div>
-            {% endif %}
+            <div id="time-analysis-charts-mount"></div>
         </div>
 
         <!-- ========================================
              IDEA SOURCES TAB
              ======================================== -->
         <div class="tab-pane fade" id="idea-sources" role="tabpanel" aria-labelledby="idea-sources-tab">
-            <!-- Idea Funnel Chart -->
-            {% if source_chart_data and source_chart_data|length > 0 %}
-            <div class="analytics-chart-card mb-4">
-                <div class="analytics-chart-body">
-                    <h5 class="mb-3" style="font-weight: 700; color: #111827;">Idea Funnel by Source (Top 10)</h5>
-                    <div style="position: relative; height: 350px; max-height: 350px;">
-                        <canvas id="sourceChart"></canvas>
-                    </div>
-                </div>
-                <div class="analytics-chart-footer">
-                    Stacked view shows how ideas from each source progressed through your pipeline
-                </div>
-            </div>
-            {% endif %}
+            <!-- Idea Funnel Chart (React Island) -->
+            <div id="source-chart-mount" class="mb-4"></div>
 
             <!-- Full Source Table -->
             <div class="rcl-panel">
@@ -388,73 +297,7 @@
              RESEARCH PATTERNS TAB
              ======================================== -->
         <div class="tab-pane fade" id="patterns" role="tabpanel" aria-labelledby="patterns-tab">
-            {% if (top_kill_reasons and top_kill_reasons|length > 0) or (velocity_data and velocity_data != '[]') or (confidence_trend and confidence_trend != '[]') %}
-            <div class="row">
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Top Kill Reasons</h5>
-                            {% if top_kill_reasons and top_kill_reasons|length > 0 %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="killReasonsChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>⚰️</i>
-                                <p>No kill criteria data yet. Kill some ideas to see patterns!</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="analytics-chart-card">
-                        <div class="analytics-chart-body">
-                            <h5 class="mb-3" style="font-weight: 700; color: #111827;">Research Velocity (Last 12 Months)</h5>
-                            {% if velocity_data and velocity_data != '[]' %}
-                            <div style="position: relative; height: 250px; max-height: 250px;">
-                                <canvas id="velocityChart"></canvas>
-                            </div>
-                            {% else %}
-                            <div class="analytics-empty-state">
-                                <i>📈</i>
-                                <p>Not enough historical data yet</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="analytics-chart-card">
-                <div class="analytics-chart-body">
-                    <h5 class="mb-3" style="font-weight: 700; color: #111827;">Decision Confidence Trend</h5>
-                    {% if confidence_trend and confidence_trend != '[]' %}
-                    <div style="position: relative; height: 300px; max-height: 300px;">
-                        <canvas id="confidenceChart"></canvas>
-                    </div>
-                    {% else %}
-                    <div class="analytics-empty-state">
-                        <i>💯</i>
-                        <p>No decision data yet. Make some investment decisions to track confidence!</p>
-                    </div>
-                    {% endif %}
-                </div>
-                {% if confidence_trend and confidence_trend != '[]' %}
-                <div class="analytics-chart-footer">
-                    Track how your confidence in decisions evolves over time
-                </div>
-                {% endif %}
-            </div>
-            {% else %}
-            <div class="analytics-empty-state" style="padding: 4rem 2rem;">
-                <i style="font-size: 4rem;">📊</i>
-                <h3 style="margin-top: 1.5rem; color: #111827;">No Research Patterns Data Yet</h3>
-                <p style="font-size: 1rem; max-width: 500px; margin: 1rem auto 0;">
-                    As you use the platform to kill ideas, complete research projects, and make investment decisions, you'll see powerful patterns emerge here!
-                </p>
-            </div>
-            {% endif %}
+            <div id="patterns-charts-mount"></div>
         </div>
 
         <!-- ========================================
@@ -517,14 +360,7 @@
                             <h3 class="card-title">Circle of Competence Distribution</h3>
                         </div>
                         <div class="card-body">
-                            {% if coc_total_assessed > 0 %}
-                            <canvas id="cocBreakdownChart" height="300"></canvas>
-                            {% else %}
-                            <div class="empty-state text-center py-5">
-                                <i class="bi bi-pie-chart text-muted" style="font-size: 3rem;"></i>
-                                <p class="text-muted mt-3">No Circle of Competence assessments yet.<br>Start analyzing companies to build your expertise map.</p>
-                            </div>
-                            {% endif %}
+                            <div id="coc-breakdown-chart-mount"></div>
                         </div>
                     </div>
                 </div>
@@ -785,14 +621,7 @@
                             <h3 class="card-title">Top Sectors by Activity</h3>
                         </div>
                         <div class="card-body">
-                            {% if coc_sector_chart_data != '[]' %}
-                            <canvas id="cocSectorPerformanceChart" height="300"></canvas>
-                            {% else %}
-                            <div class="empty-state text-center py-5">
-                                <i class="bi bi-bar-chart text-muted" style="font-size: 3rem;"></i>
-                                <p class="text-muted mt-3">No sector activity data yet.</p>
-                            </div>
-                            {% endif %}
+                            <div id="coc-sector-chart-mount"></div>
                         </div>
                     </div>
                 </div>
@@ -806,424 +635,52 @@
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
 <script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
-{% include 'components/_chart_js.html' %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let activeCharts = {};
-
     // Chart data from backend
-    const timeData = {{ time_by_day_chart|safe if time_by_day_chart is defined else '[]' }};
-    const stepData = {{ step_chart_data|safe if step_chart_data is defined else '[]' }};
-    const companyData = {{ company_chart_data|safe if company_chart_data is defined else '[]' }};
-    const sourceChartData = {{ source_chart_data|safe if source_chart_data is defined else '[]' }};
-    const productivityHour = {{ productivity_by_hour|tojson|safe if productivity_by_hour is defined else '{}' }};
-    const productivityDay = {{ productivity_by_day|tojson|safe if productivity_by_day is defined else '{}' }};
-    const topKillReasons = {{ top_kill_reasons|tojson|safe if top_kill_reasons is defined else '[]' }};
-    const velocityData = {{ velocity_data|safe if velocity_data is defined else '[]' }};
-    const confidenceTrend = {{ confidence_trend|safe if confidence_trend is defined else '[]' }};
-    const cocBreakdown = {{ coc_breakdown|tojson|safe if coc_breakdown is defined else '{"yes": 0, "no": 0, "unsure": 0}' }};
-    const cocSectorData = {{ coc_sector_chart_data|safe if coc_sector_chart_data is defined else '[]' }};
+    var timeData = {{ time_by_day_chart|safe if time_by_day_chart is defined else '[]' }};
+    var stepData = {{ step_chart_data|safe if step_chart_data is defined else '[]' }};
+    var companyData = {{ company_chart_data|safe if company_chart_data is defined else '[]' }};
+    var sourceChartData = {{ source_chart_data|safe if source_chart_data is defined else '[]' }};
+    var productivityHour = {{ productivity_by_hour|tojson|safe if productivity_by_hour is defined else '{}' }};
+    var productivityDay = {{ productivity_by_day|tojson|safe if productivity_by_day is defined else '{}' }};
+    var topKillReasons = {{ top_kill_reasons|tojson|safe if top_kill_reasons is defined else '[]' }};
+    var velocityData = {{ velocity_data|safe if velocity_data is defined else '[]' }};
+    var confidenceTrend = {{ confidence_trend|safe if confidence_trend is defined else '[]' }};
+    var cocBreakdown = {{ coc_breakdown|tojson|safe if coc_breakdown is defined else '{"yes": 0, "no": 0, "unsure": 0}' }};
+    var cocSectorData = {{ coc_sector_chart_data|safe if coc_sector_chart_data is defined else '[]' }};
 
-    function renderChart(canvasId, config) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-
-        // Destroy existing chart instance
-        if (activeCharts[canvasId]) {
-            activeCharts[canvasId].destroy();
-            delete activeCharts[canvasId];
-        }
-
-        // Reset canvas dimensions to prevent infinite growth
-        canvas.removeAttribute('width');
-        canvas.removeAttribute('height');
-        canvas.removeAttribute('style');
-
-        // Create new chart
-        try {
-            activeCharts[canvasId] = new Chart(canvas.getContext('2d'), config);
-        } catch (err) {
-            console.error(`Error rendering chart ${canvasId}:`, err);
-        }
+    // Initialize React chart islands
+    if (window.initOverviewChart) {
+        window.initOverviewChart('overview-chart-mount', { data: timeData });
+    }
+    if (window.initTimeAnalysisCharts) {
+        window.initTimeAnalysisCharts('time-analysis-charts-mount', {
+            stepData: stepData,
+            companyData: companyData,
+            productivityByHour: productivityHour,
+            productivityByDay: productivityDay
+        });
+    }
+    if (window.initSourceFunnelChart) {
+        window.initSourceFunnelChart('source-chart-mount', { data: sourceChartData });
+    }
+    if (window.initPatternsCharts) {
+        window.initPatternsCharts('patterns-charts-mount', {
+            killReasons: topKillReasons,
+            velocityData: velocityData,
+            confidenceTrend: confidenceTrend
+        });
+    }
+    if (window.initCocBreakdownChart) {
+        window.initCocBreakdownChart('coc-breakdown-chart-mount', { cocBreakdown: cocBreakdown });
+    }
+    if (window.initCocSectorChart) {
+        window.initCocSectorChart('coc-sector-chart-mount', { data: cocSectorData });
     }
 
-    // Function to destroy charts when leaving a tab
-    function destroyTabCharts(tabId) {
-        const tab = document.querySelector(tabId);
-        if (tab) {
-            tab.querySelectorAll('canvas').forEach(canvas => {
-                const chartId = canvas.id;
-                if (activeCharts[chartId]) {
-                    activeCharts[chartId].destroy();
-                    delete activeCharts[chartId];
-                }
-            });
-        }
-    }
-
-    // Overview Tab - Time Chart
-    function renderTimeChart() {
-        if (timeData && timeData.length > 0) {
-            renderChart('timeChart', {
-                type: 'line',
-                data: {
-                    labels: timeData.map(d => d.date),
-                    datasets: [{
-                        label: 'Research Hours',
-                        data: timeData.map(d => d.hours),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { callback: value => value + 'h' }
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    // Render time chart on initial load
-    renderTimeChart();
-
-    // Define chart configurations
-    const chartConfigs = {
-        'stepChart': () => ({
-            type: 'doughnut',
-            data: {
-                labels: stepData.map(d => d.step),
-                datasets: [{
-                    data: stepData.map(d => d.hours),
-                    backgroundColor: ['#4A90E2', '#50E3C2', '#F5A623', '#D0021B', '#7B68EE', '#FF6B9D']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        }),
-        'companyChart': () => ({
-            type: 'bar',
-            data: {
-                labels: companyData.map(d => d.company),
-                datasets: [{
-                    label: 'Hours',
-                    data: companyData.map(d => d.hours),
-                    backgroundColor: 'rgba(59, 130, 246, 0.7)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
-        }),
-        'hourChart': () => {
-            const hourLabels = Object.keys(productivityHour).sort((a, b) => parseInt(a) - parseInt(b));
-            return {
-                type: 'line',
-                data: {
-                    labels: hourLabels.map(h => h + ':00'),
-                    datasets: [{
-                        label: 'Activity',
-                        data: hourLabels.map(h => productivityHour[h]),
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            };
-        },
-        'dayChart': () => {
-            const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const dayData = dayLabels.map((_, idx) => productivityDay[idx] || 0);
-            return {
-                type: 'bar',
-                data: {
-                    labels: dayLabels.map(d => d.substring(0, 3)),
-                    datasets: [{
-                        label: 'Activity',
-                        data: dayData,
-                        backgroundColor: 'rgba(245, 166, 35, 0.7)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            };
-        },
-        'sourceChart': () => ({
-            type: 'bar',
-            data: {
-                labels: sourceChartData.map(d => d.source),
-                datasets: [
-                    {
-                        label: 'Killed',
-                        data: sourceChartData.map(d => d.killed),
-                        backgroundColor: 'rgba(239, 68, 68, 0.7)'
-                    },
-                    {
-                        label: 'Promoted',
-                        data: sourceChartData.map(d => d.promoted),
-                        backgroundColor: 'rgba(59, 130, 246, 0.7)'
-                    },
-                    {
-                        label: 'Invested',
-                        data: sourceChartData.map(d => d.invested),
-                        backgroundColor: 'rgba(16, 185, 129, 0.7)'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
-        }),
-        'killReasonsChart': () => ({
-            type: 'bar',
-            data: {
-                labels: topKillReasons.map(r => r[0].substring(0, 30) + '...'),
-                datasets: [{
-                    label: 'Times Used',
-                    data: topKillReasons.map(r => r[1]),
-                    backgroundColor: 'rgba(239, 68, 68, 0.7)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                scales: { x: { beginAtZero: true } }
-            }
-        }),
-        'velocityChart': () => ({
-            type: 'line',
-            data: {
-                labels: velocityData.map(d => d.month),
-                datasets: [
-                    {
-                        label: 'Projects',
-                        data: velocityData.map(d => d.projects),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Ideas',
-                        data: velocityData.map(d => d.ideas),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
-        }),
-        'confidenceChart': () => ({
-            type: 'scatter',
-            data: {
-                datasets: [{
-                    label: 'Confidence Score',
-                    data: confidenceTrend.map(d => ({ x: d.date, y: d.confidence })),
-                    backgroundColor: confidenceTrend.map(d => d.type === 'invest' ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
-                    borderColor: confidenceTrend.map(d => d.type === 'invest' ? '#10b981' : '#ef4444')
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, max: 10 }
-                }
-            }
-        }),
-        'cocBreakdownChart': () => ({
-            type: 'doughnut',
-            data: {
-                labels: ['Within CoC', 'Outside CoC', 'Unsure'],
-                datasets: [{
-                    data: [cocBreakdown.yes || 0, cocBreakdown.no || 0, cocBreakdown.unsure || 0],
-                    backgroundColor: [
-                        'rgba(22, 163, 74, 0.8)',
-                        'rgba(220, 38, 38, 0.8)',
-                        'rgba(107, 114, 128, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(22, 163, 74, 1)',
-                        'rgba(220, 38, 38, 1)',
-                        'rgba(107, 114, 128, 1)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const total = cocBreakdown.yes + cocBreakdown.no + cocBreakdown.unsure;
-                                const value = context.parsed;
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                return context.label + ': ' + value + ' (' + percentage + '%)';
-                            }
-                        }
-                    }
-                }
-            }
-        }),
-        'cocSectorPerformanceChart': () => ({
-            type: 'bar',
-            data: {
-                labels: cocSectorData.map(s => s.name),
-                datasets: [
-                    {
-                        label: 'Invested',
-                        data: cocSectorData.map(s => s.invested),
-                        backgroundColor: 'rgba(22, 163, 74, 0.8)',
-                        borderColor: 'rgba(22, 163, 74, 1)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Passed',
-                        data: cocSectorData.map(s => s.passed_full + s.mid_research_pass),
-                        backgroundColor: 'rgba(220, 38, 38, 0.8)',
-                        borderColor: 'rgba(220, 38, 38, 1)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Early Kills',
-                        data: cocSectorData.map(s => s.killed),
-                        backgroundColor: 'rgba(107, 114, 128, 0.8)',
-                        borderColor: 'rgba(107, 114, 128, 1)',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        stacked: true,
-                        grid: {
-                            display: false
-                        }
-                    },
-                    y: {
-                        stacked: true,
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
-            }
-        })
-    };
-
-    // Unified tab event handler
-    document.querySelectorAll('#analyticsTabs button[data-bs-toggle="tab"]').forEach(tab => {
-        // Clean up charts when leaving a tab
-        tab.addEventListener('hide.bs.tab', e => {
-            const pane = document.querySelector(e.target.dataset.bsTarget);
-            if (pane) {
-                pane.querySelectorAll('canvas').forEach(canvas => {
-                    const chartId = canvas.id;
-                    if (activeCharts[chartId]) {
-                        activeCharts[chartId].destroy();
-                        delete activeCharts[chartId];
-                        // Reset canvas
-                        canvas.removeAttribute('width');
-                        canvas.removeAttribute('height');
-                        canvas.removeAttribute('style');
-                    }
-                });
-            }
-        });
-
-        // Render charts when entering a tab
-        tab.addEventListener('shown.bs.tab', e => {
-            const pane = document.querySelector(e.target.dataset.bsTarget);
-            if (!pane) return;
-
-            // Special handling for overview tab
-            if (e.target.dataset.bsTarget === '#overview') {
-                renderTimeChart();
-            }
-
-            // Render other charts in the tab
-            pane.querySelectorAll('canvas').forEach(canvas => {
-                const chartId = canvas.id;
-                // Skip timeChart as it's handled separately
-                if (chartId === 'timeChart') return;
-
-                const configFn = chartConfigs[chartId];
-                if (configFn) {
-                    try {
-                        const config = configFn();
-                        renderChart(chartId, config);
-                    } catch (err) {
-                        console.error(`Error rendering chart ${chartId}:`, err);
-                    }
-                }
-            });
-        });
-    });
-
-    // Clean up all charts when page is being unloaded
-    window.addEventListener('beforeunload', () => {
-        Object.keys(activeCharts).forEach(chartId => {
-            if (activeCharts[chartId]) {
-                activeCharts[chartId].destroy();
-            }
-        });
-    });
-
-    // Initialize Sources Table (Idea Sources tab)
-    const sourcesData = [
+    // Initialize Sources Table (Tabulator CDN — stays as-is)
+    var sourcesData = [
         {% if by_survival %}
         {% for source in by_survival %}
         {
@@ -1262,11 +719,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "number",
                     hozAlign: "right",
                     formatter: function(cell) {
-                        const val = cell.getValue() || 0;
-                        return `<div class="rcl-progress-wrap">
-                            <div class="rcl-progress-bar" style="width: ${val}%"></div>
-                            <span class="rcl-progress-label">${val.toFixed(0)}%</span>
-                        </div>`;
+                        var val = cell.getValue() || 0;
+                        return '<div class="rcl-progress-wrap">' +
+                            '<div class="rcl-progress-bar" style="width: ' + val + '%"></div>' +
+                            '<span class="rcl-progress-label">' + val.toFixed(0) + '%</span>' +
+                        '</div>';
                     },
                     minWidth: 150,
                     widthGrow: 2
@@ -1288,9 +745,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     sorter: "number",
                     hozAlign: "right",
                     formatter: function(cell) {
-                        const val = cell.getValue();
-                        const cls = val > 0 ? 'rcl-cell-badge rcl-cell-badge--active' : 'rcl-cell-badge rcl-cell-badge--default';
-                        return `<span class="${cls}">${val}</span>`;
+                        var val = cell.getValue();
+                        var cls = val > 0 ? 'rcl-cell-badge rcl-cell-badge--active' : 'rcl-cell-badge rcl-cell-badge--default';
+                        return '<span class="' + cls + '">' + val + '</span>';
                     },
                     minWidth: 100,
                     widthGrow: 1

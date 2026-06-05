@@ -22,6 +22,9 @@ module.exports = {
     'transactions-table': './frontend/src/transactions-table.js',
     'sector-canvas': './frontend/src/sector-canvas.js',
     'analytics-charts': './frontend/src/analytics-charts.js',
+    'sidebar': './frontend/src/sidebar.js',
+    'financials-charts': './frontend/src/financials-charts.js',
+    'checklist-inspector': './frontend/src/checklist-inspector.js',
   },
   output: {
     filename: '[name].bundle.js',
@@ -58,6 +61,24 @@ module.exports = {
     splitChunks: {
       chunks: 'all',
       cacheGroups: {
+        blocknote: {
+          test: /[\\/]node_modules[\\/](@blocknote|@mantine|@tabler[\\/]icons-react|@tiptap|prosemirror-[^/\\]+|@floating-ui|@radix-ui|@emoji-mart|yjs|y-prosemirror|lib0|parse5|micromark[^/\\]*|linkifyjs|unified|vfile[^/\\]*|hast-[^/\\]+|mdast-[^/\\]+|rehype-[^/\\]+|remark-[^/\\]+|unist-[^/\\]+|property-information|hastscript|comma-separated-tokens|space-separated-tokens|stringify-entities|markdown-table|longest-streak|decode-named-character-reference|character-entities-legacy|ccount|trim-lines|trim-trailing-lines|zwitch|web-namespaces|html-void-elements|html-whitespace-sensitive-tag-names|is-buffer|extend|orderedmap|uuid)[\\/]/,
+          name: 'vendors-blocknote',
+          chunks: 'all',
+          priority: 30,
+        },
+        recharts: {
+          test: /[\\/]node_modules[\\/](recharts|d3-[^/\\]+|victory-vendor|@reduxjs|react-redux|redux|redux-thunk|reselect|immer|decimal\.js-light|eventemitter3|internmap)[\\/]/,
+          name: 'vendors-recharts',
+          chunks: 'all',
+          priority: 20,
+        },
+        core: {
+          test: /[\\/]node_modules[\\/](react|react-dom|@tanstack|scheduler)[\\/]/,
+          name: 'vendors-core',
+          chunks: 'all',
+          priority: 15,
+        },
         vendor: {
           test: /[\\/]node_modules[\\/]/,
           name: 'vendors',
