@@ -190,6 +190,11 @@ export function SettingsForm({ currencySymbol }) {
             var currentTickerEl = document.getElementById('currentTickerDisplay');
             var isSameTicker =
               data.ticker === (currentTickerEl ? currentTickerEl.textContent.trim() : '');
+            var stockCurrency = data.currency || '';
+            var priceLabel = data.current_price
+              ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' +
+                (stockCurrency ? stockCurrency + ' ' : cs) + data.current_price.toFixed(2) + '</div>'
+              : '';
             testResult.className = 'alert alert-success mt-3';
             testResult.innerHTML =
               '<div class="d-flex justify-content-between align-items-start">' +
@@ -203,15 +208,13 @@ export function SettingsForm({ currencySymbol }) {
               (data.exchange
                 ? '<br><small class="text-muted">Exchange: ' + data.exchange + '</small>'
                 : '') +
+              (stockCurrency
+                ? '<br><small class="text-muted">Currency: ' + stockCurrency + '</small>'
+                : '') +
               '</div>' +
               '</div>' +
               '<div class="text-end">' +
-              (data.current_price
-                ? '<div class="text-muted small">Current Price</div><div class="h5 mb-0 text-success">' +
-                  cs +
-                  data.current_price.toFixed(2) +
-                  '</div>'
-                : '') +
+              priceLabel +
               '</div>' +
               '</div>' +
               (isSameTicker
