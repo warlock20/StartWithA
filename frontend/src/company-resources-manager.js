@@ -1,5 +1,4 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
+import { mountIsland } from './lib/mountIsland';
 import { CompanyResourcesManager } from "./components/CompanyResourcesManager";
 
 /**
@@ -14,22 +13,10 @@ import { CompanyResourcesManager } from "./components/CompanyResourcesManager";
  * @param {Function} config.openLinkModal
  */
 window.initCompanyResourcesManager = function (elementId, config = {}) {
-  const container = document.getElementById(elementId);
-
-  if (!container) {
-    console.error(`Element #${elementId} not found`);
-    return null;
-  }
-
-  const root = createRoot(container);
-  root.render(
-    <CompanyResourcesManager
-      companyId={config.companyId}
-      companyName={config.companyName}
-      openUploadModal={config.openUploadModal}
-      openLinkModal={config.openLinkModal}
-    />
-  );
-
-  return root;
+  return mountIsland(elementId, CompanyResourcesManager, {
+    companyId: config.companyId,
+    companyName: config.companyName,
+    openUploadModal: config.openUploadModal,
+    openLinkModal: config.openLinkModal,
+  });
 };

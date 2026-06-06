@@ -1,5 +1,4 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
+import { mountIsland } from './lib/mountIsland';
 import { SessionSummary } from "./components/session-summary/SessionSummary";
 
 /**
@@ -12,13 +11,5 @@ import { SessionSummary } from "./components/session-summary/SessionSummary";
  *   </script>
  */
 window.initSessionSummary = function (elementId, config) {
-  const container = document.getElementById(elementId);
-  if (!container) {
-    console.error(`Session Summary: element #${elementId} not found`);
-    return null;
-  }
-
-  const root = createRoot(container);
-  root.render(<SessionSummary config={config} />);
-  return root;
+  return mountIsland(elementId, SessionSummary, { config });
 };

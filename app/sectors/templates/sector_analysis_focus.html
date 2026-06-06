@@ -3,7 +3,7 @@
 {% block head %}
 {% include 'components/_tabulator.html' %}
 <!-- BlockNote Editor (React) -->
-<script defer src="{{ url_for('static', filename='js/dist/blocknote-editor.bundle.js') }}"></script>
+{% include 'components/blocknote_editor_include.html' %}
 
 <!-- Highlight.js for code syntax highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
@@ -33,15 +33,14 @@
     };
 </script>
 
-<script src="{{ url_for('static', filename='js/sector-canvas.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/sector-canvas.bundle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sector-document-init.js') }}"></script>
 
-<!-- Company Search Component -->
-<script src="{{ url_for('static', filename='js/ticker-validator.js') }}"></script>
-<script src="{{ url_for('static', filename='js/company-search.js') }}"></script>
+<!-- Company Search Component (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 
-<!-- Company Tagging Module -->
-<script src="{{ url_for('static', filename='js/company-tagging.js') }}"></script>
+<!-- Company Tagging Module (React Island) -->
+<script defer src="{{ url_for('static', filename='js/dist/company-tagging.bundle.js') }}"></script>
 
 <!-- Generate Document Module -->
 <script src="{{ url_for('static', filename='js/generate-document.js') }}"></script>
@@ -142,135 +141,10 @@
             </div>
         </div>
 
-        <!-- Canvas View -->
+        <!-- Canvas View (React Island) -->
         <div id="canvasView" class="view-container" style="display: none;">
             <div class="notion-page">
-                <div class="atomic-canvas-container">
-                    <!-- Canvas Toolbar -->
-                    <div class="canvas-toolbar">
-                        <button class="btn btn-primary btn-sm" onclick="createNewNote()">
-                            <i class="bi bi-plus-lg"></i> New Note
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="createNewSection()">
-                            <i class="bi bi-layout-wtf"></i> New Section
-                        </button>
-                        <div class="canvas-toolbar-spacer"></div>
-                        <div class="canvas-view-options">
-                            <small class="text-muted">Notes are auto-saved</small>
-                        </div>
-                    </div>
-
-                    <!-- Notes Canvas Area -->
-                    <div class="notes-canvas" id="notesCanvas">
-                        {% if canvas_sections|length == 0 %}
-                        <!-- Empty State -->
-                        <div class="canvas-empty-state" id="canvasEmptyState">
-                            <i class="bi bi-kanban" style="font-size: 3rem; color: #d1d5db;"></i>
-                            <h3 class="text-muted">Your Research Canvas</h3>
-                            <p class="text-muted">Start by creating a section to organize your notes</p>
-                            <button class="btn btn-primary mt-3" onclick="createNewSection()">
-                                <i class="bi bi-plus-circle"></i> Create First Section
-                            </button>
-                        </div>
-                        {% else %}
-                        <!-- Render Sections -->
-                        {% for section in canvas_sections %}
-                        <div class="canvas-section" data-section-id="{{ section.id }}">
-                            <div class="canvas-section-header">
-                                <div class="canvas-section-title">
-                                    {% if section.icon %}
-                                    <span class="canvas-section-icon">{{ section.icon }}</span>
-                                    {% endif %}
-                                    <h2>{{ section.title }}</h2>
-                                </div>
-                                <div class="canvas-section-actions">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="addNoteToSection({{ section.id }})">
-                                        <i class="bi bi-plus"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="editSection({{ section.id }}, '{{ section.title }}', '{{ section.description or '' }}')">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSection({{ section.id }})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            {% if section.description %}
-                            <div class="canvas-section-description">{{ section.description }}</div>
-                            {% endif %}
-
-                            <!-- Notes in this section -->
-                            <div class="note-cards-grid" data-section-id="{{ section.id }}">
-                                {% set section_notes = section.section_notes.order_by('sort_order').all() %}
-                                {% if section_notes %}
-                                {% for note in section_notes %}
-                                <div class="note-card" draggable="true"
-                                     data-note-id="{{ note.id }}"
-                                     data-note-title="{{ note.title }}"
-                                     data-note-content="{{ note.content | escape }}"
-                                     data-note-content-html="{{ note.content | blocknote_to_html | escape }}"
-                                     data-note-source-url="{{ note.source_reference or '' }}"
-                                     data-note-source-title="{{ note.source_title or '' }}"
-                                     data-note-tags="{{ note.tags or '' }}"
-                                     data-section-id="{{ note.section_id or '' }}">
-                                    <div class="note-card-header">
-                                        <h3 class="note-card-title">{{ note.title }}</h3>
-                                        <div class="note-card-menu-wrapper">
-                                            <button class="note-card-menu-btn" onclick="toggleNoteMenu({{ note.id }})">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <div class="note-card-dropdown" id="noteMenu{{ note.id }}" style="display: none;">
-                                                <button onclick="viewNote({{ note.id }})">
-                                                    <i class="bi bi-eye"></i> View Full Note
-                                                </button>
-                                                <button onclick="editNote({{ note.id }})">
-                                                    <i class="bi bi-pencil"></i> Edit
-                                                </button>
-                                                <button onclick="deleteNote({{ note.id }})" class="text-danger">
-                                                    <i class="bi bi-trash"></i> Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="note-card-content">{{ note.content | blocknote_to_html | safe }}</div>
-                                    <div class="note-card-footer">
-                                        <div class="note-card-type {% if note.note_type == 'ai_insight' %}ai-insight{% elif note.note_type == 'web_clip' %}web-clip{% elif note.note_type == 'snippet' %}snippet{% endif %}">
-                                            {% if note.note_type == 'ai_insight' %}
-                                                <i class="bi bi-sparkles"></i> AI Insight
-                                            {% elif note.note_type == 'web_clip' %}
-                                                <i class="bi bi-scissors"></i> Web Clip
-                                            {% elif note.note_type == 'snippet' %}
-                                                <i class="bi bi-bookmark"></i> Snippet
-                                            {% else %}
-                                                <i class="bi bi-pencil"></i> Note
-                                            {% endif %}
-                                        </div>
-                                        {% if note.source_reference %}
-                                        <a href="{{ note.source_reference }}" target="_blank" class="note-card-source">
-                                            <i class="bi bi-box-arrow-up-right"></i> Source
-                                        </a>
-                                        {% endif %}
-                                    </div>
-                                    {% if note.tags %}
-                                    <div class="note-card-tags">
-                                        {% for tag in note.tags.split(',') %}
-                                        <span class="note-card-tag">{{ tag.strip() }}</span>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                                {% else %}
-                                <button class="add-note-btn" onclick="addNoteToSection({{ section.id }})">
-                                    <i class="bi bi-plus-circle"></i> Add First Note
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
+                <div id="sector-canvas-mount"></div>
             </div>
         </div>
 
@@ -388,6 +262,52 @@
     ];
 </script>
 
+<!-- Sector Canvas Data for React Island -->
+<script>
+    window.sectorCanvasData = {
+        sections: [
+            {% for section in canvas_sections %}
+            {
+                id: {{ section.id }},
+                title: {{ section.title|tojson }},
+                description: {{ (section.description or '')|tojson }},
+                icon: {{ (section.icon or '')|tojson }},
+                notes: [
+                    {% for note in section.section_notes.order_by('sort_order').all() %}
+                    {
+                        id: {{ note.id }},
+                        title: {{ note.title|tojson }},
+                        content: {{ (note.content or '')|tojson }},
+                        contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                        sourceUrl: {{ (note.source_reference or '')|tojson }},
+                        sourceTitle: {{ (note.source_title or '')|tojson }},
+                        tags: {{ (note.tags or '')|tojson }},
+                        noteType: {{ (note.note_type or 'note')|tojson }},
+                        sectionId: {{ note.section_id|tojson }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        inboxNotes: [
+            {% for note in collector_notes %}
+            {
+                id: {{ note.id }},
+                title: {{ note.title|tojson }},
+                content: {{ (note.content or '')|tojson }},
+                contentHtml: {{ (note.content|blocknote_to_html or '')|tojson }},
+                sourceUrl: {{ (note.source_reference or '')|tojson }},
+                sourceTitle: {{ (note.source_title or '')|tojson }},
+                tags: {{ (note.tags or '')|tojson }},
+                noteType: {{ (note.note_type or 'note')|tojson }},
+                sectionId: null
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    };
+</script>
+
 <!-- Focus Mode JavaScript -->
 <script>
 // View switching logic
@@ -494,6 +414,20 @@ document.addEventListener('click', function(event) {
 
 // Restore view from URL hash on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Sector Canvas React Island
+    if (window.initSectorCanvas && window.sectorCanvasData) {
+        window.initSectorCanvas('sector-canvas-mount', {
+            sections: window.sectorCanvasData.sections,
+            inboxNotes: window.sectorCanvasData.inboxNotes,
+            urls: window.sectorUrls
+        });
+    }
+
+    // Initialize scroll fade effects
+    if (window.initScrollFadeEffects) {
+        window.initScrollFadeEffects();
+    }
+
     const hash = window.location.hash.substring(1); // Remove the '#'
 
     if (hash && ['documentation', 'canvas', 'sources', 'takeaways'].includes(hash)) {
@@ -516,14 +450,14 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block modals %}
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
+
 <!-- Keep all existing modals -->
 {% include 'components/templates_modal.html' %}
 {% include 'components/add_source_modal.html' %}
 
-<!-- Reusable modals (shared across platform) -->
-{% include 'components/modals/section_modal.html' %}
-{% include 'components/modals/note_modal.html' %}
-{% include 'components/modals/view_note_modal.html' %}
-{% include 'components/modals/company_suggestions_modal.html' %}
+{# Section/note/view-note modals now rendered by React SectorCanvas component #}
+<div id="company-tagging-mount"></div>
 {% include 'components/modals/generate_document_modal.html' %}
 {% endblock %}

@@ -5,7 +5,7 @@
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
 <!-- Hashtag Autocomplete -->
-<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
+<script defer src="{{ url_for('static', filename='js/dist/hashtag-autocomplete.bundle.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -108,9 +108,8 @@
 
                         <!-- Hashtags -->
                         <div class="mb-3">
-                            <label for="hashtags" class="form-label">Hashtags</label>
-                            <input type="text" class="form-control" id="hashtags" name="hashtags"
-                                   placeholder="e.g., #accountingtips #cfaprep #financialratios">
+                            <label class="form-label">Hashtags</label>
+                            <div id="hashtag-autocomplete-mount"></div>
                             <small class="text-muted">Enter hashtags with # for easy searching</small>
                         </div>
 
@@ -168,14 +167,24 @@
     </div>
 </div>
 
-<!-- Include Company Search Modal -->
-{% include 'components/company_search_modal.html' %}
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
 
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
+    // Initialize Hashtag Autocomplete React island
+    if (window.initHashtagAutocomplete) {
+        window.initHashtagAutocomplete('hashtag-autocomplete-mount', {
+            name: 'hashtags',
+            placeholder: 'e.g., #accountingtips #cfaprep #financialratios',
+            className: 'form-control'
+        });
+    }
+
     // Initialize BlockNote Editor
     let journalEditorInstance = null;
 
@@ -251,371 +260,7 @@
         {% endif %}
     });
 
-    // Company Modal Functionality
-    let selectedCompany = null;
-    let searchTimeout = null;
-
-    // Initialize modal event listeners - these will be attached when modal opens
-    function initializeModalEventListeners() {
-        const searchInput = document.getElementById('companySearch');
-        const addNewCompanyBtn = document.getElementById('addNewCompanyBtn');
-        const confirmBtn = document.getElementById('confirmCompanySelection');
-        const newCompanyTicker = document.getElementById('newCompanyTicker');
-
-        if (searchInput && !searchInput.hasAttribute('data-listeners-attached')) {
-            // Search companies with debouncing
-            searchInput.addEventListener('input', function(e) {
-                const query = e.target.value.trim();
-                clearTimeout(searchTimeout);
-
-                if (query.length < 2) {
-                    document.getElementById('searchResults').style.display = 'none';
-                    document.getElementById('quickAddForm').style.display = 'none';
-                    return;
-                }
-
-                searchTimeout = setTimeout(() => {
-                    searchCompanies(query);
-                }, 300);
-            });
-            searchInput.setAttribute('data-listeners-attached', 'true');
-        }
-
-        if (addNewCompanyBtn && !addNewCompanyBtn.hasAttribute('data-listeners-attached')) {
-            addNewCompanyBtn.addEventListener('click', function() {
-                addNewCompany();
-            });
-            addNewCompanyBtn.setAttribute('data-listeners-attached', 'true');
-        }
-
-        if (confirmBtn && !confirmBtn.hasAttribute('data-listeners-attached')) {
-            // Primary click handler
-            confirmBtn.addEventListener('click', function(e) {
-                console.log('Confirm button clicked, selectedCompany:', selectedCompany);
-                console.log('Callback available:', !!window.companySelectedCallback);
-                e.preventDefault();
-                e.stopPropagation();
-
-                if (selectedCompany && window.companySelectedCallback) {
-                    window.companySelectedCallback(selectedCompany);
-                    closeCompanyModal();
-                } else {
-                    console.log('No selected company or callback available');
-                }
-            });
-
-            // Backup approach using onclick
-            confirmBtn.onclick = function(e) {
-                console.log('Backup onclick triggered');
-                if (selectedCompany && window.companySelectedCallback) {
-                    window.companySelectedCallback(selectedCompany);
-                    closeCompanyModal();
-                }
-            };
-
-            confirmBtn.setAttribute('data-listeners-attached', 'true');
-        }
-
-        if (newCompanyTicker && !newCompanyTicker.hasAttribute('data-listeners-attached')) {
-            newCompanyTicker.addEventListener('input', function(e) {
-                e.target.value = e.target.value.toUpperCase();
-            });
-            newCompanyTicker.setAttribute('data-listeners-attached', 'true');
-        }
-    }
-
-    function searchCompanies(query) {
-        fetch(`/companies/api/companies/search?q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                displaySearchResults(data.user_companies, data.yahoo_suggestions);
-
-                // Show quick add form if no results at all
-                if (data.user_companies.length === 0 && (!data.yahoo_suggestions || data.yahoo_suggestions.length === 0)) {
-                    showQuickAddForm(query);
-                } else {
-                    document.getElementById('quickAddForm').style.display = 'none';
-                }
-            })
-            .catch(error => {
-                console.error('Search error:', error);
-                showQuickAddForm(query);
-            });
-    }
-
-    function displaySearchResults(userCompanies, yahooSuggestions) {
-        const resultsList = document.getElementById('resultsList');
-        const searchResults = document.getElementById('searchResults');
-
-        resultsList.innerHTML = '';
-
-        if (userCompanies.length === 0 && (!yahooSuggestions || yahooSuggestions.length === 0)) {
-            searchResults.style.display = 'none';
-            return;
-        }
-
-        // Add Yahoo Finance suggestions first (if available)
-        if (yahooSuggestions && yahooSuggestions.length > 0) {
-            yahooSuggestions.forEach(yahooSuggestion => {
-            const item = document.createElement('a');
-            item.href = '#';
-            item.className = 'list-group-item list-group-item-action border-primary';
-            item.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">
-                            ${yahooSuggestion.name}
-                            <span class="badge bg-success ms-2">Yahoo Finance</span>
-                        </h6>
-                        <p class="mb-1 fw-bold">${yahooSuggestion.ticker_symbol}</p>
-                        <small class="text-muted">
-                            ${yahooSuggestion.industry || 'Industry not specified'}
-                            ${yahooSuggestion.sector ? ' • ' + yahooSuggestion.sector : ''}
-                        </small>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-success">Add to Portfolio</small>
-                    </div>
-                </div>
-            `;
-
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                selectYahooCompany(yahooSuggestion);
-            });
-
-            resultsList.appendChild(item);
-            });
-        }
-
-        // Add user's existing companies
-        userCompanies.forEach(company => {
-            const item = document.createElement('a');
-            item.href = '#';
-            item.className = 'list-group-item list-group-item-action';
-            item.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="mb-1">${company.name}</h6>
-                        <p class="mb-1">${company.ticker_symbol || 'No ticker'}</p>
-                        <small class="text-muted">${company.industry || 'Industry not specified'}</small>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-primary">Your Portfolio</small>
-                    </div>
-                </div>
-            `;
-
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                selectModalCompany(company);
-            });
-
-            resultsList.appendChild(item);
-        });
-
-        searchResults.style.display = 'block';
-    }
-
-    function showQuickAddForm(query) {
-        const quickAddForm = document.getElementById('quickAddForm');
-
-        // Pre-fill based on search query
-        if (query.length <= 5 && query.match(/^[A-Z]+$/)) {
-            document.getElementById('newCompanyTicker').value = query.toUpperCase();
-        } else {
-            document.getElementById('newCompanyName').value = query;
-        }
-
-        quickAddForm.style.display = 'block';
-    }
-
-    function selectModalCompany(company) {
-        console.log('Selecting company:', company);
-        selectedCompany = company;
-
-        const selectedDisplay = document.getElementById('selectedCompanyDisplay');
-        const selectedInfo = document.getElementById('modalSelectedCompanyInfo');
-        const confirmBtn = document.getElementById('confirmCompanySelection');
-
-        if (selectedInfo) {
-            selectedInfo.innerHTML = `
-                <strong>${company.name}</strong><br>
-                <small>Ticker: ${company.ticker_symbol || 'N/A'} | Industry: ${company.industry || 'N/A'}</small>
-            `;
-        }
-
-        if (selectedDisplay) {
-            selectedDisplay.style.display = 'block';
-        }
-
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            console.log('Confirm button enabled:', !confirmBtn.disabled);
-        }
-
-        // Hide search results
-        const searchResults = document.getElementById('searchResults');
-        const quickAddForm = document.getElementById('quickAddForm');
-        if (searchResults) searchResults.style.display = 'none';
-        if (quickAddForm) quickAddForm.style.display = 'none';
-    }
-
-    function selectYahooCompany(yahooCompany) {
-        // First, check if the company already exists by searching for it
-        fetch(`/companies/api/companies/search?q=${encodeURIComponent(yahooCompany.ticker_symbol)}`)
-            .then(response => response.json())
-            .then(searchData => {
-                // Check if company already exists in user's companies
-                const existingCompany = searchData.user_companies.find(
-                    company => company.ticker_symbol === yahooCompany.ticker_symbol
-                );
-
-                if (existingCompany) {
-                    // Company already exists, just select it
-                    selectModalCompany(existingCompany);
-                } else {
-                    // Company doesn't exist, create it
-                    const data = {
-                        ticker_symbol: yahooCompany.ticker_symbol,
-                        name: yahooCompany.name,
-                        industry: yahooCompany.industry || null,
-                        sector: yahooCompany.sector || null
-                    };
-
-                    fetch('/companies/api/companies/create', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            selectModalCompany(data.company);
-                        } else {
-                            alert('Error creating company: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error creating company:', error);
-                        alert('Error creating company');
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error checking for existing company:', error);
-                alert('Error checking for existing company');
-            });
-    }
-
-    function addNewCompany() {
-        const ticker = document.getElementById('newCompanyTicker').value.trim();
-        const name = document.getElementById('newCompanyName').value.trim();
-        const industry = document.getElementById('newCompanyIndustry').value.trim();
-        const sector = document.getElementById('newCompanySector').value.trim();
-
-        if (!name) {
-            alert('Company name is required');
-            return;
-        }
-
-        // First check if company already exists (search by ticker or name)
-        const searchQuery = ticker || name;
-        fetch(`/companies/api/companies/search?q=${encodeURIComponent(searchQuery)}`)
-            .then(response => response.json())
-            .then(searchData => {
-                // Check if company already exists
-                const existingCompany = searchData.user_companies.find(company => {
-                    const tickerMatch = ticker && company.ticker_symbol === ticker.toUpperCase();
-                    const nameMatch = company.name.toLowerCase() === name.toLowerCase();
-                    return tickerMatch || nameMatch;
-                });
-
-                if (existingCompany) {
-                    // Company already exists, just select it
-                    selectModalCompany(existingCompany);
-                    // Clear form
-                    document.getElementById('newCompanyTicker').value = '';
-                    document.getElementById('newCompanyName').value = '';
-                    document.getElementById('newCompanyIndustry').value = '';
-                    document.getElementById('newCompanySector').value = '';
-                } else {
-                    // Company doesn't exist, create it
-                    const data = {
-                        ticker_symbol: ticker,
-                        name: name,
-                        industry: industry || null,
-                        sector: sector || null
-                    };
-
-                    fetch('/companies/api/companies/create', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            selectModalCompany(data.company);
-                            // Clear form
-                            document.getElementById('newCompanyTicker').value = '';
-                            document.getElementById('newCompanyName').value = '';
-                            document.getElementById('newCompanyIndustry').value = '';
-                            document.getElementById('newCompanySector').value = '';
-                        } else {
-                            alert('Error creating company: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error creating company:', error);
-                        alert('Error creating company');
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error checking for existing company:', error);
-                alert('Error checking for existing company');
-            });
-    }
-
-    function openCompanyModal(callback) {
-        console.log('Opening company modal with callback:', !!callback);
-        window.companySelectedCallback = callback;
-        selectedCompany = null;
-
-        // Show modal first
-        const modal = new bootstrap.Modal(document.getElementById('companySearchModal'));
-        modal.show();
-
-        // Initialize event listeners after modal is shown
-        setTimeout(() => {
-            console.log('Initializing modal event listeners...');
-            initializeModalEventListeners();
-
-            // Reset modal state
-            document.getElementById('companySearch').value = '';
-            document.getElementById('searchResults').style.display = 'none';
-            document.getElementById('quickAddForm').style.display = 'none';
-            document.getElementById('selectedCompanyDisplay').style.display = 'none';
-
-            const confirmBtn = document.getElementById('confirmCompanySelection');
-            confirmBtn.disabled = true;
-            console.log('Modal initialized, confirm button:', confirmBtn);
-        }, 100); // Small delay to ensure modal is fully rendered
-    }
-
-    function closeCompanyModal() {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('companySearchModal'));
-        if (modal) {
-            modal.hide();
-        }
-    }
-
-    // Company selection functions
+    // Company selection callbacks (modal provided by company-search React island)
     function handleCompanySelection(company) {
         console.log('handleCompanySelection called with:', company);
 

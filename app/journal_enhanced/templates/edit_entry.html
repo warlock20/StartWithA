@@ -4,8 +4,6 @@
 {{ super() }}
 <!-- BlockNote Editor -->
 {% include 'components/blocknote_editor_include.html' %}
-<!-- Hashtag Autocomplete -->
-<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -192,13 +190,14 @@
     </div>
 </div>
 
-<!-- Include Company Search Modal -->
-{% include 'components/company_search_modal.html' %}
+<!-- Company Search Modal (React Island) -->
+<div id="company-search-mount"></div>
 
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+<script defer src="{{ url_for('static', filename='js/dist/company-search.bundle.js') }}"></script>
 <script>
     // Initialize BlockNote Editor with existing content
     let journalEditorInstance = null;
@@ -269,202 +268,7 @@
         }
     });
 
-    // Company Modal Functionality
-    let selectedCompany = null;
-    let searchTimeout = null;
-
-    // Initialize modal event listeners when modal opens
-    function initializeModalEventListeners() {
-        const searchInput = document.getElementById('companySearch');
-        const addNewCompanyBtn = document.getElementById('addNewCompanyBtn');
-        const confirmBtn = document.getElementById('confirmCompanySelection');
-        const newCompanyTicker = document.getElementById('newCompanyTicker');
-
-        if (searchInput && !searchInput.hasAttribute('data-listeners-attached')) {
-            // Search companies with debouncing
-            searchInput.addEventListener('input', function(e) {
-                const query = e.target.value.trim();
-                clearTimeout(searchTimeout);
-
-                if (query.length < 2) {
-                    document.getElementById('searchResults').style.display = 'none';
-                    document.getElementById('quickAddForm').style.display = 'none';
-                    return;
-                }
-
-                searchTimeout = setTimeout(() => {
-                    searchCompanies(query);
-                }, 300);
-            });
-
-            // Quick add company
-            if (addNewCompanyBtn) {
-                addNewCompanyBtn.addEventListener('click', function() {
-                    const ticker = newCompanyTicker.value.trim().toUpperCase();
-                    if (ticker) {
-                        addNewCompany(ticker);
-                    }
-                });
-            }
-
-            // Confirm selection
-            if (confirmBtn) {
-                confirmBtn.addEventListener('click', function() {
-                    if (selectedCompany) {
-                        handleCompanySelection(selectedCompany);
-                        bootstrap.Modal.getInstance(document.getElementById('companySearchModal')).hide();
-                    }
-                });
-            }
-
-            searchInput.setAttribute('data-listeners-attached', 'true');
-        }
-    }
-
-    // Open company modal
-    function openCompanyModal(callback) {
-        const modal = new bootstrap.Modal(document.getElementById('companySearchModal'));
-
-        // Set callback for company selection
-        window.modalCallback = callback;
-
-        // Clear previous state
-        document.getElementById('companySearch').value = '';
-        document.getElementById('searchResults').style.display = 'none';
-        document.getElementById('quickAddForm').style.display = 'none';
-        selectedCompany = null;
-        updateConfirmButton();
-
-        modal.show();
-
-        // Initialize event listeners after modal is shown
-        setTimeout(initializeModalEventListeners, 100);
-    }
-
-    // Search companies
-    function searchCompanies(query) {
-        fetch(`/companies/api/companies/search?q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                const resultsDiv = document.getElementById('searchResults');
-                const quickAddDiv = document.getElementById('quickAddForm');
-                const allResults = (data.user_companies || []).concat(data.yahoo_suggestions || []);
-
-                if (allResults.length > 0) {
-                    displaySearchResults(allResults);
-                    resultsDiv.style.display = 'block';
-                    quickAddDiv.style.display = 'none';
-                } else {
-                    resultsDiv.style.display = 'none';
-
-                    // Show quick add if query looks like ticker
-                    if (query.match(/^[A-Z]{1,5}$/i)) {
-                        document.getElementById('newCompanyTicker').value = query.toUpperCase();
-                        quickAddDiv.style.display = 'block';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error searching companies:', error);
-            });
-    }
-
-    // Display search results
-    function displaySearchResults(companies) {
-        const resultsList = document.getElementById('resultsList');
-        resultsList.innerHTML = '';
-
-        companies.slice(0, 8).forEach(company => {
-            const div = document.createElement('div');
-            div.className = 'list-group-item list-group-item-action company-result';
-            const sourceLabel = company.source === 'financial_data_service'
-                ? '<span class="badge bg-success ms-1">Yahoo Finance</span>' : '';
-            div.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${company.name}</strong>
-                        ${company.ticker_symbol ? `<span class="badge bg-primary ms-1">${company.ticker_symbol}</span>` : ''}
-                        ${sourceLabel}
-                        ${company.sector ? `<br><small class="text-muted">${company.sector}</small>` : ''}
-                    </div>
-                </div>
-            `;
-            div.addEventListener('click', () => selectCompany(company, div));
-            resultsList.appendChild(div);
-        });
-    }
-
-    // Select company
-    function selectCompany(company, element) {
-        // Remove previous selection
-        document.querySelectorAll('.company-result').forEach(el => el.classList.remove('active'));
-
-        // Mark as selected
-        element.classList.add('active');
-        selectedCompany = company;
-        updateConfirmButton();
-    }
-
-    // Add new company via Yahoo Finance
-    function addNewCompany(ticker) {
-        const addBtn = document.getElementById('addNewCompanyBtn');
-        const originalText = addBtn.textContent;
-        addBtn.textContent = 'Adding...';
-        addBtn.disabled = true;
-
-        fetch('/companies/add_from_yahoo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ticker: ticker })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                selectedCompany = data.company;
-                updateConfirmButton();
-
-                // Clear quick add form
-                document.getElementById('quickAddForm').style.display = 'none';
-                document.getElementById('newCompanyTicker').value = '';
-
-                // Show success message
-                const resultsDiv = document.getElementById('searchResults');
-                resultsDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <strong>Success!</strong> Added ${data.company.name} (${data.company.ticker_symbol})
-                    </div>
-                `;
-                resultsDiv.style.display = 'block';
-            } else {
-                alert('Error adding company: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error adding company:', error);
-            alert('Error adding company');
-        })
-        .finally(() => {
-            addBtn.textContent = originalText;
-            addBtn.disabled = false;
-        });
-    }
-
-    // Update confirm button state
-    function updateConfirmButton() {
-        const confirmBtn = document.getElementById('confirmCompanySelection');
-        if (confirmBtn) {
-            confirmBtn.disabled = !selectedCompany;
-            if (selectedCompany) {
-                confirmBtn.textContent = `Select ${selectedCompany.name}`;
-            } else {
-                confirmBtn.textContent = 'Select Company';
-            }
-        }
-    }
-
-    // Handle company selection callback
+    // Company selection callbacks (modal provided by company-search React island)
     function handleCompanySelection(company) {
         document.getElementById('company_id').value = company.id;
         document.getElementById('companyDisplayInfo').textContent =

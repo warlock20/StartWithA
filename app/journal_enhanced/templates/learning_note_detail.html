@@ -227,8 +227,6 @@
 
 {% block scripts %}
 {{ super() }}
-<!-- Hashtag Autocomplete -->
-<script src="{{ url_for('static', filename='js/hashtag-autocomplete.js') }}"></script>
 <script>
 function toggleFavorite() {
     fetch('/journal/learning-notes/{{ note.id }}/toggle-favorite', {

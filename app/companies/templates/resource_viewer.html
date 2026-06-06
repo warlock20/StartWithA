@@ -60,6 +60,7 @@
             </button>
         </div>
 
+        <div id="annotations-mount"></div>
         <div id="pdf-viewer-container">
             <div id="pdf-viewer" class="resource-viewer-pdf">
                 <div id="pdf-loading" class="text-center text-muted py-5">
@@ -104,7 +105,7 @@
 {{ super() }}
 {% if resource.file_type == 'pdf' %}
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="{{ url_for('static', filename='js/document-annotations.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/document-annotations.bundle.js') }}"></script>
 <script>
 (function() {
     var pdfjsLib = window['pdfjs-dist/build/pdf'];
@@ -147,11 +148,13 @@
                 rendered++;
                 if (rendered === pdf.numPages) {
                     try {
-                        DocumentAnnotations.init({
-                            resourceId: parseInt(root.dataset.resourceId),
-                            companyId: parseInt(root.dataset.companyId),
-                            companyName: root.dataset.companyName,
-                        });
+                        if (window.initDocumentAnnotations) {
+                            window.initDocumentAnnotations('annotations-mount', {
+                                resourceId: parseInt(root.dataset.resourceId),
+                                companyId: parseInt(root.dataset.companyId),
+                                companyName: root.dataset.companyName,
+                            });
+                        }
                     } catch (e) {
                         console.error('Annotation init error:', e);
                     }
