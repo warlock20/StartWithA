@@ -140,19 +140,23 @@ def list_companies():
             status = 'Watchlist'
         else:
             lp = latest_project_map.get(company.id)
-            if lp and lp.status == 'active':
+            if lp and lp.status == 'active' and lp.decision == 'watchlist':
+                status = 'On Watch'
+            elif lp and lp.status == 'active':
                 status = 'Researching'
             elif lp and lp.status == 'completed':
                 if lp.decision == 'pass' and lp.too_hard_reason:
                     status = 'Too Hard'
                 elif lp.decision == 'pass':
                     status = 'Passed'
-                elif lp.decision == 'needs_more_work':
-                    status = 'Review'
                 elif lp.decision == 'invest':
                     status = 'Invested'
+                elif lp.decision == 'watchlist':
+                    status = 'On Watch'
+                elif lp.decision == 'needs_more_work':
+                    status = 'Review'
                 else:
-                    status = 'Tracked'
+                    status = 'Completed'
             elif lp and lp.status == 'killed':
                 status = 'Killed'
             else:
