@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
             for (var i = 0; i < rows.length; i++) {
                 if (rows[i].getData().company_id === pos.company_id) {
                     rows[i].update({
-                        current_price: pos.current_price,
+                        current_price: pos.current_price_base || pos.current_price,
                         current_value: pos.current_value,
                         gain_loss: pos.gain_loss,
                         gain_loss_pct: pos.gain_loss_pct
@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Also update local holdingsData for metric recalc
                     for (var j = 0; j < holdingsData.length; j++) {
                         if (holdingsData[j].company_id === pos.company_id) {
-                            holdingsData[j].current_price = pos.current_price;
+                            holdingsData[j].current_price = pos.current_price_base || pos.current_price;
                             holdingsData[j].current_value = pos.current_value;
                             holdingsData[j].gain_loss = pos.gain_loss;
                             holdingsData[j].gain_loss_pct = pos.gain_loss_pct;

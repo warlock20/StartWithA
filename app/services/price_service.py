@@ -1,115 +1,79 @@
 # app/services/price_service.py
 
+import logging
 from datetime import timedelta
 from decimal import Decimal
-import yfinance as yf
 from app import db
 from app.models import PortfolioPosition
 from app.models.user import User
 from app.services.currency_service import CurrencyService
 from app.utils.time_utils import now_utc, ensure_timezone_aware
 
+logger = logging.getLogger(__name__)
+
+# Lazy singleton for FinancialDataService (avoids circular imports)
+_financial_service = None
+
+def _get_financial_service():
+    global _financial_service
+    if _financial_service is None:
+        from app.services.financial_data import FinancialDataService
+        _financial_service = FinancialDataService()
+    return _financial_service
+
+
 class PriceService:
     """
-    Service for fetching and updating stock prices from Yahoo Finance.
-    Implements 15-minute caching to minimize API calls.
+    Service for fetching and updating stock prices.
+    Routes all Yahoo Finance calls through FinancialDataService.
+    Implements 1-hour caching to minimize API calls.
     Supports multi-currency with automatic currency detection.
     """
 
     @staticmethod
     def get_current_price(ticker_symbol):
         """
-        Fetch current price for a single ticker from Yahoo Finance.
+        Fetch current price for a single ticker.
 
         Args:
             ticker_symbol: Stock ticker (e.g., 'AAPL', 'MSFT')
 
         Returns:
-            float: Current price, or None if error
+            float: Current price
 
         Raises:
             ValueError: If ticker not found
-            Exception: For other API errors
         """
-        try:
-            ticker = yf.Ticker(ticker_symbol)
-            info = ticker.info
-
-            # Try multiple price fields (Yahoo Finance API can be inconsistent)
-            price = (
-                info.get('currentPrice') or
-                info.get('regularMarketPrice') or
-                info.get('previousClose')
-            )
-
-            if price is None:
-                raise ValueError(f"No price data available for {ticker_symbol}")
-
-            return float(price)
-
-        except Exception as e:
-            print(f"Error fetching price for {ticker_symbol}: {str(e)}")
-            raise
+        service = _get_financial_service()
+        price = service.get_current_price(ticker_symbol)
+        if price is None:
+            raise ValueError(f"No price data available for {ticker_symbol}")
+        return price
 
     @staticmethod
     def get_current_price_with_currency(ticker_symbol):
         """
-        Fetch current price AND currency for a ticker from Yahoo Finance.
+        Fetch current price AND currency for a ticker.
 
         Args:
             ticker_symbol: Stock ticker (e.g., 'AAPL', 'SAP.DE', 'BP.L')
 
         Returns:
-            dict: {
-                'price': float,
-                'currency': str (ISO code like 'USD', 'EUR', 'GBP')
-            }
+            dict: {'price': float, 'currency': str}
 
         Raises:
             ValueError: If ticker not found
-            Exception: For other API errors
         """
-        try:
-            ticker = yf.Ticker(ticker_symbol)
-            info = ticker.info
-
-            # Get price
-            price = (
-                info.get('currentPrice') or
-                info.get('regularMarketPrice') or
-                info.get('previousClose')
-            )
-
-            if price is None:
-                raise ValueError(f"No price data available for {ticker_symbol}")
-
-            # Get currency from Yahoo Finance
-            # Yahoo provides currency in the 'currency' field
-            raw_currency = info.get('currency', '')
-
-            # If Yahoo didn't provide currency, detect from ticker
-            if not raw_currency or raw_currency.upper() == 'NONE':
-                currency = CurrencyService.detect_currency_from_ticker(ticker_symbol)
-                normalized_price = float(price)
-            else:
-                # Normalize sub-unit currencies (e.g., GBp pence → GBP pounds)
-                currency, normalized_price = CurrencyService.normalize_yahoo_currency(
-                    raw_currency, float(price)
-                )
-
-            return {
-                'price': normalized_price,
-                'currency': currency
-            }
-
-        except Exception as e:
-            print(f"Error fetching price/currency for {ticker_symbol}: {str(e)}")
-            raise
+        service = _get_financial_service()
+        result = service.get_current_price_with_currency(ticker_symbol)
+        if result is None:
+            raise ValueError(f"No price data available for {ticker_symbol}")
+        return result
 
     @staticmethod
     def should_update_price(position):
         """
-        Check if position price needs updating based on 15-minute cache policy.
+        Check if position price needs updating based on 1-hour cache policy.
 
         Args:
             position: PortfolioPosition object
@@ -128,9 +92,9 @@ class PriceService:
     @staticmethod
     def update_position_price(position, force=False):
         """
-        Update single position with current price from Yahoo Finance.
+        Update single position with current price.
         Converts price to user's base currency for consistent P&L calculation.
-        Respects 15-minute cache unless force=True.
+        Respects 1-hour cache unless force=True.
 
         Args:
             position: PortfolioPosition object
@@ -196,12 +160,12 @@ class PriceService:
 
         except ValueError as e:
             # Ticker not found or no price data
-            print(f"Price update failed for {position.company.ticker_symbol}: {str(e)}")
+            logger.warning("Price update failed for %s: %s", position.company.ticker_symbol, e)
             return False
 
         except Exception as e:
             # Other errors (network, API rate limit, etc.)
-            print(f"Unexpected error updating price for {position.company.ticker_symbol}: {str(e)}")
+            logger.error("Unexpected error updating price for %s: %s", position.company.ticker_symbol, e)
             db.session.rollback()
             return False
 
@@ -315,7 +279,9 @@ class PriceService:
     @staticmethod
     def get_batch_prices(ticker_symbols):
         """
-        Fetch prices for multiple tickers in a single yf.download() call.
+        Fetch prices for multiple tickers via FinancialDataService.
+
+        Uses the same API path as individual price fetching for consistency.
 
         Args:
             ticker_symbols: List of ticker symbols
@@ -323,54 +289,19 @@ class PriceService:
         Returns:
             dict: {ticker: price} mapping, None for failed tickers
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         if not ticker_symbols:
             return {}
 
-        results = {s: None for s in ticker_symbols}
+        service = _get_financial_service()
+        batch_results = service.get_batch_current_prices(ticker_symbols)
 
-        try:
-            # yf.download is the true batch API — single HTTP request
-            data = yf.download(
-                ticker_symbols,
-                period='5d',
-                progress=False,
-                threads=True,
-            )
-
-            if data.empty:
-                logger.warning("yf.download returned empty data for %s", ticker_symbols)
-                return results
-
-            if len(ticker_symbols) == 1:
-                # Single ticker: columns are flat (Close, Open, ...)
-                symbol = ticker_symbols[0]
-                close_series = data['Close'].dropna()
-                if not close_series.empty:
-                    raw_price = float(close_series.iloc[-1])
-                    results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
+        # Convert to {ticker: price} format expected by update_all_positions_batch
+        results = {}
+        for ticker, data in batch_results.items():
+            if data is not None:
+                results[ticker] = data['price']
             else:
-                # Multiple tickers: columns are multi-level (Close -> AAPL, MSFT, ...)
-                for symbol in ticker_symbols:
-                    try:
-                        close_series = data['Close'][symbol].dropna()
-                        if not close_series.empty:
-                            raw_price = float(close_series.iloc[-1])
-                            results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
-                    except (KeyError, IndexError):
-                        logger.warning("No price data for %s in batch download", symbol)
-
-        except Exception as e:
-            logger.error("Batch price fetch failed: %s", e)
-            # Fallback to individual fetches
-            for symbol in ticker_symbols:
-                try:
-                    raw_price = PriceService.get_current_price(symbol)
-                    results[symbol] = CurrencyService.normalize_price_for_ticker(symbol, raw_price)
-                except Exception:
-                    results[symbol] = None
+                results[ticker] = None
 
         fetched = sum(1 for v in results.values() if v is not None)
         logger.info("Batch prices: %d/%d fetched", fetched, len(ticker_symbols))
@@ -416,26 +347,27 @@ class PriceService:
         # Get all tickers
         ticker_symbols = [p.company.ticker_symbol for p in positions_to_update]
 
-        # Fetch prices in batch
-        prices = PriceService.get_batch_prices(ticker_symbols)
+        # Fetch prices with currency in batch (same API as individual calls)
+        service = _get_financial_service()
+        batch_data = service.get_batch_current_prices(ticker_symbols)
 
         # Update each position
         for position in positions_to_update:
             ticker = position.company.ticker_symbol
-            price = prices.get(ticker)
+            price_data = batch_data.get(ticker)
 
-            if price is None:
+            if price_data is None:
                 results['failed'] += 1
                 results['errors'].append(ticker)
                 continue
 
             try:
-                native_price = Decimal(str(price))
+                native_price = Decimal(str(price_data['price']))
+                stock_currency = price_data['currency']
                 position.current_price = native_price
 
-                # Detect stock currency and convert to base
+                # Auto-set company reporting_currency if not yet set
                 company = position.company
-                stock_currency = company.reporting_currency or CurrencyService.detect_currency_from_ticker(ticker)
                 if not company.reporting_currency:
                     company.reporting_currency = stock_currency
 
@@ -459,7 +391,6 @@ class PriceService:
                 position.current_value_base = position.current_value
 
                 # Calculate unrealized gains/losses in base currency
-                # Note: total_cost is already in user's base currency (FIFO uses _base prices)
                 total_cost = position.total_cost or Decimal('0.00')
                 if total_cost > 0:
                     position.unrealized_gain_loss = position.current_value - total_cost
@@ -474,7 +405,7 @@ class PriceService:
                 results['updated'] += 1
 
             except Exception as e:
-                print(f"Error updating position for {ticker}: {str(e)}")
+                logger.error("Error updating position for %s: %s", ticker, e)
                 results['failed'] += 1
                 results['errors'].append(ticker)
 
@@ -482,7 +413,7 @@ class PriceService:
         try:
             db.session.commit()
         except Exception as e:
-            print(f"Error committing price updates: {str(e)}")
+            logger.error("Error committing price updates: %s", e)
             db.session.rollback()
 
         return results

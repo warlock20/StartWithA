@@ -15,8 +15,9 @@ Usage:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import date
+from decimal import Decimal
 
 
 class FinancialDataProvider(ABC):
@@ -165,5 +166,73 @@ class FinancialDataProvider(ABC):
             - exchange: Exchange name (optional)
             - sector: Sector (optional)
             - industry: Industry (optional)
+        """
+        pass
+
+    @abstractmethod
+    def get_batch_current_prices(self, tickers: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Get current prices with currency for multiple tickers.
+
+        Args:
+            tickers: List of stock ticker symbols
+
+        Returns:
+            Dict mapping ticker -> {'price': float, 'currency': str} or None if unavailable
+        """
+        pass
+
+    @abstractmethod
+    def get_exchange_rate(self, from_currency: str, to_currency: str) -> Optional[Decimal]:
+        """
+        Get current exchange rate between two currencies.
+
+        Args:
+            from_currency: Source currency code (e.g., 'EUR')
+            to_currency: Target currency code (e.g., 'USD')
+
+        Returns:
+            Exchange rate as Decimal, or None if unavailable
+        """
+        pass
+
+    @abstractmethod
+    def get_valuation_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get valuation metrics (PE, EPS, price) for a ticker.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Dict with valuation data, or None if unavailable
+        """
+        pass
+
+    @abstractmethod
+    def validate_ticker(self, ticker: str) -> Dict[str, Any]:
+        """
+        Validate a ticker symbol against the provider.
+
+        Args:
+            ticker: Stock ticker to validate
+
+        Returns:
+            Dict with validation results including company_name, current_price, etc.
+        """
+        pass
+
+    @abstractmethod
+    def get_financial_statements(self, ticker: str, years: int = 5) -> Optional[Dict[str, Any]]:
+        """
+        Get historical financial statements (income, balance sheet, cash flow).
+
+        Args:
+            ticker: Stock ticker symbol
+            years: Number of years of data to fetch
+
+        Returns:
+            Dict with 'income_statement', 'balance_sheet', 'cash_flow' DataFrames,
+            or None if unavailable
         """
         pass

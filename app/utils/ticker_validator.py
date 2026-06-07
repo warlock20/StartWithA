@@ -401,86 +401,10 @@ class TickerValidator:
         Returns:
             Dict with validation results including price data if valid
         """
-        import yfinance as yf
+        from app.services.financial_data import FinancialDataService
 
-        result = {
-            'valid': False,
-            'ticker': ticker_symbol.upper(),
-            'error': None,
-            'company_name': None,
-            'current_price': None,
-            'exchange': None,
-            'currency': None
-        }
-
-        if not ticker_symbol or not ticker_symbol.strip():
-            result['error'] = 'Ticker symbol is required'
-            return result
-
-        ticker = ticker_symbol.strip().upper()
-        result['ticker'] = ticker
-
-        # Basic format validation
-        if len(ticker) > 20:
-            result['error'] = 'Ticker too long (max 20 characters)'
-            return result
-
-        try:
-            # Fetch data from Yahoo Finance
-            ticker_obj = yf.Ticker(ticker)
-            info = ticker_obj.info
-
-            # Check if ticker exists (Yahoo returns minimal info for invalid tickers)
-            if not info or 'symbol' not in info:
-                result['error'] = f'Ticker "{ticker}" not found on Yahoo Finance'
-                return result
-
-            # Get company name
-            company_name = (
-                info.get('longName') or
-                info.get('shortName') or
-                info.get('symbol')
-            )
-
-            # Get current price
-            current_price = (
-                info.get('currentPrice') or
-                info.get('regularMarketPrice') or
-                info.get('previousClose')
-            )
-
-            # Get exchange
-            exchange = info.get('exchange') or info.get('market')
-
-            # Get currency and normalize sub-unit currencies (e.g., GBp → GBP)
-            raw_currency = info.get('currency') or ''
-            price_float = float(current_price) if current_price else None
-
-            if raw_currency and raw_currency.upper() != 'NONE':
-                currency, price_float = CurrencyService.normalize_yahoo_currency(
-                    raw_currency, price_float
-                )
-            else:
-                currency = None
-
-            # If we have at least a company name, consider it valid
-            if company_name:
-                result['valid'] = True
-                result['company_name'] = company_name
-                result['current_price'] = price_float
-                result['exchange'] = exchange
-                result['currency'] = currency
-            else:
-                result['error'] = f'Unable to retrieve information for "{ticker}"'
-
-        except Exception as e:
-            error_msg = str(e)
-            if '404' in error_msg or 'not found' in error_msg.lower():
-                result['error'] = f'Ticker "{ticker}" not found'
-            else:
-                result['error'] = f'Error validating ticker: {error_msg}'
-
-        return result
+        service = FinancialDataService()
+        return service.validate_ticker(ticker_symbol)
 
 
 # Convenience functions for quick validation

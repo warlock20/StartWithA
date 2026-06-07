@@ -18,7 +18,7 @@ from app.services.intelligence_engine import check_sell_warnings
 from app.services.price_service import PriceService
 from app.services.thesis_analysis import get_quick_thesis_assessment, analyze_thesis
 from app.services.similar_mistakes import find_similar_past_decisions
-from app.services.financial_data.providers.yahoo_finance import YahooFinanceProvider
+from app.services.financial_data import FinancialDataService
 from app.utils.blocknote_utils import blocknote_to_html
 
 logger = logging.getLogger(__name__)
@@ -473,7 +473,7 @@ def _serialize_position(position):
         'ticker': position.company.ticker_symbol,
         'name': position.company.name,
         'shares': float(position.total_shares) if position.total_shares else 0,
-        'avg_cost': float(round(position.average_cost_basis, 2)) if position.average_cost_basis else None,
+        'avg_cost': float(round(position.average_cost_basis_base or position.average_cost_basis, 2)) if (position.average_cost_basis_base or position.average_cost_basis) else None,
         'current_price': float(round(position.current_price, 2)) if position.current_price else None,
         'current_price_base': float(round(position.current_price_base, 2)) if position.current_price_base else None,
         'current_value': float(round(position.current_value)) if position.current_value else None,
@@ -521,8 +521,8 @@ def get_company_intelligence(company_id):
         }), 400
 
     try:
-        provider = YahooFinanceProvider()
-        metrics = provider.get_valuation_metrics(company.ticker_symbol)
+        service = FinancialDataService()
+        metrics = service.get_valuation_metrics(company.ticker_symbol)
 
         if not metrics:
             return jsonify({

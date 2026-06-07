@@ -28,10 +28,10 @@ from app.models.ai_intelligence import ResearchOutcome
 from app.services.thesis_analysis import analyze_thesis
 
 try:
-    import yfinance as yf
-    YFINANCE_AVAILABLE = True
+    from app.services.financial_data import FinancialDataService
+    FINANCIAL_SERVICE_AVAILABLE = True
 except ImportError:
-    YFINANCE_AVAILABLE = False
+    FINANCIAL_SERVICE_AVAILABLE = False
 
 from app.models import PortfolioPosition, Company, DecisionJournal, ResearchProject, ChecklistAnalysis, Transaction
 from app.utils.financial_utils import calculate_cagr
@@ -645,26 +645,32 @@ class IntelligenceEngine:
     def _check_buying_after_runup(self, company) -> Optional[Warning]:
         """
         Check if stock has run up significantly recently.
-        Uses yfinance to fetch historical prices and detect FOMO-driven buying.
+        Uses FinancialDataService to fetch historical prices and detect FOMO-driven buying.
         """
-        if not YFINANCE_AVAILABLE:
-            return None  # yfinance not installed, skip this check
+        if not FINANCIAL_SERVICE_AVAILABLE:
+            return None  # FinancialDataService not available, skip this check
 
         try:
             lookback_days = self.THRESHOLDS['runup_lookback_days']
             threshold_pct = self.THRESHOLDS['buying_after_runup_pct']
 
-            # Fetch historical data
-            ticker = yf.Ticker(company.ticker_symbol)
-            hist = ticker.history(period=f'{lookback_days}d')
+            # Fetch historical data via FinancialDataService
+            from datetime import date as date_cls, timedelta
+            service = FinancialDataService()
+            end_date = date_cls.today()
+            start_date = end_date - timedelta(days=lookback_days)
+            prices = service.get_historical_prices_bulk(
+                company.ticker_symbol, start_date, end_date
+            )
 
-            if hist.empty or len(hist) < 2:
+            if len(prices) < 2:
                 # Not enough data to check run-up
                 return None
 
             # Get price from lookback_days ago and current price
-            price_at_start = hist['Close'].iloc[0]
-            current_price = hist['Close'].iloc[-1]
+            sorted_dates = sorted(prices.keys())
+            price_at_start = prices[sorted_dates[0]]
+            current_price = prices[sorted_dates[-1]]
 
             # Calculate run-up percentage
             runup_pct = ((current_price - price_at_start) / price_at_start) * 100
