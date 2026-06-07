@@ -46,9 +46,11 @@
             <select id="companies-status-filter" class="rcl-filter-select">
                 <option value="all">All Status</option>
                 <option value="Portfolio">Portfolio</option>
+                <option value="Invested">Invested</option>
                 <option value="Watchlist">Watchlist</option>
                 <option value="Researching">Researching</option>
                 <option value="Passed">Passed</option>
+                <option value="Too Hard">Too Hard</option>
                 <option value="Killed">Killed</option>
                 <option value="Review">Review</option>
                 <option value="Tracked">Tracked</option>
@@ -73,23 +75,27 @@
             <div class="completed-projects-grid" style="padding: 1.25rem;">
                 {% for data in companies_data_list %}
                 {% set company = data.company_obj %}
-                {% set active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first() %}
+                {% set active_project = data.active_project %}
 
                 {% set card_status = data.status %}
                 {% set card_class_map = {
                     'Portfolio': 'decision-invest',
+                    'Invested': 'decision-invest',
                     'Watchlist': 'decision-watchlist',
                     'Researching': 'decision-watchlist',
                     'Passed': 'decision-pass',
+                    'Too Hard': 'decision-pass',
                     'Killed': 'decision-pass',
                     'Review': 'decision-pending',
                     'Tracked': ''
                 } %}
                 {% set badge_map = {
                     'Portfolio': ('decision-invest', 'bi-briefcase-fill'),
+                    'Invested': ('decision-invest', 'bi-cash-stack'),
                     'Watchlist': ('decision-watchlist', 'bi-star-fill'),
                     'Researching': ('decision-invest', 'bi-graph-up'),
                     'Passed': ('decision-pass', 'bi-x-circle'),
+                    'Too Hard': ('decision-pass', 'bi-exclamation-triangle'),
                     'Killed': ('decision-pass', 'bi-slash-circle'),
                     'Review': ('decision-watchlist', 'bi-arrow-repeat'),
                     'Tracked': ('decision-pending', 'bi-building')
@@ -120,21 +126,19 @@
                             <div class="stat-item">
                                 <i class="bi bi-folder text-muted"></i>
                                 <span class="stat-value">
-                                    {% set project_count = current_user.research_projects.filter_by(company_id=company.id).count() %}
-                                    {{ project_count }} project{{ 's' if project_count != 1 else '' }}
+                                    {{ data.project_count }} project{{ 's' if data.project_count != 1 else '' }}
                                 </span>
                             </div>
                             <div class="stat-item">
                                 <i class="bi bi-file-text text-muted"></i>
                                 <span class="stat-value">
-                                    {% set doc_count = company.resources.count() %}
-                                    {{ doc_count }} doc{{ 's' if doc_count != 1 else '' }}
+                                    {{ data.doc_count }} doc{{ 's' if data.doc_count != 1 else '' }}
                                 </span>
                             </div>
                             {% if active_project %}
                             <div class="stat-item">
                                 <i class="bi bi-activity text-success"></i>
-                                <span class="stat-value text-success">{{ active_project.progress_percentage }}%</span>
+                                <span class="stat-value text-success">{{ data.progress }}%</span>
                             </div>
                             {% endif %}
                         </div>
@@ -325,9 +329,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         var val = cell.getValue();
                         var map = {
                             'Portfolio':    { cls: 'rcl-cell-badge--active', icon: 'bi-briefcase-fill' },
+                            'Invested':     { cls: 'rcl-cell-badge--active', icon: 'bi-cash-stack' },
                             'Watchlist':    { cls: 'rcl-cell-badge--paused', icon: 'bi-star-fill' },
                             'Researching':  { cls: 'rcl-cell-badge--research', icon: 'bi-graph-up' },
                             'Passed':       { cls: 'rcl-cell-badge--manual', icon: 'bi-x-circle' },
+                            'Too Hard':     { cls: 'rcl-cell-badge--kill', icon: 'bi-exclamation-triangle' },
                             'Killed':       { cls: 'rcl-cell-badge--kill', icon: 'bi-slash-circle' },
                             'Review':       { cls: 'rcl-cell-badge--mid', icon: 'bi-arrow-repeat' },
                             'Tracked':      { cls: 'rcl-cell-badge--default', icon: 'bi-building' }
