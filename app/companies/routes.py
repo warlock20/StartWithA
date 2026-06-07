@@ -124,6 +124,16 @@ def list_companies():
         if p.status == 'active' and p.company_id not in active_projects_map:
             active_projects_map[p.company_id] = p
 
+    # Pre-fetch company IDs with killed ideas (Too Hard at idea/sweep stage, no ResearchProject)
+    killed_idea_company_ids = {
+        cid for cid, in db.session.query(IdeaPipeline.company_id)
+        .filter(
+            IdeaPipeline.user_id == current_user.id,
+            IdeaPipeline.status == 'killed',
+            IdeaPipeline.company_id.isnot(None)
+        ).distinct().all()
+    }
+
     # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
     companies_json_list = []
@@ -158,6 +168,8 @@ def list_companies():
                 else:
                     status = 'Completed'
             elif lp and lp.status == 'killed':
+                status = 'Killed'
+            elif company.id in killed_idea_company_ids:
                 status = 'Killed'
             else:
                 status = 'Tracked'
