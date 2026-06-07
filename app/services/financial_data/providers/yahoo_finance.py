@@ -12,7 +12,6 @@ import yfinance as yf
 
 from app.services.currency_service import CurrencyService
 from .base import FinancialDataProvider
-
 logger = logging.getLogger(__name__)
 
 
@@ -78,8 +77,6 @@ class YahooFinanceProvider(FinancialDataProvider):
         Returns:
             Dict with 'price' and 'currency', or None if error
         """
-        from app.services.currency_service import CurrencyService
-
         try:
             ticker_obj = yf.Ticker(ticker)
             info = ticker_obj.info
@@ -95,17 +92,19 @@ class YahooFinanceProvider(FinancialDataProvider):
                 logger.warning(f"No price data available for {ticker}")
                 return None
 
-            # Get currency from Yahoo Finance
-            yahoo_currency = info.get('currency', '').upper()
+            # Get currency from Yahoo Finance and normalize sub-units (e.g., GBp → GBP)
+            raw_currency = info.get('currency', '')
+            price_float = float(price)
 
-            # If Yahoo didn't provide currency, detect from ticker
-            if not yahoo_currency or yahoo_currency == 'NONE':
+            if not raw_currency or raw_currency.upper() == 'NONE':
                 currency = CurrencyService.detect_currency_from_ticker(ticker)
             else:
-                currency = yahoo_currency
+                currency, price_float = CurrencyService.normalize_yahoo_currency(
+                    raw_currency, price_float
+                )
 
             return {
-                'price': float(price),
+                'price': price_float,
                 'currency': currency
             }
 
