@@ -1,7 +1,8 @@
+from collections import defaultdict
 from datetime import timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
-from app import db
+from app import db, cache
 from app.models import (User, ResearchMetrics, IdeaPipeline, ResearchProject,
                        WorkSession, ResearchLog, IdeaSourceAnalysis)
 from app.utils.time_utils import now_utc
@@ -24,20 +25,19 @@ def update_user_metrics(user_id):
         # Skip recomputation if updated within 15 minutes
         return metrics
 
-    # Update idea pipeline metrics
-    metrics.total_ideas_captured = user.idea_pipeline.count()
-    metrics.ideas_killed = user.idea_pipeline.filter_by(status='killed').count()
-    metrics.ideas_promoted = user.idea_pipeline.filter_by(status='promoted').count()
-    metrics.ideas_in_pipeline = user.idea_pipeline.filter_by(status='inbox').count()
-    
+    # Update idea pipeline metrics (single query instead of 4 separate counts + 1 filter)
+    all_ideas = user.idea_pipeline.all()
+    metrics.total_ideas_captured = len(all_ideas)
+    metrics.ideas_killed = sum(1 for i in all_ideas if i.status == 'killed')
+    metrics.ideas_promoted = sum(1 for i in all_ideas if i.status == 'promoted')
+    metrics.ideas_in_pipeline = sum(1 for i in all_ideas if i.status == 'inbox')
+
     # Calculate kill rate
     if metrics.total_ideas_captured > 0:
         metrics.kill_rate = (metrics.ideas_killed / metrics.total_ideas_captured) * 100
-    
+
     # Calculate average days to decision
-    decided_ideas = user.idea_pipeline.filter(
-        IdeaPipeline.status.in_(['killed', 'promoted'])
-    ).all()
+    decided_ideas = [i for i in all_ideas if i.status in ('killed', 'promoted')]
     
     if decided_ideas:
         total_days = 0
@@ -176,68 +176,78 @@ def analyze_idea_sources(user_id):
     user = User.query.get(user_id)
     if not user:
         return []
-    
-    # Get all unique sources
-    sources = db.session.query(IdeaPipeline.source)\
-                       .filter_by(user_id=user_id)\
-                       .filter(IdeaPipeline.source.isnot(None))\
-                       .distinct().all()
-    
+
+    # Batch load ALL ideas with a source (single query instead of N per-source queries)
+    all_ideas = user.idea_pipeline.filter(
+        IdeaPipeline.source.isnot(None)
+    ).all()
+
+    if not all_ideas:
+        return []
+
+    # Group ideas by source in Python
+    ideas_by_source = defaultdict(list)
+    for idea in all_ideas:
+        ideas_by_source[idea.source].append(idea)
+
+    # Batch load all invested company IDs (single query instead of per-source)
+    all_promoted_ids = [
+        idea.promoted_to_company_id for idea in all_ideas
+        if idea.promoted_to_company_id
+    ]
+    invested_company_ids = set()
+    if all_promoted_ids:
+        invested_company_ids = {
+            r[0] for r in db.session.query(ResearchProject.company_id)
+            .filter(
+                ResearchProject.company_id.in_(all_promoted_ids),
+                ResearchProject.decision == 'invest'
+            ).all()
+        }
+
+    # Batch load existing analysis records (single query instead of per-source)
+    existing_analyses = {
+        a.source_name: a for a in IdeaSourceAnalysis.query.filter_by(
+            user_id=user_id
+        ).all()
+    }
+
     analyses = []
-    for (source,) in sources:
+    for source, source_ideas in ideas_by_source.items():
         # Get or create analysis record
-        analysis = IdeaSourceAnalysis.query.filter_by(
-            user_id=user_id,
-            source_name=source
-        ).first()
-        
+        analysis = existing_analyses.get(source)
         if not analysis:
             analysis = IdeaSourceAnalysis(
                 user_id=user_id,
                 source_name=source
             )
             db.session.add(analysis)
-        
-        # Calculate metrics
-        source_ideas = user.idea_pipeline.filter_by(source=source).all()
+
+        # Calculate metrics (in-memory, no queries)
         analysis.total_ideas = len(source_ideas)
         analysis.ideas_killed = sum(1 for i in source_ideas if i.status == 'killed')
         analysis.ideas_promoted = sum(1 for i in source_ideas if i.status == 'promoted')
-        
+
         if analysis.total_ideas > 0:
             analysis.survival_rate = (analysis.ideas_promoted / analysis.total_ideas) * 100
-        
-        # Track investments from promoted ideas (batch query)
-        promoted_company_ids = [
+
+        # Check investments using pre-loaded set (no queries)
+        promoted_ids = [
             idea.promoted_to_company_id for idea in source_ideas
             if idea.promoted_to_company_id
         ]
-        invested_count = 0
-        if promoted_company_ids:
-            invested_company_ids = {
-                r[0] for r in db.session.query(ResearchProject.company_id)
-                .filter(
-                    ResearchProject.company_id.in_(promoted_company_ids),
-                    ResearchProject.decision == 'invest'
-                ).all()
-            }
-            invested_count = sum(
-                1 for cid in promoted_company_ids if cid in invested_company_ids
-            )
-        
+        invested_count = sum(1 for cid in promoted_ids if cid in invested_company_ids)
+
         analysis.ideas_invested = invested_count
         if analysis.total_ideas > 0:
             analysis.investment_rate = (invested_count / analysis.total_ideas) * 100
-        
-        # Update last idea date
-        latest_idea = user.idea_pipeline.filter_by(source=source)\
-                                       .order_by(IdeaPipeline.created_at.desc())\
-                                       .first()
-        if latest_idea:
-            analysis.last_idea_date = latest_idea.created_at
-        
+
+        # Find latest idea (in-memory, no query)
+        latest = max(source_ideas, key=lambda i: i.created_at)
+        analysis.last_idea_date = latest.created_at
+
         analyses.append(analysis)
-    
+
     try:
         db.session.commit()
         return analyses

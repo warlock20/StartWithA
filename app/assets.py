@@ -118,8 +118,10 @@ css_all = Bundle(
 
 def init_assets(app):
     """Initialize Flask-Assets with the app."""
-    # Configure via Flask config keys (Flask-Assets reads these automatically)
-    app.config['ASSETS_DEBUG'] = app.debug
+    # Always serve a single bundled CSS file, even in development.
+    # ASSETS_DEBUG=True would serve 92 individual <link> tags (very slow).
+    # AUTO_BUILD=True rebuilds the bundle when source files change in dev.
+    app.config['ASSETS_DEBUG'] = False
     app.config['ASSETS_AUTO_BUILD'] = app.debug
 
     assets.init_app(app)

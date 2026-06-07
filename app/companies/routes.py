@@ -6,6 +6,7 @@ import json
 
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from sqlalchemy import func
 from app.utils.time_utils import parse_date_to_date_object, now_utc
 from app.utils.auth_utils import get_user_resource_or_403
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
@@ -99,14 +100,36 @@ def list_companies():
         if p.company_id not in latest_project_map:
             latest_project_map[p.company_id] = p
 
+    # Batch compute project counts per company (single query instead of N)
+    project_counts = dict(
+        db.session.query(ResearchProject.company_id, func.count(ResearchProject.id))
+        .filter_by(user_id=current_user.id)
+        .group_by(ResearchProject.company_id)
+        .all()
+    )
+
+    # Batch compute resource counts per company (single query instead of N)
+    resource_counts = dict(
+        db.session.query(CompanyResource.company_id, func.count(CompanyResource.id))
+        .filter_by(user_id=current_user.id)
+        .group_by(CompanyResource.company_id)
+        .all()
+    )
+
+    # Pre-compute active projects map from already-loaded projects (no extra query)
+    active_projects_map = {}
+    for p in all_projects:
+        if p.status == 'active' and p.company_id not in active_projects_map:
+            active_projects_map[p.company_id] = p
+
     # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
     companies_json_list = []
     for company in companies:
-        # Counts for table
-        project_count = current_user.research_projects.filter_by(company_id=company.id).count()
-        doc_count = company.resources.count()
-        active_project = current_user.research_projects.filter_by(company_id=company.id, status='active').first()
+        # Counts from pre-computed maps (no queries)
+        project_count = project_counts.get(company.id, 0)
+        doc_count = resource_counts.get(company.id, 0)
+        active_project = active_projects_map.get(company.id)
 
         # Derive status from portfolio, favorites, and research project state
         if company.id in portfolio_ids:

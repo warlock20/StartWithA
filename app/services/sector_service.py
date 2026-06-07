@@ -1,5 +1,6 @@
 # app/services/sector_service.py
 
+from collections import defaultdict
 from app import db
 from app.models import Sector, Company, ResearchProject, IdeaPipeline
 from sqlalchemy import func
@@ -221,9 +222,47 @@ class SectorService:
         # Get all active sectors for user
         sectors = Sector.query.filter_by(user_id=user_id, status='active').all()
 
-        # Update analytics for all
+        if not sectors:
+            return {
+                'all': [], 'by_competence': [], 'by_success': [],
+                'by_activity': [], 'by_time': [],
+                'total_sectors': 0, 'active_research': 0
+            }
+
+        sector_ids = [s.id for s in sectors]
+
+        # Batch: company counts per sector (1 query instead of N)
+        company_counts = dict(
+            db.session.query(Company.sector_id, func.count(Company.id))
+            .filter(Company.user_id == user_id, Company.sector_id.in_(sector_ids))
+            .group_by(Company.sector_id).all()
+        )
+
+        # Batch: all research projects for user's sectors (1 query instead of N)
+        all_projects = ResearchProject.query.filter(
+            ResearchProject.user_id == user_id,
+            ResearchProject.sector_id.in_(sector_ids)
+        ).all()
+
+        # Group projects by sector in Python
+        projects_by_sector = defaultdict(list)
+        for p in all_projects:
+            projects_by_sector[p.sector_id].append(p)
+
+        # Apply analytics to each sector from batch data (no per-sector queries)
         for sector in sectors:
-            sector.update_analytics()
+            sid = sector.id
+            sector.total_companies = company_counts.get(sid, 0)
+            sector_projects = projects_by_sector.get(sid, [])
+            sector.companies_analyzed = len([p for p in sector_projects if p.status == 'completed'])
+            sector.companies_invested = len([p for p in sector_projects if p.decision == 'invest'])
+            sector.total_research_hours = sum(p.total_hours_spent or 0 for p in sector_projects)
+            sector.coc_yes_count = len([p for p in sector_projects if p.within_circle_of_competence == 'yes'])
+            sector.coc_no_count = len([p for p in sector_projects if p.within_circle_of_competence == 'no'])
+            sector.coc_unsure_count = len([p for p in sector_projects if p.within_circle_of_competence == 'unsure'])
+            if sector_projects:
+                latest = max(sector_projects, key=lambda p: p.last_worked_at or p.created_at)
+                sector.last_researched = latest.last_worked_at or latest.created_at
 
         # Return categorized results
         return {
