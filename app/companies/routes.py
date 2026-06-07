@@ -4,11 +4,10 @@ import logging
 import json
 
 
-from werkzeug.utils import secure_filename
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
-from app.utils.time_utils import parse_date_to_date_object, now_utc
+from app.utils.time_utils import now_utc
 from app.utils.auth_utils import get_user_resource_or_403
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
 from flask_login import current_user, login_required
@@ -144,10 +143,14 @@ def list_companies():
             if lp and lp.status == 'active':
                 status = 'Researching'
             elif lp and lp.status == 'completed':
-                if lp.decision == 'pass':
+                if lp.decision == 'pass' and lp.too_hard_reason:
+                    status = 'Too Hard'
+                elif lp.decision == 'pass':
                     status = 'Passed'
                 elif lp.decision == 'needs_more_work':
                     status = 'Review'
+                elif lp.decision == 'invest':
+                    status = 'Invested'
                 else:
                     status = 'Tracked'
             elif lp and lp.status == 'killed':
@@ -155,10 +158,21 @@ def list_companies():
             else:
                 status = 'Tracked'
 
-        # Jinja data (for card view)
+        # Compute progress from stored columns (no DB queries)
+        progress = 0
+        if active_project:
+            cs = active_project.completed_steps or []
+            ws = active_project.workflow_snapshot or []
+            progress = round(len(cs) / max(len(ws), 1) * 100, 1)
+
+        # Jinja data (for card view) — all pre-computed, no template queries needed
         companies_data_list.append({
             'company_obj': company,
             'status': status,
+            'project_count': project_count,
+            'doc_count': doc_count,
+            'active_project': active_project,
+            'progress': progress,
             'has_completed_checklist': company.id in completed_checklist_ids,
             'has_swot': company.id in swot_analysis_ids,
             'has_destination_analysis': company.id in dest_analysis_ids,
@@ -175,7 +189,7 @@ def list_companies():
             'status': status,
             'projects': project_count,
             'documents': doc_count,
-            'progress': round(len(active_project.completed_steps or []) / max(len(active_project.workflow_snapshot or []), 1) * 100, 1) if active_project else 0,
+            'progress': progress,
             'dashboard_url': url_for('companies.company_detail', company_id=company.id),
             'has_destination': company.id in dest_analysis_ids,
             'destination_url': url_for('companies.destination_analysis', company_id=company.id) if company.id in dest_analysis_ids else '',
