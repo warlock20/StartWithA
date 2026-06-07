@@ -13,7 +13,6 @@ import warnings
 from datetime import timedelta
 from pathlib import Path
 
-import yfinance as yf
 import pandas as pd
 from secedgar import filings, FilingType
 from weasyprint import HTML as WeasyHTML
@@ -45,7 +44,12 @@ def fetch_financial_data_task(self, company_id):
         logger.info(f"TASK {self.request.id}: Fetching {years_to_fetch} years of financial data for {company.ticker_symbol}")
 
         try:
-            ticker = yf.Ticker(company.ticker_symbol)
+            from app.services.financial_data import FinancialDataService
+            service = FinancialDataService()
+            statements = service.get_financial_statements(company.ticker_symbol, years_to_fetch)
+
+            if not statements:
+                return f"No financial data available for {company.name}."
 
             # Define which metrics we want to extract
             metrics_to_get = {
@@ -54,21 +58,11 @@ def fetch_financial_data_task(self, company_id):
                 'cash_flow': ['Free Cash Flow']
             }
 
-            # Map to yfinance functions
-            statement_map = {
-                'income_statement': ticker.income_stmt,
-                'balance_sheet': ticker.balance_sheet,
-                'cash_flow': ticker.cashflow
-            }
-
             saved_count = 0
             for statement_type, metrics in metrics_to_get.items():
-                statement_df = statement_map[statement_type]
-                if statement_df.empty:
+                statement_df = statements.get(statement_type)
+                if statement_df is None or statement_df.empty:
                     continue
-
-                # Limit to the number of years for the tier
-                statement_df = statement_df.iloc[:, :years_to_fetch]
 
                 for metric_name in metrics:
                     if metric_name in statement_df.index:

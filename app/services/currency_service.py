@@ -2,7 +2,6 @@
 
 from datetime import timedelta, date
 from decimal import Decimal
-import yfinance as yf
 from app import db
 from app.models.portfolio import ExchangeRate
 from app.utils.time_utils import now_utc
@@ -290,27 +289,21 @@ class CurrencyService:
         Raises:
             Exception: If API call fails
         """
-        # Yahoo Finance uses format: EURUSD=X for EUR to USD
-        fx_ticker = f"{from_currency.upper()}{to_currency.upper()}=X"
+        # Lazy import to avoid circular dependency (YahooFinanceProvider imports CurrencyService)
+        from app.services.financial_data.providers.yahoo_finance import YahooFinanceProvider
 
         try:
-            ticker = yf.Ticker(fx_ticker)
-            info = ticker.info
-
-            # Try multiple fields
-            rate = (
-                info.get('regularMarketPrice') or
-                info.get('currentPrice') or
-                info.get('previousClose')
-            )
+            provider = YahooFinanceProvider()
+            rate = provider.get_exchange_rate(from_currency, to_currency)
 
             if rate is None:
+                fx_ticker = f"{from_currency.upper()}{to_currency.upper()}=X"
                 raise ValueError(f"No exchange rate data available for {fx_ticker}")
 
-            return Decimal(str(rate))
+            return rate
 
         except Exception as e:
-            raise Exception(f"Failed to fetch exchange rate for {fx_ticker}: {str(e)}")
+            raise Exception(f"Failed to fetch exchange rate for {from_currency}/{to_currency}: {str(e)}")
 
     @classmethod
     def cache_exchange_rate(cls, from_currency: str, to_currency: str, rate: Decimal, rate_date: date):

@@ -5,8 +5,9 @@ Uses yfinance library to fetch stock prices and company data.
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import date, timedelta
+from decimal import Decimal
 import yfinance as yf
 
 from app.services.currency_service import CurrencyService
@@ -263,6 +264,175 @@ class YahooFinanceProvider(FinancialDataProvider):
 
         except Exception as e:
             logger.error(f"Error fetching valuation metrics for {ticker}: {str(e)}")
+            return None
+
+    def get_batch_current_prices(self, tickers: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Get current prices with currency for multiple tickers.
+
+        Uses the same yf.Ticker().info API as get_current_price_with_currency()
+        to ensure consistent prices across individual and batch calls.
+
+        Args:
+            tickers: List of stock ticker symbols
+
+        Returns:
+            Dict mapping ticker -> {'price': float, 'currency': str} or None
+        """
+        results = {}
+        for ticker in tickers:
+            results[ticker] = self.get_current_price_with_currency(ticker)
+        return results
+
+    def get_exchange_rate(self, from_currency: str, to_currency: str) -> Optional[Decimal]:
+        """
+        Fetch current exchange rate from Yahoo Finance.
+
+        Args:
+            from_currency: Source currency (e.g., 'EUR')
+            to_currency: Target currency (e.g., 'USD')
+
+        Returns:
+            Exchange rate as Decimal, or None if unavailable
+        """
+        if from_currency == to_currency:
+            return Decimal('1.0')
+
+        fx_ticker = f"{from_currency.upper()}{to_currency.upper()}=X"
+
+        try:
+            ticker = yf.Ticker(fx_ticker)
+            info = ticker.info
+
+            rate = (
+                info.get('regularMarketPrice') or
+                info.get('currentPrice') or
+                info.get('previousClose')
+            )
+
+            if rate is None:
+                logger.warning(f"No exchange rate data for {fx_ticker}")
+                return None
+
+            return Decimal(str(rate))
+
+        except Exception as e:
+            logger.error(f"Error fetching exchange rate for {fx_ticker}: {str(e)}")
+            return None
+
+    def validate_ticker(self, ticker: str) -> Dict[str, Any]:
+        """
+        Validate a ticker symbol against Yahoo Finance.
+
+        Args:
+            ticker: Stock ticker to validate
+
+        Returns:
+            Dict with validation results
+        """
+        result = {
+            'valid': False,
+            'ticker': ticker.upper() if ticker else '',
+            'error': None,
+            'company_name': None,
+            'current_price': None,
+            'exchange': None,
+            'currency': None
+        }
+
+        if not ticker or not ticker.strip():
+            result['error'] = 'Ticker symbol is required'
+            return result
+
+        ticker = ticker.strip().upper()
+        result['ticker'] = ticker
+
+        if len(ticker) > 20:
+            result['error'] = 'Ticker too long (max 20 characters)'
+            return result
+
+        try:
+            ticker_obj = yf.Ticker(ticker)
+            info = ticker_obj.info
+
+            if not info or 'symbol' not in info:
+                result['error'] = f'Ticker "{ticker}" not found on Yahoo Finance'
+                return result
+
+            company_name = (
+                info.get('longName') or
+                info.get('shortName') or
+                info.get('symbol')
+            )
+
+            current_price = (
+                info.get('currentPrice') or
+                info.get('regularMarketPrice') or
+                info.get('previousClose')
+            )
+
+            exchange = info.get('exchange') or info.get('market')
+
+            raw_currency = info.get('currency') or ''
+            price_float = float(current_price) if current_price else None
+
+            if raw_currency and raw_currency.upper() != 'NONE':
+                currency, price_float = CurrencyService.normalize_yahoo_currency(
+                    raw_currency, price_float
+                )
+            else:
+                currency = None
+
+            if company_name:
+                result['valid'] = True
+                result['company_name'] = company_name
+                result['current_price'] = price_float
+                result['exchange'] = exchange
+                result['currency'] = currency
+            else:
+                result['error'] = f'Unable to retrieve information for "{ticker}"'
+
+        except Exception as e:
+            logger.error(f"Error validating ticker {ticker}: {str(e)}")
+            result['error'] = f'Error validating ticker: {str(e)}'
+
+        return result
+
+    def get_financial_statements(self, ticker: str, years: int = 5) -> Optional[Dict[str, Any]]:
+        """
+        Get historical financial statements from Yahoo Finance.
+
+        Args:
+            ticker: Stock ticker symbol
+            years: Number of years of data to fetch
+
+        Returns:
+            Dict with 'income_statement', 'balance_sheet', 'cash_flow' DataFrames,
+            or None if unavailable
+        """
+        try:
+            ticker_obj = yf.Ticker(ticker)
+
+            income_stmt = ticker_obj.income_stmt
+            balance_sheet = ticker_obj.balance_sheet
+            cashflow = ticker_obj.cashflow
+
+            # Limit to requested years
+            if not income_stmt.empty:
+                income_stmt = income_stmt.iloc[:, :years]
+            if not balance_sheet.empty:
+                balance_sheet = balance_sheet.iloc[:, :years]
+            if not cashflow.empty:
+                cashflow = cashflow.iloc[:, :years]
+
+            return {
+                'income_statement': income_stmt,
+                'balance_sheet': balance_sheet,
+                'cash_flow': cashflow
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching financial statements for {ticker}: {str(e)}")
             return None
 
     def search_companies(self, query: str, max_results: int = 5) -> list[Dict[str, Any]]:

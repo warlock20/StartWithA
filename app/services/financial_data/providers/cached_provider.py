@@ -8,8 +8,9 @@ Historical prices are cached forever (history doesn't change!).
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import date
+from decimal import Decimal
 
 from .base import FinancialDataProvider
 from app.utils.time_utils import now_utc
@@ -191,6 +192,26 @@ class CachedFinancialDataProvider(FinancialDataProvider):
             List of company info dicts from provider
         """
         return self.provider.search_companies(query, max_results)
+
+    def get_batch_current_prices(self, tickers: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Get batch current prices (NOT cached - always fresh)."""
+        return self.provider.get_batch_current_prices(tickers)
+
+    def get_exchange_rate(self, from_currency: str, to_currency: str) -> Optional[Decimal]:
+        """Get exchange rate (NOT cached here - CurrencyService has its own DB cache)."""
+        return self.provider.get_exchange_rate(from_currency, to_currency)
+
+    def get_valuation_metrics(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """Get valuation metrics (NOT cached - data changes frequently)."""
+        return self.provider.get_valuation_metrics(ticker)
+
+    def validate_ticker(self, ticker: str) -> Dict[str, Any]:
+        """Validate a ticker symbol (NOT cached)."""
+        return self.provider.validate_ticker(ticker)
+
+    def get_financial_statements(self, ticker: str, years: int = 5) -> Optional[Dict[str, Any]]:
+        """Get financial statements (NOT cached here)."""
+        return self.provider.get_financial_statements(ticker, years)
 
     # ============================================================
     # Cache Management (Private)
