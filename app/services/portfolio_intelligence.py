@@ -24,7 +24,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 import logging
 
-from app import db
+from sqlalchemy.orm import joinedload
+
+from app import db, cache
 from app.utils.time_utils import now_utc
 from app.utils.financial_utils import calculate_cagr
 
@@ -391,22 +393,35 @@ class PortfolioIntelligenceService:
         Returns:
             List of ThesisReality for each active position
         """
-        # Get active positions
+        # Get active positions with eager-loaded company+sector
         positions = PortfolioPosition.query.filter_by(
             user_id=self.user_id,
             is_active=True
+        ).options(
+            joinedload(PortfolioPosition.company).joinedload(Company.sector)
         ).all()
+
+        if not positions:
+            return []
+
+        # Batch load all BUY decision journals for these companies (avoids N+1)
+        company_ids = [p.company_id for p in positions]
+        all_journals = DecisionJournal.query.filter(
+            DecisionJournal.user_id == self.user_id,
+            DecisionJournal.company_id.in_(company_ids),
+            DecisionJournal.decision_type == 'BUY',
+            DecisionJournal.is_portfolio_decision == True
+        ).order_by(DecisionJournal.decision_date.desc()).all()
+        # Keep most recent journal per company
+        journals_map = {}
+        for j in all_journals:
+            if j.company_id not in journals_map:
+                journals_map[j.company_id] = j
 
         results = []
 
         for position in positions:
-            # Get the BUY decision journal
-            journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=position.company_id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).order_by(DecisionJournal.decision_date.desc()).first()
+            journal = journals_map.get(position.company_id)
 
             # Calculate actual returns
             actual_return = float(position.unrealized_gain_loss_pct or 0)
@@ -510,18 +525,20 @@ class PortfolioIntelligenceService:
     def get_learning_insights(self) -> List[LearningInsight]:
         """
         Generate personalized learning insights from user's trading data.
-        
+
         Returns:
             List of LearningInsight sorted by importance
-        """        
+        """
         insights = []
-        
-        # Get all outcomes
+
+        # Get all outcomes with eager-loaded company+sector (avoids N+1 in sector analysis)
         outcomes = ResearchOutcome.query.filter(
             ResearchOutcome.user_id == self.user_id,
             ResearchOutcome.realized_return_pct.isnot(None)
+        ).options(
+            joinedload(ResearchOutcome.company).joinedload(Company.sector)
         ).all()
-        
+
         if len(outcomes) < 3:
             insights.append(LearningInsight(
                 category='improvement',
@@ -531,11 +548,23 @@ class PortfolioIntelligenceService:
                 importance='medium'
             ))
             return insights
-        
+
+        # Batch load BUY decision journals for confidence calibration (avoids N+1)
+        company_ids = [o.company_id for o in outcomes]
+        journals = DecisionJournal.query.filter(
+            DecisionJournal.user_id == self.user_id,
+            DecisionJournal.company_id.in_(company_ids),
+            DecisionJournal.decision_type == 'BUY',
+            DecisionJournal.is_portfolio_decision == True
+        ).all()
+        journals_by_company = {}
+        for j in journals:
+            journals_by_company[j.company_id] = j
+
         # Analyze patterns
         insights.extend(self._analyze_quality_patterns(outcomes))
         insights.extend(self._analyze_holding_patterns(outcomes))
-        insights.extend(self._analyze_confidence_calibration(outcomes))
+        insights.extend(self._analyze_confidence_calibration(outcomes, journals_by_company))
         insights.extend(self._analyze_sector_patterns(outcomes))
         
         # Sort by importance
@@ -612,18 +641,13 @@ class PortfolioIntelligenceService:
         
         return insights
     
-    def _analyze_confidence_calibration(self, outcomes) -> List[LearningInsight]:
+    def _analyze_confidence_calibration(self, outcomes, journals_by_company=None) -> List[LearningInsight]:
         """Analyze if confidence scores predict outcomes"""
-        insights = [] 
+        insights = []
         confidence_returns = []
         for o in outcomes:
-            journal = DecisionJournal.query.filter_by(
-                user_id=self.user_id,
-                company_id=o.company_id,
-                decision_type='BUY',
-                is_portfolio_decision=True
-            ).first()
-            
+            journal = (journals_by_company or {}).get(o.company_id)
+
             if journal and journal.confidence_score:
                 confidence_returns.append({
                     'confidence': journal.confidence_score,
@@ -663,7 +687,7 @@ class PortfolioIntelligenceService:
         sector_returns = {}
 
         for o in outcomes:
-            company = Company.query.get(o.company_id)
+            company = o.company  # Already eager-loaded in get_learning_insights
             if company and company.sector:
                 sector_name = company.sector.display_name  # Use display_name for better readability
                 if sector_name not in sector_returns:
@@ -703,9 +727,10 @@ class PortfolioIntelligenceService:
 
 
 # ============================================================
-# Convenience Functions
+# Convenience Functions (cached to avoid redundant computation)
 # ============================================================
 
+@cache.memoize(timeout=3600)  # 1 hour — correlation data changes only on trade close
 def get_correlation_data(user_id: int) -> CorrelationData:
     """Get research quality to returns correlation data"""
     service = PortfolioIntelligenceService(user_id)
@@ -718,12 +743,14 @@ def get_upcoming_checkpoints(user_id: int, days_ahead: int = 30) -> Dict[str, Li
     return service.get_upcoming_checkpoints(days_ahead)
 
 
+@cache.memoize(timeout=300)  # 5 min — position data changes with price refreshes
 def get_thesis_reality_check(user_id: int) -> List[ThesisReality]:
     """Get thesis vs reality comparison for active positions"""
     service = PortfolioIntelligenceService(user_id)
     return service.get_thesis_reality_check()
 
 
+@cache.memoize(timeout=1800)  # 30 min — trade history doesn't change frequently
 def get_learning_insights(user_id: int) -> List[LearningInsight]:
     """Get personalized learning insights"""
     service = PortfolioIntelligenceService(user_id)
