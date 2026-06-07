@@ -7,6 +7,7 @@ import json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from app.utils.time_utils import parse_date_to_date_object, now_utc
 from app.utils.auth_utils import get_user_resource_or_403
 from flask import render_template, request, redirect, url_for, flash, current_app, send_from_directory, abort, jsonify, Response, Response
@@ -79,8 +80,10 @@ def get_company_market_data(ticker):
 @login_required
 def list_companies():
     """Show all companies with client-side filtering"""
-    # Load ALL companies (client-side filtering replaces server-side pagination)
-    companies = Company.query.filter_by(user_id=current_user.id).order_by(Company.name).all()
+    # Load ALL companies with sectors eager-loaded (avoids N+1 on company.sector access)
+    companies = Company.query.filter_by(user_id=current_user.id).options(
+        joinedload(Company.sector)
+    ).order_by(Company.name).all()
 
     # Get sets of IDs for categorization
     favorite_ids = {c.id for c in current_user.favorites.all()}
@@ -172,7 +175,7 @@ def list_companies():
             'status': status,
             'projects': project_count,
             'documents': doc_count,
-            'progress': active_project.progress_percentage if active_project else 0,
+            'progress': round(len(active_project.completed_steps or []) / max(len(active_project.workflow_snapshot or []), 1) * 100, 1) if active_project else 0,
             'dashboard_url': url_for('companies.company_detail', company_id=company.id),
             'has_destination': company.id in dest_analysis_ids,
             'destination_url': url_for('companies.destination_analysis', company_id=company.id) if company.id in dest_analysis_ids else '',
