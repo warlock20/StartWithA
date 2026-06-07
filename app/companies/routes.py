@@ -124,6 +124,16 @@ def list_companies():
         if p.status == 'active' and p.company_id not in active_projects_map:
             active_projects_map[p.company_id] = p
 
+    # Pre-fetch company IDs with killed ideas (Too Hard at idea/sweep stage, no ResearchProject)
+    killed_idea_company_ids = {
+        cid for cid, in db.session.query(IdeaPipeline.company_id)
+        .filter(
+            IdeaPipeline.user_id == current_user.id,
+            IdeaPipeline.status == 'killed',
+            IdeaPipeline.company_id.isnot(None)
+        ).distinct().all()
+    }
+
     # Build enriched data for Jinja card view + JSON for Tabulator
     companies_data_list = []
     companies_json_list = []
@@ -140,20 +150,26 @@ def list_companies():
             status = 'Watchlist'
         else:
             lp = latest_project_map.get(company.id)
-            if lp and lp.status == 'active':
+            if lp and lp.status == 'active' and lp.decision == 'watchlist':
+                status = 'On Watch'
+            elif lp and lp.status == 'active':
                 status = 'Researching'
             elif lp and lp.status == 'completed':
                 if lp.decision == 'pass' and lp.too_hard_reason:
                     status = 'Too Hard'
                 elif lp.decision == 'pass':
                     status = 'Passed'
-                elif lp.decision == 'needs_more_work':
-                    status = 'Review'
                 elif lp.decision == 'invest':
                     status = 'Invested'
+                elif lp.decision == 'watchlist':
+                    status = 'On Watch'
+                elif lp.decision == 'needs_more_work':
+                    status = 'Review'
                 else:
-                    status = 'Tracked'
+                    status = 'Completed'
             elif lp and lp.status == 'killed':
+                status = 'Killed'
+            elif company.id in killed_idea_company_ids:
                 status = 'Killed'
             else:
                 status = 'Tracked'

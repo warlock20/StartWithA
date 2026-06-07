@@ -48,7 +48,9 @@
                 <option value="Portfolio">Portfolio</option>
                 <option value="Invested">Invested</option>
                 <option value="Watchlist">Watchlist</option>
+                <option value="On Watch">On Watch</option>
                 <option value="Researching">Researching</option>
+                <option value="Completed">Completed</option>
                 <option value="Passed">Passed</option>
                 <option value="Too Hard">Too Hard</option>
                 <option value="Killed">Killed</option>
@@ -82,7 +84,9 @@
                     'Portfolio': 'decision-invest',
                     'Invested': 'decision-invest',
                     'Watchlist': 'decision-watchlist',
+                    'On Watch': 'decision-watchlist',
                     'Researching': 'decision-watchlist',
+                    'Completed': 'decision-pending',
                     'Passed': 'decision-pass',
                     'Too Hard': 'decision-pass',
                     'Killed': 'decision-pass',
@@ -93,7 +97,9 @@
                     'Portfolio': ('decision-invest', 'bi-briefcase-fill'),
                     'Invested': ('decision-invest', 'bi-cash-stack'),
                     'Watchlist': ('decision-watchlist', 'bi-star-fill'),
+                    'On Watch': ('decision-watchlist', 'bi-eye'),
                     'Researching': ('decision-invest', 'bi-graph-up'),
+                    'Completed': ('decision-pending', 'bi-check-circle'),
                     'Passed': ('decision-pass', 'bi-x-circle'),
                     'Too Hard': ('decision-pass', 'bi-exclamation-triangle'),
                     'Killed': ('decision-pass', 'bi-slash-circle'),
@@ -331,7 +337,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             'Portfolio':    { cls: 'rcl-cell-badge--active', icon: 'bi-briefcase-fill' },
                             'Invested':     { cls: 'rcl-cell-badge--active', icon: 'bi-cash-stack' },
                             'Watchlist':    { cls: 'rcl-cell-badge--paused', icon: 'bi-star-fill' },
+                            'On Watch':     { cls: 'rcl-cell-badge--paused', icon: 'bi-eye' },
                             'Researching':  { cls: 'rcl-cell-badge--research', icon: 'bi-graph-up' },
+                            'Completed':    { cls: 'rcl-cell-badge--mid', icon: 'bi-check-circle' },
                             'Passed':       { cls: 'rcl-cell-badge--manual', icon: 'bi-x-circle' },
                             'Too Hard':     { cls: 'rcl-cell-badge--kill', icon: 'bi-exclamation-triangle' },
                             'Killed':       { cls: 'rcl-cell-badge--kill', icon: 'bi-slash-circle' },
