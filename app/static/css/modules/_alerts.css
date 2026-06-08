@@ -3,15 +3,15 @@
    ============================================================================= */
 
 .alert-success {
-    background-color: rgba(15, 118, 110, 0.1);
-    border-color: var(--sage-teal);
-    color: var(--sage-teal);
+    background-color: var(--success-50);
+    border-color: var(--success-500);
+    color: var(--success-600);
 }
 
 .alert-warning {
-    background-color: rgba(217, 119, 6, 0.1);
-    border-color: var(--warm-amber);
-    color: var(--warm-amber);
+    background-color: var(--warning-50);
+    border-color: var(--warning-500);
+    color: var(--warning-600);
 }
 
 .alert-info {

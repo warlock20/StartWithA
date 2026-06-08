@@ -168,18 +168,6 @@
     margin-top: 2rem;
 }
 
-.sectors-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .sectors-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
 .sector-notebook-card {
     background: white;
     border-radius: 12px;
@@ -242,10 +230,6 @@
     gap: 0.25rem;
 }
 
-.sector-card-body {
-    padding: 1.5rem;
-}
-
 .sector-preview {
     font-size: 0.9375rem;
     color: #6b7280;
@@ -253,11 +237,7 @@
     margin: 0;
 }
 
-.sector-card-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
-}
+
 
 .sector-action-link {
     font-size: 0.9375rem;

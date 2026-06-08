@@ -644,20 +644,6 @@
     padding: 0.75rem 1.25rem;
 }
 
-.progress-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: 600;
-}
-
-.progress-percentage {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
 .project-progress-bar-container {
     height: 8px;
     background: var(--gray-200);
