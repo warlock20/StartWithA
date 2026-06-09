@@ -231,6 +231,84 @@
     margin: 0;
 }
 
+/* ── Promoted shared modal shell (Phase 3 split) ── */
+
+.thesis-detail-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    padding: var(--space-xl);
+    overflow-y: auto;
+}
+
+.thesis-detail-modal.show {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.thesis-modal-content {
+    background: var(--background-white);
+    border-radius: var(--radius-lg);
+    max-width: 700px;
+    width: 100%;
+    box-shadow: var(--shadow-heavy);
+    margin-top: var(--space-xl);
+}
+
+.thesis-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.thesis-modal-header h3 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.thesis-modal-header p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: var(--space-xs) 0 0 0;
+}
+
+.thesis-modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-lg);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--space-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.thesis-modal-close:hover {
+    background: var(--gray-100);
+    color: var(--text-primary);
+}
+
+.thesis-modal-body {
+    padding: var(--space-lg);
+}
+
+.thesis-modal-footer {
+    padding: var(--space-md) var(--space-lg);
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: flex-end;
+}
+
 /* =============================================================================
    PAGE HEADERS & SECTIONS
    ============================================================================= */
