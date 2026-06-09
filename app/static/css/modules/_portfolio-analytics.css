@@ -4,7 +4,7 @@
    ============================================================================= */
 
 /* (analytics-container, analytics-header, analytics-title
-   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
+   have been migrated to the unified dashboard-header pattern in _page-layout.css) */
 
 .analytics-nav-link {
     display: inline-flex;

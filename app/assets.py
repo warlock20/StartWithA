@@ -40,8 +40,8 @@ css_core = Bundle(
     'css/modules/_drag-and-drop.css',
 
     # Shared page layout & metrics (used across all bundles)
-    'css/modules/_dashboard.css',
-    'css/modules/_portfolio.css',
+    'css/modules/_page-layout.css',
+    'css/modules/_metrics-buttons.css',
 
     # Page-level core
     'css/modules/_auth.css',

@@ -574,7 +574,7 @@ MENTAL MODELS STYLES
    SWOT & PORTER'S ANALYSIS STYLES (per-company pages)
    ============================================================================= */
 
-/* Mental Models Container - Uses dashboard-container from _dashboard.css */
+/* Mental Models Container - Uses dashboard-container from _page-layout.css */
 /* Override for mental models pages to enable scrolling */
 .dashboard-container:has(.mental-models-header) {
     max-height: calc(100vh - 80px);

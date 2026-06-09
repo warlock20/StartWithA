@@ -54,7 +54,7 @@
 
 
 /* (portfolio-container, portfolio-page-header, and related header styles
-   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
+   have been migrated to the unified dashboard-header pattern in _page-layout.css) */
 
 /* =============================================================================
    MODERN BUTTONS - Option 5 Style (Legacy)
@@ -94,6 +94,53 @@
     border-color: var(--primary-700);
     box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
     color: white;
+}
+
+/* =============================================================================
+   POSITION BUTTONS - Shared action buttons (promoted from _position-detail.css)
+   ============================================================================= */
+.position-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-medium);
+    background: var(--background-white);
+    color: var(--text-secondary);
+}
+
+.position-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.position-btn--active {
+    background: var(--primary-50, #eff6ff);
+    border-color: var(--primary-400, #60a5fa);
+    color: var(--primary-700, #1d4ed8);
+}
+
+.position-btn--active:hover {
+    background: var(--primary-100, #dbeafe);
+    border-color: var(--primary-500, #3b82f6);
+    color: var(--primary-800, #1e40af);
+}
+
+.position-btn.primary {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    color: white;
+}
+
+.position-btn.primary:hover {
+    background: var(--primary-700);
+    border-color: var(--primary-700);
 }
 
 /* =============================================================================

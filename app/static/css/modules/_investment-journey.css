@@ -4,7 +4,7 @@
    ============================================================================= */
 
 /* (journey-header, journey-identity, journey-logo, journey-btn, journey-stats-strip
-   have been migrated to the unified dashboard-header pattern in _dashboard.css) */
+   have been migrated to the unified dashboard-header pattern in _page-layout.css) */
 
 /* Journey ticker badge - kept for subtitle use */
 .journey-ticker {
