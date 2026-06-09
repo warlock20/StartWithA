@@ -78,7 +78,7 @@ export function QuestionCard({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button
-            className="position-btn"
+            className="action-btn"
             style={{ padding: '2px 8px', fontSize: '0.75rem' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -89,7 +89,7 @@ export function QuestionCard({
             <i className={'bi bi-' + statusIcon} />
           </button>
           <button
-            className="position-btn"
+            className="action-btn"
             style={{ padding: '2px 8px', fontSize: '0.75rem', color: 'var(--danger-500)' }}
             onClick={(e) => {
               e.stopPropagation();

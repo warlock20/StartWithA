@@ -5,8 +5,8 @@
    Styles specific to the Idea Inbox page (/ideas/inbox).
    Uses platform design tokens from _variables.css throughout.
    Table layout uses the rcl-panel pattern from _research-command-center.css.
-   Relies on _dashboard.css for: dashboard-container, dashboard-header-card,
-   dashboard-header, dashboard-metrics-strip, position-btn.
+   Relies on _page-layout.css for: dashboard-container, dashboard-header-card,
+   dashboard-header, dashboard-metrics-strip, action-btn.
 */
 
 /* ── INBOX METRICS (inside dashboard-metrics-strip) ── */

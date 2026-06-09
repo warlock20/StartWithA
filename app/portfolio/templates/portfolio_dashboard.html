@@ -18,33 +18,33 @@
                 <p class="dashboard-subtitle" id="dashboardSubtitle">{{ positions|length }} Position{{ 's' if positions|length != 1 else '' }} · Updated {{ updated_time if updated_time else 'recently' }}</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.transactions') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.transactions') }}" class="action-btn">
                     <i class="bi bi-list-ul"></i> Transactions
                 </a>
                 <form method="POST" action="{{ url_for('portfolio.refresh_prices') }}" class="d-inline">
-                    <button type="submit" class="position-btn">
+                    <button type="submit" class="action-btn">
                         <i class="bi bi-arrow-clockwise"></i> Refresh
                     </button>
                 </form>
                 <form method="POST" action="{{ url_for('portfolio.force_resync') }}" class="d-inline">
-                    <button type="submit" class="position-btn">
+                    <button type="submit" class="action-btn">
                         <i class="bi bi-arrow-clockwise"></i> Force Resync
                     </button>
                 </form>
                 <form action="{{ url_for('portfolio.import_transactions') }}" method="post"
                     enctype="multipart/form-data" class="d-inline">
-                    <label class="position-btn" style="cursor: pointer; margin: 0;">
+                    <label class="action-btn" style="cursor: pointer; margin: 0;">
                         <i class="bi bi-upload"></i> Import
                         <input type="file" name="file" style="display: none;" onchange="this.form.submit()"
                             accept=".csv, .xlsx">
                     </label>
                 </form>
-                <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
                 <form action="{{ url_for('portfolio.reset_portfolio') }}" method="POST" class="d-inline"
                     onsubmit="return confirm('Are you absolutely sure you want to delete all transactions? This cannot be undone.');">
-                    <button type="submit" class="position-btn" style="color: var(--danger-500); border-color: var(--danger-500);" title="Developer: Reset Portfolio">
+                    <button type="submit" class="action-btn" style="color: var(--danger-500); border-color: var(--danger-500);" title="Developer: Reset Portfolio">
                         <i class="bi bi-trash"></i>
                     </button>
                 </form>
@@ -111,7 +111,7 @@
                 </div>
                 <div class="dashboard-alert-card__actions">
                     <input type="number" name="initial_capital" value="{{ "{:.2f}".format(inferred_deposit) }}" step="0.01" min="0" class="cash-setup-input">
-                    <button type="submit" class="position-btn">Confirm</button>
+                    <button type="submit" class="action-btn">Confirm</button>
                 </div>
             </form>
         </div>
@@ -143,7 +143,7 @@
         <h5>No positions yet</h5>
         <p>Add your first transaction to start tracking your portfolio.</p>
         <div class="rcl-empty-actions">
-            <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                 <i class="bi bi-plus"></i> Add Transaction
             </a>
         </div>

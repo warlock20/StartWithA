@@ -706,7 +706,7 @@
     flex-shrink: 0;
 }
 
-.dashboard-alert-card__actions .position-btn {
+.dashboard-alert-card__actions .action-btn {
     font-size: var(--font-size-xs);
     padding: 0.2rem 0.6rem;
 }

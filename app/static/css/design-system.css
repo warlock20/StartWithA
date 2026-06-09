@@ -46,7 +46,7 @@ All complex components have been fully modularized.
 @import url('modules/_idea-capture.css');         /* Idea capture page */
 @import url('modules/_idea-promote.css');         /* Idea promote page */
 @import url('modules/_action-page.css');          /* Action/create/edit pages - centered editorial layout */
-@import url('modules/_dashboard.css');            /* Dashboard components */
+@import url('modules/_page-layout.css');            /* Dashboard components */
 @import url('modules/_pipeline-flow.css');        /* Investment pipeline flow visualization */
 @import url('modules/_idea-pipeline.css');        /* Idea pipeline & graveyard */
 @import url('modules/_sector-analysis.css');      /* Sector analysis & notebooks */
@@ -86,7 +86,7 @@ All complex components have been fully modularized.
 @import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
 @import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
 @import url('modules/_company-dashboard.css');    /* Company dashboard page */
-@import url('modules/_portfolio.css');            /* Portfolio & transaction management */
+@import url('modules/_metrics-buttons.css');            /* Portfolio & transaction management */
 @import url('modules/_portfolio-analytics.css');  /* Portfolio analytics dashboards */
 @import url('modules/_position-detail.css');      /* Position detail page */
 @import url('modules/_recommendations.css');      /* Sector recommendations & insights */

@@ -17,10 +17,10 @@
                 <p class="dashboard-subtitle">Quick capture, quick kill. Don't let ideas linger.</p>
             </div>
             <div class="dashboard-header-actions">
-                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
-                <a href="{{ url_for('ideas.add_idea') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <a href="{{ url_for('ideas.add_idea') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                     <i class="bi bi-plus-circle-fill"></i> Quick Capture
                 </a>
             </div>
@@ -82,7 +82,7 @@
             Notice a trend? Don't let good ideas slip away.
         </p>
         <div class="rcl-empty-actions">
-            <a href="{{ url_for('ideas.add_idea') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color); font-size: 1rem; padding: 0.75rem 1.5rem;">
+            <a href="{{ url_for('ideas.add_idea') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color); font-size: 1rem; padding: 0.75rem 1.5rem;">
                 <i class="bi bi-plus-circle-fill"></i> Capture Your First Idea
             </a>
         </div>
@@ -108,7 +108,7 @@
                         <!-- Options populated by JS -->
                     </select>
                     {% endif %}
-                    <a href="#" class="position-btn" id="eval-edit-btn">
+                    <a href="#" class="action-btn" id="eval-edit-btn">
                         <i class="bi bi-pencil"></i> Edit
                     </a>
                 </div>
@@ -118,7 +118,7 @@
                 <!-- Criteria cards rendered by JS -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="position-btn" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="action-btn" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="eval-submit-btn" id="eval-submit-btn" onclick="submitEvaluation()">
                     <i class="bi bi-shield-check"></i> Submit Evaluation
                 </button>

@@ -17,7 +17,7 @@
                 <p class="dashboard-subtitle">Your investment research pipeline — track, filter, decide.</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
+                <a href="{{ url_for('ideas.inbox') }}" class="action-btn">
                     <i class="bi bi-lightbulb"></i> Idea Inbox
                 </a>
                 <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary">
@@ -81,8 +81,8 @@
                 </span>
                 {% if first.type == 'stale_nudge' %}
                 <div class="dashboard-alert-card__actions">
-                    <a href="{{ first.mark_too_hard_url }}" class="position-btn">Too Hard</a>
-                    <button class="position-btn" onclick="touchProject({{ first.project_id }}, '{{ first.touch_url }}')">I'll work on it</button>
+                    <a href="{{ first.mark_too_hard_url }}" class="action-btn">Too Hard</a>
+                    <button class="action-btn" onclick="touchProject({{ first.project_id }}, '{{ first.touch_url }}')">I'll work on it</button>
                 </div>
                 {% endif %}
                 {% if alerts|length > 1 %}
@@ -107,8 +107,8 @@
                     </span>
                     {% if alert.type == 'stale_nudge' %}
                     <div class="dashboard-alert-card__actions">
-                        <a href="{{ alert.mark_too_hard_url }}" class="position-btn">Too Hard</a>
-                        <button class="position-btn" onclick="touchProject({{ alert.project_id }}, '{{ alert.touch_url }}')">I'll work on it</button>
+                        <a href="{{ alert.mark_too_hard_url }}" class="action-btn">Too Hard</a>
+                        <button class="action-btn" onclick="touchProject({{ alert.project_id }}, '{{ alert.touch_url }}')">I'll work on it</button>
                     </div>
                     {% endif %}
                 </div>
@@ -203,7 +203,7 @@
                         <h5>No active research</h5>
                         <p>Start by picking a company from your Idea Inbox or start new research directly.</p>
                         <div class="rcl-empty-actions">
-                            <a href="{{ url_for('ideas.inbox') }}" class="position-btn">
+                            <a href="{{ url_for('ideas.inbox') }}" class="action-btn">
                                 <i class="bi bi-lightbulb"></i> Idea Inbox
                             </a>
                             <a href="{{ url_for('research_workflow.start_new_research') }}" class="btn btn-primary btn-sm">

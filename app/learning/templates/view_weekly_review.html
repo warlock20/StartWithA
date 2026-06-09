@@ -10,10 +10,10 @@
                 <p class="dashboard-subtitle">{{ review.week_start.strftime('%b %d') }} &rarr; {{ review.week_end.strftime('%b %d, %Y') }}</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('learning.weekly_review_list') }}" class="position-btn">
+                <a href="{{ url_for('learning.weekly_review_list') }}" class="action-btn">
                     <i class="bi bi-list-ul"></i> All Reviews
                 </a>
-                <a href="{{ url_for('learning.learning_dashboard') }}" class="position-btn">
+                <a href="{{ url_for('learning.learning_dashboard') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Learning Center
                 </a>
             </div>

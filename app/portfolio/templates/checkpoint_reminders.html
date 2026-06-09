@@ -48,11 +48,11 @@
                 <p class="dashboard-subtitle">Track your investment milestones and stay accountable to your thesis</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i>
                     Back to Intelligence Hub
                 </a>
-                <a href="{{ url_for('portfolio.research_correlation') }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.research_correlation') }}" class="action-btn primary">
                     <i class="bi bi-graph-up-arrow"></i>
                     Research Correlation
                 </a>
@@ -97,7 +97,7 @@
                 <i class="bi bi-{{ alert.icon }}"></i>
                 <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                 <div class="dashboard-alert-card__actions">
-                    <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                    <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="action-btn">View Position</a>
                 </div>
             </div>
             {% endfor %}
@@ -108,7 +108,7 @@
                     <i class="bi bi-{{ alert.icon }}"></i>
                     <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                     <div class="dashboard-alert-card__actions">
-                        <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="position-btn">View Position</a>
+                        <a href="{{ url_for('companies.company_detail', company_id=alert.company_id) }}" class="action-btn">View Position</a>
                     </div>
                 </div>
                 {% endfor %}
