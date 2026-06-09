@@ -10,7 +10,7 @@
     margin-bottom: 2.5rem;
 }
 
-.section-header {
+.learning-paths-section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -19,7 +19,7 @@
     gap: 1rem;
 }
 
-.section-title {
+.learning-paths-section-title {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--gray-900);
@@ -33,12 +33,6 @@
     border-radius: var(--radius-pill);
     font-size: 0.875rem;
     font-weight: 700;
-}
-
-.section-description {
-    font-size: 1rem;
-    color: var(--gray-600);
-    margin: 0;
 }
 
 /* Active Learning Paths Grid */
@@ -113,12 +107,6 @@
     margin-bottom: 0.75rem;
 }
 
-.progress-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
-}
-
 .progress-value {
     font-size: 0.875rem;
     font-weight: 700;
@@ -139,12 +127,6 @@
     background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-500) 100%);
     border-radius: var(--radius-pill);
     transition: width 0.6s ease;
-}
-
-.progress-percentage {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--gray-600);
 }
 
 /* Current Step */
@@ -450,7 +432,7 @@
         grid-template-columns: 1fr;
     }
 
-    .section-header {
+    .learning-paths-section-header {
         flex-direction: column;
         align-items: flex-start;
     }

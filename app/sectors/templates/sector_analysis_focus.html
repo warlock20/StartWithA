@@ -1,4 +1,4 @@
-{% extends "main/_base.html" %}
+{% extends "main/_base_companies.html" %}
 
 {% block head %}
 {% include 'components/_tabulator.html' %}
@@ -132,7 +132,7 @@
         <!-- Documentation View -->
         <div id="documentationView" class="view-container" style="display: block;">
             <div class="notion-page">
-                <div class="page-subtitle">
+                <div class="focus-mode-page-subtitle">
                     Last edited {{ analysis.updated_at.strftime('%B %d, %Y at %I:%M %p') if analysis.updated_at else 'Never' }} •
                     {{ analysis.time_spent_formatted }} research time •
                     {{ sector_metrics.total }} companies tracked

@@ -448,7 +448,7 @@
 }
 
 /* Learning Insights Section */
-.learning-insights-card {
+.learning-mistakes-learning-insights-card {
     background: white;
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-light);
@@ -477,31 +477,31 @@
     padding: 2rem;
 }
 
-.insights-grid {
+.learning-mistakes-insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
 }
 
 @media (max-width: 768px) {
-    .insights-grid {
+    .learning-mistakes-insights-grid {
         grid-template-columns: 1fr;
     }
 }
 
-.insight-section {
+.learning-mistakes-insight-section {
     display: flex;
     flex-direction: column;
 }
 
-.insight-section-title {
+.learning-mistakes-insight-section-title {
     font-size: 1rem;
     font-weight: 700;
     color: var(--gray-900);
     margin-bottom: 1rem;
 }
 
-.insight-list {
+.learning-mistakes-insight-list {
     list-style: none;
     padding: 0;
     margin: 0;

@@ -52,17 +52,6 @@
     color: white;
 }
 
-.btn-outline-info:hover {
-    background-color: var(--info-500);
-    border-color: var(--info-500);
-    color: white;
-}
-
-.btn-outline-warning:hover {
-    background-color: var(--warning-500);
-    border-color: var(--warning-500);
-    color: white;
-}
 
 /* (portfolio-container, portfolio-page-header, and related header styles
    have been migrated to the unified dashboard-header pattern in _dashboard.css) */

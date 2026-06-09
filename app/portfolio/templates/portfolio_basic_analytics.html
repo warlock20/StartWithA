@@ -1,4 +1,4 @@
-{% extends "main/_base.html" %}
+{% extends "main/_base_portfolio.html" %}
 
 {% block title %}AI Portfolio Analytics{% endblock %}
 
@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="portfolio-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -280,17 +280,17 @@
                         </div>
                         <div class="comparison-metrics">
                             <div class="comparison-metric">
-                                <span class="metric-label">Avg Return</span>
-                                <span class="metric-value positive">+{{ insights.comparison.winners.avg_return
+                                <span class="coc-analytics-metric-label">Avg Return</span>
+                                <span class="coc-analytics-metric-value positive">+{{ insights.comparison.winners.avg_return
                                     }}%</span>
                             </div>
                             <div class="comparison-metric">
-                                <span class="metric-label">Hold Time</span>
-                                <span class="metric-value">{{ insights.comparison.winners.hold_time }} days</span>
+                                <span class="coc-analytics-metric-label">Hold Time</span>
+                                <span class="coc-analytics-metric-value">{{ insights.comparison.winners.hold_time }} days</span>
                             </div>
                             <div class="comparison-metric">
-                                <span class="metric-label">Success Rate</span>
-                                <span class="metric-value">{{ insights.comparison.winners.success_rate }}%</span>
+                                <span class="coc-analytics-metric-label">Success Rate</span>
+                                <span class="coc-analytics-metric-value">{{ insights.comparison.winners.success_rate }}%</span>
                             </div>
                         </div>
                     </div>
@@ -306,16 +306,16 @@
                         </div>
                         <div class="comparison-metrics">
                             <div class="comparison-metric">
-                                <span class="metric-label">Avg Loss</span>
-                                <span class="metric-value negative">{{ insights.comparison.losers.avg_loss }}%</span>
+                                <span class="coc-analytics-metric-label">Avg Loss</span>
+                                <span class="coc-analytics-metric-value negative">{{ insights.comparison.losers.avg_loss }}%</span>
                             </div>
                             <div class="comparison-metric">
-                                <span class="metric-label">Hold Time</span>
-                                <span class="metric-value">{{ insights.comparison.losers.hold_time }} days</span>
+                                <span class="coc-analytics-metric-label">Hold Time</span>
+                                <span class="coc-analytics-metric-value">{{ insights.comparison.losers.hold_time }} days</span>
                             </div>
                             <div class="comparison-metric">
-                                <span class="metric-label">Pattern</span>
-                                <span class="metric-value">{{ insights.comparison.losers.pattern }}</span>
+                                <span class="coc-analytics-metric-label">Pattern</span>
+                                <span class="coc-analytics-metric-value">{{ insights.comparison.losers.pattern }}</span>
                             </div>
                         </div>
                         {% if insights.comparison.losers.insight %}

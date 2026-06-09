@@ -12,7 +12,7 @@
    ============================================================================= */
 
 /* Main workspace container - Only apply to research workspace pages */
-.dashboard-container:has(.research-tabs-container) {
+.research-workspace-dashboard-container:has(.research-tabs-container) {
     height: calc(100vh - 60px); /* Full viewport minus navbar */
     display: flex;
     flex-direction: column;
@@ -28,7 +28,7 @@
 }
 
 /* Main research row - FORCE flexbox horizontal layout WITHOUT outer container border */
-.dashboard-container > .row {
+.research-workspace-dashboard-container > .row {
     flex: 1; /* Take all remaining vertical space */
     display: flex !important; /* Override Bootstrap */
     flex-direction: row !important; /* Horizontal layout */
@@ -41,8 +41,8 @@
 }
 
 /* Remove default Bootstrap column behavior that might stack */
-.dashboard-container > .row > .col-lg-10,
-.dashboard-container > .row > .col-lg-2 {
+.research-workspace-dashboard-container > .row > .col-lg-10,
+.research-workspace-dashboard-container > .row > .col-lg-2 {
     float: none !important; /* Override any float */
     display: flex !important;
     flex-direction: column;
@@ -51,13 +51,13 @@
 }
 
 /* Main research area - takes remaining space */
-.dashboard-container > .row > .col-lg-10 {
+.research-workspace-dashboard-container > .row > .col-lg-10 {
     flex: 1;
     min-width: 0; /* Allow flexbox shrinking */
 }
 
 /* Sidebar - fixed width like MS Paint tool panel */
-.dashboard-container > .row > .col-lg-2 {
+.research-workspace-dashboard-container > .row > .col-lg-2 {
     flex: 0 0 280px;
     max-width: 280px;
     min-width: 250px;
@@ -490,13 +490,13 @@
 
 /* Responsive - stack vertically on mobile */
 @media (max-width: 992px) {
-    .dashboard-container > .row {
+    .research-workspace-dashboard-container > .row {
         flex-direction: column !important;
         border-radius: 8px;
     }
 
-    .dashboard-container > .row > .col-lg-10,
-    .dashboard-container > .row > .col-lg-2 {
+    .research-workspace-dashboard-container > .row > .col-lg-10,
+    .research-workspace-dashboard-container > .row > .col-lg-2 {
         flex: 0 0 100% !important;
         max-width: 100% !important;
     }
@@ -512,7 +512,7 @@
         min-height: 400px;
     }
 
-    .dashboard-container {
+    .research-workspace-dashboard-container {
         height: auto;
     }
 }

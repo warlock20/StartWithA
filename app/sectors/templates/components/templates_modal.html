@@ -13,7 +13,7 @@
                 <p class="text-muted mb-3">Click a template to insert formatted content at cursor position</p>
                 <div class="template-modal-grid">
                     {% for template in template_list %}
-                    <div class="template-card" onclick="insertTemplate('{{ template.key }}');">
+                    <div class="sector-research-template-card" onclick="insertTemplate('{{ template.key }}');">
                         <h6>{{ template.icon }} {{ template.name }}</h6>
                         <p>{{ template.description }}</p>
                     </div>

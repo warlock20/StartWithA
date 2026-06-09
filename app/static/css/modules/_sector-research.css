@@ -218,11 +218,11 @@
     box-shadow: var(--shadow-light);
 }
 
-.company-info {
+.sector-research-company-info {
     flex: 1;
 }
 
-.company-name {
+.sector-research-company-name {
     font-size: 0.9375rem;
     font-weight: 600;
     color: var(--gray-900);
@@ -248,7 +248,7 @@
     margin-top: 1rem;
 }
 
-.template-card {
+.sector-research-template-card {
     border: 2px solid var(--gray-200);
     border-radius: var(--radius-lg);
     padding: 1rem;
@@ -257,21 +257,21 @@
     background: white;
 }
 
-.template-card:hover {
+.sector-research-template-card:hover {
     border-color: var(--primary-500);
     background: var(--primary-50);
     transform: translateY(-2px);
     box-shadow: var(--shadow-medium);
 }
 
-.template-card h6 {
+.sector-research-template-card h6 {
     font-size: 1rem;
     font-weight: 600;
     color: var(--gray-900);
     margin-bottom: 0.5rem;
 }
 
-.template-card p {
+.sector-research-template-card p {
     font-size: 0.875rem;
     color: var(--gray-600);
     margin: 0;
@@ -333,7 +333,7 @@
     border-bottom: 1px solid var(--gray-100);
 }
 
-.metric-icon {
+.sector-research-metric-icon {
     font-size: 1.5rem;
 }
 

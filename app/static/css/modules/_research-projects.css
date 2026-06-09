@@ -33,7 +33,7 @@
     color: white;
 }
 
-.recommendation-content {
+.research-projects-recommendation-content {
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
     border-radius: 12px;
@@ -50,7 +50,7 @@
     color: var(--text-primary);
 }
 
-.action-badge {
+.research-projects-action-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
@@ -104,16 +104,16 @@
 }
 
 /* Research Insights Modal Styles */
-.insight-section {
+.research-projects-insight-section {
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-light);
 }
 
-.insight-section:last-child {
+.research-projects-insight-section:last-child {
     border-bottom: none;
 }
 
-.insight-section-title {
+.research-projects-insight-section-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
@@ -137,14 +137,14 @@
     border: 1px solid var(--border-light);
 }
 
-.metric-value {
+.research-projects-metric-value {
     font-size: 2rem;
     font-weight: 700;
     color: var(--primary-600);
     margin-bottom: 0.25rem;
 }
 
-.metric-label {
+.research-projects-metric-label {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-weight: 500;
@@ -200,7 +200,7 @@
     font-size: 0.95rem;
 }
 
-.template-stats {
+.research-projects-template-stats {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -644,20 +644,6 @@
     padding: 0.75rem 1.25rem;
 }
 
-.progress-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: 600;
-}
-
-.progress-percentage {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
 .project-progress-bar-container {
     height: 8px;
     background: var(--gray-200);
@@ -679,7 +665,7 @@
     border-bottom: 1px solid var(--border-light);
 }
 
-.project-info-item {
+.research-projects-project-info-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -881,7 +867,7 @@
     font-size: 0.875rem;
 }
 
-.stat-value {
+.research-projects-stat-value {
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -902,7 +888,7 @@
 }
 
 /* Too Hard Basket Card Enhancements */
-.ticker-badge {
+.research-projects-ticker-badge {
     display: inline-flex;
     align-items: center;
     padding: 0.25rem 0.625rem;
@@ -927,7 +913,7 @@
     border-left: 3px solid var(--primary-300);
 }
 
-.meta-item {
+.research-projects-meta-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -935,14 +921,14 @@
     color: var(--gray-700);
 }
 
-.meta-item i {
+.research-projects-meta-item i {
     color: var(--gray-500);
     font-size: 0.875rem;
     width: 16px;
     flex-shrink: 0;
 }
 
-.meta-item span {
+.research-projects-meta-item span {
     font-weight: 500;
 }
 
@@ -1106,7 +1092,7 @@
     margin-bottom: 0.75rem;
 }
 
-.metric-label {
+.research-projects-metric-label {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -1211,7 +1197,7 @@
 }
 
 /* Learning Insights Card */
-.learning-insights-card {
+.research-projects-learning-insights-card {
     background: white;
     border-radius: 16px;
     border: 1px solid var(--border-light);
@@ -1232,7 +1218,7 @@
     align-items: center;
 }
 
-.insights-grid {
+.research-projects-insights-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
@@ -1245,13 +1231,13 @@
     margin: 0 0 1rem 0;
 }
 
-.insight-list {
+.research-projects-insight-list {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.insight-list li {
+.research-projects-insight-list li {
     padding: 0.5rem 0;
     padding-left: 1.5rem;
     position: relative;
@@ -1260,7 +1246,7 @@
     line-height: 1.5;
 }
 
-.insight-list li::before {
+.research-projects-insight-list li::before {
     content: "→";
     position: absolute;
     left: 0;
@@ -1268,7 +1254,7 @@
     font-weight: 700;
 }
 
-.insight-list li strong {
+.research-projects-insight-list li strong {
     color: var(--text-primary);
 }
 
@@ -1287,7 +1273,7 @@
         font-size: 2.5rem;
     }
 
-    .insights-grid {
+    .research-projects-insights-grid {
         grid-template-columns: 1fr;
     }
 

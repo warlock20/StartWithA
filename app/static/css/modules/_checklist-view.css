@@ -59,7 +59,7 @@
 }
 
 /* Checklist Tree Container */
-.checklist-tree-container {
+.checklist-view-tree-container {
     flex: 1;
     overflow-y: auto;
     padding: 0.5rem;
@@ -112,11 +112,11 @@
 }
 
 /* Pro List Item Hover Effects (for Question Bank) */
-.pro-list-item {
+.checklist-view-pro-list-item {
     transition: all var(--transition-normal);
 }
 
-.pro-list-item:hover {
+.checklist-view-pro-list-item:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-medium);
 }
@@ -162,12 +162,12 @@
 }
 
 /* Metric Cards Hover Effect */
-.metric-card {
+.checklist-view-metric-card {
     transition: all var(--transition-normal);
     cursor: default;
 }
 
-.metric-card:hover {
+.checklist-view-metric-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-medium);
 }
@@ -183,18 +183,18 @@
         width: 100%;
     }
 
-    .checklist-tree-container {
+    .checklist-view-tree-container {
         max-height: 400px;
     }
 }
 
 /* Mobile adjustments for readonly view */
 @media (max-width: 576px) {
-    .checklist-tree-container {
+    .checklist-view-tree-container {
         padding: var(--space-sm);
     }
 
-    .metric-card {
+    .checklist-view-metric-card {
         margin-bottom: var(--space-sm);
     }
 }

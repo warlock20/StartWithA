@@ -2,53 +2,53 @@
 <div class="knowledge-stats-bar">
     {% if view_mode == 'wisdom' %}
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.total_insights }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.total_insights }}</div>
             <div class="stat-label">Total Insights</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.total_investors }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.total_investors }}</div>
             <div class="stat-label">Investors</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.favorites }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.favorites }}</div>
             <div class="stat-label">Favorites</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.topics }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.topics }}</div>
             <div class="stat-label">Topics</div>
         </div>
     {% elif view_mode == 'research' %}
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.total_entries }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.total_entries }}</div>
             <div class="stat-label">Total Entries</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.companies }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.companies }}</div>
             <div class="stat-label">Companies</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.starred }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.starred }}</div>
             <div class="stat-label">Starred</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.this_month }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.this_month }}</div>
             <div class="stat-label">This Month</div>
         </div>
     {% else %}
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.total_items }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.total_items }}</div>
             <div class="stat-label">Total Items</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.research_notes }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.research_notes }}</div>
             <div class="stat-label">Research Notes</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.curated_insights }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.curated_insights }}</div>
             <div class="stat-label">Curated Insights</div>
         </div>
         <div class="knowledge-stat">
-            <div class="stat-value">{{ stats.starred }}</div>
+            <div class="knowledge-hub-stat-value">{{ stats.starred }}</div>
             <div class="stat-label">Starred/Favorites</div>
         </div>
     {% endif %}

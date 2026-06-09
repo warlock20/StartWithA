@@ -374,7 +374,7 @@
     margin-top: 1rem;
 }
 
-.status-indicator {
+.company-dashboard-status-indicator {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -384,12 +384,12 @@
     border: 1px solid var(--info-500);
 }
 
-.status-indicator.success {
+.company-dashboard-status-indicator.success {
     background: var(--success-50);
     border-color: var(--success-500);
 }
 
-.status-indicator.error {
+.company-dashboard-status-indicator.error {
     background: var(--danger-50);
     border-color: var(--danger-500);
 }
@@ -554,22 +554,10 @@
     border-width: 1px;
 }
 
-.alert-success {
-    background: var(--success-50);
-    border-color: var(--success-300);
-    color: var(--success-800);
-}
-
 .alert-danger {
     background: var(--danger-50);
     border-color: var(--danger-300);
     color: var(--danger-800);
-}
-
-.alert-warning {
-    background: var(--warning-50);
-    border-color: var(--warning-300);
-    color: var(--warning-800);
 }
 
 .alert-info {

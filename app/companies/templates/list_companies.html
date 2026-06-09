@@ -1,11 +1,11 @@
-{% extends "main/_base.html" %}
+{% extends "main/_base_companies.html" %}
 
 {% block head %}
 {% include 'components/_tabulator.html' %}
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="research-workspace-dashboard-container">
 
     <!-- ════════════════════════════════════════════════
          HEADER
@@ -131,20 +131,20 @@
                         <div class="completed-stats-row">
                             <div class="stat-item">
                                 <i class="bi bi-folder text-muted"></i>
-                                <span class="stat-value">
+                                <span class="research-projects-stat-value">
                                     {{ data.project_count }} project{{ 's' if data.project_count != 1 else '' }}
                                 </span>
                             </div>
                             <div class="stat-item">
                                 <i class="bi bi-file-text text-muted"></i>
-                                <span class="stat-value">
+                                <span class="research-projects-stat-value">
                                     {{ data.doc_count }} doc{{ 's' if data.doc_count != 1 else '' }}
                                 </span>
                             </div>
                             {% if active_project %}
                             <div class="stat-item">
                                 <i class="bi bi-activity text-success"></i>
-                                <span class="stat-value text-success">{{ data.progress }}%</span>
+                                <span class="research-projects-stat-value text-success">{{ data.progress }}%</span>
                             </div>
                             {% endif %}
                         </div>

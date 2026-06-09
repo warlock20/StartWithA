@@ -1,4 +1,4 @@
-{% extends "main/_base.html" %}
+{% extends "main/_base_companies.html" %}
 
 {% block content %}
 <div class="action-page idea-promote-page">
@@ -110,9 +110,9 @@
                             <div class="template-grid-wrapper">
                                 <div class="template-grid" id="template-grid">
                                     {% for template in templates %}
-                                <label class="template-card" data-template-id="{{ template.id }}">
+                                <label class="idea-promote-template-card" data-template-id="{{ template.id }}">
                                     <input type="radio" name="template_choice" value="{{ template.id }}">
-                                    <div class="template-card-header">
+                                    <div class="idea-promote-template-card-header">
                                         <div class="template-card-icon">
                                             <i class="bi bi-clipboard-check"></i>
                                         </div>
@@ -194,7 +194,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const templateCards = document.querySelectorAll('.template-card');
+    const templateCards = document.querySelectorAll('.idea-promote-template-card');
     const templateIdInput = document.getElementById('selected_template_id');
     const submitBtn = document.getElementById('submit-btn');
     const form = document.getElementById('promoteForm');
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // If filtered card was selected but now hidden, deselect it
-            const selectedCard = document.querySelector('.template-card.selected');
+            const selectedCard = document.querySelector('.idea-promote-template-card.selected');
             if (selectedCard && selectedCard.style.display === 'none') {
                 selectedCard.classList.remove('selected');
                 if (templateIdInput) templateIdInput.value = '';

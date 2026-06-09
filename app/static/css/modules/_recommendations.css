@@ -52,13 +52,6 @@ Professional styling for sector recommendations and insights on dashboard.
     text-decoration: none;
 }
 
-/* Recommendations List */
-.recommendations-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
 /* Individual Recommendation Card */
 .recommendation-card {
     display: flex;
@@ -97,7 +90,7 @@ Professional styling for sector recommendations and insights on dashboard.
 }
 
 /* Recommendation Content */
-.recommendation-content {
+.recommendations-recommendation-content {
     flex: 1;
     min-width: 0;
 }

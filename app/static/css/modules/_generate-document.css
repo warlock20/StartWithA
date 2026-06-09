@@ -39,15 +39,9 @@
     flex: 1;
 }
 
-.section-title {
+.generate-document-section-title {
     font-weight: 600;
     font-size: 0.95rem;
-}
-
-.section-description {
-    font-size: 0.85rem;
-    color: #6b7280;
-    margin-top: 2px;
 }
 
 .section-notes-count {
