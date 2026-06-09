@@ -2,7 +2,7 @@
 {% from "_macros.html" import display_items_for_edit_tree as display_items %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="research-workspace-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -71,7 +71,7 @@
                     {% endif %}
                 </div>
                 <div class="checklist-edit-body">
-                    <div class="checklist-tree-container">
+                    <div class="checklist-view-tree-container">
                         <div class="checklist-tree">
                         {% if items %}
                             {{ display_items(items, ChecklistItem) }}
@@ -161,7 +161,7 @@
                                                  data-bs-parent="#editQuestionBankAccordion">
                                                 <div class="accordion-body">
                                                     {% for question in questions %}
-                                                    <div class="pro-list-item" style="cursor: pointer;"
+                                                    <div class="checklist-view-pro-list-item" style="cursor: pointer;"
                                                          data-question-text="{{ question.text|replace('"', '&quot;') }}"
                                                          data-question-prompt="{{ question.llm_prompt|default('', true)|replace('"', '&quot;') }}"
                                                          onclick="addQuestionToEditForm(this.getAttribute('data-question-text'), this.getAttribute('data-question-prompt'))">

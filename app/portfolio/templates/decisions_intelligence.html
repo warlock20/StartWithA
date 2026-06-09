@@ -3,7 +3,7 @@
 {% block title %}Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="portfolio-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -324,7 +324,7 @@
                             <tr>
                                 <td style="text-align: left;">
                                     <span class="di-mono" style="color: #374151;">{{ item.company.ticker_symbol }}</span>
-                                    <span class="company-name"> &middot; {{ item.company.name }}</span>
+                                    <span class="checkpoints-company-name"> &middot; {{ item.company.name }}</span>
                                 </td>
                                 <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; color: #6b7280;">{{ "%.1f"|format(item.expected) }}%</td>
                                 <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: {% if item.actual >= 0 %}#10b981{% else %}#ef4444{% endif %};">

@@ -1,14 +1,14 @@
 /* Knowledge Hub - Unified Page Styles */
 
 /* Prevent horizontal overflow */
-.dashboard-container .knowledge-hub-pills-section,
-.dashboard-container .knowledge-hub-controls,
-.dashboard-container .grouped-knowledge-results,
-.dashboard-container .knowledge-stats-bar,
-.dashboard-container .knowledge-filter-card,
-.dashboard-container .knowledge-insights-grid,
-.dashboard-container .research-timeline,
-.dashboard-container .unified-results-list {
+.knowledge-hub-dashboard-container .knowledge-hub-pills-section,
+.knowledge-hub-dashboard-container .knowledge-hub-controls,
+.knowledge-hub-dashboard-container .grouped-knowledge-results,
+.knowledge-hub-dashboard-container .knowledge-stats-bar,
+.knowledge-hub-dashboard-container .knowledge-filter-card,
+.knowledge-hub-dashboard-container .knowledge-insights-grid,
+.knowledge-hub-dashboard-container .research-timeline,
+.knowledge-hub-dashboard-container .unified-results-list {
     max-width: 100%;
     overflow-x: hidden;
 }
@@ -340,7 +340,7 @@
     box-shadow: var(--shadow-medium);
 }
 
-.stat-value {
+.knowledge-hub-stat-value {
     font-size: 2rem;
     font-weight: 700;
     color: var(--primary-600);
@@ -876,7 +876,7 @@
         padding: 1.25rem;
     }
 
-    .stat-value {
+    .knowledge-hub-stat-value {
         font-size: 1.75rem;
     }
 }

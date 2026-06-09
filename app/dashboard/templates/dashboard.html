@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="portfolio-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -226,7 +226,7 @@
                         <p class="action-title">Screen <a href="{{ url_for('ideas.inbox') }}">{{ inbox_count }} idea{{ 's' if inbox_count != 1 }}</a> in your inbox</p>
                         <p class="action-meta">Est. {{ (inbox_count * 5)|int }} minutes</p>
                     </div>
-                    <span class="action-badge action-badge--new">New</span>
+                    <span class="dashboard-action-badge action-badge--new">New</span>
                 </div>
                 {% endif %}
 
@@ -239,7 +239,7 @@
                         <p class="action-title">Checkpoint due for <a href="{{ url_for('companies.destination_analysis', company_id=cp.company_id) }}">{{ cp.company.name }}</a></p>
                         <p class="action-meta">Due {{ cp.target_date.strftime('%b %d, %Y') }}</p>
                     </div>
-                    <span class="action-badge action-badge--urgent">Due soon</span>
+                    <span class="dashboard-action-badge action-badge--urgent">Due soon</span>
                 </div>
                 {% endfor %}
 

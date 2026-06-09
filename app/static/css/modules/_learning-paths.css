@@ -10,7 +10,7 @@
     margin-bottom: 2.5rem;
 }
 
-.section-header {
+.learning-paths-section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -19,7 +19,7 @@
     gap: 1rem;
 }
 
-.section-title {
+.learning-paths-section-title {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--gray-900);
@@ -432,7 +432,7 @@
         grid-template-columns: 1fr;
     }
 
-    .section-header {
+    .learning-paths-section-header {
         flex-direction: column;
         align-items: flex-start;
     }

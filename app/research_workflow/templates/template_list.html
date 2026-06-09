@@ -1,7 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="research-workspace-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -106,25 +106,25 @@
 
                 <!-- Stats Row -->
                 <div class="research-template-stats">
-                    <div class="template-stat-item">
-                        <div class="template-stat-value">{{ template.actual_times_used }}</div>
-                        <div class="template-stat-label">
+                    <div class="idea-pipeline-template-stat-item">
+                        <div class="idea-pipeline-template-stat-value">{{ template.actual_times_used }}</div>
+                        <div class="idea-pipeline-template-stat-label">
                             <i class="bi bi-repeat"></i> Uses
                         </div>
                     </div>
-                    <div class="template-stat-item">
+                    <div class="idea-pipeline-template-stat-item">
                         {% set total_mins = 0 %}
                         {% for step in template.workflow_steps %}
                             {% set total_mins = total_mins + (step.estimated_minutes|default(60)) %}
                         {% endfor %}
-                        <div class="template-stat-value">~{{ (total_mins / 60)|round(1) }}h</div>
-                        <div class="template-stat-label">
+                        <div class="idea-pipeline-template-stat-value">~{{ (total_mins / 60)|round(1) }}h</div>
+                        <div class="idea-pipeline-template-stat-label">
                             <i class="bi bi-clock"></i> Est. Time
                         </div>
                     </div>
-                    <div class="template-stat-item">
-                        <div class="template-stat-value">{{ template.step_count }}</div>
-                        <div class="template-stat-label">
+                    <div class="idea-pipeline-template-stat-item">
+                        <div class="idea-pipeline-template-stat-value">{{ template.step_count }}</div>
+                        <div class="idea-pipeline-template-stat-label">
                             <i class="bi bi-list-ol"></i> Steps
                         </div>
                     </div>

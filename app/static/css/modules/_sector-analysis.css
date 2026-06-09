@@ -188,7 +188,7 @@
     display: block;
 }
 
-.sector-card-header {
+.sector-analysis-sector-card-header {
     padding: 1.5rem;
     display: flex;
     align-items: start;
@@ -952,12 +952,12 @@
     border-color: #d1d5db;
 }
 
-.company-info {
+.sector-analysis-company-info {
     flex: 1;
     min-width: 0;
 }
 
-.company-name {
+.sector-analysis-company-name {
     font-size: 0.9375rem;
     font-weight: 600;
     color: #111827;

@@ -1,7 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="knowledge-hub-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -21,8 +21,8 @@
     {% set active_paths = paths|selectattr('status', 'equalto', 'active')|list %}
     {% if active_paths %}
     <div class="learning-paths-section">
-        <div class="section-header">
-            <h2 class="section-title">🎯 Active Learning Paths</h2>
+        <div class="learning-paths-section-header">
+            <h2 class="learning-paths-section-title">🎯 Active Learning Paths</h2>
             <span class="section-count">{{ active_paths|length }} active</span>
         </div>
 
@@ -78,8 +78,8 @@
     <!-- Suggested Learning Paths -->
     {% if suggested_paths %}
     <div class="suggested-paths-section">
-        <div class="section-header">
-            <h2 class="section-title">💡 Suggested Learning Paths</h2>
+        <div class="learning-paths-section-header">
+            <h2 class="learning-paths-section-title">💡 Suggested Learning Paths</h2>
             <p class="section-description">Based on your recent mistakes and patterns</p>
         </div>
 
@@ -104,8 +104,8 @@
     {% set completed_paths = paths|selectattr('status', 'equalto', 'completed')|list %}
     {% if completed_paths %}
     <div class="completed-paths-section">
-        <div class="section-header">
-            <h2 class="section-title">✅ Completed Learning Paths</h2>
+        <div class="learning-paths-section-header">
+            <h2 class="learning-paths-section-title">✅ Completed Learning Paths</h2>
             <span class="section-count">{{ completed_paths|length }} completed</span>
         </div>
 
@@ -136,8 +136,8 @@
 
     <!-- Learning Resources Library -->
     <div class="resources-section">
-        <div class="section-header">
-            <h2 class="section-title">📖 Learning Resources</h2>
+        <div class="learning-paths-section-header">
+            <h2 class="learning-paths-section-title">📖 Learning Resources</h2>
             <p class="section-description">Curated resources to accelerate your learning</p>
         </div>
 

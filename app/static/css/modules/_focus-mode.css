@@ -55,7 +55,7 @@
 }
 
 /* Page subtitle (metadata line) */
-.page-subtitle {
+.focus-mode-page-subtitle {
     color: var(--gray-500);
     font-size: 0.9375rem;
     margin-bottom: 2rem;

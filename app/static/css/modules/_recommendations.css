@@ -90,7 +90,7 @@ Professional styling for sector recommendations and insights on dashboard.
 }
 
 /* Recommendation Content */
-.recommendation-content {
+.recommendations-recommendation-content {
     flex: 1;
     min-width: 0;
 }

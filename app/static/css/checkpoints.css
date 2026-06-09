@@ -43,14 +43,14 @@
     gap: 0.5rem;
 }
 
-.company-info {
+.checkpoints-company-info {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
 }
 
-.ticker-badge {
+.checkpoints-ticker-badge {
     background: var(--primary, #2563eb);
     color: white;
     padding: 0.35rem 0.6rem;
@@ -60,7 +60,7 @@
     white-space: nowrap;
 }
 
-.company-name {
+.checkpoints-company-name {
     font-weight: 600;
     color: var(--text-primary, #111827);
 }
@@ -124,7 +124,7 @@
 }
 
 /* Checkpoint Actions */
-.checkpoint-actions {
+.checkpoints-checkpoint-actions {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
@@ -390,7 +390,7 @@
         align-items: flex-start;
     }
 
-    .checkpoint-actions {
+    .checkpoints-checkpoint-actions {
         width: 100%;
     }
 
@@ -399,7 +399,7 @@
         justify-content: center;
     }
 
-    .company-info {
+    .checkpoints-company-info {
         width: 100%;
     }
 

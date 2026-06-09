@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="portfolio-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -307,46 +307,46 @@
             <!-- Summary Stats -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="metric-card">
-                        <div class="metric-icon bg-primary">
+                    <div class="coc-analytics-metric-card">
+                        <div class="coc-analytics-metric-icon bg-primary">
                             <i class="bi bi-building"></i>
                         </div>
                         <div class="metric-content">
-                            <div class="metric-value">{{ coc_total_companies }}</div>
-                            <div class="metric-label">Companies Analyzed</div>
+                            <div class="coc-analytics-metric-value">{{ coc_total_companies }}</div>
+                            <div class="coc-analytics-metric-label">Companies Analyzed</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="metric-card">
-                        <div class="metric-icon bg-success">
+                    <div class="coc-analytics-metric-card">
+                        <div class="coc-analytics-metric-icon bg-success">
                             <i class="bi bi-bullseye"></i>
                         </div>
                         <div class="metric-content">
-                            <div class="metric-value">{{ coc_overall_confidence }}%</div>
-                            <div class="metric-label">CoC Confidence</div>
+                            <div class="coc-analytics-metric-value">{{ coc_overall_confidence }}%</div>
+                            <div class="coc-analytics-metric-label">CoC Confidence</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="metric-card">
-                        <div class="metric-icon bg-info">
+                    <div class="coc-analytics-metric-card">
+                        <div class="coc-analytics-metric-icon bg-info">
                             <i class="bi bi-check-circle"></i>
                         </div>
                         <div class="metric-content">
-                            <div class="metric-value">{{ coc_total_within }}</div>
-                            <div class="metric-label">Within Competence</div>
+                            <div class="coc-analytics-metric-value">{{ coc_total_within }}</div>
+                            <div class="coc-analytics-metric-label">Within Competence</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="metric-card">
-                        <div class="metric-icon bg-warning">
+                    <div class="coc-analytics-metric-card">
+                        <div class="coc-analytics-metric-icon bg-warning">
                             <i class="bi bi-clock-history"></i>
                         </div>
                         <div class="metric-content">
-                            <div class="metric-value">{{ coc_total_hours }}h</div>
-                            <div class="metric-label">Total Research Time</div>
+                            <div class="coc-analytics-metric-value">{{ coc_total_hours }}h</div>
+                            <div class="coc-analytics-metric-label">Total Research Time</div>
                         </div>
                     </div>
                 </div>
@@ -456,7 +456,7 @@
                                 <div class="sectors-grid">
                                     {% for sector in sectors_by_competence.expert %}
                                     <div class="sector-card expert-sector">
-                                        <div class="sector-card-header">
+                                        <div class="coc-analytics-sector-card-header">
                                             <h5 class="sector-name">{{ sector.name }}</h5>
                                             <span class="competence-badge-sm bg-success">Expert</span>
                                         </div>
@@ -495,7 +495,7 @@
                                 <div class="sectors-grid">
                                     {% for sector in sectors_by_competence.proficient %}
                                     <div class="sector-card proficient-sector">
-                                        <div class="sector-card-header">
+                                        <div class="coc-analytics-sector-card-header">
                                             <h5 class="sector-name">{{ sector.name }}</h5>
                                             <span class="competence-badge-sm bg-info">Proficient</span>
                                         </div>
@@ -534,7 +534,7 @@
                                 <div class="sectors-grid">
                                     {% for sector in sectors_by_competence.developing %}
                                     <div class="sector-card developing-sector">
-                                        <div class="sector-card-header">
+                                        <div class="coc-analytics-sector-card-header">
                                             <h5 class="sector-name">{{ sector.name }}</h5>
                                             <span class="competence-badge-sm bg-warning">Developing</span>
                                         </div>
@@ -573,7 +573,7 @@
                                 <div class="sectors-grid">
                                     {% for sector in sectors_by_competence.novice %}
                                     <div class="sector-card novice-sector">
-                                        <div class="sector-card-header">
+                                        <div class="coc-analytics-sector-card-header">
                                             <h5 class="sector-name">{{ sector.name }}</h5>
                                             <span class="competence-badge-sm bg-secondary">Novice</span>
                                         </div>
@@ -603,7 +603,7 @@
                             {% endif %}
 
                             {% else %}
-                            <div class="empty-state text-center py-5">
+                            <div class="coc-analytics-empty-state text-center py-5">
                                 <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
                                 <p class="text-muted mt-3">No sector data available yet.<br>Start researching companies to build your competence map.</p>
                             </div>

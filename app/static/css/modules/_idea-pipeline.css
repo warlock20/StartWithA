@@ -9,24 +9,24 @@
    EMPTY STATE
    ======================================== */
 
-.empty-state {
+.idea-pipeline-empty-state {
     text-align: center;
     padding: 5rem 2rem;
 }
 
-.empty-state i {
+.idea-pipeline-empty-state i {
     font-size: 6rem;
     color: #d1d5db;
 }
 
-.empty-state h3 {
+.idea-pipeline-empty-state h3 {
     margin-top: 1.5rem;
     font-size: 1.5rem;
     font-weight: 600;
     color: #374151;
 }
 
-.empty-state p {
+.idea-pipeline-empty-state p {
     color: #6b7280;
     max-width: 500px;
     margin: 1rem auto;
@@ -542,7 +542,7 @@
     gap: 2rem;
 }
 
-.sidebar-card {
+.idea-pipeline-sidebar-card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -550,13 +550,13 @@
     padding: 1.5rem;
 }
 
-.sidebar-card-title {
+.idea-pipeline-sidebar-card-title {
     font-size: 1.25rem;
     font-weight: 700;
     margin-bottom: 1rem;
 }
 
-.insights-grid {
+.idea-pipeline-insights-grid {
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -578,7 +578,7 @@
     border-color: #bfdbfe;
 }
 
-.insight-title {
+.idea-pipeline-insight-title {
     font-size: 0.875rem;
     font-weight: 600;
     margin: 0;
@@ -586,11 +586,11 @@
     align-items: center;
 }
 
-.insight-success .insight-title {
+.insight-success .idea-pipeline-insight-title {
     color: #166534;
 }
 
-.insight-used .insight-title {
+.insight-used .idea-pipeline-insight-title {
     color: #1e40af;
 }
 
@@ -964,21 +964,21 @@
     border-bottom: 1px solid var(--border-color);
 }
 
-.template-stat-item {
+.idea-pipeline-template-stat-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
 
-.template-stat-value {
+.idea-pipeline-template-stat-value {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--gray-900);
     line-height: 1;
 }
 
-.template-stat-label {
+.idea-pipeline-template-stat-label {
     font-size: 0.6875rem;
     color: var(--gray-600);
     margin-top: 0.375rem;
@@ -987,7 +987,7 @@
     gap: 0.25rem;
 }
 
-.template-stat-label i {
+.idea-pipeline-template-stat-label i {
     font-size: 0.75rem;
 }
 

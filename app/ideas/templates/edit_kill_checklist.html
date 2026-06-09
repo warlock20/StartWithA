@@ -1,7 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="research-workspace-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -52,7 +52,7 @@
             <form method="POST" action="{{ url_for('ideas.edit_kill_checklist', checklist_id=checklist.id) }}" id="killChecklistForm">
                 <!-- Checklist Details -->
                 <div class="checklist-details-section mb-4">
-                    <h5 class="section-title font-poppins mb-3">
+                    <h5 class="generate-document-section-title font-poppins mb-3">
                         <i class="bi bi-info-circle me-2"></i>Checklist Details
                     </h5>
                     <div class="row mb-3">
@@ -90,7 +90,7 @@
                 <div class="criteria-section">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
-                            <h5 class="section-title font-poppins mb-1">
+                            <h5 class="generate-document-section-title font-poppins mb-1">
                                 <i class="bi bi-list-check me-2"></i>Kill Criteria
                             </h5>
                             <p class="text-muted mb-0 small">

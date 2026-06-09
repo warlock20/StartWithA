@@ -288,7 +288,7 @@
 }
 
 /* Template Card */
-.template-card {
+.idea-promote-template-card {
     position: relative;
     background: white;
     border: 2px solid var(--gray-200);
@@ -298,25 +298,25 @@
     transition: all var(--transition-normal);
 }
 
-.template-card:hover {
+.idea-promote-template-card:hover {
     border-color: var(--gray-300);
     transform: translateY(-2px);
     box-shadow: var(--shadow-medium);
 }
 
-.template-card.selected {
+.idea-promote-template-card.selected {
     border-color: var(--success-500);
     background: linear-gradient(135deg, var(--success-50) 0%, #f8fff9 100%);
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
-.template-card input[type="radio"] {
+.idea-promote-template-card input[type="radio"] {
     position: absolute;
     opacity: 0;
     pointer-events: none;
 }
 
-.template-card-header {
+.idea-promote-template-card-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -336,7 +336,7 @@
     transition: all var(--transition-normal);
 }
 
-.template-card.selected .template-card-icon {
+.idea-promote-template-card.selected .template-card-icon {
     background: var(--success-500);
     color: white;
 }
@@ -356,7 +356,7 @@
     transition: all var(--transition-normal);
 }
 
-.template-card.selected .template-card-check {
+.idea-promote-template-card.selected .template-card-check {
     opacity: 1;
     transform: scale(1);
 }
@@ -650,17 +650,17 @@
     }
 }
 
-.template-card {
+.idea-promote-template-card {
     animation: fadeIn 0.3s ease-out;
     animation-fill-mode: both;
 }
 
-.template-card:nth-child(1) { animation-delay: 0.05s; }
-.template-card:nth-child(2) { animation-delay: 0.1s; }
-.template-card:nth-child(3) { animation-delay: 0.15s; }
-.template-card:nth-child(4) { animation-delay: 0.2s; }
-.template-card:nth-child(5) { animation-delay: 0.25s; }
-.template-card:nth-child(6) { animation-delay: 0.3s; }
+.idea-promote-template-card:nth-child(1) { animation-delay: 0.05s; }
+.idea-promote-template-card:nth-child(2) { animation-delay: 0.1s; }
+.idea-promote-template-card:nth-child(3) { animation-delay: 0.15s; }
+.idea-promote-template-card:nth-child(4) { animation-delay: 0.2s; }
+.idea-promote-template-card:nth-child(5) { animation-delay: 0.25s; }
+.idea-promote-template-card:nth-child(6) { animation-delay: 0.3s; }
 
 @keyframes fadeIn {
     from { opacity: 0; }

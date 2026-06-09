@@ -1,7 +1,7 @@
 {% extends "main/_base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="research-workspace-dashboard-container">
     <!-- Header -->
     <div class="dashboard-header-card">
         <header class="dashboard-header">
@@ -61,7 +61,7 @@
     <!-- Sector Notebooks Section -->
     {% if sector_analyses %}
     <div class="sectors-section">
-        <h2 class="section-title font-poppins mb-4">
+        <h2 class="generate-document-section-title font-poppins mb-4">
             {% if status_filter == 'archived' %}
                 Archived Notebooks
             {% else %}
@@ -72,7 +72,7 @@
             {% for analysis in sector_analyses %}
             <div class="sector-notebook-card">
                 <a href="{{ url_for('sectors.notebook', sector_name=analysis.sector.slug) }}" class="sector-card-link">
-                    <div class="sector-card-header">
+                    <div class="sector-analysis-sector-card-header">
                         <div class="sector-icon">
                             <i class="bi bi-journal-text"></i>
                         </div>

@@ -64,7 +64,7 @@
 }
 
 /* Page Container - Distinct styling for dashboard pages */
-.dashboard-container {
+.portfolio-dashboard-container {
     /*max-width: 1400px; */
     margin: 0 auto;
     padding: 1.5rem 2rem;
@@ -75,16 +75,16 @@
     max-width: 100%; /* Prevent overflow */
 }
 
-.dashboard-container > * {
+.portfolio-dashboard-container > * {
     max-width: 100%; /* Ensure children don't overflow */
 }
 
 /* Ensure grid layouts within dashboard respect boundaries */
-.dashboard-container .knowledge-stats-bar,
-.dashboard-container .knowledge-insights-grid,
-.dashboard-container .knowledge-filter-grid,
-.dashboard-container .dashboard-main-grid,
-.dashboard-container .nav-grid {
+.portfolio-dashboard-container .knowledge-stats-bar,
+.portfolio-dashboard-container .knowledge-insights-grid,
+.portfolio-dashboard-container .knowledge-filter-grid,
+.portfolio-dashboard-container .dashboard-main-grid,
+.portfolio-dashboard-container .nav-grid {
     max-width: 100%;
     width: 100%;
 }
@@ -121,7 +121,7 @@
 }
 
 /* Section Title */
-.section-title {
+.dashboard-section-title {
     font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--gray-900);
@@ -352,7 +352,7 @@
 }
 
 /* Framework Card with Gradient Background */
-.framework-card {
+.dashboard-framework-card {
     background: linear-gradient(145deg, #ffffff, #f9fafb) !important;
 }
 
@@ -496,11 +496,11 @@
 }
 
 /* Sidebar Components */
-.sidebar-card {
+.dashboard-sidebar-card {
     margin-bottom: 2rem;
 }
 
-.sidebar-card-title {
+.dashboard-sidebar-card-title {
     font-size: 1.25rem;
     font-weight: 700;
     color: #111827;
@@ -586,11 +586,11 @@
 }
 
 @media (max-width: 768px) {
-    .dashboard-container {
+    .portfolio-dashboard-container {
         border-radius: 0;
     }
 
-    .dashboard-container {
+    .portfolio-dashboard-container {
         padding: 1rem;
     }
 
@@ -789,7 +789,7 @@
 }
 
 /* Template Card */
-.template-card {
+.dashboard-template-card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -800,7 +800,7 @@
     overflow: hidden;
 }
 
-.template-card:hover {
+.dashboard-template-card:hover {
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07), 0 3px 6px rgba(0, 0, 0, 0.05);
     transform: translateY(-4px);
 }
@@ -810,7 +810,7 @@
 }
 
 /* Template Card Header */
-.template-card-header {
+.dashboard-template-card-header {
     padding: 1.25rem;
     background: linear-gradient(145deg, #ffffff, #f9fafb);
     border-bottom: 1px solid #e5e7eb;
@@ -911,7 +911,7 @@
 }
 
 /* Template Stats */
-.template-stats {
+.dashboard-template-stats {
     display: flex;
     justify-content: space-around;
     padding: 1rem 0;
@@ -920,11 +920,11 @@
     margin-bottom: 1rem;
 }
 
-.template-stat-item {
+.dashboard-template-stat-item {
     text-align: center;
 }
 
-.template-stat-value {
+.dashboard-template-stat-value {
     display: block;
     font-size: 1.5rem;
     font-weight: 700;
@@ -933,7 +933,7 @@
     margin-bottom: 0.25rem;
 }
 
-.template-stat-label {
+.dashboard-template-stat-label {
     display: block;
     font-size: 0.75rem;
     color: #6b7280;
@@ -1143,7 +1143,7 @@
     margin-bottom: 1rem;
 }
 
-.project-info-item {
+.dashboard-project-info-item {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -1452,7 +1452,7 @@
     margin: 0;
 }
 
-.action-badge {
+.dashboard-action-badge {
     font-size: 0.625rem;
     font-weight: 700;
     padding: 0.125rem 0.5rem;
@@ -1682,19 +1682,19 @@
 
 /* Enable horizontal scrolling for data tables on mobile */
 @media (max-width: 768px) {
-    .data-table-wrapper {
+    .dashboard-data-table-wrapper {
         position: relative;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
 
     /* Set minimum width so fitColumns doesn't squeeze columns on small screens */
-    .data-table-wrapper .tabulator {
+    .dashboard-data-table-wrapper .tabulator {
         min-width: 700px;
     }
 
     /* Gradient shadow on right edge signals "more content" */
-    .data-table-wrapper::after {
+    .dashboard-data-table-wrapper::after {
         content: '';
         position: absolute;
         top: 0;
@@ -1709,7 +1709,7 @@
     }
 
     /* Hide indicator when user scrolls to end */
-    .data-table-wrapper.scrolled-end::after {
+    .dashboard-data-table-wrapper.scrolled-end::after {
         opacity: 0;
     }
 }

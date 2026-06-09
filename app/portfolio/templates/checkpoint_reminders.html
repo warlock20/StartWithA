@@ -36,7 +36,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="portfolio-dashboard-container">
 
     <!-- Page Header -->
     <div class="dashboard-header-card">
@@ -150,9 +150,9 @@
         <div class="rcl-panel-body">{% for cp in checkpoints.overdue %}
         <div class="checkpoint-card overdue">
             <div class="checkpoint-header">
-                <div class="company-info">
-                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
-                    <span class="company-name">{{ cp.company_name }}</span>
+                <div class="checkpoints-company-info">
+                    <span class="checkpoints-ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="checkpoints-company-name">{{ cp.company_name }}</span>
                 </div>
                 <span class="date-badge overdue">
                     <i class="bi bi-clock me-1"></i>{{ cp.days_until|abs }} days overdue
@@ -170,7 +170,7 @@
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
-                <div class="checkpoint-actions">
+                <div class="checkpoints-checkpoint-actions">
                     <button type="button" class="btn-portfolio-action success" onclick="updateCheckpointStatus({{ cp.id }}, 'Met')">
                         <i class="bi bi-check-lg"></i> Met
                     </button>
@@ -201,9 +201,9 @@
         {% for cp in checkpoints.this_week %}
         <div class="checkpoint-card this-week">
             <div class="checkpoint-header">
-                <div class="company-info">
-                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
-                    <span class="company-name">{{ cp.company_name }}</span>
+                <div class="checkpoints-company-info">
+                    <span class="checkpoints-ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="checkpoints-company-name">{{ cp.company_name }}</span>
                 </div>
                 <span class="date-badge this-week">
                     <i class="bi bi-calendar-event me-1"></i>
@@ -224,7 +224,7 @@
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
-                <div class="checkpoint-actions">
+                <div class="checkpoints-checkpoint-actions">
                     <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action primary">
                         <i class="bi bi-eye"></i> View Position
                     </a>
@@ -249,9 +249,9 @@
         <div class="rcl-panel-body">{% for cp in checkpoints.this_month %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
-                <div class="company-info">
-                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
-                    <span class="company-name">{{ cp.company_name }}</span>
+                <div class="checkpoints-company-info">
+                    <span class="checkpoints-ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="checkpoints-company-name">{{ cp.company_name }}</span>
                 </div>
                 <span class="date-badge upcoming">
                     <i class="bi bi-calendar me-1"></i>In {{ cp.days_until }} days
@@ -269,7 +269,7 @@
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
-                <div class="checkpoint-actions">
+                <div class="checkpoints-checkpoint-actions">
                     <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>
@@ -295,9 +295,9 @@
         {% for cp in checkpoints.next_3_months %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
-                <div class="company-info">
-                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
-                    <span class="company-name">{{ cp.company_name }}</span>
+                <div class="checkpoints-company-info">
+                    <span class="checkpoints-ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="checkpoints-company-name">{{ cp.company_name }}</span>
                 </div>
                 <span class="date-badge upcoming">
                     <i class="bi bi-calendar me-1"></i>In {{ cp.days_until }} days
@@ -315,7 +315,7 @@
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
-                <div class="checkpoint-actions">
+                <div class="checkpoints-checkpoint-actions">
                     <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>
@@ -341,9 +341,9 @@
         {% for cp in checkpoints.beyond %}
         <div class="checkpoint-card upcoming">
             <div class="checkpoint-header">
-                <div class="company-info">
-                    <span class="ticker-badge">{{ cp.company_ticker }}</span>
-                    <span class="company-name">{{ cp.company_name }}</span>
+                <div class="checkpoints-company-info">
+                    <span class="checkpoints-ticker-badge">{{ cp.company_ticker }}</span>
+                    <span class="checkpoints-company-name">{{ cp.company_name }}</span>
                 </div>
                 <span class="date-badge upcoming">
                     <i class="bi bi-calendar me-1"></i>In {{ cp.days_until }} days
@@ -361,7 +361,7 @@
                 <small class="text-muted">
                     <i class="bi bi-calendar me-1"></i>Target: {{ cp.target_date.strftime('%b %d, %Y') }}
                 </small>
-                <div class="checkpoint-actions">
+                <div class="checkpoints-checkpoint-actions">
                     <a href="{{ url_for('companies.company_detail', company_id=cp.company_id) }}" class="btn-portfolio-action">
                         <i class="bi bi-eye"></i> View Position
                     </a>

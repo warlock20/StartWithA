@@ -206,7 +206,7 @@
 }
 
 /* Action Buttons */
-.checkpoint-actions {
+.checkpoint-edit-checkpoint-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -335,7 +335,7 @@
         padding: 1.5rem;
     }
 
-    .checkpoint-actions {
+    .checkpoint-edit-checkpoint-actions {
         flex-direction: column-reverse;
         gap: 0.75rem;
     }
