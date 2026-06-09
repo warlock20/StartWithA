@@ -40,21 +40,21 @@
                 </div>
             </div>
             <div class="dashboard-header-actions">
-                {% with btn_class='position-btn' %}{% include 'components/smart_back_button.html' %}{% endwith %}
+                {% with btn_class='action-btn' %}{% include 'components/smart_back_button.html' %}{% endwith %}
                 <a href="{{ url_for('portfolio.add_thesis_version', company_id=company.id) }}"
-                    class="position-btn primary">
+                    class="action-btn primary">
                     <i class="bi bi-lightbulb"></i> Update Thesis
                 </a>
-                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="position-btn">
+                <a href="{{ url_for('companies.destination_analysis', company_id=company.id) }}" class="action-btn">
                     <i class="bi bi-flag"></i> Checkpoints
                 </a>
-                <button type="button" class="position-btn"
+                <button type="button" class="action-btn"
                     onclick="document.getElementById('exportModal').classList.add('show'); document.body.style.overflow='hidden';">
                     <i class="bi bi-download"></i> Export
                 </button>
                 {% if research_project and research_project.status == 'active' %}
                 <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_project.id) }}"
-                    class="position-btn primary">
+                    class="action-btn primary">
                     <i class="bi bi-arrow-right"></i> Continue Research
                 </a>
                 {% endif %}
@@ -272,8 +272,8 @@
                 </div>
             </div>
             <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-                <button type="button" class="position-btn" onclick="hideValuationModal()">Cancel</button>
-                <button type="submit" class="position-btn primary">
+                <button type="button" class="action-btn" onclick="hideValuationModal()">Cancel</button>
+                <button type="submit" class="action-btn primary">
                     <i class="bi bi-save"></i> Save Intrinsic Value
                 </button>
             </div>
@@ -346,8 +346,8 @@
                 </div>
             </div>
             <div class="thesis-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-                <button type="button" class="position-btn" onclick="hideExportModal()">Cancel</button>
-                <button type="submit" class="position-btn primary">
+                <button type="button" class="action-btn" onclick="hideExportModal()">Cancel</button>
+                <button type="submit" class="action-btn primary">
                     <i class="bi bi-download"></i> Download ZIP
                 </button>
             </div>

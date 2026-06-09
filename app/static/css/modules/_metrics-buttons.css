@@ -99,7 +99,7 @@
 /* =============================================================================
    POSITION BUTTONS - Shared action buttons (promoted from _position-detail.css)
    ============================================================================= */
-.position-btn {
+.action-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -114,31 +114,31 @@
     color: var(--text-secondary);
 }
 
-.position-btn:hover {
+.action-btn:hover {
     background: var(--gray-50);
     border-color: var(--border-light);
     color: var(--text-primary);
 }
 
-.position-btn--active {
+.action-btn--active {
     background: var(--primary-50, #eff6ff);
     border-color: var(--primary-400, #60a5fa);
     color: var(--primary-700, #1d4ed8);
 }
 
-.position-btn--active:hover {
+.action-btn--active:hover {
     background: var(--primary-100, #dbeafe);
     border-color: var(--primary-500, #3b82f6);
     color: var(--primary-800, #1e40af);
 }
 
-.position-btn.primary {
+.action-btn.primary {
     background: var(--primary-600);
     border-color: var(--primary-600);
     color: white;
 }
 
-.position-btn.primary:hover {
+.action-btn.primary:hover {
     background: var(--primary-700);
     border-color: var(--primary-700);
 }

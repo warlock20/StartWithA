@@ -191,7 +191,7 @@ export function StandaloneQA({ companyId, companyName }) {
         </h5>
         <button
           type="button"
-          className="position-btn primary"
+          className="action-btn primary"
           onClick={() => setShowAddForm(true)}
         >
           <i className="bi bi-plus-circle me-1" /> Add Question
@@ -215,7 +215,7 @@ export function StandaloneQA({ companyId, companyName }) {
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button
                 type="button"
-                className="position-btn"
+                className="action-btn"
                 onClick={() => {
                   setShowAddForm(false);
                   setNewQuestionText('');
@@ -223,7 +223,7 @@ export function StandaloneQA({ companyId, companyName }) {
               >
                 Cancel
               </button>
-              <button type="button" className="position-btn primary" onClick={createQuestion}>
+              <button type="button" className="action-btn primary" onClick={createQuestion}>
                 <i className="bi bi-plus me-1" /> Add
               </button>
             </div>

@@ -15,15 +15,15 @@
                 {% endif %}
             </div>
             <div class="dashboard-header-actions">
-                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
                 {% if template %}
-                <a href="javascript:history.back()" class="position-btn">
+                <a href="javascript:history.back()" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
                 {% else %}
-                <a href="{{ url_for('research_workflow.template_list') }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.template_list') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
                 {% endif %}
@@ -106,14 +106,14 @@
                         <!-- Submit buttons -->
                         <div class="d-flex justify-content-between mt-4">
                             {% if template %}
-                            <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
+                            <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
                                 <i class="bi bi-x"></i> Cancel
                             </a>
                             <button type="submit" class="eval-submit-btn">
                                 <i class="bi bi-save"></i> Save Changes
                             </button>
                             {% else %}
-                            <a href="{{ url_for('research_workflow.template_list') }}" class="position-btn">
+                            <a href="{{ url_for('research_workflow.template_list') }}" class="action-btn">
                                 <i class="bi bi-x"></i> Cancel
                             </a>
                             <button type="submit" class="eval-submit-btn">

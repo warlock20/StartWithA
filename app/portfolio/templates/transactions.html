@@ -16,10 +16,10 @@
                 <p class="dashboard-subtitle">{{ transactions|length }} transaction{{ 's' if transactions|length != 1 else '' }} recorded</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="action-btn">
                     <i class="bi bi-briefcase"></i> Portfolio
                 </a>
-                <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
             </div>
@@ -49,7 +49,7 @@
         <h5>No transactions yet</h5>
         <p>Add your first transaction to start tracking your portfolio.</p>
         <div class="rcl-empty-actions">
-            <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+            <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                 <i class="bi bi-plus"></i> Add Transaction
             </a>
         </div>

@@ -49,44 +49,44 @@
             <div class="dashboard-header-actions">
                 {% if project.status == 'active' %}
                 <form method="POST" action="{{ url_for('research_workflow.pin_project', project_id=project.id) }}" class="d-inline">
-                    <button type="submit" class="position-btn{% if is_pinned %} position-btn--active{% endif %}"
+                    <button type="submit" class="action-btn{% if is_pinned %} action-btn--active{% endif %}"
                             title="{{ 'Unpin — focus will be chosen automatically' if is_pinned else 'Pin as your current focus. Overrides automatic priority ranking on the dashboard.' }}">
                         <i class="bi bi-pin-angle{% if is_pinned %}-fill{% endif %}"></i> {{ 'Pinned' if is_pinned else 'Pin as Focus' }}
                     </button>
                 </form>
                 {% endif %}
-                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#tipsModal">
                     <i class="bi bi-lightbulb"></i> Tips
                 </button>
-                <a href="{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.edit_project_workflow', project_id=project.id) }}" class="action-btn">
                     <i class="bi bi-pencil-square"></i> Edit Workflow
                 </a>
                 {% if project.status == 'active' and project.decision != 'watchlist' %}
-                <button class="position-btn" data-bs-toggle="modal" data-bs-target="#watchlistModal">
+                <button class="action-btn" data-bs-toggle="modal" data-bs-target="#watchlistModal">
                     <i class="bi bi-eye"></i> Move to Watchlist
                 </button>
                 {% elif project.status == 'active' and project.decision == 'watchlist' %}
                 <form method="POST" action="{{ url_for('research_workflow.remove_from_watchlist', project_id=project.id) }}" class="d-inline">
-                    <button type="submit" class="position-btn position-btn--active" onclick="return confirm('Remove from watchlist and return to active research?')">
+                    <button type="submit" class="action-btn action-btn--active" onclick="return confirm('Remove from watchlist and return to active research?')">
                         <i class="bi bi-eye-slash"></i> Remove from Watchlist
                     </button>
                 </form>
                 {% endif %}
                 {% if project.status == 'active' %}
-                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.mark_too_hard', project_id=project.id) }}" class="action-btn">
                     <i class="bi bi-archive"></i> Mark as Too Hard
                 </a>
                 {% elif project.decision == 'pass' %}
                 <form method="POST" action="{{ url_for('research_workflow.reactivate_project', project_id=project.id) }}" class="d-inline">
-                    <button type="submit" class="position-btn" onclick="return confirm('Reactivate this research project?')">
+                    <button type="submit" class="action-btn" onclick="return confirm('Reactivate this research project?')">
                         <i class="bi bi-arrow-counterclockwise"></i> Reactivate Research
                     </button>
                 </form>
                 {% endif %}
-                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.export_project', project_id=project.id) }}" class="action-btn">
                     <i class="bi bi-download"></i> Export
                 </a>
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Back to My Projects
                 </a>
             </div>

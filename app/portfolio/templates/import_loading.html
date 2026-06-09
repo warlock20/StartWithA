@@ -104,7 +104,7 @@ function checkTaskStatus() {
             } else if (data.state === 'FAILURE') {
                 document.getElementById('statusMessage').innerHTML =
                     '<i class="bi bi-x-circle"></i> Import failed: ' + (data.error || 'Unknown error') +
-                    '<br><br><a href="' + dashboardUrl + '" class="position-btn" style="display:inline-block; margin-top:10px;">Back to Dashboard</a>';
+                    '<br><br><a href="' + dashboardUrl + '" class="action-btn" style="display:inline-block; margin-top:10px;">Back to Dashboard</a>';
                 document.getElementById('statusMessage').style.background = '#fee2e2';
                 document.getElementById('statusMessage').style.color = '#991b1b';
             } else {

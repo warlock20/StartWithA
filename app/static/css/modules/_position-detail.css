@@ -28,7 +28,7 @@
     color: var(--text-muted);
 }
 
-/* .position-btn promoted to _metrics-buttons.css (Phase 3 split — shared across all bundles) */
+/* .action-btn promoted to _metrics-buttons.css (Phase 3 split — shared across all bundles) */
 
 /* =============================================================================
    METRIC CONTENT STYLES - Used inside dashboard-metrics-strip
@@ -691,7 +691,7 @@
     background: var(--background-white);
 }
 
-.position-quick-note-actions .position-btn {
+.position-quick-note-actions .action-btn {
     margin-left: auto;
 }
 

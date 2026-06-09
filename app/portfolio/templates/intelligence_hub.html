@@ -15,13 +15,13 @@
                 <p class="dashboard-subtitle">Your central command for portfolio insights, patterns, and actionable intelligence</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.decision_journal_list') }}" class="action-btn">
                     <i class="bi bi-journal-bookmark-fill"></i> Decision Journal
                 </a>
-                <a href="{{ url_for('portfolio.dashboard') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.dashboard') }}" class="action-btn">
                     <i class="bi bi-briefcase"></i> Portfolio
                 </a>
-                <a href="{{ url_for('portfolio.add_transaction') }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.add_transaction') }}" class="action-btn primary">
                     <i class="bi bi-plus"></i> Add Transaction
                 </a>
             </div>
@@ -74,7 +74,7 @@
                 <i class="bi bi-{{ alert.icon }}"></i>
                 <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                 <div class="dashboard-alert-card__actions">
-                    <a href="{{ alert.link }}" class="position-btn">{{ alert.action }}</a>
+                    <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
                     {% if loop.last and alerts|length > 2 %}
                     <div class="dashboard-alerts-more">
                         +{{ alerts|length - 2 }} more
@@ -92,7 +92,7 @@
                     <i class="bi bi-{{ alert.icon }}"></i>
                     <span class="dashboard-alert-card__text">{{ alert.message }}</span>
                     <div class="dashboard-alert-card__actions">
-                        <a href="{{ alert.link }}" class="position-btn">{{ alert.action }}</a>
+                        <a href="{{ alert.link }}" class="action-btn">{{ alert.action }}</a>
                     </div>
                 </div>
                 {% endfor %}

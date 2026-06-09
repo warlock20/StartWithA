@@ -17,10 +17,10 @@
                 <p class="dashboard-subtitle">{{ company_count }} compan{{ 'ies' if company_count != 1 else 'y' }} across all research</p>
             </div>
             <div class="dashboard-header-actions">
-                {% with btn_class='position-btn' %}
+                {% with btn_class='action-btn' %}
                     {% include 'components/smart_back_button.html' %}
                 {% endwith %}
-                <a href="{{ url_for('companies.new_company') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+                <a href="{{ url_for('companies.new_company') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                     <i class="bi bi-plus-circle-fill"></i> Add Company
                 </a>
             </div>
@@ -242,7 +242,7 @@
         <h5>No Companies Yet</h5>
         <p>Start building your investment research database by adding your first company.</p>
         <div class="rcl-empty-actions">
-            <a href="{{ url_for('companies.new_company') }}" class="position-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
+            <a href="{{ url_for('companies.new_company') }}" class="action-btn" style="background: var(--accent-color); color: white; border-color: var(--accent-color);">
                 <i class="bi bi-plus-circle-fill"></i> Add Your First Company
             </a>
         </div>

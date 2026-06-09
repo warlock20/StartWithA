@@ -109,7 +109,7 @@ export function JournalEntries({ companyId, newEntryUrl }) {
             fontSize: '0.9375rem',
           }}
         />
-        <a href={newEntryUrl} className="position-btn primary">
+        <a href={newEntryUrl} className="action-btn primary">
           <i className="bi bi-plus-circle" /> New Entry
         </a>
       </div>
@@ -139,7 +139,7 @@ export function JournalEntries({ companyId, newEntryUrl }) {
             Journal entries are timestamped observations, earnings reactions, and thesis updates.
           </p>
           <div className="journey-empty-actions">
-            <a href={newEntryUrl} className="position-btn primary">
+            <a href={newEntryUrl} className="action-btn primary">
               <i className="bi bi-plus-circle" /> Write First Entry
             </a>
           </div>

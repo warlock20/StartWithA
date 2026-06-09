@@ -15,15 +15,15 @@
                 <p class="dashboard-subtitle">Compare your investment thesis to actual performance</p>
             </div>
             <div class="dashboard-header-actions">
-                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.intelligence_hub') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i>
                     Back to Intelligence Hub
                 </a>
-                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="position-btn">
+                <a href="{{ url_for('portfolio.checkpoint_reminders') }}" class="action-btn">
                     <i class="bi bi-calendar-check"></i>
                     Checkpoints
                 </a>
-                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="position-btn primary">
+                <a href="{{ url_for('portfolio.analytics_decisions') }}" class="action-btn primary">
                     <i class="bi bi-brain"></i>
                     Decision Intelligence
                 </a>
@@ -174,9 +174,9 @@
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
                                         <div class="tr-detail-actions">
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-eye"></i> View Position</a>
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
-                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="position-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="action-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
                                         </div>
                                     </div>
                                     <div class="tr-detail-metrics">
@@ -288,9 +288,9 @@
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
                                         <div class="tr-detail-actions">
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-eye"></i> View Position</a>
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
-                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="position-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('portfolio.add_thesis_version', company_id=p.company_id) }}" class="action-btn" style="background:#f59e0b;color:white;border-color:#f59e0b;"><i class="bi bi-pencil"></i> Update Thesis</a>
                                         </div>
                                     </div>
                                     <div class="tr-detail-metrics">
@@ -401,8 +401,8 @@
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
                                         <div class="tr-detail-actions">
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-eye"></i> View Position</a>
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
                                         </div>
                                     </div>
                                     <div class="tr-detail-metrics">
@@ -513,8 +513,8 @@
                                         <div class="tr-detail-thesis" style="color:var(--text-muted);font-style:italic;">No thesis recorded for this position.</div>
                                         {% endif %}
                                         <div class="tr-detail-actions">
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-eye"></i> View Position</a>
-                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="position-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-eye"></i> View Position</a>
+                                            <a href="{{ url_for('companies.company_detail', company_id=p.company_id) }}" class="action-btn"><i class="bi bi-graph-up"></i> Investment Journey</a>
                                         </div>
                                     </div>
                                     <div class="tr-detail-metrics">

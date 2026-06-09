@@ -16,22 +16,22 @@
             </div>
             <div class="dashboard-header-actions">
                 <a href="{{ url_for('research_workflow.export_session_to_txt', analysis_id=session.id) }}"
-                    class="position-btn">
+                    class="action-btn">
                     <i class="bi bi-download"></i> Export
                 </a>
                 {% if research_context and research_context.get('project_id') %}
                 <a href="{{ url_for('research_workflow.complete_research_step',
                                       project_id=research_context.project_id,
-                                      step_index=research_context.step_index) }}" class="position-btn">
+                                      step_index=research_context.step_index) }}" class="action-btn">
                     <i class="bi bi-check-circle"></i> Complete & Continue
                 </a>
                 {% endif %}
                 {% if research_context and research_context.get('project_id') %}
-                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.project_dashboard', project_id=research_context.project_id) }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Back to Project
                 </a>
                 {% else %}
-                <a href="{{ url_for('research_workflow.my_projects') }}" class="position-btn">
+                <a href="{{ url_for('research_workflow.my_projects') }}" class="action-btn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
                 {% endif %}
