@@ -41,6 +41,7 @@ mockups/
 # ── Misc ──
 *.bak
 TODOs/
+scripts/*
 
 # ── Files with local overrides (tracked but ignored locally) ──
 app/portfolio/routes.py

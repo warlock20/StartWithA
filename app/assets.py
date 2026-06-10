@@ -1,3 +1,19 @@
+# Investment Checklist Platform
+# Copyright (C) 2024-2026 Kiran Mathews
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 """Flask-Assets configuration — CSS bundling and minification.
 
 Splits CSS into 4 page-group bundles:
@@ -42,6 +58,7 @@ css_core = Bundle(
     # Shared page layout & metrics (used across all bundles)
     'css/modules/_page-layout.css',
     'css/modules/_metrics-buttons.css',
+    'css/modules/_research-command-center.css',
 
     # Page-level core
     'css/modules/_auth.css',
@@ -80,7 +97,6 @@ css_companies = Bundle(
     'css/modules/_focus-mode.css',
     'css/modules/_page-selector.css',
     'css/modules/_research-projects.css',
-    'css/modules/_research-command-center.css',
     'css/modules/_research-focus.css',
     'css/modules/_ai-research-assistant.css',
     'css/modules/_generate-document.css',
@@ -97,7 +113,6 @@ css_companies = Bundle(
     'css/modules/_idea-promote.css',
     'css/modules/_idea-pipeline.css',
     'css/modules/_idea-inbox.css',
-    'css/modules/_pipeline-flow.css',
     'css/modules/_market-sweep.css',
     'css/modules/_recommendations.css',
     'css/modules/_project-dashboard.css',
@@ -111,6 +126,7 @@ css_companies = Bundle(
 # PORTFOLIO — dashboard, portfolio, analytics
 # ---------------------------------------------------------------------------
 css_portfolio = Bundle(
+    'css/modules/_pipeline-flow.css',
     'css/modules/_portfolio-analytics.css',
     'css/modules/_position-detail.css',
     'css/modules/_analytics-hub.css',

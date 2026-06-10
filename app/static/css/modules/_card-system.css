@@ -843,4 +843,134 @@ h1, h2, h3, h4, h5, h6 {
 .rounded-xl-pro { border-radius: var(--radius-xl) !important; }
 
 .transition-pro { transition: all var(--transition-normal) !important; }
+
+/* =============================================================================
+   PROMOTED — Journey badge & empty state (Phase 3 split — shared by companies templates)
+   ============================================================================= */
+.journey-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+.journey-badge.thesis {
+    background: var(--primary-100);
+    color: var(--primary-700);
+}
+
+.journey-badge.current {
+    background: var(--success-500);
+    color: white;
+}
+
+.journey-badge.checkpoint {
+    background: var(--warning-100);
+    color: var(--warning-700);
+}
+
+.journey-badge.transaction {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.journey-badge.transaction.buy {
+    background: var(--success-100);
+    color: var(--success-700);
+}
+
+.journey-badge.transaction.sell {
+    background: var(--danger-100);
+    color: var(--danger-700);
+}
+
+.journey-badge.note {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.journey-badge.finding {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.journey-badge.finding.green {
+    background: var(--success-100);
+    color: var(--success-700);
+}
+
+.journey-badge.finding.red {
+    background: var(--danger-100);
+    color: var(--danger-700);
+}
+
+.journey-badge.decision {
+    background: var(--purple-100);
+    color: var(--purple-700);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.journey-empty-state {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-xl);
+    background: var(--gray-50);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-light);
+}
+
+.journey-empty-state i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--space-md);
+}
+
+.journey-empty-state h4 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.journey-empty-state p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0 0 var(--space-lg) 0;
+}
+
+.journey-empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+}
+
+/* =============================================================================
+   PROMOTED — Learning card (Phase 3 split — shared by learning templates)
+   ============================================================================= */
+.learning-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--background-light);
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    transition: all 0.3s ease;
+}
+
+.learning-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-600);
+}
+
+.learning-card i {
+    font-size: 1.5rem;
+    color: var(--primary-600);
+    margin-top: 0.25rem;
+}
+
 /* =============================================================================
