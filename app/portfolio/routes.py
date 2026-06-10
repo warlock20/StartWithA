@@ -919,9 +919,19 @@ def intelligence_hub():
     wins = [o for o in outcomes if float(o.realized_return_pct) > 0]
     win_rate = (len(wins) / len(outcomes) * 100) if outcomes else 0
     
-    # Checkpoints
-    checkpoint_summary = intel_service.get_checkpoint_summary()
-    
+    # Checkpoints — fetch once, derive summary from the same data
+    checkpoints_data = intel_service.get_upcoming_checkpoints(days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
+    checkpoint_summary = {
+        'overdue_count': len(checkpoints_data.get('overdue', [])),
+        'this_week_count': len(checkpoints_data.get('this_week', [])),
+        'this_month_count': len(checkpoints_data.get('this_month', [])),
+        'next_3_months_count': len(checkpoints_data.get('next_3_months', [])),
+        'beyond_count': len(checkpoints_data.get('beyond', [])),
+        'upcoming_count': len(checkpoints_data.get('this_month', [])) + len(checkpoints_data.get('next_3_months', [])),
+        'total_active': sum(len(v) for v in checkpoints_data.values()),
+        'needs_attention': len(checkpoints_data.get('overdue', [])) > 0
+    }
+
     # Thesis reality
     thesis_positions = intel_service.get_thesis_reality_check()
     needs_attention = len([p for p in thesis_positions if p.status == 'needs_attention'])
@@ -955,8 +965,7 @@ def intelligence_hub():
     # ========================================
     alerts = []
     
-    # Overdue checkpoints
-    checkpoints_data = intel_service.get_upcoming_checkpoints(days_ahead=DEFAULT_CHECKPOINT_LOOKBACK_DAYS)
+    # Overdue checkpoints (reuse checkpoints_data fetched above)
     for cp in checkpoints_data.get('overdue', [])[:3]:
         alerts.append({
             'type': 'danger',

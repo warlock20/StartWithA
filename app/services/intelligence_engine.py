@@ -54,7 +54,7 @@ from app.utils.financial_utils import calculate_cagr
 from sqlalchemy.orm import joinedload
 from app.services.similar_mistakes import get_similar_mistakes_warnings
 from app.services.config_service import get_config
-from app import db
+from app import db, cache
 
 logger = logging.getLogger(__name__)
 
@@ -1327,6 +1327,7 @@ def check_sell_warnings(user_id: int, company_id: int, shares: int) -> List[Warn
     return engine.check_sell_transaction(company_id, shares)
 
 
+@cache.memoize(timeout=300)  # 5-minute cache
 def get_portfolio_warnings(user_id: int) -> List[Warning]:
     """Get general portfolio warnings."""
     engine = IntelligenceEngine(user_id)

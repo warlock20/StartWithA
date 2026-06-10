@@ -62,6 +62,11 @@ class ConfigService:
     _system_cache: Dict[str, Any] = {}
     _cache_timestamp: Optional[datetime] = None
     _cache_ttl_seconds = 300  # 5 minutes
+
+    # Per-request cache for user profiles (avoids repeated DB hits within a request)
+    _user_profile_cache: Dict[int, Optional['UserInvestmentProfile']] = {}
+    _user_profile_cache_timestamp: Optional[datetime] = None
+    _user_profile_cache_ttl_seconds = 60  # 1 minute
     
     # ============================================
     # PUBLIC API
@@ -451,11 +456,26 @@ class ConfigService:
     def _invalidate_cache(cls) -> None:
         """Force cache refresh on next access."""
         cls._cache_timestamp = None
+        cls._user_profile_cache = {}
+        cls._user_profile_cache_timestamp = None
     
     @classmethod
     def _get_user_profile(cls, user_id: int) -> Optional[UserInvestmentProfile]:
-        """Get user's investment profile."""
-        return UserInvestmentProfile.query.filter_by(user_id=user_id).first()
+        """Get user's investment profile (cached to avoid repeated DB hits)."""
+        now = now_utc()
+
+        # Invalidate stale cache
+        if (cls._user_profile_cache_timestamp is None or
+                (now - cls._user_profile_cache_timestamp).total_seconds() > cls._user_profile_cache_ttl_seconds):
+            cls._user_profile_cache = {}
+            cls._user_profile_cache_timestamp = now
+
+        if user_id not in cls._user_profile_cache:
+            cls._user_profile_cache[user_id] = UserInvestmentProfile.query.filter_by(
+                user_id=user_id
+            ).first()
+
+        return cls._user_profile_cache[user_id]
     
     @classmethod
     def _get_category_keys(cls, category: str) -> List[str]:

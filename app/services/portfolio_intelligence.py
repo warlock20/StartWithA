@@ -335,11 +335,13 @@ class PortfolioIntelligenceService:
             PortfolioPosition.is_active == True
         ).scalar_subquery()
 
-        # Get ALL active checkpoints (no date filter!)
+        # Get ALL active checkpoints with eager-loaded company (avoid N+1)
         checkpoints = DestinationCheckpoint.query.filter(
             DestinationCheckpoint.user_id == self.user_id,
             DestinationCheckpoint.company_id.in_(portfolio_company_ids_query),
             DestinationCheckpoint.status == 'Active'
+        ).options(
+            joinedload(DestinationCheckpoint.company)
         ).order_by(DestinationCheckpoint.target_date.asc()).all()
 
         result = {
@@ -753,6 +755,7 @@ def get_correlation_data(user_id: int) -> CorrelationData:
     return service.get_correlation_data()
 
 
+@cache.memoize(timeout=300)  # 5 min — checkpoint status changes infrequently
 def get_upcoming_checkpoints(user_id: int, days_ahead: int = 30) -> Dict[str, List[CheckpointReminder]]:
     """Get upcoming and overdue checkpoints"""
     service = PortfolioIntelligenceService(user_id)
