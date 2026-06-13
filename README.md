@@ -141,6 +141,12 @@ Copy `.env.example` to `.env`. Docker Compose sets `DATABASE_URL` and `REDIS_URL
 
 ---
 
+## Hosted Version
+
+Don't want to self-host? A managed, hosted instance is available — [open a discussion](https://github.com/warlock20/investment-checklist/discussions) to request access.
+
+---
+
 ## Contributing
 
 1. Fork the repo and create a feature branch from `develop`
