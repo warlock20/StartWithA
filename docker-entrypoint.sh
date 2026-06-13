@@ -1,12 +1,10 @@
 #!/bin/bash
 set -e
 
-# Run database migrations (skipped for worker containers)
-if [ "${SKIP_MIGRATIONS:-}" != "true" ]; then
-    echo "Running database setup..."
+echo "Running database setup..."
 
-    # If alembic_version is empty/missing, stamp at head so future migrations work.
-    python -c "
+# If alembic_version is empty/missing, stamp at head so future migrations work.
+python -c "
 from run import app
 from sqlalchemy import text
 with app.app_context():
@@ -22,13 +20,15 @@ with app.app_context():
         except Exception:
             print('NEEDS_STAMP')
 " 2>&1 | grep -q "NEEDS_STAMP" && {
-        echo "No alembic version found. Stamping at head..."
-        flask db stamp head
-    }
+    echo "No alembic version found. Stamping at head..."
+    flask db stamp head
+}
 
-    echo "Running migrations..."
-    flask db upgrade
-fi
+echo "Running migrations..."
+flask db upgrade
 
-echo "Starting: $@"
-exec "$@"
+echo "Starting Celery worker..."
+celery -A celery_app worker --loglevel=info --concurrency=1 &
+
+echo "Starting application..."
+exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --preload run:app

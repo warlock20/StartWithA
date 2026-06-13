@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -34,7 +36,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/investment_checklist
       REDIS_URL: redis://redis:6379/0
-      SESSION_COOKIE_SECURE: "False"
+      PORT: "8000"
     ports:
       - "8000:8000"
     depends_on:
@@ -42,12 +44,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   worker:
     build: .
@@ -56,10 +52,11 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/investment_checklist
       REDIS_URL: redis://redis:6379/0
-      SKIP_MIGRATIONS: "true"
-    command: ["celery", "-A", "celery_app", "worker", "--loglevel=info"]
+    command: celery -A celery_app worker --loglevel=info
     depends_on:
-      web:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
