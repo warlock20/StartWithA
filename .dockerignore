@@ -14,21 +14,17 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Environment / Secrets
-.env
-.env_local
-config_backup.py
-
 # Jupyter Notebooks
 .ipynb_checkpoints
 *.ipynb
 
-# Node (keep package.json & webpack.config.js for Docker build)
+# Web Assets / Node (keep package.json & webpack.config.js for Docker build)
 node_modules/
 frontend/node_modules/
 
 # App Data
 instance/
+instance/uploads/
 *.db
 *.sqlite3
 
@@ -37,20 +33,12 @@ instance/
 *.docx
 *.csv
 *.xlsx
-data/
+data/*.csv
+data/*.xlsx
+data/*.pdf
 docs/
-mockups/
 
 # Tests
 unittests/
+
 tests/
-
-# Database backups
-*.sql
-railway_backup_*
-local_backup_*
-
-# Misc
-*.bak
-TODOs/
-scripts/

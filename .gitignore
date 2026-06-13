@@ -38,10 +38,6 @@ local_backup_*
 docs/
 mockups/
 
-# ── Local utilities ──
-config_backup.py
-sync_db.py
-
 # ── Misc ──
 *.bak
 TODOs/
