@@ -83,7 +83,6 @@ from .journal import (
     JournalTemplate,
     WeeklyReview,
     InvestmentPostMortem,
-    LearningPath,
     PatternRecognition,
 )
 from .portfolio import (
@@ -193,7 +192,6 @@ __all__ = [
     'JournalTemplate',
     'WeeklyReview',
     'InvestmentPostMortem',
-    'LearningPath',
     'PatternRecognition',
     # Portfolio models
     'ExchangeRate',

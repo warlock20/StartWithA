@@ -435,45 +435,6 @@ class InvestmentPostMortem(db.Model):
         return f'<InvestmentPostMortem {self.company_id}>'
 
 
-class LearningPath(db.Model):
-    """
-    Structured learning paths for improving specific skills.
-    """
-    __tablename__ = 'learning_path'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    skill_area = db.Column(db.String(100))  # 'valuation', 'industry_analysis', etc.
-
-    # Path structure
-    total_steps = db.Column(db.Integer)
-    completed_steps = db.Column(db.Integer, default=0)
-
-    # Content
-    learning_resources = db.Column(db.JSON)  # Books, courses, articles
-    practice_exercises = db.Column(db.JSON)  # Practical exercises
-    milestones = db.Column(db.JSON)  # Key milestones to achieve
-
-    # Progress tracking
-    current_step = db.Column(db.Integer, default=1)
-    progress_notes = db.Column(db.JSON)  # Notes for each step
-
-    # Completion
-    started_at = db.Column(db.DateTime)
-    target_completion = db.Column(db.Date)
-    completed_at = db.Column(db.DateTime)
-
-    status = db.Column(db.String(50), default='planned')  # 'planned', 'active', 'completed', 'paused'
-
-    created_at = db.Column(db.DateTime, default=now_utc)
-
-    def __repr__(self):
-        return f'<LearningPath {self.name}>'
-
-
 class PatternRecognition(db.Model):
     """
     Identified patterns in investment behavior and outcomes.
