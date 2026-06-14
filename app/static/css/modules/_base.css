@@ -45,7 +45,13 @@ small {
 /* Layout */
 .content-wrapper {
     flex: 1 0 auto;
-    padding-top: 1rem;
+    padding: 1.5rem 2rem;
+}
+
+@media (max-width: 768px) {
+    .content-wrapper {
+        padding: 1rem;
+    }
 }
 
 .footer {
