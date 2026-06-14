@@ -3,115 +3,184 @@
 {% block title %}Edit Transaction{% endblock %}
 
 {% block content %}
-<div class="container-lg">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">Edit Transaction</h2>
-                {% with btn_class='btn btn-outline-secondary' %}
-                    {% include 'components/smart_back_button.html' %}
-                {% endwith %}
+<div class="action-page">
+    <div class="action-container action-container--md">
+        <!-- Editorial Hero -->
+        <div class="action-hero">
+            <div class="action-hero-badge">
+                <i class="bi bi-pencil-square"></i>
+                <span>Edit Transaction</span>
             </div>
+            <h1>Edit Transaction</h1>
+            <p class="action-hero-subtitle">
+                {% if is_cash_transaction %}
+                    Update your {{ transaction.type|lower }} details
+                {% else %}
+                    Update {{ transaction.company.ticker_symbol }} {{ transaction.type|lower }} transaction
+                {% endif %}
+            </p>
+        </div>
 
-            <div class="card">
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('portfolio.edit_transaction', transaction_id=transaction.id) }}">
+        <!-- Form Column -->
+        <div class="form-column">
 
-                        <!-- Transaction Info (Read-only) -->
-                        <div class="alert alert-light border">
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Type:</strong>
-                                    <span class="badge
-                                        {% if transaction.type == 'BUY' %}bg-primary
-                                        {% elif transaction.type == 'SELL' %}bg-danger
-                                        {% elif transaction.type == 'DIVIDEND' %}bg-success
-                                        {% endif %}">
-                                        {{ transaction.type }}
-                                    </span>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Company:</strong> {{ transaction.company.ticker_symbol }} - {{ transaction.company.name }}
-                                </div>
-                            </div>
+        <div class="action-card">
+            <div class="action-card-body">
+                <form method="POST" action="{{ url_for('portfolio.edit_transaction', transaction_id=transaction.id) }}" id="editTransactionForm">
+
+                    <!-- Transaction Type (Read-only) -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Transaction Type</label>
+                        <div>
+                            <span class="badge fs-6
+                                {% if transaction.type == 'BUY' %}bg-primary
+                                {% elif transaction.type == 'SELL' %}bg-danger
+                                {% elif transaction.type == 'DIVIDEND' %}bg-success
+                                {% elif transaction.type == 'DEPOSIT' %}bg-info
+                                {% elif transaction.type == 'WITHDRAWAL' %}bg-warning text-dark
+                                {% elif transaction.type in ('SPLIT', 'SPINOFF') %}bg-secondary
+                                {% endif %}">
+                                {% if transaction.type == 'BUY' %}<i class="bi bi-arrow-down-circle me-1"></i>
+                                {% elif transaction.type == 'SELL' %}<i class="bi bi-arrow-up-circle me-1"></i>
+                                {% elif transaction.type == 'DIVIDEND' %}<i class="bi bi-cash-coin me-1"></i>
+                                {% elif transaction.type == 'DEPOSIT' %}<i class="bi bi-box-arrow-in-down me-1"></i>
+                                {% elif transaction.type == 'WITHDRAWAL' %}<i class="bi bi-box-arrow-up me-1"></i>
+                                {% endif %}
+                                {{ transaction.type }}
+                            </span>
+                            {% if not is_cash_transaction and transaction.company %}
+                                <span class="ms-3 text-muted">
+                                    <strong>{{ transaction.company.ticker_symbol }}</strong> &ndash; {{ transaction.company.name }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="mb-3">
+                        <label for="date" class="form-label fw-semibold">Transaction Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="date" name="date"
+                               value="{{ transaction.date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+
+                    {% if is_cash_transaction %}
+                    <!-- === CASH TRANSACTION FIELDS === -->
+
+                    <!-- Cash Amount -->
+                    <div class="mb-3">
+                        <label for="cash_amount" class="form-label fw-semibold">Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text" id="currencySymbolCash">{{ currency_symbol }}</span>
+                            <input type="number" class="form-control" id="cash_amount" name="cash_amount"
+                                   value="{{ transaction.cash_amount }}"
+                                   min="0.01" step="0.01" required>
+                        </div>
+                        <div class="form-text">Amount to {{ 'deposit' if transaction.type == 'DEPOSIT' else 'withdraw' }}</div>
+                    </div>
+
+                    <!-- Currency Selection -->
+                    <div class="mb-3">
+                        <label for="currency" class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>
+                        <select class="form-select" id="currency" name="currency" required>
+                            <option value="USD" {% if transaction.currency == 'USD' %}selected{% endif %}>USD - US Dollar ($)</option>
+                            <option value="EUR" {% if transaction.currency == 'EUR' %}selected{% endif %}>EUR - Euro (&euro;)</option>
+                            <option value="GBP" {% if transaction.currency == 'GBP' %}selected{% endif %}>GBP - British Pound (&pound;)</option>
+                            <option value="JPY" {% if transaction.currency == 'JPY' %}selected{% endif %}>JPY - Japanese Yen (&yen;)</option>
+                            <option value="CAD" {% if transaction.currency == 'CAD' %}selected{% endif %}>CAD - Canadian Dollar (C$)</option>
+                            <option value="AUD" {% if transaction.currency == 'AUD' %}selected{% endif %}>AUD - Australian Dollar (A$)</option>
+                            <option value="CHF" {% if transaction.currency == 'CHF' %}selected{% endif %}>CHF - Swiss Franc</option>
+                            <option value="CNY" {% if transaction.currency == 'CNY' %}selected{% endif %}>CNY - Chinese Yuan (&yen;)</option>
+                            <option value="HKD" {% if transaction.currency == 'HKD' %}selected{% endif %}>HKD - Hong Kong Dollar (HK$)</option>
+                            <option value="INR" {% if transaction.currency == 'INR' %}selected{% endif %}>INR - Indian Rupee (&#8377;)</option>
+                            <option value="KRW" {% if transaction.currency == 'KRW' %}selected{% endif %}>KRW - South Korean Won (&#8361;)</option>
+                            <option value="SEK" {% if transaction.currency == 'SEK' %}selected{% endif %}>SEK - Swedish Krona (kr)</option>
+                            <option value="NOK" {% if transaction.currency == 'NOK' %}selected{% endif %}>NOK - Norwegian Krone (kr)</option>
+                            <option value="DKK" {% if transaction.currency == 'DKK' %}selected{% endif %}>DKK - Danish Krone (kr)</option>
+                        </select>
+                    </div>
+
+                    {% else %}
+                    <!-- === STOCK TRANSACTION FIELDS === -->
+
+                    <div class="row">
+                        <!-- Quantity -->
+                        <div class="col-md-6 mb-3">
+                            <label for="quantity" class="form-label fw-semibold">
+                                {% if transaction.type == 'DIVIDEND' %}Shares (Optional){% else %}Shares{% endif %}
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="quantity" name="quantity"
+                                   value="{{ transaction.quantity }}"
+                                   min="1" step="1" required>
+                            <div class="form-text">Whole shares only</div>
                         </div>
 
-                        <!-- Date -->
-                        <div class="mb-3">
-                            <label for="date" class="form-label fw-semibold">Transaction Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="date" name="date"
-                                   value="{{ transaction.date.strftime('%Y-%m-%d') }}" required>
-                        </div>
-
-                        <div class="row">
-                            <!-- Quantity -->
-                            <div class="col-md-6 mb-3">
-                                <label for="quantity" class="form-label fw-semibold">Shares <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="quantity" name="quantity"
-                                       value="{{ transaction.quantity }}"
-                                       min="1" step="1" required>
-                                <div class="form-text">Whole shares only</div>
-                            </div>
-
-                            <!-- Price Per Share -->
-                            <div class="col-md-6 mb-3">
-                                <label for="price_per_share" class="form-label fw-semibold">Price Per Share <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">{{ currency_symbol }}</span>
-                                    <input type="number" class="form-control" id="price_per_share" name="price_per_share"
-                                           value="{{ transaction.price_per_share }}"
-                                           min="0.01" step="0.01" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Fees -->
-                        <div class="mb-3">
-                            <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
+                        <!-- Price Per Share -->
+                        <div class="col-md-6 mb-3">
+                            <label for="price_per_share" class="form-label fw-semibold">
+                                {% if transaction.type == 'DIVIDEND' %}Dividend Per Share{% else %}Price Per Share{% endif %}
+                                <span class="text-danger">*</span>
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text">{{ currency_symbol }}</span>
-                                <input type="number" class="form-control" id="fees" name="fees"
-                                       value="{{ transaction.fees }}"
-                                       min="0" step="0.01">
+                                <input type="number" class="form-control" id="price_per_share" name="price_per_share"
+                                       value="{{ transaction.price_per_share }}"
+                                       min="0.01" step="0.01" required>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Transaction Total (Calculated) -->
-                        <div class="alert alert-light border">
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Transaction Total:</strong>
-                                </div>
-                                <div class="col-6 text-end">
-                                    <span id="transaction_total" class="fs-5 fw-bold">{{ currency_symbol }}0.00</span>
-                                </div>
-                            </div>
+                    <!-- Fees -->
+                    <div class="mb-3">
+                        <label for="fees" class="form-label fw-semibold">Fees / Commission</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ currency_symbol }}</span>
+                            <input type="number" class="form-control" id="fees" name="fees"
+                                   value="{{ transaction.fees }}"
+                                   min="0" step="0.01">
                         </div>
+                        <div class="form-text">Optional - trading fees or commissions</div>
+                    </div>
 
-                        <!-- Notes -->
-                        <div class="mb-3">
-                            <label for="notes" class="form-label fw-semibold">Notes</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3"
-                                      placeholder="Optional notes about this transaction...">{{ transaction.notes or '' }}</textarea>
-                        </div>
+                    <!-- Transaction Total (Calculated) -->
+                    <div class="tx-total-bar">
+                        <span class="tx-total-label">Transaction Total</span>
+                        <span class="tx-total-value">{{ currency_symbol }}<span id="transaction_total">0.00</span></span>
+                    </div>
 
-                        <!-- Action Buttons -->
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-2"></i>Save Changes
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                    {% endif %}
 
-            <!-- Warning for Sensitive Changes -->
-            <div class="alert alert-warning mt-4">
-                <h6 class="alert-heading">Important</h6>
-                <p class="mb-0">Editing this transaction will recalculate your portfolio position using the FIFO method. Make sure the changes are accurate.</p>
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label for="notes" class="form-label fw-semibold">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"
+                                  placeholder="Optional notes about this transaction...">{{ transaction.notes or '' }}</textarea>
+                    </div>
+
+                </form>
             </div>
         </div>
+
+        <!-- Footer -->
+        <div class="action-footer">
+            <div class="action-footer-row">
+                <button type="submit" form="editTransactionForm" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-2"></i>Save Changes
+                </button>
+                <a href="{{ url_for('portfolio.transactions') }}" class="action-cancel-link">Cancel</a>
+            </div>
+        </div>
+
+        </div><!-- /.form-column -->
+
+        {% if not is_cash_transaction %}
+        <!-- Warning for Sensitive Changes (stock transactions only) -->
+        <div class="alert alert-warning mt-4" style="max-width: 840px; margin-left: auto; margin-right: auto;">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-1"></i>Important</h6>
+            <p class="mb-0">Editing this transaction will recalculate your portfolio position using the FIFO method. Make sure the changes are accurate.</p>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 {% endblock %}
@@ -119,32 +188,53 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    // Calculate transaction total dynamically
-    function updateTransactionTotal() {
-        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-        const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
-        const fees = parseFloat(document.getElementById('fees').value) || 0;
-        const transactionType = '{{ transaction.type }}';
+    const IS_CASH = {{ 'true' if is_cash_transaction else 'false' }};
+    const TX_TYPE = '{{ transaction.type }}';
 
-        let total = (quantity * pricePerShare);
+    // Currency symbol mapping
+    const CURRENCY_SYMBOLS = {
+        'USD': '$', 'EUR': '\u20ac', 'GBP': '\u00a3', 'JPY': '\u00a5',
+        'CAD': 'C$', 'AUD': 'A$', 'CHF': 'CHF', 'CNY': '\u00a5',
+        'HKD': 'HK$', 'INR': '\u20b9', 'KRW': '\u20a9',
+        'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr'
+    };
 
-        if (transactionType === 'BUY') {
-            total += fees;
-        } else if (transactionType === 'SELL') {
-            total -= fees;
+    if (IS_CASH) {
+        // === CASH TRANSACTION JS ===
+        function updateCurrencySymbol() {
+            const currency = document.getElementById('currency').value;
+            const symbol = CURRENCY_SYMBOLS[currency] || currency;
+            document.getElementById('currencySymbolCash').textContent = symbol;
         }
 
-        document.getElementById('transaction_total').textContent = '{{ currency_symbol }}' + total.toFixed(2);
+        document.getElementById('currency').addEventListener('change', updateCurrencySymbol);
+    } else {
+        // === STOCK TRANSACTION JS ===
+        function updateTransactionTotal() {
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const pricePerShare = parseFloat(document.getElementById('price_per_share').value) || 0;
+            const fees = parseFloat(document.getElementById('fees').value) || 0;
+
+            let total = quantity * pricePerShare;
+
+            if (TX_TYPE === 'BUY') {
+                total += fees;
+            } else if (TX_TYPE === 'SELL') {
+                total -= fees;
+            }
+
+            document.getElementById('transaction_total').textContent = total.toFixed(2);
+        }
+
+        document.getElementById('quantity').addEventListener('input', updateTransactionTotal);
+        document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
+        document.getElementById('fees').addEventListener('input', updateTransactionTotal);
+
+        // Initialize total on page load
+        document.addEventListener('DOMContentLoaded', updateTransactionTotal);
     }
 
-    // Event listeners
-    document.getElementById('quantity').addEventListener('input', updateTransactionTotal);
-    document.getElementById('price_per_share').addEventListener('input', updateTransactionTotal);
-    document.getElementById('fees').addEventListener('input', updateTransactionTotal);
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        updateTransactionTotal();
-    });
+    // Set max date to today (common to both)
+    document.getElementById('date').max = new Date().toISOString().split('T')[0];
 </script>
 {% endblock %}
