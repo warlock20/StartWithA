@@ -1,0 +1,57 @@
+name: License Header Check
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  check-license-headers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check AGPL-3.0 headers on changed Python files
+        run: |
+          MISSING=()
+
+          # Get Python files changed in this PR
+          FILES=$(git diff --name-only --diff-filter=ACM ${{ github.event.pull_request.base.sha }} HEAD -- '*.py')
+
+          for file in $FILES; do
+            # Skip empty/non-existent files
+            [ -f "$file" ] || continue
+
+            # Check for the AGPL header marker
+            if ! head -20 "$file" | grep -q "GNU Affero General Public License"; then
+              MISSING+=("$file")
+            fi
+          done
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::The following Python files are missing the AGPL-3.0 license header:"
+            for f in "${MISSING[@]}"; do
+              echo "  - $f"
+            done
+            echo ""
+            echo "Add this header to the top of each file:"
+            echo ""
+            echo "# Investment Checklist Platform"
+            echo "# Copyright (C) 2024-2026 Kiran Mathews"
+            echo "#"
+            echo "# This program is free software: you can redistribute it and/or modify"
+            echo "# it under the terms of the GNU Affero General Public License as published by"
+            echo "# the Free Software Foundation, either version 3 of the License, or"
+            echo "# (at your option) any later version."
+            echo "#"
+            echo "# This program is distributed in the hope that it will be useful,"
+            echo "# but WITHOUT ANY WARRANTY; without even the implied warranty of"
+            echo "# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the"
+            echo "# GNU Affero General Public License for more details."
+            echo "#"
+            echo "# You should have received a copy of the GNU Affero General Public License"
+            echo "# along with this program. If not, see <https://www.gnu.org/licenses/>."
+            exit 1
+          fi
+
+          echo "All changed Python files have the AGPL-3.0 license header."
