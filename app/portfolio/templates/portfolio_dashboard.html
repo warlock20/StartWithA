@@ -51,6 +51,11 @@
             </div>
         </header>
 
+        <!-- Composition strip (React island, inside header card) -->
+        {% if positions %}
+        <div id="composition-strip-mount" style="margin-bottom: 16px;"></div>
+        {% endif %}
+
         <div class="dashboard-metrics-strip">
             <div class="portfolio-metric">
                 <div class="portfolio-metric-icon blue">
@@ -120,22 +125,10 @@
 
     {% if positions %}
     <!-- ════════════════════════════════════════════════
-         HOLDINGS TABLE (rcl-panel pattern)
+         REACT PORTFOLIO DASHBOARD ISLAND
+         (composition strip, tabbed tables, charts sidebar)
          ════════════════════════════════════════════════ -->
-    <div class="rcl-panel">
-        <div class="rcl-panel-controls">
-            <div class="rcl-search">
-                <i class="bi bi-search"></i>
-                <input type="text" id="holdings-search" placeholder="Search ticker or company...">
-            </div>
-            <select id="holdings-filter" class="rcl-filter-select">
-                <option value="all">All Positions</option>
-                <option value="gains">Gains Only</option>
-                <option value="losses">Losses Only</option>
-            </select>
-        </div>
-        <div id="holdings-table"></div>
-    </div>
+    <div id="portfolio-dashboard-mount"></div>
 
     {% else %}
     <div class="rcl-empty-state">
@@ -156,256 +149,133 @@
 {{ super() }}
 {% include 'components/_tabulator_js.html' %}
 {% if positions %}
-<script src="{{ url_for('static', filename='js/data-table-component.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dist/portfolio-dashboard.bundle.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    const currencySymbol = "{{ currency_symbol }}";
-    const holdingsData = {{ holdings_json|safe }};
-    const staleCompanyIds = {{ stale_company_ids|safe }};
-    const cashBalance = {{ portfolio_value.cash_balance|float }};
-    let holdingsTable = null;
+    var currencySymbol = "{{ currency_symbol }}";
+    var holdingsData = {{ holdings_json|safe }};
+    var staleCompanyIds = {{ stale_company_ids|safe }};
+    var cashBalance = {{ portfolio_value.cash_balance|float }};
+    var portfolioValue = {{ portfolio_value_json|safe }};
 
-    if (holdingsData.length > 0) {
-        holdingsTable = createDataTable('#holdings-table', {
-            data: holdingsData,
-            columns: [
-                {
-                    title: "Company",
-                    field: "ticker",
-                    sorter: "string",
-                    minWidth: 160,
-                    widthGrow: 2,
-                    formatter: function(cell) {
-                        var row = cell.getRow().getData();
-                        return '<strong>' + row.ticker + '</strong><br><span class="rcl-cell-ticker">' + row.name + '</span>';
-                    }
-                },
-                {
-                    title: "Shares",
-                    field: "shares",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 80,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        return '<span class="rcl-cell-mono">' + val.toLocaleString() + '</span>';
-                    }
-                },
-                {
-                    title: "Avg Cost",
-                    field: "avg_cost",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 90,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        if (val === null) return '<span class="table-cell-muted">--</span>';
-                        return currencySymbol + val.toFixed(2);
-                    }
-                },
-                {
-                    title: "Price",
-                    field: "current_price",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 90,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        if (val === null) return '<span class="table-cell-muted">--</span>';
-                        return currencySymbol + val.toFixed(2);
-                    }
-                },
-                {
-                    title: "Value",
-                    field: "current_value",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 100,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        if (val === null) return '<span class="table-cell-muted">--</span>';
-                        return '<strong>' + currencySymbol + val.toLocaleString() + '</strong>';
-                    }
-                },
-                {
-                    title: "P/L",
-                    field: "gain_loss",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 100,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        if (val === null) return '<span class="table-cell-muted">--</span>';
-                        var cls = val >= 0 ? 'table-cell-success' : 'table-cell-danger';
-                        var sign = val >= 0 ? '+' : '';
-                        return '<span class="' + cls + '">' + sign + currencySymbol + Math.abs(val).toLocaleString() + '</span>';
-                    }
-                },
-                {
-                    title: "Return",
-                    field: "gain_loss_pct",
-                    sorter: "number",
-                    hozAlign: "right",
-                    minWidth: 80,
-                    formatter: function(cell) {
-                        var val = cell.getValue();
-                        if (val === null) return '<span class="table-cell-muted">--</span>';
-                        var cls = val >= 0 ? 'table-cell-success' : 'table-cell-danger';
-                        var sign = val >= 0 ? '+' : '';
-                        return '<span class="' + cls + '">' + sign + val.toFixed(1) + '%</span>';
-                    }
-                },
-                {
-                    title: "Days",
-                    field: "days_held",
-                    sorter: "number",
-                    hozAlign: "center",
-                    minWidth: 70,
-                    formatter: function(cell) {
-                        return '<span class="rcl-cell-mono">' + cell.getValue() + 'd</span>';
-                    }
-                },
-                {
-                    title: "",
-                    field: "position_url",
-                    headerSort: false,
-                    hozAlign: "right",
-                    minWidth: 140,
-                    formatter: function(cell) {
-                        var row = cell.getRow().getData();
-                        return '<a href="' + row.position_url + '" class="rcl-action rcl-action--primary"><i class="bi bi-eye"></i> Details</a>' +
-                               ' <a href="' + row.add_tx_url + '" class="rcl-action"><i class="bi bi-plus"></i> Txn</a>';
-                    }
-                }
-            ],
-            customConfig: {
-                layout: "fitColumns",
-                initialSort: [{ column: "current_value", dir: "desc" }],
-                pagination: holdingsData.length > 25,
-            }
+    // ── Mount React islands ──
+    if (window.initCompositionStrip) {
+        window.initCompositionStrip('composition-strip-mount', {
+            holdings: holdingsData,
+            portfolioValue: portfolioValue,
+            currencySymbol: currencySymbol,
         });
-
-        // Search
-        document.getElementById('holdings-search').addEventListener('input', function() {
-            applyFilters();
+    }
+    if (window.initPortfolioDashboard) {
+        window.initPortfolioDashboard('portfolio-dashboard-mount', {
+            holdings: holdingsData,
+            portfolioValue: portfolioValue,
+            currencySymbol: currencySymbol,
+            gainsCount: {{ gains_count }},
+            lossesCount: {{ losses_count }},
         });
+    }
 
-        // Gains/losses filter
-        document.getElementById('holdings-filter').addEventListener('change', function() {
-            applyFilters();
-        });
+    // ── Async batch price refresh (updates header metrics + React island) ──
+    if (staleCompanyIds.length > 0) {
+        var bar = document.getElementById('priceUpdateBar');
+        var countEl = document.getElementById('priceUpdateCount');
+        bar.style.display = 'flex';
+        countEl.textContent = '(' + staleCompanyIds.length + ' stale)';
 
-        function applyFilters() {
-            var searchVal = document.getElementById('holdings-search').value.toLowerCase().trim();
-            var filterVal = document.getElementById('holdings-filter').value;
-
-            holdingsTable.setFilter(function(data) {
-                var searchMatch = !searchVal ||
-                    data.ticker.toLowerCase().indexOf(searchVal) !== -1 ||
-                    data.name.toLowerCase().indexOf(searchVal) !== -1;
-
-                var filterMatch = true;
-                if (filterVal === 'gains') filterMatch = data.gain_loss > 0;
-                else if (filterVal === 'losses') filterMatch = data.gain_loss < 0;
-
-                return searchMatch && filterMatch;
-            });
-        }
-
-        // ── Async batch price refresh (single API call) ──────
-        if (staleCompanyIds.length > 0) {
-            var bar = document.getElementById('priceUpdateBar');
-            var countEl = document.getElementById('priceUpdateCount');
-            bar.style.display = 'flex';
-            countEl.textContent = '(' + staleCompanyIds.length + ' stale)';
-
-            fetch('/portfolio/api/refresh-positions', { method: 'POST' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.success && data.positions) {
-                        data.positions.forEach(function(pos) {
-                            updateTableRow(pos);
-                        });
-                        var msg = data.updated + ' updated';
-                        if (data.failed > 0) msg += ', ' + data.failed + ' failed';
-                        countEl.textContent = '(' + msg + ')';
-                        recalcMetrics();
-                        setTimeout(function() { bar.style.display = 'none'; }, 1200);
-                        document.getElementById('dashboardSubtitle').textContent =
-                            holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
-                    } else {
-                        countEl.textContent = '(failed)';
-                        console.error('Batch refresh error:', data.error || 'unknown');
-                        setTimeout(function() { bar.style.display = 'none'; }, 2000);
-                    }
-                })
-                .catch(function(err) {
-                    countEl.textContent = '(network error)';
-                    console.error('Price refresh failed:', err);
-                    setTimeout(function() { bar.style.display = 'none'; }, 2000);
-                });
-        }
-
-        function updateTableRow(pos) {
-            var rows = holdingsTable.getRows();
-            for (var i = 0; i < rows.length; i++) {
-                if (rows[i].getData().company_id === pos.company_id) {
-                    rows[i].update({
-                        current_price: pos.current_price_base || pos.current_price,
-                        current_value: pos.current_value,
-                        gain_loss: pos.gain_loss,
-                        gain_loss_pct: pos.gain_loss_pct
-                    });
-                    // Flash the row
-                    var el = rows[i].getElement();
-                    var cls = (pos.gain_loss !== null && pos.gain_loss >= 0) ? 'row-updated-gain' : 'row-updated-loss';
-                    el.classList.add(cls);
-                    setTimeout(function() { el.classList.remove(cls); }, 700);
-
-                    // Also update local holdingsData for metric recalc
-                    for (var j = 0; j < holdingsData.length; j++) {
-                        if (holdingsData[j].company_id === pos.company_id) {
-                            holdingsData[j].current_price = pos.current_price_base || pos.current_price;
-                            holdingsData[j].current_value = pos.current_value;
-                            holdingsData[j].gain_loss = pos.gain_loss;
-                            holdingsData[j].gain_loss_pct = pos.gain_loss_pct;
-                            break;
+        fetch('/portfolio/api/refresh-positions', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.positions) {
+                    // Update local holdingsData with new prices
+                    data.positions.forEach(function(pos) {
+                        for (var j = 0; j < holdingsData.length; j++) {
+                            if (holdingsData[j].company_id === pos.company_id) {
+                                holdingsData[j].current_price = pos.current_price_base || pos.current_price;
+                                holdingsData[j].current_value = pos.current_value;
+                                holdingsData[j].gain_loss = pos.gain_loss;
+                                holdingsData[j].gain_loss_pct = pos.gain_loss_pct;
+                                break;
+                            }
                         }
+                    });
+
+                    // Recalc header metrics
+                    recalcMetrics();
+
+                    // Re-mount React islands with fresh data
+                    if (window.initCompositionStrip) {
+                        window.initCompositionStrip('composition-strip-mount', {
+                            holdings: holdingsData,
+                            portfolioValue: portfolioValue,
+                            currencySymbol: currencySymbol,
+                        });
                     }
-                    break;
+                    if (window.initPortfolioDashboard) {
+                        window.initPortfolioDashboard('portfolio-dashboard-mount', {
+                            holdings: holdingsData,
+                            portfolioValue: portfolioValue,
+                            currencySymbol: currencySymbol,
+                            gainsCount: {{ gains_count }},
+                            lossesCount: {{ losses_count }},
+                        });
+                    }
+
+                    var msg = data.updated + ' updated';
+                    if (data.failed > 0) msg += ', ' + data.failed + ' failed';
+                    countEl.textContent = '(' + msg + ')';
+                    setTimeout(function() { bar.style.display = 'none'; }, 1200);
+                    document.getElementById('dashboardSubtitle').textContent =
+                        holdingsData.length + ' Position' + (holdingsData.length !== 1 ? 's' : '') + ' \u00b7 Updated just now';
+                } else {
+                    countEl.textContent = '(failed)';
+                    console.error('Batch refresh error:', data.error || 'unknown');
+                    setTimeout(function() { bar.style.display = 'none'; }, 2000);
                 }
-            }
-        }
-
-        function recalcMetrics() {
-            var totalValue = 0, totalCost = 0, totalPL = 0, gains = 0, losses = 0;
-            holdingsData.forEach(function(h) {
-                totalValue += h.current_value || 0;
-                totalCost += (h.avg_cost || 0) * (h.shares || 0);
-                totalPL += h.gain_loss || 0;
-                if (h.gain_loss > 0) gains++;
-                else if (h.gain_loss < 0) losses++;
+            })
+            .catch(function(err) {
+                countEl.textContent = '(network error)';
+                console.error('Price refresh failed:', err);
+                setTimeout(function() { bar.style.display = 'none'; }, 2000);
             });
-            var totalPct = totalCost > 0 ? (totalPL / totalCost * 100) : 0;
+    }
 
-            document.getElementById('metricTotalValue').textContent =
-                currencySymbol + Math.round(totalValue + cashBalance).toLocaleString();
+    function recalcMetrics() {
+        var totalValue = 0, totalCost = 0, totalPL = 0, gains = 0, losses = 0;
+        holdingsData.forEach(function(h) {
+            totalValue += h.current_value || 0;
+            totalCost += (h.avg_cost || 0) * (h.shares || 0);
+            totalPL += h.gain_loss || 0;
+            if (h.gain_loss > 0) gains++;
+            else if (h.gain_loss < 0) losses++;
+        });
+        var totalPct = totalCost > 0 ? (totalPL / totalCost * 100) : 0;
 
-            var sign = totalPL >= 0 ? '+' : '';
-            document.getElementById('metricPLValue').textContent =
-                sign + currencySymbol + Math.round(Math.abs(totalPL)).toLocaleString();
-            document.getElementById('metricPLValue').className =
-                'portfolio-metric-value ' + (totalPL >= 0 ? 'gain' : 'loss');
-            document.getElementById('metricPLPct').textContent =
-                sign + totalPct.toFixed(1) + '%';
+        // Update portfolio value for React island
+        portfolioValue.total_value = totalValue + cashBalance;
+        portfolioValue.total_cost = totalCost;
+        portfolioValue.total_unrealized_gain_loss = totalPL;
+        portfolioValue.total_unrealized_gain_loss_pct = totalPct;
+        portfolioValue.invested_value = totalValue;
 
-            var plCard = document.getElementById('metricPLCard');
-            plCard.className = 'portfolio-metric highlight ' + (totalPL >= 0 ? 'gain' : 'loss');
+        // Update header metrics
+        document.getElementById('metricTotalValue').textContent =
+            currencySymbol + Math.round(totalValue + cashBalance).toLocaleString();
 
-            document.getElementById('metricWinLoss').textContent =
-                gains + ' gaining \u00b7 ' + losses + ' losing';
-        }
+        var sign = totalPL >= 0 ? '+' : '';
+        document.getElementById('metricPLValue').textContent =
+            sign + currencySymbol + Math.round(Math.abs(totalPL)).toLocaleString();
+        document.getElementById('metricPLValue').className =
+            'portfolio-metric-value ' + (totalPL >= 0 ? 'gain' : 'loss');
+        document.getElementById('metricPLPct').textContent =
+            sign + totalPct.toFixed(1) + '%';
+
+        var plCard = document.getElementById('metricPLCard');
+        plCard.className = 'portfolio-metric highlight ' + (totalPL >= 0 ? 'gain' : 'loss');
+
+        document.getElementById('metricWinLoss').textContent =
+            gains + ' gaining \u00b7 ' + losses + ' losing';
     }
 });
 </script>

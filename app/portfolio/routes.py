@@ -80,7 +80,7 @@ def dashboard():
         user_id=current_user.id,
         is_active=True
     ).options(
-        joinedload(PortfolioPosition.company)
+        joinedload(PortfolioPosition.company).joinedload(Company.sector)
     ).all()
 
     # Calculate portfolio totals from cached DB data (no API calls)
@@ -123,14 +123,16 @@ def dashboard():
     user_currency = current_user.base_currency
     currency_symbol = CurrencyService.get_currency_symbol(user_currency)
 
-    # Serialize positions for Tabulator
+    # Serialize positions for Tabulator + React dashboard island
     holdings_json = json.dumps([{
         'ticker': pos.company.ticker_symbol,
         'name': pos.company.name,
+        'sector': pos.company.sector.display_name if pos.company.sector else (pos.company.industry or 'Uncategorized'),
         'shares': float(pos.total_shares) if pos.total_shares else 0,
         'avg_cost': float(round(pos.average_cost_basis_base or pos.average_cost_basis, 2)) if (pos.average_cost_basis_base or pos.average_cost_basis) else None,
         'current_price': float(round(pos.current_price_base, 2)) if pos.current_price_base else (float(round(pos.current_price, 2)) if pos.current_price else None),
         'current_value': float(round(pos.current_value)) if pos.current_value else None,
+        'cost_basis': float(round(pos.total_cost)) if pos.total_cost else None,
         'gain_loss': float(round(pos.unrealized_gain_loss)) if pos.unrealized_gain_loss else None,
         'gain_loss_pct': float(round(pos.unrealized_gain_loss_pct, 1)) if pos.unrealized_gain_loss_pct else None,
         'days_held': pos.days_held or 0,
@@ -148,6 +150,10 @@ def dashboard():
                           positions=positions,
                           holdings_json=holdings_json,
                           portfolio_value=portfolio_value,
+                          portfolio_value_json=json.dumps({
+                              k: float(v) if isinstance(v, Decimal) else v
+                              for k, v in portfolio_value.items()
+                          }),
                           gains_count=gains_count,
                           losses_count=losses_count,
                           stale_company_ids=json.dumps(stale_company_ids),
