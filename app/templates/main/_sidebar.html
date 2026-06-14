@@ -183,24 +183,6 @@
                 endif %}
             </a>
             {% endif %}
-            {% if has_feature('mistake_log') %}
-            <a href="{{ url_for('learning.mistake_log') }}" class="sidebar-item" data-tooltip="Mistakes"
-                data-feature-group="knowledge_learning">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <span class="sidebar-item-text">Mistake Log</span>
-                {% if is_newly_unlocked('mistake_log') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{%
-                endif %}
-            </a>
-            {% endif %}
-            {% if has_feature('weekly_review') %}
-            <a href="{{ url_for('learning.weekly_review') }}" class="sidebar-item" data-tooltip="Weekly Review"
-                data-feature-group="knowledge_learning">
-                <i class="bi bi-calendar-check-fill"></i>
-                <span class="sidebar-item-text">Weekly Review</span>
-                {% if is_newly_unlocked('weekly_review') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{%
-                endif %}
-            </a>
-            {% endif %}
         </div>
         {% endif %}
 

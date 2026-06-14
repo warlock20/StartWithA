@@ -337,43 +337,85 @@ def edit_transaction(transaction_id):
         user_id=current_user.id
     ).first_or_404()
 
+    is_cash_transaction = transaction.type in ('DEPOSIT', 'WITHDRAWAL')
+
     if request.method == 'POST':
         try:
-            # Get form data (similar to add_transaction)
             date_str = request.form.get('date')
-            quantity = request.form.get('quantity', type=int)
-            price_per_share = request.form.get('price_per_share')
-            fees = request.form.get('fees', '0')
             notes = request.form.get('notes', '').strip()
 
-            # Validation
-            if not all([date_str, quantity, price_per_share]):
-                flash('Please fill in all required fields', 'error')
+            # Validate date (common to both paths)
+            if not date_str:
+                flash('Please provide a transaction date', 'error')
                 return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
-            # Parse and validate date
             transaction_date = parse_date_to_date_object(date_str)
             if not transaction_date:
                 flash('Invalid date format', 'error')
                 return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
-            # Parse numeric values
-            try:
-                price_per_share = Decimal(price_per_share)
-                fees = Decimal(fees) if fees else Decimal('0.00')
-            except (InvalidOperation, ValueError):
-                flash('Invalid price or fees amount', 'error')
-                return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+            if is_cash_transaction:
+                # === CASH TRANSACTION (DEPOSIT / WITHDRAWAL) ===
+                cash_amount_str = request.form.get('cash_amount')
+                currency = request.form.get('currency', transaction.currency or 'USD').strip().upper()
 
-            # Update transaction
-            transaction.date = transaction_date
-            transaction.quantity = quantity
-            transaction.price_per_share = price_per_share
-            transaction.fees = fees
-            transaction.notes = notes
+                if not cash_amount_str:
+                    flash('Please enter the cash amount', 'error')
+                    return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
-            # Recalculate portfolio position
-            update_portfolio_position(transaction)
+                try:
+                    cash_amount = Decimal(cash_amount_str)
+                except (InvalidOperation, ValueError):
+                    flash('Invalid cash amount', 'error')
+                    return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+
+                if cash_amount <= 0:
+                    flash('Cash amount must be greater than zero', 'error')
+                    return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+
+                # Currency conversion
+                exchange_rate = CurrencyService.get_exchange_rate(
+                    from_currency=currency,
+                    to_currency=current_user.base_currency,
+                    rate_date=transaction_date
+                )
+                cash_amount_base = cash_amount * exchange_rate
+
+                # Update transaction
+                transaction.date = transaction_date
+                transaction.cash_amount = cash_amount
+                transaction.cash_amount_base = cash_amount_base
+                transaction.currency = currency
+                transaction.exchange_rate = exchange_rate
+                transaction.exchange_rate_date = transaction_date
+                transaction.notes = notes
+
+            else:
+                # === STOCK TRANSACTION (BUY / SELL / DIVIDEND / etc.) ===
+                quantity = request.form.get('quantity', type=int)
+                price_per_share = request.form.get('price_per_share')
+                fees = request.form.get('fees', '0')
+
+                if not all([quantity, price_per_share]):
+                    flash('Please fill in all required fields', 'error')
+                    return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+
+                try:
+                    price_per_share = Decimal(price_per_share)
+                    fees = Decimal(fees) if fees else Decimal('0.00')
+                except (InvalidOperation, ValueError):
+                    flash('Invalid price or fees amount', 'error')
+                    return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
+
+                # Update transaction
+                transaction.date = transaction_date
+                transaction.quantity = quantity
+                transaction.price_per_share = price_per_share
+                transaction.fees = fees
+                transaction.notes = notes
+
+                # Recalculate portfolio position
+                update_portfolio_position(transaction)
 
             db.session.commit()
 
@@ -389,9 +431,18 @@ def edit_transaction(transaction_id):
             return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
     # GET request — resolve currency symbol for the form
-    stock_currency = transaction.currency or transaction.company.reporting_currency or CurrencyService.detect_currency_from_ticker(transaction.company.ticker_symbol)
-    currency_symbol = CurrencyService.get_currency_symbol(stock_currency)
-    return render_template('edit_transaction.html', transaction=transaction, currency_symbol=currency_symbol)
+    if is_cash_transaction:
+        tx_currency = transaction.currency or current_user.base_currency
+    else:
+        tx_currency = (transaction.currency
+                       or transaction.company.reporting_currency
+                       or CurrencyService.detect_currency_from_ticker(transaction.company.ticker_symbol))
+
+    currency_symbol = CurrencyService.get_currency_symbol(tx_currency)
+    return render_template('edit_transaction.html',
+                           transaction=transaction,
+                           currency_symbol=currency_symbol,
+                           is_cash_transaction=is_cash_transaction)
 
 
 @portfolio_bp.route('/transaction/<int:transaction_id>/delete', methods=['POST'])
