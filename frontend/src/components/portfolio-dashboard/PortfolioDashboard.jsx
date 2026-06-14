@@ -98,7 +98,9 @@ export function PortfolioDashboard({
   const performanceCols = useMemo(() => performanceColumns(currencySymbol), [currencySymbol]);
 
   const tableConfig = useMemo(() => ({
-    pagination: false,
+    pagination: true,
+    paginationSize: 25,
+    paginationSizeSelector: [10, 25, 50, 100],
     layout: 'fitColumns',
     initialSort: [{ column: 'current_value', dir: 'desc' }],
     placeholder: 'No positions match your filters',
