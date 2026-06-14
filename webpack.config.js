@@ -62,6 +62,11 @@ module.exports = {
     splitChunks: {
       chunks: 'all',
       cacheGroups: {
+        // Disable automatic splitting of shared app modules — each entry
+        // bundle inlines its own app dependencies.  Only vendor code
+        // (node_modules) gets split into shared chunks that are loaded
+        // globally via _base.html.
+        default: false,
         blocknote: {
           test: /[\\/]node_modules[\\/](@blocknote|@mantine|@tabler[\\/]icons-react|@tiptap|prosemirror-[^/\\]+|@floating-ui|@radix-ui|@emoji-mart|yjs|y-prosemirror|lib0|parse5|micromark[^/\\]*|linkifyjs|unified|vfile[^/\\]*|hast-[^/\\]+|mdast-[^/\\]+|rehype-[^/\\]+|remark-[^/\\]+|unist-[^/\\]+|property-information|hastscript|comma-separated-tokens|space-separated-tokens|stringify-entities|markdown-table|longest-streak|decode-named-character-reference|character-entities-legacy|ccount|trim-lines|trim-trailing-lines|zwitch|web-namespaces|html-void-elements|html-whitespace-sensitive-tag-names|is-buffer|extend|orderedmap|uuid)[\\/]/,
           name: 'vendors-blocknote',
