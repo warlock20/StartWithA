@@ -108,8 +108,6 @@ class User(UserMixin, db.Model):  # Add UserMixin here
                                     lazy='dynamic', cascade='all, delete-orphan')
     postmortems = db.relationship('InvestmentPostMortem', backref='user',
                                  lazy='dynamic', cascade='all, delete-orphan')
-    learning_paths = db.relationship('LearningPath', backref='user',
-                                    lazy='dynamic', cascade='all, delete-orphan')
     patterns = db.relationship('PatternRecognition', backref='user',
                               lazy='dynamic', cascade='all, delete-orphan')
 

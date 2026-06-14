@@ -18,7 +18,7 @@ from datetime import timedelta, date
 from sqlalchemy import func, and_
 from app import db
 from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
-                       PatternRecognition, LearningPath, DecisionJournal,
+                       PatternRecognition, DecisionJournal,
                        ResearchProject, IdeaPipeline, JournalEntry,
                        ResearchLog, WorkSession, LearningNote)
 import statistics
@@ -269,7 +269,7 @@ def get_review_schedule(user_id):
         'date': next_quarter,
         'status': 'upcoming',
         'description': 'Identify patterns in your investing behavior',
-        'route': 'learning.learning_paths',
+        'route': 'learning.learning_dashboard',
     })
 
     # Check for overdue reviews

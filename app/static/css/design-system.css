@@ -78,7 +78,6 @@ All complex components have been fully modularized.
 @import url('modules/_journal-home.css');         /* Journal - Home & review queue pages */
 @import url('modules/_journal-search.css');       /* Journal - Knowledge hub search page */
 @import url('modules/_learning-dashboard.css');   /* Learning - Dashboard page */
-@import url('modules/_learning-paths.css');       /* Learning - Learning paths page */
 @import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
 @import url('modules/_knowledge-library.css');    /* Knowledge Library - Insights & wisdom capture */
 @import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Unified research & wisdom */

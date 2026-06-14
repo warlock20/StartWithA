@@ -55,7 +55,7 @@ def _collect_user_data(user):
         ResearchSettings,
         Sector, SectorAnalysis,
         DecisionJournal, JournalEntry, ThesisEvolution, LearningNote,
-        JournalTemplate, WeeklyReview, InvestmentPostMortem, LearningPath,
+        JournalTemplate, WeeklyReview, InvestmentPostMortem,
         PatternRecognition,
         Transaction, PortfolioPosition,
         ResearchOutcome, AIInsight,
@@ -113,7 +113,6 @@ def _collect_user_data(user):
         ('journal_templates', JournalTemplate, JournalTemplate.user_id == user.id),
         ('weekly_reviews', WeeklyReview, WeeklyReview.user_id == user.id),
         ('postmortems', InvestmentPostMortem, InvestmentPostMortem.user_id == user.id),
-        ('learning_paths', LearningPath, LearningPath.user_id == user.id),
         ('patterns', PatternRecognition, PatternRecognition.user_id == user.id),
         ('transactions', Transaction, Transaction.user_id == user.id),
         ('portfolio_positions', PortfolioPosition, PortfolioPosition.user_id == user.id),
@@ -252,7 +251,7 @@ def delete_account():
             Sector, SectorAnalysis,
             DecisionJournal, JournalEntry, JournalAttachment, ThesisEvolution,
             LearningNote, JournalTemplate, WeeklyReview, InvestmentPostMortem,
-            LearningPath, PatternRecognition,
+            PatternRecognition,
             Transaction, PortfolioPosition,
             BackgroundTask,
             ResearchOutcome, AIInsight, EmbeddingStore, MLPredictionLog,
@@ -279,7 +278,6 @@ def delete_account():
 
             # Journal & learning data
             PatternRecognition.query.filter_by(user_id=user_id).delete()
-            LearningPath.query.filter_by(user_id=user_id).delete()
             InvestmentPostMortem.query.filter_by(user_id=user_id).delete()
             WeeklyReview.query.filter_by(user_id=user_id).delete()
             LearningNote.query.filter_by(user_id=user_id).delete()

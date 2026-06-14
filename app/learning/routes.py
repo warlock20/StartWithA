@@ -18,7 +18,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
 from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
-                       PatternRecognition, LearningPath, DecisionJournal,
+                       PatternRecognition, DecisionJournal,
                        Company, LearningNote, Sector, SectorAnalysis)
 from app.learning import learning_bp
 from app.learning.utils import (get_weekly_metrics,
@@ -160,9 +160,6 @@ def learning_dashboard():
     # Get learning recommendations
     recommendations = generate_learning_recommendations(current_user.id)
 
-    # Get active learning paths
-    active_paths = current_user.learning_paths.filter_by(status='active').all()
-
     # Calculate improvement metrics
     today = now_utc().date()
     recent_decisions = current_user.decision_journals.filter(
@@ -204,7 +201,6 @@ def learning_dashboard():
                           review_discipline=review_discipline,
                           recent_mistakes=recent_mistakes,
                           recommendations=recommendations,
-                          active_paths=active_paths,
                           improvement_data=improvement_data,
                           ensure_timezone_aware=ensure_timezone_aware,
                           now=now_utc())
@@ -566,79 +562,6 @@ def view_postmortem(postmortem_id):
    return render_template('view_postmortem.html',
                          title="Investment Postmortem",
                          postmortem=postmortem)
-
-@learning_bp.route('/learning-paths')
-@login_required
-def learning_paths():
-   """View and manage learning paths"""
-   paths = current_user.learning_paths.order_by(
-       LearningPath.status.desc(),
-       LearningPath.created_at.desc()
-   ).all()
-   
-   # Suggested paths based on weaknesses
-   suggested_paths = []
-   
-   # Check for valuation weakness
-   valuation_mistakes = MistakeLog.query.filter_by(
-       user_id=current_user.id,
-       mistake_type='analysis_error'
-   ).count()
-   
-   if valuation_mistakes > 2:
-       suggested_paths.append({
-           'name': 'Valuation Mastery',
-           'description': 'Improve your valuation skills',
-           'skill_area': 'valuation'
-       })
-   
-   return render_template('learning_paths.html',
-                         title="Learning Paths",
-                         paths=paths,
-                         suggested_paths=suggested_paths)
-
-@learning_bp.route('/learning-paths/create', methods=['POST'])
-@login_required
-def create_learning_path():
-   """Create a new learning path"""
-   name = request.form.get('name')
-   description = request.form.get('description')
-   skill_area = request.form.get('skill_area')
-   target_completion = request.form.get('target_completion')
-   milestones = request.form.getlist('milestones[]')
-   
-   if not name:
-       flash('Path name is required', 'error')
-       return redirect(url_for('learning.learning_paths'))
-   
-   # Filter out empty milestones
-   milestones = [m.strip() for m in milestones if m.strip()]
-   
-   learning_path = LearningPath(
-       user=current_user,
-       name=name,
-       description=description,
-       skill_area=skill_area,
-       status='active',
-       total_steps=len(milestones),
-       current_step=1,
-       milestones=milestones,
-       started_at=now_utc()
-   )
-   
-   if target_completion:
-       learning_path.target_completion = parse_date_to_date_object(target_completion)
-   
-   db.session.add(learning_path)
-   
-   try:
-       db.session.commit()
-       flash('Learning path created successfully!', 'success')
-   except Exception as e:
-       db.session.rollback()
-       flash(f'Error creating learning path: {str(e)}', 'error')
-   
-   return redirect(url_for('learning.learning_paths'))
 
 @learning_bp.route('/weekly-reviews')
 @login_required

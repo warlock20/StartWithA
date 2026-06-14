@@ -82,6 +82,8 @@ css_core = Bundle(
 css_companies = Bundle(
     'css/modules/_company-dashboard.css',
     'css/modules/_company-tags.css',
+    'css/modules/_investment-journey.css',
+    'css/modules/_position-detail.css',
     'css/modules/_companies-list.css',
     'css/modules/_destination-analysis.css',
     'css/modules/_checkpoint-edit.css',
@@ -152,7 +154,6 @@ css_learning = Bundle(
     'css/modules/_journal-home.css',
     'css/modules/_journal-search.css',
     'css/modules/_learning-dashboard.css',
-    'css/modules/_learning-paths.css',
     'css/modules/_learning-mistakes.css',
     'css/modules/_knowledge-library.css',
     'css/modules/_knowledge-hub.css',

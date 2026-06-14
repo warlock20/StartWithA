@@ -174,15 +174,6 @@
                     class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
             </a>
             {% endif %}
-            {% if has_feature('learning_paths') %}
-            <a href="{{ url_for('learning.learning_paths') }}" class="sidebar-item" data-tooltip="Learning Paths"
-                data-feature-group="knowledge_learning">
-                <i class="bi bi-signpost-split-fill"></i>
-                <span class="sidebar-item-text">Learning Paths</span>
-                {% if is_newly_unlocked('learning_paths') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{%
-                endif %}
-            </a>
-            {% endif %}
         </div>
         {% endif %}
 
