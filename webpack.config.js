@@ -25,6 +25,7 @@ module.exports = {
     'sidebar': './frontend/src/sidebar.js',
     'financials-charts': './frontend/src/financials-charts.js',
     'checklist-inspector': './frontend/src/checklist-inspector.js',
+    'portfolio-dashboard': './frontend/src/portfolio-dashboard.js',
   },
   output: {
     filename: '[name].bundle.js',

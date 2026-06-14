@@ -5,7 +5,7 @@ import { Icon } from "./Icon";
  * Toggle button group control.
  * Usage: <SegmentedControl options={[{id:'list',label:'List'},{id:'grid',icon:'grid'}]} value="list" onChange={fn} />
  */
-export function SegmentedControl({ options, value, onChange }) {
+export function SegmentedControl({ options, value, onChange, stretch }) {
   return (
     <div style={{
       display: "flex", gap: 0,
@@ -17,11 +17,12 @@ export function SegmentedControl({ options, value, onChange }) {
           key={o.id}
           onClick={() => onChange(o.id)}
           style={{
+            flex: stretch ? 1 : undefined,
             padding: o.icon ? undefined : "5px 11px",
             width: o.icon ? 28 : undefined,
             height: o.icon ? 26 : undefined,
             borderRadius: 6, border: "none",
-            fontSize: o.icon ? 13 : 11.5,
+            fontSize: o.icon ? 15 : 13,
             fontWeight: 600, cursor: "pointer",
             fontFamily: "inherit",
             background: value === o.id ? colors.gray100 : "transparent",

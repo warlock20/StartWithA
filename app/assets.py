@@ -127,6 +127,7 @@ css_companies = Bundle(
 # ---------------------------------------------------------------------------
 css_portfolio = Bundle(
     'css/modules/_pipeline-flow.css',
+    'css/modules/_portfolio-dashboard.css',
     'css/modules/_portfolio-analytics.css',
     'css/modules/_position-detail.css',
     'css/modules/_analytics-hub.css',
