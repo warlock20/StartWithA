@@ -19,8 +19,9 @@ jobs:
           FILES=$(git diff --name-only --diff-filter=ACM ${{ github.event.pull_request.base.sha }} HEAD -- '*.py')
 
           for file in $FILES; do
-            # Skip empty/non-existent files
+            # Skip empty/non-existent files and auto-generated migrations
             [ -f "$file" ] || continue
+            [[ "$file" == migrations/* ]] && continue
 
             # Check for the AGPL header marker
             if ! head -20 "$file" | grep -q "GNU Affero General Public License"; then
