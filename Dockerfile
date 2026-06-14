@@ -1,11 +1,10 @@
-# Use a slightly older, more stable Python image
 FROM python:3.12-slim
 
 WORKDIR /app
 
 # Install system dependencies + Node.js for webpack build + weasyprint rendering libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev nodejs npm \
+    build-essential libpq-dev curl nodejs npm \
     libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -16,13 +15,13 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy only the code (the .dockerignore will skip the .venv bloat)
+# Copy application code
 COPY . .
 
 # Build frontend React bundles (webpack)
 RUN npm ci --prefer-offline && npm run build && rm -rf node_modules
 
-# Set Flask app for migrations
+# Set Flask app for migrations and asset builds
 ENV FLASK_APP=run.py
 
 # Pre-build CSS bundles (Flask-Assets: 85 files → 1 minified bundle)
@@ -31,6 +30,7 @@ RUN flask assets build
 # Make entrypoint executable
 RUN chmod +x docker-entrypoint.sh
 
-# Run migrations and start server
-# PORT is set by Railway automatically
+EXPOSE 8000
+
 ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "4", "--worker-class", "gthread", "--timeout", "120", "--keep-alive", "5", "--preload", "run:app"]
