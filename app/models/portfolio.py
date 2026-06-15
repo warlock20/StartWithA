@@ -368,8 +368,8 @@ def calculate_fifo_cost_basis(company_id, user_id):
 
         elif txn.type == 'DIVIDEND':
             # Dividends don't affect share count or cost basis
-            # But they do affect realized gains (cash received)
-            dividend_amount = Decimal(str(txn.quantity)) * price
+            # But they do affect realized gains (cash received, minus fees)
+            dividend_amount = Decimal(str(txn.quantity)) * price - fees
             realized_gain_loss += dividend_amount
 
         elif txn.type == 'SPLIT':

@@ -407,11 +407,25 @@ def edit_transaction(transaction_id):
                     flash('Invalid price or fees amount', 'error')
                     return redirect(url_for('portfolio.edit_transaction', transaction_id=transaction_id))
 
+                # Recalculate base currency values
+                tx_currency = (transaction.currency
+                               or transaction.company.reporting_currency
+                               or CurrencyService.detect_currency_from_ticker(transaction.company.ticker_symbol))
+                exchange_rate = CurrencyService.get_exchange_rate(
+                    from_currency=tx_currency,
+                    to_currency=current_user.base_currency,
+                    rate_date=transaction_date
+                )
+
                 # Update transaction
                 transaction.date = transaction_date
                 transaction.quantity = quantity
                 transaction.price_per_share = price_per_share
+                transaction.price_per_share_base = price_per_share * exchange_rate
                 transaction.fees = fees
+                transaction.fees_base = fees * exchange_rate
+                transaction.exchange_rate = exchange_rate
+                transaction.exchange_rate_date = transaction_date
                 transaction.notes = notes
 
                 # Recalculate portfolio position
