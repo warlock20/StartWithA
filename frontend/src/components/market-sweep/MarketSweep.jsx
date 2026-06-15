@@ -34,10 +34,13 @@ export function MarketSweep({ sectors }) {
   const [killTarget, setKillTarget] = useState(null);
   const [killCriteria, setKillCriteria] = useState([]);
   const [stats, setStats] = useState({ total: 0, reviewed: 0, inbox: 0, killed: 0 });
+  const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
 
   const tableRef = useRef(null);
   const companiesRef = useRef([]);
   const handlersRef = useRef({});
+  const pendingBuildRef = useRef(null);
 
   // ------------------------------------------------------------------
   // Keep handler refs current so the global API always calls latest fns
@@ -117,7 +120,8 @@ export function MarketSweep({ sectors }) {
         !s ||
         data.company_name.toLowerCase().includes(s) ||
         (data.ticker && data.ticker.toLowerCase().includes(s)) ||
-        (data.sector_label && data.sector_label.toLowerCase().includes(s));
+        (data.sector_label && data.sector_label.toLowerCase().includes(s)) ||
+        (data.decision_notes && data.decision_notes.toLowerCase().includes(s));
       return decisionMatch && searchMatch;
     });
   }, [search, decisionFilter]);
@@ -135,10 +139,25 @@ export function MarketSweep({ sectors }) {
   }, []);
 
   // ------------------------------------------------------------------
+  // Build table after loading finishes and DOM has #sweepTable
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (view === 'table' && !tableLoading && pendingBuildRef.current) {
+      const companies = pendingBuildRef.current;
+      pendingBuildRef.current = null;
+      requestAnimationFrame(() => {
+        buildTable(companies);
+        updateStats();
+      });
+    }
+  }, [view, tableLoading]);
+
+  // ------------------------------------------------------------------
   // Data loading
   // ------------------------------------------------------------------
 
   async function loadSweeps() {
+    setLoading(true);
     try {
       const data = await apiGet('/research/workflow/api/sweeps');
       if (!data.success) return;
@@ -147,6 +166,8 @@ export function MarketSweep({ sectors }) {
       updatePickerMetrics(list);
     } catch (err) {
       console.error('Load sweeps error:', err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -211,17 +232,20 @@ export function MarketSweep({ sectors }) {
     setView('table');
     setSearch('');
     setDecisionFilter('all');
+    setTableLoading(true);
 
     try {
       const data = await apiGet('/research/workflow/api/sweep/' + sweepId + '/companies');
-      if (!data.success) return;
+      if (!data.success) {
+        setTableLoading(false);
+        return;
+      }
       companiesRef.current = data.companies;
-      requestAnimationFrame(() => {
-        buildTable(data.companies);
-        updateStats();
-      });
+      pendingBuildRef.current = data.companies;
+      setTableLoading(false);
     } catch (err) {
       console.error('Load companies error:', err);
+      setTableLoading(false);
     }
   }
 
@@ -329,16 +353,17 @@ export function MarketSweep({ sectors }) {
           },
         },
         {
-          title: 'Exchange',
-          field: 'exchange',
+          title: 'Notes',
+          field: 'decision_notes',
           sorter: 'string',
-          hozAlign: 'center',
-          minWidth: 80,
+          minWidth: 140,
+          widthGrow: 2,
           formatter: function (cell) {
             var val = cell.getValue();
-            return val
-              ? '<span style="font-size:0.85rem">' + escapeHtml(val) + '</span>'
-              : '<span class="table-cell-muted">&mdash;</span>';
+            if (!val) return '<span class="table-cell-muted">&mdash;</span>';
+            var escaped = escapeHtml(val);
+            var truncated = val.length > 50 ? escapeHtml(val.substring(0, 50)) + '&hellip;' : escaped;
+            return '<span class="sweep-notes-cell" title="' + escaped.replace(/"/g, '&quot;') + '">' + truncated + '</span>';
           },
         },
         {
@@ -433,10 +458,12 @@ export function MarketSweep({ sectors }) {
         if (window.showToast) window.showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
         return;
       }
+      var updatedNotes = extras ? extras.notes || null : null;
       for (var i = 0; i < companiesRef.current.length; i++) {
         if (companiesRef.current[i].id === companyId) {
           companiesRef.current[i].decision = decision;
           companiesRef.current[i].promoted_idea_id = data.promoted_idea_id || null;
+          companiesRef.current[i].decision_notes = updatedNotes;
           if (extras && extras.sector_id)
             companiesRef.current[i].decision_sector_id = parseInt(extras.sector_id);
           break;
@@ -449,6 +476,7 @@ export function MarketSweep({ sectors }) {
             decision: decision,
             decision_sector_id: extras ? extras.sector_id || null : null,
             promoted_idea_id: data.promoted_idea_id || null,
+            decision_notes: updatedNotes,
           },
         ]);
         tableRef.current.redraw(true);
@@ -478,12 +506,13 @@ export function MarketSweep({ sectors }) {
           companiesRef.current[i].decision = null;
           companiesRef.current[i].decision_sector_id = null;
           companiesRef.current[i].promoted_idea_id = null;
+          companiesRef.current[i].decision_notes = null;
           break;
         }
       }
       if (tableRef.current) {
         await tableRef.current.updateData([
-          { id: companyId, decision: null, decision_sector_id: null, promoted_idea_id: null },
+          { id: companyId, decision: null, decision_sector_id: null, promoted_idea_id: null, decision_notes: null },
         ]);
         tableRef.current.redraw(true);
       }
@@ -542,39 +571,50 @@ export function MarketSweep({ sectors }) {
 
   return (
     <>
-      {view === 'picker' && <SweepPicker sweeps={sweeps} onSelect={handleSelectSweep} />}
+      {view === 'picker' && <SweepPicker sweeps={sweeps} loading={loading} onSelect={handleSelectSweep} />}
 
       {view === 'table' && (
         <div>
-          <div className="sweep-progress-bar-container">
-            <div className="sweep-progress-bar">
-              <div className="sweep-progress-fill" style={{ width: pct + '%' }} />
-            </div>
-          </div>
-          <div className="rcl-panel">
-            <div className="rcl-panel-controls">
-              <div className="rcl-search">
-                <i className="bi bi-search" />
-                <input
-                  type="text"
-                  placeholder="Search company or ticker..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+          {tableLoading ? (
+            <div className="sweep-loading">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
-              <select
-                className="rcl-filter-select"
-                value={decisionFilter}
-                onChange={(e) => setDecisionFilter(e.target.value)}
-              >
-                <option value="all">All Companies</option>
-                <option value="pending">Pending</option>
-                <option value="inbox">Inbox</option>
-                <option value="killed">Killed</option>
-              </select>
+              <p>Loading companies...</p>
             </div>
-            <div id="sweepTable" />
-          </div>
+          ) : (
+            <>
+              <div className="sweep-progress-bar-container">
+                <div className="sweep-progress-bar">
+                  <div className="sweep-progress-fill" style={{ width: pct + '%' }} />
+                </div>
+              </div>
+              <div className="rcl-panel">
+                <div className="rcl-panel-controls">
+                  <div className="rcl-search">
+                    <i className="bi bi-search" />
+                    <input
+                      type="text"
+                      placeholder="Search company, ticker or notes..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    className="rcl-filter-select"
+                    value={decisionFilter}
+                    onChange={(e) => setDecisionFilter(e.target.value)}
+                  >
+                    <option value="all">All Companies</option>
+                    <option value="pending">Pending</option>
+                    <option value="inbox">Inbox</option>
+                    <option value="killed">Killed</option>
+                  </select>
+                </div>
+                <div id="sweepTable" />
+              </div>
+            </>
+          )}
         </div>
       )}
 

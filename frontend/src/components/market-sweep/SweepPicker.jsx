@@ -1,7 +1,18 @@
 /**
  * SweepPicker — card grid for selecting a market sweep.
  */
-export function SweepPicker({ sweeps, onSelect }) {
+export function SweepPicker({ sweeps, loading, onSelect }) {
+  if (loading && sweeps.length === 0) {
+    return (
+      <div className="sweep-loading">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading markets...</p>
+      </div>
+    );
+  }
+
   if (sweeps.length === 0) {
     return (
       <div className="sweep-empty">

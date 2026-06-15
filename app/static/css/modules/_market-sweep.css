@@ -262,6 +262,32 @@
     color: var(--danger-700, #b91c1c);
 }
 
+/* ── NOTES CELL ──────────────────────────────── */
+.sweep-notes-cell {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    line-height: 1.3;
+    cursor: default;
+}
+
+/* ── LOADING STATE ───────────────────────────── */
+.sweep-loading {
+    text-align: center;
+    padding: var(--space-3xl) var(--space-xl);
+    color: var(--text-secondary);
+}
+
+.sweep-loading .spinner-border {
+    width: 2rem;
+    height: 2rem;
+    margin-bottom: var(--space-md);
+}
+
+.sweep-loading p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+}
+
 /* ── EMPTY STATE ─────────────────────────────── */
 .sweep-empty {
     text-align: center;
