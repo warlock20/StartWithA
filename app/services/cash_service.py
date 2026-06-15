@@ -61,7 +61,8 @@ class CashService:
 
         elif txn.type == 'DIVIDEND':
             price = Decimal(str(txn.price_per_share_base or txn.price_per_share))
-            return Decimal(str(txn.quantity)) * price
+            fees = Decimal(str(txn.fees_base or txn.fees or 0))
+            return Decimal(str(txn.quantity)) * price - fees
 
         # SPLIT, SPINOFF — no cash impact
         return Decimal('0.00')

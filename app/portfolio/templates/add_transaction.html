@@ -528,7 +528,7 @@
 
             if (transactionType === 'BUY') {
                 total += fees;
-            } else if (transactionType === 'SELL') {
+            } else if (transactionType === 'SELL' || transactionType === 'DIVIDEND') {
                 total -= fees;
             }
         }
@@ -645,7 +645,7 @@
             document.getElementById('cash_amount').removeAttribute('required');
 
             if (transactionType === 'DIVIDEND') {
-                quantityLabel.textContent = 'Shares (Optional)';
+                quantityLabel.textContent = 'Shares';
                 priceLabel.textContent = 'Dividend Per Share';
             } else {
                 quantityLabel.textContent = 'Shares';

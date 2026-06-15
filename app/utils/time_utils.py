@@ -21,15 +21,10 @@ This module provides consistent timezone handling across the entire application.
 All time-related operations should use these utilities to ensure consistency.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 
-# Configuration for the platform's timezone
-# TODO: Make this configurable per user or from environment variables
-PLATFORM_TIMEZONE_OFFSET_HOURS = 2  # UTC+2 (Central European Summer Time)
-
-# TODO: Is this correct place?
 def now_utc() -> datetime:
     """
     Get the current time in UTC.
@@ -44,9 +39,9 @@ def ensure_timezone_aware(dt: Optional[datetime]) -> Optional[datetime]:
     """
     Convert timezone-naive datetime to timezone-aware UTC datetime.
 
-    This function handles the platform's specific timezone conversion logic.
-    Database-stored timezone-naive datetimes are assumed to be in local time
-    and are converted to UTC.
+    All datetimes in the database are stored via now_utc(), which produces
+    UTC values. The DB may strip timezone info, leaving naive datetimes that
+    are still UTC. This function simply attaches UTC tzinfo to them.
 
     Args:
         dt: Datetime object (can be timezone-naive or timezone-aware, or None)
@@ -58,10 +53,9 @@ def ensure_timezone_aware(dt: Optional[datetime]) -> Optional[datetime]:
         return None
 
     if dt.tzinfo is None:
-        # Timezone-naive datetime is assumed to be in platform's local time
-        # Convert from local time to UTC by subtracting the offset
-        dt_utc = dt - timedelta(hours=PLATFORM_TIMEZONE_OFFSET_HOURS)
-        return dt_utc.replace(tzinfo=timezone.utc)
+        # Database stores UTC values as naive datetimes (via now_utc()).
+        # Attach UTC tzinfo directly — do NOT treat as local time.
+        return dt.replace(tzinfo=timezone.utc)
 
     # Already timezone-aware, return as-is
     return dt
