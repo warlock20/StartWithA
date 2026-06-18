@@ -14,11 +14,11 @@
     {# Brand #}
     {% if current_user.is_authenticated %}
     <a class="topbar-brand" href="{{ url_for('dashboard.index') }}">
-        <span class="topbar-brand-text">Intelligent Investment Platform</span>
+        <span class="topbar-brand-text">{{ APP_NAME }}</span>
     </a>
     {% else %}
     <a class="topbar-brand" href="{{ url_for('main.index') }}">
-        <span class="topbar-brand-text">Intelligent Investment Platform</span>
+        <span class="topbar-brand-text">{{ APP_NAME }}</span>
     </a>
     {% endif %}
 

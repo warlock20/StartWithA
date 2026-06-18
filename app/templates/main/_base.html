@@ -4,7 +4,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>{{ title if title else "Company Research Platform" }}</title>
+    <title>{{ title if title else APP_NAME }}</title>
+
+    {# SEO / social meta #}
+    <meta name="description" content="{{ APP_TAGLINE }}">
+    <meta property="og:title" content="{{ APP_NAME }}">
+    <meta property="og:description" content="{{ APP_TAGLINE }}">
+    <meta property="og:type" content="website">
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -54,7 +60,7 @@
                 <div class="container">
                     <div class="row">
                         <div class="col-md-6 text-center text-md-start">
-                            <span class="text-muted">&copy; 2025 Intelligent Investment Platform</span>
+                            <span class="text-muted">&copy; 2026 {{ APP_NAME }}</span>
                         </div>
                         <div class="col-md-6 text-center text-md-end">
                             <ul class="list-inline mb-0">

@@ -165,6 +165,14 @@ def create_app(config_class=Config):
     from app.utils.quotes import get_session_quote
 
     @app.context_processor
+    def inject_brand():
+        """Expose the brand name/tagline to all templates (single source: config)."""
+        return dict(
+            APP_NAME=app.config['APP_NAME'],
+            APP_TAGLINE=app.config.get('APP_TAGLINE', ''),
+        )
+
+    @app.context_processor
     def inject_review_queue():
         # The key in the returned dictionary is the name the template will use.
         # The value is the Python function itself.

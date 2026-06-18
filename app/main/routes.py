@@ -30,7 +30,8 @@ def index():
         return redirect(url_for('dashboard.index'))
 
     # If the user is a visitor (not logged in), show them the new public homepage
-    return render_template('main/public_home.html', title='Welcome - Research Platform')
+    # No explicit title → falls back to APP_NAME (brand) in the base template
+    return render_template('main/public_home.html')
 
 @bp.route('/mental-models')
 def mental_models():

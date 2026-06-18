@@ -23,7 +23,7 @@ function startDashboardTour() {
             {
                 element: '.discipline-compact-header',
                 popover: {
-                    title: 'Welcome to Your Investment Platform',
+                    title: 'Welcome to Start with A',
                     description: 'This platform helps you build systematic investing discipline. Let\'s take a quick tour!',
                     side: "bottom",
                     align: 'start'
