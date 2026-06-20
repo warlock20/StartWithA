@@ -8,6 +8,17 @@
             <span class="sidebar-item-text">Dashboard</span>
         </a>
 
+        {# Start with A's — the core workflow, promoted to top-level #}
+        {% if has_feature('start_with_a') %}
+        <a href="{{ url_for('research_workflow.start_with_a') }}" class="sidebar-item"
+            data-tooltip="Start with A's" data-feature-group="advanced_research">
+            <i class="bi bi-globe2"></i>
+            <span class="sidebar-item-text">Start with A's</span>
+            {% if is_newly_unlocked('start_with_a') %}<span
+                class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
+        </a>
+        {% endif %}
+
         <div class="sidebar-divider"></div>
 
         {# ===== RESEARCH (collapsible) ===== #}
@@ -39,8 +50,7 @@
             {% endif %}
 
             {# ===== ADVANCED (collapsible) ===== #}
-            {% if has_feature('start_with_a') or has_feature('analytics')
-            or has_feature('company_directory') %}
+            {% if has_feature('analytics') or has_feature('company_directory') %}
             <button class="sidebar-section-toggle expanded" onclick="toggleSidebarSection(this)">
                 <i class="bi bi-tools section-icon"></i>
                 <span class="sidebar-item-text">Advanced</span>
@@ -55,15 +65,6 @@
                 </a>
                 {% endif %}
                 {# PRO #}
-                {% if has_feature('start_with_a') %}
-                <a href="{{ url_for('research_workflow.start_with_a') }}" class="sidebar-item"
-                    data-tooltip="Start with A's" data-feature-group="advanced_research">
-                    <i class="bi bi-globe2"></i>
-                    <span class="sidebar-item-text">Start with A's</span>
-                    {% if is_newly_unlocked('start_with_a') %}<span
-                        class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
-                </a>
-                {% endif %}
                 {% if has_feature('analytics') %}
                 <a href="{{ url_for('analytics.dashboard') }}" class="sidebar-item" data-tooltip="Analytics"
                     data-feature-group="advanced_research">
