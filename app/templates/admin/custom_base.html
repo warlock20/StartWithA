@@ -2,6 +2,6 @@
 
 {% block brand %}
 <a class="navbar-brand" href="{{ admin_view.admin.url }}">
-    <strong>Investment Platform</strong> Admin
+    <strong>{{ APP_NAME | default('Start with A', true) }}</strong> Admin
 </a>
 {% endblock %}

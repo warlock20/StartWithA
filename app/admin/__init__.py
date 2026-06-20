@@ -357,7 +357,7 @@ def init_admin(app):
 
     admin = Admin(
         app,
-        name='Investment Platform Admin',
+        name=f"{app.config['APP_NAME']} Admin",
         index_view=SecureAdminIndexView(),
     )
 

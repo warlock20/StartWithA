@@ -79,6 +79,11 @@ class Config:
     # 8. BUSINESS LOGIC
     DEFAULT_USER_TIER = os.environ.get('DEFAULT_USER_TIER', 'free')
 
+    # 8b. BRAND: Single source of truth for the product name/tagline.
+    # Defined once here so the name can be changed in one place.
+    APP_NAME = os.environ.get('APP_NAME', 'Start with A')
+    APP_TAGLINE = os.environ.get('APP_TAGLINE', 'Research every company. Miss nothing.')
+
     # 9. AUTH0 CONFIGURATION
     AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
