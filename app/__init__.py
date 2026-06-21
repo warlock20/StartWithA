@@ -160,8 +160,6 @@ def create_app(config_class=Config):
         from app.utils.blocknote_utils import blocknote_to_html
         return blocknote_to_html(content)
 
-    # This makes the get_review_queue function available in all templates.
-    from app.journal_enhanced.utils import get_review_queue
     from app.utils.quotes import get_session_quote
 
     @app.context_processor
@@ -171,12 +169,6 @@ def create_app(config_class=Config):
             APP_NAME=app.config['APP_NAME'],
             APP_TAGLINE=app.config.get('APP_TAGLINE', ''),
         )
-
-    @app.context_processor
-    def inject_review_queue():
-        # The key in the returned dictionary is the name the template will use.
-        # The value is the Python function itself.
-        return dict(get_review_queue=get_review_queue)
 
     @app.context_processor
     def inject_investor_quote():

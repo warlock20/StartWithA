@@ -17,193 +17,18 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user, login_required
 from app import db
-from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
+from app.models import (MistakeLog, InvestmentPostMortem,
                        PatternRecognition, DecisionJournal,
-                       Company, LearningNote, Sector, SectorAnalysis)
+                       Company, LearningNote)
 from app.learning import learning_bp
-from app.learning.utils import (get_weekly_metrics,
-                               calculate_learning_score, get_review_schedule,
-                               generate_learning_recommendations)
-from app.utils.time_utils import now_utc, ensure_timezone_aware, parse_date_to_date_object
+from app.utils.time_utils import now_utc, parse_date_to_date_object
 from datetime import datetime, timedelta, date
 
 @learning_bp.route('/dashboard')
 @login_required
 def learning_dashboard():
-    """Main learning dashboard"""
-    # Calculate learning score (internal use - not displayed)
-    learning_score = calculate_learning_score(current_user.id)
-
-    # Get curated wisdom stats
-    total_insights = LearningNote.query.filter_by(user_id=current_user.id).count()
-
-    # Get last reviewed date (most recent)
-    last_reviewed_insight = LearningNote.query.filter_by(user_id=current_user.id)\
-        .filter(LearningNote.last_reviewed.isnot(None))\
-        .order_by(LearningNote.last_reviewed.desc())\
-        .first()
-
-    last_reviewed_date = ensure_timezone_aware(last_reviewed_insight.last_reviewed) if last_reviewed_insight else None
-
-    # Count stale insights (not reviewed in 30+ days or never reviewed)
-    thirty_days_ago = now_utc() - timedelta(days=30)
-    stale_insights = LearningNote.query.filter_by(user_id=current_user.id).filter(
-        db.or_(
-            LearningNote.last_reviewed.is_(None),
-            LearningNote.last_reviewed < thirty_days_ago
-        )
-    ).count()
-
-    curated_wisdom_stats = {
-        'total': total_insights,
-        'last_reviewed': last_reviewed_date,
-        'stale_count': stale_insights
-    }
-
-    # Get sector knowledge stats (count active research notebooks with continuous learning enabled)
-    total_sectors = SectorAnalysis.query.filter_by(
-        user_id=current_user.id,
-        status='active',
-        continuous_learning_enabled=True
-    ).count()
-
-    # Get last researched from sector with active analysis and continuous learning enabled
-    last_researched_sector = db.session.query(Sector)\
-        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
-        .filter(
-            SectorAnalysis.user_id == current_user.id,
-            SectorAnalysis.status == 'active',
-            SectorAnalysis.continuous_learning_enabled == True
-        )\
-        .filter(Sector.last_researched.isnot(None))\
-        .order_by(Sector.last_researched.desc())\
-        .first()
-
-    last_researched_date = ensure_timezone_aware(last_researched_sector.last_researched) if last_researched_sector else None
-
-    # Count stale sectors (with active analysis and continuous learning enabled)
-    stale_sectors = db.session.query(Sector)\
-        .join(SectorAnalysis, Sector.id == SectorAnalysis.sector_id)\
-        .filter(
-            SectorAnalysis.user_id == current_user.id,
-            SectorAnalysis.status == 'active',
-            SectorAnalysis.continuous_learning_enabled == True
-        )\
-        .filter(
-            db.or_(
-                Sector.last_researched.is_(None),
-                Sector.last_researched < thirty_days_ago
-            )
-        ).count()
-
-    sector_knowledge_stats = {
-        'total': total_sectors,
-        'last_researched': last_researched_date,
-        'stale_count': stale_sectors
-    }
-
-    # Get review schedule
-    review_schedule = get_review_schedule(current_user.id)
-
-    # Review discipline metrics (last 12 weeks)
-    twelve_weeks_ago = now_utc().date() - timedelta(weeks=12)
-    weekly_reviews_completed = WeeklyReview.query.filter(
-        WeeklyReview.user_id == current_user.id,
-        WeeklyReview.week_start >= twelve_weeks_ago
-    ).count()
-    postmortems_completed = InvestmentPostMortem.query.filter_by(
-        user_id=current_user.id
-    ).count()
-    mistakes_reviewed = MistakeLog.query.filter(
-        MistakeLog.user_id == current_user.id,
-        MistakeLog.times_reviewed > 0
-    ).count()
-
-    review_discipline = {
-        'weekly_completed': weekly_reviews_completed,
-        'weekly_total': 12,
-        'postmortems': postmortems_completed,
-        'mistakes_reviewed': mistakes_reviewed,
-        'total_notes': total_insights,
-    }
-
-    # Weekly review stats for Knowledge Review Center card
-    total_weekly_reviews = current_user.weekly_reviews.count()
-    last_weekly_review = current_user.weekly_reviews.order_by(
-        WeeklyReview.week_start.desc()
-    ).first()
-
-    # Calculate streak: consecutive weeks with a review (single query)
-    weekly_streak = 0
-    if last_weekly_review:
-        review_weeks = {
-            r.week_start for r, in WeeklyReview.query.filter_by(
-                user_id=current_user.id
-            ).with_entities(WeeklyReview.week_start).all()
-        }
-        check_week = now_utc().date() - timedelta(days=now_utc().date().weekday())
-        while check_week in review_weeks:
-            weekly_streak += 1
-            check_week -= timedelta(weeks=1)
-
-    weekly_review_stats = {
-        'total': total_weekly_reviews,
-        'last_review': last_weekly_review.completed_at if last_weekly_review else None,
-        'streak': weekly_streak,
-    }
-
-    # Get recent mistakes
-    recent_mistakes = current_user.mistake_logs.order_by(
-        MistakeLog.created_at.desc()
-    ).limit(5).all()
-
-    # Get learning recommendations
-    recommendations = generate_learning_recommendations(current_user.id)
-
-    # Calculate improvement metrics
-    today = now_utc().date()
-    recent_decisions = current_user.decision_journals.filter(
-        DecisionJournal.decision_date >= today - timedelta(days=90)
-    ).all()
-
-    older_decisions = current_user.decision_journals.filter(
-        DecisionJournal.decision_date < today - timedelta(days=90),
-        DecisionJournal.decision_date >= today - timedelta(days=180)
-    ).all()
-
-    improvement_data = {
-        'recent_confidence': 0,
-        'older_confidence': 0,
-        'confidence_trend': 'stable'
-    }
-
-    if recent_decisions:
-        recent_confidence = sum(d.confidence_score or 0 for d in recent_decisions) / len(recent_decisions)
-        improvement_data['recent_confidence'] = round(recent_confidence, 1)
-
-    if older_decisions:
-        older_confidence = sum(d.confidence_score or 0 for d in older_decisions) / len(older_decisions)
-        improvement_data['older_confidence'] = round(older_confidence, 1)
-
-    if improvement_data['recent_confidence'] and improvement_data['older_confidence']:
-        if improvement_data['recent_confidence'] > improvement_data['older_confidence']:
-            improvement_data['confidence_trend'] = 'improving'
-        elif improvement_data['recent_confidence'] < improvement_data['older_confidence']:
-            improvement_data['confidence_trend'] = 'declining'
-
-    return render_template('learning_dashboard.html',
-                          title="Learning Center",
-                          learning_score=learning_score,
-                          curated_wisdom_stats=curated_wisdom_stats,
-                          sector_knowledge_stats=sector_knowledge_stats,
-                          weekly_review_stats=weekly_review_stats,
-                          review_schedule=review_schedule,
-                          review_discipline=review_discipline,
-                          recent_mistakes=recent_mistakes,
-                          recommendations=recommendations,
-                          improvement_data=improvement_data,
-                          ensure_timezone_aware=ensure_timezone_aware,
-                          now=now_utc())
+    """Redirect to unified Knowledge Hub"""
+    return redirect(url_for('journal_enhanced.knowledge_hub'))
 
 @learning_bp.route('/mistakes')
 @login_required
@@ -293,7 +118,6 @@ def new_mistake():
            company_id=company_id if company_id else None,
            source_type='experience',
            importance=severity or 5,
-           next_review_date=date.today() + timedelta(days=3)
        )
        db.session.add(learning_note)
        
@@ -339,116 +163,6 @@ def review_mistake(mistake_id):
        db.session.rollback()
        return jsonify({'error': str(e)}), 500
 
-@learning_bp.route('/weekly-review')
-@login_required
-def weekly_review():
-   """Weekly review interface"""
-   # Get current week dates
-   today = date.today()
-   week_start = today - timedelta(days=today.weekday())
-   week_end = week_start + timedelta(days=6)
-   
-   # Check if review exists for this week
-   existing_review = WeeklyReview.query.filter_by(
-       user_id=current_user.id,
-       week_start=week_start
-   ).first()
-   
-   if existing_review:
-       return redirect(url_for('learning.view_weekly_review', review_id=existing_review.id))
-   
-   # Get metrics for the week
-   metrics = get_weekly_metrics(current_user.id, week_start)
-   
-   # Get past reviews for reference
-   past_reviews = current_user.weekly_reviews.order_by(
-       WeeklyReview.week_start.desc()
-   ).limit(4).all()
-   
-   return render_template('weekly_review.html',
-                         title="Weekly Review",
-                         week_start=week_start,
-                         week_end=week_end,
-                         metrics=metrics,
-                         past_reviews=past_reviews)
-
-@learning_bp.route('/weekly-review/save', methods=['POST'])
-@login_required
-def save_weekly_review():
-   """Save weekly review"""
-   week_start = parse_date_to_date_object(request.form.get('week_start'))
-   week_end = week_start + timedelta(days=6)
-   
-   # Check for existing review
-   existing = WeeklyReview.query.filter_by(
-       user_id=current_user.id,
-       week_start=week_start
-   ).first()
-   
-   if existing:
-       review = existing
-   else:
-       review = WeeklyReview(
-           user=current_user,
-           week_start=week_start,
-           week_end=week_end
-       )
-   
-   # Get metrics
-   metrics = get_weekly_metrics(current_user.id, week_start)
-   review.ideas_captured = metrics['ideas_captured']
-   review.ideas_killed = metrics['ideas_killed']
-   review.research_hours = metrics['research_hours']
-   review.decisions_made = metrics['decisions_made']
-   
-   # Save reflections
-   review.biggest_win = request.form.get('biggest_win')
-   review.biggest_challenge = request.form.get('biggest_challenge')
-   review.market_thoughts = request.form.get('market_thoughts')
-   review.confidence_level = request.form.get('confidence_level', type=int)
-   review.market_sentiment = request.form.get('market_sentiment')
-   
-   # Parse lists
-   key_learnings = request.form.get('key_learnings', '').split('\n')
-   review.key_learnings = [l.strip() for l in key_learnings if l.strip()]
-   
-   opportunities = request.form.get('opportunities_identified', '').split('\n')
-   review.opportunities_identified = [o.strip() for o in opportunities if o.strip()]
-   
-   risks = request.form.get('risks_identified', '').split('\n')
-   review.risks_identified = [r.strip() for r in risks if r.strip()]
-   
-   priorities = request.form.get('next_week_priorities', '').split('\n')
-   review.next_week_priorities = [p.strip() for p in priorities if p.strip()]
-
-   review.completed_at = now_utc()
-
-   if not existing:
-       db.session.add(review)
-   
-   try:
-       db.session.commit()
-       flash('Weekly review saved successfully!', 'success')
-       return redirect(url_for('learning.view_weekly_review', review_id=review.id))
-   except Exception as e:
-       db.session.rollback()
-       flash(f'Error saving review: {str(e)}', 'error')
-       return redirect(url_for('learning.weekly_review'))
-
-@learning_bp.route('/weekly-review/<int:review_id>')
-@login_required
-def view_weekly_review(review_id):
-   """View a specific weekly review"""
-   review = WeeklyReview.query.get_or_404(review_id)
-
-   if review.user_id != current_user.id:
-       flash('Access denied', 'error')
-       return redirect(url_for('learning.learning_dashboard'))
-
-   return render_template('view_weekly_review.html',
-                         title=f"Weekly Review: {review.week_start.strftime('%B %d, %Y')}",
-                         review=review)
-
 @learning_bp.route('/postmortem/<int:decision_id>', methods=['GET', 'POST'])
 @login_required
 def investment_postmortem(decision_id):
@@ -457,7 +171,7 @@ def investment_postmortem(decision_id):
    
    if decision.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('learning.learning_dashboard'))
+       return redirect(url_for('journal_enhanced.knowledge_hub'))
    
    # Check for existing postmortem
    existing = InvestmentPostMortem.query.filter_by(
@@ -533,7 +247,6 @@ def investment_postmortem(decision_id):
            company_id=decision.company_id,
            source_type='experience',
            importance=8 if postmortem.outcome == 'failure' else 6,
-           next_review_date=date.today() + timedelta(days=7)
        )
        db.session.add(learning_note)
        
@@ -557,23 +270,11 @@ def view_postmortem(postmortem_id):
    
    if postmortem.user_id != current_user.id:
        flash('Access denied', 'error')
-       return redirect(url_for('learning.learning_dashboard'))
+       return redirect(url_for('journal_enhanced.knowledge_hub'))
    
    return render_template('view_postmortem.html',
                          title="Investment Postmortem",
                          postmortem=postmortem)
-
-@learning_bp.route('/weekly-reviews')
-@login_required
-def weekly_review_list():
-    """List all completed weekly reviews"""
-    reviews = current_user.weekly_reviews.order_by(
-        WeeklyReview.week_start.desc()
-    ).all()
-
-    return render_template('weekly_review_list.html',
-                          title="Weekly Reviews",
-                          reviews=reviews)
 
 @learning_bp.route('/postmortems')
 @login_required

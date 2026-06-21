@@ -166,15 +166,6 @@
                 {% if is_newly_unlocked('knowledge_hub') %}<span class="sidebar-badge sidebar-badge--new">NEW</span>{%
                 endif %}
             </a>
-            {% if has_feature('learning_dashboard') %}
-            <a href="{{ url_for('learning.learning_dashboard') }}" class="sidebar-item" data-tooltip="Learning"
-                data-feature-group="knowledge_learning">
-                <i class="bi bi-mortarboard-fill"></i>
-                <span class="sidebar-item-text">Learning Dashboard</span>
-                {% if is_newly_unlocked('learning_dashboard') %}<span
-                    class="sidebar-badge sidebar-badge--new">NEW</span>{% endif %}
-            </a>
-            {% endif %}
         </div>
         {% endif %}
 

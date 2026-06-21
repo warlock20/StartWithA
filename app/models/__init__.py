@@ -81,7 +81,6 @@ from .journal import (
     ThesisEvolution,
     LearningNote,
     JournalTemplate,
-    WeeklyReview,
     InvestmentPostMortem,
     PatternRecognition,
 )
@@ -190,7 +189,6 @@ __all__ = [
     'ThesisEvolution',
     'LearningNote',
     'JournalTemplate',
-    'WeeklyReview',
     'InvestmentPostMortem',
     'PatternRecognition',
     # Portfolio models

@@ -19,13 +19,13 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import (JournalEntry, ThesisEvolution, LearningNote,
                        JournalTemplate, JournalAttachment, Company,
-                       ResearchProject)
+                       ResearchProject, MistakeLog)
 from app.journal_enhanced import journal_enhanced_bp
 from app.journal_enhanced.utils import (extract_tags_from_content, get_related_entries,
-                                       get_review_queue, update_thesis_version,
-                                       calculate_next_review_date, create_default_templates)
+                                       update_thesis_version, create_default_templates)
 from app.utils.time_utils import now_utc, parse_date_to_date_object
 from app.utils.response_utils import json_success, json_error, json_unauthorized
+from app.utils.blocknote_utils import blocknote_to_text
 from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
@@ -502,7 +502,6 @@ def new_learning_note():
            source_date=source_date,
            topic_tags=topic_tags,
            investor_tags=investor_tags,
-           next_review_date=now_utc().date() + timedelta(days=1)
        )
 
        # Extract and combine tags
@@ -551,30 +550,6 @@ def learning_note_detail(note_id):
    return render_template('learning_note_detail.html',
                          title=note.title,
                          note=note)
-
-@journal_enhanced_bp.route('/learning-notes/<int:note_id>/review', methods=['POST'])
-@login_required
-def review_learning_note(note_id):
-   """Mark a learning note as reviewed"""
-   note = LearningNote.query.get_or_404(note_id)
-
-   if note.user_id != current_user.id:
-       return json_unauthorized('Access denied')
-
-   note.times_reviewed += 1
-   note.last_reviewed = now_utc()
-   note.next_review_date = calculate_next_review_date(note)
-
-   try:
-       db.session.commit()
-       return jsonify({
-           'success': True,
-           'times_reviewed': note.times_reviewed,
-           'next_review': note.next_review_date.strftime('%Y-%m-%d')
-       })
-   except Exception as e:
-       db.session.rollback()
-       return json_error(str(e), status_code=500)
 
 @journal_enhanced_bp.route('/learning-notes/<int:note_id>/toggle-favorite', methods=['POST'])
 @login_required
@@ -674,239 +649,170 @@ def edit_learning_note(note_id):
 @journal_enhanced_bp.route('/knowledge-hub')
 @login_required
 def knowledge_hub():
-    """Unified Knowledge Hub - combines search, curated wisdom, and research notes"""
-    # Get content type filter with preference fallback
-    content_type = request.args.get('type')
-
-    if not content_type:
-        # Check if user has a saved preference
-        content_type = session.get('knowledge_hub_type', 'all')
-
-    # Save the current type as preference
+    """Command Center - unified knowledge hub for research, wisdom, and mistakes"""
+    # Get filter params
+    content_type = request.args.get('type', session.get('knowledge_hub_type', 'all'))
     session['knowledge_hub_type'] = content_type
-
-    # Get grouping preference
-    group_by = request.args.get('group_by', 'company')  # Default: group by company
-
-    # Get search query
     search_query = request.args.get('q', '')
+    company_filter = request.args.get('company_id', type=int)
+    tag_filter = request.args.get('tag')
+    starred_only = request.args.get('starred') == '1'
+    sort_by = request.args.get('sort', 'date')
 
-    # Initialize results
-    wisdom_results = []
-    research_results = []
+    # Build unified results
+    unified_results = []
 
-    # Query LearningNote (Curated Wisdom)
-    if content_type in ['all', 'wisdom']:
-        wisdom_query = LearningNote.query.filter_by(user_id=current_user.id)
-
-        # Apply wisdom-specific filters
-        investor = request.args.get('investor')
-        source_type = request.args.get('source_type')
-        knowledge_type = request.args.get('knowledge_type')
-        topic = request.args.get('topic')
-        favorites_only = request.args.get('favorites_only') == '1'
-
-        # Search filter
-        if search_query:
-            search_pattern = f'%{search_query}%'
-            wisdom_query = wisdom_query.filter(
-                db.or_(
-                    LearningNote.title.ilike(search_pattern),
-                    LearningNote.lesson.ilike(search_pattern),
-                    LearningNote.source_author.ilike(search_pattern)
-                )
-            )
-
-        # Other filters
-        if investor:
-            wisdom_query = wisdom_query.filter(LearningNote.investor_tags.contains([investor]))
-        if source_type:
-            wisdom_query = wisdom_query.filter_by(source_type=source_type)
-        if knowledge_type:
-            wisdom_query = wisdom_query.filter_by(knowledge_type=knowledge_type)
-        if topic:
-            wisdom_query = wisdom_query.filter(LearningNote.topic_tags.contains([topic]))
-        if favorites_only:
-            wisdom_query = wisdom_query.filter_by(is_favorite=True)
-
-        wisdom_results = wisdom_query.order_by(
-            LearningNote.importance.desc(),
-            LearningNote.created_at.desc()
-        ).all()
-
-    # Query JournalEntry (Research Notes)
+    # --- Query Research Notes (JournalEntry) ---
     if content_type in ['all', 'research']:
         research_query = JournalEntry.query.filter_by(
-            user_id=current_user.id,
-            is_archived=False
+            user_id=current_user.id, is_archived=False
         )
-
-        # Apply research-specific filters
-        company_id = request.args.get('company_id', type=int)
-        entry_type = request.args.get('entry_type')
-        sentiment = request.args.get('sentiment')
-        starred_only = request.args.get('starred_only') == '1'
-        date_range = request.args.get('date_range', type=int)
-
-        # Search filter
         if search_query:
-            search_pattern = f'%{search_query}%'
-            research_query = research_query.filter(
-                db.or_(
-                    JournalEntry.title.ilike(search_pattern),
-                    JournalEntry.content.ilike(search_pattern),
-                    JournalEntry.key_insight.ilike(search_pattern)
-                )
-            )
-
-        # Other filters
-        if company_id:
-            research_query = research_query.filter_by(company_id=company_id)
-        if entry_type:
-            research_query = research_query.filter_by(entry_type=entry_type)
-        if sentiment:
-            research_query = research_query.filter_by(sentiment=sentiment)
+            pattern = f'%{search_query}%'
+            research_query = research_query.filter(db.or_(
+                JournalEntry.title.ilike(pattern),
+                JournalEntry.content.ilike(pattern),
+                JournalEntry.key_insight.ilike(pattern)
+            ))
+        if company_filter:
+            research_query = research_query.filter_by(company_id=company_filter)
         if starred_only:
             research_query = research_query.filter_by(is_starred=True)
-        if date_range:
-            cutoff_date = now_utc() - timedelta(days=date_range)
-            research_query = research_query.filter(JournalEntry.created_at >= cutoff_date)
+        for entry in research_query.order_by(JournalEntry.created_at.desc()).all():
+            # Tag filtering in Python for PostgreSQL JSON compat
+            if tag_filter and (not entry.tags or tag_filter not in entry.tags):
+                continue
+            unified_results.append({
+                'type': 'research', 'item': entry, 'date': entry.created_at,
+                'title': entry.title or 'Untitled',
+                'preview': entry.key_insight or blocknote_to_text(entry.content)[:150],
+                'company': entry.company.name if entry.company else None,
+                'company_id': entry.company_id,
+                'tags': entry.tags or [],
+                'starred': entry.is_starred,
+            })
 
-        research_results = research_query.order_by(
-            JournalEntry.created_at.desc()
-        ).all()
+    # --- Query Curated Wisdom (LearningNote) ---
+    if content_type in ['all', 'wisdom']:
+        wisdom_query = LearningNote.query.filter_by(user_id=current_user.id)
+        if search_query:
+            pattern = f'%{search_query}%'
+            wisdom_query = wisdom_query.filter(db.or_(
+                LearningNote.title.ilike(pattern),
+                LearningNote.lesson.ilike(pattern),
+                LearningNote.source_author.ilike(pattern)
+            ))
+        if company_filter:
+            wisdom_query = wisdom_query.filter_by(company_id=company_filter)
+        if starred_only:
+            wisdom_query = wisdom_query.filter_by(is_favorite=True)
+        for note in wisdom_query.order_by(LearningNote.created_at.desc()).all():
+            if tag_filter:
+                all_note_tags = (note.topic_tags or []) + (note.tags or [])
+                if tag_filter not in all_note_tags:
+                    continue
+            unified_results.append({
+                'type': 'wisdom', 'item': note, 'date': note.created_at,
+                'title': note.title,
+                'preview': blocknote_to_text(note.lesson)[:150] if note.lesson else '',
+                'company': note.company.name if note.company else None,
+                'company_id': note.company_id,
+                'tags': note.topic_tags or note.tags or [],
+                'starred': note.is_favorite,
+                'author': note.source_author,
+            })
 
-    # Build unified results list with type indicators
-    unified_results = []
-    for entry in research_results:
-        unified_results.append({
-            'type': 'research',
-            'item': entry,
-            'date': entry.created_at,
-            'company': entry.company.name if entry.company else None,
-            'company_id': entry.company_id,
-            'topics': entry.tags or []
-        })
+    # --- Query Mistakes (MistakeLog) ---
+    if content_type in ['all', 'mistake']:
+        mistake_query = MistakeLog.query.filter_by(user_id=current_user.id)
+        if search_query:
+            pattern = f'%{search_query}%'
+            mistake_query = mistake_query.filter(db.or_(
+                MistakeLog.title.ilike(pattern),
+                MistakeLog.description.ilike(pattern),
+                MistakeLog.lesson_learned.ilike(pattern)
+            ))
+        if company_filter:
+            mistake_query = mistake_query.filter_by(company_id=company_filter)
+        for mistake in mistake_query.order_by(MistakeLog.created_at.desc()).all():
+            unified_results.append({
+                'type': 'mistake', 'item': mistake, 'date': mistake.created_at,
+                'title': mistake.title,
+                'preview': blocknote_to_text(mistake.lesson_learned or mistake.description)[:150],
+                'company': mistake.company.name if mistake.company else None,
+                'company_id': mistake.company_id,
+                'tags': [],
+                'starred': False,
+                'severity': mistake.severity,
+            })
 
-    for note in wisdom_results:
-        unified_results.append({
-            'type': 'wisdom',
-            'item': note,
-            'date': note.created_at,
-            'company': None,
-            'company_id': None,
-            'topics': note.topic_tags or []
-        })
-
-    # Sort unified results by date (most recent first)
-    unified_results.sort(key=lambda x: x['date'], reverse=True)
-
-    # Group results if requested
-    grouped_results = {}
-    if group_by == 'company':
-        # Group by company
-        for result in unified_results:
-            company_name = result['company'] or 'General Knowledge'
-            if company_name not in grouped_results:
-                grouped_results[company_name] = []
-            grouped_results[company_name].append(result)
-    elif group_by == 'topic':
-        # Group by topic
-        for result in unified_results:
-            topics = result['topics']
-            if topics:
-                for topic in topics:
-                    topic_clean = topic.lstrip('#')
-                    if topic_clean not in grouped_results:
-                        grouped_results[topic_clean] = []
-                    grouped_results[topic_clean].append(result)
-            else:
-                if 'Uncategorized' not in grouped_results:
-                    grouped_results['Uncategorized'] = []
-                grouped_results['Uncategorized'].append(result)
-    elif group_by == 'type':
-        # Group by content type
-        for result in unified_results:
-            type_label = 'Curated Wisdom' if result['type'] == 'wisdom' else 'Research Notes'
-            if type_label not in grouped_results:
-                grouped_results[type_label] = []
-            grouped_results[type_label].append(result)
-    elif group_by == 'date':
-        # Group by date ranges
-        now = now_utc()
-        for result in unified_results:
-            item_date = result['date']
-            if item_date >= now - timedelta(days=1):
-                date_label = 'Today'
-            elif item_date >= now - timedelta(days=7):
-                date_label = 'This Week'
-            elif item_date >= now - timedelta(days=30):
-                date_label = 'This Month'
-            elif item_date >= now - timedelta(days=90):
-                date_label = 'Last 3 Months'
-            else:
-                date_label = 'Older'
-
-            if date_label not in grouped_results:
-                grouped_results[date_label] = []
-            grouped_results[date_label].append(result)
+    # Sort
+    if sort_by == 'title':
+        unified_results.sort(key=lambda x: (x['title'] or '').lower())
+    elif sort_by == 'type':
+        unified_results.sort(key=lambda x: x['type'])
     else:
-        # No grouping - single group
-        grouped_results['All Items'] = unified_results
+        unified_results.sort(key=lambda x: x['date'], reverse=True)
 
-    # Get all unique investors for filter dropdown
-    all_investors = set()
-    for note in current_user.learning_notes.all():
-        if note.investor_tags:
-            all_investors.update(note.investor_tags)
-    all_investors = sorted(list(all_investors))
+    # Group by date (always date-grouped in Command Center)
+    now = now_utc().replace(tzinfo=None)
+    date_order = ['This Week', 'This Month', 'Last 3 Months', 'Older']
+    grouped_results = {}
+    for result in unified_results:
+        item_date = result['date'].replace(tzinfo=None) if result['date'].tzinfo else result['date']
+        diff = (now - item_date).days
+        if diff < 7:
+            label = 'This Week'
+        elif diff < 30:
+            label = 'This Month'
+        elif diff < 90:
+            label = 'Last 3 Months'
+        else:
+            label = 'Older'
+        if label not in grouped_results:
+            grouped_results[label] = []
+        grouped_results[label].append(result)
 
-    # Get all unique topics for filter dropdown
-    all_topics = set()
-    for note in current_user.learning_notes.all():
-        if note.topic_tags:
-            all_topics.update(note.topic_tags)
-    all_topics = sorted(list(all_topics))
+    # Preserve date order
+    ordered_groups = [(k, grouped_results[k]) for k in date_order if k in grouped_results]
 
-    # Get companies for filter dropdown
+    # Collect filter dropdown data
     companies = current_user.companies.order_by(Company.name).all()
+    all_tags = set()
+    for entry in current_user.journal_entries.filter(JournalEntry.tags.isnot(None)):
+        if entry.tags:
+            all_tags.update(entry.tags)
+    for note in current_user.learning_notes.filter(LearningNote.topic_tags.isnot(None)):
+        if note.topic_tags:
+            all_tags.update(note.topic_tags)
+    all_tags = sorted(all_tags)
 
-    # Calculate stats
-    all_research = current_user.journal_entries.filter_by(is_archived=False).all()
-    all_wisdom = current_user.learning_notes.all()
-    stats = {
-        'total_items': len(all_research) + len(all_wisdom),
-        'research_notes': len(all_research),
-        'curated_insights': len(all_wisdom),
-        'starred': sum(1 for e in all_research if e.is_starred) + sum(1 for n in all_wisdom if n.is_favorite)
+    # Type counts for tabs
+    all_research_count = current_user.journal_entries.filter_by(is_archived=False).count()
+    all_wisdom_count = current_user.learning_notes.count()
+    all_mistake_count = MistakeLog.query.filter_by(user_id=current_user.id).count()
+    total_count = all_research_count + all_wisdom_count + all_mistake_count
+
+    type_counts = {
+        'all': total_count,
+        'research': all_research_count,
+        'wisdom': all_wisdom_count,
+        'mistake': all_mistake_count,
     }
 
     return render_template('knowledge_hub.html',
                          title="Knowledge Hub",
                          content_type=content_type,
-                         group_by=group_by,
                          unified_results=unified_results,
-                         grouped_results=grouped_results,
-                         wisdom_results=wisdom_results,
-                         research_results=research_results,
-                         stats=stats,
-                         all_investors=all_investors,
-                         all_topics=all_topics,
+                         grouped_results=ordered_groups,
+                         type_counts=type_counts,
                          companies=companies,
-                         search_query=search_query)
-
-@journal_enhanced_bp.route('/review-queue')
-@login_required
-def review_queue():
-   """Show items due for review"""
-   queue = get_review_queue(current_user.id)
-
-   return render_template('review_queue.html',
-                         title="Review Queue",
-                         learning_notes=queue['learning_notes'],
-                         pending_entries=queue['pending_entries'],
-                         starred_entries=queue['starred_entries'],
-                         total_items=queue['total_items'])
+                         all_tags=all_tags,
+                         search_query=search_query,
+                         company_filter=company_filter,
+                         tag_filter=tag_filter,
+                         starred_only=starred_only,
+                         sort_by=sort_by)
 
 @journal_enhanced_bp.route('/templates')
 @login_required
@@ -1324,101 +1230,6 @@ def intelligence_dashboard():
             'error': str(e)
         }), 500
 
-@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_pending', methods=['POST'])
-@login_required
-def mark_entry_pending(entry_id):
-    """Mark entry as pending review"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check: ensure user owns the entry
-    if entry.user_id != current_user.id:
-        flash('Access denied', 'error')
-        abort(403)
-
-    try:
-        entry.last_reviewed = None
-        db.session.commit()
-        flash('Entry marked as pending review', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash('Error updating entry status', 'error')
-
-    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
-
-@journal_enhanced_bp.route('/entry/<int:entry_id>/review', methods=['POST'])
-@login_required
-def review_entry(entry_id):
-    """Enhanced review entry with notes and knowledge tags"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check: ensure user owns the entry
-    if entry.user_id != current_user.id:
-        flash('Access denied', 'error')
-        abort(403)
-
-    try:
-        # Update review information
-        entry.last_reviewed = now_utc()
-        entry.review_count += 1
-
-        # Add review notes if provided
-        review_notes = request.form.get('review_notes', '').strip()
-        if review_notes:
-            entry.review_notes = review_notes
-
-        # Handle knowledge tags
-        knowledge_tags = request.form.get('knowledge_tags', '').strip()
-        if knowledge_tags:
-            # Parse knowledge tags and add to existing tags
-            new_tags = [tag.strip() for tag in knowledge_tags.split(',') if tag.strip()]
-            existing_tags = entry.tags or []
-
-            # Merge tags, avoiding duplicates
-            all_tags = list(set(existing_tags + new_tags))
-            entry.tags = all_tags
-
-        db.session.commit()
-        flash('Entry reviewed successfully! Added to your knowledge base.', 'success')
-
-        # Return JSON response for AJAX calls, otherwise redirect
-        if request.headers.get('Content-Type') == 'application/json':
-            return jsonify({
-                'success': True,
-                'message': 'Entry reviewed successfully',
-                'review_count': entry.review_count,
-                'last_reviewed': entry.last_reviewed.strftime('%Y-%m-%d %H:%M')
-            })
-
-    except Exception as e:
-        db.session.rollback()
-        flash('Error reviewing entry', 'error')
-
-        if request.headers.get('Content-Type') == 'application/json':
-            return jsonify({'success': False, 'message': str(e)}), 500
-
-    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
-
-@journal_enhanced_bp.route('/entry/<int:entry_id>/mark_reviewed', methods=['POST'])
-@login_required
-def mark_entry_reviewed(entry_id):
-    """Quick mark entry as reviewed (for backward compatibility)"""
-    entry = JournalEntry.query.get_or_404(entry_id)
-
-    # Security check: ensure user owns the entry
-    if entry.user_id != current_user.id:
-        flash('Access denied', 'error')
-        abort(403)
-
-    try:
-        entry.last_reviewed = now_utc()
-        entry.review_count += 1
-        db.session.commit()
-        flash('Entry marked as reviewed', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash('Error updating entry status', 'error')
-
-    return redirect(url_for('journal_enhanced.entry_detail', entry_id=entry_id))
 @journal_enhanced_bp.route('/api/hashtags', methods=['GET'])
 @login_required
 def get_hashtags():

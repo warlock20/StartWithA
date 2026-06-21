@@ -74,41 +74,6 @@ def get_related_entries(entry, limit=5):
     
     return unique_related
 
-def get_review_queue(user_id):
-    """
-    Get learning notes and important entries due for review.
-    """
-    today = date.today()
-
-    # Learning notes due for review
-    learning_notes = LearningNote.query.filter(
-        LearningNote.user_id == user_id,
-        LearningNote.next_review_date <= today
-    ).order_by(LearningNote.importance.desc()).all()
-
-    # New entries that have never been reviewed (pending review)
-    pending_entries = JournalEntry.query.filter(
-        JournalEntry.user_id == user_id,
-        JournalEntry.last_reviewed.is_(None),
-        JournalEntry.is_archived == False
-    ).order_by(JournalEntry.created_at.desc()).all()
-
-    # Starred entries not reviewed in 30+ days (excluding ones already in pending)
-    starred_entries = JournalEntry.query.filter(
-        JournalEntry.user_id == user_id,
-        JournalEntry.is_starred == True,
-        JournalEntry.last_reviewed.isnot(None),  # Exclude never-reviewed entries (they're in pending)
-        JournalEntry.last_reviewed < now_utc() - timedelta(days=30),
-        JournalEntry.is_archived == False
-    ).all()
-
-    return {
-        'learning_notes': learning_notes,
-        'pending_entries': pending_entries,
-        'starred_entries': starred_entries,
-        'total_items': len(learning_notes) + len(pending_entries) + len(starred_entries)
-    }
-
 def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
     """
     Create a new thesis version for a company.
@@ -148,32 +113,6 @@ def update_thesis_version(user_id, company_id, new_thesis, trigger=None):
         print(f"Error updating thesis: {e}")
         return None
 
-def calculate_next_review_date(learning_note):
-    """
-    Calculate next review date using spaced repetition algorithm.
-    """
-    # Simple spaced repetition: double the interval each time
-    if learning_note.times_reviewed == 0:
-        interval = 1
-    elif learning_note.times_reviewed == 1:
-        interval = 3
-    elif learning_note.times_reviewed == 2:
-        interval = 7
-    elif learning_note.times_reviewed == 3:
-        interval = 14
-    elif learning_note.times_reviewed == 4:
-        interval = 30
-    else:
-        interval = 60
-    
-    # Adjust based on importance
-    if learning_note.importance >= 8:
-        interval = int(interval * 0.7)  # Review important notes more frequently
-    elif learning_note.importance <= 3:
-        interval = int(interval * 1.5)  # Review less important notes less frequently
-    
-    return date.today() + timedelta(days=interval)
-
 def search_journal(user_id, query, filters=None):
     """
     Enhanced search for journal entries with knowledge hub filters.
@@ -181,7 +120,7 @@ def search_journal(user_id, query, filters=None):
     # Base query
     search = JournalEntry.query.filter_by(user_id=user_id, is_archived=False)
 
-    # Text search in content, title, key_insight, and review_notes
+    # Text search in content, title, key_insight
     if query:
         search_pattern = f'%{query}%'
         search = search.filter(
@@ -189,7 +128,6 @@ def search_journal(user_id, query, filters=None):
                 JournalEntry.content.ilike(search_pattern),
                 JournalEntry.title.ilike(search_pattern),
                 JournalEntry.key_insight.ilike(search_pattern),
-                JournalEntry.review_notes.ilike(search_pattern)
             )
         )
 
@@ -289,27 +227,12 @@ def get_journal_statistics(user_id):
     # Learning notes stats
     total_lessons = LearningNote.query.filter_by(user_id=user_id).count()
 
-    # Pending reviews: Learning notes + Journal entries that have never been reviewed
-    pending_learning_notes = LearningNote.query.filter(
-        LearningNote.user_id == user_id,
-        LearningNote.next_review_date <= date.today()
-    ).count()
-
-    pending_journal_entries = JournalEntry.query.filter(
-        JournalEntry.user_id == user_id,
-        JournalEntry.last_reviewed.is_(None),
-        JournalEntry.is_archived == False
-    ).count()
-
-    pending_reviews = pending_learning_notes + pending_journal_entries
-    
     return {
         'total_entries': total_entries,
         'type_counts': dict(type_counts),
         'top_tags': tag_counts,
         'recent_entries': recent_entries,
         'total_lessons': total_lessons,
-        'pending_reviews': pending_reviews
     }
 
 def create_default_templates():
