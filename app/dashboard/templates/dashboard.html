@@ -371,10 +371,10 @@
                 Decision Journal
             </a>
             {% endif %}
-            {% if has_feature('learning_dashboard') %}
-            <a href="{{ url_for('learning.learning_dashboard') }}" class="nav-link-card">
-                <i class="bi bi-mortarboard-fill nav-link-icon"></i>
-                Learning
+            {% if has_feature('knowledge_hub') %}
+            <a href="{{ url_for('journal_enhanced.knowledge_hub') }}" class="nav-link-card">
+                <i class="bi bi-book-half nav-link-icon"></i>
+                Knowledge Hub
             </a>
             {% endif %}
             {% if has_feature('mistake_log') %}

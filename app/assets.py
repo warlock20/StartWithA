@@ -153,11 +153,9 @@ css_portfolio = Bundle(
 css_learning = Bundle(
     'css/modules/_journal-home.css',
     'css/modules/_journal-search.css',
-    'css/modules/_learning-dashboard.css',
     'css/modules/_learning-mistakes.css',
     'css/modules/_knowledge-library.css',
     'css/modules/_knowledge-hub.css',
-    'css/modules/_learning-weekly-review.css',
     'css/modules/_hashtag-autocomplete.css',
 
     filters='rcssmin',

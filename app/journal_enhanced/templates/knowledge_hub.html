@@ -2,167 +2,271 @@
 
 {% block content %}
 <div class="knowledge-hub-dashboard-container">
-    <!-- Header -->
-    <div class="dashboard-header-card">
-        <header class="dashboard-header">
-            <div>
-                <h1 class="dashboard-title font-poppins">Knowledge Hub</h1>
-                <p class="dashboard-subtitle">Your research notes and curated wisdom</p>
-            </div>
-            <div class="dashboard-header-actions">
-                <a class="btn btn-primary" href="{{ url_for('journal_enhanced.new_entry') }}">
-                    <i class="bi bi-journal-plus me-2"></i>Create New Entry
-                </a>
-            </div>
-        </header>
-    </div>
-
-    <!-- Content Type Pills -->
-    <div class="knowledge-hub-pills-section">
-        <div class="content-type-pills">
-            <a href="?type=all{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-                class="type-pill {{ 'active' if content_type == 'all' else '' }}">
-                <i class="bi bi-grid-3x3"></i>
-                <span>All Items</span>
-                <span class="pill-count">{{ stats.total_items }}</span>
-            </a>
-            <a href="?type=wisdom{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-                class="type-pill {{ 'active' if content_type == 'wisdom' else '' }}">
-                <i class="bi bi-lightbulb-fill"></i>
-                <span>Curated Wisdom</span>
-                <span class="pill-count">{{ stats.curated_insights }}</span>
-            </a>
-            <a href="?type=research{% if group_by %}&group_by={{ group_by }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}"
-                class="type-pill {{ 'active' if content_type == 'research' else '' }}">
-                <i class="bi bi-journal-text"></i>
-                <span>Research Notes</span>
-                <span class="pill-count">{{ stats.research_notes }}</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Search and Filters Bar -->
-    <div class="knowledge-hub-controls">
-        <div class="search-and-grouping">
-            <form method="GET" class="search-form">
+    {# ── Search Header ── #}
+    <div class="cc-header">
+        <div class="cc-search-row">
+            <form method="GET" class="cc-search-form" id="searchForm">
+                {# Preserve existing filters #}
                 <input type="hidden" name="type" value="{{ content_type }}">
-                <input type="hidden" name="group_by" value="{{ group_by }}">
-                <div class="search-input-wrapper">
-                    <i class="bi bi-search search-icon"></i>
-                    <input type="text" name="q" class="form-control search-input" placeholder="Search knowledge base..."
-                        value="{{ search_query }}">
+                {% if company_filter %}<input type="hidden" name="company_id" value="{{ company_filter }}">{% endif %}
+                {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
+                {% if starred_only %}<input type="hidden" name="starred" value="1">{% endif %}
+                {% if sort_by != 'date' %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
+                <div class="cc-search-wrapper">
+                    <i class="bi bi-search cc-search-icon"></i>
+                    <input type="text" name="q" class="cc-search-input" id="ccSearchInput"
+                        placeholder="Search notes, companies, tags..."
+                        value="{{ search_query }}" autocomplete="off">
                     {% if search_query %}
-                    <button type="button" class="search-clear" onclick="clearSearch()">
-                        <i class="bi bi-x"></i>
+                    <button type="button" class="cc-search-clear" onclick="clearSearch()">
+                        <i class="bi bi-x-circle-fill"></i>
                     </button>
                     {% endif %}
+                    <kbd class="cc-search-kbd">⌘K</kbd>
                 </div>
             </form>
-
-            <div class="grouping-controls">
-                <label class="control-label">Group by:</label>
-                <select class="form-select grouping-select" onchange="changeGrouping(this.value)">
-                    <option value="company" {{ 'selected' if group_by=='company' else '' }}>Company</option>
-                    <option value="topic" {{ 'selected' if group_by=='topic' else '' }}>Topic</option>
-                    <option value="type" {{ 'selected' if group_by=='type' else '' }}>Content Type</option>
-                    <option value="date" {{ 'selected' if group_by=='date' else '' }}>Date</option>
-                </select>
+            <div class="cc-new-actions">
+                <a href="{{ url_for('journal_enhanced.new_entry') }}" class="btn btn-platform-primary btn-platform-sm cc-btn-new">
+                    <i class="bi bi-journal-plus"></i> <span class="cc-btn-label">New Entry</span>
+                </a>
+                <a href="{{ url_for('learning.new_mistake') }}" class="btn btn-platform-outline btn-platform-sm cc-btn-new">
+                    <i class="bi bi-exclamation-triangle"></i> <span class="cc-btn-label">Log Mistake</span>
+                </a>
             </div>
         </div>
 
-        <!-- Advanced Filters (Collapsible) -->
-        <div class="advanced-filters-toggle">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
-                data-bs-target="#advancedFilters">
-                <i class="bi bi-funnel"></i> Advanced Filters
-            </button>
+        {# ── Type Tabs ── #}
+        <div class="cc-type-tabs">
+            {% set tabs = [
+                ('all', 'All', 'bi-grid-fill'),
+                ('research', 'Research', 'bi-journal-text'),
+                ('wisdom', 'Wisdom', 'bi-lightbulb-fill'),
+                ('mistake', 'Mistakes', 'bi-exclamation-triangle-fill'),
+            ] %}
+            {% for key, label, icon in tabs %}
+            <a href="?type={{ key }}{% if search_query %}&q={{ search_query }}{% endif %}{% if company_filter %}&company_id={{ company_filter }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if starred_only %}&starred=1{% endif %}{% if sort_by != 'date' %}&sort={{ sort_by }}{% endif %}"
+               class="cc-tab {{ 'active' if content_type == key }}">
+                <i class="bi {{ icon }}"></i>
+                <span>{{ label }}</span>
+                <span class="cc-tab-count">{{ type_counts.get(key, 0) }}</span>
+            </a>
+            {% endfor %}
         </div>
     </div>
 
-    <div class="collapse" id="advancedFilters">
-        {% include 'knowledge_hub/_all_filters.html' %}
+    {# ── Secondary Filter Bar ── #}
+    <div class="cc-filter-bar">
+        <select class="cc-filter-select" onchange="applyFilter('company_id', this.value)">
+            <option value="">All Companies</option>
+            {% for company in companies %}
+            <option value="{{ company.id }}" {{ 'selected' if company_filter == company.id }}>{{ company.name }}</option>
+            {% endfor %}
+        </select>
+        <select class="cc-filter-select" onchange="applyFilter('tag', this.value)">
+            <option value="">All Tags</option>
+            {% for tag in all_tags %}
+            <option value="{{ tag }}" {{ 'selected' if tag_filter == tag }}>{{ tag }}</option>
+            {% endfor %}
+        </select>
+        <button class="cc-starred-btn {{ 'active' if starred_only }}" onclick="toggleStarred()">
+            <i class="bi {{ 'bi-star-fill' if starred_only else 'bi-star' }}"></i> Starred
+        </button>
+        <div class="cc-filter-spacer"></div>
+        <span class="cc-result-count">{{ unified_results|length }} {{ 'note' if unified_results|length == 1 else 'notes' }}</span>
+        <select class="cc-filter-select" onchange="applyFilter('sort', this.value)">
+            <option value="date" {{ 'selected' if sort_by == 'date' }}>Newest</option>
+            <option value="title" {{ 'selected' if sort_by == 'title' }}>A → Z</option>
+            <option value="type" {{ 'selected' if sort_by == 'type' }}>By Type</option>
+        </select>
     </div>
 
-    <!-- Grouped Results -->
-    {% if grouped_results %}
-    <div class="grouped-knowledge-results">
-        {% for group_name, items in grouped_results.items() %}
-        <div class="knowledge-group">
-            <div class="knowledge-group-header" onclick="toggleGroup(this)">
-                <div class="group-title">
-                    <i class="bi bi-chevron-down group-toggle-icon"></i>
-                    <span class="group-name">{{ group_name }}</span>
-                    <span class="group-count">{{ items|length }} item{{ 's' if items|length != 1 else '' }}</span>
+    {# ── Card Grid ── #}
+    <div class="cc-content">
+        {% if unified_results|length == 0 %}
+        <div class="cc-empty">
+            <i class="bi {{ 'bi-search' if search_query or company_filter or tag_filter or starred_only else 'bi-journal-plus' }}"></i>
+            <h3>{{ 'No notes match your search' if search_query or company_filter or tag_filter or starred_only else 'No notes yet' }}</h3>
+            <p>{{ 'Try adjusting your filters or search terms' if search_query or company_filter or tag_filter or starred_only else 'Start capturing insights, research notes, and lessons learned' }}</p>
+        </div>
+        {% else %}
+        <div class="cc-groups">
+            {% for group_name, items in grouped_results %}
+            <div class="cc-group">
+                <div class="cc-group-header">
+                    <span class="cc-group-label">{{ group_name }}</span>
+                    <div class="cc-group-line"></div>
+                    <span class="cc-group-count">{{ items|length }}</span>
                 </div>
-            </div>
-            <div class="knowledge-group-content">
-                <div class="knowledge-grid">
+                <div class="cc-grid">
                     {% for result in items %}
                     {% include 'knowledge_hub/_unified_card.html' %}
                     {% endfor %}
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+        {% endif %}
     </div>
-    {% else %}
-    <div class="knowledge-empty-state">
-        <div class="knowledge-empty-icon">
-            <i class="bi bi-search"></i>
-        </div>
-        <h3 class="knowledge-empty-title">No items found</h3>
-        <p class="knowledge-empty-description">
-            Try adjusting your search or filters
-        </p>
+
     </div>
-    {% endif %}
+
+{# ── Detail Slide-over (outside container to avoid overflow clipping) ── #}
+<div class="cc-overlay" id="ccOverlay" onclick="closeDetail()"></div>
+<div class="cc-detail-panel" id="ccDetailPanel">
+    <div class="cc-detail-header" id="ccDetailHeader"></div>
+    <div class="cc-detail-body" id="ccDetailBody"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-    // Auto-submit filters on change
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.addEventListener('change', function () {
-            this.closest('form').submit();
-        });
+    // Cmd+K shortcut
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            document.getElementById('ccSearchInput').focus();
+        }
     });
 
-    // Group toggling
-    function toggleGroup(header) {
-        const content = header.nextElementSibling;
-        const icon = header.querySelector('.group-toggle-icon');
-
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            icon.style.transform = 'rotate(0deg)';
-        } else {
-            content.style.display = 'none';
-            icon.style.transform = 'rotate(-90deg)';
+    // Search on enter
+    document.getElementById('ccSearchInput')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('searchForm').submit();
         }
-    }
+    });
 
-    // Grouping change
-    function changeGrouping(value) {
+    // Filter helpers
+    function applyFilter(key, value) {
         const url = new URL(window.location.href);
-        url.searchParams.set('group_by', value);
+        if (value) {
+            url.searchParams.set(key, value);
+        } else {
+            url.searchParams.delete(key);
+        }
         window.location.href = url.toString();
     }
 
-    // Clear search
+    function toggleStarred() {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('starred') === '1') {
+            url.searchParams.delete('starred');
+        } else {
+            url.searchParams.set('starred', '1');
+        }
+        window.location.href = url.toString();
+    }
+
     function clearSearch() {
         const url = new URL(window.location.href);
         url.searchParams.delete('q');
         window.location.href = url.toString();
     }
 
-    // Search on enter
-    document.querySelector('.search-input')?.addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            this.closest('form').submit();
+    // Detail slide-over
+    function showDetail(type, id) {
+        const overlay = document.getElementById('ccOverlay');
+        const panel = document.getElementById('ccDetailPanel');
+        const header = document.getElementById('ccDetailHeader');
+        const body = document.getElementById('ccDetailBody');
+
+        const card = document.querySelector(`[data-item-id="${type}-${id}"]`);
+        if (!card) return;
+
+        const title = card.dataset.title || 'Untitled';
+        const itemType = card.dataset.type;
+        const date = card.dataset.date;
+        const company = card.dataset.company || '';
+        const preview = card.dataset.preview || '';
+        const author = card.dataset.author || '';
+        const severity = card.dataset.severity || '';
+        const tags = card.dataset.tags ? card.dataset.tags.split(',').filter(t => t) : [];
+
+        const typeInfo = {
+            'research': { label: 'Research', color: '#2563eb', bg: '#eff6ff', icon: 'bi-journal-text' },
+            'wisdom':   { label: 'Wisdom',   color: '#d97706', bg: '#fffbeb', icon: 'bi-lightbulb-fill' },
+            'mistake':  { label: 'Mistake',  color: '#dc2626', bg: '#fef2f2', icon: 'bi-exclamation-triangle-fill' },
+        }[itemType] || { label: 'Note', color: '#6b7280', bg: '#f9fafb', icon: 'bi-file-text' };
+
+        let detailUrl;
+        if (itemType === 'research') detailUrl = `/journal/entry/${id}`;
+        else if (itemType === 'wisdom') detailUrl = `/journal/learning-notes/${id}`;
+        else detailUrl = null;
+
+        header.innerHTML = `
+            <div class="cc-detail-top">
+                <span class="cc-type-badge" style="color:${typeInfo.color};background:${typeInfo.bg}">
+                    <i class="bi ${typeInfo.icon}"></i> ${typeInfo.label}
+                </span>
+                <button class="cc-detail-close" onclick="closeDetail()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <h2 class="cc-detail-title">${title}</h2>
+            <div class="cc-detail-meta">
+                <span>${date}</span>
+                ${company ? `<span><i class="bi bi-building"></i> ${company}</span>` : ''}
+                ${author ? `<span><i class="bi bi-person"></i> ${author}</span>` : ''}
+            </div>
+        `;
+
+        let bodyHtml = `<p class="cc-detail-content">${preview}</p>`;
+        if (author) {
+            bodyHtml += `<div class="cc-detail-author-block"><span class="cc-detail-author-name">${author}</span></div>`;
         }
+        if (severity) {
+            const sev = parseInt(severity);
+            let bars = '';
+            for (let i = 0; i < 10; i++) {
+                const color = i < sev ? (sev >= 7 ? 'var(--danger-500, #dc2626)' : sev >= 4 ? 'var(--warning-500, #d97706)' : 'var(--success-500, #16a34a)') : 'var(--gray-100, #f1f5f9)';
+                bars += `<div style="width:16px;height:6px;border-radius:2px;background:${color}"></div>`;
+            }
+            bodyHtml += `<div class="cc-detail-severity"><span>Severity:</span><div class="cc-severity-bars">${bars}</div><strong>${sev}/10</strong></div>`;
+        }
+        if (tags.length > 0) {
+            bodyHtml += `<div class="cc-detail-tags">${tags.map(t => `<span class="cc-tag-chip">${t}</span>`).join('')}</div>`;
+        }
+        if (detailUrl) {
+            bodyHtml += `<a href="${detailUrl}" class="cc-detail-link"><i class="bi bi-arrow-right"></i> View full detail</a>`;
+        }
+        body.innerHTML = bodyHtml;
+
+        overlay.classList.add('visible');
+        panel.classList.add('visible');
+    }
+
+    function closeDetail() {
+        document.getElementById('ccOverlay').classList.remove('visible');
+        document.getElementById('ccDetailPanel').classList.remove('visible');
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDetail();
     });
+
+    function toggleFavorite(type, id, event) {
+        event.stopPropagation();
+        let url;
+        if (type === 'wisdom') url = `/journal/learning-notes/${id}/toggle-favorite`;
+        else if (type === 'research') url = `/journal/entry/${id}/star`;
+        else return;
+
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success !== false) location.reload();
+            });
+    }
+
+    function deleteNote(type, id, event) {
+        event.stopPropagation();
+        if (!confirm('Are you sure you want to delete this item?')) return;
+        let url;
+        if (type === 'wisdom') url = `/journal/learning-notes/${id}/delete`;
+        else if (type === 'research') url = `/journal/entry/${id}/delete`;
+        else return;
+
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+            .then(() => location.reload());
+    }
 </script>
 {% endblock %}

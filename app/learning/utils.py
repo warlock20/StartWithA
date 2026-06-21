@@ -17,57 +17,11 @@
 from datetime import timedelta, date
 from sqlalchemy import func, and_
 from app import db
-from app.models import (MistakeLog, WeeklyReview, InvestmentPostMortem,
+from app.models import (MistakeLog, InvestmentPostMortem,
                        PatternRecognition, DecisionJournal,
-                       ResearchProject, IdeaPipeline, JournalEntry,
-                       ResearchLog, WorkSession, LearningNote)
+                       JournalEntry, LearningNote)
 import statistics
 from app.utils.time_utils import now_utc
-
-def get_weekly_metrics(user_id, week_start):
-    """
-    Calculate metrics for a specific week.
-    """
-    week_end = week_start + timedelta(days=6)
-    
-    # Ideas captured
-    ideas_captured = IdeaPipeline.query.filter(
-        IdeaPipeline.user_id == user_id,
-        IdeaPipeline.created_at >= week_start,
-        IdeaPipeline.created_at <= week_end
-    ).count()
-    
-    # Ideas killed
-    ideas_killed = IdeaPipeline.query.filter(
-        IdeaPipeline.user_id == user_id,
-        IdeaPipeline.status == 'killed',
-        IdeaPipeline.killed_at >= week_start,
-        IdeaPipeline.killed_at <= week_end
-    ).count()
-    
-    # Research hours
-    sessions = WorkSession.query.filter(
-        WorkSession.user_id == user_id,
-        WorkSession.start_time >= week_start,
-        WorkSession.start_time <= week_end
-    ).all()
-    
-    total_minutes = sum(s.duration_minutes or 0 for s in sessions)
-    research_hours = round(total_minutes / 60, 1)
-    
-    # Decisions made
-    decisions_made = DecisionJournal.query.filter(
-        DecisionJournal.user_id == user_id,
-        DecisionJournal.decision_date >= week_start,
-        DecisionJournal.decision_date <= week_end
-    ).count()
-    
-    return {
-        'ideas_captured': ideas_captured,
-        'ideas_killed': ideas_killed,
-        'research_hours': research_hours,
-        'decisions_made': decisions_made
-    }
 
 def identify_patterns(user_id):
     """
@@ -153,18 +107,7 @@ def calculate_learning_score(user_id):
     """
     score = 0
     factors = {}
-    
-    # Weekly reviews completed
-    total_weeks = 12  # Last 12 weeks
-    reviews_completed = WeeklyReview.query.filter(
-        WeeklyReview.user_id == user_id,
-        WeeklyReview.week_start >= now_utc().utcnow().date() - timedelta(weeks=12)
-    ).count()
-    
-    review_score = (reviews_completed / total_weeks) * 20
-    score += review_score
-    factors['weekly_reviews'] = f'{reviews_completed}/{total_weeks} weeks'
-    
+
     # Mistakes logged and reviewed
     mistakes = MistakeLog.query.filter_by(user_id=user_id).all()
     if mistakes:
@@ -225,70 +168,6 @@ def get_grade(score):
         return 'D'
     else:
         return 'F'
-
-def get_review_schedule(user_id):
-    """
-    Generate a review schedule for the user.
-    """
-    schedule = []
-    today = date.today()
-    
-    # Weekly review (every Sunday)
-    days_until_sunday = (6 - today.weekday()) % 7
-    if days_until_sunday == 0:
-        days_until_sunday = 7
-    next_weekly = today + timedelta(days=days_until_sunday)
-    
-    schedule.append({
-        'type': 'Weekly Review',
-        'date': next_weekly,
-        'status': 'upcoming',
-        'description': 'Review the week\'s activities and learnings',
-        'route': 'learning.weekly_review',
-    })
-
-    # Monthly postmortem (first Saturday of each month)
-    next_month = today.replace(day=1) + timedelta(days=32)
-    next_month = next_month.replace(day=1)
-    first_saturday = next_month + timedelta(days=(5 - next_month.weekday()) % 7)
-
-    schedule.append({
-        'type': 'Investment Postmortem',
-        'date': first_saturday,
-        'status': 'upcoming',
-        'description': 'Review closed positions and capture lessons',
-        'route': 'learning.postmortem_list',
-    })
-
-    # Quarterly pattern review
-    quarter_start = today.replace(day=1, month=((today.month - 1) // 3) * 3 + 1)
-    next_quarter = quarter_start + timedelta(days=92)
-
-    schedule.append({
-        'type': 'Quarterly Pattern Review',
-        'date': next_quarter,
-        'status': 'upcoming',
-        'description': 'Identify patterns in your investing behavior',
-        'route': 'learning.learning_dashboard',
-    })
-
-    # Check for overdue reviews
-    last_weekly = WeeklyReview.query.filter_by(user_id=user_id)\
-                                   .order_by(WeeklyReview.week_start.desc())\
-                                   .first()
-
-    if last_weekly:
-        weeks_since = (today - last_weekly.week_start).days // 7
-        if weeks_since > 1:
-            schedule.append({
-                'type': 'Overdue Weekly Review',
-                'date': today,
-                'status': 'overdue',
-                'description': f'Last review was {weeks_since} weeks ago',
-                'route': 'learning.weekly_review',
-            })
-    
-    return sorted(schedule, key=lambda x: x['date'])
 
 def generate_learning_recommendations(user_id):
     """

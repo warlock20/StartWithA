@@ -77,11 +77,9 @@ All complex components have been fully modularized.
 @import url('modules/_analytics-hub.css');        /* Analytics dashboard */
 @import url('modules/_journal-home.css');         /* Journal - Home & review queue pages */
 @import url('modules/_journal-search.css');       /* Journal - Knowledge hub search page */
-@import url('modules/_learning-dashboard.css');   /* Learning - Dashboard page */
 @import url('modules/_learning-mistakes.css');    /* Learning - Mistake log page */
 @import url('modules/_knowledge-library.css');    /* Knowledge Library - Insights & wisdom capture */
-@import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Unified research & wisdom */
-@import url('modules/_learning-weekly-review.css'); /* Learning - Weekly review page */
+@import url('modules/_knowledge-hub.css');        /* Knowledge Hub - Command Center */
 @import url('modules/_mental-models.css');        /* Mental models analysis (SWOT, Porter's 5 Forces) */
 @import url('modules/_mark-too-hard.css');        /* Mark company as too hard page */
 @import url('modules/_company-dashboard.css');    /* Company dashboard page */

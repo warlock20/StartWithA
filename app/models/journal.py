@@ -272,6 +272,7 @@ class LearningNote(db.Model):
 
     # Related entities
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    company = db.relationship('Company', backref='learning_notes')
     decision_id = db.Column(db.Integer, db.ForeignKey('decision_journal.id'))
 
     # Review and reinforcement
@@ -279,10 +280,6 @@ class LearningNote(db.Model):
     last_reviewed = db.Column(db.DateTime)
     importance = db.Column(db.Integer, default=5)  # 1-10 scale
     is_favorite = db.Column(db.Boolean, default=False)  # Star/favorite insights
-
-    # Spaced repetition
-    next_review_date = db.Column(db.Date)
-    review_interval_days = db.Column(db.Integer, default=7)
 
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
@@ -321,53 +318,6 @@ class JournalTemplate(db.Model):
 
     def __repr__(self):
         return f'<JournalTemplate {self.name}>'
-
-
-class WeeklyReview(db.Model):
-    """
-    Structured weekly reviews to maintain learning momentum.
-    """
-    __tablename__ = 'weekly_review'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    week_start = db.Column(db.Date, nullable=False)
-    week_end = db.Column(db.Date, nullable=False)
-
-    # Activities summary
-    ideas_captured = db.Column(db.Integer, default=0)
-    ideas_killed = db.Column(db.Integer, default=0)
-    research_hours = db.Column(db.Float, default=0)
-    decisions_made = db.Column(db.Integer, default=0)
-
-    # Reflections
-    biggest_win = db.Column(db.Text)
-    biggest_challenge = db.Column(db.Text)
-    key_learnings = db.Column(db.JSON)  # List of learnings
-
-    # Market observations
-    market_thoughts = db.Column(db.Text)
-    opportunities_identified = db.Column(db.JSON)  # List of opportunities
-    risks_identified = db.Column(db.JSON)  # List of risks
-
-    # Planning
-    next_week_priorities = db.Column(db.JSON)  # List of priorities
-    companies_to_research = db.Column(db.JSON)  # List of company IDs or names
-
-    # Accountability
-    last_week_goals_achieved = db.Column(db.JSON)  # What was accomplished
-    goals_completion_rate = db.Column(db.Integer)  # Percentage
-
-    # Sentiment tracking
-    confidence_level = db.Column(db.Integer)  # 1-10
-    market_sentiment = db.Column(db.String(50))  # 'bullish', 'bearish', 'neutral'
-
-    completed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=now_utc)
-
-    def __repr__(self):
-        return f'<WeeklyReview {self.week_start}>'
 
 
 class InvestmentPostMortem(db.Model):

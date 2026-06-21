@@ -40,9 +40,7 @@ FEATURE_TIERS = {
 
     # Knowledge
     'knowledge_hub': 'pro',
-    'learning_dashboard': 'pro',
     'mistake_log': 'pro',
-    'weekly_review': 'pro',
 }
 
 # Which tiers can see which feature levels
@@ -66,8 +64,7 @@ FEATURE_GROUPS = {
         'portfolio_intelligence', 'portfolio_journal',
     ],
     'knowledge_learning': [
-        'knowledge_hub', 'learning_dashboard',
-        'mistake_log', 'weekly_review',
+        'knowledge_hub', 'mistake_log',
     ],
 }
 
