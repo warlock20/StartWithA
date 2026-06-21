@@ -606,16 +606,16 @@ export function MarketSweep({ sectors, sweepId }) {
           {/* View Toggle */}
           <div className="sweep-view-toggle">
             <button
-              className={'portfolio-tab-btn' + (viewMode === 'focus' ? ' active' : '')}
+              className={'sweep-view-toggle__btn' + (viewMode === 'focus' ? ' active' : '')}
               onClick={() => setViewMode('focus')}
             >
-              <i className="bi bi-fire" /> Focus Mode
+              <i className="bi bi-lightning-charge-fill" /> Focus Mode
             </button>
             <button
-              className={'portfolio-tab-btn' + (viewMode === 'table' ? ' active' : '')}
+              className={'sweep-view-toggle__btn' + (viewMode === 'table' ? ' active' : '')}
               onClick={() => setViewMode('table')}
             >
-              <i className="bi bi-table" /> Table View
+              <i className="bi bi-list" /> Table View
             </button>
           </div>
 

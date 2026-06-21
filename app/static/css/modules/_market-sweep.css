@@ -613,11 +613,41 @@
     white-space: nowrap;
 }
 
-/* ── VIEW TOGGLE ───────────────────────────────── */
+/* ── VIEW TOGGLE (segmented control) ──────────── */
 .sweep-view-toggle {
-    display: flex;
-    gap: var(--space-sm);
+    display: inline-flex;
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+    padding: 3px;
+    gap: 2px;
     margin-bottom: var(--space-md);
+}
+
+.sweep-view-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--radius-md) - 2px);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.sweep-view-toggle__btn:hover {
+    color: var(--text-primary);
+}
+
+.sweep-view-toggle__btn.active {
+    background: var(--background-white);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* ── FOCUS MODE ────────────────────────────────── */
